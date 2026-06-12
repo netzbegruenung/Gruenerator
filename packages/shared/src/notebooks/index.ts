@@ -318,9 +318,9 @@ export const NOTEBOOK_REGISTRY = [
     id: 'hessen-notebook',
     title: 'Hessen',
     description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und die Regierungsprogramme der Grünen Hessen (Landesverband & Fraktion).',
+      'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion).',
     meta: 'Archiv',
-    tags: ['Hessen', 'Presse', 'Beschlüsse', 'Wahlprogramm'],
+    tags: ['Hessen', 'Presse', 'Beschlüsse'],
     order: 12,
     category: 'landesebene',
     audience: 'de-DE',
@@ -328,7 +328,7 @@ export const NOTEBOOK_REGISTRY = [
     mention: {
       alias: 'hessen',
       title: 'Grüne Hessen',
-      description: 'Presse, Beschlüsse und Regierungsprogramme Hessen',
+      description: 'Presse und Beschlüsse Hessen',
       avatar: '🦁',
       backgroundColor: '#316049',
     },

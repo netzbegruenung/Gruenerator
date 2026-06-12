@@ -116,6 +116,59 @@ describe('sharepicOpsToStatePatch', () => {
     );
   });
 
+  it('clamps element opacity to descriptor bounds (balken)', () => {
+    const result = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'update-element', elementId: 'balken', patch: { opacity: 0.05 } }],
+      {}
+    );
+    expect(result.patch.balkenOpacity).toBe(0.2);
+  });
+
+  it('gates background-image pan/zoom on an existing image', () => {
+    const noImage = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'update-element', elementId: 'hintergrundbild', patch: { scale: 1.5 } }],
+      {}
+    );
+    expect(noImage.rejected).toHaveLength(1);
+
+    const withImage = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'update-element', elementId: 'hintergrundbild', patch: { scale: 1.5, y: -200 } }],
+      { currentImageSrc: '/api/image-picker/stock-image/x.jpg' }
+    );
+    expect(withImage.patch.imageScale).toBe(1.5);
+    expect(withImage.patch.imageOffset).toEqual({ x: 0, y: -200 });
+  });
+
+  it('hides the info arrow via opacity but rejects moving it', () => {
+    const info = getSharepicTemplateDescriptor('info')!;
+    const hide = sharepicOpsToStatePatch(
+      info,
+      [{ kind: 'update-element', elementId: 'pfeil', patch: { opacity: 0 } }],
+      {}
+    );
+    expect(hide.patch.arrowOpacity).toBe(0);
+
+    const move = sharepicOpsToStatePatch(
+      info,
+      [{ kind: 'update-element', elementId: 'pfeil', patch: { y: 100 } }],
+      {}
+    );
+    expect(move.rejected[0].reason).toContain('nicht verschiebbar');
+  });
+
+  it('rejects color/rotation-only patches instead of silently applying nothing', () => {
+    const result = sharepicOpsToStatePatch(
+      dreizeilen,
+      [{ kind: 'update-element', elementId: 'balken', patch: { color: '#ff0000' } }],
+      {}
+    );
+    expect(result.applied).toHaveLength(0);
+    expect(result.rejected).toHaveLength(1);
+  });
+
   it('rejects set-color-scheme with unknown scheme ids', () => {
     const ops: CanvasAiOperation[] = [{ kind: 'set-color-scheme', schemeId: 'neon-pink' }];
     const result = sharepicOpsToStatePatch(dreizeilen, ops, {});
@@ -177,5 +230,29 @@ describe('buildSharepicSnapshot', () => {
     const balken = snapshot.elementsSummary.find((e) => e.id === 'balken');
     expect(balken?.label).toContain('x=12');
     expect(balken?.label).toContain('y=-48');
+  });
+
+  it('surfaces current font size, sunflower visibility and image presence', () => {
+    const descriptor = getSharepicTemplateDescriptor('dreizeilen')!;
+    const snapshot = buildSharepicSnapshot(descriptor, {
+      line1: 'GRÜN',
+      fontSize: 80,
+      sunflowerVisible: false,
+      balkenOpacity: 0.5,
+    });
+    expect(snapshot.textFields[0].label).toContain('80px');
+    expect(snapshot.elementsSummary.find((e) => e.id === 'sunflower')?.label).toContain(
+      'ausgeblendet'
+    );
+    expect(snapshot.elementsSummary.find((e) => e.id === 'balken')?.label).toContain('50%');
+    expect(snapshot.elementsSummary.find((e) => e.id === 'hintergrundbild')?.label).toContain(
+      'kein Bild'
+    );
+
+    const zitatSnapshot = buildSharepicSnapshot(getSharepicTemplateDescriptor('zitat-pure')!, {
+      quote: 'Q',
+      name: 'N',
+    });
+    expect(zitatSnapshot.textFields[0].label).toContain('automatisch');
   });
 });

@@ -10,20 +10,17 @@ import { BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { CitationTextRenderer, CitationSourcesDisplay } from '../../../components/common/Citation';
-import { mapMonitorCitations, useKeywordInsights } from '../hooks/useMonitor';
+import {
+  MONITOR_CITATION_LINK_CONFIG,
+  mapMonitorCitations,
+  useKeywordInsights,
+} from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 
 interface KeywordInsightsCardProps {
   locale: MonitorLocale;
 }
-
-const LINK_CONFIG = {
-  type: 'vectorDocument' as const,
-  basePath: '/documents',
-  linkKey: 'document_id',
-  titleKey: 'document_title',
-};
 
 export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
   const { data, isLoading } = useKeywordInsights(locale);
@@ -58,7 +55,7 @@ export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
               text={data.text}
               citations={citations}
               className="text-sm leading-relaxed"
-              linkConfig={LINK_CONFIG}
+              linkConfig={MONITOR_CITATION_LINK_CONFIG}
             />
 
             {citations.length > 0 && (
@@ -79,7 +76,7 @@ export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
                   <div className="mt-sm">
                     <CitationSourcesDisplay
                       citations={citations}
-                      linkConfig={LINK_CONFIG}
+                      linkConfig={MONITOR_CITATION_LINK_CONFIG}
                       title=""
                     />
                   </div>

@@ -1,3 +1,5 @@
+import { type RichTextDoc } from '@gruenerator/contracts';
+
 export interface SocialLinks {
   facebook?: string;
   twitter?: string;
@@ -17,7 +19,7 @@ export interface HeroSection {
 
 export interface AboutSection {
   title: string;
-  content: string;
+  content: RichTextDoc;
 }
 
 export interface HeroImageSection {
@@ -31,7 +33,7 @@ export interface ThemeCard {
   _key?: string;
   imageUrl: string;
   title: string;
-  content: string;
+  content: RichTextDoc;
 }
 
 export interface ThemesSection {
