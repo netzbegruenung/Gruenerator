@@ -38,6 +38,11 @@ import { extractTextContent } from './services/messageHelpers.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import {
+  handleReelEdit,
+  hasReelEditVerb,
+  isReelEditInstruction,
+} from './services/reelEditService.js';
+import {
   resolveModel,
   buildMessagesForAI,
   streamForResolution,
@@ -111,6 +116,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
         currentSharepic: rawCurrentSharepic,
+        currentReel: rawCurrentReel,
+        reelUpload: rawReelUpload,
       } = args.body;
 
       // === Stage 1: Classify ===
@@ -216,6 +223,47 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
+      }
+
+      // === Reel: chat subtitle editing of subtitler projects ===
+      // Three sub-flows in handleReelEdit: a composer-attached video kicks
+      // off auto-transcription; a reel-edit instruction without an attached
+      // reel streams a project picker; with a target it runs a text-only
+      // subtitle edit. Placed BEFORE the sharepic branch — its noun pattern
+      // includes "text" and would otherwise capture "Untertitel-Text ändern".
+      // Falls through (returns false) when no reel context exists and the
+      // phrasing isn't reel-specific ("Segment 2 kürzen" on a sharepic
+      // thread).
+      if (
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced
+      ) {
+        const reelText = (extractTextContent(lastUserMessage.content) || '').trim();
+        const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelText);
+        if (
+          rawReelUpload != null ||
+          (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed))
+        ) {
+          const handled = await handleReelEdit({
+            sse,
+            req,
+            threadId: actualThreadId,
+            userId,
+            instruction: reelText,
+            currentReel: rawCurrentReel ?? null,
+            reelUpload: rawReelUpload ?? null,
+            userLocale: initialState.userLocale || 'de-DE',
+            aiWorkerPool,
+            startTime: initialState.startTime,
+            ...(classifiedState.classificationTimeMs != null && {
+              classificationTimeMs: classifiedState.classificationTimeMs,
+            }),
+          });
+          if (handled) return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Sharepic edit: full NL editing of an existing chat sharepic ===

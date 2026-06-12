@@ -73,7 +73,23 @@ export const chatThreadCanvases = pgTable('chat_thread_canvases', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+/**
+ * Maps chat threads to the subtitler projects ("reels") edited in them.
+ * `is_active` marks the project the reel_edit branch targets when no
+ * explicit currentReel selection arrives with the request. Mirrors
+ * `migrations/create_chat_thread_reels.sql`.
+ */
+export const chatThreadReels = pgTable('chat_thread_reels', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  thread_id: uuid('thread_id').notNull(),
+  project_id: uuid('project_id').notNull(), // FK → subtitler_projects.id (ON DELETE CASCADE)
+  is_active: boolean('is_active').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export type ChatThread = InferSelectModel<typeof chatThreads>;
 export type ChatMessage = InferSelectModel<typeof chatMessages>;
 export type ChatThreadAttachment = InferSelectModel<typeof chatThreadAttachments>;
 export type ChatThreadCanvas = InferSelectModel<typeof chatThreadCanvases>;
+export type ChatThreadReel = InferSelectModel<typeof chatThreadReels>;
