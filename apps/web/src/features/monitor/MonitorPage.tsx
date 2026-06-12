@@ -122,7 +122,11 @@ function MonitorPage() {
             {isLoading && tab !== 'overview' && <LoadingSection />}
 
             {tab === 'overview' && (
-              <MonitorOverview locale={locale} onTopicClick={setSelectedTopic} />
+              <MonitorOverview
+                locale={locale}
+                onTopicClick={setSelectedTopic}
+                onShowWhatHappened={() => setTab('whatHappened')}
+              />
             )}
 
             {tab === 'umfragen' && <UmfragenView locale={locale} />}
