@@ -19,7 +19,7 @@ import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
-import { recordSyncEvent } from '../syncEventRecorder.js';
+import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
 import { removeUnwantedElements } from '../utils/htmlCleaner.js';
 
@@ -432,6 +432,7 @@ export class GruenblogScraper extends BaseScraper {
       sourceUrl: url,
       sourceGroupId: 'gruenblog',
       sourceName: 'Grünblog',
+      excerpt: toExcerpt(content.description || content.text),
       landesverband: null,
       collection: this.config.collectionName,
       eventType: existing ? 'updated' : 'stored',
