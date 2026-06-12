@@ -11,8 +11,17 @@
 import { type SyncEventInput } from '@gruenerator/contracts';
 
 const MAX_BUFFERED_EVENTS = 5000;
+const EXCERPT_MAX_CHARS = 300;
 
 let events: SyncEventInput[] = [];
+
+/** Normalize article text into a short single-line excerpt for the feed cards. */
+export function toExcerpt(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
+  return cleaned.length > EXCERPT_MAX_CHARS ? `${cleaned.slice(0, EXCERPT_MAX_CHARS)}…` : cleaned;
+}
 
 export function recordSyncEvent(event: Omit<SyncEventInput, 'indexedAt'>): void {
   if (events.length >= MAX_BUFFERED_EVENTS) return;

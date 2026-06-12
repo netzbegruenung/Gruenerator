@@ -86,17 +86,18 @@ export async function upsertSyncEvents(
     const params: unknown[] = [];
     for (let i = 0; i < chunk.length; i++) {
       const e = chunk[i];
-      const o = i * 11;
+      const o = i * 12;
       placeholders.push(
-        `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5}, $${o + 6}, $${o + 7}, ` +
-          `$${o + 8}::timestamptz, $${o + 9}::timestamptz, ` +
-          `($${o + 9}::timestamptz AT TIME ZONE 'UTC')::date, $${o + 10}, $${o + 11})`
+        `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5}, $${o + 6}, $${o + 7}, $${o + 8}, ` +
+          `$${o + 9}::timestamptz, $${o + 10}::timestamptz, ` +
+          `($${o + 10}::timestamptz AT TIME ZONE 'UTC')::date, $${o + 11}, $${o + 12})`
       );
       params.push(
         e.title,
         e.sourceUrl,
         e.sourceGroupId,
         e.sourceName,
+        e.excerpt,
         e.landesverband,
         e.collection,
         e.eventType,
@@ -109,11 +110,12 @@ export async function upsertSyncEvents(
 
     const result = await db().query(
       `INSERT INTO content_sync_articles
-         (title, source_url, source_group_id, source_name, landesverband, collection,
+         (title, source_url, source_group_id, source_name, excerpt, landesverband, collection,
           event_type, published_at, indexed_at, event_date, sync_run_id, sync_run_url)
        VALUES ${placeholders.join(', ')}
        ON CONFLICT (source_url, event_date) DO UPDATE SET
          title = EXCLUDED.title,
+         excerpt = COALESCE(EXCLUDED.excerpt, content_sync_articles.excerpt),
          event_type = CASE
            WHEN content_sync_articles.event_type = 'stored' THEN 'stored'
            ELSE EXCLUDED.event_type
@@ -286,7 +288,7 @@ async function buildDigestArticles(rows: ContentSyncArticleRow[]): Promise<Diges
     title: row.title,
     url: row.source_url,
     source: row.source_name,
-    excerpt: excerpts.get(row.source_url) ?? '',
+    excerpt: excerpts.get(row.source_url) ?? row.excerpt ?? '',
   }));
 }
 
@@ -296,6 +298,7 @@ function toArticle(row: ContentSyncArticleRow): WhatHappenedArticle {
     sourceUrl: row.source_url,
     sourceGroupId: row.source_group_id,
     sourceName: row.source_name,
+    excerpt: row.excerpt,
     landesverband: row.landesverband,
     collection: row.collection,
     eventType: row.event_type,
