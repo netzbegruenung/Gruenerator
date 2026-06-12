@@ -1,5 +1,7 @@
+import { meinungsbildResponseSchema } from '@gruenerator/contracts';
+
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import type { MeinungsbildData, MeinungsbildEstimate, MeinungsbildIssue } from './types.js';
 
@@ -83,14 +85,10 @@ function transformData(
 }
 
 export async function getMeinungsbild(): Promise<MeinungsbildData | null> {
-  try {
-    const cached = await redisClient.get(CACHE_KEY);
-    if (cached) {
-      log.info('Cache hit');
-      return JSON.parse(cached) as MeinungsbildData;
-    }
-  } catch {
-    // Fall through
+  const cached = await getCachedJson(CACHE_KEY, meinungsbildResponseSchema);
+  if (cached) {
+    log.info('Cache hit');
+    return cached;
   }
 
   const [rawIssues, rawEstimates] = await Promise.all([
@@ -113,11 +111,7 @@ export async function getMeinungsbild(): Promise<MeinungsbildData | null> {
     `Fetched ${data.issues.length} issues with estimates for ${Object.keys(data.estimates).length} topics`
   );
 
-  try {
-    await redisClient.set(CACHE_KEY, JSON.stringify(data), { EX: CACHE_TTL });
-  } catch {
-    // Non-critical
-  }
+  await setCachedJson(CACHE_KEY, data, CACHE_TTL);
 
   return data;
 }

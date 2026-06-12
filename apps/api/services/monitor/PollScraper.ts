@@ -4,8 +4,10 @@
  * Cached for 6 hours (polls update weekly).
  */
 
+import { pollDataSchema, type PollData, type PollResult } from '@gruenerator/contracts';
+
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { urlCrawler } from '../scrapers/implementations/UrlCrawler/index.js';
 
 const log = createLogger('PollScraper');
@@ -14,18 +16,7 @@ const POLL_URL = 'https://www.wahlrecht.de/umfragen/';
 const CACHE_KEY = 'monitor:polls';
 const CACHE_TTL = 6 * 60 * 60; // 6 hours
 
-export interface PollResult {
-  institute: string;
-  date: string;
-  parties: Record<string, number | null>;
-}
-
-export interface PollData {
-  polls: PollResult[];
-  lastElection: PollResult | null;
-  average: Record<string, number>;
-  scrapedAt: string;
-}
+export type { PollData, PollResult };
 
 const PARTY_ROW_NAMES = ['CDU/CSU', 'AfD', 'SPD', 'GRÜNE', 'DIE LINKE', 'BSW', 'FDP', 'Sonstige'];
 
@@ -163,13 +154,8 @@ function parsePollTable(html: string): PollData {
 }
 
 export async function getPolls(): Promise<PollData> {
-  // Check cache
-  try {
-    const cached = await redisClient.get(CACHE_KEY);
-    if (cached) return JSON.parse(cached) as PollData;
-  } catch {
-    // Fall through
-  }
+  const cached = await getCachedJson(CACHE_KEY, pollDataSchema);
+  if (cached) return cached;
 
   log.info('Scraping wahlrecht.de for Sonntagsfrage...');
 
@@ -181,12 +167,7 @@ export async function getPolls(): Promise<PollData> {
       `Scraped ${data.polls.length} institute polls, average Grüne: ${data.average['GRÜNE'] ?? '?'}%`
     );
 
-    // Cache
-    try {
-      await redisClient.set(CACHE_KEY, JSON.stringify(data), { EX: CACHE_TTL });
-    } catch {
-      // Non-critical
-    }
+    await setCachedJson(CACHE_KEY, data, CACHE_TTL);
 
     return data;
   } catch (error) {
