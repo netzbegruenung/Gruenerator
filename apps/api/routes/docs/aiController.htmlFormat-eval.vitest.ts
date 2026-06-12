@@ -159,7 +159,7 @@ const MODELS: ModelConfig[] = [
     skip: () => !process.env.MISTRAL_API_KEY,
   },
   {
-    name: 'gpt-oss:120b (LiteLLM)',
+    name: 'verdigado-pro (LiteLLM)',
     shortName: 'gpt-oss',
     provider: () =>
       createOpenAI({
@@ -167,7 +167,7 @@ const MODELS: ModelConfig[] = [
         apiKey: process.env.LITELLM_API_KEY ?? '',
         name: 'litellm',
       }),
-    modelId: 'gpt-oss:120b',
+    modelId: 'verdigado-pro',
     skip: () => !process.env.LITELLM_BASE_URL || !process.env.LITELLM_API_KEY,
   },
 ];
