@@ -8,4 +8,5 @@ export { HotTopicSection } from './HotTopicSection';
 export { SonntagsfrageSection } from './SonntagsfrageSection';
 export { TopArticlesSection } from './TopArticlesSection';
 export { TopThemenSection } from './TopThemenSection';
+export { WatcherSection } from './WatcherSection';
 export { WhatHappenedSection } from './WhatHappenedSection';
