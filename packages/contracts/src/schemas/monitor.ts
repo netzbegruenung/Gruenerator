@@ -9,6 +9,8 @@
  */
 import { z } from 'zod';
 
+import { contentSyncSourceSchema } from './contentSync.js';
+
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
 /** Audience locale for monitor data. Matches `MonitorLocale` in the API. */
@@ -300,6 +302,75 @@ export const monitorInstagramRefreshResponseSchema = z.object({
   posts: z.number(),
 });
 
+// ── "Was ist passiert" (content-sync article feed) ───────────────────────────
+
+/** Source groups that feed notebook collections; social-media is not recorded. */
+export const syncArticleSourceGroupSchema = contentSyncSourceSchema.exclude(['social-media']);
+export type SyncArticleSourceGroup = z.infer<typeof syncArticleSourceGroupSchema>;
+
+export const syncArticleEventTypeSchema = z.enum(['stored', 'updated']);
+export type SyncArticleEventType = z.infer<typeof syncArticleEventTypeSchema>;
+
+export const whatHappenedArticleSchema = z.object({
+  title: z.string(),
+  sourceUrl: z.string(),
+  sourceGroupId: syncArticleSourceGroupSchema,
+  sourceName: z.string(),
+  landesverband: z.string().nullable(),
+  collection: z.string(),
+  eventType: syncArticleEventTypeSchema,
+  publishedAt: z.string().nullable(),
+  indexedAt: z.string(),
+  syncRunUrl: z.string().nullable(),
+});
+export type WhatHappenedArticle = z.infer<typeof whatHappenedArticleSchema>;
+
+export const whatHappenedDaySchema = z.object({
+  /** ISO date 'YYYY-MM-DD' (UTC). */
+  date: z.string(),
+  counts: z.object({ stored: z.number(), updated: z.number() }),
+  articles: z.array(whatHappenedArticleSchema),
+});
+export type WhatHappenedDay = z.infer<typeof whatHappenedDaySchema>;
+
+export const whatHappenedResponseSchema = z.object({
+  days: z.array(whatHappenedDaySchema),
+  totalCount: z.number(),
+  /** Distinct values present in the window — feed the expert-mode filters. */
+  sourceGroups: z.array(syncArticleSourceGroupSchema),
+  landesverbaende: z.array(z.string()),
+});
+export type WhatHappenedResult = z.infer<typeof whatHappenedResponseSchema>;
+
+/** One recorded sync event, as POSTed by the content-sync run. */
+export const syncEventInputSchema = z.object({
+  title: z.string().min(1),
+  sourceUrl: z.string().min(1),
+  sourceGroupId: syncArticleSourceGroupSchema,
+  sourceName: z.string().min(1),
+  landesverband: z.string().nullable(),
+  collection: z.string().min(1),
+  eventType: syncArticleEventTypeSchema,
+  publishedAt: z.string().nullable(),
+  indexedAt: z.string(),
+});
+export type SyncEventInput = z.infer<typeof syncEventInputSchema>;
+
+export const internalSyncEventsBodySchema = z.object({
+  runId: z.string().nullable(),
+  runUrl: z.string().nullable(),
+  /** Force re-index runs: 'updated' events are dropped server-side. */
+  force: z.boolean(),
+  events: z.array(syncEventInputSchema).max(2000),
+});
+export type InternalSyncEventsBody = z.infer<typeof internalSyncEventsBodySchema>;
+
+export const internalSyncEventsResponseSchema = z.object({
+  success: z.boolean(),
+  received: z.number(),
+  upserted: z.number(),
+});
+
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 export const monitorErrorResponseSchema = z.object({
@@ -329,6 +400,15 @@ export const monitorSearchQuerySchema = z.object({
 export const pollsQuerySchema = z.object({
   parliament: z.string().optional(),
 });
+
+export const whatHappenedQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(30).optional(),
+  locale: monitorLocaleSchema.optional(),
+  sourceGroup: syncArticleSourceGroupSchema.optional(),
+  landesverband: z.string().optional(),
+  eventType: syncArticleEventTypeSchema.optional(),
+});
+export type WhatHappenedQuery = z.infer<typeof whatHappenedQuerySchema>;
 
 // ── Inferred response types (consumed by the frontend hooks) ─────────────────
 

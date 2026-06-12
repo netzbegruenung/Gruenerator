@@ -17,6 +17,7 @@ import {
 import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
+import { recordSyncEvent } from '../../../syncEventRecorder.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
 import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
@@ -167,6 +168,17 @@ export class DocumentProcessor {
       const batch = points.slice(i, i + batchSize);
       await batchUpsert(this.qdrantClient, targetCollection, batch);
     }
+
+    recordSyncEvent({
+      title: documentTitle,
+      sourceUrl: url,
+      sourceGroupId: 'landesverbaende',
+      sourceName: source.name,
+      landesverband: source.shortName,
+      collection: targetCollection,
+      eventType: existing ? 'updated' : 'stored',
+      publishedAt: publishedAt || null,
+    });
 
     return {
       stored: true,
