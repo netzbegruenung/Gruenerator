@@ -1,13 +1,37 @@
 import { type RichTextDoc } from '@gruenerator/contracts';
-import { siteRichTextExtensions } from '@gruenerator/contracts/sites-richtext';
 import { cn } from '@gruenerator/shared/utils';
-import { ListKeymap } from '@tiptap/extension-list';
+import { Bold } from '@tiptap/extension-bold';
+import { Document } from '@tiptap/extension-document';
+import { HardBreak } from '@tiptap/extension-hard-break';
+import { Heading } from '@tiptap/extension-heading';
+import { Italic } from '@tiptap/extension-italic';
+import { BulletList, ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
+import { Paragraph } from '@tiptap/extension-paragraph';
+import { Text } from '@tiptap/extension-text';
+import { Underline } from '@tiptap/extension-underline';
 import { CharacterCount, Placeholder, UndoRedo } from '@tiptap/extensions';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdFormatListNumbered } from 'react-icons/md';
 
 import '../../../styles/components/rich-text-editor.css';
+
+// Must stay aligned with the richtext Zod whitelist in
+// @gruenerator/contracts (schemas/richtext.ts) — anything the editor emits
+// outside that schema is rejected by the API on save.
+const siteRichTextExtensions = [
+  Document,
+  Paragraph,
+  Text,
+  HardBreak,
+  Bold,
+  Italic,
+  Underline,
+  Heading.configure({ levels: [2, 3] }),
+  BulletList,
+  OrderedList,
+  ListItem,
+];
 
 export interface RichTextEditorProps {
   value: RichTextDoc;

@@ -2,7 +2,7 @@
  * Public Site Controller - Renders public-facing site HTML pages
  */
 
-import { renderRichTextToHTMLString } from '@gruenerator/contracts/sites-richtext';
+import { renderRichTextToHTMLString } from '@gruenerator/contracts';
 import express, { type Response, type Router, type RequestHandler } from 'express';
 
 import {

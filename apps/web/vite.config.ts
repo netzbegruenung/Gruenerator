@@ -118,12 +118,6 @@ export default defineConfig(({ command }) => ({
       // This surfaced in CI as:
       //   "Rolldown failed to resolve import '@gruenerator/contracts'
       //    from packages/shared/src/api/contractsClient.ts"
-      // Subpath export must be listed BEFORE the bare alias — the bare
-      // src/ mapping would otherwise resolve it to a nonexistent path.
-      '@gruenerator/contracts/sites-richtext': path.resolve(
-        __dirname,
-        '../../packages/contracts/src/richtext/index.ts'
-      ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
       // alias (shared/avatar + shared/models re-export from @gruenerator/core).
@@ -176,7 +170,6 @@ export default defineConfig(({ command }) => ({
       '@tiptap/react',
       '@tiptap/core',
       '@tiptap/pm',
-      '@tiptap/static-renderer',
       '@assistant-ui/react',
       'recharts',
       'motion',

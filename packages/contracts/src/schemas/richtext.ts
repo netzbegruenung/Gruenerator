@@ -1,10 +1,10 @@
 /**
  * Rich-text content for the candidate-site builder, stored as a restricted
  * ProseMirror/Tiptap JSON document. The whitelist below is the single source
- * of truth for what the editor may produce and what the renderers accept;
- * the matching Tiptap extension list lives in `../richtext/index.ts`
- * (subpath export `@gruenerator/contracts/sites-richtext` — tiptap-free here
- * so this module stays safe for the mobile bundle).
+ * of truth for what renderers accept; the Tiptap editor config that produces
+ * these docs lives in packages/sites (RichTextEditor.tsx) and must stay
+ * aligned — anything outside this schema is rejected at the API boundary.
+ * This module is pure Zod/TS (no tiptap) and safe for every bundle.
  */
 import { z } from 'zod';
 
@@ -131,3 +131,62 @@ export const boundedRichTextDoc = (maxLength: number) =>
       });
     }
   });
+
+// ── HTML rendering (server-side) ─────────────────────────────────────────────
+// Hand-rolled over the closed schema instead of @tiptap/static-renderer so
+// contracts stays tiptap-free. The switches are exhaustive over the node/mark
+// unions: extending the schema fails compilation here until handled.
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function wrapWithMarks(marks: RichTextMark[] | undefined, html: string): string {
+  return (marks ?? []).reduce((acc, mark) => {
+    switch (mark.type) {
+      case 'bold':
+        return `<strong>${acc}</strong>`;
+      case 'italic':
+        return `<em>${acc}</em>`;
+      case 'underline':
+        return `<u>${acc}</u>`;
+      default: {
+        const exhaustive: never = mark.type;
+        return exhaustive;
+      }
+    }
+  }, html);
+}
+
+function renderNodeToHTML(node: RichTextNode): string {
+  const children = (node.content ?? []).map(renderNodeToHTML).join('');
+  switch (node.type) {
+    case 'text':
+      return wrapWithMarks(node.marks, escapeHtmlText(node.text ?? ''));
+    case 'hardBreak':
+      return '<br>';
+    case 'paragraph':
+      return `<p>${children}</p>`;
+    case 'heading':
+      return node.attrs?.['level'] === 2 ? `<h2>${children}</h2>` : `<h3>${children}</h3>`;
+    case 'bulletList':
+      return `<ul>${children}</ul>`;
+    case 'orderedList':
+      return `<ol>${children}</ol>`;
+    case 'listItem':
+      return `<li>${children}</li>`;
+    default: {
+      const exhaustive: never = node.type;
+      return exhaustive;
+    }
+  }
+}
+
+/** Doc → HTML string for server-side page rendering. Text is entity-escaped. */
+export function renderRichTextToHTMLString(doc: RichTextDoc): string {
+  return (doc.content ?? []).map(renderNodeToHTML).join('');
+}
