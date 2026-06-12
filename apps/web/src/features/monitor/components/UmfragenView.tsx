@@ -163,7 +163,8 @@ export function SonntagsfrageChart({
   subtitle,
 }: {
   parliament: string;
-  title: string;
+  /** Omit when an external header (e.g. SectionHeader) already labels the chart. */
+  title?: string;
   subtitle: string;
 }) {
   const { data, isLoading } = usePolls(parliament);
@@ -203,7 +204,7 @@ export function SonntagsfrageChart({
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-foreground-heading">{title}</h3>
+      {title && <h3 className="text-lg font-semibold text-foreground-heading">{title}</h3>}
       <p className="text-xs text-grey-500 mb-md">
         {subtitle}
         {polls.length > 0 && polls[0]?.date && (
