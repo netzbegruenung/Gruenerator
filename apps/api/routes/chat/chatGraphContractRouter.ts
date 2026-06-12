@@ -38,6 +38,7 @@ import { extractTextContent } from './services/messageHelpers.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import {
+  buildReelContextBlock,
   handleReelEdit,
   hasReelEditVerb,
   isReelEditInstruction,
@@ -263,6 +264,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             }),
           });
           if (handled) return { status: 200 as const, body: undefined };
+        }
+      }
+
+      // === Reel context: transcript for non-edit turns ===
+      // With a reel attached, every turn the edit branch did NOT claim gets
+      // the subtitle transcript injected as attachment context, so the normal
+      // pipeline can answer follow-ups about the video's content ("schreib
+      // mir einen Insta-Post dazu", "fass das zusammen"). Reels are short —
+      // a transcript is a few hundred tokens at most.
+      if (rawCurrentReel != null && userId) {
+        const reelContext = await buildReelContextBlock(userId, rawCurrentReel.projectId);
+        if (reelContext) {
+          classifiedState.attachmentContext = classifiedState.attachmentContext
+            ? `${classifiedState.attachmentContext}\n\n${reelContext}`
+            : reelContext;
         }
       }
 

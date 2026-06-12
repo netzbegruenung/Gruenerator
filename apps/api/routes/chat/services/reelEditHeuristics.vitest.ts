@@ -30,6 +30,12 @@ describe('isReelEditInstruction', () => {
     expect(isReelEditInstruction('mach zeile 2 kürzer')).toBe(false);
     expect(isReelEditInstruction('anderes hintergrundbild für das sharepic')).toBe(false);
   });
+
+  it('lets content-creation requests about the reel fall through', () => {
+    expect(isReelEditInstruction('schreib mir einen instagram post zu dem reel')).toBe(false);
+    expect(isReelEditInstruction('mach einen beitrag aus den untertiteln')).toBe(false);
+    expect(isReelEditInstruction('fasse das video zusammen')).toBe(false);
+  });
 });
 
 describe('hasStrongReelNoun', () => {
@@ -49,6 +55,12 @@ describe('hasReelEditVerb', () => {
 
   it('still rejects new-reel requests', () => {
     expect(hasReelEditVerb('erstelle ein neues reel')).toBe(false);
+  });
+
+  it('rejects content-creation requests even in Reel-Modus ("schreib" overlap)', () => {
+    expect(hasReelEditVerb('schreib mir einen insta-post dazu')).toBe(false);
+    expect(hasReelEditVerb('mach daraus einen linkedin beitrag')).toBe(false);
+    expect(hasReelEditVerb('schreib eine pressemitteilung dazu')).toBe(false);
   });
 
   it('rejects plain questions', () => {
