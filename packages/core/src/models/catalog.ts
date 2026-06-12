@@ -42,6 +42,8 @@ export interface ImageModelOption extends BaseModelOption {
   backend: ImageBackend;
   modelPath?: string;
   costMultiplier: number;
+  /** Max reference images per edit (FLUX.2 multi-reference). Absent = 1. */
+  maxReferenceImages?: number;
 }
 
 export interface ImageFamilyOption {
@@ -118,6 +120,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     backend: 'hosted',
     modelPath: '/v1/flux-2-pro',
     costMultiplier: 1,
+    maxReferenceImages: 8,
     icon: 'sparkles',
     region: 'eu',
   },
@@ -130,6 +133,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     backend: 'hosted',
     modelPath: '/v1/flux-2-klein-9b',
     costMultiplier: 0.5,
+    maxReferenceImages: 4,
     icon: 'zap',
     region: 'eu',
   },
@@ -142,6 +146,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     backend: 'hosted',
     modelPath: '/v1/flux-2-max',
     costMultiplier: 2,
+    maxReferenceImages: 8,
     icon: 'brain',
     region: 'eu',
   },
