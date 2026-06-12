@@ -98,8 +98,7 @@ function BilderSettingsMenu({
   onSettingChange,
   modelValue,
   onModelChange,
-  aspectRatio,
-  onAspectRatioChange,
+  format,
   kiLabel,
   onKiLabelChange,
 }: {
@@ -108,13 +107,12 @@ function BilderSettingsMenu({
   onSettingChange: (key: string, value: string) => void;
   modelValue: ImageModelId | null;
   onModelChange: (id: ImageModelId) => void;
-  aspectRatio: AspectRatio | null;
-  onAspectRatioChange: (aspect: AspectRatio) => void;
+  format: { config: SettingConfig; value: string; onChange: (value: string) => void } | null;
   kiLabel: KiLabelMode | null;
   onKiLabelChange: (value: KiLabelMode) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const hasSelectSections = settings.length > 0 || modelValue !== null || aspectRatio !== null;
+  const hasSelectSections = settings.length > 0 || modelValue !== null || format !== null;
   if (!hasSelectSections && kiLabel === null) return null;
 
   const selectModel = (id: ImageModelId) => {
@@ -191,16 +189,16 @@ function BilderSettingsMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       )}
-      {aspectRatio !== null && (
+      {format !== null && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            Format
-            {subHint(ASPECT_RATIO_CONFIG.options.find((o) => o.id === aspectRatio)?.label ?? null)}
+            {format.config.label ?? format.config.key}
+            {subHint(format.config.options.find((o) => o.id === format.value)?.label ?? null)}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            {ASPECT_RATIO_CONFIG.options.map((option) =>
-              desktopItem(option.id, option.label, option.id === aspectRatio, () =>
-                onAspectRatioChange(option.id as AspectRatio)
+            {format.config.options.map((option) =>
+              desktopItem(option.id, option.label, option.id === format.value, () =>
+                format.onChange(option.id)
               )
             )}
           </DropdownMenuSubContent>
@@ -267,14 +265,14 @@ function BilderSettingsMenu({
           )}
         </ResponsiveMenuSection>
       )}
-      {aspectRatio !== null && (
-        <ResponsiveMenuSection title="Format">
-          {ASPECT_RATIO_CONFIG.options.map((option) => (
+      {format !== null && (
+        <ResponsiveMenuSection title={format.config.label ?? format.config.key}>
+          {format.config.options.map((option) => (
             <ResponsiveMenuItem
               key={option.id}
-              active={option.id === aspectRatio}
+              active={option.id === format.value}
               onClick={() => {
-                onAspectRatioChange(option.id as AspectRatio);
+                format.onChange(option.id);
                 setOpen(false);
               }}
             >
@@ -340,6 +338,37 @@ const ASPECT_RATIO_CONFIG: SettingConfig = {
   ],
   multiple: false,
 };
+
+// Format for generation (erstellen): the variant's default size, a preset
+// ratio, or free pixel input.
+type CreateFormat = 'auto' | AspectRatio;
+
+const CREATE_FORMAT_CONFIG: SettingConfig = {
+  key: 'createFormat',
+  label: 'Format',
+  options: [{ id: 'auto', label: 'Automatisch' }, ...ASPECT_RATIO_CONFIG.options],
+  multiple: false,
+};
+
+// Pixel sizes per preset for /imagine/pure — multiples of 16 under its 4MP
+// cap; mirrors the outpaint target sizes on the server.
+const CREATE_ASPECT_DIMENSIONS: Record<
+  Exclude<AspectRatio, 'custom'>,
+  { width: number; height: number }
+> = {
+  '16:9': { width: 1600, height: 896 },
+  '4:3': { width: 1408, height: 1056 },
+  '1:1': { width: 1280, height: 1280 },
+  '3:4': { width: 1056, height: 1408 },
+  '9:16': { width: 896, height: 1600 },
+};
+
+// /imagine/pure rejects images over 4MP and requires sides in multiples of 16.
+const MAX_CREATE_AREA = 4_000_000;
+
+function roundTo16(n: number): number {
+  return Math.round(n / 16) * 16;
+}
 
 const MIN_CUSTOM_SIDE = 256;
 const MAX_CUSTOM_SIDE = 2048;
@@ -480,6 +509,7 @@ const BilderInner: React.FC = memo(() => {
           : hintergrundDef;
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [createFormat, setCreateFormat] = useState<CreateFormat>('auto');
   const [customWidth, setCustomWidth] = useState<number>(1280);
   const [customHeight, setCustomHeight] = useState<number>(1280);
   const [outpaintLoading, setOutpaintLoading] = useState(false);
@@ -491,7 +521,16 @@ const BilderInner: React.FC = memo(() => {
     customHeight >= MIN_CUSTOM_SIDE &&
     customHeight <= MAX_CUSTOM_SIDE &&
     customArea <= MAX_CUSTOM_AREA;
+  // Stricter than the outpaint rule: /imagine/pure caps at 4MP after the
+  // sides are rounded to multiples of 16.
+  const createCustomValid =
+    customWidth >= MIN_CUSTOM_SIDE &&
+    customWidth <= MAX_CUSTOM_SIDE &&
+    customHeight >= MIN_CUSTOM_SIDE &&
+    customHeight <= MAX_CUSTOM_SIDE &&
+    roundTo16(customWidth) * roundTo16(customHeight) <= MAX_CREATE_AREA;
   const [outpaintError, setOutpaintError] = useState<string | null>(null);
+  const [createSizeError, setCreateSizeError] = useState<string | null>(null);
 
   const [kiLabel, setKiLabelState] = useState<KiLabelMode>(readStoredKiLabel);
   const setKiLabel = useCallback((value: KiLabelMode) => {
@@ -723,6 +762,21 @@ const BilderInner: React.FC = memo(() => {
       if (modeState.variant) payload.variant = modeState.variant;
       if (modeState.imageModel) payload.imageModel = modeState.imageModel;
       if (kiLabel !== 'full') payload.kiLabel = kiLabel;
+      if (createFormat === 'custom') {
+        if (!createCustomValid) {
+          setCreateSizeError(
+            `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CREATE_AREA / 1_000_000} MP.`
+          );
+          return;
+        }
+        payload.width = roundTo16(customWidth);
+        payload.height = roundTo16(customHeight);
+      } else if (createFormat !== 'auto') {
+        const dims = CREATE_ASPECT_DIMENSIONS[createFormat];
+        payload.width = dims.width;
+        payload.height = dims.height;
+      }
+      setCreateSizeError(null);
       const result = await submitForm(payload);
       const usageFromResponse = (result as { usage?: UsageStatus })?.usage;
       if (usageFromResponse) setUsage(usageFromResponse);
@@ -749,6 +803,10 @@ const BilderInner: React.FC = memo(() => {
     modeState.variant,
     modeState.imageModel,
     kiLabel,
+    createFormat,
+    createCustomValid,
+    customWidth,
+    customHeight,
     setResult,
     createImageShare,
     queryClient,
@@ -1180,22 +1238,35 @@ const BilderInner: React.FC = memo(() => {
             isErstellen || isBearbeiten ? (selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID) : null
           }
           onModelChange={handleModelChange}
-          aspectRatio={isVergroessern ? aspectRatio : null}
-          onAspectRatioChange={setAspectRatio}
+          format={
+            isErstellen
+              ? {
+                  config: CREATE_FORMAT_CONFIG,
+                  value: createFormat,
+                  onChange: (val) => setCreateFormat(val as CreateFormat),
+                }
+              : isVergroessern
+                ? {
+                    config: ASPECT_RATIO_CONFIG,
+                    value: aspectRatio,
+                    onChange: (val) => setAspectRatio(val as AspectRatio),
+                  }
+                : null
+          }
           kiLabel={isHintergrund ? null : kiLabel}
           onKiLabelChange={setKiLabel}
         />
         {isBearbeiten && referencePillRow}
         {(isBegruenen || isHintergrund) && filePickerPill}
-        {isVergroessern && isCustomAspect && (
+        {((isVergroessern && isCustomAspect) || (isErstellen && createFormat === 'custom')) && (
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs',
-              customSizeValid
+              (isErstellen ? createCustomValid : customSizeValid)
                 ? 'border-grey-200 dark:border-grey-700 text-grey-700 dark:text-grey-300'
                 : 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400'
             )}
-            title={`${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CUSTOM_AREA / 1_000_000} MP`}
+            title={`${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${(isErstellen ? MAX_CREATE_AREA : MAX_CUSTOM_AREA) / 1_000_000} MP`}
           >
             <input
               type="number"
@@ -1235,6 +1306,8 @@ const BilderInner: React.FC = memo(() => {
       customWidth,
       customHeight,
       customSizeValid,
+      createFormat,
+      createCustomValid,
       erstellenDef?.settings,
       modeState,
       updateField,
@@ -1261,7 +1334,9 @@ const BilderInner: React.FC = memo(() => {
   const error = isErstellen
     ? createError
       ? String(createError)
-      : null
+      : createFormat === 'custom' && !createCustomValid
+        ? createSizeError
+        : null
     : isBearbeiten
       ? editError
       : isBegruenen
