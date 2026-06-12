@@ -9,7 +9,12 @@ import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('SharepicVariants');
 
 export const SHAREPIC_VARIANT_TYPES = ['dreizeilen', 'zitat', 'info'] as const;
-export type SharepicVariantType = (typeof SHAREPIC_VARIANT_TYPES)[number];
+/**
+ * `slider` is requestable via keyword ("als Karussell") but deliberately NOT
+ * part of the generic 3-variant fanout — a deck is a different artifact and
+ * runs through `generateSliderDeckVariant` instead.
+ */
+export type SharepicVariantType = (typeof SHAREPIC_VARIANT_TYPES)[number] | 'slider';
 
 /**
  * Keyword patterns that pin a sharepic request to a SPECIFIC variant.
@@ -23,6 +28,11 @@ export type SharepicVariantType = (typeof SHAREPIC_VARIANT_TYPES)[number];
  * request, so chart terms like "balkendiagramm" never reach this map.
  */
 const VARIANT_KEYWORDS: ReadonlyArray<{ type: SharepicVariantType; pattern: RegExp }> = [
+  {
+    // Checked first: "slides"/"folien" must win over the dreizeilen fallback.
+    type: 'slider',
+    pattern: /\b(sliders?|karussells?|carousels?|slides?|folien|insta[\s-]?slides?)\b/i,
+  },
   {
     type: 'zitat',
     pattern: /\b(zitat\w*|quotes?|spruch\w*|spruchbild|zitatbild|aussage|statement)\b/i,
@@ -64,7 +74,7 @@ export function extractSharepicTopic(rawText: string): string {
     .replace(/\b(erstelle?|erstell|mache?|generiere?|baue?|gib|zeige?|entwirf|brauche?)\b/gi, ' ')
     .replace(/\b(mir|bitte|ein|eine|einen|einem|das|den|die)\b/gi, ' ')
     .replace(
-      /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|zitat\w*|spruch\w*|dreizeiler|dreizeilen|drei[\s-]?zeilen|info\w*|slogan|balken)\b/gi,
+      /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|zitat\w*|spruch\w*|dreizeiler|dreizeilen|drei[\s-]?zeilen|info\w*|slogan|balken|sliders?|karussells?|carousels?|slides?|folien)\b/gi,
       ' '
     )
     .replace(/\b(über|ueber|zum\s+thema|thema|zu|zum|zur|für|fuer)\b/gi, ' ')
@@ -142,6 +152,10 @@ export interface SharepicVariant {
   label?: string;
   /** Accessibility description generated alongside the sharepic text (for screen readers / social posts). */
   altText?: string;
+  /** Set for deck variants, which are minted at generation time. */
+  canvasId?: string;
+  /** Per-slide states for deck variants (slider); cover state doubles as initialProps. */
+  pages?: Array<Record<string, unknown>>;
 }
 
 const CANVAS_TYPE_BY_SHAREPIC: Record<string, string> = {

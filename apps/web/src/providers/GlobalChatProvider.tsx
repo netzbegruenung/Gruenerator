@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import apiClient from '../components/utils/apiClient';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { uploadBlobToMediaLibrary } from '../features/image-studio/services/mediaUploadService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -152,7 +153,26 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       fetchSharepicState: async (canvasId: string) => {
         const result = await getContractsClient().canvas.getState({ params: { id: canvasId } });
         if (result.status !== 200) return null;
-        return { state: result.body.state, version: result.body.version };
+        return {
+          state: result.body.state,
+          version: result.body.version,
+          ...(result.body.pages ? { pages: result.body.pages } : {}),
+        };
+      },
+      downloadSharepicZip: async (images: string[], canvasType: string) => {
+        const response = await apiClient.post(
+          '/exports/zip',
+          { images, canvasType },
+          { responseType: 'blob' }
+        );
+        const url = URL.createObjectURL(response.data as Blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `gruenerator-${canvasType}-${Date.now()}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       },
       fetchSharepicVersions: async (canvasId: string) => {
         const result = await getContractsClient().canvas.listVersions({
