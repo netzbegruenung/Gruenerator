@@ -5,6 +5,7 @@ import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
+import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 
 import type {
@@ -26,7 +27,12 @@ import type {
   StreamMetadata,
   ProgressStep,
 } from '../../hooks/useChatGraphStream';
-import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
+import type {
+  ConfirmActionData,
+  DocumentCreatedData,
+  ReelPickerData,
+  ReelProcessingData,
+} from '../../types/messageMetadata';
 
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
@@ -106,6 +112,8 @@ export async function* parseSSEStream(
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
   let receivedCreatedDocument: DocumentCreatedData | null = null;
+  let receivedReelProcessing: ReelProcessingData | null = null;
+  let receivedReelPicker: ReelPickerData | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [];
   let interruptPending = false;
@@ -167,6 +175,8 @@ export async function* parseSSEStream(
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
+    if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
+    if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -463,6 +473,46 @@ export async function* parseSSEStream(
         case 'sharepic_edit_error': {
           const { error } = data as { variantId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
+          break;
+        }
+
+        case 'reel_processing': {
+          receivedReelProcessing = data as { uploadId: string; filename: string };
+          yield buildResult();
+          break;
+        }
+
+        case 'reel_picker': {
+          receivedReelPicker = data as ReelPickerData;
+          yield buildResult();
+          break;
+        }
+
+        case 'reel_updated': {
+          const payload = data as {
+            projectId: string;
+            title: string;
+            segments: Array<{ id: number; startTime: number; endTime: number; text: string }>;
+            summary: string;
+            changedIndices: number[];
+          };
+          const reelStore = useReelLiveStore.getState();
+          reelStore.upsertEntry(payload.projectId, {
+            title: payload.title,
+            segments: payload.segments,
+            summary: payload.summary,
+            changedIndices: payload.changedIndices,
+          });
+          // Auto-open the docked panel on the edited reel.
+          if (reelStore.activeReel?.projectId !== payload.projectId) {
+            reelStore.setActiveReel({ projectId: payload.projectId, title: payload.title });
+          }
+          break;
+        }
+
+        case 'reel_edit_error': {
+          const { error } = data as { projectId?: string; error: string };
+          console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
           break;
         }
 
