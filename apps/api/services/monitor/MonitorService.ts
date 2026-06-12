@@ -1,15 +1,16 @@
 import { randomUUID } from 'crypto';
 
+import { monitorSnapshotSchema } from '@gruenerator/contracts';
+
 import { monitorSnapshots, type MonitorSnapshotRow } from '../../database/schema/monitor.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { classifyArticles } from '../nlp/nlpClient.js';
 
-import { generateKeywordInsights } from './KeywordInsightsGraph.js';
-import { generateMonitorBriefing } from './MonitorBriefingGraph.js';
+import { getHotTopicAnalysis } from './HotTopicPipeline.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
 import { getPolls } from './PollScraper.js';
@@ -172,32 +173,21 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
 
   // Cache snapshot in Redis. Non-fatal: DB still has canonical data, but a
   // failure here means /monitor/latest pays the rebuild cost on every request.
-  try {
-    await redisClient.set(REDIS_SNAPSHOT_KEY, JSON.stringify(snapshot), { EX: REDIS_TTL_SECONDS });
-  } catch (error) {
-    log.error(`Failed to cache snapshot in Redis: ${toError(error).message}`);
-  }
+  await setCachedJson(REDIS_SNAPSHOT_KEY, snapshot, REDIS_TTL_SECONDS);
 
   const warmTasks: Array<{ name: string; run: () => Promise<unknown> }> = [];
-
-  if (keywords.length > 0) {
-    for (const locale of ['de', 'at'] as const) {
-      warmTasks.push({
-        name: `keyword-insights:${locale}`,
-        run: () => generateKeywordInsights(keywords, locale),
-      });
-    }
-  }
 
   warmTasks.push({ name: 'polls', run: () => getPolls() });
 
   for (const locale of ['de', 'at'] as const) {
     warmTasks.push({
-      name: `briefing:${locale}`,
+      name: `hot-topic:${locale}`,
       run: async () => {
-        const [snap, polls] = await Promise.all([getLatestSnapshot(locale), getPolls()]);
+        const snap = await getLatestSnapshot(locale);
         if (!snap) throw new Error('no snapshot available');
-        return generateMonitorBriefing(locale, snap, polls?.average ?? {});
+        // Cache is fingerprinted on the hot topic, so this regenerates exactly
+        // when the dominant story changed.
+        return getHotTopicAnalysis(locale, snap);
       },
     });
   }
@@ -351,12 +341,8 @@ async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> 
 export async function getLatestSnapshot(locale?: MonitorLocale): Promise<MonitorSnapshot | null> {
   // Try Redis cache first
   if (!locale) {
-    try {
-      const cached = await redisClient.get(REDIS_SNAPSHOT_KEY);
-      if (cached) return JSON.parse(cached) as MonitorSnapshot;
-    } catch (error) {
-      log.warn(`Redis snapshot read failed, falling back to DB: ${toError(error).message}`);
-    }
+    const cached = await getCachedJson(REDIS_SNAPSHOT_KEY, monitorSnapshotSchema);
+    if (cached) return cached;
   }
 
   // Rebuild from DB
@@ -417,13 +403,7 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
     }
 
     // Cache for next time
-    try {
-      await redisClient.set(REDIS_SNAPSHOT_KEY, JSON.stringify(snapshot), {
-        EX: REDIS_TTL_SECONDS,
-      });
-    } catch (error) {
-      log.warn(`Failed to repopulate Redis snapshot cache: ${toError(error).message}`);
-    }
+    await setCachedJson(REDIS_SNAPSHOT_KEY, snapshot, REDIS_TTL_SECONDS);
 
     return snapshot;
   } catch (error) {

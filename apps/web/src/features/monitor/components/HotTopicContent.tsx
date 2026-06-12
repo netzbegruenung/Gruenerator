@@ -74,11 +74,11 @@ export function HotTopicContent({
         {documents.length > 0 ? (
           <>
             <DocumentCard
-              title={documents[docs.idx].document_title}
+              title={documents[docs.idx].title}
               excerpt={documents[docs.idx].relevant_content?.slice(0, 200)}
-              sourceUrl={documents[docs.idx].source_url}
-              sourceName={documents[docs.idx].collection_name}
-              sourceColor={COLLECTION_COLORS[documents[docs.idx].collection_name]}
+              sourceUrl={documents[docs.idx].source_url ?? ''}
+              sourceName={documents[docs.idx].collection_name ?? ''}
+              sourceColor={COLLECTION_COLORS[documents[docs.idx].collection_name ?? '']}
             />
             <DotIndicators count={documents.length} activeIdx={docs.idx} onSelect={docs.setIdx} />
           </>

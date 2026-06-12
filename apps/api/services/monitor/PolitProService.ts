@@ -1,7 +1,8 @@
+import { pollDataSchema } from '@gruenerator/contracts';
 import * as cheerio from 'cheerio';
 
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import type { PollData, PollResult } from './PollScraper.js';
 
@@ -106,6 +107,13 @@ export interface PolitProPollData extends PollData {
   parliament: string;
   trend: Record<string, Array<{ date: string; value: number }>>;
 }
+
+/** Cache shape: the contract poll schema with the PolitPro extras required. */
+const politProPollDataSchema = pollDataSchema.required({
+  source: true,
+  parliament: true,
+  trend: true,
+});
 
 function toExtendedPollData(
   data: PolitProResponse,
@@ -221,17 +229,12 @@ export async function getPolitProPolls(
 
   const cacheKey = `monitor:politpro:${parliament}`;
 
-  try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      const parsed = JSON.parse(cached) as PolitProPollData;
-      log.info(
-        `[getPolitProPolls] Cache hit (${parliament}): ${parsed.polls.length} polls, first poll date: ${parsed.polls[0]?.date ?? 'none'}, institute: ${parsed.polls[0]?.institute ?? 'none'}`
-      );
-      return parsed;
-    }
-  } catch {
-    // Fall through
+  const cached = await getCachedJson(cacheKey, politProPollDataSchema);
+  if (cached) {
+    log.info(
+      `[getPolitProPolls] Cache hit (${parliament}): ${cached.polls.length} polls, first poll date: ${cached.polls[0]?.date ?? 'none'}, institute: ${cached.polls[0]?.institute ?? 'none'}`
+    );
+    return cached;
   }
 
   const year = new Date().getFullYear();
@@ -254,11 +257,7 @@ export async function getPolitProPolls(
     `[getPolitProPolls] Final result (${parliament}): ${result.polls.length} polls, ${Object.keys(result.average).length} parties`
   );
 
-  try {
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: CACHE_TTL });
-  } catch {
-    // Non-critical
-  }
+  await setCachedJson(cacheKey, result, CACHE_TTL);
 
   return result;
 }

@@ -170,6 +170,14 @@ export function isProviderConfigured(provider: ProviderName | string): boolean {
 }
 
 /**
+ * Preferred provider for background monitor generation: litellm (gpt-oss)
+ * when configured, Mistral otherwise.
+ */
+export function getPreferredMonitorProvider(): ProviderName {
+  return isProviderConfigured('litellm') ? 'litellm' : 'mistral';
+}
+
+/**
  * Get a language model instance for the specified provider and model
  */
 export function getModel(provider: ProviderName | string, modelId?: string): LanguageModel {

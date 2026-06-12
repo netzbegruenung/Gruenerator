@@ -115,62 +115,64 @@ export const monitorSearchResponseSchema = z.object({
   articles: z.array(monitorArticleSchema),
 });
 
-// ── Keyword insights (RAG over party positions) ──────────────────────────────
+// ── Hot-topic analysis (shared briefing + positions pipeline) ────────────────
+
+export const monitorConfidenceSchema = z.enum(['high', 'medium', 'low']);
+export type MonitorConfidence = z.infer<typeof monitorConfidenceSchema>;
+
+export const monitorCitationSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: z.string(),
+  snippet: z.string(),
+});
+export type MonitorCitation = z.infer<typeof monitorCitationSchema>;
+
+export const monitorTweetSchema = z.object({
+  text: z.string(),
+  topic: z.string(),
+  hashtags: z.array(z.string()),
+});
+
+/**
+ * Combined result of the hot-topic pipeline (one research run feeding the
+ * briefing, the tweets and the positions card). This is the redis-cached
+ * shape; the briefing and keyword-insights endpoints each return a slice.
+ */
+export const monitorHotTopicAnalysisSchema = z.object({
+  dominantTopic: z.string(),
+  secondaryTopics: z.array(z.string()),
+  briefing: z.string(),
+  tweets: z.array(monitorTweetSchema),
+  /** Positions prose with [cite:N] markers for CitationTextRenderer. */
+  positionsText: z.string(),
+  citations: z.array(monitorCitationSchema),
+  confidence: monitorConfidenceSchema,
+  generatedAt: z.string(),
+  /** Identity of the source snapshot (topic bucket + top article URLs); a cache hit is only valid while it matches. */
+  sourceFingerprint: z.string(),
+});
+export type MonitorHotTopicAnalysis = z.infer<typeof monitorHotTopicAnalysisSchema>;
+
+// ── Keyword insights (positions slice of the hot-topic analysis) ─────────────
 
 export const keywordInsightsResponseSchema = z.object({
   text: z.string(),
   dominantTopic: z.string(),
   secondaryTopics: z.array(z.string()),
-  citations: z.array(
-    z.object({
-      index: z.string(),
-      cited_text: z.string(),
-      document_title: z.string(),
-      document_id: z.string(),
-      source_url: z.string().nullable(),
-      similarity_score: z.number(),
-      chunk_index: z.number(),
-      collection_id: z.string().optional(),
-      collection_name: z.string().optional(),
-    })
-  ),
-  sources: z.array(
-    z.object({
-      document_id: z.string(),
-      document_title: z.string(),
-      source_url: z.string().nullable(),
-    })
-  ),
-  confidence: z.string(),
+  citations: z.array(monitorCitationSchema),
+  confidence: monitorConfidenceSchema,
+  generatedAt: z.string(),
 });
 
-// ── AI briefing ──────────────────────────────────────────────────────────────
+// ── AI briefing (briefing slice of the hot-topic analysis) ───────────────────
 
 export const monitorBriefingResponseSchema = z.object({
   briefing: z.string(),
-  tweets: z.array(
-    z.object({
-      text: z.string(),
-      topic: z.string(),
-      hashtags: z.array(z.string()),
-    })
-  ),
+  tweets: z.array(monitorTweetSchema),
   generatedAt: z.string(),
-  /**
-   * Optional citations consumed by MonitorOverview. The current backend does
-   * not emit them, but the field is kept so the UI can render them if a future
-   * briefing variant attaches grounding.
-   */
-  citations: z
-    .array(
-      z.object({
-        id: z.string(),
-        title: z.string(),
-        url: z.string(),
-        snippet: z.string(),
-      })
-    )
-    .optional(),
+  // Optional for backward compatibility with cached pre-pipeline responses.
+  citations: z.array(monitorCitationSchema).optional(),
 });
 
 // ── Polls ──────────────────────────────────────────────────────────────────
