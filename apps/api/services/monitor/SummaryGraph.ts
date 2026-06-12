@@ -304,6 +304,100 @@ function linkPost(summaryText: string, facts: ExtractedFact[]): string {
   return text;
 }
 
+// ─── Day digest (content-sync feed) ──────────────────────────────────
+
+export interface DigestArticle {
+  title: string;
+  url: string;
+  /** Display source, e.g. "Grüne Berlin" or "KommunalWiki". */
+  source: string;
+  excerpt: string;
+}
+
+async function extractDigestFacts(articles: DigestArticle[]): Promise<ExtractedFact[]> {
+  const top = articles.slice(0, 15);
+  const formatted = top
+    .map((a) => `Titel: ${a.title}\nURL: ${a.url}\nQuelle: ${a.source}\n${a.excerpt}`)
+    .join('\n---\n');
+
+  try {
+    const result = await generateObject({
+      model: getModel(getPreferredMonitorProvider()),
+      schema: ExtractionResultSchema,
+      system: `Du extrahierst Kernaussagen aus neuen Inhalten grüner Quellen (Landesverbände, Grünblog, Bundestagsfraktion, KommunalWiki, Böll-Stiftung).
+
+REGELN:
+- Extrahiere NUR Aussagen, die WÖRTLICH im Text stehen
+- "actor" ist die Quelle bzw. der handelnde Verband (z.B. "Grüne Berlin"), oder eine im Text genannte Person — ERFINDE NIEMALS Namen oder Funktionen
+- Jeder Fakt muss eine sourceUrl haben
+- Maximal 10 Fakten, die inhaltlich wichtigsten zuerst`,
+      prompt: `Extrahiere die wichtigsten Aussagen aus diesen ${top.length} neu aufgenommenen Inhalten:\n\n${formatted}`,
+      temperature: 0.1,
+    });
+    log.info(`DigestExtract: ${result.object.facts.length} facts from ${top.length} articles`);
+    return result.object.facts;
+  } catch (error) {
+    log.error(`DigestExtract failed: ${error}`);
+    return [];
+  }
+}
+
+async function synthesizeDigest(facts: ExtractedFact[], articleCount: number): Promise<string> {
+  const factsFormatted = facts
+    .map((f) => `- ${f.actor}: ${f.action} (${f.context}) [${f.sourceName}]`)
+    .join('\n');
+
+  const result = await generateText({
+    model: getModel(getPreferredMonitorProvider()),
+    system: `Du fasst neue Inhalte aus grünen Quellen für Parteimitglieder zusammen. Schreibe auf Deutsch mit Genderstern (*).
+
+WICHTIG:
+- Verwende NUR die unten genannten Fakten. Erfinde NICHTS dazu.
+- Erfinde NIEMALS Vornamen oder Funktionen zu Namen.`,
+    prompt: `Schreibe eine kompakte Tageszusammenfassung der neu in die Wissensdatenbank aufgenommenen Inhalte (${articleCount} Artikel) basierend auf diesen Fakten:
+
+${factsFormatted}
+
+Regeln:
+- Max 150 Wörter, kurze Absätze (2-3 Sätze)
+- Setze wichtige **Quellen/Verbände** und **Schlüsselbegriffe** fett
+- Sachlich-informativ, kein Marketing-Ton
+- Fließtext, keine Aufzählungen oder Überschriften`,
+    temperature: 0.3,
+    maxOutputTokens: 1500,
+  });
+
+  log.info(`DigestSynthesize: ${result.text.split(/\s+/).length} words`);
+  return result.text;
+}
+
+/**
+ * Summary of one day's content-sync additions ("Was ist passiert" tab).
+ * Same shape as the entity pipeline: extract → synthesize → deterministic
+ * source linking; falls back to a plain title list if the LLM steps fail.
+ */
+export async function generateDayDigest(articles: DigestArticle[]): Promise<string> {
+  const fallback = () =>
+    articles
+      .slice(0, 8)
+      .map((a) => `- [${a.title}](${a.url}) (${a.source})`)
+      .join('\n');
+
+  try {
+    // Drop placeholder facts (no real action or no resolvable source) — they
+    // produce meta-prose and broken `[x]()` links downstream.
+    const facts = (await extractDigestFacts(articles)).filter(
+      (f) => f.action.length > 5 && f.sourceUrl.startsWith('http')
+    );
+    if (facts.length === 0) return fallback();
+    const text = await synthesizeDigest(facts, articles.length);
+    return linkPost(text, facts) || fallback();
+  } catch (error) {
+    log.error(`DayDigest failed: ${error}`);
+    return fallback();
+  }
+}
+
 // ─── Public API ──────────────────────────────────────────────────────
 
 export interface EntitySummaryGraphResult {
