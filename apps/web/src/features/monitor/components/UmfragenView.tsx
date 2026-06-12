@@ -59,18 +59,6 @@ function findGrueneValue(average: Record<string, number>): number | null {
   return null;
 }
 
-function findGrueneTrend(
-  trend?: Record<string, Array<{ date: string; value: number }>>
-): number | null {
-  if (!trend) return null;
-  for (const [k, data] of Object.entries(trend)) {
-    if (isGruene(k) && data.length >= 2) {
-      return Math.round((data[data.length - 1].value - data[data.length - 2].value) * 10) / 10;
-    }
-  }
-  return null;
-}
-
 function TrendBadge({ diff }: { diff: number | null }) {
   if (diff == null || diff === 0) return <Minus className="h-3 w-3 text-grey-400" />;
   return (
@@ -90,22 +78,26 @@ function PartyColumn({
   max,
   label,
   trendData,
+  officialDiff,
 }: {
   value: number | null;
   color: string;
   max: number;
   label: string;
   trendData?: Array<{ date: string; value: number }>;
+  /** Official week-over-week change from the PolitPro API, when available. */
+  officialDiff?: number;
 }) {
   const height = value != null && max > 0 ? (value / max) * 100 : 0;
   const isG = isGruene(label);
 
-  const weekChange =
+  const computedChange =
     trendData && trendData.length >= 2
       ? Math.round(
           (trendData[trendData.length - 1].value - trendData[trendData.length - 2].value) * 10
         ) / 10
       : null;
+  const weekChange = officialDiff ?? computedChange;
 
   return (
     <div className={`flex flex-col items-center gap-0.5 w-12 shrink-0 ${isG ? 'relative' : ''}`}>
@@ -162,7 +154,9 @@ export function SonntagsfrageChart({
       <p className="text-xs text-grey-500 mb-md">
         {subtitle}
         {data.polls.length > 1 && data.polls[0]?.date && (
-          <span className="ml-sm text-grey-400">Letzte Umfrage: {data.polls[0].date}</span>
+          <span className="ml-sm text-grey-400">
+            Letzte Umfrage: {formatPollDate(data.polls[0].date)}
+          </span>
         )}
       </p>
 
@@ -175,6 +169,7 @@ export function SonntagsfrageChart({
             max={maxAvg}
             label={party}
             trendData={data.trend?.[party]}
+            officialDiff={data.diffs?.[party]}
           />
         ))}
       </div>
@@ -192,18 +187,35 @@ export function SonntagsfrageChart({
               </AccordionTrigger>
               <AccordionContent className="px-md">
                 <div className="space-y-md">
-                  {data.polls.map((poll, i) => {
+                  {data.polls.map((poll) => {
                     const pollMax = Math.max(
                       ...Object.values(poll.parties).filter((v): v is number => v != null),
                       1
                     );
                     return (
-                      <div key={`${poll.institute}-${i}`}>
+                      <div key={`${poll.institute}-${poll.date}`}>
                         <div className="flex items-center justify-between mb-xs">
-                          <span className="text-xs font-medium text-foreground">
-                            {poll.institute}
+                          <span className="flex items-baseline gap-xs min-w-0">
+                            <span className="text-xs font-medium text-foreground truncate">
+                              {poll.institute}
+                            </span>
+                            {poll.instituteScore != null && (
+                              <span
+                                className="text-[9px] text-grey-400 shrink-0"
+                                title="PolitPro Score: Zuverlässigkeit des Instituts (0–100)"
+                              >
+                                Score {poll.instituteScore}
+                              </span>
+                            )}
                           </span>
-                          <span className="text-[11px] text-grey-400">{poll.date}</span>
+                          <span className="text-[11px] text-grey-400 shrink-0">
+                            {poll.sampleSize != null && (
+                              <span className="mr-xs">
+                                n={poll.sampleSize.toLocaleString('de-DE')}
+                              </span>
+                            )}
+                            {formatPollDate(poll.date)}
+                          </span>
                         </div>
                         <div className="space-y-0.5">
                           {partyOrder.map((party) => {
@@ -308,7 +320,6 @@ function LandCard({
 }) {
   const { data } = usePolls(id);
   const grueneValue = data ? findGrueneValue(data.average) : null;
-  const grueneTrend = data ? findGrueneTrend(data.trend) : null;
   // Only show date if we have real institute polls (not just the interpolated PolitPro aggregate)
   const lastDate = data && data.polls.length > 1 ? data.polls[0]?.date : undefined;
 
@@ -351,6 +362,8 @@ function useSortedLaender() {
     return { ...land, data };
   });
 
+  const dataFingerprint = pollResults.map((q) => q.data?.scrapedAt).join();
+
   return useMemo(() => {
     return [...pollResults].sort((a, b) => {
       const aVal = a.data ? (findGrueneValue(a.data.average) ?? 0) : 0;
@@ -358,7 +371,7 @@ function useSortedLaender() {
       return bVal - aVal;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pollResults.map((q) => q.data?.scrapedAt).join()]);
+  }, [dataFingerprint]);
 }
 
 export function UmfragenView({ locale }: UmfragenViewProps) {

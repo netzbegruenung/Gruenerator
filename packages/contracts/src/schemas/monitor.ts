@@ -183,6 +183,10 @@ export const pollResultSchema = z.object({
   institute: z.string(),
   date: z.string(),
   parties: z.record(z.string(), z.number().nullable()),
+  // Present only when the official PolitPro API served the poll.
+  sampleSize: z.number().nullable().optional(),
+  /** PolitPro institute accuracy score (0–100), when published. */
+  instituteScore: z.number().nullable().optional(),
 });
 
 export const pollDataSchema = z.object({
@@ -196,6 +200,8 @@ export const pollDataSchema = z.object({
   trend: z
     .record(z.string(), z.array(z.object({ date: z.string(), value: z.number() })))
     .optional(),
+  /** Official week-over-week change per party (official PolitPro API only). */
+  diffs: z.record(z.string(), z.number()).optional(),
 });
 
 export const pollParliamentSchema = z.object({

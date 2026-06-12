@@ -1,6 +1,18 @@
+/**
+ * Polling data via the official PolitPro API (politpro.eu/api/v1, Bearer
+ * token, 30 req/min, recommended update interval 12h).
+ *
+ * The previous unofficial sources (undocumented JSON endpoint + HTML
+ * scraping) were shut down by PolitPro and have been removed. Sub-national
+ * parliaments (Bundesländer, AT-Länder) are documented but currently rejected
+ * for our token ("Parliament not found or not supported"), so each parliament
+ * is probed and negative-cached for 12h; they start working automatically
+ * once PolitPro unlocks them for our plan.
+ */
 import { pollDataSchema } from '@gruenerator/contracts';
-import * as cheerio from 'cheerio';
+import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
@@ -8,28 +20,10 @@ import type { PollData, PollResult } from './PollScraper.js';
 
 const log = createLogger('PolitPro');
 
-const SITE_URL = 'https://politpro.eu/de';
-const API_URL = 'https://politpro.eu/de/data';
-const CACHE_TTL = 6 * 60 * 60;
+const API_BASE_URL = 'https://politpro.eu/api/v1';
+const CACHE_TTL = 12 * 60 * 60;
+const UNSUPPORTED_TTL = 12 * 60 * 60;
 const FETCH_TIMEOUT = 15000;
-
-interface PolitProDataset {
-  name: string;
-  slug: string;
-  color: string;
-  font_color: string;
-  development: Array<{ x: string; y: number }>;
-}
-
-interface PolitProResponse {
-  success: boolean;
-  data: {
-    parliament: string;
-    start: string;
-    end: string;
-    datasets: PolitProDataset[];
-  };
-}
 
 const PARTY_NAME_MAP: Record<string, string> = {
   'CDU/CSU': 'CDU/CSU',
@@ -39,68 +33,8 @@ const PARTY_NAME_MAP: Record<string, string> = {
   Linke: 'DIE LINKE',
   BSW: 'BSW',
   FDP: 'FDP',
+  Others: 'Sonstige',
 };
-
-async function fetchPolitPro(parliament: string, year: number): Promise<PolitProResponse | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-    const response = await fetch(`${API_URL}/${parliament}/development/${year}/${year}`, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      log.error(`PolitPro API error (${parliament}): ${response.status}`);
-      return null;
-    }
-
-    const data = (await response.json()) as PolitProResponse;
-    if (!data.success) {
-      log.error(`PolitPro returned success=false for ${parliament}`);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      log.error(`PolitPro timeout (${parliament})`);
-    } else {
-      log.error(`PolitPro fetch failed (${parliament}): ${error}`);
-    }
-    return null;
-  }
-}
-
-function toPollData(data: PolitProResponse, parliament: string): PollData {
-  const latest: Record<string, number> = {};
-
-  for (const ds of data.data.datasets) {
-    const partyName = PARTY_NAME_MAP[ds.name] || ds.name;
-    const lastPoint = ds.development[ds.development.length - 1];
-    if (lastPoint) {
-      latest[partyName] = lastPoint.y;
-    }
-  }
-
-  const lastDate = data.data.datasets[0]?.development.slice(-1)[0]?.x || '';
-
-  const poll: PollResult = {
-    institute: `PolitPro (${parliament})`,
-    date: lastDate,
-    parties: latest,
-  };
-
-  return {
-    polls: [poll],
-    lastElection: null,
-    average: latest,
-    scrapedAt: new Date().toISOString(),
-  };
-}
 
 export interface PolitProPollData extends PollData {
   source: 'politpro';
@@ -115,42 +49,86 @@ const politProPollDataSchema = pollDataSchema.required({
   trend: true,
 });
 
-function toExtendedPollData(
-  data: PolitProResponse,
-  parliament: string,
-  institutePolls?: PollResult[]
-): PolitProPollData {
-  const base = toPollData(data, parliament);
+const unsupportedFlagSchema = z.object({ unsupported: z.literal(true) });
 
-  const trend: Record<string, Array<{ date: string; value: number }>> = {};
-  for (const ds of data.data.datasets) {
-    const partyName = PARTY_NAME_MAP[ds.name] || ds.name;
-    trend[partyName] = ds.development.map((d) => ({ date: d.x, value: d.y }));
-  }
+/** Internal parliament id → official API parliament code (ISO-style). */
+const PARLIAMENT_API_CODES: Record<string, string> = {
+  deutschland: 'de',
+  oesterreich: 'at',
+  'baden-wuerttemberg': 'de-bw',
+  bayern: 'de-by',
+  berlin: 'de-be',
+  brandenburg: 'de-bb',
+  bremen: 'de-hb',
+  hamburg: 'de-hh',
+  hessen: 'de-he',
+  'mecklenburg-vorpommern': 'de-mv',
+  niedersachsen: 'de-ni',
+  'nordrhein-westfalen': 'de-nw',
+  'rheinland-pfalz': 'de-rp',
+  saarland: 'de-sl',
+  sachsen: 'de-sn',
+  'sachsen-anhalt': 'de-st',
+  'schleswig-holstein': 'de-sh',
+  thueringen: 'de-th',
+};
 
-  const useInstitutePolls = institutePolls && institutePolls.length > 0;
-  log.info(
-    `[toExtendedPollData] Branch: ${useInstitutePolls ? `institutePolls (${institutePolls!.length})` : `base.polls (${base.polls.length})`}`
-  );
+interface ApiParty {
+  name_short: string;
+  name_long: string;
+  color: string;
+  font_color: string;
+  percent: number;
+  seats?: number;
+  diff?: number;
+  election_diff?: number;
+}
 
-  return {
-    ...base,
-    polls: useInstitutePolls ? institutePolls! : base.polls,
-    source: 'politpro',
-    parliament: data.data.parliament,
-    trend,
+interface ApiTrendData {
+  poll: {
+    date: string;
+    parliament: string;
+    seats_total: number;
+    parties: ApiParty[];
   };
 }
 
-async function scrapeInstitutePolls(parliament: string): Promise<PollResult[]> {
+interface ApiInstitutePoll {
+  start: string;
+  end: string;
+  sample_size?: number | null;
+  institute: { name: string; score?: number | null };
+  parties: ApiParty[];
+}
+
+interface ApiInstitutesData {
+  polls: ApiInstitutePoll[];
+}
+
+interface ApiHistoryData {
+  parliament: string;
+  datasets: Array<{
+    name_short: string;
+    history: Array<{ date: string; percent: number }>;
+  }>;
+}
+
+type ApiResult<T> = { ok: true; data: T } | { ok: false; notFound: boolean };
+
+/**
+ * GET an official API path. Unknown paths return HTTP 200 with an HTML page,
+ * so the body must parse as JSON with a truthy `success` to count as ok.
+ */
+async function fetchApi<T>(path: string): Promise<ApiResult<T>> {
+  const failed = (notFound = false): ApiResult<T> => ({ ok: false, notFound });
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-    const response = await fetch(`${SITE_URL}/${parliament}`, {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       headers: {
-        Accept: 'text/html',
-        'User-Agent': 'Gruenerator-Monitor/1.0',
+        Authorization: `Bearer ${env.POLITPRO_API_KEY}`,
+        Accept: 'application/json',
       },
       signal: controller.signal,
     });
@@ -158,65 +136,116 @@ async function scrapeInstitutePolls(parliament: string): Promise<PollResult[]> {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      log.warn(`[scrapeInstitutePolls] HTTP ${response.status} for ${parliament}`);
-      return [];
+      if (response.status === 404) return failed(true);
+      if (response.status === 401) {
+        log.error(`API rejected POLITPRO_API_KEY (401) for ${path}`);
+      } else if (response.status === 429) {
+        log.warn(`API rate limit hit (429) for ${path}`);
+      } else {
+        log.error(`API error ${response.status} for ${path}`);
+      }
+      return failed();
     }
 
-    const html = await response.text();
-    log.info(`[scrapeInstitutePolls] HTML response length: ${html.length} chars for ${parliament}`);
-
-    const $ = cheerio.load(html);
-    const pollListItems = $('.poll-list-item');
-    log.info(`[scrapeInstitutePolls] Found ${pollListItems.length} .poll-list-item elements`);
-
-    if (pollListItems.length === 0) {
-      log.warn(
-        `[scrapeInstitutePolls] No .poll-list-item elements found — HTML snippet (first 500 chars): ${html.slice(0, 500)}`
-      );
+    const body = (await response.json()) as { success?: unknown; data?: T };
+    if (!body.success || body.data == null) {
+      log.error(`API returned success=false for ${path}`);
+      return failed();
     }
-
-    const polls: PollResult[] = [];
-
-    $('.poll-list-item').each((_, el) => {
-      const institute = $(el).find('.poll-list-item-header-institute').text().trim();
-      const date = $(el).find('.poll-list-item-header-date').text().trim();
-      if (!institute) return;
-
-      const parties: Record<string, number | null> = {};
-      $(el)
-        .find('.horizontal-parties-list-item')
-        .each((_, partyEl) => {
-          const name = $(partyEl).attr('title');
-          const val = $(partyEl).find('.list-horizontal-value').text().trim();
-          if (name && val) {
-            const partyName = PARTY_NAME_MAP[name] || name;
-            parties[partyName] = parseFloat(val) || null;
-          }
-        });
-
-      polls.push({ institute, date, parties });
-    });
-
-    log.info(`[scrapeInstitutePolls] Parsed ${polls.length} institute polls for ${parliament}`);
-    if (polls.length > 0) {
-      log.info(
-        `[scrapeInstitutePolls] First 2 polls:`,
-        polls.slice(0, 2).map((p) => ({
-          institute: p.institute,
-          date: p.date,
-          partyCount: Object.keys(p.parties).length,
-        }))
-      );
-    } else {
-      log.warn(
-        `[scrapeInstitutePolls] 0 institute polls parsed despite ${pollListItems.length} DOM elements`
-      );
-    }
-    return polls;
+    return { ok: true, data: body.data };
   } catch (error) {
-    log.error(`PolitPro scrape failed (${parliament}): ${error}`);
-    return [];
+    if (error instanceof Error && error.name === 'AbortError') {
+      log.error(`API timeout for ${path}`);
+    } else {
+      log.error(`API fetch failed for ${path}: ${error}`);
+    }
+    return failed();
   }
+}
+
+function mapApiParties(parties: ApiParty[]): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const p of parties) {
+    result[PARTY_NAME_MAP[p.name_short] || p.name_short] = p.percent;
+  }
+  return result;
+}
+
+function toApiPollResult(poll: ApiInstitutePoll): PollResult {
+  return {
+    institute: poll.institute.name,
+    date: poll.end,
+    parties: mapApiParties(poll.parties),
+    sampleSize: poll.sample_size ?? null,
+    instituteScore: poll.institute.score ?? null,
+  };
+}
+
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+/**
+ * Fetch a parliament from the official API.
+ * Returns 'unsupported' when the API rejects the parliament code (404).
+ */
+async function fetchFromApi(parliament: string): Promise<PolitProPollData | 'unsupported' | null> {
+  const code = PARLIAMENT_API_CODES[parliament];
+
+  const trendResult = await fetchApi<ApiTrendData>(`/${code}/trend`);
+  if (!trendResult.ok) return trendResult.notFound ? 'unsupported' : null;
+
+  const year = new Date().getFullYear();
+  const [institutesResult, historyResult] = await Promise.all([
+    fetchApi<ApiInstitutesData>(`/${code}/polls/institutes`),
+    fetchApi<ApiHistoryData>(`/${code}/trend/history/${year - 1}/${year}?format=party`),
+  ]);
+
+  const trendPoll = trendResult.data.poll;
+  const average = mapApiParties(trendPoll.parties);
+
+  const diffs: Record<string, number> = {};
+  const lastElectionParties: Record<string, number | null> = {};
+  for (const p of trendPoll.parties) {
+    const name = PARTY_NAME_MAP[p.name_short] || p.name_short;
+    if (p.diff != null) diffs[name] = p.diff;
+    if (p.election_diff != null) lastElectionParties[name] = round1(p.percent - p.election_diff);
+  }
+
+  const institutePolls = institutesResult.ok
+    ? institutesResult.data.polls.map(toApiPollResult).sort((a, b) => b.date.localeCompare(a.date))
+    : [];
+
+  // Without institute polls, expose the weighted trend as a single entry
+  // (frontend treats polls.length > 1 as "real institute polls available").
+  const polls: PollResult[] =
+    institutePolls.length > 0
+      ? institutePolls
+      : [{ institute: `PolitPro (${parliament})`, date: trendPoll.date, parties: average }];
+
+  const trend: Record<string, Array<{ date: string; value: number }>> = {};
+  if (historyResult.ok) {
+    for (const ds of historyResult.data.datasets) {
+      const name = PARTY_NAME_MAP[ds.name_short] || ds.name_short;
+      trend[name] = ds.history.map((h) => ({ date: h.date, value: h.percent }));
+    }
+  }
+
+  log.info(
+    `[fetchFromApi] ${parliament}: ${polls.length} polls, ${Object.keys(average).length} parties, history=${historyResult.ok}`
+  );
+
+  return {
+    polls,
+    lastElection:
+      Object.keys(lastElectionParties).length > 0
+        ? { institute: 'Letzte Wahl', date: '', parties: lastElectionParties }
+        : null,
+    average,
+    diffs,
+    scrapedAt: new Date().toISOString(),
+    source: 'politpro',
+    parliament,
+    trend,
+  };
 }
 
 export async function getPolitProPolls(
@@ -227,38 +256,27 @@ export async function getPolitProPolls(
     return null;
   }
 
-  const cacheKey = `monitor:politpro:${parliament}`;
+  if (!env.POLITPRO_API_KEY) {
+    log.warn('[getPolitProPolls] POLITPRO_API_KEY not set, skipping');
+    return null;
+  }
 
+  const cacheKey = `monitor:politpro:v2:${parliament}`;
   const cached = await getCachedJson(cacheKey, politProPollDataSchema);
-  if (cached) {
-    log.info(
-      `[getPolitProPolls] Cache hit (${parliament}): ${cached.polls.length} polls, first poll date: ${cached.polls[0]?.date ?? 'none'}, institute: ${cached.polls[0]?.institute ?? 'none'}`
-    );
-    return cached;
+  if (cached) return cached;
+
+  const unsupportedKey = `monitor:politpro:unsupported:${parliament}`;
+  if (await getCachedJson(unsupportedKey, unsupportedFlagSchema)) return null;
+
+  const result = await fetchFromApi(parliament);
+  if (result === 'unsupported') {
+    log.warn(`[getPolitProPolls] API does not support "${parliament}" (plan tier?)`);
+    await setCachedJson(unsupportedKey, { unsupported: true }, UNSUPPORTED_TTL);
+    return null;
   }
-
-  const year = new Date().getFullYear();
-  const [data, institutePolls] = await Promise.all([
-    fetchPolitPro(parliament, year),
-    scrapeInstitutePolls(parliament),
-  ]);
-  if (!data) return null;
-
-  log.info(`[getPolitProPolls] Institute polls found: ${institutePolls.length} for ${parliament}`);
-  if (institutePolls.length === 0) {
-    log.warn(
-      `[getPolitProPolls] No institute polls scraped — will fall back to API interpolated data`
-    );
-  }
-
-  const result = toExtendedPollData(data, parliament, institutePolls);
-
-  log.info(
-    `[getPolitProPolls] Final result (${parliament}): ${result.polls.length} polls, ${Object.keys(result.average).length} parties`
-  );
+  if (!result) return null;
 
   await setCachedJson(cacheKey, result, CACHE_TTL);
-
   return result;
 }
 
