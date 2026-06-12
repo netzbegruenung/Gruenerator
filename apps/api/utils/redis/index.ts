@@ -18,5 +18,8 @@ export { default as RateLimiter, RateLimiter as RateLimiterClass } from './RateL
 // LRU Cache exports
 export { LRUCache, createCache } from './cache.js';
 
+// Zod-validated redis JSON cache
+export { getCachedJson, setCachedJson, deleteCachedKey } from './jsonCache.js';
+
 // Type exports
 export type * from './types.js';

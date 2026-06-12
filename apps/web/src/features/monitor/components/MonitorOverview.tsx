@@ -11,7 +11,12 @@ import { ChevronRight, Flame, RefreshCw, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
-import { useBriefingRefresh, useMonitorBriefing, useMonitorSnapshot } from '../hooks/useMonitor';
+import {
+  mapMonitorCitations,
+  useBriefingRefresh,
+  useMonitorBriefing,
+  useMonitorSnapshot,
+} from '../hooks/useMonitor';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
 import { UmfragenView } from './UmfragenView';
@@ -35,13 +40,7 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
   const { data: snapshot } = useMonitorSnapshot(locale);
   const { data: briefing, isLoading: briefingLoading } = useMonitorBriefing(locale);
   const briefingCitations = useMemo(
-    () =>
-      (briefing?.citations ?? []).map((c) => ({
-        index: Number(c.id),
-        document_title: c.title,
-        source_url: c.url,
-        cited_text: c.snippet,
-      })),
+    () => mapMonitorCitations(briefing?.citations),
     [briefing?.citations]
   );
   const briefingRefresh = useBriefingRefresh(locale);
