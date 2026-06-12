@@ -57,21 +57,34 @@ export const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/uplo
 /**
  * Plain (non-hook) TUS upload to the subtitler endpoint. Used by surfaces
  * outside the studio wizard — e.g. chat video attachments — that only need
- * the uploadId. Same retry/chunk settings as useTusUpload.
+ * the uploadId. Same retry/chunk settings as useTusUpload. Returns an abort
+ * handle so callers can stop the transfer when the user removes the
+ * attachment (a 500MB upload must not keep saturating the upstream).
  */
 export function uploadVideoToTus(
   file: File,
   onProgress?: (pct: number) => void
-): Promise<{ uploadId: string }> {
-  return new Promise((resolve, reject) => {
+): { promise: Promise<{ uploadId: string }>; abort: () => void } {
+  let aborted = false;
+  let tusHandle: { abort: (shouldTerminate?: boolean) => Promise<void> } | null = null;
+
+  const promise = new Promise<{ uploadId: string }>((resolve, reject) => {
     void import('tus-js-client').then((tus) => {
+      if (aborted) {
+        reject(new Error('Upload abgebrochen.'));
+        return;
+      }
       const tusUpload = new tus.Upload(file, {
         endpoint: TUS_UPLOAD_ENDPOINT,
         retryDelays: [0, 3000, 5000, 10000, 20000],
         chunkSize: 5 * 1024 * 1024,
         metadata: { filename: file.name, filetype: file.type },
         onError: () => {
-          reject(new Error('Upload fehlgeschlagen. Bitte versuche es erneut.'));
+          reject(
+            new Error(
+              aborted ? 'Upload abgebrochen.' : 'Upload fehlgeschlagen. Bitte versuche es erneut.'
+            )
+          );
         },
         onProgress: (bytesUploaded, bytesTotal) => {
           onProgress?.(Math.round((bytesUploaded / bytesTotal) * 100));
@@ -89,7 +102,22 @@ export function uploadVideoToTus(
           resolve({ uploadId });
         },
       });
+      tusHandle = tusUpload;
       tusUpload.start();
+      if (aborted) {
+        // abort() raced the dynamic import — terminate now that we can.
+        void tusUpload.abort(true).catch(() => {});
+        reject(new Error('Upload abgebrochen.'));
+      }
     }, reject);
   });
+
+  return {
+    promise,
+    abort: () => {
+      aborted = true;
+      // shouldTerminate=true deletes the partial upload server-side.
+      void tusHandle?.abort(true).catch(() => {});
+    },
+  };
 }

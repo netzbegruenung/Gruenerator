@@ -57,3 +57,19 @@ export const useReelLiveStore = create<ReelLiveStore>((set, get) => ({
     set({ activeReel: active });
   },
 }));
+
+// Reverse direction of the one-artifact rule: activating a sharepic clears
+// the active reel. sharepicLiveStore cannot import this store (cycle), so
+// the coupling lives here as a subscription. setState (not setActiveReel)
+// avoids re-triggering the forward clear above. Without this, a stale
+// currentReel keeps being sent alongside currentSharepic and the reel
+// branch hijacks verb-only follow-ups aimed at the sharepic.
+useSharepicLiveStore.subscribe((state, prevState) => {
+  if (
+    state.activeVariant &&
+    state.activeVariant !== prevState.activeVariant &&
+    useReelLiveStore.getState().activeReel
+  ) {
+    useReelLiveStore.setState({ activeReel: null });
+  }
+});

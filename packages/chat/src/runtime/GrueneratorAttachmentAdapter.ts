@@ -41,7 +41,10 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
    * TUS uploads started in add(), awaited in send(). Keyed by attachment id
    * so the upload runs while the user is still composing the message.
    */
-  private reelUploads = new Map<string, Promise<{ uploadId: string }>>();
+  private reelUploads = new Map<
+    string,
+    { promise: Promise<{ uploadId: string }>; abort: () => void }
+  >();
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     // Let validation errors propagate. AUI catches them and emits a structured
@@ -57,9 +60,19 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
       if (!uploadReelVideo) {
         throw new Error('Video-Upload ist auf dieser Oberfläche nicht verfügbar.');
       }
+      // The request body carries exactly one reelUpload — a second video
+      // would silently win over the first, so reject it up front.
+      if (this.reelUploads.size > 0) {
+        throw new Error('Bitte nur ein Video pro Nachricht anhängen.');
+      }
       // Start the upload immediately; send() awaits the result. A failed
       // upload surfaces when the user sends (attachment errors out there).
-      this.reelUploads.set(id, uploadReelVideo(file));
+      // The no-op catch marks the promise handled so an upload that fails
+      // after the attachment was removed (or never sent) doesn't fire an
+      // unhandled promise rejection.
+      const upload = uploadReelVideo(file);
+      upload.promise.catch(() => {});
+      this.reelUploads.set(id, upload);
 
       return {
         id,
@@ -87,7 +100,7 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
     const reelUpload = this.reelUploads.get(attachment.id);
     if (reelUpload) {
       try {
-        const { uploadId } = await reelUpload;
+        const { uploadId } = await reelUpload.promise;
         const data: ReelUploadData = { uploadId, filename: attachment.name };
         return {
           id: attachment.id,
@@ -121,6 +134,9 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
   }
 
   async remove(attachment: Attachment): Promise<void> {
+    // Abort an in-flight video upload — without this a removed 500MB
+    // attachment keeps saturating the upstream and orphans a server file.
+    this.reelUploads.get(attachment.id)?.abort();
     this.reelUploads.delete(attachment.id);
   }
 }
