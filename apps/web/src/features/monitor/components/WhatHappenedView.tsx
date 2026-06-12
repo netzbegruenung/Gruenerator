@@ -130,8 +130,60 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-end gap-sm mb-lg">
-        <label className="flex items-center gap-sm text-xs text-grey-400 cursor-pointer shrink-0">
+      <div className="flex flex-wrap items-center gap-sm mb-xl">
+        {expertMode && (
+          <>
+            <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+              <SelectTrigger className="w-[10rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">7 Tage</SelectItem>
+                <SelectItem value="14">14 Tage</SelectItem>
+                <SelectItem value="30">30 Tage</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sourceGroup} onValueChange={setSourceGroup}>
+              <SelectTrigger className="w-[13rem]">
+                <SelectValue placeholder="Quelle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Alle Quellen</SelectItem>
+                {(data?.sourceGroups ?? []).map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {SOURCE_GROUP_LABELS[g] ?? g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(data?.landesverbaende.length ?? 0) > 0 && (
+              <Select value={landesverband} onValueChange={setLandesverband}>
+                <SelectTrigger className="w-[13rem]">
+                  <SelectValue placeholder="Landesverband" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Alle Landesverbände</SelectItem>
+                  {(data?.landesverbaende ?? []).map((lv) => (
+                    <SelectItem key={lv} value={lv}>
+                      {LV_NAMES[lv] ?? lv}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={eventType} onValueChange={setEventType}>
+              <SelectTrigger className="w-[10rem]">
+                <SelectValue placeholder="Typ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Neu + aktualisiert</SelectItem>
+                <SelectItem value="stored">Nur neu</SelectItem>
+                <SelectItem value="updated">Nur aktualisiert</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        <label className="ml-auto flex items-center gap-sm text-xs text-grey-400 cursor-pointer shrink-0">
           Expertenmodus
           <Switch
             checked={expertMode}
@@ -139,59 +191,6 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
           />
         </label>
       </div>
-
-      {expertMode && (
-        <div className="flex flex-wrap gap-sm mb-xl">
-          <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger className="w-[10rem]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">7 Tage</SelectItem>
-              <SelectItem value="14">14 Tage</SelectItem>
-              <SelectItem value="30">30 Tage</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={sourceGroup} onValueChange={setSourceGroup}>
-            <SelectTrigger className="w-[13rem]">
-              <SelectValue placeholder="Quelle" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Alle Quellen</SelectItem>
-              {(data?.sourceGroups ?? []).map((g) => (
-                <SelectItem key={g} value={g}>
-                  {SOURCE_GROUP_LABELS[g] ?? g}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {(data?.landesverbaende.length ?? 0) > 0 && (
-            <Select value={landesverband} onValueChange={setLandesverband}>
-              <SelectTrigger className="w-[13rem]">
-                <SelectValue placeholder="Landesverband" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Alle Landesverbände</SelectItem>
-                {(data?.landesverbaende ?? []).map((lv) => (
-                  <SelectItem key={lv} value={lv}>
-                    {LV_NAMES[lv] ?? lv}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Select value={eventType} onValueChange={setEventType}>
-            <SelectTrigger className="w-[10rem]">
-              <SelectValue placeholder="Typ" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Neu + aktualisiert</SelectItem>
-              <SelectItem value="stored">Nur neu</SelectItem>
-              <SelectItem value="updated">Nur aktualisiert</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
 
       {error && (
         <StatusBanner variant="error" className="mb-lg">
