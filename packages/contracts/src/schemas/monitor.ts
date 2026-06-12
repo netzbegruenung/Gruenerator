@@ -235,6 +235,46 @@ export const euGreensResponseSchema = z.object({
   fetchedAt: z.string(),
 });
 
+export const pollTrendPointSchema = z.object({
+  date: z.string(),
+  value: z.number(),
+});
+
+/** Weekly green-party trend per country, for the EU comparison chart. */
+export const euGreensHistoryResponseSchema = z.object({
+  series: z.array(
+    z.object({
+      countryCode: z.string(),
+      countryName: z.string(),
+      party: z.string(),
+      points: z.array(pollTrendPointSchema),
+    })
+  ),
+  fetchedAt: z.string(),
+});
+
+/** AI party profile (Wikipedia summary + links) for one EU green party. */
+export const euGreenProfileResponseSchema = z.object({
+  countryCode: z.string(),
+  countryName: z.string(),
+  party: z.string(),
+  /** AI summary of the party's Wikipedia article; null if no article exists. */
+  summary: z.string().nullable(),
+  website: z.string().nullable(),
+  wikipediaUrl: z.string().nullable(),
+  generatedAt: z.string(),
+});
+
+/** Full poll history of one parliament: weekly trend + individual polls. */
+export const pollsHistoryResponseSchema = z.object({
+  parliament: z.string(),
+  /** Weekly trend points per party, ascending by date (since 2019). */
+  trend: z.record(z.string(), z.array(pollTrendPointSchema)),
+  /** Individual polls of the last ~2 years, ascending by date. */
+  polls: z.array(z.object({ date: z.string(), parties: z.record(z.string(), z.number()) })),
+  scrapedAt: z.string(),
+});
+
 // ── Meinungsbild (GERDA MRP estimates) ───────────────────────────────────────
 
 export const meinungsbildIssueSchema = z.object({
@@ -442,6 +482,10 @@ export const pollsQuerySchema = z.object({
   parliament: z.string().optional(),
 });
 
+export const euGreenProfileQuerySchema = z.object({
+  country: z.string(),
+});
+
 export const whatHappenedQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(30).optional(),
   locale: monitorLocaleSchema.optional(),
@@ -466,6 +510,10 @@ export type PollData = z.infer<typeof pollDataSchema>;
 export type PollParliament = z.infer<typeof pollParliamentSchema>;
 export type EuGreenResult = z.infer<typeof euGreenResultSchema>;
 export type EuGreensData = z.infer<typeof euGreensResponseSchema>;
+export type EuGreensHistoryData = z.infer<typeof euGreensHistoryResponseSchema>;
+export type EuGreenProfileData = z.infer<typeof euGreenProfileResponseSchema>;
+export type PollsHistoryData = z.infer<typeof pollsHistoryResponseSchema>;
+export type PollTrendPoint = z.infer<typeof pollTrendPointSchema>;
 export type WatcherEntityInfo = z.infer<typeof watcherEntityInfoSchema>;
 export type EntityResult = z.infer<typeof entityResultsResponseSchema>;
 export type RiskItem = z.infer<typeof riskItemSchema>;

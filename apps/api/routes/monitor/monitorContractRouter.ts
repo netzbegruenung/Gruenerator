@@ -21,6 +21,7 @@ import {
   getWhatHappenedDaySummary,
   upsertSyncEvents,
 } from '../../services/monitor/ContentSyncEventsService.js';
+import { getEuGreenProfile } from '../../services/monitor/EuGreenProfileService.js';
 import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
@@ -35,6 +36,8 @@ import {
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
 import {
   getEuGreens,
+  getEuGreensHistory,
+  getPolitProHistory,
   getPolitProPolls,
   POLITPRO_PARLIAMENTS,
 } from '../../services/monitor/PolitProService.js';
@@ -177,6 +180,34 @@ export const monitorContractRouter = s.router(monitorContract, {
     return { status: 200 as const, body: [...POLITPRO_PARLIAMENTS] };
   },
 
+  euGreensHistory: async ({ res }) => {
+    try {
+      const data = await getEuGreensHistory();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'EU greens history unavailable' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens/history failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch EU greens history' } };
+    }
+  },
+
+  euGreenProfile: async ({ query, res }) => {
+    try {
+      const data = await getEuGreenProfile(query.country);
+      if (!data) {
+        return { status: 404 as const, body: { error: 'Unknown party' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens/profile failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to generate party profile' } };
+    }
+  },
+
   euGreens: async ({ res }) => {
     try {
       const data = await getEuGreens();
@@ -188,6 +219,20 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /polls/eu-greens failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch EU greens data' } };
+    }
+  },
+
+  pollsHistory: async ({ query, res }) => {
+    try {
+      const data = await getPolitProHistory(query.parliament ?? 'deutschland');
+      if (!data) {
+        return { status: 404 as const, body: { error: 'No history for this parliament' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/history failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch poll history' } };
     }
   },
 
