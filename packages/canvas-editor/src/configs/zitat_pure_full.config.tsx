@@ -150,7 +150,7 @@ const baseZitatPureConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
   textColorMap: FONT_COLORS,
   calculateLayout,
-  passthroughStateKeys: ['namePosition'],
+  passthroughStateKeys: ['namePosition', 'quoteMarkOffset', 'quoteMarkOpacity'],
   elements: [sunflowerElement, quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {
