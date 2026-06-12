@@ -114,6 +114,11 @@ export interface GenerateFromImageOptions extends SubmitOptions, PollOptions {
   seed?: number;
 }
 
+export interface ReferenceImage {
+  buffer: Buffer;
+  mimeType: string;
+}
+
 export interface OutpaintOptions extends PollOptions {
   width: number;
   height: number;
@@ -469,6 +474,22 @@ class FluxImageService {
     mimeType: string = 'image/jpeg',
     options: GenerateFromImageOptions = {}
   ): Promise<GenerateResult> {
+    return this.generateFromImages(prompt, [{ buffer: imageBuffer, mimeType }], options);
+  }
+
+  /**
+   * Image-to-image with one or more reference images (FLUX.2 multi-reference).
+   * The first image maps to `input_image`, further ones to `input_image_2`…
+   * `input_image_8` in the order given.
+   */
+  async generateFromImages(
+    prompt: string,
+    images: ReferenceImage[],
+    options: GenerateFromImageOptions = {}
+  ): Promise<GenerateResult> {
+    if (images.length === 0) {
+      throw new Error('generateFromImages requires at least one reference image');
+    }
     const modelPath = options.modelPathOverride || this.modelPath;
     const url = `${this.baseUrl}${modelPath}`;
     const headers = {
@@ -476,21 +497,23 @@ class FluxImageService {
       'Content-Type': 'application/json',
       'x-key': this.apiKey,
     };
-    const base64 = imageBuffer.toString('base64');
-    const imageDataUrl = `data:${mimeType};base64,${base64}`;
 
-    const body = {
+    const body: Record<string, unknown> = {
       prompt,
-      input_image: imageDataUrl,
       output_format: options.output_format || 'jpeg',
       safety_tolerance: options.safety_tolerance ?? 2,
       ...(options.width && { width: options.width }),
       ...(options.height && { height: options.height }),
       ...(options.seed && { seed: options.seed }),
     };
+    images.forEach((img, i) => {
+      const key = i === 0 ? 'input_image' : `input_image_${i + 1}`;
+      body[key] = `data:${img.mimeType};base64,${img.buffer.toString('base64')}`;
+    });
 
+    const totalKb = Math.round(images.reduce((sum, img) => sum + img.buffer.length, 0) / 1024);
     console.log(
-      `[FluxImageService] Submitting image-to-image request to ${url}, image size: ${Math.round(imageBuffer.length / 1024)}KB`
+      `[FluxImageService] Submitting image-to-image request to ${url}, ${images.length} reference image(s), total size: ${totalKb}KB`
     );
 
     const request = await this.executeWithRetry(async (family?: number) => {
@@ -502,7 +525,7 @@ class FluxImageService {
 
       const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
       return res.data;
-    }, 'generateFromImage');
+    }, 'generateFromImages');
 
     const { id, polling_url } = request;
     console.log(`[FluxImageService] Image-to-image request submitted successfully, ID: ${id}`);
