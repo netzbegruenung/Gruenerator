@@ -13,6 +13,7 @@ import {
 } from '@gruenerator/ui';
 import { ChevronDown, Inbox, Sparkles } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { Markdown } from '../../../components/common/Markdown/Markdown';
 import useUserDefaults from '../../../hooks/useUserDefaults';
@@ -108,14 +109,38 @@ function DaySummary({ date, locale }: { date: string; locale: MonitorLocale }) {
   );
 }
 
+const VALID_DAYS = [7, 14, 30];
+const VALID_EVENT_TYPES = ['stored', 'updated'];
+
 export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
   const { get: getMonitorDefault, set: setMonitorDefault } = useUserDefaults<boolean>('monitor');
   const expertMode = getMonitorDefault('expertMode', false);
 
-  const [days, setDays] = useState(7);
-  const [sourceGroup, setSourceGroup] = useState<string>(ALL);
-  const [landesverband, setLandesverband] = useState<string>(ALL);
-  const [eventType, setEventType] = useState<string>(ALL);
+  // Filters live in the URL so feed views are shareable; absent = all/7 days.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const daysParam = Number(searchParams.get('days'));
+  const days = VALID_DAYS.includes(daysParam) ? daysParam : 7;
+  const sourceGroup = searchParams.get('sourceGroup') ?? ALL;
+  const landesverband = searchParams.get('landesverband') ?? ALL;
+  const eventTypeParam = searchParams.get('eventType');
+  const eventType =
+    eventTypeParam !== null && VALID_EVENT_TYPES.includes(eventTypeParam) ? eventTypeParam : ALL;
+
+  // Functional form so the monitor ?locale= param is never clobbered;
+  // defaults are deleted to keep URLs clean.
+  const setFilter = (key: string, value: string | null) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === null) {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true }
+    );
 
   const filters = expertMode
     ? {
@@ -133,7 +158,10 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
       <div className="flex flex-wrap items-center gap-sm mb-xl">
         {expertMode && (
           <>
-            <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+            <Select
+              value={String(days)}
+              onValueChange={(v) => setFilter('days', v === '7' ? null : v)}
+            >
               <SelectTrigger className="w-[10rem]">
                 <SelectValue />
               </SelectTrigger>
@@ -143,7 +171,10 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
                 <SelectItem value="30">30 Tage</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={sourceGroup} onValueChange={setSourceGroup}>
+            <Select
+              value={sourceGroup}
+              onValueChange={(v) => setFilter('sourceGroup', v === ALL ? null : v)}
+            >
               <SelectTrigger className="w-[13rem]">
                 <SelectValue placeholder="Quelle" />
               </SelectTrigger>
@@ -157,7 +188,10 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
               </SelectContent>
             </Select>
             {(data?.landesverbaende.length ?? 0) > 0 && (
-              <Select value={landesverband} onValueChange={setLandesverband}>
+              <Select
+                value={landesverband}
+                onValueChange={(v) => setFilter('landesverband', v === ALL ? null : v)}
+              >
                 <SelectTrigger className="w-[13rem]">
                   <SelectValue placeholder="Landesverband" />
                 </SelectTrigger>
@@ -171,7 +205,10 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
                 </SelectContent>
               </Select>
             )}
-            <Select value={eventType} onValueChange={setEventType}>
+            <Select
+              value={eventType}
+              onValueChange={(v) => setFilter('eventType', v === ALL ? null : v)}
+            >
               <SelectTrigger className="w-[10rem]">
                 <SelectValue placeholder="Typ" />
               </SelectTrigger>

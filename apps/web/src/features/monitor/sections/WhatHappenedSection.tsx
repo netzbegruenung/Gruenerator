@@ -1,15 +1,9 @@
-import { ArticleCard, Skeleton } from '@gruenerator/ui';
+import { ArticleCard, SectionHeader, Skeleton } from '@gruenerator/ui';
 import { ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useWhatHappened } from '../hooks/useMonitor';
-
-import type { MonitorLocale } from '../hooks/useMonitor';
-
-interface WhatHappenedPreviewProps {
-  locale: MonitorLocale;
-  /** Navigate to the full "Was ist passiert" tab. */
-  onShowAll?: () => void;
-}
+import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
 const MAX_ARTICLES = 6;
 
@@ -21,33 +15,34 @@ function formatDay(date: string): string {
   });
 }
 
-/** Compact Übersicht teaser: the latest day of content-sync Tagesbeiträge. */
-export function WhatHappenedPreview({ locale, onShowAll }: WhatHappenedPreviewProps) {
+/** Latest day of content-sync Tagesbeiträge, linking into /monitor/feed. */
+export function WhatHappenedSection() {
+  const navigate = useNavigate();
+  const { locale, withLocale } = useMonitorLocaleParam();
   const { data, isLoading } = useWhatHappened(locale, { days: 7 });
   const day = data?.days[0];
 
-  // Nothing synced in the window — keep the Übersicht clean instead of an empty state.
+  // Nothing synced in the window — keep the feed home clean instead of an empty state.
   if (!isLoading && !day) return null;
 
   return (
     <section className="mb-2xl">
-      <div className="flex items-baseline justify-between gap-sm mb-md">
-        <h2 className="text-lg font-semibold text-foreground m-0">
-          Was ist passiert
-          {day && (
-            <span className="ml-sm text-xs font-normal text-grey-400">{formatDay(day.date)}</span>
-          )}
-        </h2>
-        {onShowAll && (
-          <button
-            onClick={onShowAll}
-            className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors border-none bg-transparent cursor-pointer shrink-0"
-          >
-            Alle anzeigen
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      <SectionHeader
+        title="Was ist passiert"
+        onTitleClick={() => navigate(withLocale('/monitor/feed'))}
+        actions={
+          <span className="inline-flex items-center gap-sm">
+            {day && <span className="text-xs text-grey-400">{formatDay(day.date)}</span>}
+            <Link
+              to={withLocale('/monitor/feed')}
+              className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
+            >
+              Alle anzeigen
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </span>
+        }
+      />
 
       {day ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
