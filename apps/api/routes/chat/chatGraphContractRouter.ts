@@ -534,6 +534,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(enabledTools != null && { enabledTools }),
         imageAttachments,
         req,
+        threadId: actualThreadId ?? null,
         ...(sharepicRefinement && { sharepicRefinement }),
       });
 
@@ -545,10 +546,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
         // assistant knows the sharepic exists. Also covers the all-variants-failed case.
         const n = sharepicVariants.length;
+        const deckSlides = sharepicVariants[0]?.pages?.length;
         fullText =
           n > 0
-            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            ? deckSlides
+              ? `Ich habe dir ein Slider-Karussell mit ${deckSlides} Folien erstellt. ` +
+                `Sag mir, was ich an einzelnen Folien anpassen soll, oder öffne es im Studio.`
+              : `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
             : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
               `anderen Thema noch einmal versuchen?`;
         sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });

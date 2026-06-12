@@ -171,7 +171,9 @@ export interface SSEEventPayloads {
     canvasId: string;
     version: number;
     canvasType: string;
-    state: Record<string, unknown>;
+    /** Single sharepics send `state`; decks send `pages` instead. */
+    state?: Record<string, unknown>;
+    pages?: Array<Record<string, unknown>>;
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
