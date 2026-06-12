@@ -12,9 +12,8 @@
 import { monitorContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { generateKeywordInsights } from '../../services/monitor/KeywordInsightsGraph.js';
+import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
-import { generateMonitorBriefing } from '../../services/monitor/MonitorBriefingGraph.js';
 import {
   getLatestSnapshot,
   getHistory,
@@ -32,7 +31,6 @@ import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntit
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
 
 import type { Application, Response } from 'express';
 
@@ -98,13 +96,23 @@ export const monitorContractRouter = s.router(monitorContract, {
   keywordInsights: async ({ query, res }) => {
     try {
       const locale = query.locale ?? 'de';
-      const snapshot = await getLatestSnapshot();
-      if (!snapshot?.keywords?.length) {
-        return { status: 404 as const, body: { error: 'No keywords available' } };
+      const snapshot = await getLatestSnapshot(locale);
+      if (!snapshot) {
+        return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const insights = await generateKeywordInsights(snapshot.keywords, locale);
+      const analysis = await getHotTopicAnalysis(locale, snapshot);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: insights };
+      return {
+        status: 200 as const,
+        body: {
+          text: analysis.positionsText,
+          dominantTopic: analysis.dominantTopic,
+          secondaryTopics: analysis.secondaryTopics,
+          citations: analysis.citations,
+          confidence: analysis.confidence,
+          generatedAt: analysis.generatedAt,
+        },
+      };
     } catch (error) {
       log.error(`GET /keyword-insights failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to generate keyword insights' } };
@@ -114,13 +122,21 @@ export const monitorContractRouter = s.router(monitorContract, {
   briefing: async ({ query, res }) => {
     try {
       const locale = query.locale ?? 'de';
-      const [snapshot, pollData] = await Promise.all([getLatestSnapshot(locale), getPolls()]);
+      const snapshot = await getLatestSnapshot(locale);
       if (!snapshot) {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const result = await generateMonitorBriefing(locale, snapshot, pollData.average);
+      const analysis = await getHotTopicAnalysis(locale, snapshot);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: result };
+      return {
+        status: 200 as const,
+        body: {
+          briefing: analysis.briefing,
+          tweets: analysis.tweets,
+          generatedAt: analysis.generatedAt,
+          citations: analysis.citations,
+        },
+      };
     } catch (error) {
       log.error(`GET /briefing failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to generate briefing' } };
@@ -130,13 +146,20 @@ export const monitorContractRouter = s.router(monitorContract, {
   refreshBriefing: async ({ query }) => {
     try {
       const locale = query.locale ?? 'de';
-      await redisClient.del(`monitor:briefing:${locale}`);
-      const [snapshot, pollData] = await Promise.all([getLatestSnapshot(locale), getPolls()]);
+      const snapshot = await getLatestSnapshot(locale);
       if (!snapshot) {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const result = await generateMonitorBriefing(locale, snapshot, pollData.average);
-      return { status: 200 as const, body: result };
+      const analysis = await getHotTopicAnalysis(locale, snapshot, { forceRefresh: true });
+      return {
+        status: 200 as const,
+        body: {
+          briefing: analysis.briefing,
+          tweets: analysis.tweets,
+          generatedAt: analysis.generatedAt,
+          citations: analysis.citations,
+        },
+      };
     } catch (error) {
       log.error(`POST /briefing/refresh failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to regenerate briefing' } };

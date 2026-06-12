@@ -1,9 +1,10 @@
+import { stateElectionsResponseSchema } from '@gruenerator/contracts';
 import { desc } from 'drizzle-orm';
 
 import { monitorStateElections } from '../../database/schema/monitor.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import { getMeinungsbild } from './MeinungsbildService.js';
 import { getPolitProPolls } from './PolitProService.js';
@@ -26,14 +27,10 @@ const ELECTION_TYPE = 'Landtagswahl';
  * `scripts/seed-gerda-state-elections.ts`. Cached in Redis.
  */
 export async function getStateElections(): Promise<StateElectionsData | null> {
-  try {
-    const cached = await redisClient.get(CACHE_KEY);
-    if (cached) {
-      log.info('Cache hit');
-      return JSON.parse(cached) as StateElectionsData;
-    }
-  } catch {
-    // Fall through to DB read.
+  const cached = await getCachedJson(CACHE_KEY, stateElectionsResponseSchema);
+  if (cached) {
+    log.info('Cache hit');
+    return cached;
   }
 
   let rows;
@@ -76,11 +73,7 @@ export async function getStateElections(): Promise<StateElectionsData | null> {
     states,
   };
 
-  try {
-    await redisClient.set(CACHE_KEY, JSON.stringify(data), { EX: CACHE_TTL });
-  } catch {
-    // Non-critical.
-  }
+  await setCachedJson(CACHE_KEY, data, CACHE_TTL);
 
   return data;
 }

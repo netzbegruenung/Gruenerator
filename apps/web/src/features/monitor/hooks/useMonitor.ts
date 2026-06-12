@@ -7,6 +7,7 @@ import {
   type MeinungsbildIssue,
   type MonitorArticle,
   type MonitorBriefingResult,
+  type MonitorCitation,
   type MonitorHistoryEntry,
   type MonitorLocale,
   type MonitorSearchResult,
@@ -21,13 +22,21 @@ import {
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../../../components/utils/apiClient';
-
 import type { TopicCategory } from '../topicConfig';
 
 /** Build the typed `locale` query object, omitting the key when undefined. */
 function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
   return locale ? { locale } : {};
+}
+
+/** Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect. */
+export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
+  return (citations ?? []).map((c) => ({
+    index: Number(c.id),
+    document_title: c.title,
+    source_url: c.url,
+    cited_text: c.snippet,
+  }));
 }
 
 export function useMonitorSnapshot(locale?: MonitorLocale) {
@@ -204,7 +213,10 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
       throw new Error('Briefing konnte nicht neu generiert werden.');
     },
     onSuccess: () => {
+      // Briefing and positions card derive from the same hot-topic analysis —
+      // a forced regeneration refreshes both.
       void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
+      void queryClient.invalidateQueries({ queryKey: ['monitor', 'keyword-insights'] });
     },
   });
 }
@@ -249,34 +261,7 @@ export function useStateElections() {
   });
 }
 
-// ─── Research-backed topic positions (not part of the monitor contract) ──────
-
-interface TopicPositionResult {
-  document_title: string;
-  source_url: string;
-  relevant_content: string;
-  similarity_score: number;
-  collection_name: string;
-}
-
-export function useTopicPosition(keyword?: string) {
-  return useQuery<TopicPositionResult | null>({
-    queryKey: ['monitor', 'position', keyword],
-    queryFn: async () => {
-      const { data } = await apiClient.post<{ results?: TopicPositionResult[] }>(
-        '/research/search',
-        {
-          query: keyword,
-          collectionIds: ['grundsatz-system', 'bundestagsfraktion-system'],
-          limit: 1,
-        }
-      );
-      return data.results?.[0] ?? null;
-    },
-    enabled: !!keyword,
-    staleTime: 30 * 60 * 1000,
-  });
-}
+// ─── Research-backed topic documents (research contract) ─────────────────────
 
 const TOPIC_DOCUMENT_COLLECTIONS: Record<MonitorLocale, string[]> = {
   de: ['boell-stiftung-system', 'kommunalwiki-system', 'bundestagsfraktion-system'],
@@ -284,20 +269,20 @@ const TOPIC_DOCUMENT_COLLECTIONS: Record<MonitorLocale, string[]> = {
 };
 
 export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de') {
-  return useQuery<TopicPositionResult[]>({
+  return useQuery({
     queryKey: ['monitor', 'topic-documents', keyword, locale],
     queryFn: async () => {
-      const { data } = await apiClient.post<{ results?: TopicPositionResult[] }>(
-        '/research/search',
-        {
-          query: keyword,
+      const res = await getContractsClient().research.search({
+        body: {
+          query: keyword!,
           collectionIds: TOPIC_DOCUMENT_COLLECTIONS[locale],
           limit: 3,
-        }
-      );
-      return data.results ?? [];
+        },
+      });
+      if (res.status === 200) return res.body.results;
+      throw new Error('Dokumente konnten nicht geladen werden.');
     },
-    enabled: !!keyword,
+    enabled: !!keyword && keyword.length >= 2,
     staleTime: 30 * 60 * 1000,
   });
 }

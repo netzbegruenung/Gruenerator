@@ -7,10 +7,10 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { CitationTextRenderer, CitationSourcesDisplay } from '../../../components/common/Citation';
-import { useKeywordInsights } from '../hooks/useMonitor';
+import { mapMonitorCitations, useKeywordInsights } from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 
@@ -28,6 +28,7 @@ const LINK_CONFIG = {
 export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
   const { data, isLoading } = useKeywordInsights(locale);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const citations = useMemo(() => mapMonitorCitations(data?.citations), [data?.citations]);
 
   return (
     <Card className="mb-lg">
@@ -55,12 +56,12 @@ export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
           <>
             <CitationTextRenderer
               text={data.text}
-              citations={data.citations}
+              citations={citations}
               className="text-sm leading-relaxed"
               linkConfig={LINK_CONFIG}
             />
 
-            {data.citations.length > 0 && (
+            {citations.length > 0 && (
               <div className="mt-md border-t border-grey-200 pt-md dark:border-grey-700">
                 <button
                   onClick={() => setSourcesOpen(!sourcesOpen)}
@@ -71,21 +72,13 @@ export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
                   ) : (
                     <ChevronRight className="h-3.5 w-3.5" />
                   )}
-                  {data.citations.length} Quellen anzeigen
+                  {citations.length} Quellen anzeigen
                 </button>
 
                 {sourcesOpen && (
                   <div className="mt-sm">
                     <CitationSourcesDisplay
-                      sources={data.sources.map((s) => ({
-                        ...s,
-                        source_url: s.source_url ?? undefined,
-                      }))}
-                      citations={data.citations.map((c) => ({
-                        ...c,
-                        index: Number(c.index),
-                        source_url: c.source_url ?? undefined,
-                      }))}
+                      citations={citations}
                       linkConfig={LINK_CONFIG}
                       title=""
                     />
