@@ -69,7 +69,7 @@ describe('AIService', () => {
     vi.clearAllMocks();
     mockSelectProviderAndModel.mockReturnValue({
       provider: 'litellm',
-      model: 'gpt-oss:120b',
+      model: 'verdigado-pro',
     });
     mockExecuteProvider.mockResolvedValue(VALID_RESULT);
     service = new AIService();
@@ -129,7 +129,7 @@ describe('AIService', () => {
   it('routes pro mode to LiteLLM', async () => {
     mockSelectProviderAndModel.mockReturnValue({
       provider: 'litellm',
-      model: 'gpt-oss:120b',
+      model: 'verdigado-pro',
     });
     const data = makeRequest({ options: { useProMode: true } });
     await service.processRequest(data);
