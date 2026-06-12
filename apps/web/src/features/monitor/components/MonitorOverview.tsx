@@ -15,6 +15,7 @@ import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
 import { BlueskyFeed } from './BlueskyFeed';
 import { UmfragenView } from './UmfragenView';
+import { WhatHappenedPreview } from './WhatHappenedPreview';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 import type { TopicCategory } from '../topicConfig';
@@ -22,9 +23,15 @@ import type { TopicCategory } from '../topicConfig';
 interface MonitorOverviewProps {
   locale: MonitorLocale;
   onTopicClick: (topic: TopicCategory) => void;
+  /** Switch to the full "Was ist passiert" tab. */
+  onShowWhatHappened?: () => void;
 }
 
-export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) {
+export function MonitorOverview({
+  locale,
+  onTopicClick,
+  onShowWhatHappened,
+}: MonitorOverviewProps) {
   const { data: snapshot } = useMonitorSnapshot(locale);
   const { data: briefing, isLoading: briefingLoading } = useMonitorBriefing(locale);
   const briefingCitations = useMemo(
@@ -239,6 +246,9 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
       <section className="mb-2xl">
         <UmfragenView locale={locale} showMeinungsbild={false} />
       </section>
+
+      {/* Section 6: Tagesbeiträge from the Was-ist-passiert feed */}
+      <WhatHappenedPreview locale={locale} onShowAll={onShowWhatHappened} />
     </div>
   );
 }
