@@ -14,12 +14,13 @@ import {
   StatusBanner,
   Switch,
 } from '@gruenerator/ui';
-import { ExternalLink, Inbox } from 'lucide-react';
+import { ChevronDown, ExternalLink, Inbox, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
+import { Markdown } from '../../../components/common/Markdown/Markdown';
 import useUserDefaults from '../../../hooks/useUserDefaults';
 import { BUNDESLAENDER } from '../bundeslaender';
-import { useWhatHappened } from '../hooks/useMonitor';
+import { useWhatHappened, useWhatHappenedSummary } from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 import type {
@@ -104,6 +105,49 @@ function ArticleRow({
         <span className="text-[10px] text-grey-400 shrink-0 mt-1">aktualisiert</span>
       )}
     </li>
+  );
+}
+
+function DaySummary({ date, locale }: { date: string; locale: MonitorLocale }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading, error } = useWhatHappenedSummary(date, locale, open);
+
+  return (
+    <div className="rounded-md border border-grey-100 dark:border-grey-800">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between gap-sm px-sm py-xs text-left hover:bg-grey-50 dark:hover:bg-grey-800/30 rounded-md"
+      >
+        <span className="inline-flex items-center gap-xs text-xs font-medium text-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary-500" />
+          Grünerator-Zusammenfassung
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 text-grey-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="px-sm pb-sm">
+          {isLoading && (
+            <div className="space-y-2 pt-xs">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-[90%]" />
+              <Skeleton className="h-4 w-[75%]" />
+            </div>
+          )}
+          {error && (
+            <p className="text-xs text-grey-400 pt-xs">
+              Zusammenfassung konnte nicht erstellt werden.
+            </p>
+          )}
+          {data && (
+            <Markdown className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground leading-relaxed">
+              {data.summary}
+            </Markdown>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -244,6 +288,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
               )}
             </CardHeader>
             <CardContent className="space-y-4">
+              <DaySummary date={day.date} locale={locale} />
               {[...groups.entries()].map(([label, articles]) => (
                 <div key={label}>
                   <div className="flex items-center gap-sm mb-xs">
