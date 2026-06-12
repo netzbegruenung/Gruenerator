@@ -13,6 +13,7 @@ import {
   AIPromptInput,
   Button,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -20,13 +21,13 @@ import {
   ResponsiveMenuItem,
   ResponsiveMenuSection,
   SettingsDropdown,
-  pillActive,
   pillBase,
+  pillInactive,
   type SettingConfig,
 } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Download, Image as ImageIcon, ImagePlus, X } from 'lucide-react';
+import { Check, Download, Image as ImageIcon, ImagePlus, Settings, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -84,98 +85,193 @@ const MODELS_BY_FAMILY = IMAGE_FAMILIES.map((family) => ({
       : IMAGE_MODELS.filter((m) => m.family === family.id),
 }));
 
-function ImageModelDropdown({
-  value,
-  onChange,
+const itemSelectedClass = 'text-primary-700 dark:text-primary-300';
+
+// One gear menu bundling all secondary image settings (Stil, Modell, Format),
+// mirroring the notebook composer's settings dropdown. The Modus pill stays
+// outside since it switches the entire input UI.
+function BilderSettingsMenu({
+  settings,
+  settingsValues,
+  onSettingChange,
+  modelValue,
+  onModelChange,
+  aspectRatio,
+  onAspectRatioChange,
 }: {
-  value: ImageModelId;
-  onChange: (id: ImageModelId) => void;
+  settings: SettingConfig[];
+  settingsValues: Record<string, unknown>;
+  onSettingChange: (key: string, value: string) => void;
+  modelValue: ImageModelId | null;
+  onModelChange: (id: ImageModelId) => void;
+  aspectRatio: AspectRatio | null;
+  onAspectRatioChange: (aspect: AspectRatio) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const selected = IMAGE_MODEL_BY_ID[value];
-  const select = (id: ImageModelId) => {
-    onChange(id);
+  if (settings.length === 0 && modelValue === null && aspectRatio === null) return null;
+
+  const selectModel = (id: ImageModelId) => {
+    onModelChange(id);
     setOpen(false);
   };
-  const itemSelectedClass = 'text-primary-700 dark:text-primary-300';
 
-  // Desktop: a Flux submenu nested under the model list; single-model families
-  // select directly.
-  const desktopContent = MODELS_BY_FAMILY.map(({ family, models }) => {
-    if (models.length === 1) {
-      const m = models[0];
-      const isSelected = m.id === value;
-      return (
-        <DropdownMenuItem
-          key={family.id}
-          onSelect={() => select(m.id)}
-          className={cn(isSelected && itemSelectedClass)}
-        >
-          <span className="flex-1">{m.name}</span>
-          {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
-        </DropdownMenuItem>
-      );
-    }
-    const familyActive = models.some((m) => m.id === value);
-    return (
-      <DropdownMenuSub key={family.id}>
-        <DropdownMenuSubTrigger className={cn(familyActive && itemSelectedClass)}>
-          {family.name}
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {models.map((m) => {
-            const isSelected = m.id === value;
-            return (
-              <DropdownMenuItem
-                key={m.id}
-                onSelect={() => select(m.id)}
-                className={cn(isSelected && itemSelectedClass)}
+  const subHint = (label: string | null) =>
+    label && <span className="ml-auto truncate pl-3 text-xs text-grey-500">{label}</span>;
+
+  const desktopItem = (
+    key: string,
+    label: React.ReactNode,
+    isSelected: boolean,
+    onSelect: () => void,
+    detail?: string
+  ) => (
+    <DropdownMenuItem key={key} onSelect={onSelect} className={cn(isSelected && itemSelectedClass)}>
+      <span className="flex-1">{label}</span>
+      {detail && <span className="text-xs text-grey-500">{detail}</span>}
+      {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
+    </DropdownMenuItem>
+  );
+
+  const desktopContent = (
+    <>
+      {settings.map((config) => {
+        const current = (settingsValues[config.key] as string) ?? '';
+        return (
+          <DropdownMenuSub key={config.key}>
+            <DropdownMenuSubTrigger>
+              {config.label ?? config.key}
+              {subHint(config.options.find((o) => o.id === current)?.label ?? null)}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {config.options.map((option) =>
+                desktopItem(option.id, option.label, option.id === current, () =>
+                  onSettingChange(config.key, option.id)
+                )
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        );
+      })}
+      {modelValue !== null && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            Modell
+            {subHint(IMAGE_MODEL_BY_ID[modelValue]?.name ?? null)}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {MODELS_BY_FAMILY.map(({ family, models }) =>
+              models.length === 1 ? (
+                desktopItem(family.id, models[0].name, models[0].id === modelValue, () =>
+                  selectModel(models[0].id)
+                )
+              ) : (
+                <React.Fragment key={family.id}>
+                  <DropdownMenuLabel className="text-xs text-grey-500">
+                    {family.name}
+                  </DropdownMenuLabel>
+                  {models.map((m) =>
+                    desktopItem(
+                      m.id,
+                      m.name.replace(FLUX_VARIANT_LABEL_RE, ''),
+                      m.id === modelValue,
+                      () => selectModel(m.id),
+                      shortCost(m.costMultiplier)
+                    )
+                  )}
+                </React.Fragment>
+              )
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+      {aspectRatio !== null && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            Format
+            {subHint(ASPECT_RATIO_CONFIG.options.find((o) => o.id === aspectRatio)?.label ?? null)}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {ASPECT_RATIO_CONFIG.options.map((option) =>
+              desktopItem(option.id, option.label, option.id === aspectRatio, () =>
+                onAspectRatioChange(option.id as AspectRatio)
+              )
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+    </>
+  );
+
+  // Mobile: flat titled sections in a bottom sheet (nested fly-outs are awkward
+  // on touch). Flux variants keep their full name to stay distinguishable.
+  const mobileContent = (
+    <>
+      {settings.map((config) => {
+        const current = (settingsValues[config.key] as string) ?? '';
+        return (
+          <ResponsiveMenuSection key={config.key} title={config.label ?? config.key}>
+            {config.options.map((option) => (
+              <ResponsiveMenuItem
+                key={option.id}
+                active={option.id === current}
+                onClick={() => {
+                  onSettingChange(config.key, option.id);
+                  setOpen(false);
+                }}
               >
-                <span className="flex-1">{m.name.replace(FLUX_VARIANT_LABEL_RE, '')}</span>
-                <span className="text-xs text-grey-500">{shortCost(m.costMultiplier)}</span>
-                {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-    );
-  });
-
-  // Mobile: a flat bottom sheet — Flux variants grouped in a titled section,
-  // single-model families as loose rows. (Nested side fly-outs are awkward on touch.)
-  const mobileContent = MODELS_BY_FAMILY.map(({ family, models }) =>
-    models.length > 1 ? (
-      <ResponsiveMenuSection key={family.id} title={family.name}>
-        {models.map((m) => (
-          <ResponsiveMenuItem key={m.id} active={m.id === value} onClick={() => select(m.id)}>
-            {m.name.replace(FLUX_VARIANT_LABEL_RE, '')} · {shortCost(m.costMultiplier)}
-          </ResponsiveMenuItem>
-        ))}
-      </ResponsiveMenuSection>
-    ) : (
-      <ResponsiveMenuItem
-        key={family.id}
-        active={models[0].id === value}
-        onClick={() => select(models[0].id)}
-      >
-        {models[0].name}
-      </ResponsiveMenuItem>
-    )
+                {option.label}
+              </ResponsiveMenuItem>
+            ))}
+          </ResponsiveMenuSection>
+        );
+      })}
+      {modelValue !== null && (
+        <ResponsiveMenuSection title="Modell">
+          {MODELS_BY_FAMILY.flatMap(({ models }) =>
+            models.map((m) => (
+              <ResponsiveMenuItem
+                key={m.id}
+                active={m.id === modelValue}
+                onClick={() => selectModel(m.id)}
+              >
+                {models.length > 1
+                  ? `${m.name.replace(/^⭐\s+/, '')} · ${shortCost(m.costMultiplier)}`
+                  : m.name}
+              </ResponsiveMenuItem>
+            ))
+          )}
+        </ResponsiveMenuSection>
+      )}
+      {aspectRatio !== null && (
+        <ResponsiveMenuSection title="Format">
+          {ASPECT_RATIO_CONFIG.options.map((option) => (
+            <ResponsiveMenuItem
+              key={option.id}
+              active={option.id === aspectRatio}
+              onClick={() => {
+                onAspectRatioChange(option.id as AspectRatio);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
+    </>
   );
 
   return (
     <ResponsiveMenu
       open={open}
       onOpenChange={setOpen}
-      sheetTitle="Modell wählen"
+      sheetTitle="Bild-Einstellungen"
       dropdownSide="bottom"
       dropdownAlign="start"
-      dropdownClassName="min-w-[12rem]"
+      dropdownClassName="min-w-[14rem]"
       trigger={
-        <button type="button" className={cn(pillBase, pillActive, 'gap-1')}>
-          <span>{selected.name}</span>
-          <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
+        <button type="button" aria-label="Bild-Einstellungen" className={cn(pillBase, pillInactive)}>
+          <Settings className="size-3.5" />
         </button>
       }
       desktopContent={desktopContent}
@@ -986,30 +1082,19 @@ const BilderInner: React.FC = memo(() => {
           value={subMode}
           onChange={(val) => setSubMode(val as SubMode)}
         />
-        {isErstellen &&
-          erstellenDef?.settings?.map((config) => (
-            <SettingsDropdown
-              key={config.key}
-              config={config}
-              value={(modeState[config.key] as string) ?? ''}
-              onChange={(val) => updateField(config.key, val as string)}
-            />
-          ))}
-        {(isErstellen || isBearbeiten) && (
-          <ImageModelDropdown
-            value={selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID}
-            onChange={handleModelChange}
-          />
-        )}
+        <BilderSettingsMenu
+          settings={isErstellen ? (erstellenDef?.settings ?? []) : []}
+          settingsValues={modeState}
+          onSettingChange={(key, val) => updateField(key, val)}
+          modelValue={
+            isErstellen || isBearbeiten ? (selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID) : null
+          }
+          onModelChange={handleModelChange}
+          aspectRatio={isVergroessern ? aspectRatio : null}
+          onAspectRatioChange={setAspectRatio}
+        />
         {isBearbeiten && referencePillRow}
         {(isBegruenen || isHintergrund) && filePickerPill}
-        {isVergroessern && (
-          <SettingsDropdown
-            config={ASPECT_RATIO_CONFIG}
-            value={aspectRatio}
-            onChange={(val) => setAspectRatio(val as AspectRatio)}
-          />
-        )}
         {isVergroessern && isCustomAspect && (
           <span
             className={cn(
