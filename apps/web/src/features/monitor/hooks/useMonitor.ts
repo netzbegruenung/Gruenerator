@@ -15,7 +15,6 @@ import {
   type PollParliament,
   type StateElectionResult,
   type StateElectionsData,
-  type StimmungResult,
   type TopicScore,
   type WatcherEntityInfo,
 } from '@gruenerator/contracts';
@@ -117,19 +116,6 @@ export function useMonitorBriefing(locale?: MonitorLocale) {
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
-  });
-}
-
-export function useStimmung(locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'stimmung', locale],
-    queryFn: async (): Promise<StimmungResult> => {
-      const res = await getContractsClient().monitor.stimmung({ query: localeQuery(locale) });
-      if (res.status === 200) return res.body;
-      throw new Error('Stimmung konnte nicht geladen werden.');
-    },
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
   });
 }
 

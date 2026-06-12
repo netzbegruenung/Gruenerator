@@ -9,18 +9,7 @@ interface ArticleCardProps {
   excerpt?: React.ReactNode;
   source: string;
   publishedAt?: string | null;
-  sentiment?: number;
   className?: string;
-}
-
-function SentimentDot({ value }: { value: number }) {
-  const color = value < -0.3 ? 'bg-red-500' : value > 0.3 ? 'bg-green-500' : 'bg-grey-400';
-  return (
-    <span
-      className={cn('h-2 w-2 rounded-full shrink-0', color)}
-      title={`Sentiment: ${value.toFixed(2)}`}
-    />
-  );
 }
 
 function formatTime(dateStr: string): string {
@@ -34,15 +23,7 @@ function formatTime(dateStr: string): string {
   return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 
-function ArticleCard({
-  url,
-  title,
-  excerpt,
-  source,
-  publishedAt,
-  sentiment,
-  className,
-}: ArticleCardProps) {
+function ArticleCard({ url, title, excerpt, source, publishedAt, className }: ArticleCardProps) {
   return (
     <a
       href={url}
@@ -61,7 +42,6 @@ function ArticleCard({
           {source}
         </span>
         <div className="flex items-center gap-xs shrink-0">
-          {sentiment != null && <SentimentDot value={sentiment} />}
           <ExternalLink className="h-3 w-3 text-grey-300 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
