@@ -8,7 +8,6 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useAuthStore } from '../../stores/authStore';
 
-import { BundeslandView } from './components/BundeslandView';
 import { KeywordInsightsCard } from './components/KeywordInsightsCard';
 import { KeywordRanking } from './components/KeywordRanking';
 import { MonitorOverview } from './components/MonitorOverview';
@@ -17,6 +16,7 @@ import { TopicDetail } from './components/TopicDetail';
 import { TopicRanking } from './components/TopicRanking';
 import { UmfragenView } from './components/UmfragenView';
 import { WatcherView } from './components/WatcherView';
+import { WhatHappenedView } from './components/WhatHappenedView';
 import {
   useKeywordInsights,
   useMonitorBriefing,
@@ -34,8 +34,8 @@ type MonitorTab =
   | 'keywords'
   | 'social'
   | 'umfragen'
-  | 'bundesland'
   | 'watcher'
+  | 'whatHappened'
   | 'details';
 
 function MonitorPage() {
@@ -107,8 +107,8 @@ function MonitorPage() {
                   <TabsTrigger value="overview">Überblick</TabsTrigger>
                   <TabsTrigger value="topics">Themen</TabsTrigger>
                   <TabsTrigger value="umfragen">Umfragen</TabsTrigger>
-                  {locale === 'de' && <TabsTrigger value="bundesland">Bundesländer</TabsTrigger>}
                   <TabsTrigger value="watcher">Watcher</TabsTrigger>
+                  <TabsTrigger value="whatHappened">Was ist passiert</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -127,9 +127,9 @@ function MonitorPage() {
 
             {tab === 'umfragen' && <UmfragenView locale={locale} />}
 
-            {tab === 'bundesland' && <BundeslandView />}
-
             {tab === 'watcher' && <WatcherView locale={locale} />}
+
+            {tab === 'whatHappened' && <WhatHappenedView locale={locale} />}
 
             {snapshot && (
               <>

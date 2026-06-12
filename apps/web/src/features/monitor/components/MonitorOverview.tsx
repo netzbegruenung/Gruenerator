@@ -1,25 +1,19 @@
-import {
-  ArticleCard,
-  Card,
-  CardContent,
-  ProgressBar,
-  Skeleton,
-  TweetCard,
-  TweetXIcon,
-} from '@gruenerator/ui';
-import { ChevronRight, Flame, RefreshCw, Sparkles } from 'lucide-react';
+// TweetCard, TweetXIcon, RefreshCw, useBriefingRefresh: only used by the
+// commented-out Tweet-Vorschläge section below — re-add when re-enabling it.
+import { ArticleCard, Card, CardContent, ProgressBar, Skeleton } from '@gruenerator/ui';
+import { ChevronRight, Flame, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import {
   MONITOR_CITATION_LINK_CONFIG,
   mapMonitorCitations,
-  useBriefingRefresh,
   useMonitorBriefing,
   useMonitorSnapshot,
 } from '../hooks/useMonitor';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
+import { BlueskyFeed } from './BlueskyFeed';
 import { UmfragenView } from './UmfragenView';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
@@ -37,7 +31,7 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
     () => mapMonitorCitations(briefing?.citations),
     [briefing?.citations]
   );
-  const briefingRefresh = useBriefingRefresh(locale);
+  // const briefingRefresh = useBriefingRefresh(locale);
 
   const maxScore = snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1;
 
@@ -136,7 +130,7 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
         </section>
       )}
 
-      {/* Section 2: Tweet Suggestions */}
+      {/* Section 2: Tweet Suggestions — disabled in favor of the Bluesky feed below.
       <section className="mb-2xl">
         <div className="flex items-center justify-between mb-md">
           <h2 className="text-lg font-semibold text-foreground">Tweet-Vorschläge</h2>
@@ -192,6 +186,10 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
           })}
         </div>
       </section>
+      */}
+
+      {/* Section 2: Latest Bluesky posts */}
+      <BlueskyFeed locale={locale} />
 
       {/* Section 3: Top Themen */}
       <section className="mb-2xl">
@@ -237,9 +235,9 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
         )}
       </section>
 
-      {/* Section 5: Sonntagsfrage */}
+      {/* Section 5: Sonntagsfrage (Meinungsbild only lives in the Umfragen tab) */}
       <section className="mb-2xl">
-        <UmfragenView locale={locale} />
+        <UmfragenView locale={locale} showMeinungsbild={false} />
       </section>
     </div>
   );
