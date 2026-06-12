@@ -98,7 +98,8 @@ export async function editAiImage(
   image: File | File[],
   instruction: string,
   editType: ImageEditType = 'universal',
-  imageModel?: ImageModelId
+  imageModel?: ImageModelId,
+  options?: { kiLabel?: boolean }
 ): Promise<{ file: File; objectUrl: string; base64: string }> {
   const files = Array.isArray(image) ? image : [image];
   if (files.length === 0) throw new Error('Kein Bild ausgewählt');
@@ -113,6 +114,7 @@ export async function editAiImage(
       editType,
       precision: true,
       ...(imageModel && { imageModel }),
+      ...(options?.kiLabel === false && { kiLabel: false }),
     },
   });
 

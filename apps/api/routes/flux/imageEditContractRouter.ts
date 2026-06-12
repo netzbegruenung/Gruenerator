@@ -116,8 +116,9 @@ export const imageEditContractRouter = s.router(imageEditContract, {
         safety_tolerance: 2,
       });
 
-      const labeledBuffer = await addKiLabel(Buffer.from(stored.base64, 'base64'));
-      fs.writeFileSync(stored.filePath, labeledBuffer);
+      const rawBuffer = Buffer.from(stored.base64, 'base64');
+      const outputBuffer = body.kiLabel === false ? rawBuffer : await addKiLabel(rawBuffer);
+      fs.writeFileSync(stored.filePath, outputBuffer);
 
       const incrementResult = await imageCounter.incrementCount(
         userId,
@@ -129,7 +130,7 @@ export const imageEditContractRouter = s.router(imageEditContract, {
         body: {
           success: true as const,
           image: {
-            base64: labeledBuffer.toString('base64'),
+            base64: outputBuffer.toString('base64'),
             filename: stored.filename,
           },
           prompt,

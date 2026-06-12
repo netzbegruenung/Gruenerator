@@ -23,13 +23,18 @@ type PresetAspect = z.infer<typeof presetAspectSchema>;
 
 const MAX_AREA_PIXELS = 4_194_304; // BFL's 4MP cap
 
+// Multipart form field, so booleans arrive as strings. Defaults to labeling;
+// 'false' skips the burned-in KI label so users can apply their own.
+const kiLabelFieldSchema = z.enum(['true', 'false']).nullish();
+
 const bodySchema = z.union([
-  z.object({ aspectRatio: presetAspectSchema }),
+  z.object({ aspectRatio: presetAspectSchema, kiLabel: kiLabelFieldSchema }),
   z
     .object({
       aspectRatio: z.literal('custom'),
       width: z.coerce.number().int().min(256).max(2048),
       height: z.coerce.number().int().min(256).max(2048),
+      kiLabel: kiLabelFieldSchema,
     })
     .refine((d) => d.width * d.height <= MAX_AREA_PIXELS, {
       message: `Bild zu groß — maximal ${MAX_AREA_PIXELS / 1_000_000} Megapixel (Breite × Höhe).`,
@@ -96,7 +101,8 @@ router.post(
       });
 
       const fluxBuffer = fs.readFileSync(stored.filePath);
-      const labeledBuffer = await addKiLabel(fluxBuffer);
+      const labeledBuffer =
+        parsed.data.kiLabel === 'false' ? fluxBuffer : await addKiLabel(fluxBuffer);
       const labeledBase64 = labeledBuffer.toString('base64');
 
       const now = new Date();

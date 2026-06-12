@@ -35,6 +35,9 @@ const imaginePureSchema = z.object({
   seed: z.number().nullish(),
   width: z.number().nullish(),
   height: z.number().nullish(),
+  // Burn the "KI-Generiert mit dem Grünerator" label into the result.
+  // Defaults to true; users can opt out to apply their own AI labeling.
+  kiLabel: z.boolean().nullish(),
 });
 
 type ImaginePureRequestBody = z.infer<typeof imaginePureSchema>;
@@ -231,9 +234,12 @@ router.post(
 
       const fluxImageBuffer = fs.readFileSync(fluxResult.filePath);
 
-      const labeledBuffer = await addKiLabel(fluxImageBuffer);
+      const labeledBuffer =
+        req.body.kiLabel === false ? fluxImageBuffer : await addKiLabel(fluxImageBuffer);
 
-      log.debug(`[ImaginePure] KI label added, final size: ${labeledBuffer.length} bytes`);
+      log.debug(
+        `[ImaginePure] KI label ${req.body.kiLabel === false ? 'skipped' : 'added'}, final size: ${labeledBuffer.length} bytes`
+      );
 
       const now = new Date();
       const today = now.toISOString().split('T')[0];

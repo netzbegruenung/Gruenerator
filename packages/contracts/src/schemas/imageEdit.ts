@@ -32,12 +32,17 @@ export const imageEditBodySchema = z.object({
   imageModel: imageModelIdSchema.nullish(),
   editType: imageEditTypeSchema.nullish(),
   precision: z.boolean().nullish(),
+  /**
+   * Burn the "KI-Generiert mit dem Grünerator" label into the result.
+   * Defaults to true; users can opt out to apply their own AI labeling.
+   */
+  kiLabel: z.boolean().nullish(),
 });
 
 export const imageEditSuccessSchema = z.object({
   success: z.literal(true),
   image: z.object({
-    /** Base64-encoded JPEG result (no data-URL prefix), KI-labeled. */
+    /** Base64-encoded JPEG result (no data-URL prefix), KI-labeled unless kiLabel=false. */
     base64: z.string(),
     filename: z.string(),
   }),

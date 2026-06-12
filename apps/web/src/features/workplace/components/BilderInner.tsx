@@ -12,14 +12,17 @@ import { useShareStore } from '@gruenerator/shared/share';
 import {
   AIPromptInput,
   Button,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   ResponsiveMenu,
   ResponsiveMenuItem,
   ResponsiveMenuSection,
+  ResponsiveMenuToggle,
   SettingsDropdown,
   pillBase,
   pillInactive,
@@ -98,6 +101,8 @@ function BilderSettingsMenu({
   onModelChange,
   aspectRatio,
   onAspectRatioChange,
+  kiLabel,
+  onKiLabelChange,
 }: {
   settings: SettingConfig[];
   settingsValues: Record<string, unknown>;
@@ -106,9 +111,12 @@ function BilderSettingsMenu({
   onModelChange: (id: ImageModelId) => void;
   aspectRatio: AspectRatio | null;
   onAspectRatioChange: (aspect: AspectRatio) => void;
+  kiLabel: boolean | null;
+  onKiLabelChange: (value: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  if (settings.length === 0 && modelValue === null && aspectRatio === null) return null;
+  const hasSelectSections = settings.length > 0 || modelValue !== null || aspectRatio !== null;
+  if (!hasSelectSections && kiLabel === null) return null;
 
   const selectModel = (id: ImageModelId) => {
     onModelChange(id);
@@ -199,6 +207,18 @@ function BilderSettingsMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       )}
+      {kiLabel !== null && (
+        <>
+          {hasSelectSections && <DropdownMenuSeparator />}
+          <DropdownMenuCheckboxItem
+            checked={kiLabel}
+            onCheckedChange={(checked) => onKiLabelChange(checked === true)}
+            onSelect={(e) => e.preventDefault()}
+          >
+            KI-Kennzeichnung im Bild
+          </DropdownMenuCheckboxItem>
+        </>
+      )}
     </>
   );
 
@@ -258,6 +278,15 @@ function BilderSettingsMenu({
           ))}
         </ResponsiveMenuSection>
       )}
+      {kiLabel !== null && (
+        <ResponsiveMenuSection title="Kennzeichnung">
+          <ResponsiveMenuToggle
+            label="KI-Kennzeichnung im Bild"
+            checked={kiLabel}
+            onCheckedChange={onKiLabelChange}
+          />
+        </ResponsiveMenuSection>
+      )}
     </>
   );
 
@@ -270,7 +299,11 @@ function BilderSettingsMenu({
       dropdownAlign="start"
       dropdownClassName="min-w-[14rem]"
       trigger={
-        <button type="button" aria-label="Bild-Einstellungen" className={cn(pillBase, pillInactive)}>
+        <button
+          type="button"
+          aria-label="Bild-Einstellungen"
+          className={cn(pillBase, pillInactive)}
+        >
           <Settings className="size-3.5" />
         </button>
       }
@@ -299,6 +332,18 @@ const ASPECT_RATIO_CONFIG: SettingConfig = {
 const MIN_CUSTOM_SIDE = 256;
 const MAX_CUSTOM_SIDE = 2048;
 const MAX_CUSTOM_AREA = 4_194_304;
+
+// Persists the opt-out of the burned-in "KI-Generiert mit dem Grünerator"
+// label across sessions (users may want to apply their own AI labeling).
+const KI_LABEL_STORAGE_KEY = 'gruenerator-bilder-ki-label';
+
+function readStoredKiLabel(): boolean {
+  try {
+    return localStorage.getItem(KI_LABEL_STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
 
 const ASPECT_RATIO_VALUE: Record<Exclude<AspectRatio, 'custom'>, number> = {
   '16:9': 16 / 9,
@@ -426,6 +471,16 @@ const BilderInner: React.FC = memo(() => {
     customHeight <= MAX_CUSTOM_SIDE &&
     customArea <= MAX_CUSTOM_AREA;
   const [outpaintError, setOutpaintError] = useState<string | null>(null);
+
+  const [kiLabel, setKiLabelState] = useState<boolean>(readStoredKiLabel);
+  const setKiLabel = useCallback((value: boolean) => {
+    setKiLabelState(value);
+    try {
+      localStorage.setItem(KI_LABEL_STORAGE_KEY, String(value));
+    } catch {
+      // Storage unavailable (e.g. private mode) — keep the in-memory value.
+    }
+  }, []);
 
   const { state: modeState, updateField } = useModeState(ERSTELLEN_MODE_ID);
 
@@ -646,6 +701,7 @@ const BilderInner: React.FC = memo(() => {
       const payload: Record<string, unknown> = { prompt: trimmed };
       if (modeState.variant) payload.variant = modeState.variant;
       if (modeState.imageModel) payload.imageModel = modeState.imageModel;
+      if (!kiLabel) payload.kiLabel = false;
       const result = await submitForm(payload);
       const usageFromResponse = (result as { usage?: UsageStatus })?.usage;
       if (usageFromResponse) setUsage(usageFromResponse);
@@ -671,6 +727,7 @@ const BilderInner: React.FC = memo(() => {
     submitForm,
     modeState.variant,
     modeState.imageModel,
+    kiLabel,
     setResult,
     createImageShare,
     queryClient,
@@ -687,7 +744,8 @@ const BilderInner: React.FC = memo(() => {
         files,
         trimmed,
         'universal',
-        selectedImageModel ?? undefined
+        selectedImageModel ?? undefined,
+        { kiLabel }
       );
       setResult(objectUrl, true);
       createImageShare({
@@ -717,6 +775,7 @@ const BilderInner: React.FC = memo(() => {
     sourceFile,
     extraSourceFiles,
     selectedImageModel,
+    kiLabel,
     editLoading,
     setResult,
     createImageShare,
@@ -729,7 +788,15 @@ const BilderInner: React.FC = memo(() => {
     setGreenEditLoading(true);
     setGreenEditError(null);
     try {
-      const { objectUrl, base64 } = await editAiImage(sourceFile, trimmed, 'green-edit');
+      const { objectUrl, base64 } = await editAiImage(
+        sourceFile,
+        trimmed,
+        'green-edit',
+        undefined,
+        {
+          kiLabel,
+        }
+      );
       setResult(objectUrl, true);
       createImageShare({
         imageData: base64,
@@ -750,7 +817,7 @@ const BilderInner: React.FC = memo(() => {
     } finally {
       setGreenEditLoading(false);
     }
-  }, [prompt, sourceFile, greenEditLoading, setResult, createImageShare, queryClient]);
+  }, [prompt, sourceFile, kiLabel, greenEditLoading, setResult, createImageShare, queryClient]);
 
   const handleSubmitRemoveBg = useCallback(
     async (fileOverride?: File) => {
@@ -834,6 +901,7 @@ const BilderInner: React.FC = memo(() => {
       form.append('aspectRatio', 'custom');
       form.append('width', String(targetW));
       form.append('height', String(targetH));
+      if (!kiLabel) form.append('kiLabel', 'false');
       const res = await getGlobalApiClient().post<{
         success: boolean;
         image?: { base64?: string };
@@ -883,6 +951,7 @@ const BilderInner: React.FC = memo(() => {
     customWidth,
     customHeight,
     customSizeValid,
+    kiLabel,
     setResult,
     createImageShare,
     queryClient,
@@ -1092,6 +1161,8 @@ const BilderInner: React.FC = memo(() => {
           onModelChange={handleModelChange}
           aspectRatio={isVergroessern ? aspectRatio : null}
           onAspectRatioChange={setAspectRatio}
+          kiLabel={isHintergrund ? null : kiLabel}
+          onKiLabelChange={setKiLabel}
         />
         {isBearbeiten && referencePillRow}
         {(isBegruenen || isHintergrund) && filePickerPill}
@@ -1151,6 +1222,8 @@ const BilderInner: React.FC = memo(() => {
       filePickerPill,
       referencePillRow,
       aspectRatio,
+      kiLabel,
+      setKiLabel,
       usage,
     ]
   );
