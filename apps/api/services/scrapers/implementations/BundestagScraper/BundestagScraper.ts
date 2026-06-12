@@ -10,7 +10,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import BundestagContentProcessor from '../../../bundestag/BundestagContentProcessor.js';
 import { chunkQualityService } from '../../../ChunkQualityService/index.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
-import { recordSyncEvent } from '../../syncEventRecorder.js';
+import { recordSyncEvent, toExcerpt } from '../../syncEventRecorder.js';
 import { WebsiteCrawler } from '../WebsiteCrawler.js';
 
 import {
@@ -187,6 +187,7 @@ export class BundestagScraper {
               sourceUrl: page.source_url,
               sourceGroupId: 'bundestag',
               sourceName: 'Bundestagsfraktion',
+              excerpt: toExcerpt(page.text),
               landesverband: null,
               collection: COLLECTION_NAME,
               eventType: existingHash ? 'updated' : 'stored',
