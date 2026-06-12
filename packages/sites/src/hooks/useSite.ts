@@ -1,4 +1,10 @@
-import { type CreateSiteBody, type Site, type UpdateSiteBody } from '@gruenerator/contracts';
+import {
+  richTextDocFromPlainText,
+  type CreateSiteBody,
+  type RichTextDoc,
+  type Site,
+  type UpdateSiteBody,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -19,11 +25,11 @@ export interface AiGeneratedContent {
 export interface GeneratedSiteData {
   site_title: string;
   tagline: string;
-  bio: string;
   contact_email: string;
   sections: {
+    about: { title: string; content: RichTextDoc };
     heroImage: { imageUrl: string; title: string; subtitle: string };
-    themes: Array<{ imageUrl: string; title: string; content: string }>;
+    themes: Array<{ imageUrl: string; title: string; content: RichTextDoc }>;
     actions: Array<{ imageUrl: string; text: string; link: string }>;
     contact: { title: string; backgroundImageUrl: string };
   };
@@ -33,9 +39,12 @@ function transformAiResponse(ai: AiGeneratedContent): GeneratedSiteData {
   return {
     site_title: ai.hero.heading,
     tagline: ai.hero.text,
-    bio: ai.about.content,
     contact_email: ai.contact.email,
     sections: {
+      about: {
+        title: ai.about.title || 'Wer ich bin',
+        content: richTextDocFromPlainText(ai.about.content),
+      },
       heroImage: {
         imageUrl: ai.hero_image.imageUrl || '',
         title: ai.hero_image.title,
@@ -44,7 +53,7 @@ function transformAiResponse(ai: AiGeneratedContent): GeneratedSiteData {
       themes: ai.themes.map((t) => ({
         imageUrl: t.imageUrl || '',
         title: t.title,
-        content: t.content,
+        content: richTextDocFromPlainText(t.content),
       })),
       actions: ai.actions.map((a) => ({ imageUrl: a.imageUrl || '', text: a.text, link: a.link })),
       contact: { title: ai.contact.title, backgroundImageUrl: ai.contact.backgroundImageUrl || '' },

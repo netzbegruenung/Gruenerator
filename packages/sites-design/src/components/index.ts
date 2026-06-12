@@ -6,6 +6,7 @@ export { ThemesSection } from './ThemesSection';
 export { ActionsSection } from './ActionsSection';
 export { SocialFeedSection } from './SocialFeedSection';
 export { ContactSection } from './ContactSection';
+export { RichTextContent } from './RichTextContent';
 
 export { InstagramEmbed } from './consent/InstagramEmbed';
 export { EmbedConsentPlaceholder } from './consent/EmbedConsentPlaceholder';

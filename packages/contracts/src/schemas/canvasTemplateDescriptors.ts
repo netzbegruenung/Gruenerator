@@ -36,12 +36,20 @@ export interface SharepicElementDescriptor {
   id: string;
   label: string;
   kind: 'balken' | 'asset';
-  /** State key holding `{ x, y }` for this element. */
-  positionStateKey: string;
-  /** Allowed range for x/y values (canvas-relative). */
-  bounds: { minX: number; maxX: number; minY: number; maxY: number };
+  /** State key holding `{ x, y }`; omit for elements that cannot move (pfeil). */
+  positionStateKey?: string;
+  /** Allowed range for x/y values (canvas-relative). Required with positionStateKey. */
+  bounds?: { minX: number; maxX: number; minY: number; maxY: number };
   /** State key + clamp bounds for `patch.scale`, when scalable. */
   scale?: { stateKey: string; min: number; max: number };
+  /** State key + clamp bounds for `patch.opacity` (0–1), when supported. */
+  opacity?: { stateKey: string; min: number; max: number };
+  /**
+   * State key whose truthiness gates position/scale edits (dreizeilen
+   * background: panning/zooming a non-existent image is meaningless).
+   * Also surfaces as "vorhanden/keins" in the snapshot label.
+   */
+  presenceStateKey?: string;
 }
 
 export interface SharepicTemplateDescriptor {
@@ -123,6 +131,7 @@ const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
       positionStateKey: 'balkenOffset',
       bounds: { minX: -300, maxX: 300, minY: -300, maxY: 300 },
       scale: { stateKey: 'balkenScale', min: 0.5, max: 2 },
+      opacity: { stateKey: 'balkenOpacity', min: 0.2, max: 1 },
     },
     {
       id: 'sunflower',
@@ -130,6 +139,20 @@ const DREIZEILEN_DESCRIPTOR: SharepicTemplateDescriptor = {
       kind: 'asset',
       positionStateKey: 'sunflowerPos',
       bounds: { minX: 0, maxX: 1080, minY: 0, maxY: 1350 },
+      opacity: { stateKey: 'sunflowerOpacity', min: 0.05, max: 1 },
+    },
+    {
+      // Background photo pan/zoom/opacity. Offset semantics: {0,0} = centered
+      // crop, negative y shifts the visible cutout up. Gated on an existing
+      // image via presenceStateKey.
+      id: 'hintergrundbild',
+      label: 'Hintergrundbild (Ausschnitt)',
+      kind: 'asset',
+      positionStateKey: 'imageOffset',
+      bounds: { minX: -540, maxX: 540, minY: -675, maxY: 675 },
+      scale: { stateKey: 'imageScale', min: 0.5, max: 3 },
+      opacity: { stateKey: 'backgroundImageOpacity', min: 0.2, max: 1 },
+      presenceStateKey: 'currentImageSrc',
     },
   ],
   defaultState: { colorSchemeId: 'tanne-sand', fontSize: 60, sunflowerVisible: true },
@@ -173,6 +196,16 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
       positionStateKey: 'namePosition',
       bounds: { minX: 75, maxX: 500, minY: 120, maxY: 1250 },
     },
+    {
+      // Decorative quotation mark above the quote. Offset relative to its
+      // auto-layout anchor; opacity 0 hides it.
+      id: 'anfuehrungszeichen',
+      label: 'Anführungszeichen',
+      kind: 'asset',
+      positionStateKey: 'quoteMarkOffset',
+      bounds: { minX: -400, maxX: 400, minY: -400, maxY: 400 },
+      opacity: { stateKey: 'quoteMarkOpacity', min: 0, max: 1 },
+    },
   ],
   layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
   defaultState: { backgroundColor: '#6CCD87' },
@@ -182,7 +215,7 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'info',
   label: 'Info',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color'],
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
   textFields: [
     {
       field: 'header',
@@ -204,7 +237,16 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
       { id: 'sand', label: 'Sand', color: '#F5F1E9' },
     ],
   },
-  elements: [],
+  elements: [
+    {
+      // The arrow between header and body. Not movable (auto layout) —
+      // opacity 0 hides it.
+      id: 'pfeil',
+      label: 'Pfeil',
+      kind: 'asset',
+      opacity: { stateKey: 'arrowOpacity', min: 0, max: 1 },
+    },
+  ],
   defaultState: { backgroundColor: '#005538' },
 };
 
@@ -223,14 +265,32 @@ export function getSharepicTemplateDescriptor(
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
 
-function elementPositionLabel(
+function elementSummaryLabel(
   el: SharepicElementDescriptor,
+  descriptor: SharepicTemplateDescriptor,
   state: Record<string, unknown>
 ): string {
-  const pos = state[el.positionStateKey] as { x?: number; y?: number } | null | undefined;
-  const x = typeof pos?.x === 'number' ? Math.round(pos.x) : 0;
-  const y = typeof pos?.y === 'number' ? Math.round(pos.y) : 0;
-  return `${el.label} — Position x=${x}, y=${y} (erlaubt: x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY})`;
+  const parts: string[] = [el.label];
+  if (el.positionStateKey && el.bounds) {
+    const pos = state[el.positionStateKey] as { x?: number; y?: number } | null | undefined;
+    const x = typeof pos?.x === 'number' ? Math.round(pos.x) : 0;
+    const y = typeof pos?.y === 'number' ? Math.round(pos.y) : 0;
+    parts.push(
+      `Position x=${x}, y=${y} (erlaubt: x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY})`
+    );
+  }
+  if (el.opacity) {
+    const raw = state[el.opacity.stateKey];
+    const current = typeof raw === 'number' ? raw : 1;
+    parts.push(`Transparenz ${Math.round(current * 100)}%`);
+  }
+  if (el.presenceStateKey) {
+    parts.push(state[el.presenceStateKey] ? 'Bild vorhanden' : 'kein Bild gesetzt');
+  }
+  if (el.id === 'sunflower' && descriptor.sunflowerVisibleStateKey) {
+    parts.push(state[descriptor.sunflowerVisibleStateKey] === false ? 'ausgeblendet' : 'sichtbar');
+  }
+  return `${parts[0]} — ${parts.slice(1).join(', ')}`;
 }
 
 /** Compact LLM-facing snapshot of the current sharepic state (~200 tokens). */
@@ -240,15 +300,25 @@ export function buildSharepicSnapshot(
 ): CanvasAiSnapshot {
   const snapshot: CanvasAiSnapshot = {
     template: descriptor.id,
-    textFields: descriptor.textFields.map((f) => ({
-      field: f.field,
-      label: f.label,
-      value: str(state[f.stateKey]),
-    })),
+    // Current font size rides along in the label so the LLM can judge
+    // "größer/kleiner" relative to the actual value instead of guessing.
+    textFields: descriptor.textFields.map((f) => {
+      const size = f.fontSize ? state[f.fontSize.stateKey] : undefined;
+      const sizeInfo = f.fontSize
+        ? typeof size === 'number'
+          ? ` (Schrift: ${Math.round(size)}px)`
+          : ' (Schrift: automatisch)'
+        : '';
+      return {
+        field: f.field,
+        label: `${f.label}${sizeInfo}`,
+        value: str(state[f.stateKey]),
+      };
+    }),
     elementsSummary: descriptor.elements.map((el) => ({
       id: el.id,
       kind: el.kind,
-      label: elementPositionLabel(el, state),
+      label: elementSummaryLabel(el, descriptor, state),
     })),
   };
   if (descriptor.colorSchemes) {
@@ -356,11 +426,24 @@ export function sharepicOpsToStatePatch(
         rejected.push({ op, reason: `Unbekanntes Element "${op.elementId}"` });
         continue;
       }
-      const prev = (state[el.positionStateKey] as { x?: number; y?: number } | null) ?? null;
+      if (el.presenceStateKey && !state[el.presenceStateKey]) {
+        rejected.push({
+          op,
+          reason: `"${el.label}" ist nicht gesetzt — es gibt nichts zu verändern`,
+        });
+        continue;
+      }
+      let landed = false;
       if (op.patch.x != null || op.patch.y != null) {
+        if (!el.positionStateKey || !el.bounds) {
+          rejected.push({ op, reason: `Element "${op.elementId}" ist nicht verschiebbar` });
+          continue;
+        }
+        const prev = (state[el.positionStateKey] as { x?: number; y?: number } | null) ?? null;
         const x = clamp(op.patch.x ?? prev?.x ?? 0, el.bounds.minX, el.bounds.maxX);
         const y = clamp(op.patch.y ?? prev?.y ?? 0, el.bounds.minY, el.bounds.maxY);
         patch[el.positionStateKey] = { x, y };
+        landed = true;
       }
       if (op.patch.scale != null) {
         if (!el.scale) {
@@ -368,6 +451,26 @@ export function sharepicOpsToStatePatch(
           continue;
         }
         patch[el.scale.stateKey] = clamp(op.patch.scale, el.scale.min, el.scale.max);
+        landed = true;
+      }
+      if (op.patch.opacity != null) {
+        if (!el.opacity) {
+          rejected.push({
+            op,
+            reason: `Element "${op.elementId}" unterstützt keine Transparenz`,
+          });
+          continue;
+        }
+        patch[el.opacity.stateKey] = clamp(op.patch.opacity, el.opacity.min, el.opacity.max);
+        landed = true;
+      }
+      if (!landed) {
+        // color/rotation (or an empty patch) — nothing this surface supports.
+        rejected.push({
+          op,
+          reason: 'Für Elemente werden nur x/y, scale und opacity unterstützt',
+        });
+        continue;
       }
       applied.push(op);
     } else if (op.kind === 'set-background-image') {

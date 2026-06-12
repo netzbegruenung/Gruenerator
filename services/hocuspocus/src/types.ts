@@ -16,7 +16,7 @@ export interface AuthConfig {
 
 export interface AuthenticationData {
   documentName: string;
-  requestHeaders: Record<string, string | string[] | undefined>;
+  requestHeaders: Headers;
   requestParameters: URLSearchParams;
   token?: string;
 }

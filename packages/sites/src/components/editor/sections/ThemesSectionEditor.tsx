@@ -1,10 +1,11 @@
+import { emptyRichTextDoc, SITE_THEME_CONTENT_MAX_LENGTH } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
 import { useRef, useCallback } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
-import { MarkdownEditor } from '../common/MarkdownEditor';
+import { RichTextEditor } from '../common/RichTextEditorLazy';
 
 import type { ThemesSectionType as ThemesSection, ThemeCard } from '@gruenerator/sites-design';
 
@@ -15,13 +16,12 @@ interface ThemesSectionEditorProps {
 
 const MAX_THEMES = 6;
 const MAX_TITLE_LENGTH = 40;
-const MAX_CONTENT_LENGTH = 250;
 
-const DEFAULT_THEME: ThemeCard = {
+const createDefaultTheme = (): ThemeCard => ({
   imageUrl: '',
   title: '',
-  content: '',
-};
+  content: emptyRichTextDoc(),
+});
 
 export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
@@ -39,7 +39,7 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
     [registerField]
   );
 
-  const updateTheme = (index: number, field: keyof ThemeCard, value: string) => {
+  const updateTheme = <K extends keyof ThemeCard>(index: number, field: K, value: ThemeCard[K]) => {
     const current = data.themes[index];
     if (!current) return;
     const newThemes = [...data.themes];
@@ -51,7 +51,7 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
     if (data.themes.length >= MAX_THEMES) return;
     onChange({
       ...data,
-      themes: [...data.themes, { ...DEFAULT_THEME, _key: crypto.randomUUID() }],
+      themes: [...data.themes, { ...createDefaultTheme(), _key: crypto.randomUUID() }],
     });
   };
 
@@ -69,10 +69,6 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
     return isItemHighlighted(index) && highlightedElement?.field === field;
   };
 
-  const getTextLength = (markdown: string) => {
-    return markdown.replace(/[#*_[\]()]/g, '').length;
-  };
-
   return (
     <div>
       <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
@@ -85,7 +81,6 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
 
       <div className="flex flex-col gap-md">
         {data.themes.map((theme, index) => {
-          const contentLength = getTextLength(theme.content || '');
           return (
             <div
               key={theme._key ?? theme.title}
@@ -148,22 +143,15 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
                 <label className="block text-sm font-medium text-foreground mb-1.5">
                   Beschreibung
                 </label>
-                <MarkdownEditor
+                <RichTextEditor
                   value={theme.content}
-                  onChange={(markdown) => updateTheme(index, 'content', markdown)}
+                  onChange={(doc) => updateTheme(index, 'content', doc)}
                   onFocus={() => handleFieldFocus('themes', 'content', index)}
                   onBlur={handleFieldBlur}
                   placeholder="Beschreibe dein Engagement für dieses Thema..."
+                  maxLength={SITE_THEME_CONTENT_MAX_LENGTH}
                   minHeight="120px"
                 />
-                <div
-                  className={cn(
-                    'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
-                    contentLength > MAX_CONTENT_LENGTH * 0.9 && 'text-yellow-600'
-                  )}
-                >
-                  {contentLength} / {MAX_CONTENT_LENGTH}
-                </div>
               </div>
 
               <div className="mb-md">

@@ -14,7 +14,6 @@ export { sitesController, publicController };
 export type {
   SitesRequest,
   UserSite,
-  SiteSection,
   ThemeColors,
   Theme,
   CreateSiteBody,
