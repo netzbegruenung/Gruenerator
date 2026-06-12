@@ -1,0 +1,48 @@
+.rich-text-editor .ProseMirror {
+  min-height: var(--rte-min-height, 120px);
+  padding: 0.625rem 0.75rem;
+  font-size: var(--text-sm, 0.875rem);
+  outline: none;
+}
+
+.rich-text-editor .ProseMirror p {
+  margin: 0 0 0.5em;
+}
+
+.rich-text-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-editor .ProseMirror h2 {
+  font-size: 1.25em;
+  font-weight: 700;
+  margin: 0.5em 0 0.25em;
+}
+
+.rich-text-editor .ProseMirror h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+}
+
+.rich-text-editor .ProseMirror ul,
+.rich-text-editor .ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0 0 0.5em;
+}
+
+.rich-text-editor .ProseMirror ul {
+  list-style: disc;
+}
+
+.rich-text-editor .ProseMirror ol {
+  list-style: decimal;
+}
+
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-grey-400, #9ca3af);
+}
