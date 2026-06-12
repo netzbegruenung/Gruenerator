@@ -64,7 +64,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gemma-litellm',
     name: '🌳 Gemma 4',
     description: 'Am besten für Kreativtexte',
-    model: 'gemma',
+    model: 'verdigado-think',
     provider: 'litellm',
     icon: 'zap',
     region: 'self-hosted',
