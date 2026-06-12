@@ -5,6 +5,7 @@
  * as cache misses (returning null), so callers keep plain cache-aside logic.
  * Invalid entries are deleted so they cannot poison subsequent reads.
  */
+import { toError } from '../errors/index.js';
 import { createLogger } from '../logger.js';
 
 import redisClient from './client.js';
@@ -21,7 +22,7 @@ export async function getCachedJson<S extends z.ZodTypeAny>(
   try {
     raw = await redisClient.get(key);
   } catch (error) {
-    log.warn(`Redis read failed for ${key}: ${error instanceof Error ? error.message : error}`);
+    log.warn(`Redis read failed for ${key}: ${toError(error).message}`);
     return null;
   }
   if (!raw) return null;
@@ -52,7 +53,7 @@ export async function setCachedJson(
   try {
     await redisClient.set(key, JSON.stringify(value), { EX: ttlSeconds });
   } catch (error) {
-    log.warn(`Redis write failed for ${key}: ${error instanceof Error ? error.message : error}`);
+    log.warn(`Redis write failed for ${key}: ${toError(error).message}`);
   }
 }
 
@@ -60,6 +61,6 @@ export async function deleteCachedKey(key: string): Promise<void> {
   try {
     await redisClient.del(key);
   } catch (error) {
-    log.warn(`Redis delete failed for ${key}: ${error instanceof Error ? error.message : error}`);
+    log.warn(`Redis delete failed for ${key}: ${toError(error).message}`);
   }
 }

@@ -3,6 +3,7 @@
  */
 
 import type { UserProfile } from '../../services/user/types.js';
+import type { SiteSections } from '@gruenerator/contracts';
 import type { Request } from 'express';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
@@ -21,14 +22,13 @@ export interface UserSite {
   subdomain: string;
   site_title: string;
   tagline?: string | undefined;
-  bio?: string | undefined;
   contact_email?: string | undefined;
   social_links?: Record<string, string> | undefined;
   accent_color?: string | undefined;
   theme?: string | undefined;
   profile_image?: string | undefined;
   background_image?: string | undefined;
-  sections?: SiteSection[] | undefined;
+  sections?: SiteSections | undefined;
   meta_description?: string | undefined;
   meta_keywords?: string[] | undefined;
   is_published: boolean;
@@ -36,12 +36,6 @@ export interface UserSite {
   visit_count?: number | undefined;
   created_at: string;
   updated_at: string;
-}
-
-export interface SiteSection {
-  type: 'text' | 'contact' | string;
-  title?: string | undefined;
-  content?: string | undefined;
 }
 
 export interface ThemeColors {
@@ -64,24 +58,22 @@ export interface CreateSiteBody {
   site_title: string;
   tagline?: string | undefined;
   theme?: string | undefined;
-  bio?: string | undefined;
   contact_email?: string | undefined;
   social_links?: Record<string, string> | undefined;
   profile_image?: string | undefined;
   background_image?: string | undefined;
-  sections?: SiteSection[] | undefined;
+  sections?: SiteSections | undefined;
 }
 
 export interface UpdateSiteBody {
   site_title?: string | undefined;
   tagline?: string | undefined;
-  bio?: string | undefined;
   contact_email?: string | undefined;
   social_links?: Record<string, string> | undefined;
   accent_color?: string | undefined;
   profile_image?: string | undefined;
   background_image?: string | undefined;
-  sections?: SiteSection[] | undefined;
+  sections?: SiteSections | undefined;
   meta_description?: string | undefined;
   meta_keywords?: string[] | undefined;
 }

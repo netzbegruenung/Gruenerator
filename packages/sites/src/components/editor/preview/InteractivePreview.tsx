@@ -1,6 +1,7 @@
+import { isRichTextDocEmpty } from '@gruenerator/contracts';
 import {
   HeroImagePlaceholder,
-  MarkdownContent,
+  RichTextContent,
   type CandidateData,
 } from '@gruenerator/sites-design';
 
@@ -99,9 +100,11 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
             data-field="content"
             className={`${getElementClass('about', 'content')} flex-1 max-w-[65ch] [&_p]:text-[var(--font-color)] [&_p]:text-[length:var(--font-size-lg)] [&_p]:leading-relaxed [&_p]:mb-[var(--spacing-md)] [&_p:last-child]:mb-0`}
           >
-            <MarkdownContent
-              content={candidateData.about.content || 'Deine Biografie wird hier erscheinen...'}
-            />
+            {isRichTextDocEmpty(candidateData.about.content) ? (
+              <p>Deine Biografie wird hier erscheinen...</p>
+            ) : (
+              <RichTextContent content={candidateData.about.content} />
+            )}
           </div>
         </div>
       </section>
@@ -189,7 +192,11 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                       data-index={index}
                       className={`${getElementClass('themes', 'content', index)} text-[var(--font-color-muted)] text-[length:var(--font-size-base)] leading-relaxed`}
                     >
-                      <MarkdownContent content={theme.content || 'Beschreibung...'} />
+                      {isRichTextDocEmpty(theme.content) ? (
+                        <p>Beschreibung...</p>
+                      ) : (
+                        <RichTextContent content={theme.content} />
+                      )}
                     </div>
                   </div>
                 </div>

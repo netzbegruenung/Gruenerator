@@ -30,7 +30,7 @@ export async function getEntitySummary(
   const cached = await getCachedJson(cacheKey(entity.id, locale), entitySummaryResultSchema);
   if (cached) return cached;
 
-  const graphResult = await generateEntitySummary(entity.label, entity.summaryPrompt, articles);
+  const graphResult = await generateEntitySummary(entity.label, articles);
 
   const result: EntitySummaryResult = {
     summary: graphResult.summary,
