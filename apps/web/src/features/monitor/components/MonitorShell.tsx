@@ -1,7 +1,7 @@
 import { Button, StatusBanner, Tabs, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, RefreshCw, RotateCcw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -12,14 +12,6 @@ import type { MonitorLocale } from '../hooks/useMonitor';
 import type { ReactNode } from 'react';
 
 export type MonitorSection = 'uebersicht' | 'themen' | 'umfragen' | 'watcher' | 'feed';
-
-const SECTION_PATHS: Record<MonitorSection, string> = {
-  uebersicht: '/monitor',
-  themen: '/monitor/themen',
-  umfragen: '/monitor/umfragen',
-  watcher: '/monitor/watcher',
-  feed: '/monitor/feed',
-};
 
 const SECTION_SUBTITLES: Record<MonitorSection, Record<MonitorLocale, string>> = {
   uebersicht: {
@@ -50,12 +42,13 @@ interface MonitorShellProps {
 }
 
 /**
- * Shared page chrome for all /monitor routes: title, locale switcher,
- * route-linked section tabs and the refresh controls. Routes are flat (no
- * router nesting in this app), so every monitor page renders this wrapper.
+ * Shared page chrome for all /monitor routes: title, locale switcher and the
+ * refresh controls. Navigation into the sub-pages happens via the section
+ * headers on the Übersicht (Workplace pattern); sub-pages get a back link.
+ * Routes are flat (no router nesting in this app), so every monitor page
+ * renders this wrapper.
  */
 export function MonitorShell({ section, children }: MonitorShellProps) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { locale, setLocale, withLocale } = useMonitorLocaleParam();
   // Cache-shared with the page content — only feeds the counts + error banner.
@@ -102,18 +95,15 @@ export function MonitorShell({ section, children }: MonitorShellProps) {
             )}
           </div>
 
-          <Tabs
-            value={section}
-            onValueChange={(v) => navigate(withLocale(SECTION_PATHS[v as MonitorSection]))}
-          >
-            <TabsList>
-              <TabsTrigger value="uebersicht">Überblick</TabsTrigger>
-              <TabsTrigger value="themen">Themen</TabsTrigger>
-              <TabsTrigger value="umfragen">Umfragen</TabsTrigger>
-              <TabsTrigger value="watcher">Watcher</TabsTrigger>
-              <TabsTrigger value="feed">Was ist passiert</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {section !== 'uebersicht' && (
+            <Link
+              to={withLocale('/monitor')}
+              className="inline-flex items-center gap-1 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Zur Übersicht
+            </Link>
+          )}
         </div>
 
         {error && (

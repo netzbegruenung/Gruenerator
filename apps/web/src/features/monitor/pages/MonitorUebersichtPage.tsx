@@ -6,10 +6,11 @@ import {
   SonntagsfrageSection,
   TopArticlesSection,
   TopThemenSection,
+  WatcherSection,
   WhatHappenedSection,
 } from '../sections';
 
-/** /monitor — the feed home, composed from self-contained sections. */
+/** /monitor — the feed home; one headed section per former tab. */
 function MonitorUebersichtPage() {
   return (
     <MonitorShell section="uebersicht">
@@ -18,6 +19,7 @@ function MonitorUebersichtPage() {
       <BlueskySection />
       <TopThemenSection />
       <SonntagsfrageSection />
+      <WatcherSection />
       <WhatHappenedSection />
     </MonitorShell>
   );

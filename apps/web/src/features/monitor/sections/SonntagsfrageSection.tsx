@@ -19,7 +19,7 @@ export function SonntagsfrageSection() {
   return (
     <section className="mb-2xl">
       <SectionHeader
-        title="Sonntagsfrage"
+        title="Umfragen"
         onTitleClick={() => navigate(withLocale('/monitor/umfragen'))}
         actions={
           <Link

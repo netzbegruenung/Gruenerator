@@ -19,7 +19,7 @@ export function TopThemenSection() {
   return (
     <section className="mb-2xl">
       <SectionHeader
-        title="Top-Themen"
+        title="Themen"
         onTitleClick={() => navigate(withLocale('/monitor/themen'))}
         actions={
           <Link
