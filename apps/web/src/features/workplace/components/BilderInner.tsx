@@ -323,6 +323,68 @@ function BilderSettingsMenu({
   );
 }
 
+// One "add image" button with a source dropdown (device upload / media
+// library) instead of two side-by-side buttons.
+function AddImageMenu({
+  label,
+  onUpload,
+  onPickFromLibrary,
+}: {
+  label: string;
+  onUpload: () => void;
+  onPickFromLibrary: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const select = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+  const sources = [
+    {
+      key: 'upload',
+      icon: <ImagePlus className="size-4" />,
+      label: 'Vom Gerät hochladen',
+      action: onUpload,
+    },
+    {
+      key: 'library',
+      icon: <ImageIcon className="size-4" />,
+      label: 'Aus der Mediathek',
+      action: onPickFromLibrary,
+    },
+  ];
+
+  return (
+    <ResponsiveMenu
+      open={open}
+      onOpenChange={setOpen}
+      sheetTitle="Bild hinzufügen"
+      dropdownSide="bottom"
+      dropdownAlign="start"
+      trigger={
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
+        >
+          <ImagePlus className="size-3.5" />
+          {label}
+        </button>
+      }
+      desktopContent={sources.map((s) => (
+        <DropdownMenuItem key={s.key} onSelect={() => select(s.action)}>
+          {s.icon}
+          {s.label}
+        </DropdownMenuItem>
+      ))}
+      mobileContent={sources.map((s) => (
+        <ResponsiveMenuItem key={s.key} icon={s.icon} onClick={() => select(s.action)}>
+          {s.label}
+        </ResponsiveMenuItem>
+      ))}
+    />
+  );
+}
+
 type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'custom';
 
 const ASPECT_RATIO_CONFIG: SettingConfig = {
@@ -1194,24 +1256,11 @@ const BilderInner: React.FC = memo(() => {
           </div>
         ))}
         {all.length < maxRefs && (
-          <>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-            >
-              <ImagePlus className="size-3.5" />
-              {all.length === 0 ? 'Bild hochladen' : '+ Bild'}
-            </button>
-            <button
-              type="button"
-              onClick={handlePickFromLibrary}
-              className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-            >
-              <ImageIcon className="size-3.5" />
-              Mediathek
-            </button>
-          </>
+          <AddImageMenu
+            label={all.length === 0 ? 'Bild hinzufügen' : '+ Bild'}
+            onUpload={() => fileInputRef.current?.click()}
+            onPickFromLibrary={handlePickFromLibrary}
+          />
         )}
         {all.length >= 2 && (
           <span className="text-[11px] text-grey-400 dark:text-grey-500">
