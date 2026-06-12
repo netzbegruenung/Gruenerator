@@ -1,7 +1,9 @@
 import {
   type EntityResult,
   type EntitySummaryResult,
+  type EuGreenProfileData,
   type EuGreensData,
+  type EuGreensHistoryData,
   type KeywordInsightsResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
@@ -15,6 +17,7 @@ import {
   type MonitorSnapshot,
   type PollData,
   type PollParliament,
+  type PollsHistoryData,
   type StateElectionResult,
   type StateElectionsData,
   type TopicScore,
@@ -163,6 +166,54 @@ export function useEuGreens() {
     },
     staleTime: 60 * 60 * 1000,
     gcTime: 120 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useEuGreensHistory(enabled = true) {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'eu-greens-history'],
+    queryFn: async (): Promise<EuGreensHistoryData> => {
+      const res = await getContractsClient().monitor.euGreensHistory();
+      if (res.status === 200) return res.body;
+      throw new Error('EU-Trenddaten konnten nicht geladen werden.');
+    },
+    enabled,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useEuGreenProfile(countryCode: string | null) {
+  return useQuery({
+    queryKey: ['monitor', 'eu-green-profile', countryCode],
+    queryFn: async (): Promise<EuGreenProfileData> => {
+      if (!countryCode) throw new Error('Kein Land ausgewählt.');
+      const res = await getContractsClient().monitor.euGreenProfile({
+        query: { country: countryCode },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Partei-Profil konnte nicht geladen werden.');
+    },
+    enabled: !!countryCode,
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: 48 * 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function usePollsHistory(parliament = 'deutschland', enabled = true) {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'history', parliament],
+    queryFn: async (): Promise<PollsHistoryData> => {
+      const res = await getContractsClient().monitor.pollsHistory({ query: { parliament } });
+      if (res.status === 200) return res.body;
+      throw new Error('Trendverlauf konnte nicht geladen werden.');
+    },
+    enabled,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
     retry: 1,
   });
 }

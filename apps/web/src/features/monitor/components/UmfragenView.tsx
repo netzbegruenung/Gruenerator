@@ -11,9 +11,17 @@ import { ExternalLink, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { BUNDESLAENDER } from '../bundeslaender';
-import { useEuGreens, usePolls } from '../hooks/useMonitor';
+import { useEuGreens, useEuGreensHistory, usePolls } from '../hooks/useMonitor';
+import { PARTY_COLORS } from '../partyColors';
 
 import { MeinungsbildSection } from './MeinungsbildSection';
+import {
+  EuGreenPartyPanel,
+  EuGreensElectionDiffChart,
+  EuGreensTrendSection,
+  SonntagsfrageTrendSection,
+  Sparkline,
+} from './PollTrendCharts';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 
@@ -21,22 +29,8 @@ interface UmfragenViewProps {
   locale: MonitorLocale;
 }
 
-export const PARTY_COLORS: Record<string, string> = {
-  'CDU/CSU': '#000000',
-  AfD: '#009ee0',
-  SPD: '#e3000f',
-  GRÜNE: '#46962b',
-  Grüne: '#46962b',
-  'DIE LINKE': '#be3075',
-  Linke: '#be3075',
-  BSW: '#571D47',
-  FDP: '#ffed00',
-  Sonstige: '#aaaaaa',
-  ÖVP: '#63C3D0',
-  NEOS: '#E84188',
-  SPÖ: '#e3000f',
-  FPÖ: '#0E6EB8',
-};
+// Re-exported for BundeslandView (imports colors + chart from here).
+export { PARTY_COLORS };
 
 // Compact labels for the tight 2-column "Grüne in den Ländern" grid.
 const LAENDER = BUNDESLAENDER.map((b) => ({ id: b.id, name: b.display ?? b.name }));
@@ -132,7 +126,15 @@ function flagEmoji(code: string): string {
 
 export function EuGreensDeck() {
   const { data } = useEuGreens();
+  const { data: history } = useEuGreensHistory();
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+
   if (!data || data.results.length === 0) return null;
+
+  const seriesByCountry = new Map(history?.series.map((s) => [s.countryCode, s]) ?? []);
+  const selected = selectedCountry
+    ? data.results.find((r) => r.countryCode === selectedCountry)
+    : undefined;
 
   return (
     <div className="mt-xl border-t border-grey-200 dark:border-grey-700 pt-xl">
@@ -150,34 +152,73 @@ export function EuGreensDeck() {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-xs">
-        {data.results.map((r) => (
-          <div
-            key={r.countryCode}
-            title={r.note ?? undefined}
-            className="flex items-center justify-between gap-xs p-sm rounded-lg border border-grey-200 dark:border-grey-700"
-          >
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">
-                <span className="mr-xs">{flagEmoji(r.countryCode)}</span>
-                {r.countryName}
-              </p>
-              <p className="text-[10px] text-grey-400 truncate">
-                {r.party}
-                {r.note && <span title={r.note}> *</span>}
-              </p>
-            </div>
-            <div className="flex items-center gap-xs shrink-0">
-              {r.diff != null && r.diff !== 0 && <TrendBadge diff={r.diff} />}
-              <span className="text-sm font-bold text-green-600 tabular-nums">{r.percent}%</span>
-            </div>
-          </div>
-        ))}
+        {data.results.map((r) => {
+          const isSelected = selectedCountry === r.countryCode;
+          return (
+            <button
+              key={r.countryCode}
+              title={r.note ?? undefined}
+              onClick={() => setSelectedCountry(isSelected ? null : r.countryCode)}
+              className={`flex items-center justify-between gap-xs p-sm rounded-lg border text-left transition-all ${
+                isSelected
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 shadow-sm'
+                  : 'border-grey-200 dark:border-grey-700 hover:border-grey-300 dark:hover:border-grey-600 hover:shadow-sm'
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">
+                  <span className="mr-xs">{flagEmoji(r.countryCode)}</span>
+                  {r.countryName}
+                </p>
+                <p className="text-[10px] text-grey-400 truncate">
+                  {r.party}
+                  {r.note && <span> *</span>}
+                </p>
+              </div>
+              <div className="flex items-center gap-xs shrink-0">
+                {seriesByCountry.has(r.countryCode) && (
+                  <Sparkline points={seriesByCountry.get(r.countryCode)!.points} />
+                )}
+                {r.diff != null && r.diff !== 0 && <TrendBadge diff={r.diff} />}
+                <span className="text-sm font-bold text-green-600 tabular-nums">{r.percent}%</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
       <p className="mt-xs text-[10px] text-grey-400">
         * Grüne treten dort als Teil einer breiteren Liste/Allianz an. Länder ohne separat
         ausgewiesenes grünes Ergebnis (z.&nbsp;B. Frankreich, Spanien, Polen, Belgien) sind nicht
         aufgeführt.
       </p>
+
+      {selected && (
+        <EuGreenPartyPanel
+          key={selected.countryCode}
+          result={selected}
+          points={seriesByCountry.get(selected.countryCode)?.points}
+        />
+      )}
+
+      {history && history.series.length > 0 && (
+        <Accordion
+          type="single"
+          collapsible
+          className="mt-sm border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+        >
+          <AccordionItem value="eu-trends">
+            <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
+              Erweiterte Ansicht: Trends &amp; Vergleich
+            </AccordionTrigger>
+            <AccordionContent className="px-md pb-md">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
+                <EuGreensTrendSection history={history} />
+                <EuGreensElectionDiffChart results={data.results} />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 }
@@ -353,6 +394,21 @@ export function SonntagsfrageChart({
           </AccordionItem>
         </Accordion>
       </div>
+
+      <Accordion
+        type="single"
+        collapsible
+        className="mt-sm border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+      >
+        <AccordionItem value="trendverlauf">
+          <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
+            Trendverlauf &amp; Einzelumfragen
+          </AccordionTrigger>
+          <AccordionContent className="px-md pb-md">
+            <SonntagsfrageTrendSection parliament={parliament} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

@@ -1,0 +1,18 @@
+/** Display colors for parties in the monitor poll views (DE + AT). */
+export const PARTY_COLORS: Record<string, string> = {
+  'CDU/CSU': '#000000',
+  AfD: '#009ee0',
+  SPD: '#e3000f',
+  GRÜNE: '#46962b',
+  Grüne: '#46962b',
+  'DIE LINKE': '#be3075',
+  Linke: '#be3075',
+  BSW: '#571D47',
+  FDP: '#ffed00',
+  Sonstige: '#aaaaaa',
+  ÖVP: '#63C3D0',
+  NEOS: '#E84188',
+  SPÖ: '#e3000f',
+  FPÖ: '#0E6EB8',
+  KPÖ: '#d40000',
+};
