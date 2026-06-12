@@ -48,6 +48,3 @@ export const BUNDESLAENDER: Bundesland[] = [
 
 export const bundeslandById = (id: string): Bundesland | undefined =>
   BUNDESLAENDER.find((b) => b.id === id);
-
-export const bundeslandByCode = (code: string): Bundesland | undefined =>
-  BUNDESLAENDER.find((b) => b.code === code);
