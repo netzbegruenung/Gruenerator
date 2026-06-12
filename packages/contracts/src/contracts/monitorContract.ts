@@ -19,6 +19,7 @@ import { z } from 'zod';
 import {
   entityResultsResponseSchema,
   entitySummaryResponseSchema,
+  euGreensResponseSchema,
   internalSyncEventsBodySchema,
   internalSyncEventsResponseSchema,
   keywordInsightsResponseSchema,
@@ -149,6 +150,18 @@ export const monitorContract = c.router(
         200: pollParliamentsResponseSchema,
       },
       summary: 'Available poll parliaments',
+    },
+
+    /** GET /api/monitor/polls/eu-greens — green-party trend across EU parliaments. */
+    euGreens: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens',
+      responses: {
+        200: euGreensResponseSchema,
+        500: monitorErrorResponseSchema,
+        503: monitorErrorResponseSchema,
+      },
+      summary: 'Green party results across European parliaments',
     },
 
     /** GET /api/monitor/polls — poll averages (PolitPro, wahlrecht.de fallback). */

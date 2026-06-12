@@ -211,6 +211,30 @@ export const pollParliamentSchema = z.object({
 
 export const pollParliamentsResponseSchema = z.array(pollParliamentSchema);
 
+// ── EU greens (green-party trend across European parliaments) ────────────────
+
+export const euGreenResultSchema = z.object({
+  /** PolitPro country code, e.g. 'fi' or 'eu' (EU parliament). */
+  countryCode: z.string(),
+  countryName: z.string(),
+  /** Display label of the green party/alliance, e.g. 'Vihreät'. */
+  party: z.string(),
+  percent: z.number(),
+  /** Official week-over-week change, when published. */
+  diff: z.number().nullable(),
+  /** Change vs the last election, when published. */
+  electionDiff: z.number().nullable(),
+  /** Date of the underlying trend data point. */
+  date: z.string(),
+  /** Caveat, e.g. that the greens run inside a broader alliance. */
+  note: z.string().nullable(),
+});
+
+export const euGreensResponseSchema = z.object({
+  results: z.array(euGreenResultSchema),
+  fetchedAt: z.string(),
+});
+
 // ── Meinungsbild (GERDA MRP estimates) ───────────────────────────────────────
 
 export const meinungsbildIssueSchema = z.object({
@@ -440,6 +464,8 @@ export type MonitorBriefingResult = z.infer<typeof monitorBriefingResponseSchema
 export type PollResult = z.infer<typeof pollResultSchema>;
 export type PollData = z.infer<typeof pollDataSchema>;
 export type PollParliament = z.infer<typeof pollParliamentSchema>;
+export type EuGreenResult = z.infer<typeof euGreenResultSchema>;
+export type EuGreensData = z.infer<typeof euGreensResponseSchema>;
 export type WatcherEntityInfo = z.infer<typeof watcherEntityInfoSchema>;
 export type EntityResult = z.infer<typeof entityResultsResponseSchema>;
 export type RiskItem = z.infer<typeof riskItemSchema>;
