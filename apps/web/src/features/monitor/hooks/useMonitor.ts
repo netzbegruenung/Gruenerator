@@ -20,6 +20,7 @@ import {
   type WatcherEntityInfo,
   type WhatHappenedQuery,
   type WhatHappenedResult,
+  type WhatHappenedSummaryResult,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -227,6 +228,24 @@ export function useWhatHappened(
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+  });
+}
+
+/** Lazy per-day AI digest — only fetched once the user expands the card. */
+export function useWhatHappenedSummary(date: string, locale?: MonitorLocale, enabled = false) {
+  return useQuery({
+    queryKey: ['monitor', 'what-happened-summary', date, locale],
+    queryFn: async (): Promise<WhatHappenedSummaryResult> => {
+      const res = await getContractsClient().monitor.whatHappenedSummary({
+        query: { date, ...localeQuery(locale) },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Zusammenfassung konnte nicht erstellt werden.');
+    },
+    enabled,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 1,
   });
 }
 

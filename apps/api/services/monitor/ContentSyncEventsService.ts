@@ -6,23 +6,48 @@
  * Action has no Postgres access) or directly from in-process sync runs.
  */
 import {
+  whatHappenedSummaryResponseSchema,
+  type MonitorLocale,
   type SyncArticleSourceGroup,
   type SyncEventInput,
   type WhatHappenedArticle,
   type WhatHappenedDay,
   type WhatHappenedQuery,
   type WhatHappenedResult,
+  type WhatHappenedSummaryResult,
 } from '@gruenerator/contracts';
 
 import { type ContentSyncArticleRow } from '../../database/schema/contentSync.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
+import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+
+import { generateDayDigest, type DigestArticle } from './SummaryGraph.js';
 
 const log = createLogger('ContentSyncEvents');
 
 const RETENTION_DAYS = 90;
 const INSERT_CHUNK_SIZE = 500;
+const DIGEST_ARTICLE_LIMIT = 15;
+const EXCERPT_CHARS = 500;
+/** Past days are final; today may still receive sync events (also invalidated on insert). */
+const SUMMARY_TTL_PAST_SECONDS = 7 * 24 * 3600;
+const SUMMARY_TTL_TODAY_SECONDS = 3600;
+
+function summaryCacheKey(date: string, locale: MonitorLocale): string {
+  return `monitor:what-happened-summary:${date}:${locale}`;
+}
+
+function utcToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function localeOfSourceGroup(sourceGroupId: string): MonitorLocale {
+  return sourceGroupId === 'gruene-at' ? 'at' : 'de';
+}
 
 function db() {
   return getPostgresInstance();
@@ -113,6 +138,16 @@ export async function upsertSyncEvents(
     log.warn(`Retention prune failed (non-fatal): ${toError(error).message}`);
   }
 
+  // New events land on today's bucket — drop its cached AI digest per locale.
+  try {
+    const locales = new Set(deduped.map((e) => localeOfSourceGroup(e.sourceGroupId)));
+    await Promise.all(
+      [...locales].map((locale) => deleteCachedKey(summaryCacheKey(utcToday(), locale)))
+    );
+  } catch (error) {
+    log.warn(`Digest cache invalidation failed (non-fatal): ${toError(error).message}`);
+  }
+
   log.info(`Upserted ${upserted} content-sync article events`);
   return upserted;
 }
@@ -169,6 +204,90 @@ export async function getWhatHappened(query: WhatHappenedQuery): Promise<WhatHap
     sourceGroups: sourceGroups as SyncArticleSourceGroup[],
     landesverbaende,
   };
+}
+
+/**
+ * Lazy AI digest of one feed day. Articles come from content_sync_articles;
+ * their text is fetched from Qdrant by source_url (chunk 0 carries full_text).
+ * Returns null when the day has no articles for the locale (handler → 404).
+ */
+export async function getWhatHappenedDaySummary(
+  date: string,
+  locale: MonitorLocale
+): Promise<WhatHappenedSummaryResult | null> {
+  const key = summaryCacheKey(date, locale);
+  const cached = await getCachedJson(key, whatHappenedSummaryResponseSchema);
+  if (cached) return cached;
+
+  const rows = await db().query<ContentSyncArticleRow>(
+    `SELECT * FROM content_sync_articles
+     WHERE event_date = $1::date
+       AND ${locale === 'at' ? `source_group_id = 'gruene-at'` : `source_group_id <> 'gruene-at'`}
+     ORDER BY indexed_at DESC`,
+    [date]
+  );
+  if (rows.length === 0) return null;
+
+  const articles = await buildDigestArticles(rows.slice(0, DIGEST_ARTICLE_LIMIT));
+  const summary = await generateDayDigest(articles);
+
+  const result: WhatHappenedSummaryResult = {
+    date,
+    summary,
+    articleCount: rows.length,
+    generatedAt: new Date().toISOString(),
+  };
+
+  const ttl = date === utcToday() ? SUMMARY_TTL_TODAY_SECONDS : SUMMARY_TTL_PAST_SECONDS;
+  await setCachedJson(key, result, ttl);
+  return result;
+}
+
+/** Fetch article text from Qdrant, batched per collection; missing text → title-only. */
+async function buildDigestArticles(rows: ContentSyncArticleRow[]): Promise<DigestArticle[]> {
+  const excerpts = new Map<string, string>();
+
+  try {
+    const qdrant = getQdrantInstance();
+    await qdrant.init();
+    const byCollection = new Map<string, string[]>();
+    for (const row of rows) {
+      const urls = byCollection.get(row.collection) ?? [];
+      urls.push(row.source_url);
+      byCollection.set(row.collection, urls);
+    }
+
+    await Promise.all(
+      [...byCollection.entries()].map(async ([collection, urls]) => {
+        const points = await scrollDocuments(
+          qdrant.client!,
+          collection,
+          {
+            must: [
+              { key: 'source_url', match: { any: urls } },
+              { key: 'chunk_index', match: { value: 0 } },
+            ],
+          },
+          { limit: urls.length, withPayload: true, withVector: false }
+        );
+        for (const point of points) {
+          const payload = point.payload as Record<string, unknown>;
+          const url = payload.source_url as string;
+          const text = (payload.full_text ?? payload.chunk_text ?? '') as string;
+          if (url && text) excerpts.set(url, text.slice(0, EXCERPT_CHARS));
+        }
+      })
+    );
+  } catch (error) {
+    log.warn(`Digest excerpt fetch failed (using titles only): ${toError(error).message}`);
+  }
+
+  return rows.map((row) => ({
+    title: row.title,
+    url: row.source_url,
+    source: row.source_name,
+    excerpt: excerpts.get(row.source_url) ?? '',
+  }));
 }
 
 function toArticle(row: ContentSyncArticleRow): WhatHappenedArticle {
