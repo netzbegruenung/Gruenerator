@@ -35,7 +35,6 @@ import {
   pollParliamentsResponseSchema,
   pollsQuerySchema,
   stateElectionsResponseSchema,
-  stimmungResponseSchema,
   topicArticlesQuerySchema,
   topicArticlesResponseSchema,
   topicCategorySchema,
@@ -180,18 +179,6 @@ export const monitorContract = c.router(
         503: monitorErrorResponseSchema,
       },
       summary: 'State election results (Landtagswahlen)',
-    },
-
-    /** GET /api/monitor/stimmung — emotion aggregation + AI mood summary. */
-    stimmung: {
-      method: 'GET',
-      path: '/api/monitor/stimmung',
-      query: monitorLocaleQuerySchema,
-      responses: {
-        200: stimmungResponseSchema,
-        500: monitorErrorResponseSchema,
-      },
-      summary: 'Stimmung (emotion) aggregation',
     },
 
     /** GET /api/monitor/entities — watcher entity list. */

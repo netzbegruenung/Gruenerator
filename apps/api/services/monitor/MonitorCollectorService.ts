@@ -15,7 +15,6 @@ export interface CollectedMonitorItem {
   title: string;
   excerpt: string;
   source: string;
-  erSentiment?: number;
   publishedAt: string | null;
   locale: MonitorLocale;
 }
@@ -136,7 +135,7 @@ export async function collectArticles(hoursBack = 24): Promise<CollectedMonitorI
     urlMap.set(item.url, item);
   }
 
-  // Grüne-specific articles overwrite (have body text + sentiment)
+  // Grüne-specific articles overwrite (have body text)
   for (const item of [...grueneDe, ...grueneAt]) {
     urlMap.set(item.url, item);
   }

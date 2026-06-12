@@ -15,9 +15,8 @@ import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 import { getModel, isProviderConfigured } from '../ai/providers.js';
 
-import { EMOTION_NAMES, TOPIC_NAMES } from './types.js';
+import { TOPIC_NAMES } from './types.js';
 
-import type { StimmungResult } from './MonitorService.js';
 import type { MonitorSnapshot } from './types.js';
 
 const log = createLogger('MonitorBriefing');
@@ -31,7 +30,6 @@ const CACHE_TTL_SECONDS = 7200;
 const BriefingStateAnnotation = Annotation.Root({
   topicsText: Annotation<string>({ reducer: (x, y) => y ?? x }),
   keywordsText: Annotation<string>({ reducer: (x, y) => y ?? x }),
-  stimmungText: Annotation<string>({ reducer: (x, y) => y ?? x }),
   pollsText: Annotation<string>({ reducer: (x, y) => y ?? x }),
   meta: Annotation<string>({ reducer: (x, y) => y ?? x }),
   dominantTopicName: Annotation<string>({ reducer: (x, y) => y ?? x }),
@@ -91,7 +89,6 @@ REGELN:
 - Schreibe AUSSCHLIESSLICH über das Hot Topic "${state.dominantTopicName}"
 - Beziehe dich auf die konkreten Schlagzeilen — nenne Quellen und Akteur*innen
 - Wenn Grüne-Positionen vorhanden sind: Stelle den Bezug zum aktuellen Thema her
-- Erwähne die emotionale Stimmung nur kurz, wenn auffällig
 - Nenne KEINE anderen Themen, Umfragewerte oder Statistiken
 - Setze **wichtige Begriffe** und **Akteur*innen** fett
 - Verwende Genderstern (*) bei Personenbezeichnungen
@@ -105,9 +102,6 @@ HOT TOPIC:
 ${state.topicsText}
 
 Weitere Themen: ${state.keywordsText}
-
-STIMMUNGSLAGE:
-${state.stimmungText}
 ${state.positionsText ? `\nGRÜNE POSITIONEN ZU "${state.dominantTopicName}":\n${state.positionsText}` : ''}
 
 Schreibe die KI-Einordnung zum Hot Topic "${state.dominantTopicName}".`,
@@ -248,22 +242,6 @@ function _formatKeywords(snapshot: MonitorSnapshot): string {
     .join(', ');
 }
 
-function formatStimmung(stimmung: StimmungResult): string {
-  if (!stimmung || Object.keys(stimmung.overall).length === 0)
-    return 'Keine Stimmungsdaten verfügbar.';
-
-  const emotions = Object.entries(stimmung.overall)
-    .sort(([, a], [, b]) => b - a)
-    .map(([k, v]) => `${EMOTION_NAMES[k] || k}: ${v.toFixed(1)}`)
-    .join(', ');
-
-  const dominant = stimmung.dominantEmotion
-    ? `Dominante Stimmung: ${EMOTION_NAMES[stimmung.dominantEmotion] || stimmung.dominantEmotion}`
-    : '';
-
-  return `${dominant}\nEmotionswerte: ${emotions}`;
-}
-
 function formatPolls(pollAverages: Record<string, number>): string {
   if (!pollAverages || Object.keys(pollAverages).length === 0)
     return 'Keine Umfragedaten verfügbar.';
@@ -285,7 +263,6 @@ export interface MonitorBriefingResult {
 export async function generateMonitorBriefing(
   locale: string,
   snapshot: MonitorSnapshot,
-  stimmung: StimmungResult,
   pollAverages: Record<string, number>
 ): Promise<MonitorBriefingResult> {
   const cacheKey = `monitor:briefing:${locale}`;
@@ -325,7 +302,6 @@ export async function generateMonitorBriefing(
     const result = await graph.invoke({
       topicsText: hotTopicText,
       keywordsText: formatOtherTopics(snapshot),
-      stimmungText: formatStimmung(stimmung),
       pollsText: formatPolls(pollAverages),
       meta: `Fokus: ${country} · ${snapshot.totalArticles} Artikel aus ${snapshot.sources.length} Quellen`,
       dominantTopicName,
