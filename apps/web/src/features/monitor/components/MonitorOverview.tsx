@@ -2,7 +2,6 @@ import {
   ArticleCard,
   Card,
   CardContent,
-  MoodBar,
   ProgressBar,
   Skeleton,
   TweetCard,
@@ -12,13 +11,7 @@ import { ChevronRight, Flame, RefreshCw, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
-import { EMOTION_HUES, EMOTION_NAMES, getMoodPosition } from '../emotionConfig';
-import {
-  useBriefingRefresh,
-  useMonitorBriefing,
-  useMonitorSnapshot,
-  useStimmung,
-} from '../hooks/useMonitor';
+import { useBriefingRefresh, useMonitorBriefing, useMonitorSnapshot } from '../hooks/useMonitor';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
 import { UmfragenView } from './UmfragenView';
@@ -51,7 +44,6 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
       })),
     [briefing?.citations]
   );
-  const { data: stimmung } = useStimmung(locale);
   const briefingRefresh = useBriefingRefresh(locale);
 
   const maxScore = snapshot ? Math.max(...snapshot.topics.map((t) => t.score), 1) : 1;
@@ -145,7 +137,6 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
                 excerpt={article.excerpt}
                 source={article.source}
                 publishedAt={article.publishedAt}
-                sentiment={article.erSentiment}
               />
             ))}
           </div>
@@ -209,8 +200,8 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
         </div>
       </section>
 
-      {/* Section 3+4: Top Themen + Stimmung side by side */}
-      <section className="mb-2xl grid grid-cols-1 md:grid-cols-2 gap-lg items-start md:items-stretch">
+      {/* Section 3: Top Themen */}
+      <section className="mb-2xl">
         {snapshot && (
           <Card className="flex flex-col">
             <CardContent className="pt-md pb-md flex-1 flex flex-col">
@@ -247,44 +238,6 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
                       </button>
                     );
                   })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {stimmung && Object.keys(stimmung.overall).length > 0 && (
-          <Card className="flex flex-col">
-            <CardContent className="pt-md pb-md flex-1">
-              <h3 className="text-sm font-semibold text-grey-500 uppercase tracking-wide mb-sm">
-                Stimmung
-              </h3>
-              <div className="px-sm mb-md">
-                <MoodBar position={getMoodPosition(stimmung.overall)} />
-              </div>
-              <div className="space-y-0.5">
-                {(() => {
-                  const maxEmotion = Math.max(...Object.values(stimmung.overall), 1);
-                  return Object.entries(stimmung.overall)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([key, score]) => {
-                      const name = EMOTION_NAMES[key];
-                      const hue = EMOTION_HUES[key];
-                      if (!name || !hue) return null;
-                      const barValue = (score / maxEmotion) * 100;
-
-                      return (
-                        <div key={key} className="flex items-center gap-sm px-sm py-0.5">
-                          <span className="text-xs text-foreground w-24 shrink-0">{name}</span>
-                          <div className="flex-1">
-                            <ProgressBar value={barValue} color={`var(--color-${hue}-500)`} />
-                          </div>
-                          <span className="text-[11px] text-grey-400 tabular-nums w-6 text-right shrink-0">
-                            {Math.round(score)}
-                          </span>
-                        </div>
-                      );
-                    });
-                })()}
               </div>
             </CardContent>
           </Card>

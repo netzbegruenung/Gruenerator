@@ -275,8 +275,7 @@ export const COLLECTIONS: CollectionConfigMap = {
   hessen: {
     name: 'landesverbaende_documents',
     displayName: 'Grüne Hessen',
-    description:
-      'Pressemitteilungen, Beschlüsse und Regierungsprogramme der Grünen Hessen (Landesverband & Fraktion)',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)',
     filterableFields: {
       content_type: lvContentTypeField,
       source_type: lvSourceTypeField,

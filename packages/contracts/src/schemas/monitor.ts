@@ -41,18 +41,6 @@ export const nounCountSchema = z.object({
 });
 export type NounCount = z.infer<typeof nounCountSchema>;
 
-/** Per-article emotion intensities; every field is independently optional. */
-export const emotionScoresSchema = z.object({
-  angst: z.number().optional(),
-  wut: z.number().optional(),
-  hoffnung: z.number().optional(),
-  enttaeuschung: z.number().optional(),
-  vertrauen: z.number().optional(),
-  solidaritaet: z.number().optional(),
-  stolz: z.number().optional(),
-});
-export type EmotionScores = z.infer<typeof emotionScoresSchema>;
-
 export const monitorArticleSchema = z.object({
   url: z.string(),
   title: z.string(),
@@ -64,8 +52,6 @@ export const monitorArticleSchema = z.object({
   topics: z.record(topicCategorySchema, z.number()),
   primaryTopic: topicCategorySchema.nullable(),
   topNouns: z.array(nounCountSchema).optional(),
-  emotionScores: emotionScoresSchema.optional(),
-  erSentiment: z.number().optional(),
 });
 export type MonitorArticle = z.infer<typeof monitorArticleSchema>;
 
@@ -261,26 +247,6 @@ export const stateElectionsResponseSchema = z.object({
   states: z.record(z.string(), stateElectionResultSchema),
 });
 
-// ── Stimmung (emotion aggregation) ───────────────────────────────────────────
-
-const stimmungEmotionsSchema = z.record(z.string(), z.number());
-
-export const stimmungResponseSchema = z.object({
-  overall: stimmungEmotionsSchema,
-  byTopic: z.array(
-    z.object({ topic: z.string(), emotions: stimmungEmotionsSchema, articleCount: z.number() })
-  ),
-  bySource: z.array(
-    z.object({ source: z.string(), emotions: stimmungEmotionsSchema, articleCount: z.number() })
-  ),
-  byKeyword: z.array(
-    z.object({ keyword: z.string(), emotions: stimmungEmotionsSchema, articleCount: z.number() })
-  ),
-  dominantEmotion: z.string().nullable(),
-  moodSummary: z.string().optional(),
-  moodReason: z.string().optional(),
-});
-
 // ── Watcher entities ─────────────────────────────────────────────────────────
 
 export const watcherEntityInfoSchema = z.object({
@@ -367,7 +333,6 @@ export const pollsQuerySchema = z.object({
 export type MonitorSearchResult = z.infer<typeof monitorSearchResponseSchema>;
 export type KeywordInsightsResult = z.infer<typeof keywordInsightsResponseSchema>;
 export type MonitorBriefingResult = z.infer<typeof monitorBriefingResponseSchema>;
-export type StimmungResult = z.infer<typeof stimmungResponseSchema>;
 export type PollResult = z.infer<typeof pollResultSchema>;
 export type PollData = z.infer<typeof pollDataSchema>;
 export type PollParliament = z.infer<typeof pollParliamentSchema>;

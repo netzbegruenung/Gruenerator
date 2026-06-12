@@ -20,7 +20,7 @@ import {
   useMonitorSearch,
 } from '../hooks/useMonitor';
 
-import type { MonitorLocale, MonitorArticle } from '../hooks/useMonitor';
+import type { MonitorLocale } from '../hooks/useMonitor';
 
 interface WatcherViewProps {
   locale: MonitorLocale;
@@ -52,31 +52,11 @@ function highlightMatch(text: string, pattern: RegExp | null): React.ReactNode {
   });
 }
 
-function useAvgSentiment(articles?: MonitorArticle[]): number | null {
-  return useMemo(() => {
-    const withSentiment = (articles ?? []).filter((a) => a.erSentiment != null);
-    if (withSentiment.length === 0) return null;
-    return withSentiment.reduce((sum, a) => sum + a.erSentiment!, 0) / withSentiment.length;
-  }, [articles]);
-}
-
 interface RiskItem {
   title: string;
   source: string;
   reasoning: string;
   severity: 'high' | 'medium' | 'low';
-}
-
-function RiskBadge({ sentiment }: { sentiment: number | null }) {
-  if (sentiment == null) return null;
-  const level = sentiment < -0.2 ? 'Hoch' : sentiment > 0.1 ? 'Niedrig' : 'Mittel';
-  const color =
-    sentiment < -0.2
-      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-      : sentiment > 0.1
-        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${color}`}>{level}</span>;
 }
 
 const SEVERITY_COLORS = {
@@ -109,18 +89,10 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
   const { data: entities } = useWatcherEntities();
   const { data: results, isLoading } = useEntityResults(entityId, locale);
   const { data: summaryData, isLoading: summaryLoading } = useEntitySummary(entityId, locale);
-  const avgSentiment = useAvgSentiment(results?.articles);
 
   const entity = entities?.find((e) => e.id === entityId);
   const keywords = entity?.keywords ?? [];
   const pattern = useHighlightPattern(keywords);
-
-  const riskBorderColor =
-    avgSentiment != null && avgSentiment < -0.2
-      ? 'border-red-300 dark:border-red-800'
-      : avgSentiment != null && avgSentiment > 0.1
-        ? 'border-green-300 dark:border-green-800'
-        : 'border-amber-200 dark:border-amber-800';
 
   return (
     <div>
@@ -164,12 +136,11 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
       )}
 
       {(summaryData?.riskAnalysis || summaryData?.attackAnalysis) && (
-        <Card className={`mb-lg ${riskBorderColor}`}>
+        <Card className="mb-lg border-amber-200 dark:border-amber-800">
           <CardHeader>
             <div className="flex items-center gap-sm">
               <Shield className="h-4 w-4 text-amber-500" />
               <CardTitle>Risiko-Monitor</CardTitle>
-              <RiskBadge sentiment={avgSentiment} />
             </div>
           </CardHeader>
           <CardContent>
@@ -234,7 +205,6 @@ function EntityView({ entityId, locale }: { entityId: string; locale: MonitorLoc
                 }
                 source={article.source}
                 publishedAt={article.publishedAt}
-                sentiment={article.erSentiment}
               />
             ))}
           </div>
@@ -292,7 +262,6 @@ function CustomSearch({ locale }: { locale: MonitorLocale }) {
                 }
                 source={article.source}
                 publishedAt={article.publishedAt}
-                sentiment={article.erSentiment}
               />
             ))}
           </div>
