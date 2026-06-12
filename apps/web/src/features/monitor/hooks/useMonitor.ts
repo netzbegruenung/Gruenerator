@@ -29,6 +29,14 @@ function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
   return locale ? { locale } : {};
 }
 
+/** Link config for monitor citation renderers (briefing + positions card). */
+export const MONITOR_CITATION_LINK_CONFIG = {
+  type: 'vectorDocument' as const,
+  basePath: '/documents',
+  linkKey: 'document_id',
+  titleKey: 'document_title',
+};
+
 /** Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect. */
 export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
   return (citations ?? []).map((c) => ({

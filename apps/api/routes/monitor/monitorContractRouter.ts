@@ -9,7 +9,7 @@
  *   - /api/monitor/*          → requireAuth + publicReadLimiter
  *   - /api/internal/monitor/* → requireAdminToken
  */
-import { monitorContract } from '@gruenerator/contracts';
+import { monitorContract, type MonitorHotTopicAnalysis } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
@@ -38,6 +38,15 @@ const log = createLogger('monitorContractRouter');
 
 function cache(res: Response, value: string): void {
   res.setHeader('Cache-Control', value);
+}
+
+function toBriefingBody(analysis: MonitorHotTopicAnalysis) {
+  return {
+    briefing: analysis.briefing,
+    tweets: analysis.tweets,
+    generatedAt: analysis.generatedAt,
+    citations: analysis.citations,
+  };
 }
 
 const s = initServer();
@@ -128,15 +137,7 @@ export const monitorContractRouter = s.router(monitorContract, {
       }
       const analysis = await getHotTopicAnalysis(locale, snapshot);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return {
-        status: 200 as const,
-        body: {
-          briefing: analysis.briefing,
-          tweets: analysis.tweets,
-          generatedAt: analysis.generatedAt,
-          citations: analysis.citations,
-        },
-      };
+      return { status: 200 as const, body: toBriefingBody(analysis) };
     } catch (error) {
       log.error(`GET /briefing failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to generate briefing' } };
@@ -151,15 +152,7 @@ export const monitorContractRouter = s.router(monitorContract, {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
       const analysis = await getHotTopicAnalysis(locale, snapshot, { forceRefresh: true });
-      return {
-        status: 200 as const,
-        body: {
-          briefing: analysis.briefing,
-          tweets: analysis.tweets,
-          generatedAt: analysis.generatedAt,
-          citations: analysis.citations,
-        },
-      };
+      return { status: 200 as const, body: toBriefingBody(analysis) };
     } catch (error) {
       log.error(`POST /briefing/refresh failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to regenerate briefing' } };

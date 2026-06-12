@@ -314,7 +314,6 @@ export interface EntitySummaryGraphResult {
 
 export async function generateEntitySummary(
   entityLabel: string,
-  _summaryPrompt: string,
   articles: MonitorArticle[]
 ): Promise<EntitySummaryGraphResult> {
   if (articles.length === 0) {

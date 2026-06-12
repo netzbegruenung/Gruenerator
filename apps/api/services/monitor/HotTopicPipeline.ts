@@ -13,6 +13,7 @@
  */
 import {
   monitorHotTopicAnalysisSchema,
+  monitorTweetSchema,
   type MonitorCitation,
   type MonitorHotTopicAnalysis,
 } from '@gruenerator/contracts';
@@ -20,6 +21,7 @@ import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
 import { executeResearch } from '../../routes/chat/agents/directSearch.js';
+import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { getModel, getPreferredMonitorProvider } from '../ai/providers.js';
@@ -45,6 +47,24 @@ interface HotTopicAnchor {
   fingerprint: string;
 }
 
+// Newline-separated "topic\nurl1\nurl2\nurl3" — URLs never contain newlines.
+function buildFingerprint(topic: string, urls: string[]): string {
+  return [topic, ...urls].join('\n');
+}
+
+/**
+ * A cached analysis is still about the same story when the topic bucket is
+ * unchanged and at least one of the top-3 article URLs overlaps. Exact
+ * equality would churn on every score reorder or single new article and
+ * regenerate the expensive research pipeline near-hourly.
+ */
+function isSameStory(cachedFingerprint: string, anchorFingerprint: string): boolean {
+  const [cachedTopic, ...cachedUrls] = cachedFingerprint.split('\n');
+  const [anchorTopic, ...anchorUrls] = anchorFingerprint.split('\n');
+  if (cachedTopic !== anchorTopic) return false;
+  return cachedUrls.some((url) => anchorUrls.includes(url));
+}
+
 function getHotTopicAnchor(snapshot: MonitorSnapshot): HotTopicAnchor | null {
   const top = snapshot.topics.find((t) => t.articleCount > 0);
   if (!top) return null;
@@ -52,15 +72,11 @@ function getHotTopicAnchor(snapshot: MonitorSnapshot): HotTopicAnchor | null {
     .slice(0, 5)
     .map((a, i) => `${i + 1}. [${a.source}] ${a.title}`)
     .join('\n');
-  const fingerprint = `${top.topic}:${top.topArticles
-    .slice(0, 3)
-    .map((a) => a.url)
-    .join('|')}`;
+  const fingerprint = buildFingerprint(
+    top.topic,
+    top.topArticles.slice(0, 3).map((a) => a.url)
+  );
   return { topic: top, name: TOPIC_NAMES[top.topic] || top.topic, headlinesText, fingerprint };
-}
-
-export function computeSourceFingerprint(snapshot: MonitorSnapshot): string | null {
-  return getHotTopicAnchor(snapshot)?.fingerprint ?? null;
 }
 
 function formatOtherTopics(snapshot: MonitorSnapshot): string {
@@ -207,16 +223,7 @@ Schreibe die KI-Einordnung zum Hot Topic "${theme.dominantTopic}".`,
 // ─── Step 3b: tweet suggestions ──────────────────────────────────────
 
 const TweetsSchema = z.object({
-  tweets: z
-    .array(
-      z.object({
-        text: z.string(),
-        topic: z.string(),
-        hashtags: z.array(z.string()),
-      })
-    )
-    .min(1)
-    .max(3),
+  tweets: z.array(monitorTweetSchema).min(1).max(3),
 });
 
 async function generateTweets(
@@ -255,7 +262,7 @@ ${positionsText ? `\nGRÜNE POSITIONEN (nutze diese für fundierte Tweets):\n${p
     );
     return tweets;
   } catch (error) {
-    log.error(`generateTweets failed: ${error instanceof Error ? error.message : error}`);
+    log.error(`generateTweets failed: ${toError(error).message}`);
     return [];
   }
 }
@@ -310,7 +317,7 @@ export async function getHotTopicAnalysis(
   if (!opts.forceRefresh) {
     const cached = await getCachedJson(key, monitorHotTopicAnalysisSchema);
     if (cached) {
-      if (cached.sourceFingerprint === anchor.fingerprint) return cached;
+      if (isSameStory(cached.sourceFingerprint, anchor.fingerprint)) return cached;
       log.info(`getHotTopicAnalysis(${locale}): hot topic changed, regenerating`);
     }
   }
@@ -325,7 +332,7 @@ export async function getHotTopicAnalysis(
       `researchPositions: ${research.citations.length} citations, confidence: ${research.confidence}`
     );
   } catch (error) {
-    log.error(`researchPositions failed: ${error instanceof Error ? error.message : error}`);
+    log.error(`researchPositions failed: ${toError(error).message}`);
     research = {
       answer: '',
       citations: [],
@@ -354,8 +361,11 @@ export async function getHotTopicAnalysis(
     sourceFingerprint: anchor.fingerprint,
   };
 
-  // Only cache complete results so partial failures retry on the next request.
-  if (analysis.briefing && tweets.length > 0) {
+  // Cache once the expensive parts (research + briefing) succeeded. Empty
+  // tweets are acceptable in the cache — the UI shows placeholders — whereas
+  // not caching would re-run the full research pipeline on every request of
+  // either endpoint until tweets succeed.
+  if (analysis.briefing && research.answer) {
     await setCachedJson(key, analysis, CACHE_TTL_SECONDS);
   }
 
