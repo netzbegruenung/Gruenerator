@@ -76,7 +76,7 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
 
 const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
-  primary: { provider: 'litellm', model: 'gemma' },
+  primary: { provider: 'litellm', model: 'verdigado-think' },
   overflow: { provider: 'regolo', model: 'gemma4-31b' },
   contextWindow: 32768,
 };
