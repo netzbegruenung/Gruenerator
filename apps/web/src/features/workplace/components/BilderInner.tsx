@@ -1,3 +1,4 @@
+import { type KiLabelMode } from '@gruenerator/contracts';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useMediaPicker, type MediaItem } from '@gruenerator/shared/media-library';
 import {
@@ -12,7 +13,6 @@ import { useShareStore } from '@gruenerator/shared/share';
 import {
   AIPromptInput,
   Button,
-  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -22,7 +22,6 @@ import {
   ResponsiveMenu,
   ResponsiveMenuItem,
   ResponsiveMenuSection,
-  ResponsiveMenuToggle,
   SettingsDropdown,
   pillBase,
   pillInactive,
@@ -111,8 +110,8 @@ function BilderSettingsMenu({
   onModelChange: (id: ImageModelId) => void;
   aspectRatio: AspectRatio | null;
   onAspectRatioChange: (aspect: AspectRatio) => void;
-  kiLabel: boolean | null;
-  onKiLabelChange: (value: boolean) => void;
+  kiLabel: KiLabelMode | null;
+  onKiLabelChange: (value: KiLabelMode) => void;
 }) {
   const [open, setOpen] = useState(false);
   const hasSelectSections = settings.length > 0 || modelValue !== null || aspectRatio !== null;
@@ -210,13 +209,19 @@ function BilderSettingsMenu({
       {kiLabel !== null && (
         <>
           {hasSelectSections && <DropdownMenuSeparator />}
-          <DropdownMenuCheckboxItem
-            checked={kiLabel}
-            onCheckedChange={(checked) => onKiLabelChange(checked === true)}
-            onSelect={(e) => e.preventDefault()}
-          >
-            KI-Kennzeichnung im Bild
-          </DropdownMenuCheckboxItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              Kennzeichnung
+              {subHint(KI_LABEL_OPTIONS.find((o) => o.id === kiLabel)?.label ?? null)}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {KI_LABEL_OPTIONS.map((option) =>
+                desktopItem(option.id, option.label, option.id === kiLabel, () =>
+                  onKiLabelChange(option.id)
+                )
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </>
       )}
     </>
@@ -280,11 +285,18 @@ function BilderSettingsMenu({
       )}
       {kiLabel !== null && (
         <ResponsiveMenuSection title="Kennzeichnung">
-          <ResponsiveMenuToggle
-            label="KI-Kennzeichnung im Bild"
-            checked={kiLabel}
-            onCheckedChange={onKiLabelChange}
-          />
+          {KI_LABEL_OPTIONS.map((option) => (
+            <ResponsiveMenuItem
+              key={option.id}
+              active={option.id === kiLabel}
+              onClick={() => {
+                onKiLabelChange(option.id);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </ResponsiveMenuItem>
+          ))}
         </ResponsiveMenuSection>
       )}
     </>
@@ -333,15 +345,24 @@ const MIN_CUSTOM_SIDE = 256;
 const MAX_CUSTOM_SIDE = 2048;
 const MAX_CUSTOM_AREA = 4_194_304;
 
-// Persists the opt-out of the burned-in "KI-Generiert mit dem Grünerator"
-// label across sessions (users may want to apply their own AI labeling).
+// Which AI label gets burned into generated images. Users may shorten or
+// drop it to apply their own AI labeling instead.
+const KI_LABEL_OPTIONS: Array<{ id: KiLabelMode; label: string }> = [
+  { id: 'full', label: '„KI-Generiert mit dem Grünerator“' },
+  { id: 'short', label: 'Nur „KI-Generiert“' },
+  { id: 'none', label: 'Keine Kennzeichnung' },
+];
+
+// Persists the label choice across sessions.
 const KI_LABEL_STORAGE_KEY = 'gruenerator-bilder-ki-label';
 
-function readStoredKiLabel(): boolean {
+function readStoredKiLabel(): KiLabelMode {
   try {
-    return localStorage.getItem(KI_LABEL_STORAGE_KEY) !== 'false';
+    const stored = localStorage.getItem(KI_LABEL_STORAGE_KEY);
+    if (stored === 'short' || stored === 'none') return stored;
+    return 'full';
   } catch {
-    return true;
+    return 'full';
   }
 }
 
@@ -472,11 +493,11 @@ const BilderInner: React.FC = memo(() => {
     customArea <= MAX_CUSTOM_AREA;
   const [outpaintError, setOutpaintError] = useState<string | null>(null);
 
-  const [kiLabel, setKiLabelState] = useState<boolean>(readStoredKiLabel);
-  const setKiLabel = useCallback((value: boolean) => {
+  const [kiLabel, setKiLabelState] = useState<KiLabelMode>(readStoredKiLabel);
+  const setKiLabel = useCallback((value: KiLabelMode) => {
     setKiLabelState(value);
     try {
-      localStorage.setItem(KI_LABEL_STORAGE_KEY, String(value));
+      localStorage.setItem(KI_LABEL_STORAGE_KEY, value);
     } catch {
       // Storage unavailable (e.g. private mode) — keep the in-memory value.
     }
@@ -701,7 +722,7 @@ const BilderInner: React.FC = memo(() => {
       const payload: Record<string, unknown> = { prompt: trimmed };
       if (modeState.variant) payload.variant = modeState.variant;
       if (modeState.imageModel) payload.imageModel = modeState.imageModel;
-      if (!kiLabel) payload.kiLabel = false;
+      if (kiLabel !== 'full') payload.kiLabel = kiLabel;
       const result = await submitForm(payload);
       const usageFromResponse = (result as { usage?: UsageStatus })?.usage;
       if (usageFromResponse) setUsage(usageFromResponse);
@@ -901,7 +922,7 @@ const BilderInner: React.FC = memo(() => {
       form.append('aspectRatio', 'custom');
       form.append('width', String(targetW));
       form.append('height', String(targetH));
-      if (!kiLabel) form.append('kiLabel', 'false');
+      if (kiLabel !== 'full') form.append('kiLabel', kiLabel);
       const res = await getGlobalApiClient().post<{
         success: boolean;
         image?: { base64?: string };

@@ -23,6 +23,9 @@ export const imageEditReferenceSchema = z.object({
 
 export const imageEditTypeSchema = z.enum(['universal', 'green-edit', 'ally-maker']);
 
+/** AI-label variants for generated/edited images (default: 'full'). */
+export const kiLabelModeSchema = z.enum(['full', 'short', 'none']);
+
 export const imageEditBodySchema = z.object({
   /** Natural-language edit instruction; may reference "Bild 1", "Bild 2", … */
   instruction: z.string().min(1).max(4000),
@@ -33,16 +36,17 @@ export const imageEditBodySchema = z.object({
   editType: imageEditTypeSchema.nullish(),
   precision: z.boolean().nullish(),
   /**
-   * Burn the "KI-Generiert mit dem Grünerator" label into the result.
-   * Defaults to true; users can opt out to apply their own AI labeling.
+   * Which AI label to burn into the result: 'full' ("KI-Generiert mit dem
+   * Grünerator", default), 'short' ("KI-Generiert"), or 'none' so users can
+   * apply their own AI labeling.
    */
-  kiLabel: z.boolean().nullish(),
+  kiLabel: kiLabelModeSchema.nullish(),
 });
 
 export const imageEditSuccessSchema = z.object({
   success: z.literal(true),
   image: z.object({
-    /** Base64-encoded JPEG result (no data-URL prefix), KI-labeled unless kiLabel=false. */
+    /** Base64-encoded JPEG result (no data-URL prefix), KI-labeled per kiLabel mode. */
     base64: z.string(),
     filename: z.string(),
   }),
@@ -75,3 +79,4 @@ export type ImageEditReference = z.infer<typeof imageEditReferenceSchema>;
 export type ImageEditBody = z.infer<typeof imageEditBodySchema>;
 export type ImageEditSuccess = z.infer<typeof imageEditSuccessSchema>;
 export type ImageEditType = z.infer<typeof imageEditTypeSchema>;
+export type KiLabelMode = z.infer<typeof kiLabelModeSchema>;

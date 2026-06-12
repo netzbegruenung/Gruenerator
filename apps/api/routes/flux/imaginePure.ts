@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+import { kiLabelModeSchema } from '@gruenerator/contracts';
 import { IMAGE_MODEL_BY_ID, IMAGE_MODEL_IDS, type ImageModelId } from '@gruenerator/shared/models';
 import express, { type Response } from 'express';
 import { z } from 'zod';
@@ -35,9 +36,10 @@ const imaginePureSchema = z.object({
   seed: z.number().nullish(),
   width: z.number().nullish(),
   height: z.number().nullish(),
-  // Burn the "KI-Generiert mit dem Grünerator" label into the result.
-  // Defaults to true; users can opt out to apply their own AI labeling.
-  kiLabel: z.boolean().nullish(),
+  // Which AI label to burn into the result: 'full' ("KI-Generiert mit dem
+  // Grünerator", default), 'short' ("KI-Generiert"), or 'none' so users can
+  // apply their own AI labeling.
+  kiLabel: kiLabelModeSchema.nullish(),
 });
 
 type ImaginePureRequestBody = z.infer<typeof imaginePureSchema>;
@@ -234,12 +236,11 @@ router.post(
 
       const fluxImageBuffer = fs.readFileSync(fluxResult.filePath);
 
+      const kiLabel = req.body.kiLabel ?? 'full';
       const labeledBuffer =
-        req.body.kiLabel === false ? fluxImageBuffer : await addKiLabel(fluxImageBuffer);
+        kiLabel === 'none' ? fluxImageBuffer : await addKiLabel(fluxImageBuffer, kiLabel);
 
-      log.debug(
-        `[ImaginePure] KI label ${req.body.kiLabel === false ? 'skipped' : 'added'}, final size: ${labeledBuffer.length} bytes`
-      );
+      log.debug(`[ImaginePure] KI label (${kiLabel}), final size: ${labeledBuffer.length} bytes`);
 
       const now = new Date();
       const today = now.toISOString().split('T')[0];
