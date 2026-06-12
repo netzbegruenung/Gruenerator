@@ -11,7 +11,9 @@ import {
   buildGreenEditPrompt,
   buildUniversalPrompt,
   type GenerateResult,
+  type ReferenceImage,
 } from '../../../../services/flux/index.js';
+import { MAX_REFERENCE_IMAGES, fitToBudget } from '../../../../services/flux/referenceImages.js';
 import { visionService } from '../../../../services/vision/VisionService.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
@@ -84,23 +86,33 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
         error: 'Bitte hänge ein Bild an, das bearbeitet werden soll.',
       };
     }
-    const imageBuffer = Buffer.from(attachment.data, 'base64');
+
+    // Multi-reference: all attached images go to FLUX.2 in order; the user can
+    // reference them as "Bild 1", "Bild 2", … One composited result comes back.
+    const references: ReferenceImage[] = imageAttachments
+      .slice(0, MAX_REFERENCE_IMAGES)
+      .map((a) => ({ buffer: Buffer.from(a.data, 'base64'), mimeType: a.type }));
+    const processed = await fitToBudget(references);
     const mimeType = attachment.type;
 
     // `imageEditStyle` is set by the controller from forcedTools (mention path)
     // or defaulted by the classifier route. `null` falls back to universal so a
     // raw `image_edit` intent without controller wiring still produces a sane
-    // edit driven by the user's instruction.
-    const editStyle: ImageEditStyle = state.imageEditStyle ?? 'universal';
+    // edit driven by the user's instruction. With multiple references the
+    // green-edit preset is skipped — compositing needs the universal prompt.
+    const editStyle: ImageEditStyle =
+      references.length > 1 ? 'universal' : (state.imageEditStyle ?? 'universal');
     const prompt =
       editStyle === 'green-edit'
         ? buildGreenEditPrompt(userContent)
-        : buildUniversalPrompt(userContent);
+        : buildUniversalPrompt(userContent, references.length);
     const resultStyle: ImageStyle = editStyle;
-    log.info(`[ImageEditNode] Built ${editStyle} prompt (${prompt.length} chars)`);
+    log.info(
+      `[ImageEditNode] Built ${editStyle} prompt (${prompt.length} chars, ${references.length} reference image(s))`
+    );
 
     const flux = await FluxImageService.create();
-    const { stored }: GenerateResult = await flux.generateFromImage(prompt, imageBuffer, mimeType, {
+    const { stored }: GenerateResult = await flux.generateFromImages(prompt, processed, {
       output_format: 'jpeg',
       safety_tolerance: 2,
     });

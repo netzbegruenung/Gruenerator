@@ -9,14 +9,20 @@
  * /flux/imageEditing REST route.
  */
 
-export function buildUniversalPrompt(userText: string): string {
+export function buildUniversalPrompt(userText: string, referenceCount = 1): string {
   const trimmed = (userText || '').toString().trim();
 
   const promptStructure = {
     edit: trimmed,
+    ...(referenceCount > 1 && {
+      references: `${referenceCount} input images provided. "Bild N" / "image N" in the edit instruction refers to the N-th input image in upload order; the first input image is the primary scene.`,
+    }),
     style: 'Photorealistic, maintaining original image quality',
     constraints: {
-      preserve: ['Aspects not mentioned in edit instruction'],
+      preserve:
+        referenceCount > 1
+          ? ['Aspects of the primary scene not mentioned in the edit instruction']
+          : ['Aspects not mentioned in edit instruction'],
       match: ['Original lighting, shadows, and textures'],
     },
     quality: 'Photorealistic edit',

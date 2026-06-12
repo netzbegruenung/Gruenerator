@@ -278,6 +278,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     await import('./routes/sites/index.js');
   const { default: flyerController } = await import('./routes/sites/flyerController.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
+  const { mountImageEditContractRouter } = await import('./routes/flux/imageEditContractRouter.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
 
@@ -739,6 +740,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountSitesContractRouter(app);
   app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
+  // ts-rest contract router for image editing (multi-reference). requireAuth +
+  // limiter run at the prefix because createExpressEndpoints registers
+  // handlers directly on the app.
+  app.use('/api/image-edit', requireAuth, aiGenerationLimiter);
+  mountImageEditContractRouter(app);
   app.use('/api/imagine/create', aiGenerationLimiter, imagineCreateRoute);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
