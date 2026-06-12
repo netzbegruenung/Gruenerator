@@ -1,14 +1,15 @@
 /**
  * LiteLLM (Ollama-backed) at Verdigado serves gemma4 models which default to
- * thinking mode: the OpenAI-compat layer streams long `reasoning` deltas with
- * empty `content` until the budget runs out. The Vercel AI SDK only reads
- * `delta.content`, so chat UIs see 0 chars before `finish_reason: length`.
+ * thinking mode. Historically the OpenAI-compat layer streamed long
+ * `reasoning` deltas with empty `content` until the budget ran out, and
+ * setting Ollama's top-level `think: false` made gemma4 emit directly into
+ * `content`.
  *
- * Ollama exposes a top-level `think` parameter on chat completions. Setting it
- * to `false` makes gemma4 emit content directly into `content` (after a brief
- * upstream reasoning preamble that the SDK silently drops). Models that don't
- * support thinking ignore the flag, so it's a safe no-op elsewhere on the
- * proxy.
+ * The proxy now ignores `think: false` on think-enabled aliases (e.g.
+ * `verdigado-think`) and returns reasoning in a separate `reasoning` field
+ * that no longer blocks `content` — the streaming layer surfaces it via
+ * fullStream as reasoning deltas. The wrapper stays as a harmless no-op
+ * safeguard for models/aliases that still honor the flag.
  */
 export const litellmFetchWithThinkingDisabled: typeof fetch = async (input, init) => {
   if (init?.body && typeof init.body === 'string') {
