@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import {
+  MONITOR_CITATION_LINK_CONFIG,
   mapMonitorCitations,
   useBriefingRefresh,
   useMonitorBriefing,
@@ -28,13 +29,6 @@ interface MonitorOverviewProps {
   locale: MonitorLocale;
   onTopicClick: (topic: TopicCategory) => void;
 }
-
-const BRIEFING_LINK_CONFIG = {
-  type: 'vectorDocument' as const,
-  basePath: '/documents',
-  linkKey: 'document_id',
-  titleKey: 'document_title',
-};
 
 export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) {
   const { data: snapshot } = useMonitorSnapshot(locale);
@@ -102,12 +96,12 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
                   text={briefing.briefing}
                   citations={briefingCitations}
                   className="text-sm leading-relaxed"
-                  linkConfig={BRIEFING_LINK_CONFIG}
+                  linkConfig={MONITOR_CITATION_LINK_CONFIG}
                 />
                 {briefingCitations.length > 0 && (
                   <CitationSourcesDisplay
                     citations={briefingCitations}
-                    linkConfig={BRIEFING_LINK_CONFIG}
+                    linkConfig={MONITOR_CITATION_LINK_CONFIG}
                     className="mt-sm"
                   />
                 )}
