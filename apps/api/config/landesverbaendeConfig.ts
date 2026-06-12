@@ -900,44 +900,6 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       ],
     },
     {
-      // The Hessen state Regierungsprogramme are PDFs on the /partei/gruene-programme/
-      // hub. They're old (LTW 2014 + the 2019-2024 governing programme), so this
-      // source keeps a long maxAgeYears window and OCRs the PDFs directly as
-      // 'wahlprogramm'. Only the Hessen state programmes are listed — the
-      // Bundestags-/Europawahl- and federal Grundsatzprogramm PDFs on the same hub
-      // are intentionally excluded.
-      id: 'hessen-lv-wahlprogramm',
-      name: 'Grüne Hessen Wahlprogramme',
-      shortName: 'HE',
-      type: 'landesverband',
-      baseUrl: 'https://www.gruene-hessen.de',
-      cms: 'wordpress',
-      maxAgeYears: 15,
-      contentPaths: [
-        {
-          type: 'wahlprogramm',
-          path: '/partei/gruene-programme/',
-          listSelector: 'a[href$=".pdf"]',
-          isPdfArchive: true,
-          processUndatedPdfs: true,
-          disableOffPathFilter: true,
-          maxPages: 1,
-          staticUrls: [
-            'https://www.gruene-hessen.de/partei/files/2018/09/Regierungsprogramm-2018-Web.pdf',
-            'https://www.gruene-hessen.de/partei/files/2013/07/Regierungsprogramm-Wahlprogramm-GR%C3%9CNE-Hessen-Interaktiv.pdf',
-          ],
-        },
-      ],
-      contentSelectors: {
-        title: ['h1.entry-title', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
-        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
-        categories: ['a[rel="category tag"]', '.post-categories a'],
-        author: ['.author-name', '.byline'],
-      },
-      excludePatterns: ['/tag/', '/author/', '#', 'javascript:', '.jpg', '.png'],
-    },
-    {
       // Fraktion (Landtag). Press-release teasers on the /landtag/presse/ listing
       // link to articles under /landtag/pressemitteilungen/<slug> — a different path
       // prefix than the listing, so disableOffPathFilter is required and the
