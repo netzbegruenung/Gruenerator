@@ -171,7 +171,13 @@ export const monitorContractRouter = s.router(monitorContract, {
       if (!politProData) {
         log.warn(`PolitPro returned null for "${parliament}", falling back to wahlrecht.de`);
       }
-      const data = politProData ?? (await getPolls());
+      // wahlrecht.de only covers the Bundestag — falling back for any other
+      // parliament would silently serve German polls under an AT/Länder label.
+      const data =
+        politProData ??
+        (parliament === 'deutschland'
+          ? await getPolls()
+          : { polls: [], average: {}, lastElection: null, scrapedAt: new Date().toISOString() });
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
       return { status: 200 as const, body: data };
     } catch (error) {
