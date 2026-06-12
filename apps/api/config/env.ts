@@ -165,6 +165,8 @@ const envSchema = z.object({
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),
+  // API base the content-sync CI run POSTs its article events to.
+  CONTENT_SYNC_API_URL: z.string().trim().optional(),
 
   // ── GitHub CI (content sync) ───────────────────────────────────────────
   GITHUB_REPOSITORY: z.string().optional(),

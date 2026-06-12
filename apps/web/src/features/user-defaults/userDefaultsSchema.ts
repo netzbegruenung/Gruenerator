@@ -7,6 +7,7 @@ export interface UserDefaultsRegistry {
   notifications: Record<string, boolean>;
   boards: Record<string, boolean>;
   popups: Record<string, boolean>;
+  monitor: Record<string, boolean>;
 }
 
 export type UserDefaultsGenerator = keyof UserDefaultsRegistry;

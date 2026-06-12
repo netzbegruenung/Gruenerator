@@ -175,7 +175,8 @@ export default defineConfig(({ command }) => ({
       'prop-types',
       '@tiptap/react',
       '@tiptap/core',
-      '@tiptap/pm',
+      // '@tiptap/pm' has no root export since 3.26 — pre-bundling the meta
+      // package crashes the dev server; the subpath imports resolve fine.
       '@tiptap/static-renderer',
       '@assistant-ui/react',
       'recharts',
