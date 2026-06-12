@@ -18,6 +18,8 @@ import {
   type StateElectionsData,
   type TopicScore,
   type WatcherEntityInfo,
+  type WhatHappenedQuery,
+  type WhatHappenedResult,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -207,6 +209,24 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
     enabled: !!entityId,
     staleTime: 10 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+  });
+}
+
+export function useWhatHappened(
+  locale?: MonitorLocale,
+  opts: Omit<WhatHappenedQuery, 'locale'> = {}
+) {
+  return useQuery({
+    queryKey: ['monitor', 'what-happened', locale, opts],
+    queryFn: async (): Promise<WhatHappenedResult> => {
+      const res = await getContractsClient().monitor.whatHappened({
+        query: { ...opts, ...localeQuery(locale) },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Neue Inhalte konnten nicht geladen werden.');
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
