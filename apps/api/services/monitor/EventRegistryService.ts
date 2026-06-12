@@ -37,7 +37,6 @@ interface ERArticle {
   source: { uri: string; title: string };
   dateTimePub: string;
   lang: string;
-  sentiment?: number;
 }
 
 interface ERResponse {
@@ -51,8 +50,7 @@ async function fetchER(
   params: Record<string, unknown>,
   cacheKey: string,
   label: string,
-  locale: MonitorLocale,
-  includeSentiment = false
+  locale: MonitorLocale
 ): Promise<CollectedMonitorItem[]> {
   const apiKey = env.EVENT_REGISTRY_API_KEY;
   if (!apiKey) {
@@ -103,7 +101,6 @@ async function fetchER(
         source: a.source?.title || 'Unknown',
         publishedAt: a.dateTimePub || null,
         locale,
-        ...(includeSentiment && a.sentiment != null ? { erSentiment: a.sentiment } : {}),
       }));
 
     log.info(`${label} (${locale}): ${items.length} articles fetched`);
@@ -195,7 +192,6 @@ export async function fetchGrueneArticles(locale: MonitorLocale): Promise<Collec
       resultType: 'articles',
       includeArticleBody: true,
       includeArticleTitle: true,
-      includeArticleSentiment: true,
       includeArticleConcepts: false,
       includeArticleCategories: false,
       includeArticleImage: false,
@@ -204,7 +200,6 @@ export async function fetchGrueneArticles(locale: MonitorLocale): Promise<Collec
     },
     `monitor:eventregistry-gruene:${locale}`,
     'EventRegistry-Gruene',
-    locale,
-    true
+    locale
   );
 }

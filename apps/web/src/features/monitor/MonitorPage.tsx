@@ -13,7 +13,6 @@ import { KeywordInsightsCard } from './components/KeywordInsightsCard';
 import { KeywordRanking } from './components/KeywordRanking';
 import { MonitorOverview } from './components/MonitorOverview';
 import { SocialTrends } from './components/SocialTrends';
-import { StimmungView } from './components/StimmungView';
 import { TopicDetail } from './components/TopicDetail';
 import { TopicRanking } from './components/TopicRanking';
 import { UmfragenView } from './components/UmfragenView';
@@ -24,7 +23,6 @@ import {
   useMonitorRefresh,
   useMonitorSnapshot,
   usePolls,
-  useStimmung,
 } from './hooks/useMonitor';
 
 import type { MonitorLocale } from './hooks/useMonitor';
@@ -35,7 +33,6 @@ type MonitorTab =
   | 'topics'
   | 'keywords'
   | 'social'
-  | 'stimmung'
   | 'umfragen'
   | 'bundesland'
   | 'watcher'
@@ -51,7 +48,6 @@ function MonitorPage() {
   const refresh = useMonitorRefresh();
   useKeywordInsights(locale);
   useMonitorBriefing(locale);
-  useStimmung(locale);
   usePolls();
 
   return (
@@ -110,7 +106,6 @@ function MonitorPage() {
                 <TabsList>
                   <TabsTrigger value="overview">Überblick</TabsTrigger>
                   <TabsTrigger value="topics">Themen</TabsTrigger>
-                  <TabsTrigger value="stimmung">Stimmung</TabsTrigger>
                   <TabsTrigger value="umfragen">Umfragen</TabsTrigger>
                   {locale === 'de' && <TabsTrigger value="bundesland">Bundesländer</TabsTrigger>}
                   <TabsTrigger value="watcher">Watcher</TabsTrigger>
@@ -129,8 +124,6 @@ function MonitorPage() {
             {tab === 'overview' && (
               <MonitorOverview locale={locale} onTopicClick={setSelectedTopic} />
             )}
-
-            {tab === 'stimmung' && <StimmungView locale={locale} />}
 
             {tab === 'umfragen' && <UmfragenView locale={locale} />}
 

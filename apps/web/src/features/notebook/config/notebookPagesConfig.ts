@@ -223,7 +223,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
         id: 'hessen-system',
         name: 'Grüne Hessen',
         icon: HiDocumentText,
-        description: 'Pressemitteilungen, Beschlüsse und Regierungsprogramme',
+        description: 'Pressemitteilungen und Beschlüsse',
         documentCount: 'Archiv',
         externalUrl: 'https://www.gruene-hessen.de',
         linkType: 'url',
@@ -583,9 +583,9 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'hessen-system', name: 'Grüne Hessen' }],
     startPageTitle: 'Was möchtest du über die Grünen Hessen wissen?',
-    placeholder: 'Stell deine Frage zu Positionen, Beschlüssen und Programmen der Grünen Hessen...',
+    placeholder: 'Stell deine Frage zu Positionen und Beschlüssen der Grünen Hessen...',
     infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und die Regierungsprogramme der Grünen Hessen (Landesverband & Fraktion).',
+      'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion).',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', text: 'Was sagen die Grünen Hessen zum Klimaschutz?' },
@@ -595,7 +595,6 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     documents: [
       { title: 'Pressemitteilungen', detail: 'Landesverband & Fraktion' },
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
-      { title: 'Regierungsprogramme', detail: 'Wahlprogramme zur Landtagswahl' },
     ],
     externalUrl: 'https://www.gruene-hessen.de',
     sources: [{ name: 'Grüne Hessen', count: 'Archiv' }],

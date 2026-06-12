@@ -33,7 +33,6 @@ export const LANDESVERBAND_SOURCE_IDS = [
   'sachsen-anhalt-lv',
   'sachsen-anhalt-fraktion',
   'hessen-lv',
-  'hessen-lv-wahlprogramm',
   'hessen-fraktion',
 ] as const satisfies readonly string[];
 

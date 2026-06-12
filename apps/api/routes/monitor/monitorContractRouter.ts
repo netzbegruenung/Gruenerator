@@ -21,7 +21,6 @@ import {
   getTopicArticles,
   searchArticles,
   searchArticlesByKeywords,
-  getStimmung,
   refreshMonitor,
   refreshInstagram,
 } from '../../services/monitor/MonitorService.js';
@@ -29,7 +28,6 @@ import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.j
 import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/PolitProService.js';
 import { getPolls } from '../../services/monitor/PollScraper.js';
 import { getStateElections } from '../../services/monitor/StateElectionsService.js';
-import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
@@ -116,15 +114,11 @@ export const monitorContractRouter = s.router(monitorContract, {
   briefing: async ({ query, res }) => {
     try {
       const locale = query.locale ?? 'de';
-      const [snapshot, stimmung, pollData] = await Promise.all([
-        getLatestSnapshot(locale),
-        getStimmung(locale),
-        getPolls(),
-      ]);
+      const [snapshot, pollData] = await Promise.all([getLatestSnapshot(locale), getPolls()]);
       if (!snapshot) {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const result = await generateMonitorBriefing(locale, snapshot, stimmung, pollData.average);
+      const result = await generateMonitorBriefing(locale, snapshot, pollData.average);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
       return { status: 200 as const, body: result };
     } catch (error) {
@@ -137,15 +131,11 @@ export const monitorContractRouter = s.router(monitorContract, {
     try {
       const locale = query.locale ?? 'de';
       await redisClient.del(`monitor:briefing:${locale}`);
-      const [snapshot, stimmung, pollData] = await Promise.all([
-        getLatestSnapshot(locale),
-        getStimmung(locale),
-        getPolls(),
-      ]);
+      const [snapshot, pollData] = await Promise.all([getLatestSnapshot(locale), getPolls()]);
       if (!snapshot) {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const result = await generateMonitorBriefing(locale, snapshot, stimmung, pollData.average);
+      const result = await generateMonitorBriefing(locale, snapshot, pollData.average);
       return { status: 200 as const, body: result };
     } catch (error) {
       log.error(`POST /briefing/refresh failed: ${toError(error).message}`);
@@ -199,22 +189,6 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /elections failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch state election data' } };
-    }
-  },
-
-  stimmung: async ({ query, res }) => {
-    try {
-      const stimmung = await getStimmung(query.locale);
-      const summary = await getStimmungSummary(query.locale, stimmung).catch(() => null);
-      if (summary) {
-        stimmung.moodSummary = summary.moodSummary;
-        stimmung.moodReason = summary.dominantReason;
-      }
-      cache(res, 'private, max-age=300, stale-while-revalidate=600');
-      return { status: 200 as const, body: stimmung };
-    } catch (error) {
-      log.error(`GET /stimmung failed: ${toError(error).message}`);
-      return { status: 500 as const, body: { error: 'Failed to fetch stimmung' } };
     }
   },
 
