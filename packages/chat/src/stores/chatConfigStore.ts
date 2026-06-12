@@ -76,12 +76,14 @@ export interface ChatConfig {
   /**
    * Uploads a composer-attached video to the subtitler TUS endpoint and
    * resolves with its uploadId. Required for video attachments — without it
-   * the attachment adapter rejects video files.
+   * the attachment adapter rejects video files. The abort handle terminates
+   * the transfer (and deletes the partial server-side upload) when the user
+   * removes the attachment mid-upload.
    */
   uploadReelVideo?: (
     file: File,
     onProgress?: (pct: number) => void
-  ) => Promise<{ uploadId: string }>;
+  ) => { promise: Promise<{ uploadId: string }>; abort: () => void };
   /** Streaming URL for a subtitler project's video (cookie-authed, Range-capable). */
   getReelVideoUrl?: (projectId: string) => string;
   /** Fetch one subtitler project incl. its subtitles blob; null on error. */

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Clapperboard, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { parseStoredSubtitles } from '@gruenerator/shared/subtitle-editor';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -11,11 +11,16 @@ type CardState =
   | { phase: 'error'; message: string }
   | { phase: 'expired' };
 
+/** Consecutive failed status fetches before the card gives up. */
+const MAX_FETCH_FAILURES = 5;
+
 /**
  * Progress card for a chat-uploaded video being auto-transcribed. Polls
  * GET /subtitler/auto-progress/:uploadId (2s, 5s after 30s — same cadence as
- * the subtitler export store) and, on completion, seeds the reel live store
- * and activates the docked ReelArtifactPanel.
+ * the subtitler export store) and, on completion, seeds the reel live store.
+ * The docked panel is only auto-opened when this mount actually WATCHED the
+ * processing (live session) — a card reconstructed on thread reload whose
+ * first poll already says 'complete' must not hijack the panel.
  */
 export const ReelProcessingCard = memo(function ReelProcessingCard({
   data,
@@ -23,7 +28,6 @@ export const ReelProcessingCard = memo(function ReelProcessingCard({
   data: ReelProcessingData;
 }) {
   const [state, setState] = useState<CardState>({ phase: 'processing', progress: 0 });
-  const doneRef = useRef(false);
 
   useEffect(() => {
     const { fetchReelAutoProgress } = useChatConfigStore.getState();
@@ -34,19 +38,35 @@ export const ReelProcessingCard = memo(function ReelProcessingCard({
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveFailures = 0;
+    let sawProcessing = false;
     const startedAt = Date.now();
 
     const finishComplete = (projectId: string | null, subtitles: string | null) => {
-      doneRef.current = true;
-      if (projectId) {
+      if (!projectId) {
+        // Pipeline finished but autoSaveProject failed (swallowed server-
+        // side): there is nothing to attach or edit — don't show success.
+        setState({
+          phase: 'error',
+          message:
+            'Untertitel wurden erstellt, aber das Projekt konnte nicht gespeichert werden. ' +
+            'Lade das Video bitte noch einmal hoch.',
+        });
+        return;
+      }
+      const store = useReelLiveStore.getState();
+      if (!store.entries[projectId]?.segments) {
         const { segments } = parseStoredSubtitles(subtitles);
-        const store = useReelLiveStore.getState();
         store.upsertEntry(projectId, {
           title: data.filename,
           segments: segments.length > 0 ? segments : null,
           summary: null,
           changedIndices: null,
         });
+      }
+      // Auto-open the panel only for the live session, not on reload of an
+      // old thread (within the Redis TTL the first poll returns 'complete').
+      if (sawProcessing) {
         store.setActiveReel({ projectId, title: data.filename });
       }
       setState({ phase: 'complete', projectId });
@@ -54,25 +74,32 @@ export const ReelProcessingCard = memo(function ReelProcessingCard({
 
     const poll = async () => {
       const progress = await fetchReelAutoProgress(data.uploadId);
-      if (cancelled || doneRef.current) return;
+      if (cancelled) return;
 
       if (!progress) {
-        // Transient fetch error — keep polling.
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= MAX_FETCH_FAILURES) {
+          setState({
+            phase: 'error',
+            message: 'Der Verarbeitungsstatus konnte nicht geladen werden.',
+          });
+          return;
+        }
       } else if (progress.status === 'complete') {
         finishComplete(progress.projectId, progress.subtitles);
         return;
       } else if (progress.status === 'error') {
-        doneRef.current = true;
         setState({
           phase: 'error',
           message: progress.error ?? 'Die Verarbeitung ist fehlgeschlagen.',
         });
         return;
       } else if (progress.status === 'not_found') {
-        doneRef.current = true;
         setState({ phase: 'expired' });
         return;
       } else {
+        consecutiveFailures = 0;
+        sawProcessing = true;
         setState({ phase: 'processing', progress: progress.overallProgress });
       }
 

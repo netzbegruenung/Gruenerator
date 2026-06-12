@@ -678,6 +678,12 @@ interface StartAutoProcessingOptions {
   userId?: string | null;
   locale?: string;
   maxResolution?: number | null;
+  /**
+   * Called after the result was auto-saved as a project, before the Redis
+   * 'complete' status is written (so the caller's bookkeeping exists by the
+   * time pollers see completion). Best-effort — errors are logged, not fatal.
+   */
+  onProjectSaved?: (projectId: string) => Promise<void>;
 }
 
 /**
@@ -699,6 +705,7 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
     userId = null,
     locale = 'de-DE',
     maxResolution = null,
+    onProjectSaved,
   } = options;
 
   await redisClient.set(
@@ -733,8 +740,20 @@ async function startAutoProcessing(options: StartAutoProcessingOptions): Promise
             exportToken: result.autoProcessToken,
           });
           savedProjectId = r.projectId;
-        } catch {
-          /* ignored */
+        } catch (saveErr: unknown) {
+          log.warn(
+            `Auto-save project failed for ${uploadId}: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`
+          );
+        }
+
+        if (savedProjectId && onProjectSaved) {
+          try {
+            await onProjectSaved(savedProjectId);
+          } catch (hookErr: unknown) {
+            log.warn(
+              `onProjectSaved hook failed for ${uploadId}: ${hookErr instanceof Error ? hookErr.message : String(hookErr)}`
+            );
+          }
         }
 
         if (savedProjectId && result.outputPath) {

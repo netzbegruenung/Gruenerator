@@ -26,7 +26,10 @@ import {
 } from '@gruenerator/shared/subtitle-editor';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { startAutoProcessing } from '../../../services/subtitler/autoProcessingService.js';
+import {
+  getAutoProgress,
+  startAutoProcessing,
+} from '../../../services/subtitler/autoProcessingService.js';
 import {
   getSubtitlerProjectService,
   type SubtitlerProject,
@@ -152,19 +155,23 @@ async function findActiveThreadReel(threadId: string): Promise<string | null> {
   return active?.project_id ?? null;
 }
 
-/** Bind the project to the thread and mark it the active reel target. */
+/**
+ * Bind the project to the thread and mark it the active reel target. One
+ * statement: deactivate the previously active row (WITHOUT touching its
+ * updated_at — findActiveThreadReel's recency fallback depends on it), then
+ * upsert the target as active.
+ */
 async function setActiveThreadReel(threadId: string, projectId: string): Promise<void> {
   const pg = getPostgresInstance();
   await pg.query(
-    `INSERT INTO chat_thread_reels (thread_id, project_id, is_active)
+    `WITH deactivated AS (
+       UPDATE chat_thread_reels SET is_active = FALSE
+       WHERE thread_id = $1 AND is_active AND project_id <> $2
+     )
+     INSERT INTO chat_thread_reels (thread_id, project_id, is_active)
      VALUES ($1, $2, TRUE)
-     ON CONFLICT (thread_id, project_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-    [threadId, projectId]
-  );
-  await pg.query(
-    `UPDATE chat_thread_reels
-     SET is_active = (project_id = $2), updated_at = CURRENT_TIMESTAMP
-     WHERE thread_id = $1`,
+     ON CONFLICT (thread_id, project_id)
+     DO UPDATE SET is_active = TRUE, updated_at = CURRENT_TIMESTAMP`,
     [threadId, projectId]
   );
 }
@@ -282,13 +289,25 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
       const originalFilename =
         (await getOriginalFilename(reelUpload.uploadId)) || reelUpload.filename || 'video.mp4';
 
-      await startAutoProcessing({
-        uploadId: reelUpload.uploadId,
-        videoPath,
-        originalFilename,
-        userId,
-        locale: args.userLocale,
-      });
+      // Idempotency: the reel-upload data part persists in the user message,
+      // so a regenerate/resend re-sends the same uploadId. Never restart a
+      // pipeline that is already running or finished — that would reset the
+      // progress key and re-transcribe (and autoSaveProject's existing-
+      // project branch would NOT rewrite subtitles, desyncing client state).
+      const existingProgress = await getAutoProgress(reelUpload.uploadId);
+      if (!existingProgress) {
+        await startAutoProcessing({
+          uploadId: reelUpload.uploadId,
+          videoPath,
+          originalFilename,
+          userId,
+          locale: args.userLocale,
+          // Bind the auto-created project to this thread the moment it is
+          // saved, so the reel survives reloads (resolveReelTarget falls
+          // back to chat_thread_reels) without requiring a first edit.
+          onProjectSaved: (projectId) => setActiveThreadReel(threadId, projectId),
+        });
+      }
 
       sse.send('reel_processing', { uploadId: reelUpload.uploadId, filename: originalFilename });
       await finishWithText(

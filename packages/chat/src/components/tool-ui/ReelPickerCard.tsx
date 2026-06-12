@@ -1,17 +1,8 @@
 import { memo } from 'react';
 import { Clapperboard, Check } from 'lucide-react';
+import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import type { ReelPickerData } from '../../types/messageMetadata';
-
-function formatRelativeDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const days = Math.floor((Date.now() - date.getTime()) / 86_400_000);
-  if (days <= 0) return 'heute';
-  if (days === 1) return 'gestern';
-  if (days < 30) return `vor ${days} Tagen`;
-  return date.toLocaleDateString('de-DE');
-}
 
 /**
  * Project picker streamed when a reel-edit instruction arrives without an
@@ -61,7 +52,7 @@ export const ReelPickerCard = memo(function ReelPickerCard({ data }: { data: Ree
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{project.title}</p>
                 <p className="text-xs text-foreground-muted">
-                  {disabled ? 'Noch keine Untertitel' : formatRelativeDate(project.updatedAt)}
+                  {disabled ? 'Noch keine Untertitel' : formatRelativeTime(project.updatedAt)}
                 </p>
               </div>
               {isActive && <Check className="h-4 w-4 flex-shrink-0 text-primary" />}
