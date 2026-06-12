@@ -9,7 +9,7 @@
  * is probed and negative-cached for 12h; they start working automatically
  * once PolitPro unlocks them for our plan.
  */
-import { pollDataSchema } from '@gruenerator/contracts';
+import { euGreensResponseSchema, pollDataSchema, type EuGreensData } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { env } from '../../config/env.js';
@@ -278,6 +278,113 @@ export async function getPolitProPolls(
 
   await setCachedJson(cacheKey, result, CACHE_TTL);
   return result;
+}
+
+// ── EU greens (green-party trend across European parliaments) ────────────────
+
+/**
+ * Curated map of green parties per European parliament, keyed by PolitPro
+ * country code. Criterion: European Green Party member or Greens/EFA-affiliated.
+ * `partyShort` must match the API's `name_short` exactly. Countries whose
+ * greens run inside a broader alliance carry a `note`; countries where no
+ * green result is extractable (FR inside NFP, ES inside Sumar, PL inside KO,
+ * BE/CZ/GR/HU below threshold) are omitted.
+ */
+const EU_GREEN_PARTIES: Array<{
+  countryCode: string;
+  countryName: string;
+  partyShort: string;
+  partyLabel: string;
+  note?: string;
+}> = [
+  { countryCode: 'de', countryName: 'Deutschland', partyShort: 'Grüne', partyLabel: 'Grüne' },
+  { countryCode: 'at', countryName: 'Österreich', partyShort: 'GRÜNE', partyLabel: 'Grüne' },
+  {
+    countryCode: 'eu',
+    countryName: 'EU-Parlament',
+    partyShort: 'G/EFA',
+    partyLabel: 'Greens/EFA',
+    note: 'Fraktion im EU-Parlament',
+  },
+  { countryCode: 'fi', countryName: 'Finnland', partyShort: 'VIHR', partyLabel: 'Vihreät' },
+  { countryCode: 'se', countryName: 'Schweden', partyShort: 'MP', partyLabel: 'Miljöpartiet' },
+  {
+    countryCode: 'dk',
+    countryName: 'Dänemark',
+    partyShort: 'F',
+    partyLabel: 'SF',
+    note: 'Grün-linke Partei, Mitglied der Europäischen Grünen',
+  },
+  { countryCode: 'ie', countryName: 'Irland', partyShort: 'GP', partyLabel: 'Green Party' },
+  { countryCode: 'lu', countryName: 'Luxemburg', partyShort: 'DG', partyLabel: 'déi gréng' },
+  {
+    countryCode: 'nl',
+    countryName: 'Niederlande',
+    partyShort: 'GL/PvdA',
+    partyLabel: 'GroenLinks–PvdA',
+    note: 'Gemeinsame Liste mit den Sozialdemokraten',
+  },
+  {
+    countryCode: 'it',
+    countryName: 'Italien',
+    partyShort: 'AVS',
+    partyLabel: 'Alleanza Verdi e Sinistra',
+    note: 'Allianz von Grünen und Linker',
+  },
+  { countryCode: 'hr', countryName: 'Kroatien', partyShort: 'M', partyLabel: 'Možemo!' },
+  { countryCode: 'pt', countryName: 'Portugal', partyShort: 'L', partyLabel: 'Livre' },
+  { countryCode: 'lv', countryName: 'Lettland', partyShort: 'P', partyLabel: 'Progresīvie' },
+  { countryCode: 'ro', countryName: 'Rumänien', partyShort: 'SENS', partyLabel: 'SENS' },
+  {
+    countryCode: 'ee',
+    countryName: 'Estland',
+    partyShort: 'EER',
+    partyLabel: 'Eestimaa Rohelised',
+  },
+];
+
+export async function getEuGreens(): Promise<EuGreensData | null> {
+  if (!env.POLITPRO_API_KEY) {
+    log.warn('[getEuGreens] POLITPRO_API_KEY not set, skipping');
+    return null;
+  }
+
+  const cacheKey = 'monitor:politpro:eu-greens';
+  const cached = await getCachedJson(cacheKey, euGreensResponseSchema);
+  if (cached) return cached;
+
+  const results = await Promise.all(
+    EU_GREEN_PARTIES.map(async (entry) => {
+      const trendResult = await fetchApi<ApiTrendData>(`/${entry.countryCode}/trend`);
+      if (!trendResult.ok) return null;
+      const party = trendResult.data.poll.parties.find((p) => p.name_short === entry.partyShort);
+      if (!party) {
+        log.warn(`[getEuGreens] Party "${entry.partyShort}" not found for ${entry.countryCode}`);
+        return null;
+      }
+      return {
+        countryCode: entry.countryCode,
+        countryName: entry.countryName,
+        party: entry.partyLabel,
+        percent: party.percent,
+        diff: party.diff != null ? round1(party.diff) : null,
+        electionDiff: party.election_diff != null ? round1(party.election_diff) : null,
+        date: trendResult.data.poll.date,
+        note: entry.note ?? null,
+      };
+    })
+  );
+
+  const found = results
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+    .sort((a, b) => b.percent - a.percent);
+
+  log.info(`[getEuGreens] ${found.length}/${EU_GREEN_PARTIES.length} green parties resolved`);
+  if (found.length === 0) return null;
+
+  const data: EuGreensData = { results: found, fetchedAt: new Date().toISOString() };
+  await setCachedJson(cacheKey, data, CACHE_TTL);
+  return data;
 }
 
 export const POLITPRO_PARLIAMENTS = [

@@ -1,6 +1,7 @@
 import {
   type EntityResult,
   type EntitySummaryResult,
+  type EuGreensData,
   type KeywordInsightsResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
@@ -149,6 +150,20 @@ export function usePolls(parliament = 'deutschland') {
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+  });
+}
+
+export function useEuGreens() {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'eu-greens'],
+    queryFn: async (): Promise<EuGreensData> => {
+      const res = await getContractsClient().monitor.euGreens();
+      if (res.status === 200) return res.body;
+      throw new Error('EU-Daten konnten nicht geladen werden.');
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+    retry: 1,
   });
 }
 

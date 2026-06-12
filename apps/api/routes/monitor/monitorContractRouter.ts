@@ -33,7 +33,11 @@ import {
   refreshInstagram,
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
-import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/PolitProService.js';
+import {
+  getEuGreens,
+  getPolitProPolls,
+  POLITPRO_PARLIAMENTS,
+} from '../../services/monitor/PolitProService.js';
 import { getPolls } from '../../services/monitor/PollScraper.js';
 import { getStateElections } from '../../services/monitor/StateElectionsService.js';
 import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
@@ -171,6 +175,20 @@ export const monitorContractRouter = s.router(monitorContract, {
   pollParliaments: async ({ res }) => {
     cache(res, 'private, max-age=86400');
     return { status: 200 as const, body: [...POLITPRO_PARLIAMENTS] };
+  },
+
+  euGreens: async ({ res }) => {
+    try {
+      const data = await getEuGreens();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'EU greens data unavailable' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch EU greens data' } };
+    }
   },
 
   polls: async ({ query, res }) => {

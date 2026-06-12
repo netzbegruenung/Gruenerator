@@ -11,7 +11,7 @@ import { ExternalLink, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { BUNDESLAENDER } from '../bundeslaender';
-import { usePolls } from '../hooks/useMonitor';
+import { useEuGreens, usePolls } from '../hooks/useMonitor';
 
 import { MeinungsbildSection } from './MeinungsbildSection';
 
@@ -119,6 +119,65 @@ function PartyColumn({
       <span className="text-[11px] font-bold mt-0.5 truncate w-full text-center" style={{ color }}>
         {label.length > 8 ? label.slice(0, 7) + '.' : label}
       </span>
+    </div>
+  );
+}
+
+/** ISO country code → flag emoji ('eu' resolves to the EU flag). */
+function flagEmoji(code: string): string {
+  return code
+    .toUpperCase()
+    .replace(/[A-Z]/g, (c) => String.fromCodePoint(0x1f1a5 + c.charCodeAt(0)));
+}
+
+export function EuGreensDeck() {
+  const { data } = useEuGreens();
+  if (!data || data.results.length === 0) return null;
+
+  return (
+    <div className="mt-xl border-t border-grey-200 dark:border-grey-700 pt-xl">
+      <h3 className="text-lg font-semibold text-foreground-heading">Grüne in Europa</h3>
+      <p className="text-xs text-grey-500 mb-md">
+        Aktuelle Wahltrends grüner Parteien in europäischen Parlamenten. Quelle:{' '}
+        <a
+          href="https://politpro.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-600 hover:underline"
+        >
+          PolitPro.eu
+        </a>
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-xs">
+        {data.results.map((r) => (
+          <div
+            key={r.countryCode}
+            title={r.note ?? undefined}
+            className="flex items-center justify-between gap-xs p-sm rounded-lg border border-grey-200 dark:border-grey-700"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-foreground truncate">
+                <span className="mr-xs">{flagEmoji(r.countryCode)}</span>
+                {r.countryName}
+              </p>
+              <p className="text-[10px] text-grey-400 truncate">
+                {r.party}
+                {r.note && <span title={r.note}> *</span>}
+              </p>
+            </div>
+            <div className="flex items-center gap-xs shrink-0">
+              {r.diff != null && r.diff !== 0 && <TrendBadge diff={r.diff} />}
+              <span className="text-sm font-bold text-green-600 tabular-nums">{r.percent}%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-xs text-[10px] text-grey-400">
+        * Grüne treten dort als Teil einer breiteren Liste/Allianz an. Länder ohne separat
+        ausgewiesenes grünes Ergebnis (z.&nbsp;B. Frankreich, Spanien, Polen, Belgien) sind nicht
+        aufgeführt.
+      </p>
     </div>
   );
 }
@@ -386,6 +445,7 @@ export function UmfragenView({ locale }: UmfragenViewProps) {
           title="Sonntagsfrage — Österreich"
           subtitle="Wenn am nächsten Sonntag Nationalratswahl wäre… Wöchentlich aggregierter Durchschnitt."
         />
+        <EuGreensDeck />
       </div>
     );
   }
@@ -443,6 +503,8 @@ export function UmfragenView({ locale }: UmfragenViewProps) {
           </div>
         </div>
       </div>
+
+      <EuGreensDeck />
 
       <MeinungsbildSection />
     </div>
