@@ -41,10 +41,13 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
-  // Verdigado/LiteLLM serves Gemma 4 under the bare alias 'gemma' (resolves
-  // server-side to gemma4:26b-ctx16k). Without this entry, isVisionCapable
-  // would return false and the vision-override would hijack every image
-  // request on the gemma-4 overflow lane to Regolo, defeating alternation.
+  // Verdigado/LiteLLM serves Gemma 4 under the 'verdigado-think' alias
+  // (resolves server-side to gemma4:31b-ctx128k); the legacy bare alias
+  // 'gemma' (gemma4:26b-ctx16k) is kept during rollout. Without these
+  // entries, isVisionCapable would return false and the vision-override
+  // would hijack every image request on the gemma-4 overflow lane to
+  // Regolo, defeating alternation.
+  'verdigado-think': { name: 'Gemma 4', reasoning: true, vision: true },
   gemma: { name: 'Gemma 4', reasoning: true, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
   'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
