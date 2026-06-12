@@ -460,6 +460,15 @@ export interface WolkeFileToken {
 
 // Base64-url encoding so the resulting token has no spaces, '/', or '+'
 // characters that would break the `(\S+)` mention regex.
+// Node's Buffer is only the fallback for runtimes lacking the Web btoa/atob
+// globals; access it via globalThis so this shared module needs no @types/node
+// in React Native consumers.
+const nodeBuffer = (
+  globalThis as {
+    Buffer?: { from(data: string, encoding: string): { toString(encoding: string): string } };
+  }
+).Buffer;
+
 function toBase64Url(input: string): string {
   if (typeof globalThis.btoa === 'function') {
     return globalThis
@@ -468,7 +477,8 @@ function toBase64Url(input: string): string {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
   }
-  return Buffer.from(input, 'utf-8')
+  return nodeBuffer!
+    .from(input, 'utf-8')
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -482,7 +492,7 @@ function fromBase64Url(input: string): string {
   if (typeof globalThis.atob === 'function') {
     return decodeURIComponent(escape(globalThis.atob(full)));
   }
-  return Buffer.from(full, 'base64').toString('utf-8');
+  return nodeBuffer!.from(full, 'base64').toString('utf-8');
 }
 
 export function encodeWolkeToken(ref: WolkeFileToken): string {
