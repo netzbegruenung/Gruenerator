@@ -12,14 +12,21 @@
  * overall timeout. Tool results stay compact — full state travels via the
  * existing `sharepic_updated` SSE events only.
  */
-import { buildSharepicSnapshot, getSharepicTemplateDescriptor } from '@gruenerator/contracts';
+import {
+  buildSharepicSnapshot,
+  buildSliderDeckSnapshotLines,
+  getSharepicTemplateDescriptor,
+} from '@gruenerator/contracts';
 import { streamText, tool, stepCountIs, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import {
-  getCurrentCanvasState,
   applyCanvasStatePatch,
+  applyDeckChanges,
+  getCurrentCanvasState,
+  getCurrentDeckState,
+  type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
   getCanvasVersion,
@@ -31,12 +38,18 @@ import { getModel } from '../agents/providers.js';
 
 import {
   applyOpsInputSchema,
+  applySliderOpsInputSchema,
   createLoopGuards,
   restoreInputSchema,
 } from './sharepicAgenticGuards.js';
-import { buildOperationCatalog, buildSnapshotLines } from './sharepicEditLlm.js';
+import {
+  buildOperationCatalog,
+  buildSliderDeckOperationCatalog,
+  buildSnapshotLines,
+} from './sharepicEditLlm.js';
 import {
   applySharepicOpsToCanvas,
+  applySliderOpsToDeck,
   ensureMintedCanvas,
   resolveTarget,
   type HandleSharepicEditArgs,
@@ -89,11 +102,15 @@ function buildLoopSystemPrompt(args: {
   descriptor: NonNullable<ReturnType<typeof getSharepicTemplateDescriptor>>;
   snapshotLines: string[];
   recentEditSummaries: string[];
+  isDeck: boolean;
 }): string {
-  const { descriptor, snapshotLines, recentEditSummaries } = args;
+  const { descriptor, snapshotLines, recentEditSummaries, isDeck } = args;
+  const applyTool = isDeck ? 'apply_slider_ops' : 'apply_sharepic_ops';
+  const readTool = isDeck ? 'read_slider_deck' : 'read_sharepic_state';
+  const artifact = isDeck ? 'Folien-Karussell' : 'Sharepic';
   const lines: string[] = [
-    'Du bist der Bearbeitungs-Assistent für Sharepics der deutschen Grünen.',
-    'Der*die Nutzer*in beschreibt gewünschte Änderungen am aktuellen Sharepic.',
+    `Du bist der Bearbeitungs-Assistent für ${isDeck ? 'Instagram-Karussells' : 'Sharepics'} der deutschen Grünen.`,
+    `Der*die Nutzer*in beschreibt gewünschte Änderungen am aktuellen ${artifact}.`,
     'Du setzt sie mit deinen Tools um und bestätigst danach kurz im Chat.',
     '',
     'Sprachregeln: Du-Form, Genderstern (z.B. "Bürger*innen"), prägnante Kampagnen-Texte.',
@@ -111,20 +128,30 @@ function buildLoopSystemPrompt(args: {
 
   lines.push(
     '',
-    ...buildOperationCatalog(descriptor),
+    ...(isDeck ? buildSliderDeckOperationCatalog(descriptor) : buildOperationCatalog(descriptor)),
     '',
     'ARBEITSWEISE:',
-    '- Setze Änderungen SOFORT mit "apply_sharepic_ops" um. Stelle KEINE Rückfragen und beschreibe keine Entwürfe im Chat — bei Spielraum (z.B. "Text kürzen") entscheide selbst und formuliere kampagnentauglich.',
+    `- Setze Änderungen SOFORT mit "${applyTool}" um. Stelle KEINE Rückfragen und beschreibe keine Entwürfe im Chat — bei Spielraum (z.B. "Text kürzen") entscheide selbst und formuliere kampagnentauglich.`,
     '- Fasse zusammengehörige Operationen in EINEN Aufruf.',
-    '- Bestätigt der*die Nutzer*in einen früheren Vorschlag ("ja", "mach das so"), wende GENAU diesen Vorschlag aus der vorigen Antwort jetzt mit "apply_sharepic_ops" an.',
+    `- Bestätigt der*die Nutzer*in einen früheren Vorschlag ("ja", "mach das so"), wende GENAU diesen Vorschlag aus der vorigen Antwort jetzt mit "${applyTool}" an.`,
     '- Wird eine Operation abgelehnt (rejected), korrigiere sie EINMAL mit angepassten Werten.',
-    '- "read_sharepic_state" nur, wenn du den aktuellen Zustand wirklich brauchst (z.B. nach Ablehnungen).',
+    `- "${readTool}" nur, wenn du den aktuellen Zustand wirklich brauchst (z.B. nach Ablehnungen).`,
     '- "restore_version" nur auf ausdrücklichen Wunsch ("zurück zur vorherigen Version").',
     `- Du hast maximal ${MAX_STEPS} Schritte. Antworte am Ende IMMER mit 1–2 freundlichen Sätzen auf Deutsch.`,
     '- Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.',
     '- Bezieht sich die Nachricht auf Texte aus der vorigen Antwort ("setz das ein", "nimm Vorschlag 2"), übernimm sie sinngemäß in die passenden Felder — kürze auf die Feldlängen der Vorlage.',
-    '- NUR wenn die Nachricht erkennbar nichts mit dem Sharepic zu tun hat, antworte ohne Tool-Aufruf kurz im Chat.'
+    `- NUR wenn die Nachricht erkennbar nichts mit dem ${artifact} zu tun hat, antworte ohne Tool-Aufruf kurz im Chat.`
   );
+
+  if (isDeck) {
+    lines.push(
+      '',
+      'KARUSSELL-REGELN:',
+      '- Slides sind 1-basiert nummeriert: Slide 1 = Cover, letzte Slide = Abschluss.',
+      '- "Folie"/"Seite"/"Slide" + Zahl bezeichnet die Slide-Nummer aus dem Snapshot oben.',
+      '- Das Farbschema gilt immer für das ganze Karussell, nie für einzelne Folien.'
+    );
+  }
 
   return lines.join('\n');
 }
@@ -156,20 +183,35 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       return false;
     }
 
+    const isDeck = Boolean(descriptor.deck);
+
     sse.send('progress_step', {
       stepId: `sharepic_agentic_${Date.now()}`,
       toolName: 'sharepic_edit',
-      title: 'Bearbeite Sharepic…',
+      title: isDeck ? 'Bearbeite Karussell…' : 'Bearbeite Sharepic…',
       status: 'in_progress',
     });
 
     const canvasId = await ensureMintedCanvas({ target, descriptor, threadId, userId, sse });
 
-    const current = await getCurrentCanvasState(canvasId);
+    let deckPages: CanvasPageDef[] = [];
+    if (isDeck) {
+      deckPages = (await getCurrentDeckState(canvasId)).pages;
+      if (deckPages.length === 0) {
+        await endTurn(
+          args,
+          [],
+          'Ich finde die Folien dieses Karussells gerade nicht. Öffne es einmal im Studio oder versuch es gleich noch einmal.'
+        );
+        return true;
+      }
+    }
+
+    const current = isDeck ? null : await getCurrentCanvasState(canvasId);
     const initialMergedState = {
       ...descriptor.defaultState,
       ...target.initialProps,
-      ...current.state,
+      ...(current?.state ?? {}),
     };
 
     const recentEditSummaries = (await listCanvasVersions(canvasId))
@@ -177,9 +219,9 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       .slice(0, 2)
       .map((v) => v.summary as string);
 
-    // Mutable per-turn context — apply/restore update `state` so later steps
-    // (and the read tool) see their own effects without a DB round trip.
-    const ctx = { state: initialMergedState };
+    // Mutable per-turn context — apply/restore update `state`/`pages` so later
+    // steps (and the read tools) see their own effects without a DB round trip.
+    const ctx = { state: initialMergedState, pages: deckPages };
     const guards = createLoopGuards();
     const steps: PersistedStep[] = [];
 
@@ -192,7 +234,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       steps.push({ toolCallId, toolName, args: input, result });
     };
 
-    const tools = {
+    const sharepicTools = {
       read_sharepic_state: tool({
         description:
           'Liest den aktuellen Zustand des Sharepics (Texte, Farben, Elemente). Nutze dies nach abgelehnten Operationen oder wenn du unsicher über den Ist-Zustand bist.',
@@ -313,11 +355,145 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       }),
     };
 
+    const isPageDefArray = (v: unknown): v is CanvasPageDef[] =>
+      Array.isArray(v) &&
+      v.every(
+        (p) =>
+          !!p &&
+          typeof p === 'object' &&
+          typeof (p as CanvasPageDef).id === 'string' &&
+          typeof (p as CanvasPageDef).state === 'object'
+      );
+
+    const deckTools = {
+      read_slider_deck: tool({
+        description:
+          'Liest den aktuellen Zustand aller Folien des Karussells. Nutze dies nach abgelehnten Operationen oder wenn du unsicher über den Ist-Zustand bist.',
+        inputSchema: z.object({}),
+        execute: async (_input, { toolCallId }) => {
+          const fresh = await getCurrentDeckState(canvasId);
+          if (fresh.pages.length > 0) ctx.pages = fresh.pages;
+          recordStep(toolCallId, 'read_slider_deck', {}, { ok: true });
+          return { snapshot: buildSliderDeckSnapshotLines(descriptor, ctx.pages).join('\n') };
+        },
+      }),
+
+      apply_slider_ops: tool({
+        description:
+          'Wendet 1–6 Deck-Operationen auf das Karussell an (Folien-Texte/-Schriftgrößen ändern, Farbschema deck-weit wechseln, Folien hinzufügen/entfernen). Operationen werden validiert; abgelehnte kommen mit Begründung zurück.',
+        inputSchema: applySliderOpsInputSchema,
+        execute: async (input, { toolCallId }) => {
+          const guardError =
+            guards.checkFailureCap('apply_slider_ops') ??
+            guards.checkDuplicate('apply_slider_ops', input);
+          if (guardError) return { error: guardError };
+
+          const outcome = await applySliderOpsToDeck({
+            canvasId,
+            variantId: target.variantId,
+            descriptor,
+            pages: ctx.pages,
+            operations: input.operations,
+            summary: input.summary,
+            userId,
+            sse,
+          });
+
+          if (!outcome.ok) {
+            guards.noteFailure('apply_slider_ops');
+            recordStep(
+              toolCallId,
+              'apply_slider_ops',
+              { summary: input.summary },
+              { ok: false, reason: outcome.reason }
+            );
+            return {
+              error: `Keine Änderung angewendet: ${outcome.reason}`,
+              rejected: outcome.rejected,
+            };
+          }
+
+          ctx.pages = outcome.newPages;
+          recordStep(
+            toolCallId,
+            'apply_slider_ops',
+            { summary: input.summary },
+            {
+              canvasId,
+              variantId: target.variantId,
+              version: outcome.version,
+              summary: input.summary,
+              canvasType: target.canvasType,
+            }
+          );
+          return {
+            version: outcome.version,
+            applied: outcome.appliedKinds,
+            slideCount: ctx.pages.length,
+            ...(outcome.rejected.length > 0 ? { rejected: outcome.rejected } : {}),
+          };
+        },
+      }),
+
+      restore_version: tool({
+        description:
+          'Stellt eine frühere Version des Karussells wieder her (als neue Version, nichts geht verloren). Nur auf ausdrücklichen Nutzer*innen-Wunsch.',
+        inputSchema: restoreInputSchema,
+        execute: async (input, { toolCallId }) => {
+          const guardError =
+            guards.checkFailureCap('restore_version') ??
+            guards.checkDuplicate('restore_version', input);
+          if (guardError) return { error: guardError };
+
+          const snapshot = await getCanvasVersion(canvasId, input.version);
+          const restoredPages = snapshot ? (snapshot.state as { pages?: unknown }).pages : null;
+          if (!snapshot || !isPageDefArray(restoredPages) || restoredPages.length === 0) {
+            guards.noteFailure('restore_version');
+            recordStep(toolCallId, 'restore_version', input, { ok: false, reason: 'not_found' });
+            return { error: `Version ${input.version} existiert nicht oder ist kein Karussell.` };
+          }
+          await applyDeckChanges(canvasId, {
+            seedPages: ctx.pages,
+            replacePages: restoredPages,
+            newPages: restoredPages,
+          });
+          const newVersion = await insertCanvasVersion({
+            canvasId,
+            state: { pages: restoredPages },
+            summary: `Version ${snapshot.version} wiederhergestellt`,
+            origin: 'restore',
+            userId,
+          });
+          ctx.pages = restoredPages;
+          sse.send('sharepic_updated', {
+            variantId: target.variantId,
+            canvasId,
+            version: newVersion,
+            canvasType: target.canvasType,
+            pages: restoredPages.map((p) => p.state),
+            summary: `Version ${snapshot.version} wiederhergestellt`,
+          });
+          recordStep(toolCallId, 'restore_version', input, {
+            canvasId,
+            variantId: target.variantId,
+            version: newVersion,
+            canvasType: target.canvasType,
+          });
+          return { version: newVersion, restoredFrom: snapshot.version };
+        },
+      }),
+    };
+
+    const tools = isDeck ? deckTools : sharepicTools;
+
     const { provider, modelName } = resolveLoopModel();
     const system = buildLoopSystemPrompt({
       descriptor,
-      snapshotLines: buildSnapshotLines(buildSharepicSnapshot(descriptor, ctx.state)),
+      snapshotLines: isDeck
+        ? buildSliderDeckSnapshotLines(descriptor, ctx.pages)
+        : buildSnapshotLines(buildSharepicSnapshot(descriptor, ctx.state)),
       recentEditSummaries,
+      isDeck,
     });
 
     let text = '';
@@ -380,7 +556,9 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
 
     // A model that only called tools still owes the user a confirmation.
     if (text.trim().length === 0) {
-      const lastApply = [...steps].reverse().find((s) => s.toolName === 'apply_sharepic_ops');
+      const lastApply = [...steps]
+        .reverse()
+        .find((s) => s.toolName === 'apply_sharepic_ops' || s.toolName === 'apply_slider_ops');
       text =
         typeof lastApply?.args.summary === 'string'
           ? `Erledigt: ${lastApply.args.summary}.`

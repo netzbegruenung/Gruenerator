@@ -14,6 +14,8 @@ const log = createLogger('InternalApi');
 const KEY_FORM_STATE = 'formState';
 const KEY_PAGES = 'pages';
 const KEY_STATE = 'state';
+const KEY_ID = 'id';
+const KEY_CONFIG_ID = 'configId';
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
 
@@ -22,8 +24,50 @@ interface InternalApiDeps {
   persistence: PostgresPersistence;
 }
 
+export interface PageDef {
+  id: string;
+  configId: string;
+  state: Record<string, unknown>;
+}
+
+export interface DeckChanges {
+  /** Seed the pages array — applied only when the doc has no pages yet. */
+  seedPages?: PageDef[];
+  /** Per-page state patches, addressed by page id (stable under reorders). */
+  pagePatches?: Array<{ pageId: string; patch: Record<string, unknown> }>;
+  /** Structural changes, applied after patches. */
+  pageOps?: Array<{ op: 'add'; index: number; page: PageDef } | { op: 'remove'; pageId: string }>;
+  /** Restore: replace the whole pages array. Applied last, wins over the rest. */
+  replacePages?: PageDef[];
+}
+
+// Mirrors buildPageYMap in packages/canvas-editor/src/collab/useYjsPages.ts:
+// layers & config maps are created on demand when the page first mounts.
+function buildPageYMap(def: PageDef): Y.Map<unknown> {
+  const page = new Y.Map<unknown>();
+  page.set(KEY_ID, def.id);
+  page.set(KEY_CONFIG_ID, def.configId);
+  const state = new Y.Map<unknown>();
+  for (const [k, v] of Object.entries(def.state)) state.set(k, v);
+  page.set(KEY_STATE, state);
+  return page;
+}
+
+function readPageDef(yMap: Y.Map<unknown>): PageDef | null {
+  const id = yMap.get(KEY_ID);
+  const configId = yMap.get(KEY_CONFIG_ID);
+  if (typeof id !== 'string' || typeof configId !== 'string') return null;
+  const state: Record<string, unknown> = {};
+  const yState = yMap.get(KEY_STATE);
+  if (yState instanceof Y.Map) {
+    for (const [k, v] of (yState as Y.Map<unknown>).entries()) state[k] = v;
+  }
+  return { id, configId, state };
+}
+
 export function readMergedState(doc: Y.Doc): {
   state: Record<string, unknown>;
+  pages: PageDef[];
   hasYState: boolean;
 } {
   const formState = doc.getMap<unknown>(KEY_FORM_STATE);
@@ -40,7 +84,122 @@ export function readMergedState(doc: Y.Doc): {
     merged[key] = value;
   });
 
-  return { state: merged, hasYState: formState.size > 0 || pages.length > 0 };
+  const pageDefs: PageDef[] = [];
+  for (let i = 0; i < pages.length; i++) {
+    const def = readPageDef(pages.get(i));
+    if (def) pageDefs.push(def);
+  }
+
+  return {
+    state: merged,
+    pages: pageDefs,
+    hasYState: formState.size > 0 || pages.length > 0,
+  };
+}
+
+/**
+ * Multi-page (deck) writes. Never touches root formState — decks keep their
+ * authoritative state per page; the single-page patch path (applyPatchToDoc)
+ * stays untouched for sharepics.
+ */
+export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
+  doc.transact(() => {
+    const pages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+
+    if (changes.seedPages && changes.seedPages.length > 0 && pages.length === 0) {
+      pages.push(changes.seedPages.map(buildPageYMap));
+    }
+
+    const findIndexById = (pageId: string): number => {
+      for (let i = 0; i < pages.length; i++) {
+        if (pages.get(i).get(KEY_ID) === pageId) return i;
+      }
+      return -1;
+    };
+
+    if (changes.pagePatches) {
+      for (const { pageId, patch } of changes.pagePatches) {
+        const idx = findIndexById(pageId);
+        if (idx < 0) continue;
+        const yState = pages.get(idx).get(KEY_STATE);
+        if (yState instanceof Y.Map) {
+          for (const [k, v] of Object.entries(patch)) (yState as Y.Map<unknown>).set(k, v);
+        }
+      }
+    }
+
+    if (changes.pageOps) {
+      for (const op of changes.pageOps) {
+        if (op.op === 'add') {
+          const index = Math.max(0, Math.min(op.index, pages.length));
+          pages.insert(index, [buildPageYMap(op.page)]);
+        } else {
+          const idx = findIndexById(op.pageId);
+          if (idx >= 0) pages.delete(idx, 1);
+        }
+      }
+    }
+
+    if (changes.replacePages && changes.replacePages.length > 0) {
+      if (pages.length > 0) pages.delete(0, pages.length);
+      pages.push(changes.replacePages.map(buildPageYMap));
+    }
+  }, TRANSACT_ORIGIN);
+}
+
+function hasDeckKeys(body: Record<string, unknown>): boolean {
+  return Boolean(body.seedPages || body.pagePatches || body.pageOps || body.replacePages);
+}
+
+const isPageDef = (v: unknown): v is PageDef => {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.id === 'string' &&
+    typeof p.configId === 'string' &&
+    typeof p.state === 'object' &&
+    p.state !== null &&
+    !Array.isArray(p.state)
+  );
+};
+
+function validateDeckChanges(body: Record<string, unknown>): string | null {
+  if (body.seedPages !== undefined) {
+    if (!Array.isArray(body.seedPages) || !body.seedPages.every(isPageDef))
+      return 'seedPages must be an array of {id, configId, state}';
+  }
+  if (body.replacePages !== undefined) {
+    if (!Array.isArray(body.replacePages) || !body.replacePages.every(isPageDef))
+      return 'replacePages must be an array of {id, configId, state}';
+  }
+  if (body.pagePatches !== undefined) {
+    if (
+      !Array.isArray(body.pagePatches) ||
+      !body.pagePatches.every(
+        (p: unknown) =>
+          !!p &&
+          typeof p === 'object' &&
+          typeof (p as Record<string, unknown>).pageId === 'string' &&
+          typeof (p as Record<string, unknown>).patch === 'object' &&
+          (p as Record<string, unknown>).patch !== null
+      )
+    )
+      return 'pagePatches must be an array of {pageId, patch}';
+  }
+  if (body.pageOps !== undefined) {
+    if (
+      !Array.isArray(body.pageOps) ||
+      !body.pageOps.every((o: unknown) => {
+        if (!o || typeof o !== 'object') return false;
+        const op = o as Record<string, unknown>;
+        if (op.op === 'add') return typeof op.index === 'number' && isPageDef(op.page);
+        if (op.op === 'remove') return typeof op.pageId === 'string';
+        return false;
+      })
+    )
+      return 'pageOps must be add {index, page} or remove {pageId} operations';
+  }
+  return null;
 }
 
 export function applyPatchToDoc(
@@ -121,27 +280,51 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
 
   router.post('/canvas/:documentId/state', async (req, res) => {
     const { documentId } = req.params;
-    const body = req.body as {
+    const body = (req.body ?? {}) as Record<string, unknown> & {
       patch?: Record<string, unknown>;
       seedState?: Record<string, unknown>;
-    };
-    if (!body?.patch || typeof body.patch !== 'object' || Array.isArray(body.patch)) {
-      res.status(400).json({ error: 'patch (object) is required' });
+    } & DeckChanges;
+
+    const isFlatPatch = body.patch !== undefined;
+    const isDeck = hasDeckKeys(body);
+    if (isFlatPatch && isDeck) {
+      res.status(400).json({ error: 'use either patch (single-page) or deck keys, not both' });
+      return;
+    }
+    if (isFlatPatch) {
+      if (!body.patch || typeof body.patch !== 'object' || Array.isArray(body.patch)) {
+        res.status(400).json({ error: 'patch (object) is required' });
+        return;
+      }
+    } else if (isDeck) {
+      const validationError = validateDeckChanges(body);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
+    } else {
+      res.status(400).json({ error: 'patch (object) or deck keys are required' });
       return;
     }
 
     try {
       const connection = await deps.server.hocuspocus.openDirectConnection(documentId);
       try {
-        let result: { state: Record<string, unknown>; hasYState: boolean } | null = null;
+        let result: ReturnType<typeof readMergedState> | null = null;
         await connection.transact((doc) => {
-          applyPatchToDoc(doc, body.patch!, body.seedState ?? null);
+          if (isFlatPatch) {
+            applyPatchToDoc(doc, body.patch!, body.seedState ?? null);
+          } else {
+            applyDeckChangesToDoc(doc, body);
+          }
           result = readMergedState(doc);
         });
         log.info(
-          `Applied canvas patch to ${documentId} (${Object.keys(body.patch).length} key(s))`
+          isFlatPatch
+            ? `Applied canvas patch to ${documentId} (${Object.keys(body.patch!).length} key(s))`
+            : `Applied deck changes to ${documentId} (seed=${body.seedPages?.length ?? 0}, patches=${body.pagePatches?.length ?? 0}, ops=${body.pageOps?.length ?? 0}, replace=${body.replacePages?.length ?? 0})`
         );
-        res.json({ ok: true, ...(result ?? { state: {}, hasYState: false }) });
+        res.json({ ok: true, ...(result ?? { state: {}, pages: [], hasYState: false }) });
       } finally {
         await connection.disconnect();
       }

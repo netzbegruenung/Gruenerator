@@ -23,3 +23,4 @@ export * from './apiKeys.js';
 export * from './userAgents.js';
 export * from './groups.js';
 export * from './monitor.js';
+export * from './contentSync.js';
