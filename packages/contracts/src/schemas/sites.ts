@@ -8,10 +8,16 @@
  */
 import { z } from 'zod';
 
+import {
+  boundedRichTextDoc,
+  SITE_ABOUT_MAX_LENGTH,
+  SITE_THEME_CONTENT_MAX_LENGTH,
+} from './richtext.js';
+
 export const siteThemeCardSchema = z.object({
   imageUrl: z.string(),
   title: z.string(),
-  content: z.string(),
+  content: boundedRichTextDoc(SITE_THEME_CONTENT_MAX_LENGTH),
 });
 export type SiteThemeCard = z.infer<typeof siteThemeCardSchema>;
 
@@ -24,6 +30,9 @@ export type SiteActionTile = z.infer<typeof siteActionTileSchema>;
 
 export const siteSectionsSchema = z.object({
   heroImage: z.object({ imageUrl: z.string(), title: z.string(), subtitle: z.string() }).optional(),
+  about: z
+    .object({ title: z.string(), content: boundedRichTextDoc(SITE_ABOUT_MAX_LENGTH) })
+    .optional(),
   themes: z.array(siteThemeCardSchema).optional(),
   actions: z.array(siteActionTileSchema).optional(),
   contact: z.object({ title: z.string(), backgroundImageUrl: z.string() }).optional(),
@@ -45,7 +54,6 @@ export const siteSchema = z.object({
   is_published: z.boolean().nullable(),
   site_title: z.string(),
   tagline: z.string().nullable(),
-  bio: z.string().nullable(),
   contact_email: z.string().nullable(),
   contact_phone: z.string().nullable(),
   contact_website: z.string().nullable(),
@@ -72,7 +80,6 @@ export const createSiteBodySchema = z.object({
   site_title: z.string().min(1),
   tagline: z.string().optional(),
   theme: z.string().optional(),
-  bio: z.string().optional(),
   contact_email: z.string().optional(),
   social_links: z.record(z.string(), z.string()).optional(),
   profile_image: z.string().optional(),
@@ -84,7 +91,6 @@ export type CreateSiteBody = z.infer<typeof createSiteBodySchema>;
 export const updateUserSiteBodySchema = z.object({
   site_title: z.string().optional(),
   tagline: z.string().optional(),
-  bio: z.string().optional(),
   contact_email: z.string().optional(),
   social_links: z.record(z.string(), z.string()).optional(),
   accent_color: z.string().optional(),

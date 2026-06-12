@@ -8,6 +8,7 @@ export {
   ActionsSection,
   SocialFeedSection,
   ContactSection,
+  RichTextContent,
   InstagramEmbed,
   EmbedConsentPlaceholder,
   Button,
@@ -44,4 +45,3 @@ export type { EmbedPlatform, PlatformConsent, ConsentState, ConsentAction } from
 
 // Utilities
 export { cn } from './lib/utils';
-export { renderMarkdown, MarkdownContent } from './utils/markdown';

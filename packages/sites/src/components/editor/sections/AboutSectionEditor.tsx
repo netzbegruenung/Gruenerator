@@ -1,9 +1,10 @@
+import { SITE_ABOUT_MAX_LENGTH } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
 import { useRef, useEffect } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
-import { MarkdownEditor } from '../common/MarkdownEditor';
+import { RichTextEditor } from '../common/RichTextEditorLazy';
 
 import type { AboutSectionType as AboutSection } from '@gruenerator/sites-design';
 
@@ -11,8 +12,6 @@ interface AboutSectionEditorProps {
   data: AboutSection;
   onChange: (data: AboutSection) => void;
 }
-
-const MAX_CONTENT_LENGTH = 1000;
 
 export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
@@ -24,23 +23,12 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
     registerField('about', 'title', titleRef.current);
   }, [registerField]);
 
-  const updateField = (field: keyof AboutSection, value: string) => {
+  const updateField = <K extends keyof AboutSection>(field: K, value: AboutSection[K]) => {
     onChange({ ...data, [field]: value });
   };
 
   const isFieldHighlighted = (field: string) => {
     return highlightedElement?.section === 'about' && highlightedElement?.field === field;
-  };
-
-  const getTextLength = (markdown: string) => {
-    return markdown.replace(/[#*_[\]()]/g, '').length;
-  };
-
-  const contentLength = getTextLength(data.content || '');
-  const getCharCountClass = () => {
-    if (contentLength > MAX_CONTENT_LENGTH) return 'text-red-600';
-    if (contentLength > MAX_CONTENT_LENGTH * 0.9) return 'text-yellow-600';
-    return '';
   };
 
   return (
@@ -75,22 +63,15 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
         )}
       >
         <label className="block text-sm font-medium text-foreground mb-1.5">Inhalt</label>
-        <MarkdownEditor
+        <RichTextEditor
           value={data.content}
-          onChange={(markdown) => updateField('content', markdown)}
+          onChange={(doc) => updateField('content', doc)}
           onFocus={() => handleFieldFocus('about', 'content')}
           onBlur={handleFieldBlur}
           placeholder="Erzähle etwas über dich, deinen Werdegang und deine Motivation..."
+          maxLength={SITE_ABOUT_MAX_LENGTH}
           minHeight="200px"
         />
-        <div
-          className={cn(
-            'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
-            getCharCountClass()
-          )}
-        >
-          {contentLength} / {MAX_CONTENT_LENGTH} Zeichen
-        </div>
       </div>
     </div>
   );

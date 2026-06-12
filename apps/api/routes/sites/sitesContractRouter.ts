@@ -49,7 +49,6 @@ function toSiteBody(row: UserSiteRow): Site {
 const ALLOWED_UPDATE_FIELDS = [
   'site_title',
   'tagline',
-  'bio',
   'contact_email',
   'social_links',
   'accent_color',
@@ -94,7 +93,6 @@ export const sitesContractRouter = s.router(sitesContract, {
         site_title,
         tagline,
         theme = 'gruene',
-        bio,
         contact_email,
         social_links,
         profile_image,
@@ -126,9 +124,9 @@ export const sitesContractRouter = s.router(sitesContract, {
       const result = await db.query<UserSiteRow>(
         `INSERT INTO user_sites (
            user_id, subdomain, site_title, tagline, theme, is_published,
-           bio, contact_email, social_links, profile_image, background_image, sections
+           contact_email, social_links, profile_image, background_image, sections
          )
-         VALUES ($1, $2, $3, $4, $5, false, $6, $7, $8, $9, $10, $11)
+         VALUES ($1, $2, $3, $4, $5, false, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           userId,
@@ -136,7 +134,6 @@ export const sitesContractRouter = s.router(sitesContract, {
           site_title,
           tagline ?? null,
           theme,
-          bio ?? null,
           contact_email ?? null,
           social_links ? JSON.stringify(social_links) : null,
           profile_image ?? null,

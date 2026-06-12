@@ -15,6 +15,7 @@ export type {
   GenerateFromPromptOptions,
   GenerateResult,
   GenerateFromImageOptions,
+  ReferenceImage,
   OutpaintOptions,
 } from './FluxImageService.js';
 
@@ -43,3 +44,4 @@ export type {
 
 export { buildGreenEditPrompt } from './greenEditPrompt.js';
 export { buildUniversalPrompt } from './universalEditPrompt.js';
+export { fitToBudget, MAX_REFERENCE_IMAGES } from './referenceImages.js';

@@ -1,4 +1,5 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { useMediaPicker, type MediaItem } from '@gruenerator/shared/media-library';
 import {
   DEFAULT_IMAGE_MODEL_ID,
   FLUX_VARIANT_ORDER,
@@ -35,6 +36,7 @@ import {
   editAiImage,
   removeImageBackground,
 } from '../../image-studio/services/imageEditingService';
+import MediaPickerModal from '../../media-library/components/MediaPickerModal';
 import { useImageModelPreference } from '../../models/hooks/useImageModelPreference';
 import { useModeState } from '../../texte/hooks/useModeState';
 import { MODE_MAP } from '../../texte/modes';
@@ -277,6 +279,11 @@ const BilderInner: React.FC = memo(() => {
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const [sourceDims, setSourceDims] = useState<{ width: number; height: number } | null>(null);
+  // Additional reference images for multi-reference editing (bearbeiten only).
+  // sourceFile stays the primary image; other sub-modes ignore the extras.
+  const [extraSourceFiles, setExtraSourceFiles] = useState<
+    Array<{ file: File; previewUrl: string }>
+  >([]);
 
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -342,6 +349,10 @@ const BilderInner: React.FC = memo(() => {
     }
   }, [isPrefLoading, defaultImageModel, modeState.imageModel, updateField]);
 
+  const selectedImageModel = (modeState.imageModel as ImageModelId | undefined) ?? null;
+  const effectiveImageModel = selectedImageModel ?? defaultImageModel ?? DEFAULT_IMAGE_MODEL_ID;
+  const maxRefs = IMAGE_MODEL_BY_ID[effectiveImageModel]?.maxReferenceImages ?? 1;
+
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const usageQuery = useQuery({
     queryKey: ['image-generation-status'],
@@ -360,6 +371,15 @@ const BilderInner: React.FC = memo(() => {
       if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
     },
     [sourcePreviewUrl]
+  );
+
+  const extraSourceFilesRef = useRef(extraSourceFiles);
+  extraSourceFilesRef.current = extraSourceFiles;
+  useEffect(
+    () => () => {
+      extraSourceFilesRef.current.forEach((e) => URL.revokeObjectURL(e.previewUrl));
+    },
+    []
   );
 
   useEffect(
@@ -388,28 +408,54 @@ const BilderInner: React.FC = memo(() => {
   subModeRef.current = subMode;
   const removeBgHandlerRef = useRef<((file: File) => void) | null>(null);
 
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0] ?? null;
-      if (!file) return;
-      if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
-      const objectUrl = URL.createObjectURL(file);
-      setSourceFile(file);
-      setSourcePreviewUrl(objectUrl);
-      setSourceDims(null);
+  const addSourceFiles = useCallback(
+    (files: File[]) => {
+      if (files.length === 0) return;
       setEditError(null);
       setOutpaintError(null);
-      const img = new Image();
-      img.src = objectUrl;
-      img
-        .decode()
-        .then(() => setSourceDims({ width: img.naturalWidth, height: img.naturalHeight }))
-        .catch(() => {});
-      if (subModeRef.current === 'hintergrund') {
-        removeBgHandlerRef.current?.(file);
+      let rest = files;
+      const isBearbeitenMode = subModeRef.current === 'bearbeiten';
+      if (!sourceFile || !isBearbeitenMode) {
+        const first = files[0];
+        if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+        const objectUrl = URL.createObjectURL(first);
+        setSourceFile(first);
+        setSourcePreviewUrl(objectUrl);
+        setSourceDims(null);
+        const img = new Image();
+        img.src = objectUrl;
+        img
+          .decode()
+          .then(() => setSourceDims({ width: img.naturalWidth, height: img.naturalHeight }))
+          .catch(() => {});
+        if (subModeRef.current === 'hintergrund') {
+          removeBgHandlerRef.current?.(first);
+        }
+        rest = files.slice(1);
       }
+      if (!isBearbeitenMode || rest.length === 0) return;
+      setExtraSourceFiles((prev) => {
+        const room = Math.max(0, maxRefs - 1 - prev.length);
+        if (rest.length > room) {
+          setEditError(`Maximal ${maxRefs} Bilder für dieses Modell.`);
+        }
+        const accepted = rest.slice(0, room);
+        return [
+          ...prev,
+          ...accepted.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+        ];
+      });
     },
-    [sourcePreviewUrl]
+    [sourceFile, sourcePreviewUrl, maxRefs]
+  );
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      e.target.value = '';
+      addSourceFiles(files);
+    },
+    [addSourceFiles]
   );
 
   const clearSource = useCallback(() => {
@@ -417,8 +463,85 @@ const BilderInner: React.FC = memo(() => {
     setSourceFile(null);
     setSourcePreviewUrl(null);
     setSourceDims(null);
+    setExtraSourceFiles((prev) => {
+      prev.forEach((e) => URL.revokeObjectURL(e.previewUrl));
+      return [];
+    });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [sourcePreviewUrl]);
+
+  // Removes the i-th reference image; removing the primary promotes the next
+  // extra so the numbering users referenced in the prompt stays contiguous.
+  const removeSourceAt = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+        const [next, ...restExtras] = extraSourceFiles;
+        if (next) {
+          setSourceFile(next.file);
+          setSourcePreviewUrl(next.previewUrl);
+          setSourceDims(null);
+          setExtraSourceFiles(restExtras);
+        } else {
+          setSourceFile(null);
+          setSourcePreviewUrl(null);
+          setSourceDims(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+        return;
+      }
+      setExtraSourceFiles((prev) => {
+        const entry = prev[index - 1];
+        if (entry) URL.revokeObjectURL(entry.previewUrl);
+        return prev.filter((_, i) => i !== index - 1);
+      });
+    },
+    [sourcePreviewUrl, extraSourceFiles]
+  );
+
+  // Switching to a model with a lower reference limit trims surplus extras.
+  useEffect(() => {
+    if (extraSourceFiles.length <= maxRefs - 1) return;
+    const kept = extraSourceFiles.slice(0, Math.max(0, maxRefs - 1));
+    extraSourceFiles.slice(Math.max(0, maxRefs - 1)).forEach((e) => {
+      URL.revokeObjectURL(e.previewUrl);
+    });
+    setExtraSourceFiles(kept);
+    setEditError(`Maximal ${maxRefs} Bilder für dieses Modell — überzählige wurden entfernt.`);
+  }, [maxRefs, extraSourceFiles]);
+
+  const { openImagePicker, isOpen: isMediaPickerOpen } = useMediaPicker();
+
+  const importMediaItems = useCallback(
+    async (items: MediaItem[]) => {
+      try {
+        const files = await Promise.all(
+          items
+            .filter((item) => item.mediaType === 'image')
+            .map(async (item) => {
+              const res = await getGlobalApiClient().get<Blob>(
+                `/share/${item.shareToken}/download`,
+                { responseType: 'blob' }
+              );
+              return new File([res.data], item.originalFilename ?? item.title ?? 'bild.jpg', {
+                type: item.mimeType || res.data.type || 'image/jpeg',
+              });
+            })
+        );
+        addSourceFiles(files);
+      } catch (err) {
+        console.error('[BilderInner] Media library import failed:', err);
+        setEditError('Bild aus der Mediathek konnte nicht geladen werden.');
+      }
+    },
+    [addSourceFiles]
+  );
+
+  const handlePickFromLibrary = useCallback(() => {
+    openImagePicker((items) => {
+      void importMediaItems(items);
+    }, maxRefs > 1);
+  }, [openImagePicker, importMediaItems, maxRefs]);
 
   const handleSubmitCreate = useCallback(async () => {
     const trimmed = prompt.trim();
@@ -463,14 +586,27 @@ const BilderInner: React.FC = memo(() => {
     setEditLoading(true);
     setEditError(null);
     try {
-      const { objectUrl, base64 } = await editAiImage(sourceFile, trimmed);
+      const files = [sourceFile, ...extraSourceFiles.map((e) => e.file)];
+      const { objectUrl, base64 } = await editAiImage(
+        files,
+        trimmed,
+        'universal',
+        selectedImageModel ?? undefined
+      );
       setResult(objectUrl, true);
       createImageShare({
         imageData: base64,
         title: trimmed.slice(0, 100),
         imageType: 'edit',
         status: 'ready',
-        metadata: { prompt: trimmed, sourceFilename: sourceFile.name },
+        metadata: {
+          prompt: trimmed,
+          sourceFilename: sourceFile.name,
+          ...(files.length > 1 && {
+            sourceFilenames: files.map((f) => f.name),
+            referenceCount: files.length,
+          }),
+        },
       })
         .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
         .catch(() => {});
@@ -480,7 +616,16 @@ const BilderInner: React.FC = memo(() => {
     } finally {
       setEditLoading(false);
     }
-  }, [prompt, sourceFile, editLoading, setResult, createImageShare, queryClient]);
+  }, [
+    prompt,
+    sourceFile,
+    extraSourceFiles,
+    selectedImageModel,
+    editLoading,
+    setResult,
+    createImageShare,
+    queryClient,
+  ]);
 
   const handleSubmitGreenEdit = useCallback(async () => {
     const trimmed = prompt.trim();
@@ -755,14 +900,83 @@ const BilderInner: React.FC = memo(() => {
     [sourcePreviewUrl, sourceFile, clearSource]
   );
 
-  const selectedImageModel = (modeState.imageModel as ImageModelId | undefined) ?? null;
-
   const handleModelChange = useCallback(
     (modelId: ImageModelId) => {
       updateField('imageModel', modelId);
     },
     [updateField]
   );
+
+  // Bearbeiten: numbered pill row for 1–N reference images, with upload and
+  // media-library sources. "Bild N" in the prompt refers to pill N.
+  const referencePillRow = useMemo(() => {
+    const all = [
+      ...(sourceFile && sourcePreviewUrl
+        ? [{ file: sourceFile, previewUrl: sourcePreviewUrl }]
+        : []),
+      ...extraSourceFiles,
+    ];
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {all.map((entry, i) => (
+          <div
+            key={entry.previewUrl}
+            className="flex items-center gap-1.5 rounded-md border border-grey-200 dark:border-grey-700 bg-background-pure pl-1 pr-1.5 py-0.5"
+          >
+            {all.length > 1 && (
+              <span className="flex items-center justify-center size-4 rounded-full bg-grey-200 dark:bg-grey-700 text-[10px] font-semibold text-grey-700 dark:text-grey-200">
+                {i + 1}
+              </span>
+            )}
+            <img src={entry.previewUrl} alt="" className="size-6 object-cover rounded" />
+            <span className="text-xs text-grey-600 dark:text-grey-300 max-w-[100px] truncate">
+              {entry.file.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => removeSourceAt(i)}
+              className="text-grey-400 hover:text-grey-600 dark:hover:text-grey-200"
+              aria-label={`Bild ${i + 1} entfernen`}
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ))}
+        {all.length < maxRefs && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
+            >
+              <ImagePlus className="size-3.5" />
+              {all.length === 0 ? 'Bild hochladen' : '+ Bild'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePickFromLibrary}
+              className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
+            >
+              <ImageIcon className="size-3.5" />
+              Mediathek
+            </button>
+          </>
+        )}
+        {all.length >= 2 && (
+          <span className="text-[11px] text-grey-400 dark:text-grey-500">
+            Beziehe dich im Text auf „Bild 1“, „Bild 2“ …
+          </span>
+        )}
+      </div>
+    );
+  }, [
+    sourceFile,
+    sourcePreviewUrl,
+    extraSourceFiles,
+    maxRefs,
+    removeSourceAt,
+    handlePickFromLibrary,
+  ]);
 
   const toolbar = useMemo(
     () => (
@@ -781,13 +995,14 @@ const BilderInner: React.FC = memo(() => {
               onChange={(val) => updateField(config.key, val as string)}
             />
           ))}
-        {isErstellen && (
+        {(isErstellen || isBearbeiten) && (
           <ImageModelDropdown
             value={selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID}
             onChange={handleModelChange}
           />
         )}
-        {(isBearbeiten || isBegruenen || isHintergrund) && filePickerPill}
+        {isBearbeiten && referencePillRow}
+        {(isBegruenen || isHintergrund) && filePickerPill}
         {isVergroessern && (
           <SettingsDropdown
             config={ASPECT_RATIO_CONFIG}
@@ -849,6 +1064,7 @@ const BilderInner: React.FC = memo(() => {
       selectedImageModel,
       handleModelChange,
       filePickerPill,
+      referencePillRow,
       aspectRatio,
       usage,
     ]
@@ -890,6 +1106,7 @@ const BilderInner: React.FC = memo(() => {
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple={isBearbeiten && maxRefs > 1}
         onChange={handleFileChange}
         className="hidden"
       />
@@ -950,6 +1167,8 @@ const BilderInner: React.FC = memo(() => {
           altText={altText}
         />
       )}
+
+      {isMediaPickerOpen && <MediaPickerModal />}
     </div>
   );
 });
