@@ -279,3 +279,36 @@ export const sharepicEditResponseSchema = z.object({
 });
 
 export type SharepicEditResponse = z.infer<typeof sharepicEditResponseSchema>;
+
+// ── Slider deck operations (multi-page chat editing) ────────────────────────
+
+/**
+ * Deck-level wrapper around the single-page operation vocabulary: slider
+ * carousels are edited per slide (1-based, slide 1 = cover, last slide =
+ * closing). `edit-slide` reuses `canvasAiOperationSchema` unchanged, so the
+ * per-page interpreter (`sharepicOpsToStatePatch`) keeps doing the
+ * clamping/rejecting.
+ */
+export const sliderDeckOperationSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('edit-slide'),
+    /** 1-based slide number as shown in the snapshot. */
+    slide: z.number().int().min(1).max(10),
+    operations: z.array(canvasAiOperationSchema).min(1).max(6),
+  }),
+  z.object({
+    kind: z.literal('add-slide'),
+    /** Insert after this 1-based slide; defaults to before the closing slide. */
+    afterSlide: z.number().int().min(1).max(9).nullish(),
+    headline: z.string().min(1),
+    subtext: z.string().nullish(),
+    subtext2: z.string().nullish(),
+  }),
+  z.object({
+    kind: z.literal('remove-slide'),
+    /** 1-based; cover (1) and the closing slide cannot be removed. */
+    slide: z.number().int().min(2).max(10),
+  }),
+]);
+
+export type SliderDeckOperation = z.infer<typeof sliderDeckOperationSchema>;

@@ -12,11 +12,11 @@ const EDIT_VERB_PATTERN =
   /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
 
 const EDIT_NOUN_PATTERN =
-  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante)/iu;
+  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label)/iu;
 
 /** Phrases that mean "generate fresh variants" — never treated as an edit. */
 const NEW_VARIANTS_PATTERN =
-  /(?<!\p{L})(neue?s?\s+(sharepic|varianten?)|noch\s*mal\s+(neu|von\s+vorn)|alle\s+varianten|drei\s+varianten)/iu;
+  /(?<!\p{L})(neue?[sn]?\s+(sharepic|varianten?|karussell|slider)|noch\s*mal\s+(neu|von\s+vorn)|alle\s+varianten|drei\s+varianten)/iu;
 
 /**
  * True when the message reads like an edit instruction for an existing

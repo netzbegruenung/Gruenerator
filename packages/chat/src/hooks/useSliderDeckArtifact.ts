@@ -3,66 +3,30 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
+import { maybeUploadThumbnail, type SharepicVersionEntry } from './useSharepicArtifact';
+
 import type { SharepicVariant } from './useChatGraphStream';
 
-export interface SharepicVersionEntry {
-  version: number;
-  summary: string | null;
-}
-
-const FALLBACK_LABELS: Record<string, string> = {
-  dreizeilen: 'Dreizeiler',
-  'zitat-pure': 'Zitat',
-  zitat: 'Zitat',
-  info: 'Info',
-  simple: 'Sharepic',
-  veranstaltung: 'Veranstaltung',
-  slider: 'Slider',
-  freeform: 'Freeform',
-};
-
-export function sharepicLabel(variant: Pick<SharepicVariant, 'label' | 'canvasType'>): string {
-  return variant.label ?? FALLBACK_LABELS[variant.canvasType] ?? 'Sharepic';
-}
-
 /**
- * After a real edit (entry is thumbnail-dirty) the freshly rendered head PNG
- * doubles as the canvas thumbnail. Version previews never qualify, and the
- * flag is cleared up front — a failed upload is not worth a retry loop.
- * Clearing is synchronous, so when card and panel render the same variant
- * concurrently only the first completed render uploads.
+ * Deck sibling of useSharepicArtifact: live rendering, slide pager, version
+ * stepping and ZIP download for a multi-page slider variant. Card and docked
+ * panel share the same sharepicLiveStore entry, so SSE updates reach both.
  */
-export function maybeUploadThumbnail(
-  variantId: string,
-  dataUrl: string,
-  isVersionPreview: boolean
-) {
-  if (isVersionPreview) return;
-  const store = useSharepicLiveStore.getState();
-  const entry = store.entries[variantId];
-  if (!entry?.thumbnailDirty || !entry.canvasId) return;
-  const upload = useChatConfigStore.getState().updateSharepicThumbnail;
-  if (!upload) return;
-  store.clearThumbnailDirty(variantId);
-  upload(entry.canvasId, dataUrl).catch((err) => {
-    console.warn('[useSharepicArtifact] Thumbnail-Update fehlgeschlagen:', err);
-  });
-}
-
-/**
- * Shared live-rendering + version logic for a chat sharepic variant. Used by
- * the inline message card AND the docked artifact panel — both render from
- * the same sharepicLiveStore entry, so SSE updates reach them identically.
- */
-export function useSharepicArtifact(variant: SharepicVariant) {
+export function useSliderDeckArtifact(variant: SharepicVariant) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(true);
   const [renderError, setRenderError] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [versions, setVersions] = useState<SharepicVersionEntry[] | null>(null);
   /** Version being previewed via the stepper; null = current head. */
   const [viewVersion, setViewVersion] = useState<number | null>(null);
-  const [viewState, setViewState] = useState<Record<string, unknown> | null>(null);
-  const versionStateCache = useRef(new Map<number, Record<string, unknown>>());
+  const [viewPages, setViewPages] = useState<Array<Record<string, unknown>> | null>(null);
+  // Render cache: epoch bumps whenever the page set changes, invalidating
+  // all cached slide renders at once.
+  const renderCache = useRef(new Map<string, string>());
+  const epochRef = useRef(0);
+  const versionPagesCache = useRef(new Map<number, Array<Record<string, unknown>>>());
   const hydratedRef = useRef(false);
 
   const live = useSharepicLiveStore((s) => s.entries[variant.id]);
@@ -70,27 +34,48 @@ export function useSharepicArtifact(variant: SharepicVariant) {
 
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
   const headVersion = live?.version ?? null;
-  const renderInput = viewState ?? live?.state ?? variant.initialProps;
+  const livePages = live?.pages ?? null;
+  const headPages = livePages ?? variant.pages ?? [];
+  const pages = viewPages ?? headPages;
+  const slideCount = pages.length;
+  const safeIndex = Math.min(selectedIndex, Math.max(0, slideCount - 1));
 
-  // Render (and re-render after each chat edit / version step). renderInput
-  // is the full flat state — StandaloneCanvas's createInitialState accepts it
-  // in place of the original initialProps.
+  useEffect(() => {
+    epochRef.current += 1;
+  }, [pages]);
+
+  const renderSlide = useCallback(
+    async (index: number): Promise<string | null> => {
+      const pageState = pages[index];
+      if (!pageState) return null;
+      const key = `${epochRef.current}:${index}`;
+      const cached = renderCache.current.get(key);
+      if (cached) return cached;
+      const renderFn = useChatConfigStore.getState().renderSharepic;
+      if (!renderFn) return null;
+      const dataUrl = await renderFn(variant.canvasType, pageState);
+      if (dataUrl) renderCache.current.set(key, dataUrl);
+      return dataUrl;
+    },
+    [pages, variant.canvasType]
+  );
+
+  // Render the selected slide (and re-render after chat edits / version steps).
   useEffect(() => {
     let cancelled = false;
-    const renderFn = useChatConfigStore.getState().renderSharepic;
-    if (!renderFn) {
+    if (slideCount === 0) {
       setRenderError(true);
       setIsRendering(false);
       return undefined;
     }
     setIsRendering(true);
-    renderFn(variant.canvasType, renderInput)
+    renderSlide(safeIndex)
       .then((dataUrl) => {
         if (cancelled) return;
         if (dataUrl) {
           setImageBase64(dataUrl);
           setRenderError(false);
-          maybeUploadThumbnail(variant.id, dataUrl, viewState != null);
+          if (safeIndex === 0) maybeUploadThumbnail(variant.id, dataUrl, viewPages != null);
         } else {
           setRenderError(true);
         }
@@ -104,32 +89,40 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     return () => {
       cancelled = true;
     };
-  }, [variant.canvasType, variant.id, renderInput, viewState]);
+  }, [renderSlide, safeIndex, slideCount, variant.id, viewPages]);
 
-  // Thread-reload rehydration: a minted variant renders its CURRENT state
-  // (which may have changed in the studio), not the stale initialProps.
+  // Thread-reload rehydration: a deck renders its CURRENT pages (which may
+  // have changed in the studio), not the stale generation-time pages.
   useEffect(() => {
-    if (!canvasId || hydratedRef.current || live?.state) return;
+    if (!canvasId || hydratedRef.current || livePages) return;
     const fetchState = useChatConfigStore.getState().fetchSharepicState;
     if (!fetchState) return;
     hydratedRef.current = true;
     void fetchState(canvasId).then((result) => {
-      if (!result) return;
+      if (!result?.pages || result.pages.length === 0) return;
       useSharepicLiveStore.getState().upsertEntry(variant.id, {
         canvasId,
         canvasType: variant.canvasType,
         version: result.version,
-        state: result.state,
+        state: null,
+        pages: result.pages,
       });
     });
-  }, [canvasId, live?.state, variant.id, variant.canvasType]);
+  }, [canvasId, livePages, variant.id, variant.canvasType]);
 
   // New head version (chat edit applied) → drop any stale version preview.
   useEffect(() => {
     setViewVersion(null);
-    setViewState(null);
+    setViewPages(null);
     setVersions(null);
   }, [headVersion]);
+
+  const selectSlide = useCallback(
+    (index: number) => {
+      setSelectedIndex(Math.min(Math.max(index, 0), Math.max(0, slideCount - 1)));
+    },
+    [slideCount]
+  );
 
   const loadVersions = useCallback(async (): Promise<SharepicVersionEntry[]> => {
     if (versions) return versions;
@@ -140,6 +133,19 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     setVersions(entries);
     return entries;
   }, [canvasId, versions]);
+
+  const extractVersionPages = (
+    state: Record<string, unknown> | null
+  ): Array<Record<string, unknown>> | null => {
+    const raw = state?.pages;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    // Version snapshots store full PageDefs ({id, configId, state}).
+    return raw.map((p) =>
+      p && typeof p === 'object' && 'state' in (p as object)
+        ? ((p as { state: Record<string, unknown> }).state ?? {})
+        : ((p as Record<string, unknown>) ?? {})
+    );
+  };
 
   const stepToVersion = useCallback(
     async (direction: -1 | 1) => {
@@ -156,22 +162,23 @@ export function useSharepicArtifact(variant: SharepicVariant) {
       if (!target) return;
       if (nextIdx === ordered.length - 1) {
         setViewVersion(null);
-        setViewState(null);
+        setViewPages(null);
         return;
       }
-      const cached = versionStateCache.current.get(target.version);
+      const cached = versionPagesCache.current.get(target.version);
       if (cached) {
         setViewVersion(target.version);
-        setViewState(cached);
+        setViewPages(cached);
         return;
       }
       const fetchVersionState = useChatConfigStore.getState().fetchSharepicVersionState;
       if (!fetchVersionState) return;
       const state = await fetchVersionState(canvasId, target.version).catch(() => null);
-      if (state) {
-        versionStateCache.current.set(target.version, state);
+      const versionPages = extractVersionPages(state);
+      if (versionPages) {
+        versionPagesCache.current.set(target.version, versionPages);
         setViewVersion(target.version);
-        setViewState(state);
+        setViewPages(versionPages);
       }
     },
     [canvasId, loadVersions, viewVersion]
@@ -183,11 +190,13 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     if (!restore) return;
     const result = await restore(canvasId, viewVersion).catch(() => null);
     if (result) {
+      const restoredPages = extractVersionPages(result.state);
       useSharepicLiveStore.getState().upsertEntry(variant.id, {
         canvasId,
         canvasType: variant.canvasType,
         version: result.version,
-        state: result.state,
+        state: null,
+        ...(restoredPages ? { pages: restoredPages } : {}),
         thumbnailDirty: true,
       });
     }
@@ -203,28 +212,36 @@ export function useSharepicArtifact(variant: SharepicVariant) {
         canvasId,
         canvasType: variant.canvasType,
         initialProps: variant.initialProps,
+        pages: headPages,
         ...(variant.label ? { label: variant.label } : {}),
       });
     }
-  }, [variant.id, variant.canvasType, variant.initialProps, variant.label, canvasId]);
+  }, [variant.id, variant.canvasType, variant.initialProps, variant.label, canvasId, headPages]);
 
-  const download = useCallback(() => {
-    if (!imageBase64) return;
-    const link = document.createElement('a');
-    link.href = imageBase64;
-    link.download = `sharepic-${variant.canvasType}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [imageBase64, variant.canvasType]);
+  const downloadZip = useCallback(async () => {
+    const zip = useChatConfigStore.getState().downloadSharepicZip;
+    if (!zip || slideCount === 0 || isExporting) return;
+    setIsExporting(true);
+    try {
+      const images: string[] = [];
+      for (let i = 0; i < slideCount; i++) {
+        const dataUrl = await renderSlide(i);
+        if (dataUrl) images.push(dataUrl);
+      }
+      if (images.length > 0) await zip(images, variant.canvasType);
+    } catch (err) {
+      console.warn('[useSliderDeckArtifact] ZIP-Export fehlgeschlagen:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [slideCount, isExporting, renderSlide, variant.canvasType]);
 
   const openInStudio = useCallback(() => {
     useChatConfigStore.getState().onEditSharepic?.({
       ...variant,
-      initialProps: live?.state ?? variant.initialProps,
       ...(canvasId ? { canvasId } : {}),
     });
-  }, [variant, live?.state, canvasId]);
+  }, [variant, canvasId]);
 
   const showStepper = canvasId != null && headVersion != null && headVersion > 1;
 
@@ -232,16 +249,20 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     imageBase64,
     isRendering,
     renderError,
+    isExporting,
     canvasId,
+    slideCount,
+    selectedIndex: safeIndex,
+    selectSlide,
     headVersion,
     viewVersion,
     isActiveForChat,
     showStepper,
-    label: sharepicLabel(variant),
+    canDownloadZip: useChatConfigStore.getState().downloadSharepicZip != null,
     stepToVersion,
     restoreViewVersion,
     toggleActive,
-    download,
+    downloadZip,
     openInStudio,
   };
 }

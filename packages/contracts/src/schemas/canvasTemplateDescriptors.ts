@@ -17,7 +17,7 @@ import {
   type CanvasAiSnapshot,
 } from './canvasAi.js';
 
-export const SHAREPIC_EDITABLE_TEMPLATES = ['dreizeilen', 'zitat-pure', 'info'] as const;
+export const SHAREPIC_EDITABLE_TEMPLATES = ['dreizeilen', 'zitat-pure', 'info', 'slider'] as const;
 export type SharepicEditableTemplate = (typeof SHAREPIC_EDITABLE_TEMPLATES)[number];
 
 export interface SharepicTextFieldDescriptor {
@@ -52,10 +52,34 @@ export interface SharepicElementDescriptor {
   presenceStateKey?: string;
 }
 
+/** Per-scheme colors the studio's `setColorScheme` action derives together. */
+export interface SliderSchemeColors {
+  background: string;
+  pillBackground: string;
+  pillText: string;
+  arrow: string;
+}
+
+export interface SharepicDeckDescriptor {
+  maxSlides: number;
+  /** Cover + at least one content slide + closing slide. */
+  minSlides: number;
+  /** Base state for `add-slide` (before headline/subtext are merged in). */
+  defaultNewSlideState: Record<string, unknown>;
+  /**
+   * `set-color-scheme` is deck-wide and, unlike the studio action, reaches the
+   * state as a raw patch — so the interpreter must mirror the derived colors
+   * (backgroundColor, pill badge, arrow icon) itself using this map.
+   */
+  schemeColors: Record<string, SliderSchemeColors>;
+}
+
 export interface SharepicTemplateDescriptor {
   id: SharepicEditableTemplate;
   label: string;
   canvas: { width: number; height: number };
+  /** Present only for multi-page (deck) templates such as the slider. */
+  deck?: SharepicDeckDescriptor;
   supportedOperations: string[];
   textFields: SharepicTextFieldDescriptor[];
   /** Color schemes for `set-color-scheme` (dreizeilen). */
@@ -250,10 +274,78 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
   defaultState: { backgroundColor: '#005538' },
 };
 
+const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
+  id: 'slider',
+  label: 'Slider-Karussell',
+  canvas: { width: 1080, height: 1350 },
+  deck: {
+    maxSlides: 10,
+    minSlides: 3,
+    defaultNewSlideState: {
+      label: '',
+      headline: '',
+      subtext: '',
+      subtext2: '',
+      slideVariant: 'content',
+    },
+    schemeColors: {
+      'sand-tanne': {
+        background: '#F5F1E9',
+        pillBackground: '#005538',
+        pillText: '#FFFFFF',
+        arrow: '#005538',
+      },
+      'tanne-sand': {
+        background: '#005538',
+        pillBackground: '#F5F1E9',
+        pillText: '#005538',
+        arrow: '#F5F1E9',
+      },
+    },
+  },
+  supportedOperations: ['set-text', 'set-font-size', 'set-color-scheme'],
+  textFields: [
+    {
+      field: 'label',
+      label: 'Label (Pill-Badge, nur Cover)',
+      stateKey: 'label',
+      fontSize: { stateKey: 'customLabelFontSize', min: 20, max: 80 },
+    },
+    {
+      field: 'headline',
+      label: 'Headline',
+      stateKey: 'headline',
+      fontSize: { stateKey: 'customHeadlineFontSize', min: 30, max: 150 },
+    },
+    {
+      field: 'subtext',
+      label: 'Untertext',
+      stateKey: 'subtext',
+      fontSize: { stateKey: 'customSubtextFontSize', min: 20, max: 90 },
+    },
+    {
+      field: 'subtext2',
+      label: 'Zusatztext (nur Content-Slides)',
+      stateKey: 'subtext2',
+      fontSize: { stateKey: 'customSubtext2FontSize', min: 20, max: 90 },
+    },
+  ],
+  colorSchemes: {
+    stateKey: 'colorScheme',
+    options: [
+      { id: 'sand-tanne', label: 'Sand & Tanne (heller Hintergrund)' },
+      { id: 'tanne-sand', label: 'Tanne & Sand (dunkler Hintergrund)' },
+    ],
+  },
+  elements: [],
+  defaultState: { colorScheme: 'sand-tanne' },
+};
+
 const DESCRIPTORS: Record<SharepicEditableTemplate, SharepicTemplateDescriptor> = {
   dreizeilen: DREIZEILEN_DESCRIPTOR,
   'zitat-pure': ZITAT_PURE_DESCRIPTOR,
   info: INFO_DESCRIPTOR,
+  slider: SLIDER_DESCRIPTOR,
 };
 
 export function getSharepicTemplateDescriptor(
