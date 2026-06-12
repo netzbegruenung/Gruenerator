@@ -20,6 +20,7 @@
  * full segments travel to the client via SSE only.
  */
 import {
+  formatTimeWithFraction,
   parseStoredSubtitles,
   serializeStoredSubtitles,
 } from '@gruenerator/shared/subtitle-editor';
@@ -53,6 +54,39 @@ export { isReelEditInstruction, hasReelEditVerb, hasStrongReelNoun } from './ree
 const PICKER_PROJECT_LIMIT = 10;
 /** Guard against pathological projects blowing up the prompt; reels are short. */
 const MAX_PROMPT_SEGMENTS = 150;
+
+/**
+ * Subtitle transcript of the active reel as a context block for the NORMAL
+ * chat pipeline. Injected into `attachmentContext` whenever a reel is
+ * attached but the turn is NOT a subtitle edit, so follow-ups like "schreib
+ * mir einen Insta-Post dazu" or "fass das Video zusammen" can work from the
+ * actual spoken content. Returns null when the project can't be resolved or
+ * has no subtitles — callers skip injection silently.
+ */
+export async function buildReelContextBlock(
+  userId: string,
+  projectId: string
+): Promise<string | null> {
+  try {
+    const project = await getSubtitlerProjectService().getProject(userId, projectId);
+    const { segments } = parseStoredSubtitles(project.subtitles);
+    if (segments.length === 0) return null;
+
+    const lines = segments
+      .slice(0, MAX_PROMPT_SEGMENTS)
+      .map(
+        (s) =>
+          `[${formatTimeWithFraction(s.startTime)}–${formatTimeWithFraction(s.endTime)}] ${s.text}`
+      );
+    return [
+      `Untertitel-Transkript des aktiven Reels "${project.title}" (gesprochener Videoinhalt):`,
+      ...lines,
+    ].join('\n');
+  } catch (err) {
+    log.warn(`[ReelEdit] Could not build reel context for ${projectId}: ${err}`);
+    return null;
+  }
+}
 
 export interface HandleReelEditArgs {
   sse: SSEWriter;
