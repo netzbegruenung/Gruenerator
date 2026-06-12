@@ -17,6 +17,8 @@ import {
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { upsertSyncEvents } from '../../services/monitor/ContentSyncEventsService.js';
+import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -134,6 +136,22 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
   return config;
 }
 
+/**
+ * In-process runs persist the recorded article events directly (the recorder
+ * buffer must be drained either way so it cannot grow across runs in the
+ * long-lived API process).
+ */
+async function persistRecordedEvents(): Promise<void> {
+  try {
+    const events = drainSyncEvents();
+    if (events.length > 0) {
+      await upsertSyncEvents(events, { runId: null, runUrl: null });
+    }
+  } catch (error) {
+    log.warn(`Failed to persist sync events (non-fatal): ${toError(error).message}`);
+  }
+}
+
 const s = initServer();
 
 export const contentSyncContractRouter = s.router(contentSyncContract, {
@@ -164,6 +182,8 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
       const result = await Promise.race([source.run(), timeoutPromise]);
       clearTimeout(timeoutId!);
 
+      await persistRecordedEvents();
+
       const durationMs = Date.now() - startTime;
 
       log.info(
@@ -187,6 +207,8 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
     } catch (error) {
       const err = toError(error);
       const durationMs = Date.now() - startTime;
+      // Articles indexed before the failure are real — keep their events.
+      await persistRecordedEvents();
       log.error(`Content sync failed: ${sourceId} — ${err.message}`);
       return {
         status: 500 as const,

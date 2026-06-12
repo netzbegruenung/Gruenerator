@@ -123,6 +123,8 @@ jobs:
           BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
           # Unique per-matrix path so the aggregate job (download-artifact with
           # merge-multiple=true) doesn't collide same-named files into one.
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary-lv-${{ matrix.lv }}.json
@@ -181,6 +183,8 @@ jobs:
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
           BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
           # Unique per-matrix path — see sync-lv comment above.
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary-source-${{ matrix.source }}.json
 
@@ -383,6 +387,8 @@ jobs:
           BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
         run: |
           if [ "$KIND" = "landesverband" ]; then

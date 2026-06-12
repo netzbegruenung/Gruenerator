@@ -19,6 +19,7 @@ import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import { recordSyncEvent } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
 import { extractMainContent, extractDate } from '../utils/contentExtractor.js';
 import {
@@ -653,6 +654,17 @@ export class BoellStiftungScraper extends BaseScraper {
       const batch = points.slice(i, i + 10);
       await batchUpsert(this.qdrant.client!, this.config.collectionName, batch);
     }
+
+    recordSyncEvent({
+      title: content.title,
+      sourceUrl: url,
+      sourceGroupId: 'boell-stiftung',
+      sourceName: 'Heinrich-Böll-Stiftung',
+      landesverband: null,
+      collection: this.config.collectionName,
+      eventType: existing ? 'updated' : 'stored',
+      publishedAt: content.publishedAt,
+    });
 
     return { stored: true, chunks: chunks.length, vectors: points.length, updated: !!existing };
   }
