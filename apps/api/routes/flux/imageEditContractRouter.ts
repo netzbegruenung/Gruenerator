@@ -117,7 +117,10 @@ export const imageEditContractRouter = s.router(imageEditContract, {
       });
 
       const rawBuffer = Buffer.from(stored.base64, 'base64');
-      const outputBuffer = body.kiLabel === false ? rawBuffer : await addKiLabel(rawBuffer);
+      const outputBuffer =
+        body.kiLabel === 'none'
+          ? rawBuffer
+          : await addKiLabel(rawBuffer, body.kiLabel === 'short' ? 'short' : 'full');
       fs.writeFileSync(stored.filePath, outputBuffer);
 
       const incrementResult = await imageCounter.incrementCount(
