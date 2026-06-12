@@ -111,3 +111,4 @@ export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
+export * from './schemas/richtext.js';
