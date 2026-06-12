@@ -237,9 +237,9 @@ export function MonitorOverview({ locale, onTopicClick }: MonitorOverviewProps) 
         )}
       </section>
 
-      {/* Section 5: Sonntagsfrage */}
+      {/* Section 5: Sonntagsfrage (flat summary — details live on the Umfragen tab) */}
       <section className="mb-2xl">
-        <UmfragenView locale={locale} />
+        <UmfragenView locale={locale} variant="overview" />
       </section>
     </div>
   );

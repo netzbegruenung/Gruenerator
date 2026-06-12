@@ -67,6 +67,15 @@ const unsupportedFlagSchema = z.object({ unsupported: z.literal(true) });
 const PARLIAMENT_API_CODES: Record<string, string> = {
   deutschland: 'de',
   oesterreich: 'at',
+  burgenland: 'at-1',
+  kaernten: 'at-2',
+  niederoesterreich: 'at-3',
+  oberoesterreich: 'at-4',
+  salzburg: 'at-5',
+  steiermark: 'at-6',
+  tirol: 'at-7',
+  vorarlberg: 'at-8',
+  wien: 'at-9',
   'baden-wuerttemberg': 'de-bw',
   bayern: 'de-by',
   berlin: 'de-be',
@@ -519,7 +528,11 @@ export async function getEuGreens(): Promise<EuGreensData | null> {
   if (found.length === 0) return null;
 
   const data: EuGreensData = { results: found, fetchedAt: new Date().toISOString() };
-  await setCachedJson(cacheKey, data, CACHE_TTL);
+  // Don't cache heavily incomplete batches (rate-limit burst or the upstream
+  // wrong-parliament bug) — retry on the next request instead.
+  if (found.length >= EU_GREEN_PARTIES.length - 3) {
+    await setCachedJson(cacheKey, data, CACHE_TTL);
+  }
   return data;
 }
 
@@ -663,6 +676,15 @@ export async function getPolitProHistory(
 export const POLITPRO_PARLIAMENTS = [
   { id: 'deutschland', name: 'Deutschland' },
   { id: 'oesterreich', name: 'Österreich' },
+  { id: 'burgenland', name: 'Burgenland' },
+  { id: 'kaernten', name: 'Kärnten' },
+  { id: 'niederoesterreich', name: 'Niederösterreich' },
+  { id: 'oberoesterreich', name: 'Oberösterreich' },
+  { id: 'salzburg', name: 'Salzburg' },
+  { id: 'steiermark', name: 'Steiermark' },
+  { id: 'tirol', name: 'Tirol' },
+  { id: 'vorarlberg', name: 'Vorarlberg' },
+  { id: 'wien', name: 'Wien' },
   { id: 'baden-wuerttemberg', name: 'Baden-Württemberg' },
   { id: 'bayern', name: 'Bayern' },
   { id: 'berlin', name: 'Berlin' },
