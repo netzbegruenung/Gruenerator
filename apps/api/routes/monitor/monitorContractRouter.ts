@@ -9,7 +9,11 @@
  *   - /api/monitor/*          → requireAuth + publicReadLimiter
  *   - /api/internal/monitor/* → requireAdminToken
  */
-import { monitorContract, type MonitorHotTopicAnalysis } from '@gruenerator/contracts';
+import {
+  monitorContract,
+  type MonitorHotTopicAnalysis,
+  type PollData,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -172,13 +176,23 @@ export const monitorContractRouter = s.router(monitorContract, {
   polls: async ({ query, res }) => {
     try {
       const parliament = query.parliament ?? 'deutschland';
-      const politProData = await getPolitProPolls(parliament);
-      if (!politProData) {
-        log.warn(`PolitPro returned null for "${parliament}", falling back to wahlrecht.de`);
+      let data: PollData | null = await getPolitProPolls(parliament);
+      // The wahlrecht.de fallback only carries federal German polls — never
+      // serve it for a Land/AT request, where it would be wrong data.
+      if (!data && parliament === 'deutschland') {
+        log.warn('PolitPro returned null for "deutschland", falling back to wahlrecht.de');
+        data = await getPolls();
       }
-      const data = politProData ?? (await getPolls());
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: data };
+      return {
+        status: 200 as const,
+        body: data ?? {
+          polls: [],
+          lastElection: null,
+          average: {},
+          scrapedAt: new Date().toISOString(),
+        },
+      };
     } catch (error) {
       log.error(`GET /polls failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch polls' } };
