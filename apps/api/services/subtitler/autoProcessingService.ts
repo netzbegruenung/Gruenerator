@@ -13,6 +13,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { getSharedMediaService } from '../sharedMediaService.js';
 
 import AssSubtitleService from './assSubtitleService.js';
 import {
@@ -24,6 +26,7 @@ import {
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
+import { autoSaveProject } from './projectSavingService.js';
 import { transcribeVideo } from './transcriptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -668,7 +671,114 @@ async function getAutoProgress(token: string): Promise<AutoProgressData | null> 
   return parseAutoProgress(data, `auto:${token}`);
 }
 
-export { processVideoAutomatically, getAutoProgress, STAGES };
+interface StartAutoProcessingOptions {
+  uploadId: string;
+  videoPath: string;
+  originalFilename: string;
+  userId?: string | null;
+  locale?: string;
+  maxResolution?: number | null;
+}
+
+/**
+ * Kicks off the full auto-processing pipeline in the background and tracks
+ * progress under the Redis key `auto:${uploadId}` (consumed by GET
+ * /subtitler/auto-progress/:uploadId). With a `userId`, the finished result
+ * is auto-saved as a subtitler project (and a share link is created), so the
+ * reel shows up on the user's reel page.
+ *
+ * Extracted from POST /process-auto so the chat reel branch can start the
+ * same pipeline for videos attached in the chat composer. Resolves once the
+ * initial progress key is written; the pipeline itself runs detached.
+ */
+async function startAutoProcessing(options: StartAutoProcessingOptions): Promise<void> {
+  const {
+    uploadId,
+    videoPath,
+    originalFilename,
+    userId = null,
+    locale = 'de-DE',
+    maxResolution = null,
+  } = options;
+
+  await redisClient.set(
+    `auto:${uploadId}`,
+    JSON.stringify({ status: 'processing', stage: 1, stageProgress: 0, overallProgress: 0 }),
+    { EX: 3600 }
+  );
+
+  processVideoAutomatically(videoPath, uploadId, {
+    stylePreference: 'shadow',
+    heightPreference: 'tief',
+    locale,
+    maxResolution,
+    ...(userId != null && { userId }),
+    originalFilename,
+  })
+    .then(async (result: ProcessingResult) => {
+      let savedProjectId: string | null = null;
+      if (userId) {
+        try {
+          const r = await autoSaveProject({
+            userId,
+            outputPath: result.outputPath,
+            originalVideoPath: videoPath,
+            uploadId,
+            originalFilename,
+            segments: result.segments,
+            metadata: result.metadata,
+            stylePreference: 'shadow',
+            heightPreference: 'tief',
+            subtitlePreference: 'manual',
+            exportToken: result.autoProcessToken,
+          });
+          savedProjectId = r.projectId;
+        } catch {
+          /* ignored */
+        }
+
+        if (savedProjectId && result.outputPath) {
+          try {
+            const shareService = getSharedMediaService();
+            await shareService.createVideoShare(userId, {
+              videoPath: result.outputPath,
+              title: originalFilename.replace(/\.[^.]+$/, ''),
+              duration: result.duration,
+              projectId: savedProjectId,
+            });
+          } catch (shareErr: unknown) {
+            log.warn(
+              `Auto-share creation failed: ${shareErr instanceof Error ? shareErr.message : String(shareErr)}`
+            );
+          }
+        }
+      }
+      await redisClient.set(
+        `auto:${uploadId}`,
+        JSON.stringify({
+          status: 'complete',
+          stage: 5,
+          stageProgress: 100,
+          overallProgress: 100,
+          outputPath: result.outputPath,
+          duration: result.duration,
+          projectId: savedProjectId,
+          // Canonical segment array — what the frontend should consume
+          // when creating a project. The `subtitles` string is kept for
+          // backward compatibility with any display-layer code that
+          // wants the raw SRT blob, but the POST /subtitler/projects
+          // write path uses `segments` because the schema requires a
+          // typed `SubtitleSegment[]` (canonicalized 2026-04-13).
+          segments: result.segments,
+          subtitles: result.subtitles,
+        }),
+        { EX: 3600 }
+      );
+    })
+    .catch((e: Error) => reportBackgroundError(e, { job: 'subtitler-auto-process', uploadId }));
+}
+
+export { processVideoAutomatically, startAutoProcessing, getAutoProgress, STAGES };
 export type {
   ProcessingOptions,
   ProcessingResult,
