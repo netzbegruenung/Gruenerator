@@ -563,6 +563,10 @@ const BilderInner: React.FC = memo(() => {
   const selectedImageModel = (modeState.imageModel as ImageModelId | undefined) ?? null;
   const effectiveImageModel = selectedImageModel ?? defaultImageModel ?? DEFAULT_IMAGE_MODEL_ID;
   const maxRefs = IMAGE_MODEL_BY_ID[effectiveImageModel]?.maxReferenceImages ?? 1;
+  // Format presets/free px only make sense for models that honor width/height
+  // (Regolo/Qwen-Image always renders fixed squares).
+  const supportsCustomDims =
+    IMAGE_MODEL_BY_ID[effectiveImageModel]?.supportsCustomDimensions ?? false;
 
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const usageQuery = useQuery({
@@ -762,19 +766,21 @@ const BilderInner: React.FC = memo(() => {
       if (modeState.variant) payload.variant = modeState.variant;
       if (modeState.imageModel) payload.imageModel = modeState.imageModel;
       if (kiLabel !== 'full') payload.kiLabel = kiLabel;
-      if (createFormat === 'custom') {
-        if (!createCustomValid) {
-          setCreateSizeError(
-            `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CREATE_AREA / 1_000_000} MP.`
-          );
-          return;
+      if (supportsCustomDims) {
+        if (createFormat === 'custom') {
+          if (!createCustomValid) {
+            setCreateSizeError(
+              `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CREATE_AREA / 1_000_000} MP.`
+            );
+            return;
+          }
+          payload.width = roundTo16(customWidth);
+          payload.height = roundTo16(customHeight);
+        } else if (createFormat !== 'auto') {
+          const dims = CREATE_ASPECT_DIMENSIONS[createFormat];
+          payload.width = dims.width;
+          payload.height = dims.height;
         }
-        payload.width = roundTo16(customWidth);
-        payload.height = roundTo16(customHeight);
-      } else if (createFormat !== 'auto') {
-        const dims = CREATE_ASPECT_DIMENSIONS[createFormat];
-        payload.width = dims.width;
-        payload.height = dims.height;
       }
       setCreateSizeError(null);
       const result = await submitForm(payload);
@@ -807,6 +813,7 @@ const BilderInner: React.FC = memo(() => {
     createCustomValid,
     customWidth,
     customHeight,
+    supportsCustomDims,
     setResult,
     createImageShare,
     queryClient,
@@ -1239,7 +1246,7 @@ const BilderInner: React.FC = memo(() => {
           }
           onModelChange={handleModelChange}
           format={
-            isErstellen
+            isErstellen && supportsCustomDims
               ? {
                   config: CREATE_FORMAT_CONFIG,
                   value: createFormat,
@@ -1258,7 +1265,8 @@ const BilderInner: React.FC = memo(() => {
         />
         {isBearbeiten && referencePillRow}
         {(isBegruenen || isHintergrund) && filePickerPill}
-        {((isVergroessern && isCustomAspect) || (isErstellen && createFormat === 'custom')) && (
+        {((isVergroessern && isCustomAspect) ||
+          (isErstellen && supportsCustomDims && createFormat === 'custom')) && (
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs',
@@ -1308,6 +1316,7 @@ const BilderInner: React.FC = memo(() => {
       customSizeValid,
       createFormat,
       createCustomValid,
+      supportsCustomDims,
       erstellenDef?.settings,
       modeState,
       updateField,
