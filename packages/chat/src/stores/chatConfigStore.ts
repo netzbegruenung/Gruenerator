@@ -73,6 +73,31 @@ export interface ChatConfig {
    * link). Omit to hide the CTA — only the warning copy renders.
    */
   wolkeConnectUrl?: string;
+  /**
+   * Uploads a composer-attached video to the subtitler TUS endpoint and
+   * resolves with its uploadId. Required for video attachments — without it
+   * the attachment adapter rejects video files.
+   */
+  uploadReelVideo?: (
+    file: File,
+    onProgress?: (pct: number) => void
+  ) => Promise<{ uploadId: string }>;
+  /** Streaming URL for a subtitler project's video (cookie-authed, Range-capable). */
+  getReelVideoUrl?: (projectId: string) => string;
+  /** Fetch one subtitler project incl. its subtitles blob; null on error. */
+  fetchReelProject?: (
+    projectId: string
+  ) => Promise<{ title: string; subtitles: string | null } | null>;
+  /** Poll the auto-processing pipeline for a chat-uploaded video. */
+  fetchReelAutoProgress?: (uploadId: string) => Promise<{
+    status: 'processing' | 'complete' | 'error' | 'not_found';
+    overallProgress: number;
+    projectId: string | null;
+    subtitles: string | null;
+    error: string | null;
+  } | null>;
+  /** Opens a subtitler project in the Sub-Studio (web: /reel/studio deep link). */
+  onOpenReelStudio?: (projectId: string) => void;
 }
 
 export interface ResolvedEndpoints {
@@ -178,6 +203,11 @@ interface ChatConfigStore extends ResolvedChatConfig {
   restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
   updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
   downloadSharepicZip?: ChatConfig['downloadSharepicZip'];
+  uploadReelVideo?: ChatConfig['uploadReelVideo'];
+  getReelVideoUrl?: ChatConfig['getReelVideoUrl'];
+  fetchReelProject?: ChatConfig['fetchReelProject'];
+  fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
+  onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -269,6 +299,11 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       restoreSharepicVersion: config?.restoreSharepicVersion,
       updateSharepicThumbnail: config?.updateSharepicThumbnail,
       downloadSharepicZip: config?.downloadSharepicZip,
+      uploadReelVideo: config?.uploadReelVideo,
+      getReelVideoUrl: config?.getReelVideoUrl,
+      fetchReelProject: config?.fetchReelProject,
+      fetchReelAutoProgress: config?.fetchReelAutoProgress,
+      onOpenReelStudio: config?.onOpenReelStudio,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },
