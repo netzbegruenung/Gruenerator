@@ -10,9 +10,11 @@ import {
 import { ExternalLink, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { BUNDESLAENDER } from '../bundeslaender';
+import { bundeslandById, BUNDESLAENDER } from '../bundeslaender';
 import { usePolls } from '../hooks/useMonitor';
+import { PARTY_COLORS } from '../partyColors';
 
+import { GerdaAttribution, LandtagsergebnisCard, MeinungsbildForState } from './LandDetails';
 import { MeinungsbildSection } from './MeinungsbildSection';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
@@ -20,23 +22,6 @@ import type { MonitorLocale } from '../hooks/useMonitor';
 interface UmfragenViewProps {
   locale: MonitorLocale;
 }
-
-export const PARTY_COLORS: Record<string, string> = {
-  'CDU/CSU': '#000000',
-  AfD: '#009ee0',
-  SPD: '#e3000f',
-  GRÜNE: '#46962b',
-  Grüne: '#46962b',
-  'DIE LINKE': '#be3075',
-  Linke: '#be3075',
-  BSW: '#571D47',
-  FDP: '#ffed00',
-  Sonstige: '#aaaaaa',
-  ÖVP: '#63C3D0',
-  NEOS: '#E84188',
-  SPÖ: '#e3000f',
-  FPÖ: '#0E6EB8',
-};
 
 // Compact labels for the tight 2-column "Grüne in den Ländern" grid.
 const LAENDER = BUNDESLAENDER.map((b) => ({ id: b.id, name: b.display ?? b.name }));
@@ -377,6 +362,7 @@ export function UmfragenView({ locale }: UmfragenViewProps) {
     );
   }
 
+  const land = selectedLand ? bundeslandById(selectedLand) : undefined;
   const activeParliament = selectedLand ?? 'deutschland';
   const activeTitle = selectedLand
     ? `Sonntagsfrage — ${LAENDER.find((l) => l.id === selectedLand)?.name ?? selectedLand}`
@@ -388,13 +374,14 @@ export function UmfragenView({ locale }: UmfragenViewProps) {
   return (
     <div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
-        <div>
+        <div className="space-y-xl">
           <SonntagsfrageChart
             key={activeParliament}
             parliament={activeParliament}
             title={activeTitle}
             subtitle={activeSubtitle}
           />
+          {land && <LandtagsergebnisCard code={land.code} />}
         </div>
 
         <div>
@@ -431,7 +418,14 @@ export function UmfragenView({ locale }: UmfragenViewProps) {
         </div>
       </div>
 
-      <MeinungsbildSection />
+      {land ? (
+        <div className="mt-xl border-t border-grey-200 dark:border-grey-700 pt-xl space-y-lg">
+          <MeinungsbildForState code={land.code} stateName={land.name} />
+          <GerdaAttribution />
+        </div>
+      ) : (
+        <MeinungsbildSection />
+      )}
     </div>
   );
 }
