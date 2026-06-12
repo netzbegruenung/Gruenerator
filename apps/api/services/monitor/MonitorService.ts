@@ -7,7 +7,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { classifyArticles } from '../nlp/nlpClient.js';
 
 import { getHotTopicAnalysis } from './HotTopicPipeline.js';
@@ -31,8 +31,11 @@ import type {
 
 const log = createLogger('MonitorService');
 
-const REDIS_SNAPSHOT_KEY = 'monitor:latest';
 const REDIS_TTL_SECONDS = 7200;
+
+function snapshotCacheKey(locale?: MonitorLocale): string {
+  return locale ? `monitor:latest:${locale}` : 'monitor:latest';
+}
 
 function db() {
   return getPostgresInstance();
@@ -173,7 +176,10 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
 
   // Cache snapshot in Redis. Non-fatal: DB still has canonical data, but a
   // failure here means /monitor/latest pays the rebuild cost on every request.
-  await setCachedJson(REDIS_SNAPSHOT_KEY, snapshot, REDIS_TTL_SECONDS);
+  await setCachedJson(snapshotCacheKey(), snapshot, REDIS_TTL_SECONDS);
+
+  // Drop stale per-locale snapshots; the warm tasks below rebuild and re-cache them.
+  await Promise.all((['de', 'at'] as const).map((loc) => deleteCachedKey(snapshotCacheKey(loc))));
 
   const warmTasks: Array<{ name: string; run: () => Promise<unknown> }> = [];
 
@@ -339,11 +345,9 @@ async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> 
 // ─── Read: snapshot (cached) ─────────────────────────────────────────
 
 export async function getLatestSnapshot(locale?: MonitorLocale): Promise<MonitorSnapshot | null> {
-  // Try Redis cache first
-  if (!locale) {
-    const cached = await getCachedJson(REDIS_SNAPSHOT_KEY, monitorSnapshotSchema);
-    if (cached) return cached;
-  }
+  // Try Redis cache first (global and per-locale keys; refresh invalidates both)
+  const cached = await getCachedJson(snapshotCacheKey(locale), monitorSnapshotSchema);
+  if (cached) return cached;
 
   // Rebuild from DB
   try {
@@ -392,7 +396,7 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
       );
       const articles = localeArticles.map(rowToArticle);
       const localeKeywords = await getKeywordsByLocale(locale);
-      return buildSnapshot(
+      const localeSnapshot = buildSnapshot(
         articles,
         articles.length,
         snapshot.sources,
@@ -400,10 +404,12 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
         snapshot.socialTrends || [],
         locale
       );
+      await setCachedJson(snapshotCacheKey(locale), localeSnapshot, REDIS_TTL_SECONDS);
+      return localeSnapshot;
     }
 
     // Cache for next time
-    await setCachedJson(REDIS_SNAPSHOT_KEY, snapshot, REDIS_TTL_SECONDS);
+    await setCachedJson(snapshotCacheKey(), snapshot, REDIS_TTL_SECONDS);
 
     return snapshot;
   } catch (error) {
