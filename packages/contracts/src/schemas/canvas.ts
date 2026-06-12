@@ -114,6 +114,8 @@ export const canvasStateResponseSchema = z.object({
   state: z.record(z.unknown()),
   source: z.enum(['yjs', 'initial_state']),
   version: z.number().int().nullable(),
+  /** Per-slide states for multi-page (deck) canvases, in page order. */
+  pages: z.array(z.record(z.unknown())).nullish(),
 });
 
 export type CanvasStateResponse = z.infer<typeof canvasStateResponseSchema>;

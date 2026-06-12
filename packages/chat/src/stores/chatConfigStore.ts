@@ -36,9 +36,12 @@ export interface ChatConfig {
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
-  fetchSharepicState?: (
-    canvasId: string
-  ) => Promise<{ state: Record<string, unknown>; version: number | null } | null>;
+  fetchSharepicState?: (canvasId: string) => Promise<{
+    state: Record<string, unknown>;
+    version: number | null;
+    /** Per-slide states for multi-page (deck) canvases. */
+    pages?: Array<Record<string, unknown>> | null;
+  } | null>;
   /** Chat-edit version history of a canvas, newest first. */
   fetchSharepicVersions?: (
     canvasId: string
@@ -59,6 +62,11 @@ export interface ChatConfig {
    * state. Best-effort — failures must not surface in the chat UI.
    */
   updateSharepicThumbnail?: (canvasId: string, imageDataUrl: string) => Promise<void>;
+  /**
+   * Bundles rendered slide PNGs (data URLs) into a ZIP download (deck
+   * variants). Platform-specific — web posts to /api/exports/zip.
+   */
+  downloadSharepicZip?: (images: string[], canvasType: string) => Promise<void>;
   /**
    * URL the @wolke picker links to when the user hasn't connected any
    * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
@@ -169,6 +177,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
   restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
   updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
+  downloadSharepicZip?: ChatConfig['downloadSharepicZip'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -259,6 +268,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchSharepicVersionState: config?.fetchSharepicVersionState,
       restoreSharepicVersion: config?.restoreSharepicVersion,
       updateSharepicThumbnail: config?.updateSharepicThumbnail,
+      downloadSharepicZip: config?.downloadSharepicZip,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },

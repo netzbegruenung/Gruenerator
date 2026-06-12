@@ -17,15 +17,19 @@ import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
   sharepicOpsToStatePatch,
+  sliderDeckOpsToPagePatches,
   type CanvasAiOperation,
   type SharepicTemplateDescriptor,
+  type SliderDeckOperation,
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createCanvas } from '../../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
+  applyDeckChanges,
   getCurrentCanvasState,
+  type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
   insertCanvasVersion,
@@ -273,6 +277,16 @@ export async function ensureMintedCanvas(args: {
     }
     sse.send('sharepic_minted', { variantId: target.variantId, canvasId });
     log.info(`[SharepicEdit] Minted canvas ${canvasId} for variant ${target.variantId}`);
+  } else {
+    // Pre-minted (decks mint at generation): make sure the thread binding
+    // exists — generation may have run without a thread id.
+    const pg = getPostgresInstance();
+    await pg.query(
+      `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
+       VALUES ($1, $2, $3, $4, TRUE)
+       ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
+      [threadId, target.variantId, canvasId, target.canvasType]
+    );
   }
   await setActiveThreadCanvas(threadId, target.variantId);
   return canvasId;
@@ -379,6 +393,90 @@ export async function applySharepicOpsToCanvas(args: {
   };
 }
 
+export type ApplySliderOpsOutcome =
+  | {
+      ok: true;
+      version: number;
+      newPages: CanvasPageDef[];
+      appliedKinds: string[];
+      rejected: Array<{ kind: string; reason: string }>;
+    }
+  | { ok: false; reason: string; rejected: Array<{ kind: string; reason: string }> };
+
+/**
+ * Deck sibling of `applySharepicOpsToCanvas`: validate deck ops, write
+ * pageId-addressed patches / page ops through the Hocuspocus internal API
+ * (live-broadcasts into open studio tabs), snapshot a `{ pages }` version
+ * and emit `sharepic_updated` with the full page set.
+ */
+export async function applySliderOpsToDeck(args: {
+  canvasId: string;
+  variantId: string;
+  descriptor: SharepicTemplateDescriptor;
+  pages: CanvasPageDef[];
+  operations: SliderDeckOperation[];
+  summary: string;
+  userId: string;
+  sse: SSEWriter;
+}): Promise<ApplySliderOpsOutcome> {
+  const { canvasId, variantId, descriptor, pages, operations, summary, userId, sse } = args;
+
+  const result = sliderDeckOpsToPagePatches(descriptor, operations, pages);
+  const rejected = result.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
+  if (rejected.length > 0) {
+    log.warn(
+      `[SliderDeck] Rejected ops: ${rejected.map((r) => `${r.kind}: ${r.reason}`).join(' | ')}`
+    );
+  }
+
+  if (result.pagePatches.length === 0 && result.pageOps.length === 0) {
+    return {
+      ok: false,
+      reason: rejected[0]?.reason ?? 'Keine anwendbare Änderung',
+      rejected,
+    };
+  }
+
+  await applyDeckChanges(canvasId, {
+    // Always sent: re-seeds decks whose mint ran while Hocuspocus was down.
+    seedPages: pages,
+    pagePatches: result.pagePatches,
+    pageOps: result.pageOps,
+    newPages: result.newPages,
+  });
+
+  const version = await insertCanvasVersion({
+    canvasId,
+    state: { pages: result.newPages },
+    summary,
+    origin: 'chat-edit',
+    userId,
+  });
+
+  sse.send('sharepic_updated', {
+    variantId,
+    canvasId,
+    version,
+    canvasType: descriptor.id,
+    pages: result.newPages.map((p) => p.state),
+    summary,
+  });
+
+  log.info(
+    `[SliderDeck] Applied v${version} on ${canvasId} (${operations.length} op(s): ${operations
+      .map((o) => o.kind)
+      .join(', ')}, ${result.newPages.length} pages)`
+  );
+
+  return {
+    ok: true,
+    version,
+    newPages: result.newPages,
+    appliedKinds: result.applied.map((o) => o.kind),
+    rejected,
+  };
+}
+
 export interface HandleSharepicEditArgs {
   sse: SSEWriter;
   req: unknown;
@@ -453,6 +551,17 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
     if (!descriptor) {
       log.info(`[SharepicEdit] No descriptor for canvasType=${target.canvasType} — falling back`);
       return false;
+    }
+
+    if (descriptor.deck) {
+      // Deck NL-editing runs only on the agentic tool-loop path (v1). The
+      // single tool-forced call has no slide targeting — point at the Studio.
+      await finishWithText(
+        args,
+        'Folien-Karusselle kann ich hier gerade nicht direkt bearbeiten. ' +
+          'Öffne das Karussell im Studio, um einzelne Folien anzupassen.'
+      );
+      return true;
     }
 
     sse.send('progress_step', {

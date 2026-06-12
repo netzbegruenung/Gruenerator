@@ -20,8 +20,15 @@ const FETCH_TIMEOUT_MS = 5000;
 
 const db = getPostgresInstance();
 
+export interface CanvasPageDef {
+  id: string;
+  configId: string;
+  state: Record<string, unknown>;
+}
+
 interface InternalStateResponse {
   state: Record<string, unknown>;
+  pages?: CanvasPageDef[];
   hasYState: boolean;
 }
 
@@ -126,4 +133,113 @@ export async function applyCanvasStatePatch(
   );
 
   log.info(`Patched canvas ${canvasId} (${Object.keys(patch).length} key(s), yjs=${internalOk})`);
+}
+
+// ---------------------------------------------------------------------------
+// Multi-page (slider deck) variants of the read/write paths. Deck state lives
+// per page in the Yjs `pages` array; root formState is never used for decks.
+// ---------------------------------------------------------------------------
+
+const isPageDefArray = (v: unknown): v is CanvasPageDef[] =>
+  Array.isArray(v) &&
+  v.every(
+    (p) =>
+      !!p &&
+      typeof p === 'object' &&
+      typeof (p as CanvasPageDef).id === 'string' &&
+      typeof (p as CanvasPageDef).configId === 'string' &&
+      typeof (p as CanvasPageDef).state === 'object'
+  );
+
+export interface CurrentDeckState {
+  pages: CanvasPageDef[];
+  source: 'yjs' | 'initial_state';
+}
+
+export async function getCurrentDeckState(canvasId: string): Promise<CurrentDeckState> {
+  try {
+    const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`);
+    if (res.ok) {
+      const body = (await res.json()) as InternalStateResponse;
+      if (body.hasYState && isPageDefArray(body.pages) && body.pages.length > 0) {
+        return { pages: body.pages, source: 'yjs' };
+      }
+    } else {
+      log.warn(`internal GET state for ${canvasId} returned ${res.status}`);
+    }
+  } catch (err) {
+    log.warn(`internal GET state for ${canvasId} failed: ${err}`);
+  }
+  const initial = await readInitialState(canvasId);
+  const pages = initial?.pages;
+  return { pages: isPageDefArray(pages) ? pages : [], source: 'initial_state' };
+}
+
+export interface DeckChangesInput {
+  /**
+   * Full page set to seed a never-seeded Yjs doc with. Always sent — the
+   * Hocuspocus side ignores it when pages already exist, so this doubles as
+   * the retry-seed for decks whose mint happened while Hocuspocus was down.
+   */
+  seedPages: CanvasPageDef[];
+  pagePatches?: Array<{ pageId: string; patch: Record<string, unknown> }>;
+  pageOps?: Array<
+    { op: 'add'; index: number; page: CanvasPageDef } | { op: 'remove'; pageId: string }
+  >;
+  replacePages?: CanvasPageDef[];
+  /** Resulting full deck after the changes — mirrored into canvas_documents. */
+  newPages: CanvasPageDef[];
+}
+
+/**
+ * Apply deck changes (per-page patches, add/remove, restore). Mirrors the
+ * resulting deck into `canvas_documents.initial_state` as a FULL replace —
+ * jsonb `||` cannot deep-merge the pages array. Flat cover keys are kept
+ * alongside `pages` so gallery/thumbnail readers and the Hocuspocus-down
+ * fallback keep rendering something.
+ */
+export async function applyDeckChanges(canvasId: string, changes: DeckChangesInput): Promise<void> {
+  let internalOk = false;
+  try {
+    const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`, {
+      method: 'POST',
+      body: JSON.stringify({
+        seedPages: changes.seedPages,
+        ...(changes.pagePatches ? { pagePatches: changes.pagePatches } : {}),
+        ...(changes.pageOps ? { pageOps: changes.pageOps } : {}),
+        ...(changes.replacePages ? { replacePages: changes.replacePages } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
+    }
+    internalOk = true;
+  } catch (err) {
+    if (await hasYjsRows(canvasId)) {
+      throw new Error(
+        `Folien konnten nicht aktualisiert werden (Collab-Dienst nicht erreichbar): ${err}`
+      );
+    }
+    log.warn(
+      `Hocuspocus unreachable for ${canvasId}; doc has no Yjs state — ` +
+        `updating initial_state only (${err})`
+    );
+  }
+
+  const coverState = changes.newPages[0]?.state ?? {};
+  await db.query(
+    `UPDATE canvas_documents
+     SET initial_state = $2::jsonb,
+         page_count = $3::int,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE document_id = $1`,
+    [canvasId, JSON.stringify({ ...coverState, pages: changes.newPages }), changes.newPages.length]
+  );
+
+  log.info(
+    `Applied deck changes to canvas ${canvasId} ` +
+      `(pages=${changes.newPages.length}, patches=${changes.pagePatches?.length ?? 0}, ` +
+      `ops=${changes.pageOps?.length ?? 0}, restore=${changes.replacePages ? 'yes' : 'no'}, yjs=${internalOk})`
+  );
 }

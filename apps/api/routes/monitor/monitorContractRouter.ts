@@ -12,6 +12,11 @@
 import { monitorContract, type MonitorHotTopicAnalysis } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import {
+  getWhatHappened,
+  getWhatHappenedDaySummary,
+  upsertSyncEvents,
+} from '../../services/monitor/ContentSyncEventsService.js';
 import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
@@ -214,6 +219,31 @@ export const monitorContractRouter = s.router(monitorContract, {
     }
   },
 
+  whatHappenedSummary: async ({ query, res }) => {
+    try {
+      const result = await getWhatHappenedDaySummary(query.date, query.locale ?? 'de');
+      if (!result) {
+        return { status: 404 as const, body: { error: 'No articles for this date' } };
+      }
+      cache(res, 'private, max-age=600, stale-while-revalidate=1800');
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      log.error(`GET /what-happened/summary failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to generate digest' } };
+    }
+  },
+
+  whatHappened: async ({ query, res }) => {
+    try {
+      const result = await getWhatHappened(query);
+      cache(res, 'private, max-age=300, stale-while-revalidate=600');
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      log.error(`GET /what-happened failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch sync articles' } };
+    }
+  },
+
   entities: async ({ res }) => {
     cache(res, 'private, max-age=86400');
     return {
@@ -315,6 +345,23 @@ export const monitorContractRouter = s.router(monitorContract, {
       };
     } catch (error) {
       log.error(`Monitor refresh failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: toError(error).message } };
+    }
+  },
+
+  internalSyncEvents: async ({ body }) => {
+    try {
+      // A --force run re-indexes the whole corpus; its 'updated' events would
+      // flood the feed with re-index noise, so only genuinely new articles count.
+      const events = body.force ? body.events.filter((e) => e.eventType === 'stored') : body.events;
+      const upserted = await upsertSyncEvents(events, { runId: body.runId, runUrl: body.runUrl });
+      log.info(`Sync events ingested: ${body.events.length} received, ${upserted} upserted`);
+      return {
+        status: 200 as const,
+        body: { success: true, received: body.events.length, upserted },
+      };
+    } catch (error) {
+      log.error(`POST /sync-events failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: toError(error).message } };
     }
   },

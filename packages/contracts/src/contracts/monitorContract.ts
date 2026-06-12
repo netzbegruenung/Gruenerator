@@ -19,6 +19,8 @@ import { z } from 'zod';
 import {
   entityResultsResponseSchema,
   entitySummaryResponseSchema,
+  internalSyncEventsBodySchema,
+  internalSyncEventsResponseSchema,
   keywordInsightsResponseSchema,
   meinungsbildResponseSchema,
   monitorBriefingResponseSchema,
@@ -39,6 +41,10 @@ import {
   topicArticlesResponseSchema,
   topicCategorySchema,
   watcherEntitiesResponseSchema,
+  whatHappenedQuerySchema,
+  whatHappenedResponseSchema,
+  whatHappenedSummaryQuerySchema,
+  whatHappenedSummaryResponseSchema,
 } from '../schemas/monitor.js';
 
 const c = initContract();
@@ -181,6 +187,31 @@ export const monitorContract = c.router(
       summary: 'State election results (Landtagswahlen)',
     },
 
+    /** GET /api/monitor/what-happened/summary — lazy AI digest for one feed day. */
+    whatHappenedSummary: {
+      method: 'GET',
+      path: '/api/monitor/what-happened/summary',
+      query: whatHappenedSummaryQuerySchema,
+      responses: {
+        200: whatHappenedSummaryResponseSchema,
+        404: monitorErrorResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'AI digest of one day of content-sync additions',
+    },
+
+    /** GET /api/monitor/what-happened — content-sync article feed, day-grouped. */
+    whatHappened: {
+      method: 'GET',
+      path: '/api/monitor/what-happened',
+      query: whatHappenedQuerySchema,
+      responses: {
+        200: whatHappenedResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Articles added to notebooks by the content sync',
+    },
+
     /** GET /api/monitor/entities — watcher entity list. */
     entities: {
       method: 'GET',
@@ -241,6 +272,18 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Trigger a monitor refresh (admin token)',
+    },
+
+    /** POST /api/internal/monitor/sync-events — content-sync CI posts article events. */
+    internalSyncEvents: {
+      method: 'POST',
+      path: '/api/internal/monitor/sync-events',
+      body: internalSyncEventsBodySchema,
+      responses: {
+        200: internalSyncEventsResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Ingest content-sync article events (admin token)',
     },
 
     /** POST /api/internal/monitor/refresh-instagram — cron Instagram scrape. */
