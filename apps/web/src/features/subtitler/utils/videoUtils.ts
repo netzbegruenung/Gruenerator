@@ -53,3 +53,43 @@ export function getVideoMetadata(file: File): Promise<VideoMetadata> {
 }
 
 export const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;
+
+/**
+ * Plain (non-hook) TUS upload to the subtitler endpoint. Used by surfaces
+ * outside the studio wizard — e.g. chat video attachments — that only need
+ * the uploadId. Same retry/chunk settings as useTusUpload.
+ */
+export function uploadVideoToTus(
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<{ uploadId: string }> {
+  return new Promise((resolve, reject) => {
+    void import('tus-js-client').then((tus) => {
+      const tusUpload = new tus.Upload(file, {
+        endpoint: TUS_UPLOAD_ENDPOINT,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        chunkSize: 5 * 1024 * 1024,
+        metadata: { filename: file.name, filetype: file.type },
+        onError: () => {
+          reject(new Error('Upload fehlgeschlagen. Bitte versuche es erneut.'));
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          onProgress?.(Math.round((bytesUploaded / bytesTotal) * 100));
+        },
+        onSuccess: () => {
+          const uploadUrl = tusUpload.url;
+          const secureUrl = uploadUrl?.startsWith('http://localhost')
+            ? uploadUrl
+            : (uploadUrl?.replace('http://', 'https://') ?? '');
+          const uploadId = secureUrl.split('/').pop() ?? '';
+          if (!uploadId) {
+            reject(new Error('Upload fehlgeschlagen. Bitte versuche es erneut.'));
+            return;
+          }
+          resolve({ uploadId });
+        },
+      });
+      tusUpload.start();
+    }, reject);
+  });
+}
