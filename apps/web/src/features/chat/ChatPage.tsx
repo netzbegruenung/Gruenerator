@@ -2,6 +2,7 @@ import {
   ChatOverview,
   type NotebookLink,
   GrueneratorThread,
+  ReelArtifactPanel,
   SharepicArtifactPanel,
   setMentionLocale,
   useAgentStore,
@@ -184,6 +185,12 @@ function ChatPage() {
         // the user iterates via chat. Below xl the inline card stays the only
         // surface (the panel would crowd out the thread).
         <SharepicArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+      )}
+      {!hub && effectiveViewMode === 'thread' && (
+        // Reel-Modus: pins the reel video with a live subtitle overlay while
+        // the user edits subtitle text via chat. Renders null unless a reel
+        // is active, so it coexists with the sharepic panel.
+        <ReelArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
       )}
     </div>
   );
