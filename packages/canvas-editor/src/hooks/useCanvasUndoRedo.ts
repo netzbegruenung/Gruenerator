@@ -43,7 +43,7 @@ export function useCanvasUndoRedo<
   // Use individual selectors to avoid subscribing to entire store
   const canUndo = useStore(store, selectCanUndo);
   const canRedo = useStore(store, selectCanRedo);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingComponentStateRef = useRef<Record<string, unknown> | undefined>(undefined);
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
