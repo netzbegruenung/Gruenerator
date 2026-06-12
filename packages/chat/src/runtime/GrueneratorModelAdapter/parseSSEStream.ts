@@ -443,14 +443,17 @@ export async function* parseSSEStream(
             canvasId: string;
             version: number;
             canvasType: string;
-            state: Record<string, unknown>;
+            /** Single sharepics send `state`, decks send `pages` instead. */
+            state?: Record<string, unknown>;
+            pages?: Array<Record<string, unknown>>;
             summary: string;
           };
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,
             version: payload.version,
-            state: payload.state,
+            state: payload.state ?? null,
+            ...(payload.pages ? { pages: payload.pages } : {}),
             summary: payload.summary,
             thumbnailDirty: true,
           });

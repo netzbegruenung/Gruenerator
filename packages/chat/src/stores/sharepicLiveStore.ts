@@ -14,6 +14,8 @@ export interface SharepicLiveEntry {
   version: number | null;
   /** Full flat state of the latest version; null until first fetch/update. */
   state: Record<string, unknown> | null;
+  /** Per-slide states for deck variants (slider); null for single sharepics. */
+  pages?: Array<Record<string, unknown>> | null;
   summary?: string;
   /**
    * Set when the state changed through a real edit (SSE update / restore) —
@@ -34,6 +36,8 @@ export interface ActiveSharepic {
    */
   initialProps: Record<string, unknown>;
   label?: string;
+  /** Per-slide render seeds for deck variants (slider). */
+  pages?: Array<Record<string, unknown>>;
 }
 
 interface SharepicLiveStore {

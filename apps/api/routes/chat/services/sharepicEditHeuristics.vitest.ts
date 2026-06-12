@@ -36,6 +36,19 @@ describe('isSharepicEditInstruction', () => {
   it('requires an edit verb', () => {
     expect(isSharepicEditInstruction('was steht im wahlprogramm zum klimaschutz?')).toBe(false);
   });
+
+  it('matches slider-deck nouns (slide/folie/seite/karussell)', () => {
+    expect(isSharepicEditInstruction('mach die headline auf folie 2 kürzer')).toBe(true);
+    expect(isSharepicEditInstruction('ändere den text auf slide 3')).toBe(true);
+    expect(isSharepicEditInstruction('entferne seite 3')).toBe(true);
+    expect(isSharepicEditInstruction('mach das karussell dunkler')).toBe(true);
+    expect(isSharepicEditInstruction('ändere das cover')).toBe(true);
+  });
+
+  it('never fires on fresh-deck requests', () => {
+    expect(isSharepicEditInstruction('mach mir ein neues karussell')).toBe(false);
+    expect(isSharepicEditInstruction('erstelle einen neuen slider über klimaschutz')).toBe(false);
+  });
 });
 
 describe('hasSharepicEditVerb (relaxed Sharepic-Modus check)', () => {

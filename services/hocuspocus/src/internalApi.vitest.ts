@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 
-import { applyPatchToDoc, readMergedState } from './internalApi.js';
+import {
+  applyDeckChangesToDoc,
+  applyPatchToDoc,
+  readMergedState,
+  type PageDef,
+} from './internalApi.js';
 
 function buildPage(state: Record<string, unknown>): Y.Map<unknown> {
   const page = new Y.Map<unknown>();
@@ -56,5 +61,86 @@ describe('internal canvas API doc helpers', () => {
   it('reports hasYState=false for an empty doc', () => {
     const doc = new Y.Doc();
     expect(readMergedState(doc).hasYState).toBe(false);
+  });
+});
+
+const deckPages = (): PageDef[] => [
+  { id: 'p1', configId: 'slider', state: { headline: 'Cover', slideVariant: 'cover' } },
+  { id: 'p2', configId: 'slider', state: { headline: 'Fakt 1', slideVariant: 'content' } },
+  { id: 'p3', configId: 'slider', state: { headline: 'Ende', slideVariant: 'last' } },
+];
+
+describe('applyDeckChangesToDoc', () => {
+  it('seeds pages only when the doc has none', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    expect(readMergedState(doc).pages.map((p) => p.id)).toEqual(['p1', 'p2', 'p3']);
+
+    // Re-seeding with different content is a no-op.
+    applyDeckChangesToDoc(doc, {
+      seedPages: [{ id: 'x', configId: 'slider', state: {} }],
+    });
+    expect(readMergedState(doc).pages.map((p) => p.id)).toEqual(['p1', 'p2', 'p3']);
+  });
+
+  it('patches a single page by id and leaves the others untouched', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyDeckChangesToDoc(doc, {
+      pagePatches: [{ pageId: 'p2', patch: { headline: 'Gepatcht' } }],
+    });
+
+    const { pages } = readMergedState(doc);
+    expect(pages[1].state.headline).toBe('Gepatcht');
+    expect(pages[0].state.headline).toBe('Cover');
+    expect(pages[2].state.headline).toBe('Ende');
+  });
+
+  it('never touches formState (deck writes are page-scoped)', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyDeckChangesToDoc(doc, {
+      pagePatches: [{ pageId: 'p1', patch: { headline: 'Neu' } }],
+    });
+    expect(doc.getMap<unknown>('formState').size).toBe(0);
+  });
+
+  it('adds and removes pages by id', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyDeckChangesToDoc(doc, {
+      pageOps: [
+        {
+          op: 'add',
+          index: 2,
+          page: { id: 'p4', configId: 'slider', state: { headline: 'Fakt 2' } },
+        },
+        { op: 'remove', pageId: 'p2' },
+      ],
+    });
+
+    const { pages } = readMergedState(doc);
+    expect(pages.map((p) => p.id)).toEqual(['p1', 'p4', 'p3']);
+  });
+
+  it('replacePages swaps the whole deck (restore)', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyDeckChangesToDoc(doc, {
+      replacePages: [{ id: 'r1', configId: 'slider', state: { headline: 'Restored' } }],
+    });
+
+    const { pages } = readMergedState(doc);
+    expect(pages).toHaveLength(1);
+    expect(pages[0].state.headline).toBe('Restored');
+  });
+
+  it('flat-patch regression: applyPatchToDoc still mirrors into every page', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyPatchToDoc(doc, { headline: 'Überall' }, null);
+
+    const { pages } = readMergedState(doc);
+    for (const p of pages) expect(p.state.headline).toBe('Überall');
   });
 });

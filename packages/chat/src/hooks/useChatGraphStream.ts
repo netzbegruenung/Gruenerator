@@ -38,6 +38,8 @@ export interface SharepicVariant {
   label?: string;
   /** Set once the variant has been minted into a canvas document (chat editing). */
   canvasId?: string;
+  /** Per-slide states for deck variants (slider carousel). */
+  pages?: Array<Record<string, unknown>>;
 }
 
 export interface SharepicData {

@@ -113,23 +113,45 @@ function mapToResponseFormat(
   }
 }
 
-export async function handleUnifiedRequest(
+export interface UnifiedTextBody {
+  thema?: string | undefined;
+  details?: string | undefined;
+  quote?: string | undefined;
+  name?: string | undefined;
+  count?: number | undefined;
+  _campaignPrompt?: unknown;
+}
+
+export type UnifiedTextResult =
+  | {
+      success: true;
+      mainKey: string;
+      main: Record<string, unknown> | string;
+      alternatives: Array<Record<string, unknown> | string>;
+      searchTerms: string[];
+    }
+  | { success: false; status: 400 | 500; error: string };
+
+/**
+ * Core of the unified sharepic text generation, extracted from the Express
+ * handler so the chat pipeline can call it without an HTTP round-trip. `req`
+ * is only used for worker-pool access (`getAIWorkerPool`).
+ */
+export async function generateUnifiedTexts(
   req: SharepicRequest,
-  res: Response,
-  type: string
-): Promise<void> {
+  type: string,
+  body: UnifiedTextBody
+): Promise<UnifiedTextResult> {
   const config = TYPE_CONFIGS[type];
   if (!config) {
-    res.status(400).json({ success: false, error: `Unknown type: ${type}` });
-    return;
+    return { success: false, status: 400, error: `Unknown type: ${type}` };
   }
 
-  const { thema, details, quote, name, count = 1 } = req.body;
-  const rawPromptConfig = req.body._campaignPrompt || prompts[type as keyof typeof prompts];
+  const { thema, details, quote, name, count = 1 } = body;
+  const rawPromptConfig = body._campaignPrompt || prompts[type as keyof typeof prompts];
 
   if (!rawPromptConfig) {
-    res.status(400).json({ success: false, error: `No prompt config for type: ${type}` });
-    return;
+    return { success: false, status: 400, error: `No prompt config for type: ${type}` };
   }
 
   const promptConfig = rawPromptConfig as PromptConfig;
@@ -239,21 +261,14 @@ export async function handleUnifiedRequest(
         searchTerms = processedData.suchbegriff ? [processedData.suchbegriff] : [];
       }
 
-      const response: Record<string, unknown> = {
+      log.info(`[${type}] Success on attempt ${attempts}`);
+      return {
         success: true,
-        [config.mainKey]: mainData,
+        mainKey: config.mainKey,
+        main: mainData,
         alternatives,
         searchTerms,
       };
-
-      if (type === 'zitat' || type === 'zitat_pure') {
-        response.quote = mainData;
-        response.name = name || '';
-      }
-
-      log.info(`[${type}] Success on attempt ${attempts}`);
-      res.json(response);
-      return;
     } catch (error) {
       lastError = (error as Error).message;
       log.error(`[${type}] Attempt ${attempts} exception:`, error);
@@ -261,8 +276,37 @@ export async function handleUnifiedRequest(
   }
 
   log.error(`[${type}] Failed after ${maxAttempts} attempts:`, lastError);
-  res.status(500).json({
+  return {
     success: false,
+    status: 500,
     error: `Failed after ${maxAttempts} attempts: ${lastError}`,
-  });
+  };
+}
+
+/** Thin Express wrapper around `generateUnifiedTexts` — response JSON unchanged. */
+export async function handleUnifiedRequest(
+  req: SharepicRequest,
+  res: Response,
+  type: string
+): Promise<void> {
+  const result = await generateUnifiedTexts(req, type, req.body);
+
+  if (!result.success) {
+    res.status(result.status).json({ success: false, error: result.error });
+    return;
+  }
+
+  const response: Record<string, unknown> = {
+    success: true,
+    [result.mainKey]: result.main,
+    alternatives: result.alternatives,
+    searchTerms: result.searchTerms,
+  };
+
+  if (type === 'zitat' || type === 'zitat_pure') {
+    response.quote = result.main;
+    response.name = req.body.name || '';
+  }
+
+  res.json(response);
 }
