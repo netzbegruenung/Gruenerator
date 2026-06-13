@@ -72,17 +72,39 @@ const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+/**
+ * Videos take the reel path: TUS upload to the subtitler endpoint instead of
+ * base64 into the request body, so they get their own (much larger) size cap
+ * matching the TUS server limit. NOTE: `video/mp2t` must never appear here —
+ * browsers report TypeScript files as video/mp2t (see TEXT_EXTENSION_OVERRIDES).
+ */
+const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
+
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
 const MAX_FILES = 10;
+const MAX_VIDEO_FILE_SIZE = 500 * 1024 * 1024;
 
 export function isImageMimeType(mimeType: string): boolean {
   return IMAGE_MIME_TYPES.has(mimeType);
 }
 
+export function isVideoMimeType(mimeType: string): boolean {
+  return VIDEO_MIME_TYPES.has(mimeType);
+}
+
 export function validateFile(file: File): void {
   if (!file) {
     throw new Error('Keine Datei ausgewählt');
+  }
+
+  if (isVideoMimeType(file.type)) {
+    if (file.size > MAX_VIDEO_FILE_SIZE) {
+      const sizeMB = Math.round(file.size / (1024 * 1024));
+      const maxSizeMB = Math.round(MAX_VIDEO_FILE_SIZE / (1024 * 1024));
+      throw new Error(`Video zu groß: ${file.name} (${sizeMB}MB). Maximum: ${maxSizeMB}MB`);
+    }
+    return;
   }
 
   if (!isSupportedFileType(file.type, file.name)) {
@@ -112,7 +134,11 @@ export function validateFiles(files: File[]): void {
     validateFile(file);
   }
 
-  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  // Videos upload via TUS (never base64 into the request), so they don't
+  // count against the base64 payload budget.
+  const totalSize = files
+    .filter((file) => !isVideoMimeType(file.type))
+    .reduce((sum, file) => sum + file.size, 0);
   if (totalSize > MAX_TOTAL_SIZE) {
     const totalSizeMB = Math.round(totalSize / (1024 * 1024));
     const maxTotalSizeMB = Math.round(MAX_TOTAL_SIZE / (1024 * 1024));
@@ -255,7 +281,7 @@ export function createFilesSummary(processedFiles: ProcessedFile[]): FileSummary
 export function getAcceptedFileTypes(): string {
   const mimeTypes = Object.keys(ALLOWED_FILE_TYPES);
   const extensions = [...TEXT_EXTENSION_OVERRIDES];
-  return [...mimeTypes, ...extensions].join(',');
+  return [...mimeTypes, ...VIDEO_MIME_TYPES, ...extensions].join(',');
 }
 
 export const FILE_LIMITS = {
