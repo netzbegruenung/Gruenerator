@@ -16,6 +16,8 @@ import {
   pollsHistoryResponseSchema,
   type EuGreensData,
   type EuGreensHistoryData,
+  type PollData,
+  type PollResult,
   type PollsHistoryData,
 } from '@gruenerator/contracts';
 import { z } from 'zod';
@@ -23,8 +25,6 @@ import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
-
-import type { PollData, PollResult } from './PollScraper.js';
 
 const log = createLogger('PolitPro');
 

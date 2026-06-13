@@ -194,7 +194,7 @@ export const pollDataSchema = z.object({
   lastElection: pollResultSchema.nullable(),
   average: z.record(z.string(), z.number()),
   scrapedAt: z.string(),
-  // Present only when PolitPro served the data (else the wahlrecht.de fallback).
+  // Optional only for legacy cached payloads — PolitPro is the sole source.
   source: z.literal('politpro').optional(),
   parliament: z.string().optional(),
   trend: z

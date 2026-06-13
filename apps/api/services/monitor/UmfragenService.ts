@@ -2,7 +2,6 @@ import { createLogger } from '../../utils/logger.js';
 
 import { lookupMeinungsbildByTopic } from './MeinungsbildService.js';
 import { getPolitProPolls } from './PolitProService.js';
-import { getPolls } from './PollScraper.js';
 import { findStateElection } from './StateElectionsService.js';
 
 const log = createLogger('Umfragen');
@@ -18,8 +17,7 @@ function formatAverage(average: Record<string, number>, limit = 8): string {
 
 /**
  * Build a Sonntagsfrage (party-poll) block for the chat. Per-Bundesland via
- * PolitPro when a state is given, otherwise the national aggregate (PolitPro
- * with the wahlrecht.de scrape as fallback).
+ * PolitPro when a state is given, otherwise the national PolitPro aggregate.
  */
 async function sonntagsfrageBlock(bundesland?: string): Promise<string | null> {
   const state = bundesland ? await findStateElection(bundesland) : null;
@@ -37,20 +35,6 @@ async function sonntagsfrageBlock(bundesland?: string): Promise<string | null> {
     }
   } catch (error) {
     log.error(`PolitPro lookup failed (${parliament}): ${error}`);
-  }
-
-  // National wahlrecht.de fallback (no per-Bundesland data there).
-  if (!state) {
-    try {
-      const polls = await getPolls();
-      if (polls && Object.keys(polls.average).length > 0) {
-        return [`Sonntagsfrage Deutschland (Bundestag):`, `  ${formatAverage(polls.average)}`].join(
-          '\n'
-        );
-      }
-    } catch (error) {
-      log.error(`wahlrecht fallback failed: ${error}`);
-    }
   }
 
   return null;
@@ -78,7 +62,7 @@ export async function lookupUmfragen(topic: string, bundesland?: string): Promis
 
   return (
     parts.join('\n\n---\n\n') +
-    '\n\nQuellen: Sonntagsfrage via PolitPro/wahlrecht.de; Meinungsbild (MRP) aus GERDA — ' +
+    '\n\nQuellen: Sonntagsfrage via PolitPro; Meinungsbild (MRP) aus GERDA — ' +
     'German Election Database (Heddesheimer, Hilbig, Sichart & Wiedemann, 2025).'
   );
 }
