@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { useTheme } from '../../hooks/useTheme';
 import { colors, typography, spacing, borderRadius } from '../../theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -33,6 +34,7 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const theme = useTheme();
   const isDisabled = disabled || loading;
 
   const handlePress = () => {
@@ -48,7 +50,7 @@ export function Button({
       case 'secondary':
         return styles.secondaryButton;
       case 'outline':
-        return styles.outlineButton;
+        return { ...styles.outlineButton, borderColor: theme.textGreen };
       case 'ghost':
         return styles.ghostButton;
     }
@@ -61,9 +63,8 @@ export function Button({
       case 'secondary':
         return styles.secondaryText;
       case 'outline':
-        return styles.outlineText;
       case 'ghost':
-        return styles.ghostText;
+        return { color: theme.textGreen };
     }
   };
 
@@ -72,9 +73,10 @@ export function Button({
       case 'primary':
         return colors.white;
       case 'secondary':
+        return colors.primary[600];
       case 'outline':
       case 'ghost':
-        return colors.primary[600];
+        return theme.textGreen;
     }
   };
 
@@ -132,16 +134,9 @@ const styles = StyleSheet.create({
   outlineButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.primary[600],
-  },
-  outlineText: {
-    color: colors.primary[600],
   },
   ghostButton: {
     backgroundColor: 'transparent',
-  },
-  ghostText: {
-    color: colors.primary[600],
   },
   disabled: {
     opacity: 0.5,
