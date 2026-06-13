@@ -9,32 +9,43 @@
  *   - /api/monitor/*          → requireAuth + publicReadLimiter
  *   - /api/internal/monitor/* → requireAdminToken
  */
-import { monitorContract } from '@gruenerator/contracts';
+import {
+  monitorContract,
+  type MonitorHotTopicAnalysis,
+  type PollData,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { generateKeywordInsights } from '../../services/monitor/KeywordInsightsGraph.js';
+import {
+  getWhatHappened,
+  getWhatHappenedDaySummary,
+  upsertSyncEvents,
+} from '../../services/monitor/ContentSyncEventsService.js';
+import { getEuGreenProfile } from '../../services/monitor/EuGreenProfileService.js';
+import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
-import { generateMonitorBriefing } from '../../services/monitor/MonitorBriefingGraph.js';
 import {
   getLatestSnapshot,
   getHistory,
   getTopicArticles,
   searchArticles,
   searchArticlesByKeywords,
-  getStimmung,
   refreshMonitor,
   refreshInstagram,
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
-import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/PolitProService.js';
-import { getPolls } from '../../services/monitor/PollScraper.js';
+import {
+  getEuGreens,
+  getEuGreensHistory,
+  getPolitProHistory,
+  getPolitProPolls,
+  POLITPRO_PARLIAMENTS,
+} from '../../services/monitor/PolitProService.js';
 import { getStateElections } from '../../services/monitor/StateElectionsService.js';
-import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
 
 import type { Application, Response } from 'express';
 
@@ -42,6 +53,15 @@ const log = createLogger('monitorContractRouter');
 
 function cache(res: Response, value: string): void {
   res.setHeader('Cache-Control', value);
+}
+
+function toBriefingBody(analysis: MonitorHotTopicAnalysis) {
+  return {
+    briefing: analysis.briefing,
+    tweets: analysis.tweets,
+    generatedAt: analysis.generatedAt,
+    citations: analysis.citations,
+  };
 }
 
 const s = initServer();
@@ -100,13 +120,23 @@ export const monitorContractRouter = s.router(monitorContract, {
   keywordInsights: async ({ query, res }) => {
     try {
       const locale = query.locale ?? 'de';
-      const snapshot = await getLatestSnapshot();
-      if (!snapshot?.keywords?.length) {
-        return { status: 404 as const, body: { error: 'No keywords available' } };
+      const snapshot = await getLatestSnapshot(locale);
+      if (!snapshot) {
+        return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const insights = await generateKeywordInsights(snapshot.keywords, locale);
+      const analysis = await getHotTopicAnalysis(locale, snapshot);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: insights };
+      return {
+        status: 200 as const,
+        body: {
+          text: analysis.positionsText,
+          dominantTopic: analysis.dominantTopic,
+          secondaryTopics: analysis.secondaryTopics,
+          citations: analysis.citations,
+          confidence: analysis.confidence,
+          generatedAt: analysis.generatedAt,
+        },
+      };
     } catch (error) {
       log.error(`GET /keyword-insights failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to generate keyword insights' } };
@@ -116,17 +146,13 @@ export const monitorContractRouter = s.router(monitorContract, {
   briefing: async ({ query, res }) => {
     try {
       const locale = query.locale ?? 'de';
-      const [snapshot, stimmung, pollData] = await Promise.all([
-        getLatestSnapshot(locale),
-        getStimmung(locale),
-        getPolls(),
-      ]);
+      const snapshot = await getLatestSnapshot(locale);
       if (!snapshot) {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const result = await generateMonitorBriefing(locale, snapshot, stimmung, pollData.average);
+      const analysis = await getHotTopicAnalysis(locale, snapshot);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: result };
+      return { status: 200 as const, body: toBriefingBody(analysis) };
     } catch (error) {
       log.error(`GET /briefing failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to generate briefing' } };
@@ -136,17 +162,12 @@ export const monitorContractRouter = s.router(monitorContract, {
   refreshBriefing: async ({ query }) => {
     try {
       const locale = query.locale ?? 'de';
-      await redisClient.del(`monitor:briefing:${locale}`);
-      const [snapshot, stimmung, pollData] = await Promise.all([
-        getLatestSnapshot(locale),
-        getStimmung(locale),
-        getPolls(),
-      ]);
+      const snapshot = await getLatestSnapshot(locale);
       if (!snapshot) {
         return { status: 404 as const, body: { error: 'No monitor data available' } };
       }
-      const result = await generateMonitorBriefing(locale, snapshot, stimmung, pollData.average);
-      return { status: 200 as const, body: result };
+      const analysis = await getHotTopicAnalysis(locale, snapshot, { forceRefresh: true });
+      return { status: 200 as const, body: toBriefingBody(analysis) };
     } catch (error) {
       log.error(`POST /briefing/refresh failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to regenerate briefing' } };
@@ -158,16 +179,77 @@ export const monitorContractRouter = s.router(monitorContract, {
     return { status: 200 as const, body: [...POLITPRO_PARLIAMENTS] };
   },
 
+  euGreensHistory: async ({ res }) => {
+    try {
+      const data = await getEuGreensHistory();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'EU greens history unavailable' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens/history failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch EU greens history' } };
+    }
+  },
+
+  euGreenProfile: async ({ query, res }) => {
+    try {
+      const data = await getEuGreenProfile(query.country);
+      if (!data) {
+        return { status: 404 as const, body: { error: 'Unknown party' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens/profile failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to generate party profile' } };
+    }
+  },
+
+  euGreens: async ({ res }) => {
+    try {
+      const data = await getEuGreens();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'EU greens data unavailable' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch EU greens data' } };
+    }
+  },
+
+  pollsHistory: async ({ query, res }) => {
+    try {
+      const data = await getPolitProHistory(query.parliament ?? 'deutschland');
+      if (!data) {
+        return { status: 404 as const, body: { error: 'No history for this parliament' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/history failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch poll history' } };
+    }
+  },
+
   polls: async ({ query, res }) => {
     try {
       const parliament = query.parliament ?? 'deutschland';
-      const politProData = await getPolitProPolls(parliament);
-      if (!politProData) {
-        log.warn(`PolitPro returned null for "${parliament}", falling back to wahlrecht.de`);
-      }
-      const data = politProData ?? (await getPolls());
+      // PolitPro is the only poll source — if it has nothing, serve empty data.
+      const data: PollData | null = await getPolitProPolls(parliament);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: data };
+      return {
+        status: 200 as const,
+        body: data ?? {
+          polls: [],
+          lastElection: null,
+          average: {},
+          scrapedAt: new Date().toISOString(),
+        },
+      };
     } catch (error) {
       log.error(`GET /polls failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch polls' } };
@@ -202,19 +284,28 @@ export const monitorContractRouter = s.router(monitorContract, {
     }
   },
 
-  stimmung: async ({ query, res }) => {
+  whatHappenedSummary: async ({ query, res }) => {
     try {
-      const stimmung = await getStimmung(query.locale);
-      const summary = await getStimmungSummary(query.locale, stimmung).catch(() => null);
-      if (summary) {
-        stimmung.moodSummary = summary.moodSummary;
-        stimmung.moodReason = summary.dominantReason;
+      const result = await getWhatHappenedDaySummary(query.date, query.locale ?? 'de');
+      if (!result) {
+        return { status: 404 as const, body: { error: 'No articles for this date' } };
       }
-      cache(res, 'private, max-age=300, stale-while-revalidate=600');
-      return { status: 200 as const, body: stimmung };
+      cache(res, 'private, max-age=600, stale-while-revalidate=1800');
+      return { status: 200 as const, body: result };
     } catch (error) {
-      log.error(`GET /stimmung failed: ${toError(error).message}`);
-      return { status: 500 as const, body: { error: 'Failed to fetch stimmung' } };
+      log.error(`GET /what-happened/summary failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to generate digest' } };
+    }
+  },
+
+  whatHappened: async ({ query, res }) => {
+    try {
+      const result = await getWhatHappened(query);
+      cache(res, 'private, max-age=300, stale-while-revalidate=600');
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      log.error(`GET /what-happened failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch sync articles' } };
     }
   },
 
@@ -319,6 +410,23 @@ export const monitorContractRouter = s.router(monitorContract, {
       };
     } catch (error) {
       log.error(`Monitor refresh failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: toError(error).message } };
+    }
+  },
+
+  internalSyncEvents: async ({ body }) => {
+    try {
+      // A --force run re-indexes the whole corpus; its 'updated' events would
+      // flood the feed with re-index noise, so only genuinely new articles count.
+      const events = body.force ? body.events.filter((e) => e.eventType === 'stored') : body.events;
+      const upserted = await upsertSyncEvents(events, { runId: body.runId, runUrl: body.runUrl });
+      log.info(`Sync events ingested: ${body.events.length} received, ${upserted} upserted`);
+      return {
+        status: 200 as const,
+        body: { success: true, received: body.events.length, upserted },
+      };
+    } catch (error) {
+      log.error(`POST /sync-events failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: toError(error).message } };
     }
   },

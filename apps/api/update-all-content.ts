@@ -43,6 +43,7 @@ import { grueneAtScraperService } from './services/scrapers/implementations/Grue
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
+import { drainSyncEvents } from './services/scrapers/syncEventRecorder.js';
 import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface CliArgs {
@@ -499,6 +500,10 @@ async function main() {
   writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
   console.log(`Summary written to ${summaryPath}`);
 
+  // POST article-level events to the API (CI has no Postgres access).
+  // Never fails the run — the feed is best-effort, the sync result is not.
+  await postSyncEvents(args);
+
   // Send email notification via existing Brevo SMTP (never crash on email failure).
   // Per-LV runs (--landesverband): recipient comes from landesverbaendeContacts.json,
   // and the email is suppressed when nothing changed (stored + updated + hard errors == 0).
@@ -544,6 +549,60 @@ async function main() {
   }
 
   process.exit(failed.length > 0 ? 1 : 0);
+}
+
+/**
+ * Send the recorded article events to /api/internal/monitor/sync-events in
+ * chunks. The matrix jobs each POST their own disjoint events; the endpoint's
+ * (source_url, event_date) upsert makes retries idempotent.
+ */
+async function postSyncEvents(args: CliArgs): Promise<void> {
+  const events = drainSyncEvents();
+  if (args.dryRun || events.length === 0) return;
+
+  if (!env.ADMIN_TOKEN) {
+    console.log('Sync events: ADMIN_TOKEN not set — skipping POST');
+    return;
+  }
+
+  const apiBase = (env.CONTENT_SYNC_API_URL ?? 'https://gruenerator.eu').replace(/\/$/, '');
+  const endpoint = `${apiBase}/api/internal/monitor/sync-events`;
+  const runId = env.GITHUB_RUN_ID ?? null;
+  const repo = env.GITHUB_REPOSITORY;
+  const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
+  const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : null;
+
+  const CHUNK_SIZE = 500;
+  const MAX_ATTEMPTS = 3;
+
+  for (let start = 0; start < events.length; start += CHUNK_SIZE) {
+    const chunk = events.slice(start, start + CHUNK_SIZE);
+    const body = JSON.stringify({ runId, runUrl, force: args.force, events: chunk });
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': env.ADMIN_TOKEN },
+          body,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        console.log(
+          `Sync events: posted ${chunk.length} events (${start + chunk.length}/${events.length})`
+        );
+        break;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (attempt === MAX_ATTEMPTS) {
+          console.error(
+            `Sync events: POST failed after ${MAX_ATTEMPTS} attempts (non-fatal): ${msg}`
+          );
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+        }
+      }
+    }
+  }
 }
 
 main().catch((err) => {

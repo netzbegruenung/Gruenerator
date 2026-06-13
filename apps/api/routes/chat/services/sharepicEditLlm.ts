@@ -93,20 +93,26 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
   }
   if (supported.has('update-element') && descriptor.elements.length > 0) {
     lines.push(
-      '  - { "kind": "update-element", "elementId": "<id>", "patch": { "x"?: Zahl, "y"?: Zahl, "scale"?: Zahl } }'
+      '  - { "kind": "update-element", "elementId": "<id>", "patch": { "x"?: Zahl, "y"?: Zahl, "scale"?: Zahl, "opacity"?: 0..1 } }'
     );
     for (const el of descriptor.elements) {
-      const scalePart = el.scale ? `, scale ${el.scale.min}–${el.scale.max}` : '';
-      // Offset elements (bounds spanning negative y) move relative to their
-      // anchor; absolute elements use canvas coordinates where smaller y is
-      // higher up. The wrong hint sends the model in the wrong direction.
-      const directionHint =
-        el.bounds.minY < 0
-          ? 'Negative y = nach oben.'
-          : 'Absolute Position: kleinere y-Werte = weiter oben.';
-      lines.push(
-        `    elementId "${el.id}" (${el.label}): x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY}${scalePart}. ${directionHint}`
-      );
+      const caps: string[] = [];
+      let directionHint = '';
+      if (el.positionStateKey && el.bounds) {
+        caps.push(`x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY}`);
+        // Offset elements (bounds spanning negative y) move relative to their
+        // anchor; absolute elements use canvas coordinates where smaller y is
+        // higher up. The wrong hint sends the model in the wrong direction.
+        directionHint =
+          el.bounds.minY < 0
+            ? ' Negative y = nach oben.'
+            : ' Absolute Position: kleinere y-Werte = weiter oben.';
+      } else {
+        caps.push('nicht verschiebbar');
+      }
+      if (el.scale) caps.push(`scale ${el.scale.min}–${el.scale.max}`);
+      if (el.opacity) caps.push(`opacity ${el.opacity.min}–${el.opacity.max} (0 = unsichtbar)`);
+      lines.push(`    elementId "${el.id}" (${el.label}): ${caps.join(', ')}.${directionHint}`);
     }
   }
   if (supported.has('set-background-image')) {
@@ -115,6 +121,29 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
     );
   }
   return lines;
+}
+
+/**
+ * Operation catalog for slider decks: the per-slide vocabulary above gets
+ * wrapped in deck operations that target slides by 1-based number.
+ */
+export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDescriptor): string[] {
+  const fontBounds = descriptor.textFields
+    .filter((f) => f.fontSize)
+    .map((f) => `${f.field}: ${f.fontSize!.min}–${f.fontSize!.max}px`)
+    .join(', ');
+  const schemeIds =
+    descriptor.colorSchemes?.options.map((o) => `"${o.id}" (${o.label})`).join(', ') ?? '';
+  return [
+    'ERLAUBTE OPERATIONEN (genaue Schemas, Schlüssel ist "kind"):',
+    '  - { "kind": "edit-slide", "slide": <Nr>, "operations": [ ... ] } — ändert EINE Folie. Erlaubte innere Operationen:',
+    '      { "kind": "set-text", "field": "label" | "headline" | "subtext" | "subtext2", "label": "<Label>", "value": "<neuer Text>" }',
+    `      { "kind": "set-font-size", "field": "<field>", "label": "<Label>", "size": <Zahl> } (${fontBounds})`,
+    `      { "kind": "set-color-scheme", "schemeId": <id> } — nur: ${schemeIds}. Gilt IMMER für das GANZE Karussell.`,
+    '      Hinweis: "label" gibt es nur auf dem Cover (Slide 1), "subtext2" nur auf Inhalts-Folien.',
+    '  - { "kind": "add-slide", "afterSlide"?: <Nr>, "headline": "<Text>", "subtext"?: "<Text>", "subtext2"?: "<Text>" } — neue Inhalts-Folie (ohne afterSlide: vor der Abschluss-Folie).',
+    '  - { "kind": "remove-slide", "slide": <Nr> } — Cover (1) und Abschluss-Folie sind geschützt.',
+  ];
 }
 
 function buildSystemPrompt(

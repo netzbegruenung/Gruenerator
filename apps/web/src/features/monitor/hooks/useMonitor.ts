@@ -1,34 +1,57 @@
 import {
   type EntityResult,
   type EntitySummaryResult,
+  type EuGreenProfileData,
+  type EuGreensData,
+  type EuGreensHistoryData,
   type KeywordInsightsResult,
   type MeinungsbildData,
   type MeinungsbildEstimate,
   type MeinungsbildIssue,
   type MonitorArticle,
   type MonitorBriefingResult,
+  type MonitorCitation,
   type MonitorHistoryEntry,
   type MonitorLocale,
   type MonitorSearchResult,
   type MonitorSnapshot,
   type PollData,
   type PollParliament,
+  type PollsHistoryData,
   type StateElectionResult,
   type StateElectionsData,
-  type StimmungResult,
   type TopicScore,
   type WatcherEntityInfo,
+  type WhatHappenedQuery,
+  type WhatHappenedResult,
+  type WhatHappenedSummaryResult,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import apiClient from '../../../components/utils/apiClient';
 
 import type { TopicCategory } from '../topicConfig';
 
 /** Build the typed `locale` query object, omitting the key when undefined. */
 function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
   return locale ? { locale } : {};
+}
+
+/** Link config for monitor citation renderers (briefing + positions card). */
+export const MONITOR_CITATION_LINK_CONFIG = {
+  type: 'vectorDocument' as const,
+  basePath: '/documents',
+  linkKey: 'document_id',
+  titleKey: 'document_title',
+};
+
+/** Map contract citations to the shape CitationTextRenderer/-SourcesDisplay expect. */
+export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
+  return (citations ?? []).map((c) => ({
+    index: Number(c.id),
+    document_title: c.title,
+    source_url: c.url,
+    cited_text: c.snippet,
+  }));
 }
 
 export function useMonitorSnapshot(locale?: MonitorLocale) {
@@ -120,19 +143,6 @@ export function useMonitorBriefing(locale?: MonitorLocale) {
   });
 }
 
-export function useStimmung(locale?: MonitorLocale) {
-  return useQuery({
-    queryKey: ['monitor', 'stimmung', locale],
-    queryFn: async (): Promise<StimmungResult> => {
-      const res = await getContractsClient().monitor.stimmung({ query: localeQuery(locale) });
-      if (res.status === 200) return res.body;
-      throw new Error('Stimmung konnte nicht geladen werden.');
-    },
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-  });
-}
-
 export function usePolls(parliament = 'deutschland') {
   return useQuery({
     queryKey: ['monitor', 'polls', parliament],
@@ -143,6 +153,68 @@ export function usePolls(parliament = 'deutschland') {
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+  });
+}
+
+export function useEuGreens() {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'eu-greens'],
+    queryFn: async (): Promise<EuGreensData> => {
+      const res = await getContractsClient().monitor.euGreens();
+      if (res.status === 200) return res.body;
+      throw new Error('EU-Daten konnten nicht geladen werden.');
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useEuGreensHistory(enabled = true) {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'eu-greens-history'],
+    queryFn: async (): Promise<EuGreensHistoryData> => {
+      const res = await getContractsClient().monitor.euGreensHistory();
+      if (res.status === 200) return res.body;
+      throw new Error('EU-Trenddaten konnten nicht geladen werden.');
+    },
+    enabled,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useEuGreenProfile(countryCode: string | null) {
+  return useQuery({
+    queryKey: ['monitor', 'eu-green-profile', countryCode],
+    queryFn: async (): Promise<EuGreenProfileData> => {
+      if (!countryCode) throw new Error('Kein Land ausgewählt.');
+      const res = await getContractsClient().monitor.euGreenProfile({
+        query: { country: countryCode },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Partei-Profil konnte nicht geladen werden.');
+    },
+    enabled: !!countryCode,
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: 48 * 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function usePollsHistory(parliament = 'deutschland', enabled = true) {
+  return useQuery({
+    queryKey: ['monitor', 'polls', 'history', parliament],
+    queryFn: async (): Promise<PollsHistoryData> => {
+      const res = await getContractsClient().monitor.pollsHistory({ query: { parliament } });
+      if (res.status === 200) return res.body;
+      throw new Error('Trendverlauf konnte nicht geladen werden.');
+    },
+    enabled,
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
+    retry: 1,
   });
 }
 
@@ -207,6 +279,42 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
   });
 }
 
+export function useWhatHappened(
+  locale?: MonitorLocale,
+  opts: Omit<WhatHappenedQuery, 'locale'> = {}
+) {
+  return useQuery({
+    queryKey: ['monitor', 'what-happened', locale, opts],
+    queryFn: async (): Promise<WhatHappenedResult> => {
+      const res = await getContractsClient().monitor.whatHappened({
+        query: { ...opts, ...localeQuery(locale) },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Neue Inhalte konnten nicht geladen werden.');
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+}
+
+/** Lazy per-day AI digest — only fetched once the user expands the card. */
+export function useWhatHappenedSummary(date: string, locale?: MonitorLocale, enabled = false) {
+  return useQuery({
+    queryKey: ['monitor', 'what-happened-summary', date, locale],
+    queryFn: async (): Promise<WhatHappenedSummaryResult> => {
+      const res = await getContractsClient().monitor.whatHappenedSummary({
+        query: { date, ...localeQuery(locale) },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Zusammenfassung konnte nicht erstellt werden.');
+    },
+    enabled,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
 export function useBriefingRefresh(locale?: MonitorLocale) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -218,7 +326,10 @@ export function useBriefingRefresh(locale?: MonitorLocale) {
       throw new Error('Briefing konnte nicht neu generiert werden.');
     },
     onSuccess: () => {
+      // Briefing and positions card derive from the same hot-topic analysis —
+      // a forced regeneration refreshes both.
       void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
+      void queryClient.invalidateQueries({ queryKey: ['monitor', 'keyword-insights'] });
     },
   });
 }
@@ -263,34 +374,7 @@ export function useStateElections() {
   });
 }
 
-// ─── Research-backed topic positions (not part of the monitor contract) ──────
-
-interface TopicPositionResult {
-  document_title: string;
-  source_url: string;
-  relevant_content: string;
-  similarity_score: number;
-  collection_name: string;
-}
-
-export function useTopicPosition(keyword?: string) {
-  return useQuery<TopicPositionResult | null>({
-    queryKey: ['monitor', 'position', keyword],
-    queryFn: async () => {
-      const { data } = await apiClient.post<{ results?: TopicPositionResult[] }>(
-        '/research/search',
-        {
-          query: keyword,
-          collectionIds: ['grundsatz-system', 'bundestagsfraktion-system'],
-          limit: 1,
-        }
-      );
-      return data.results?.[0] ?? null;
-    },
-    enabled: !!keyword,
-    staleTime: 30 * 60 * 1000,
-  });
-}
+// ─── Research-backed topic documents (research contract) ─────────────────────
 
 const TOPIC_DOCUMENT_COLLECTIONS: Record<MonitorLocale, string[]> = {
   de: ['boell-stiftung-system', 'kommunalwiki-system', 'bundestagsfraktion-system'],
@@ -298,20 +382,20 @@ const TOPIC_DOCUMENT_COLLECTIONS: Record<MonitorLocale, string[]> = {
 };
 
 export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de') {
-  return useQuery<TopicPositionResult[]>({
+  return useQuery({
     queryKey: ['monitor', 'topic-documents', keyword, locale],
     queryFn: async () => {
-      const { data } = await apiClient.post<{ results?: TopicPositionResult[] }>(
-        '/research/search',
-        {
-          query: keyword,
+      const res = await getContractsClient().research.search({
+        body: {
+          query: keyword!,
           collectionIds: TOPIC_DOCUMENT_COLLECTIONS[locale],
           limit: 3,
-        }
-      );
-      return data.results ?? [];
+        },
+      });
+      if (res.status === 200) return res.body.results;
+      throw new Error('Dokumente konnten nicht geladen werden.');
     },
-    enabled: !!keyword,
+    enabled: !!keyword && keyword.length >= 2,
     staleTime: 30 * 60 * 1000,
   });
 }

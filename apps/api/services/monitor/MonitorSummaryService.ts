@@ -1,26 +1,22 @@
-import redisClient from '../../utils/redis/client.js';
+import { z } from 'zod';
 
-import { generateEntitySummary } from './SummaryGraph.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+
+import { generateEntitySummary, RiskAnalysisSchema } from './SummaryGraph.js';
 
 import type { MonitorArticle } from './types.js';
 import type { WatcherEntity } from './watcherEntities.js';
 
 const SUMMARY_TTL_SECONDS = 3600; // 1 hour
 
-export interface RiskItem {
-  title: string;
-  source: string;
-  reasoning: string;
-  severity: 'high' | 'medium' | 'low';
-}
-
-export interface EntitySummaryResult {
-  summary: string;
-  attackAnalysis: string;
-  riskAnalysis?: { risks: RiskItem[]; opportunities: RiskItem[] } | null;
-  generatedAt: string;
-  articleCount: number;
-}
+const entitySummaryResultSchema = z.object({
+  summary: z.string(),
+  attackAnalysis: z.string(),
+  riskAnalysis: RiskAnalysisSchema.nullable(),
+  generatedAt: z.string(),
+  articleCount: z.number(),
+});
+export type EntitySummaryResult = z.infer<typeof entitySummaryResultSchema>;
 
 function cacheKey(entityId: string, locale: string): string {
   return `monitor:summary:${entityId}:${locale}`;
@@ -31,15 +27,10 @@ export async function getEntitySummary(
   articles: MonitorArticle[],
   locale: string
 ): Promise<EntitySummaryResult> {
-  // Check cache
-  try {
-    const cached = await redisClient.get(cacheKey(entity.id, locale));
-    if (cached) return JSON.parse(cached) as EntitySummaryResult;
-  } catch {
-    // Fall through
-  }
+  const cached = await getCachedJson(cacheKey(entity.id, locale), entitySummaryResultSchema);
+  if (cached) return cached;
 
-  const graphResult = await generateEntitySummary(entity.label, entity.summaryPrompt, articles);
+  const graphResult = await generateEntitySummary(entity.label, articles);
 
   const result: EntitySummaryResult = {
     summary: graphResult.summary,
@@ -49,14 +40,7 @@ export async function getEntitySummary(
     articleCount: articles.length,
   };
 
-  // Cache result
-  try {
-    await redisClient.set(cacheKey(entity.id, locale), JSON.stringify(result), {
-      EX: SUMMARY_TTL_SECONDS,
-    });
-  } catch {
-    // Non-critical
-  }
+  await setCachedJson(cacheKey(entity.id, locale), result, SUMMARY_TTL_SECONDS);
 
   return result;
 }

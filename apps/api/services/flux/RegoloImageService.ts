@@ -15,10 +15,22 @@ import type {
   PollResponse,
   DownloadResult,
   GenerateFromImageOptions,
+  ReferenceImage,
 } from './FluxImageService.js';
 
 const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
 const DEFAULT_MODEL = 'Qwen-Image';
+
+// Qwen-Image via Regolo only supports square sizes (per Regolo docs:
+// 256x256, 512x512, 1024x1024). Requested dimensions — variant defaults or
+// user formats — are snapped to the nearest supported square.
+const REGOLO_SUPPORTED_SIDES = [256, 512, 1024] as const;
+
+function snapToSupportedSize(width?: number, height?: number): string {
+  const target = Math.max(width ?? 1024, height ?? 1024);
+  const side = REGOLO_SUPPORTED_SIDES.find((s) => target <= s) ?? 1024;
+  return `${side}x${side}`;
+}
 
 interface RegoloImageResponse {
   data: Array<{
@@ -52,9 +64,7 @@ class RegoloImageService {
       throw new Error('REGOLO_API_KEY is not configured');
     }
 
-    const width = options.width || 1024;
-    const height = options.height || 1024;
-    const size = `${width}x${height}`;
+    const size = snapToSupportedSize(options.width, options.height);
 
     console.log(`[RegoloImageService] Generating image: ${prompt.substring(0, 80)}...`);
 
@@ -106,6 +116,15 @@ class RegoloImageService {
     _mimeType: string = 'image/jpeg',
     options: GenerateFromImageOptions = {}
   ): Promise<GenerateResult> {
+    return this.generateFromPrompt(prompt, options);
+  }
+
+  async generateFromImages(
+    prompt: string,
+    _images: ReferenceImage[],
+    options: GenerateFromImageOptions = {}
+  ): Promise<GenerateResult> {
+    // No img2img support — same fallback as generateFromImage.
     return this.generateFromPrompt(prompt, options);
   }
 

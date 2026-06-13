@@ -17,6 +17,7 @@ import type {
   PollResponse,
   DownloadResult,
   GenerateFromImageOptions,
+  ReferenceImage,
 } from './FluxImageService.js';
 
 const IONOS_BASE_URL = 'https://openai.inference.de-txl.ionos.com/v1';
@@ -104,6 +105,15 @@ class IonosImageService {
     _mimeType: string = 'image/jpeg',
     options: GenerateFromImageOptions = {}
   ): Promise<GenerateResult> {
+    return this.generateFromPrompt(prompt, options);
+  }
+
+  async generateFromImages(
+    prompt: string,
+    _images: ReferenceImage[],
+    options: GenerateFromImageOptions = {}
+  ): Promise<GenerateResult> {
+    // No img2img support — same fallback as generateFromImage.
     return this.generateFromPrompt(prompt, options);
   }
 

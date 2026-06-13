@@ -101,8 +101,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  // LiteLLM only serves one model — always use it
-  const model = 'gpt-oss:120b';
+  // Always use verdigado's official gpt-oss alias for worker requests
+  const model = 'verdigado-pro';
 
   // Convert messages to Vercel AI SDK format
   const { system, messages: modelMessages } = convertMessages(messages, systemPrompt);
@@ -150,6 +150,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     // Extract text content
     const textContent = result.text || null;
 
+    if (result.finishReason === 'length') {
+      console.warn(
+        `[litellmAdapter ${requestId}] Output token budget exhausted (finish_reason=length) for type=${type}, model=${model}. ` +
+          `Usage: ${JSON.stringify(result.usage)}. Reasoning tokens count against max_tokens — raise the budget if answers are truncated.`
+      );
+    }
+
     // Extract tool calls
     const toolCalls: ToolCall[] | undefined =
       result.toolCalls && result.toolCalls.length > 0
@@ -164,7 +171,10 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     const isToolUseResponse =
       result.finishReason === 'tool-calls' || (toolCalls && toolCalls.length > 0);
     if (!textContent && !isToolUseResponse) {
-      const errorMsg = `Empty response from LiteLLM model=${model}`;
+      const errorMsg =
+        result.finishReason === 'length'
+          ? `Empty response from LiteLLM model=${model}: output token budget exhausted by reasoning before any answer was emitted (finish_reason=length)`
+          : `Empty response from LiteLLM model=${model}`;
       console.error(`[litellmAdapter ${requestId}] ${errorMsg}`);
       throw new Error(errorMsg);
     }

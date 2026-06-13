@@ -539,7 +539,6 @@ CREATE TABLE IF NOT EXISTS user_sites (
     is_published BOOLEAN DEFAULT FALSE,
     site_title TEXT NOT NULL,
     tagline TEXT,
-    bio TEXT,
     contact_email TEXT,
     contact_phone TEXT,
     contact_website TEXT,
@@ -548,7 +547,7 @@ CREATE TABLE IF NOT EXISTS user_sites (
     accent_color TEXT DEFAULT '#46962b',
     profile_image TEXT,
     background_image TEXT,
-    sections JSONB DEFAULT '[]',
+    sections JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_published TIMESTAMPTZ,
@@ -1250,9 +1249,7 @@ CREATE TABLE IF NOT EXISTS monitor_articles (
     topic_scores JSONB DEFAULT '{}',
     first_seen_at TIMESTAMPTZ DEFAULT now(),
     last_seen_at TIMESTAMPTZ DEFAULT now(),
-    emotion_scores JSONB DEFAULT '{}',
-    top_nouns JSONB DEFAULT '[]',
-    er_sentiment FLOAT
+    top_nouns JSONB DEFAULT '[]'
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_title_trgm ON monitor_articles USING GIN(title gin_trgm_ops);

@@ -39,6 +39,7 @@ import {
   emailContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
+  imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
   templateInteractionsContract,
@@ -50,6 +51,7 @@ import {
   canvasContract,
   monitorContract,
   sitesContract,
+  subtitlerContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -166,6 +168,7 @@ const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
+const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
@@ -177,6 +180,7 @@ const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
+const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -201,6 +205,7 @@ export interface ContractsClient {
   email: ReturnType<typeof _emailClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
+  imageEdit: ReturnType<typeof _imageEditClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
@@ -212,6 +217,7 @@ export interface ContractsClient {
   canvas: ReturnType<typeof _canvasClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
+  subtitler: ReturnType<typeof _subtitlerClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -253,6 +259,7 @@ export function getContractsClient(): ContractsClient {
     email: _emailClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
+    imageEdit: _imageEditClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
     templateInteractions: _templateInteractionsClient(),
@@ -264,6 +271,7 @@ export function getContractsClient(): ContractsClient {
     canvas: _canvasClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
+    subtitler: _subtitlerClient(),
   };
 
   return _client;

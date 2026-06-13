@@ -37,7 +37,7 @@ export function InstructionCard({
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const [isExpanded, setIsExpanded] = useState(false);
   const [localValue, setLocalValue] = useState(value);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasChanges = localValue !== value;
 
   useEffect(() => {

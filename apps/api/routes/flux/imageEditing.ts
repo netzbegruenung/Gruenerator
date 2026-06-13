@@ -78,7 +78,7 @@ interface FluxGenerationResult {
 // Prompt Building Functions
 // ============================================================================
 
-function buildGreenEditPrompt(userText: string, isPrecision = false): string {
+export function buildGreenEditPrompt(userText: string, isPrecision = false): string {
   const trimmed = (userText || '').toString().trim();
   const hasUserInput = trimmed.length > 0;
   const lowerInput = trimmed.toLowerCase();
@@ -194,7 +194,7 @@ function buildGreenEditPrompt(userText: string, isPrecision = false): string {
   return JSON.stringify(promptStructure, null, 2);
 }
 
-function buildAllyMakerPrompt(placementText: string, _isPrecision = false): string {
+export function buildAllyMakerPrompt(placementText: string, _isPrecision = false): string {
   const trimmed = (placementText || '').toString().trim();
   const hasPlacement = trimmed.length > 0;
 

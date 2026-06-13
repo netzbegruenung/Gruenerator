@@ -1,6 +1,13 @@
 /**
  * Known RSS feed URLs for German and Austrian news sources.
  * Used by Monitor for article collection.
+ *
+ * Rechtlicher Rahmen: Aus diesen Feeds wird ausschließlich Überschrift + Link
+ * gespeichert (siehe fetchFeed in MonitorCollectorService — excerpt bleibt leer).
+ * Überschrift + Hyperlink sind vom Leistungsschutzrecht für Presseverleger
+ * (§ 87f-h UrhG / Art. 15 DSM-RL) ausgenommen. Hier KEINE Volltexte oder
+ * Textauszüge ergänzen — Auszüge kommen nur aus lizenzierten Quellen.
+ *
  * Verified 2026-03-19.
  */
 export const KNOWN_RSS_FEEDS: Record<string, string> = {

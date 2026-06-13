@@ -3,7 +3,6 @@
 import { memo, useState } from 'react';
 import {
   BookOpen,
-  Check,
   ExternalLink,
   FileSearch,
   Library,
@@ -25,10 +24,6 @@ import {
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
-import {
-  useScopedSelectedNotebookId,
-  useScopedSetSelectedNotebook,
-} from '../../lib/useScopedAgentState';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import {
   getAgentMentionables,
@@ -61,8 +56,6 @@ export const PlusMenu = memo(function PlusMenu({
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
   const allQuickSkills = [...quickSkills, ...customAgents];
-  const selectedNotebookId = useScopedSelectedNotebookId();
-  const setSelectedNotebook = useScopedSetSelectedNotebook();
 
   const handleMobileAction = (action: () => void) => {
     setMenuOpen(false);
@@ -109,15 +102,9 @@ export const PlusMenu = memo(function PlusMenu({
           {notebookMentionables.map((notebook) => {
             const NbIcon = notebook.icon ?? BookOpen;
             return (
-              <DropdownMenuItem
-                key={notebook.identifier}
-                onClick={() => setSelectedNotebook(notebook.identifier)}
-              >
+              <DropdownMenuItem key={notebook.identifier} onClick={() => onInsertMention(notebook)}>
                 <NbIcon className="h-3.5 w-3.5" />
                 <span className="flex-1">{notebook.title}</span>
-                {selectedNotebookId === notebook.identifier && (
-                  <Check className="h-3.5 w-3.5 text-primary-500" />
-                )}
               </DropdownMenuItem>
             );
           })}
@@ -217,8 +204,7 @@ export const PlusMenu = memo(function PlusMenu({
             <ResponsiveMenuItem
               key={notebook.identifier}
               icon={<NbIcon />}
-              active={selectedNotebookId === notebook.identifier}
-              onClick={() => setSelectedNotebook(notebook.identifier)}
+              onClick={() => handleMobileAction(() => onInsertMention(notebook))}
             >
               {notebook.title}
             </ResponsiveMenuItem>

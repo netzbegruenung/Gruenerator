@@ -42,6 +42,14 @@ export interface ImageModelOption extends BaseModelOption {
   backend: ImageBackend;
   modelPath?: string;
   costMultiplier: number;
+  /** Max reference images per edit (FLUX.2 multi-reference). Absent = 1. */
+  maxReferenceImages?: number;
+  /**
+   * Whether generation honors free width/height (format presets, custom px).
+   * Absent = false: the backend snaps to the sizes the provider supports
+   * (e.g. Regolo/Qwen-Image only renders 256/512/1024 squares).
+   */
+  supportsCustomDimensions?: boolean;
 }
 
 export interface ImageFamilyOption {
@@ -62,7 +70,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gemma-litellm',
     name: '🌳 Gemma 4',
     description: 'Am besten für Kreativtexte',
-    model: 'gemma',
+    model: 'verdigado-think',
     provider: 'litellm',
     icon: 'zap',
     region: 'self-hosted',
@@ -82,7 +90,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'litellm',
     name: '🌳 GPT-OSS',
     description: 'Schnellstes Modell',
-    model: 'gpt-oss:120b',
+    model: 'verdigado-pro',
     provider: 'litellm',
     icon: 'server',
     region: 'self-hosted',
@@ -118,6 +126,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     backend: 'hosted',
     modelPath: '/v1/flux-2-pro',
     costMultiplier: 1,
+    maxReferenceImages: 8,
+    supportsCustomDimensions: true,
     icon: 'sparkles',
     region: 'eu',
   },
@@ -130,6 +140,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     backend: 'hosted',
     modelPath: '/v1/flux-2-klein-9b',
     costMultiplier: 0.5,
+    maxReferenceImages: 4,
+    supportsCustomDimensions: true,
     icon: 'zap',
     region: 'eu',
   },
@@ -142,6 +154,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     backend: 'hosted',
     modelPath: '/v1/flux-2-max',
     costMultiplier: 2,
+    maxReferenceImages: 8,
+    supportsCustomDimensions: true,
     icon: 'brain',
     region: 'eu',
   },
@@ -177,12 +191,15 @@ export const IMAGE_FAMILIES: ImageFamilyOption[] = [
     description: 'Selbst gehostet, klimaneutral',
     region: 'self-hosted',
   },
-  {
-    id: 'ionos',
-    name: '🌳 IONOS Schnell',
-    description: 'EU-Cloud, klimaneutral',
-    region: 'self-hosted',
-  },
+  // IONOS is hidden from the pickers for now (quality/availability issues).
+  // The 'ionos-image' model entry stays in IMAGE_MODELS so stored
+  // preferences keep resolving on the backend.
+  // {
+  //   id: 'ionos',
+  //   name: '🌳 IONOS Schnell',
+  //   description: 'EU-Cloud, klimaneutral',
+  //   region: 'self-hosted',
+  // },
 ];
 
 export const DEFAULT_FLUX_MODEL_ID: ImageModelId = 'flux-pro';

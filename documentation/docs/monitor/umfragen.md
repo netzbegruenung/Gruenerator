@@ -33,7 +33,7 @@ Klappe den Bereich **Alle Institute** auf, um die Einzelergebnisse zu sehen. Die
 - **BTW 2025** — Letzte Bundestagswahl als Referenzwert
 
 :::info Quelle
-Die Daten stammen von **wahlrecht.de**, der meistgenutzten Aggregationsseite für deutsche Wahlumfragen. Die Werte werden alle 6 Stunden aktualisiert.
+Die Daten stammen von **PolitPro** (politpro.eu), Europas führender Plattform für Wahltrends und politische Daten. Sonntagsfragen aller großen Institute werden dort zu wöchentlichen Durchschnittswerten aggregiert; die Werte werden alle 12 Stunden aktualisiert.
 :::
 
 :::tip Für die Pressearbeit

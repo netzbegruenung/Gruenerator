@@ -2,10 +2,9 @@ import type {
   KeywordEntry as NlpKeywordEntry,
   NlpClassificationResult as NlpClassificationResultBase,
   NounCount,
-  EmotionScores,
 } from '../nlp/types.js';
 
-export type { NounCount, EmotionScores } from '../nlp/types.js';
+export type { NounCount } from '../nlp/types.js';
 
 export type TopicCategory =
   | 'migration'
@@ -57,8 +56,6 @@ export interface MonitorArticle {
   topics: Partial<Record<TopicCategory, number>>;
   primaryTopic: TopicCategory | null;
   topNouns?: NounCount[] | undefined;
-  emotionScores?: EmotionScores | undefined;
-  erSentiment?: number | undefined;
 }
 
 export type KeywordEntry = NlpKeywordEntry<TopicCategory | null>;
@@ -79,16 +76,6 @@ export interface MonitorSnapshot {
   sources: string[];
   articlesByLocale: { de: number; at: number };
 }
-
-export const EMOTION_NAMES: Record<string, string> = {
-  angst: 'Angst',
-  wut: 'Wut',
-  hoffnung: 'Hoffnung',
-  enttaeuschung: 'Enttäuschung',
-  vertrauen: 'Vertrauen',
-  solidaritaet: 'Solidarität',
-  stolz: 'Stolz',
-};
 
 export const TOPIC_NAMES: Record<string, string> = {
   migration: 'Migration',

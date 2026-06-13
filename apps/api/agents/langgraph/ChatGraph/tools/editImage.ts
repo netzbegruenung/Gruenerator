@@ -10,12 +10,13 @@ import { z } from 'zod';
 
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
 import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
-import { FluxImageService } from '../../../../services/flux/index.js';
+import { FluxImageService, buildUniversalPrompt } from '../../../../services/flux/index.js';
+import { MAX_REFERENCE_IMAGES, fitToBudget } from '../../../../services/flux/referenceImages.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
 import type { ToolDependencies } from './registry.js';
-import type { GenerateResult } from '../../../../services/flux/FluxImageService.js';
+import type { GenerateResult, ReferenceImage } from '../../../../services/flux/FluxImageService.js';
 import type { GeneratedImageResult } from '../types.js';
 
 const log = createLogger('Tool:EditImage');
@@ -58,20 +59,26 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
       log.info(`[EditImage] instruction="${instruction.slice(0, 60)}"`);
 
       try {
-        const prompt = buildGreenEditPrompt(instruction);
-        const imageBuffer = Buffer.from(imageAttachment.data, 'base64');
-        const mimeType = imageAttachment.type || 'image/jpeg';
+        // All attached images go to FLUX.2 in order; with more than one
+        // reference the green-edit preset gives way to the universal prompt
+        // (compositing needs the user's instruction verbatim).
+        const references: ReferenceImage[] = (deps.imageAttachments ?? [])
+          .slice(0, MAX_REFERENCE_IMAGES)
+          .map((a) => ({
+            buffer: Buffer.from(a.data, 'base64'),
+            mimeType: a.type || 'image/jpeg',
+          }));
+        const processed = await fitToBudget(references);
+        const prompt =
+          references.length > 1
+            ? buildUniversalPrompt(instruction, references.length)
+            : buildGreenEditPrompt(instruction);
 
         const flux = await FluxImageService.create();
-        const { stored }: GenerateResult = await flux.generateFromImage(
-          prompt,
-          imageBuffer,
-          mimeType,
-          {
-            output_format: 'jpeg',
-            safety_tolerance: 2,
-          }
-        );
+        const { stored }: GenerateResult = await flux.generateFromImages(prompt, processed, {
+          output_format: 'jpeg',
+          safety_tolerance: 2,
+        });
 
         await imageCounter.incrementCount(userId);
 
@@ -82,7 +89,7 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
           url: imageUrl,
           filename: stored.filename,
           prompt,
-          style: 'green-edit',
+          style: references.length > 1 ? 'universal' : 'green-edit',
           generationTimeMs: Date.now() - startTime,
         };
 

@@ -1,4 +1,5 @@
 import { SharepicVariantCard } from './SharepicVariantCard';
+import { SliderDeckCard } from './SliderDeckCard';
 
 import type { SharepicData } from '../../hooks/useChatGraphStream';
 
@@ -17,9 +18,13 @@ export function SharepicVariantStack({ data }: SharepicVariantStackProps) {
 
   return (
     <div className="mb-3 space-y-3">
-      {data.variants.map((variant) => (
-        <SharepicVariantCard key={variant.id} variant={variant} />
-      ))}
+      {data.variants.map((variant) =>
+        variant.pages && variant.pages.length > 0 ? (
+          <SliderDeckCard key={variant.id} variant={variant} />
+        ) : (
+          <SharepicVariantCard key={variant.id} variant={variant} />
+        )
+      )}
     </div>
   );
 }

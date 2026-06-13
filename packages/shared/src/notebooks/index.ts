@@ -39,6 +39,7 @@ export type NotebookId =
   | 'brandenburg-notebook'
   | 'bayern-notebook'
   | 'sachsen-anhalt-notebook'
+  | 'hessen-notebook'
   | 'oesterreich-notebook'
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
@@ -310,6 +311,25 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Grüne Sachsen-Anhalt',
       description: 'Presse, Beschlüsse und Landtagswahlprogramm 2026 Sachsen-Anhalt',
       avatar: '🌾',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'hessen-notebook',
+    title: 'Hessen',
+    description:
+      'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion).',
+    meta: 'Archiv',
+    tags: ['Hessen', 'Presse', 'Beschlüsse'],
+    order: 12,
+    category: 'landesebene',
+    audience: 'de-DE',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-hessen',
+    mention: {
+      alias: 'hessen',
+      title: 'Grüne Hessen',
+      description: 'Presse und Beschlüsse Hessen',
+      avatar: '🦁',
       backgroundColor: '#316049',
     },
   },

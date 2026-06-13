@@ -1,18 +1,19 @@
 import { randomUUID } from 'crypto';
 
+import { monitorSnapshotSchema } from '@gruenerator/contracts';
+
 import { monitorSnapshots, type MonitorSnapshotRow } from '../../database/schema/monitor.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/client.js';
+import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 import { classifyArticles } from '../nlp/nlpClient.js';
 
-import { generateKeywordInsights } from './KeywordInsightsGraph.js';
-import { generateMonitorBriefing } from './MonitorBriefingGraph.js';
+import { getHotTopicAnalysis } from './HotTopicPipeline.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
-import { getPolls } from './PollScraper.js';
+import { getPolitProPolls } from './PolitProService.js';
 import { scrapeTwitterTrends } from './TwitterTrendsScraper.js';
 import { TOPIC_CATEGORIES } from './types.js';
 import { WATCHER_ENTITIES } from './watcherEntities.js';
@@ -30,8 +31,11 @@ import type {
 
 const log = createLogger('MonitorService');
 
-const REDIS_SNAPSHOT_KEY = 'monitor:latest';
 const REDIS_TTL_SECONDS = 7200;
+
+function snapshotCacheKey(locale?: MonitorLocale): string {
+  return locale ? `monitor:latest:${locale}` : 'monitor:latest';
+}
 
 function db() {
   return getPostgresInstance();
@@ -136,8 +140,6 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
       topics: classification?.topics ?? {},
       primaryTopic: classification?.primaryTopic ?? null,
       topNouns: classification?.topNouns ?? [],
-      emotionScores: classification?.emotionScores ?? {},
-      ...(item.erSentiment != null ? { erSentiment: item.erSentiment } : {}),
     };
     allArticles.push(article);
     if (classification?.primaryTopic) {
@@ -174,40 +176,25 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
 
   // Cache snapshot in Redis. Non-fatal: DB still has canonical data, but a
   // failure here means /monitor/latest pays the rebuild cost on every request.
-  try {
-    await redisClient.set(REDIS_SNAPSHOT_KEY, JSON.stringify(snapshot), { EX: REDIS_TTL_SECONDS });
-  } catch (error) {
-    log.error(`Failed to cache snapshot in Redis: ${toError(error).message}`);
-  }
+  await setCachedJson(snapshotCacheKey(), snapshot, REDIS_TTL_SECONDS);
+
+  // Drop stale per-locale snapshots; the warm tasks below rebuild and re-cache them.
+  await Promise.all((['de', 'at'] as const).map((loc) => deleteCachedKey(snapshotCacheKey(loc))));
 
   const warmTasks: Array<{ name: string; run: () => Promise<unknown> }> = [];
 
-  if (keywords.length > 0) {
-    for (const locale of ['de', 'at'] as const) {
-      warmTasks.push({
-        name: `keyword-insights:${locale}`,
-        run: () => generateKeywordInsights(keywords, locale),
-      });
-    }
-  }
-
-  for (const locale of ['de', 'at'] as const) {
-    warmTasks.push({ name: `stimmung:${locale}`, run: () => getStimmung(locale) });
-  }
-
-  warmTasks.push({ name: 'polls', run: () => getPolls() });
+  warmTasks.push({ name: 'polls:de', run: () => getPolitProPolls('deutschland') });
+  warmTasks.push({ name: 'polls:at', run: () => getPolitProPolls('oesterreich') });
 
   for (const locale of ['de', 'at'] as const) {
     warmTasks.push({
-      name: `briefing:${locale}`,
+      name: `hot-topic:${locale}`,
       run: async () => {
-        const [snap, stimmung, polls] = await Promise.all([
-          getLatestSnapshot(locale),
-          getStimmung(locale),
-          getPolls(),
-        ]);
+        const snap = await getLatestSnapshot(locale);
         if (!snap) throw new Error('no snapshot available');
-        return generateMonitorBriefing(locale, snap, stimmung, polls?.average ?? {});
+        // Cache is fingerprinted on the hot topic, so this regenerates exactly
+        // when the dominant story changed.
+        return getHotTopicAnalysis(locale, snap);
       },
     });
   }
@@ -303,23 +290,21 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
       a.primaryTopic,
       JSON.stringify(a.topics),
       JSON.stringify(a.topNouns ?? []),
-      JSON.stringify(a.emotionScores ?? {}),
-      a.erSentiment ?? null,
     ]);
 
     // Build batch VALUES clause
     const placeholders: string[] = [];
     const params: unknown[] = [];
     for (let i = 0; i < values.length; i++) {
-      const offset = i * 11;
+      const offset = i * 9;
       placeholders.push(
-        `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}::timestamptz, $${offset + 7}, $${offset + 8}::jsonb, $${offset + 9}::jsonb, $${offset + 10}::jsonb, $${offset + 11})`
+        `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}::timestamptz, $${offset + 7}, $${offset + 8}::jsonb, $${offset + 9}::jsonb)`
       );
       params.push(...values[i]);
     }
 
     await db().query(
-      `INSERT INTO monitor_articles (url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, top_nouns, emotion_scores, er_sentiment)
+      `INSERT INTO monitor_articles (url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, top_nouns)
        VALUES ${placeholders.join(', ')}
        ON CONFLICT (url) DO UPDATE SET
          title = EXCLUDED.title,
@@ -327,8 +312,6 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
          primary_topic = EXCLUDED.primary_topic,
          topic_scores = EXCLUDED.topic_scores,
          top_nouns = EXCLUDED.top_nouns,
-         emotion_scores = EXCLUDED.emotion_scores,
-         er_sentiment = COALESCE(EXCLUDED.er_sentiment, monitor_articles.er_sentiment),
          last_seen_at = now()`,
       params
     );
@@ -363,15 +346,9 @@ async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> 
 // ─── Read: snapshot (cached) ─────────────────────────────────────────
 
 export async function getLatestSnapshot(locale?: MonitorLocale): Promise<MonitorSnapshot | null> {
-  // Try Redis cache first
-  if (!locale) {
-    try {
-      const cached = await redisClient.get(REDIS_SNAPSHOT_KEY);
-      if (cached) return JSON.parse(cached) as MonitorSnapshot;
-    } catch (error) {
-      log.warn(`Redis snapshot read failed, falling back to DB: ${toError(error).message}`);
-    }
-  }
+  // Try Redis cache first (global and per-locale keys; refresh invalidates both)
+  const cached = await getCachedJson(snapshotCacheKey(locale), monitorSnapshotSchema);
+  if (cached) return cached;
 
   // Rebuild from DB
   try {
@@ -412,7 +389,7 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
     if (locale) {
       // Rebuild filtered: get classified articles for this locale from DB
       const localeArticles = await db().query(
-        `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
+        `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
          FROM monitor_articles
          WHERE locale = $1 AND primary_topic IS NOT NULL AND last_seen_at > now() - interval '25 hours'
          ORDER BY published_at DESC NULLS LAST`,
@@ -420,7 +397,7 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
       );
       const articles = localeArticles.map(rowToArticle);
       const localeKeywords = await getKeywordsByLocale(locale);
-      return buildSnapshot(
+      const localeSnapshot = buildSnapshot(
         articles,
         articles.length,
         snapshot.sources,
@@ -428,163 +405,17 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
         snapshot.socialTrends || [],
         locale
       );
+      await setCachedJson(snapshotCacheKey(locale), localeSnapshot, REDIS_TTL_SECONDS);
+      return localeSnapshot;
     }
 
     // Cache for next time
-    try {
-      await redisClient.set(REDIS_SNAPSHOT_KEY, JSON.stringify(snapshot), {
-        EX: REDIS_TTL_SECONDS,
-      });
-    } catch (error) {
-      log.warn(`Failed to repopulate Redis snapshot cache: ${toError(error).message}`);
-    }
+    await setCachedJson(snapshotCacheKey(), snapshot, REDIS_TTL_SECONDS);
 
     return snapshot;
   } catch (error) {
     log.error(`Failed to fetch snapshot: ${toError(error).message}`);
     return null;
-  }
-}
-
-// ─── Read: Stimmung (emotion aggregation) ────────────────────────────
-
-export interface StimmungResult {
-  overall: Record<string, number>;
-  byTopic: Array<{ topic: string; emotions: Record<string, number>; articleCount: number }>;
-  bySource: Array<{ source: string; emotions: Record<string, number>; articleCount: number }>;
-  byKeyword: Array<{ keyword: string; emotions: Record<string, number>; articleCount: number }>;
-  dominantEmotion: string | null;
-  moodSummary?: string;
-  moodReason?: string;
-}
-
-export async function getStimmung(locale?: MonitorLocale): Promise<StimmungResult> {
-  const stimmungCacheKey = `monitor:stimmung:${locale || 'all'}`;
-  try {
-    const cached = await redisClient.get(stimmungCacheKey);
-    if (cached) return JSON.parse(cached) as StimmungResult;
-  } catch (error) {
-    log.warn(`Redis stimmung read failed, falling back to DB: ${toError(error).message}`);
-  }
-
-  try {
-    const localeCondition = locale ? `AND locale = '${locale}'` : '';
-    const timeCondition =
-      "(published_at > now() - interval '25 hours' OR (published_at IS NULL AND last_seen_at > now() - interval '25 hours'))";
-
-    const EMOTION_KEYS = [
-      'angst',
-      'wut',
-      'hoffnung',
-      'enttaeuschung',
-      'vertrauen',
-      'solidaritaet',
-      'stolz',
-    ];
-
-    function parseEmotionRow(row: Record<string, unknown>): Record<string, number> {
-      const emotions: Record<string, number> = {};
-      for (const key of EMOTION_KEYS) {
-        const val = Number(row[key]) || 0;
-        if (val > 0) emotions[key] = Math.round(val * 10) / 10;
-      }
-      return emotions;
-    }
-
-    const emotionAvgColumns = EMOTION_KEYS.map(
-      (k) => `AVG((emotion_scores->>'${k}')::float) as ${k}`
-    ).join(',\n         ');
-
-    const [overallRows, topicRows, sourceRows, keywordRows] = await Promise.all([
-      db().query(
-        `SELECT ${emotionAvgColumns}
-         FROM monitor_articles
-         WHERE ${timeCondition} ${localeCondition}
-           AND emotion_scores != '{}'::jsonb`
-      ),
-      db().query(
-        `SELECT primary_topic,
-           COUNT(*)::int as article_count,
-           ${emotionAvgColumns}
-         FROM monitor_articles
-         WHERE ${timeCondition} ${localeCondition}
-           AND primary_topic IS NOT NULL
-           AND emotion_scores != '{}'::jsonb
-         GROUP BY primary_topic
-         ORDER BY article_count DESC`
-      ),
-      db().query(
-        `SELECT source,
-           COUNT(*)::int as article_count,
-           ${emotionAvgColumns}
-         FROM monitor_articles
-         WHERE ${timeCondition} ${localeCondition}
-           AND emotion_scores != '{}'::jsonb
-         GROUP BY source
-         HAVING COUNT(*) >= 3
-         ORDER BY article_count DESC
-         LIMIT 10`
-      ),
-      db().query(
-        `SELECT
-           noun->>'noun' as keyword,
-           COUNT(DISTINCT a.url)::int as article_count,
-           ${emotionAvgColumns.replace(/emotion_scores/g, 'a.emotion_scores')}
-         FROM monitor_articles a,
-              jsonb_array_elements(a.top_nouns) as noun
-         WHERE ${timeCondition} ${localeCondition}
-           AND a.emotion_scores != '{}'::jsonb
-           AND jsonb_array_length(a.top_nouns) > 0
-         GROUP BY noun->>'noun'
-         HAVING COUNT(DISTINCT a.url) >= 3
-         ORDER BY COUNT(DISTINCT a.url) DESC
-         LIMIT 10`
-      ),
-    ]);
-
-    const overall =
-      overallRows.length > 0 ? parseEmotionRow(overallRows[0] as Record<string, unknown>) : {};
-
-    const byTopic = topicRows.map((row: Record<string, unknown>) => ({
-      topic: row.primary_topic as string,
-      emotions: parseEmotionRow(row),
-      articleCount: row.article_count as number,
-    }));
-
-    const bySource = sourceRows.map((row: Record<string, unknown>) => ({
-      source: row.source as string,
-      emotions: parseEmotionRow(row),
-      articleCount: row.article_count as number,
-    }));
-
-    const byKeyword = keywordRows.map((row: Record<string, unknown>) => ({
-      keyword: row.keyword as string,
-      emotions: parseEmotionRow(row),
-      articleCount: row.article_count as number,
-    }));
-
-    // Dominant emotion
-    let dominantEmotion: string | null = null;
-    let maxScore = 0;
-    for (const [key, val] of Object.entries(overall)) {
-      if (val > maxScore) {
-        maxScore = val;
-        dominantEmotion = key;
-      }
-    }
-
-    const result = { overall, byTopic, bySource, byKeyword, dominantEmotion };
-
-    try {
-      await redisClient.set(stimmungCacheKey, JSON.stringify(result), { EX: REDIS_TTL_SECONDS });
-    } catch (error) {
-      log.warn(`Failed to cache stimmung in Redis: ${toError(error).message}`);
-    }
-
-    return result;
-  } catch (error) {
-    log.error(`Failed to get stimmung: ${toError(error).message}`);
-    return { overall: {}, byTopic: [], bySource: [], byKeyword: [], dominantEmotion: null };
   }
 }
 
@@ -665,7 +496,7 @@ export async function getTopicArticles(
 
     params.push(limit);
     const rows = await db().query(
-      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
+      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
        FROM monitor_articles
        WHERE ${conditions.join(' AND ')}
        ORDER BY (topic_scores->>$1)::float DESC NULLS LAST
@@ -702,7 +533,7 @@ export async function searchArticles(
 
     params.push(limit);
     const rows = await db().query(
-      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
+      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
        FROM monitor_articles
        WHERE ${conditions.join(' AND ')}
        ORDER BY published_at DESC NULLS LAST
@@ -751,7 +582,7 @@ export async function searchArticlesByKeywords(
 
     params.push(limit);
     const rows = await db().query(
-      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores, er_sentiment
+      `SELECT url, title, excerpt, source, locale, published_at, primary_topic, topic_scores
        FROM monitor_articles
        WHERE ${conditions.join(' AND ')}
        ORDER BY published_at DESC NULLS LAST
@@ -778,6 +609,5 @@ function rowToArticle(row: Record<string, unknown>): MonitorArticle {
     publishedAt: row.published_at ? (row.published_at as string) : null,
     primaryTopic: (row.primary_topic as TopicCategory) || null,
     topics: (row.topic_scores as Record<string, number>) || {},
-    ...(row.er_sentiment != null ? { erSentiment: row.er_sentiment as number } : {}),
   };
 }

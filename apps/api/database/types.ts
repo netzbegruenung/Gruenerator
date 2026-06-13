@@ -699,7 +699,6 @@ export interface MonitorArticleRow {
   topic_scores: Record<string, unknown>;
   first_seen_at: Date;
   last_seen_at: Date;
-  er_sentiment: number | null;
 }
 
 // ---------------------------------------------------------------------------
