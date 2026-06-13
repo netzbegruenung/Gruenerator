@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+import { kiLabelModeSchema } from '@gruenerator/contracts';
 import express, { type Response } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
@@ -23,13 +24,19 @@ type PresetAspect = z.infer<typeof presetAspectSchema>;
 
 const MAX_AREA_PIXELS = 4_194_304; // BFL's 4MP cap
 
+// Multipart form field: which AI label to burn into the result — 'full'
+// ("KI-Generiert mit dem Grünerator", default), 'short' ("KI-Generiert"),
+// or 'none' so users can apply their own labeling.
+const kiLabelFieldSchema = kiLabelModeSchema.nullish();
+
 const bodySchema = z.union([
-  z.object({ aspectRatio: presetAspectSchema }),
+  z.object({ aspectRatio: presetAspectSchema, kiLabel: kiLabelFieldSchema }),
   z
     .object({
       aspectRatio: z.literal('custom'),
       width: z.coerce.number().int().min(256).max(2048),
       height: z.coerce.number().int().min(256).max(2048),
+      kiLabel: kiLabelFieldSchema,
     })
     .refine((d) => d.width * d.height <= MAX_AREA_PIXELS, {
       message: `Bild zu groß — maximal ${MAX_AREA_PIXELS / 1_000_000} Megapixel (Breite × Höhe).`,
@@ -96,7 +103,8 @@ router.post(
       });
 
       const fluxBuffer = fs.readFileSync(stored.filePath);
-      const labeledBuffer = await addKiLabel(fluxBuffer);
+      const kiLabel = parsed.data.kiLabel ?? 'full';
+      const labeledBuffer = kiLabel === 'none' ? fluxBuffer : await addKiLabel(fluxBuffer, kiLabel);
       const labeledBase64 = labeledBuffer.toString('base64');
 
       const now = new Date();
