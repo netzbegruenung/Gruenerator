@@ -1,4 +1,4 @@
-import { type ImageEditReference } from '@gruenerator/contracts';
+import { type ImageEditReference, type KiLabelMode } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -98,7 +98,8 @@ export async function editAiImage(
   image: File | File[],
   instruction: string,
   editType: ImageEditType = 'universal',
-  imageModel?: ImageModelId
+  imageModel?: ImageModelId,
+  options?: { kiLabel?: KiLabelMode }
 ): Promise<{ file: File; objectUrl: string; base64: string }> {
   const files = Array.isArray(image) ? image : [image];
   if (files.length === 0) throw new Error('Kein Bild ausgewählt');
@@ -113,6 +114,7 @@ export async function editAiImage(
       editType,
       precision: true,
       ...(imageModel && { imageModel }),
+      ...(options?.kiLabel && options.kiLabel !== 'full' && { kiLabel: options.kiLabel }),
     },
   });
 

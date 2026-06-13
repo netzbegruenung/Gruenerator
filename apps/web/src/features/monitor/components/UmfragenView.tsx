@@ -6,14 +6,19 @@ import {
   Card,
   CardContent,
   LoadingSection,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from '@gruenerator/ui';
-import { ExternalLink, Minus, TrendingDown, TrendingUp } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Minus, TrendingDown, TrendingUp } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
-import { AT_BUNDESLAENDER, BUNDESLAENDER } from '../bundeslaender';
+import { AT_BUNDESLAENDER, bundeslandById, BUNDESLAENDER } from '../bundeslaender';
 import { useEuGreens, useEuGreensHistory, usePolls } from '../hooks/useMonitor';
 import { PARTY_COLORS } from '../partyColors';
 
+import { GerdaAttribution, LandtagsergebnisCard, MeinungsbildForState } from './LandDetails';
 import { MeinungsbildSection } from './MeinungsbildSection';
 import {
   EuGreenPartyPanel,
@@ -27,16 +32,9 @@ import type { MonitorLocale } from '../hooks/useMonitor';
 
 interface UmfragenViewProps {
   locale: MonitorLocale;
-  /**
-   * 'overview' renders a flat summary (chart + Länder grid only) for the
-   * Überblick tab; 'full' adds detail accordions, trend charts and the
-   * EU greens deck on the Umfragen tab.
-   */
-  variant?: 'full' | 'overview';
+  /** Hide the Meinungsbild blocks (used when embedded in the Übersicht tab). */
+  showMeinungsbild?: boolean;
 }
-
-// Re-exported for BundeslandView (imports colors + chart from here).
-export { PARTY_COLORS };
 
 // Compact labels for the tight 2-column "Grüne in den Ländern" grid.
 const LAENDER = BUNDESLAENDER.map((b) => ({ id: b.id, name: b.display ?? b.name }));
@@ -229,6 +227,65 @@ export function EuGreensDeck() {
   );
 }
 
+function ChartSlide({
+  label,
+  sublabel,
+  values,
+  partyOrder,
+  trend,
+  diffs,
+}: {
+  label: string;
+  /** Secondary line under the label (e.g. institute score and sample size). */
+  sublabel?: string;
+  values: Record<string, number | null | undefined>;
+  partyOrder: string[];
+  trend?: Record<string, Array<{ date: string; value: number }>>;
+  /** Official week-over-week changes from the PolitPro API (average slide only). */
+  diffs?: Record<string, number | undefined>;
+}) {
+  const present = partyOrder.filter((p) => values[p] != null);
+  const max = Math.max(...present.map((p) => values[p] ?? 0), 1);
+
+  return (
+    <div className="w-full shrink-0 snap-center">
+      <div className="text-center mb-sm">
+        <p className="text-xs font-medium text-grey-500">{label}</p>
+        {sublabel && <p className="text-[10px] text-grey-400">{sublabel}</p>}
+      </div>
+      <div className="flex items-end gap-3 px-sm justify-center flex-wrap">
+        {present.map((party) => (
+          <PartyColumn
+            key={party}
+            value={values[party] ?? null}
+            color={PARTY_COLORS[party] || '#888'}
+            max={max}
+            label={party}
+            trendData={trend?.[party]}
+            officialDiff={diffs?.[party]}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const POLITPRO_EXPLANATION =
+  'PolitPro ist Europas führende Plattform für Wahltrends und politische Daten. Sonntagsfragen aus ' +
+  'Wissenschaft und Meinungsforschung werden zu wöchentlichen Durchschnittswerten aggregiert. ' +
+  'Politisch unabhängig, genutzt von CNN, ORF, MDR, Bundestag und Nationalrat — aktuell 74 Parlamente ' +
+  'und über 21.000 Sonntagsfragen. Der PolitPro Score bewertet die Zuverlässigkeit von Instituten ' +
+  'anhand historischer Umfragedaten und Wahlergebnisse.';
+
+/** "Score 87 · n=1.502" — per-poll metadata from the PolitPro API. */
+function pollSublabel(poll: { instituteScore?: number | null; sampleSize?: number | null }) {
+  const parts = [
+    poll.instituteScore != null ? `Score ${poll.instituteScore}` : null,
+    poll.sampleSize != null ? `n=${poll.sampleSize.toLocaleString('de-DE')}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
 export function SonntagsfrageChart({
   parliament,
   title,
@@ -236,12 +293,15 @@ export function SonntagsfrageChart({
   showDetails = true,
 }: {
   parliament: string;
-  title: string;
+  /** Omit when an external header (e.g. SectionHeader) already labels the chart. */
+  title?: string;
   subtitle: string;
-  /** false renders only the bar chart (no detail accordions) — Überblick. */
+  /** false renders only the chart carousel (no trend accordion) — Überblick. */
   showDetails?: boolean;
 }) {
   const { data, isLoading } = usePolls(parliament);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   if (isLoading) return <LoadingSection />;
   if (!data || Object.keys(data.average).length === 0) {
@@ -255,172 +315,132 @@ export function SonntagsfrageChart({
   }
 
   const partyOrder = getPartyOrder(data.average);
-  const maxAvg = Math.max(...Object.values(data.average), 1);
+  // polls[0] alone is just the interpolated PolitPro aggregate — only real
+  // institute polls become swipeable slides.
+  const polls = data.polls.length > 1 ? data.polls : [];
+  const slideCount = 1 + polls.length;
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setActiveSlide(
+      Math.max(0, Math.min(slideCount - 1, Math.round(el.scrollLeft / el.clientWidth)))
+    );
+  };
+
+  const scrollToSlide = (i: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  };
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-foreground-heading">{title}</h3>
+      {title && <h3 className="text-lg font-semibold text-foreground-heading">{title}</h3>}
       <p className="text-xs text-grey-500 mb-md">
         {subtitle}
-        {data.polls.length > 1 && data.polls[0]?.date && (
+        {polls.length > 0 && polls[0]?.date && (
           <span className="ml-sm text-grey-400">
-            Letzte Umfrage: {formatPollDate(data.polls[0].date)}
+            Letzte Umfrage: {formatPollDate(polls[0].date)}
           </span>
         )}
       </p>
 
-      <div className="flex items-end gap-3 px-sm justify-center flex-wrap">
-        {partyOrder.map((party) => (
-          <PartyColumn
-            key={party}
-            value={data.average[party]}
-            color={PARTY_COLORS[party] || '#888'}
-            max={maxAvg}
-            label={party}
-            trendData={data.trend?.[party]}
-            officialDiff={data.diffs?.[party]}
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <ChartSlide
+            label="Ø PolitPro-Durchschnitt"
+            values={data.average}
+            partyOrder={partyOrder}
+            trend={data.trend}
+            diffs={data.diffs}
           />
-        ))}
+          {polls.map((poll, i) => (
+            <ChartSlide
+              key={`${poll.institute}-${i}`}
+              label={`${poll.institute}${poll.date ? ` · ${formatPollDate(poll.date)}` : ''}`}
+              sublabel={pollSublabel(poll)}
+              values={poll.parties}
+              partyOrder={partyOrder}
+            />
+          ))}
+        </div>
+
+        {activeSlide > 0 && (
+          <button
+            onClick={() => scrollToSlide(activeSlide - 1)}
+            aria-label="Vorherige Umfrage"
+            className="absolute left-0 top-1/2 -translate-y-1/2 p-1 rounded-full border border-grey-200 dark:border-grey-700 bg-background text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        )}
+        {activeSlide < slideCount - 1 && (
+          <button
+            onClick={() => scrollToSlide(activeSlide + 1)}
+            aria-label="Nächste Umfrage"
+            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full border border-grey-200 dark:border-grey-700 bg-background text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      {!showDetails ? null : (
-        <>
-          <div className="mt-lg grid grid-cols-1 sm:grid-cols-2 gap-sm">
-            {data.polls.length > 1 && (
-              <Accordion
-                type="single"
-                collapsible
-                className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
-              >
-                <AccordionItem value="einzelumfragen">
-                  <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
-                    {data.polls.length} Einzelumfragen
-                  </AccordionTrigger>
-                  <AccordionContent className="px-md">
-                    <div className="space-y-md">
-                      {data.polls.map((poll) => {
-                        const pollMax = Math.max(
-                          ...Object.values(poll.parties).filter((v): v is number => v != null),
-                          1
-                        );
-                        return (
-                          <div key={`${poll.institute}-${poll.date}`}>
-                            <div className="flex items-center justify-between mb-xs">
-                              <span className="flex items-baseline gap-xs min-w-0">
-                                <span className="text-xs font-medium text-foreground truncate">
-                                  {poll.institute}
-                                </span>
-                                {poll.instituteScore != null && (
-                                  <span
-                                    className="text-[9px] text-grey-400 shrink-0"
-                                    title="PolitPro Score: Zuverlässigkeit des Instituts (0–100)"
-                                  >
-                                    Score {poll.instituteScore}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-[11px] text-grey-400 shrink-0">
-                                {poll.sampleSize != null && (
-                                  <span className="mr-xs">
-                                    n={poll.sampleSize.toLocaleString('de-DE')}
-                                  </span>
-                                )}
-                                {formatPollDate(poll.date)}
-                              </span>
-                            </div>
-                            <div className="space-y-0.5">
-                              {partyOrder.map((party) => {
-                                const val = poll.parties[party];
-                                if (val == null) return null;
-                                const width = pollMax > 0 ? (val / pollMax) * 100 : 0;
-                                return (
-                                  <div key={party} className="flex items-center gap-xs">
-                                    <span
-                                      className="w-10 text-[10px] font-bold truncate text-right shrink-0"
-                                      style={{ color: PARTY_COLORS[party] || '#888' }}
-                                    >
-                                      {party.length > 5 ? party.slice(0, 5) : party}
-                                    </span>
-                                    <div className="flex-1 h-3 rounded-full bg-grey-100 dark:bg-grey-800 overflow-hidden">
-                                      <div
-                                        className="h-full rounded-full"
-                                        style={{
-                                          width: `${width}%`,
-                                          backgroundColor: PARTY_COLORS[party] || '#888',
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="w-8 text-[10px] tabular-nums text-right shrink-0">
-                                      {val}%
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
-
-            <Accordion
-              type="single"
-              collapsible
-              className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
-            >
-              <AccordionItem value="politpro-info">
-                <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
-                  Daten: PolitPro
-                </AccordionTrigger>
-                <AccordionContent className="px-md">
-                  <div className="text-xs text-foreground/80 space-y-sm">
-                    <p>
-                      PolitPro ist Europas führende Plattform für Wahltrends und politische Daten.
-                      Sonntagsfragen aus Wissenschaft und Meinungsforschung werden zu wöchentlichen
-                      Durchschnittswerten aggregiert.
-                    </p>
-                    <p>
-                      Politisch unabhängig, genutzt von CNN, ORF, MDR, Bundestag und Nationalrat.
-                      Aktuell <strong>74 Parlamente</strong> und über{' '}
-                      <strong>21.000 Sonntagsfragen</strong>.
-                    </p>
-                    <p className="text-grey-400">
-                      Der PolitPro Score bewertet die Zuverlässigkeit von Instituten anhand
-                      historischer Umfragedaten und Wahlergebnisse.
-                    </p>
-                    <a
-                      href="https://politpro.eu"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-medium text-primary-600 hover:underline"
-                    >
-                      politpro.eu
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+      <div className="mt-md flex items-center justify-center gap-md">
+        {slideCount > 1 && (
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: slideCount }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => scrollToSlide(i)}
+                aria-label={i === 0 ? 'Ø Durchschnitt' : `Einzelumfrage ${i}`}
+                className={`h-1.5 rounded-full border-none p-0 cursor-pointer transition-all ${
+                  i === activeSlide
+                    ? 'w-4 bg-grey-500 dark:bg-grey-300'
+                    : 'w-1.5 bg-grey-200 dark:bg-grey-700 hover:bg-grey-300 dark:hover:bg-grey-600'
+                }`}
+              />
+            ))}
           </div>
+        )}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href="https://politpro.eu"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-grey-400 hover:text-foreground transition-colors underline decoration-dotted underline-offset-2"
+              >
+                Daten: PolitPro
+              </a>
+            </TooltipTrigger>
+            <TooltipContent className="w-72 max-w-[90vw] text-left">
+              {POLITPRO_EXPLANATION}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
 
-          <Accordion
-            type="single"
-            collapsible
-            className="mt-sm border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
-          >
-            <AccordionItem value="trendverlauf">
-              <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
-                Trendverlauf &amp; Einzelumfragen
-              </AccordionTrigger>
-              <AccordionContent className="px-md pb-md">
-                <SonntagsfrageTrendSection parliament={parliament} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </>
+      {showDetails && (
+        <Accordion
+          type="single"
+          collapsible
+          className="mt-sm border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+        >
+          <AccordionItem value="trendverlauf">
+            <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
+              Trendverlauf &amp; Einzelumfragen
+            </AccordionTrigger>
+            <AccordionContent className="px-md pb-md">
+              <SonntagsfrageTrendSection parliament={parliament} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
     </div>
   );
@@ -556,9 +576,8 @@ function LaenderGrid({
 
 const AT_LAENDER = AT_BUNDESLAENDER.map((b) => ({ id: b.id, name: b.display ?? b.name }));
 
-export function UmfragenView({ locale, variant = 'full' }: UmfragenViewProps) {
+export function UmfragenView({ locale, showMeinungsbild = true }: UmfragenViewProps) {
   const [selectedLand, setSelectedLand] = useState<string | null>(null);
-  const isFull = variant === 'full';
 
   if (locale === 'at') {
     const activeParliament = selectedLand ?? 'oesterreich';
@@ -578,7 +597,6 @@ export function UmfragenView({ locale, variant = 'full' }: UmfragenViewProps) {
               parliament={activeParliament}
               title={activeTitle}
               subtitle={activeSubtitle}
-              showDetails={isFull}
             />
           </div>
           <LaenderGrid
@@ -589,11 +607,12 @@ export function UmfragenView({ locale, variant = 'full' }: UmfragenViewProps) {
             onSelect={setSelectedLand}
           />
         </div>
-        {isFull && <EuGreensDeck />}
+        <EuGreensDeck />
       </div>
     );
   }
 
+  const land = selectedLand ? bundeslandById(selectedLand) : undefined;
   const activeParliament = selectedLand ?? 'deutschland';
   const activeTitle = selectedLand
     ? `Sonntagsfrage — ${LAENDER.find((l) => l.id === selectedLand)?.name ?? selectedLand}`
@@ -605,14 +624,14 @@ export function UmfragenView({ locale, variant = 'full' }: UmfragenViewProps) {
   return (
     <div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
-        <div>
+        <div className="space-y-xl">
           <SonntagsfrageChart
             key={activeParliament}
             parliament={activeParliament}
             title={activeTitle}
             subtitle={activeSubtitle}
-            showDetails={isFull}
           />
+          {land && <LandtagsergebnisCard code={land.code} />}
         </div>
         <LaenderGrid
           laender={LAENDER}
@@ -623,9 +642,16 @@ export function UmfragenView({ locale, variant = 'full' }: UmfragenViewProps) {
         />
       </div>
 
-      {isFull && <EuGreensDeck />}
+      <EuGreensDeck />
 
-      <MeinungsbildSection />
+      {land ? (
+        <div className="mt-xl border-t border-grey-200 dark:border-grey-700 pt-xl space-y-lg">
+          {showMeinungsbild && <MeinungsbildForState code={land.code} stateName={land.name} />}
+          <GerdaAttribution />
+        </div>
+      ) : showMeinungsbild ? (
+        <MeinungsbildSection />
+      ) : null}
     </div>
   );
 }

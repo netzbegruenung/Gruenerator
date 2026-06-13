@@ -8,7 +8,7 @@ import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
-import { recordSyncEvent } from '../syncEventRecorder.js';
+import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 
 import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
 
@@ -506,6 +506,7 @@ export class KommunalwikiScraper extends BaseScraper {
                   sourceUrl: `${this.baseUrl}/index.php/${encodeURIComponent(article.title.replace(/ /g, '_'))}`,
                   sourceGroupId: 'kommunalwiki',
                   sourceName: 'KommunalWiki',
+                  excerpt: toExcerpt(this.cleanWikiContent(wikiContent)),
                   landesverband: null,
                   collection: this.config.collectionName,
                   eventType: wasExisting ? 'updated' : 'stored',

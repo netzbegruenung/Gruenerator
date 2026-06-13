@@ -386,6 +386,7 @@ export const whatHappenedArticleSchema = z.object({
   sourceUrl: z.string(),
   sourceGroupId: syncArticleSourceGroupSchema,
   sourceName: z.string(),
+  excerpt: z.string().nullable(),
   landesverband: z.string().nullable(),
   collection: z.string(),
   eventType: syncArticleEventTypeSchema,
@@ -418,6 +419,8 @@ export const syncEventInputSchema = z.object({
   sourceUrl: z.string().min(1),
   sourceGroupId: syncArticleSourceGroupSchema,
   sourceName: z.string().min(1),
+  /** First ~300 chars of the article text, for the blog-style feed cards. */
+  excerpt: z.string().max(500).nullable(),
   landesverband: z.string().nullable(),
   collection: z.string().min(1),
   eventType: syncArticleEventTypeSchema,

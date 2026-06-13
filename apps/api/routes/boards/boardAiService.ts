@@ -27,7 +27,7 @@ const log = createLogger('BoardAI');
 // Mirror docs/aiController DOCS_AI_MODELS — these IDs are confirmed to return
 // finish_reason:tool_calls on their respective providers.
 const BOARD_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  litellm: 'gpt-oss:120b',
+  litellm: 'verdigado-pro',
   regolo: 'mistral-small-4-119b',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',

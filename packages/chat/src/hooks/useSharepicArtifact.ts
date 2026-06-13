@@ -32,7 +32,11 @@ export function sharepicLabel(variant: Pick<SharepicVariant, 'label' | 'canvasTy
  * Clearing is synchronous, so when card and panel render the same variant
  * concurrently only the first completed render uploads.
  */
-function maybeUploadThumbnail(variantId: string, dataUrl: string, isVersionPreview: boolean) {
+export function maybeUploadThumbnail(
+  variantId: string,
+  dataUrl: string,
+  isVersionPreview: boolean
+) {
   if (isVersionPreview) return;
   const store = useSharepicLiveStore.getState();
   const entry = store.entries[variantId];
