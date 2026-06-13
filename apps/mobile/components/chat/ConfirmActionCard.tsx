@@ -55,7 +55,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
     if (!resultUrl) return;
     const documentId = documentIdFromUrl(resultUrl);
     if (documentId) {
-      router.push({ pathname: '/(fullscreen)/doc-editor', params: { documentId } });
+      // doc-editor reads `id` from useLocalSearchParams.
+      router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: documentId } });
     }
   }, [resultUrl, router]);
 
