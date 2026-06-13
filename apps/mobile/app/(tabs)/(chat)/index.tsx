@@ -9,6 +9,7 @@ import { useShallow } from 'zustand/shallow';
 import { AssistantThread } from '../../../components/chat/AssistantThread';
 import { ChatDrawerHeader } from '../../../components/chat/ChatDrawerHeader';
 import { ChatSettingsSheet } from '../../../components/chat/ChatSettingsSheet';
+import { TOOL_KEYS } from '../../../components/chat/ComposerActionSheet';
 import { ComposerCard } from '../../../components/common';
 import { useDrawerStore } from '../../../hooks/useDrawerStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -45,7 +46,9 @@ function SettingsBar({ onOpen }: { onOpen: () => void }) {
     }))
   );
 
-  const disabledCount = Object.values(enabledTools).filter((v) => v === false).length;
+  // Count only tools that still have a toggle — the persisted store may carry
+  // entries for removed tools (e.g. web search).
+  const disabledCount = TOOL_KEYS.filter((key) => enabledTools[key] === false).length;
   const model = MODEL_OPTIONS.find((m) => m.id === selectedModel);
 
   return (

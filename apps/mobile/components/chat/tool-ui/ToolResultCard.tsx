@@ -3,7 +3,6 @@ import {
   getToolQuery,
   parseSearchCitations,
   parseExampleCitations,
-  parseWebCitations,
   getString,
   type SerializableCitation,
 } from '@gruenerator/chat';
@@ -30,8 +29,6 @@ interface ToolCallPart {
 // citations). Research has its own richer card; this handles the rest.
 function citationsFor(toolName: string, result: unknown): SerializableCitation[] {
   switch (toolName) {
-    case 'web_search':
-      return parseWebCitations(result);
     case 'gruenerator_examples_search':
       return parseExampleCitations(result);
     case 'gruenerator_search':

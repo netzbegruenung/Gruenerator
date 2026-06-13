@@ -7,7 +7,6 @@ import type { Theme } from '../../theme/colors';
 
 const TOOL_LABELS: Record<string, string> = {
   gruenerator_search: 'Suche in Dokumenten',
-  web_search: 'Websuche',
   research: 'Recherche',
   gruenerator_examples_search: 'Beispiele suchen',
   generate_image: 'Bild generieren',

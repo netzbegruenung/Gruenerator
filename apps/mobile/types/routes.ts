@@ -19,10 +19,8 @@ export type AppRoute =
   | '/(tabs)/(tools)/ki-bildgenerierung'
   | '/(tabs)/(tools)/image-studio'
   | '/(tabs)/(tools)/scanner'
-  | '/(tabs)/(tools)/transkription'
   // Recherche routes
   | '/(tabs)/(recherche)'
-  | '/(tabs)/(recherche)/suche'
   | '/(tabs)/(recherche)/research'
   // Auth routes
   | '/(auth)/login'
@@ -60,6 +58,8 @@ export interface ModalRouteParams {
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
     projectData: string;
+    /** '1' opens the share/export sheet immediately (ReelReadyScreen "Teilen"). */
+    openShare?: string;
   };
 }
 

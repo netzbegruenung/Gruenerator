@@ -17,12 +17,13 @@ import { BottomSheet } from '../common/BottomSheet';
 
 const TOOL_LABELS: Record<string, { label: string; icon: IoniconsIconName }> = {
   search: { label: 'Dokumentensuche', icon: 'document-text-outline' },
-  web: { label: 'Websuche', icon: 'globe-outline' },
   examples: { label: 'Beispiele', icon: 'bulb-outline' },
   research: { label: 'Recherche', icon: 'flask-outline' },
 };
 
-const TOOL_KEYS: ToolKey[] = ['search', 'web', 'examples', 'research'];
+// Web search is intentionally absent — the feature is removed from the mobile app
+// (runtimes force `web: false` regardless of the shared store's value).
+export const TOOL_KEYS: ToolKey[] = ['search', 'examples', 'research'];
 
 interface Props {
   visible: boolean;
