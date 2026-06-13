@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 
 import { saveImageToGallery } from '../../services/imageStudio';
+import { shareBase64Image } from '../../services/share';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
@@ -70,16 +71,26 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
         </View>
 
         {image.base64 && (
-          <Pressable onPress={handleSave} disabled={saving} style={styles.save} hitSlop={8}>
-            <Ionicons
-              name={saving ? 'hourglass-outline' : 'download-outline'}
-              size={14}
-              color={theme.textSecondary}
-            />
-            <Text style={[styles.saveText, { color: theme.textSecondary }]}>
-              {saving ? 'Speichern…' : 'Speichern'}
-            </Text>
-          </Pressable>
+          <View style={styles.metaActions}>
+            <Pressable
+              onPress={() => void shareBase64Image(image.base64, 'Bild teilen')}
+              style={styles.save}
+              hitSlop={8}
+            >
+              <Ionicons name="share-outline" size={14} color={theme.textSecondary} />
+              <Text style={[styles.saveText, { color: theme.textSecondary }]}>Teilen</Text>
+            </Pressable>
+            <Pressable onPress={handleSave} disabled={saving} style={styles.save} hitSlop={8}>
+              <Ionicons
+                name={saving ? 'hourglass-outline' : 'download-outline'}
+                size={14}
+                color={theme.textSecondary}
+              />
+              <Text style={[styles.saveText, { color: theme.textSecondary }]}>
+                {saving ? 'Speichern…' : 'Speichern'}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -125,6 +136,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xsmall,
+  },
+  metaActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
   },
   save: {
     flexDirection: 'row',

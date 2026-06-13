@@ -4,6 +4,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useRef, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 
+import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import {
   pickDocument,
   validatePickedDocument,
@@ -46,6 +47,19 @@ export function AssistantComposer({
   const selectionRef = useRef(0);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const { isListening, toggle: toggleSpeech } = useSpeechToText();
+
+  // Dictation (mirrors web's DictateButton): final transcripts are appended
+  // to the draft and pushed into both the native input and the composer state.
+  const handleDictate = useCallback(() => {
+    void toggleSpeech((transcript) => {
+      const newText = appendTranscript(textRef.current, transcript);
+      textRef.current = newText;
+      aui.composer().setText(newText);
+      inputRef.current?.setNativeProps({ text: newText });
+      selectionRef.current = newText.length;
+    });
+  }, [toggleSpeech, aui, inputRef]);
 
   const onChangeText = useCallback(
     (value: string) => {
@@ -149,6 +163,18 @@ export function AssistantComposer({
           onChangeText={onChangeText}
           onSelectionChange={onSelectionChange}
         />
+        <Pressable
+          onPress={handleDictate}
+          style={styles.actionButton}
+          hitSlop={8}
+          accessibilityLabel={isListening ? 'Diktat beenden' : 'Diktieren'}
+        >
+          <Ionicons
+            name={isListening ? 'stop' : 'mic-outline'}
+            size={20}
+            color={isListening ? colors.error[500] : theme.textSecondary}
+          />
+        </Pressable>
         {isRunning ? (
           <ComposerPrimitive.Cancel style={styles.cancelButton}>
             <ActivityIndicator size="small" color={colors.error[500]} />
