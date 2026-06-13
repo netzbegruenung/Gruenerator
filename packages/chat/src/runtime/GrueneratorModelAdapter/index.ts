@@ -4,7 +4,9 @@ import { parseAllMentions } from '../../lib/mentionParser';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
+import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
+import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
 import { streamErrorMessage } from '../streamErrorMessage';
 
 import { buildRequestBody } from './buildRequestBody';
@@ -366,6 +368,26 @@ export function createGrueneratorModelAdapter(
         }
       }
 
+      // Extract a composer-attached video's TUS upload result. The attachment
+      // adapter completes video attachments as a synthetic data part (no
+      // base64 content); the backend's reel branch starts auto-transcription.
+      let extractedReelUpload: { uploadId: string; filename: string } | null = null;
+      if (isChatMode && lastUserMsg && 'attachments' in lastUserMsg) {
+        const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
+          .attachments;
+        for (const att of attachments) {
+          for (const part of att.content) {
+            if (part.type !== 'data') continue;
+            const dataPart = part as { type: 'data'; name?: string; data: ReelUploadData };
+            if (dataPart.name !== REEL_UPLOAD_PART_NAME) continue;
+            extractedReelUpload = {
+              uploadId: dataPart.data.uploadId,
+              filename: dataPart.data.filename,
+            };
+          }
+        }
+      }
+
       // Read thread-persisted documentChatIds for follow-up messages
       const dcStore = useDocumentChatStore.getState();
       const documentChatIds = dcStore.getForThread(config.threadId);
@@ -455,6 +477,11 @@ export function createGrueneratorModelAdapter(
           const { variantId, canvasId, canvasType } = active;
           return { variantId, canvasId, canvasType };
         })(),
+        currentReel: (() => {
+          const active = useReelLiveStore.getState().activeReel;
+          return active ? { projectId: active.projectId } : null;
+        })(),
+        reelUpload: extractedReelUpload,
       });
 
       let response: Response;

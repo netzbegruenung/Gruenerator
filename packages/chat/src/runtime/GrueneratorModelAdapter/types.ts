@@ -7,7 +7,12 @@ import type {
   StreamMetadata,
 } from '../../hooks/useChatGraphStream';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
-import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
+import type {
+  ConfirmActionData,
+  DocumentCreatedData,
+  ReelPickerData,
+  ReelProcessingData,
+} from '../../types/messageMetadata';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -22,6 +27,8 @@ export type GrueneratorMessageMetadata = {
   agentMention?: string;
   confirmAction?: ConfirmActionData;
   createdDocument?: DocumentCreatedData;
+  reelProcessing?: ReelProcessingData;
+  reelPicker?: ReelPickerData;
   [key: string]: unknown;
 };
 
