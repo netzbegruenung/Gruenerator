@@ -79,6 +79,9 @@
       "expo-font",
       "expo-notifications",
       "expo-speech-recognition",
+      "./plugins/withMediaCapabilities.js",
+      "./plugins/withLargeHeap.js",
+      "./plugins/withNoSourcemapAssets.js",
       [
         "expo-build-properties",
         {
@@ -89,7 +92,9 @@
           "android": {
             "compileSdkVersion": 36,
             "targetSdkVersion": 36,
-            "usePrecompiledHeaders": true
+            "usePrecompiledHeaders": true,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
