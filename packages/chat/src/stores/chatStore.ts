@@ -67,7 +67,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     id: 'litellm',
     name: 'GPT-OSS',
     description: 'Selbst gehostet',
-    model: 'gpt-oss:120b',
+    model: 'verdigado-pro',
   },
 ];
 

@@ -190,7 +190,11 @@ const CollabCanvasStudioPage = lazy(
   () => import('../features/image-studio/CollabCanvasStudioPage')
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
-const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
+const MonitorUebersichtPage = lazy(() => import('../features/monitor/pages/MonitorUebersichtPage'));
+const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
+const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
+const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
+const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
@@ -287,7 +291,12 @@ const standardRoutes: RouteConfig[] = [
     path: '/research',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  { path: '/monitor', component: MonitorPage },
+  { path: '/monitor', component: MonitorUebersichtPage },
+  { path: '/monitor/themen', component: MonitorThemenPage },
+  { path: '/monitor/themen/:topic', component: MonitorThemenPage },
+  { path: '/monitor/umfragen', component: MonitorUmfragenPage },
+  { path: '/monitor/watcher', component: MonitorWatcherPage },
+  { path: '/monitor/feed', component: MonitorFeedPage },
   { path: '/briefing', component: BriefingPage },
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
   { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
