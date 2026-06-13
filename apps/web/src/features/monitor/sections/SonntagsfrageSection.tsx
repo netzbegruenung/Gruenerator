@@ -31,7 +31,12 @@ export function SonntagsfrageSection() {
           </Link>
         }
       />
-      <SonntagsfrageChart key={parliament} parliament={parliament} subtitle={subtitle} />
+      <SonntagsfrageChart
+        key={parliament}
+        parliament={parliament}
+        subtitle={subtitle}
+        showDetails={false}
+      />
     </section>
   );
 }
