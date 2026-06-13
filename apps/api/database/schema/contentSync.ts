@@ -19,6 +19,7 @@ export const contentSyncArticles = pgTable(
     source_url: text('source_url').notNull(),
     source_group_id: text('source_group_id').$type<SyncArticleSourceGroup>().notNull(),
     source_name: text('source_name').notNull(),
+    excerpt: text('excerpt'),
     landesverband: text('landesverband'),
     collection: text('collection').notNull(),
     event_type: text('event_type').$type<SyncArticleEventType>().notNull(),

@@ -64,6 +64,3 @@ export const AT_BUNDESLAENDER: Array<{ id: string; name: string; display?: strin
 
 export const bundeslandById = (id: string): Bundesland | undefined =>
   BUNDESLAENDER.find((b) => b.id === id);
-
-export const bundeslandByCode = (code: string): Bundesland | undefined =>
-  BUNDESLAENDER.find((b) => b.code === code);

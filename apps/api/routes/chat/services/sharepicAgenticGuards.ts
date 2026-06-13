@@ -3,13 +3,18 @@
  * schemas and per-turn guard state. Separate file so unit tests don't import
  * the service's heavy transitive dependencies (DB, providers, env parsing).
  */
-import { canvasAiOperationSchema } from '@gruenerator/contracts';
+import { canvasAiOperationSchema, sliderDeckOperationSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 export const MAX_FAILURES_PER_TOOL = 2;
 
 export const applyOpsInputSchema = z.object({
   operations: z.array(canvasAiOperationSchema).min(1).max(8),
+  summary: z.string().min(1).max(120),
+});
+
+export const applySliderOpsInputSchema = z.object({
+  operations: z.array(sliderDeckOperationSchema).min(1).max(6),
   summary: z.string().min(1).max(120),
 });
 

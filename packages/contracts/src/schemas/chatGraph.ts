@@ -123,6 +123,23 @@ export const chatStreamBodySchema = z.object({
       canvasType: z.string(),
     })
     .nullish(),
+  // The subtitler project the user marked as "active for chat editing"
+  // (via the reel picker or a processed chat upload). Targets the
+  // reel_edit branch.
+  currentReel: z
+    .object({
+      projectId: z.string(),
+    })
+    .nullish(),
+  // A video attached in the composer, already uploaded via the subtitler
+  // TUS endpoint. The reel branch starts auto-transcription (process-auto
+  // pipeline) for it and attaches the resulting project to the thread.
+  reelUpload: z
+    .object({
+      uploadId: z.string(),
+      filename: z.string(),
+    })
+    .nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
   // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the

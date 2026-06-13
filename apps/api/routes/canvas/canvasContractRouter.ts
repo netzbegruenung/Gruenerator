@@ -32,7 +32,10 @@ import {
 } from '../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
+  applyDeckChanges,
   getCurrentCanvasState,
+  getCurrentDeckState,
+  type CanvasPageDef,
 } from '../../services/canvas/canvasStateService.js';
 import {
   getCanvasVersion,
@@ -48,6 +51,17 @@ import { getServerFormat } from '../exports/pageConstants.js';
 import type { Application } from 'express';
 
 const log = createLogger('canvasContractRouter');
+
+const isCanvasPageDefArray = (v: unknown): v is CanvasPageDef[] =>
+  Array.isArray(v) &&
+  v.every(
+    (p) =>
+      !!p &&
+      typeof p === 'object' &&
+      typeof (p as CanvasPageDef).id === 'string' &&
+      typeof (p as CanvasPageDef).configId === 'string' &&
+      typeof (p as CanvasPageDef).state === 'object'
+  );
 
 const s = initServer();
 
@@ -155,9 +169,17 @@ export const canvasContractRouter = s.router(canvasContract, {
       }
       const current = await getCurrentCanvasState(args.params.id);
       const version = await getLatestCanvasVersionNumber(args.params.id);
+      // Deck canvases additionally expose their per-slide states.
+      const isDeck = access.canvas.template_type === 'slider';
+      const deckPages = isDeck ? (await getCurrentDeckState(args.params.id)).pages : [];
       return {
         status: 200 as const,
-        body: { state: current.state, source: current.source, version },
+        body: {
+          state: current.state,
+          source: current.source,
+          version,
+          ...(deckPages.length > 0 ? { pages: deckPages.map((p) => p.state) } : {}),
+        },
       };
     } catch (error) {
       const err = error as Error;
@@ -231,9 +253,19 @@ export const canvasContractRouter = s.router(canvasContract, {
         return { status: 404 as const, body: { error: 'Version not found' } };
       }
       // Re-apply the snapshot as a forward patch — never rewinds Yjs history.
-      await applyCanvasStatePatch(args.params.id, snapshot.state, {
-        seedState: snapshot.state,
-      });
+      // Deck versions ({ pages: [...] }) replace the page set instead.
+      const versionPages = (snapshot.state as { pages?: unknown }).pages;
+      if (isCanvasPageDefArray(versionPages) && versionPages.length > 0) {
+        await applyDeckChanges(args.params.id, {
+          seedPages: versionPages,
+          replacePages: versionPages,
+          newPages: versionPages,
+        });
+      } else {
+        await applyCanvasStatePatch(args.params.id, snapshot.state, {
+          seedState: snapshot.state,
+        });
+      }
       const newVersion = await insertCanvasVersion({
         canvasId: args.params.id,
         state: snapshot.state,

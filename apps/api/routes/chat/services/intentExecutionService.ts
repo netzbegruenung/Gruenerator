@@ -29,6 +29,7 @@ import {
   type PriorSharepic,
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
+import { generateSliderDeckVariant } from './sliderDeckService.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
@@ -440,6 +441,8 @@ export async function executeIntentPipeline(opts: {
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
   req?: Request;
+  /** Thread id for deck mints (chat_thread_canvases binding). */
+  threadId?: string | null;
   /** When set, the sharepic branch refines the previous sharepic instead of starting fresh. */
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
 }): Promise<{
@@ -541,12 +544,28 @@ export async function executeIntentPipeline(opts: {
         );
 
         if (!opts.req) throw new Error('Express request required for sharepic generation');
-        const variants = await generateSharepicVariants({
-          req: opts.req as SharepicExpressRequest,
-          text: messageText,
-          ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
-          ...(authorName && { authorName }),
-        });
+        // Slider = multi-page deck, a different artifact: ONE deck variant,
+        // minted at generation time (studio open/editing need the pages).
+        let variants: SharepicVariant[];
+        if (preferredVariant === 'slider') {
+          const userId = classifiedState.agentConfig?.userId;
+          if (!userId) throw new Error('User required for slider deck creation');
+          variants = [
+            await generateSliderDeckVariant({
+              req: opts.req,
+              text: messageText,
+              threadId: opts.threadId ?? null,
+              userId,
+            }),
+          ];
+        } else {
+          variants = await generateSharepicVariants({
+            req: opts.req as SharepicExpressRequest,
+            text: messageText,
+            ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
+            ...(authorName && { authorName }),
+          });
+        }
 
         if (variants.length === 0) {
           sse.send('sharepic_complete', {
