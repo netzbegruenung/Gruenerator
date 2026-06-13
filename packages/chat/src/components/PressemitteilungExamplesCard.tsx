@@ -3,51 +3,22 @@
 import { memo, useMemo, useState } from 'react';
 import { Newspaper, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { cn } from '../lib/utils';
-
-interface PressemitteilungExample {
-  id: string;
-  title: string;
-  body: string;
-  lv: string;
-  sourceId?: string;
-  publishedAt?: string;
-  url?: string;
-}
+import {
+  formatGermanDate,
+  parsePressemitteilungExamples,
+  pressemitteilungLvLabel as lvLabel,
+} from '../lib/toolResults';
 
 interface PressemitteilungExamplesCardProps {
   query: string;
   result: unknown;
 }
 
-const LV_LABELS: Record<string, string> = {
-  BE: 'Berlin',
-  'BE-F': 'Berlin (Fraktion)',
-  HH: 'Hamburg',
-  TH: 'Thüringen',
-  MV: 'Meck-Pomm',
-  BB: 'Brandenburg',
-  BY: 'Bayern',
-  SH: 'Schleswig-Holstein',
-};
-
-function lvLabel(lv: string): string {
-  if (!lv) return 'Landesverband';
-  return LV_LABELS[lv] ?? lv;
-}
-
-function formatDate(iso: string | undefined): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 export const PressemitteilungExamplesCard = memo(function PressemitteilungExamplesCard({
   query,
   result,
 }: PressemitteilungExamplesCardProps) {
-  const examples = (getArray(result, 'examples') as PressemitteilungExample[] | null) ?? [];
-  const message = getString(result, 'message');
+  const { examples, message } = parsePressemitteilungExamples(result);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
@@ -109,7 +80,7 @@ export const PressemitteilungExamplesCard = memo(function PressemitteilungExampl
         <ul className="border-section-border divide-section-border divide-y border-t">
           {examples.map((ex) => {
             const isOpen = openRow === ex.id;
-            const date = formatDate(ex.publishedAt);
+            const date = formatGermanDate(ex.publishedAt);
             return (
               <li key={ex.id} className="px-4 py-3">
                 <button
@@ -161,19 +132,3 @@ export const PressemitteilungExamplesCard = memo(function PressemitteilungExampl
     </div>
   );
 });
-
-function getString(obj: unknown, key: string): string | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return typeof val === 'string' ? val : null;
-  }
-  return null;
-}
-
-function getArray(obj: unknown, key: string): unknown[] | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return Array.isArray(val) ? val : null;
-  }
-  return null;
-}
