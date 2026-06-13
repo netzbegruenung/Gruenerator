@@ -67,7 +67,7 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
         messages: [{ role: 'user', content: researchPrompt }],
         options: {
           provider: 'litellm',
-          model: 'gpt-oss:120b',
+          model: 'verdigado-pro',
           max_tokens: 300,
           temperature: 0.3,
         },

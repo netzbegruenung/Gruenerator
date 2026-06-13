@@ -113,7 +113,7 @@ function createMockReadableStream(chunks: string[] = ['data: test\n\n']) {
 
 function setupHappyPath() {
   mockIsProviderConfigured.mockReturnValue(true);
-  mockGetModel.mockReturnValue({ modelId: 'gpt-oss:120b' });
+  mockGetModel.mockReturnValue({ modelId: 'verdigado-pro' });
   mockInjectDocumentStateMessages.mockImplementation((msgs: unknown[]) => [...msgs]);
   mockToolDefinitionsToToolSet.mockReturnValue({ applyDocumentOperations: {} });
   mockConvertToModelMessages.mockResolvedValue([{ role: 'user', content: 'test' }]);
@@ -269,7 +269,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('litellm', 'gpt-oss:120b');
+      expect(mockGetModel).toHaveBeenCalledWith('litellm', 'verdigado-pro');
     });
   });
 
@@ -329,7 +329,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       expect(mockStreamText).toHaveBeenCalledOnce();
       const opts = mockStreamText.mock.calls[0][0];
-      expect(opts.model).toEqual({ modelId: 'gpt-oss:120b' });
+      expect(opts.model).toEqual({ modelId: 'verdigado-pro' });
       expect(opts.system).toContain('You are a document editor.');
       expect(opts.system).toContain('VALID SHAPES');
       expect(opts.toolChoice).toBe('auto');
