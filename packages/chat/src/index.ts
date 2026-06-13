@@ -319,6 +319,70 @@ export {
   type DocMentionable,
 } from './lib/mentionables';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+
+// Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
+export {
+  getString,
+  getArray,
+  getObject,
+  getNumber,
+  getBoolean,
+  getToolMeta,
+  getToolQuery,
+  toSerializableCitation,
+  parseSearchCitations,
+  parseExampleCitations,
+  parseWebCitations,
+  parseResearchResult,
+  researchCitationToSerializable,
+  extractHeadings,
+  extractFirstParagraph,
+  buildExportMarkdown,
+  CONFIDENCE_LABELS,
+  parsePersonResult,
+  parseExamples,
+  parseScrapeResult,
+  parsePressemitteilungExamples,
+  pressemitteilungLvLabel,
+  formatGermanDate,
+  type ToolIconKey,
+  type ToolMeta,
+  type ResearchCitation,
+  type ResearchConfidence,
+  type ResearchSearchStep,
+  type ParsedResearchResult,
+  type ParsedPersonResult,
+  type ExampleSnippet,
+  type ScrapedPage,
+  type PressemitteilungExample,
+  type ParsedPressemitteilungExamples,
+} from './lib/toolResults';
+
+// Tool view-models & registry (platform-neutral; each platform maps kind → component)
+export {
+  ToolViewKindSchema,
+  ToolResultVMSchema,
+  type ToolViewKind,
+  type ToolResultVM,
+  type CitationListVM,
+  type LinkPreviewVM,
+  type MarkdownReportVM,
+  type SnippetListVM,
+  type PressExamplesVM,
+  type PersonVM,
+  type ImageResultVM,
+  type TextNoteVM,
+  type KeyValueVM,
+  type KeyValueEntry,
+} from './lib/toolViewModels';
+export {
+  TOOL_REGISTRY,
+  UI_TOOL_NAMES,
+  resolveToolEntry,
+  parseGenericFallback,
+  type UiToolName,
+  type ToolRegistryEntry,
+} from './lib/toolRegistry';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,
