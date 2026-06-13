@@ -101,8 +101,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  // LiteLLM only serves one model — always use it
-  const model = 'gpt-oss:120b';
+  // Always use verdigado's official gpt-oss alias for worker requests
+  const model = 'verdigado-pro';
 
   // Convert messages to Vercel AI SDK format
   const { system, messages: modelMessages } = convertMessages(messages, systemPrompt);
