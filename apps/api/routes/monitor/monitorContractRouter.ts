@@ -41,7 +41,6 @@ import {
   getPolitProPolls,
   POLITPRO_PARLIAMENTS,
 } from '../../services/monitor/PolitProService.js';
-import { getPolls } from '../../services/monitor/PollScraper.js';
 import { getStateElections } from '../../services/monitor/StateElectionsService.js';
 import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -239,13 +238,8 @@ export const monitorContractRouter = s.router(monitorContract, {
   polls: async ({ query, res }) => {
     try {
       const parliament = query.parliament ?? 'deutschland';
-      let data: PollData | null = await getPolitProPolls(parliament);
-      // The wahlrecht.de fallback only carries federal German polls — never
-      // serve it for a Land/AT request, where it would be wrong data.
-      if (!data && parliament === 'deutschland') {
-        log.warn('PolitPro returned null for "deutschland", falling back to wahlrecht.de');
-        data = await getPolls();
-      }
+      // PolitPro is the only poll source — if it has nothing, serve empty data.
+      const data: PollData | null = await getPolitProPolls(parliament);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
       return {
         status: 200 as const,

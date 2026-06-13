@@ -206,7 +206,7 @@ export const monitorContract = c.router(
       summary: 'Poll trend history for one parliament',
     },
 
-    /** GET /api/monitor/polls — poll averages (PolitPro, wahlrecht.de fallback). */
+    /** GET /api/monitor/polls — poll averages (PolitPro). */
     polls: {
       method: 'GET',
       path: '/api/monitor/polls',
