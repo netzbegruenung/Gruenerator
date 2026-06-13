@@ -3,6 +3,7 @@ import { StyleSheet, View, ActivityIndicator, Text, Platform } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
+import { useTheme } from '../../hooks/useTheme';
 import { secureStorage } from '../../services/storage';
 import { colors } from '../../theme';
 
@@ -26,6 +27,7 @@ interface WebViewEditorProps {
 export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorProps) {
   const webViewRef = useRef<WebView>(null);
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const [_isReady, setIsReady] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
@@ -95,8 +97,8 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
 
   if (!authToken && __DEV__ === false) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.textGreen} />
       </View>
     );
   }
@@ -113,9 +115,9 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
         domStorageEnabled={true}
         startInLoadingState={true}
         renderLoading={() => (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-            <Text style={styles.loadingText}>Lade Editor...</Text>
+          <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+            <ActivityIndicator size="large" color={theme.textGreen} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Lade Editor...</Text>
           </View>
         )}
         // Optimization flags
@@ -137,14 +139,12 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
   },
   loadingText: {
     marginTop: 16,
-    color: colors.grey[600],
     fontSize: 16,
   },
 });

@@ -155,13 +155,13 @@ export function DocumentBrowserSheet({
             onChangeText={handleSearch}
             autoFocus
           />
-          {searching && <ActivityIndicator size="small" color={colors.primary[600]} />}
+          {searching && <ActivityIndicator size="small" color={theme.textGreen} />}
         </View>
       )}
 
       {isLoading || uploading ? (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <ActivityIndicator size="large" color={theme.textGreen} />
           {uploading && (
             <Text style={[styles.loadingLabel, { color: theme.textSecondary }]}>
               Wird hochgeladen…
@@ -270,10 +270,8 @@ function RootLevel({
               },
             ]}
           >
-            <Ionicons name="cloud-upload-outline" size={20} color={colors.primary[600]} />
-            <Text style={[styles.uploadRowText, { color: colors.primary[600] }]}>
-              Datei hochladen
-            </Text>
+            <Ionicons name="cloud-upload-outline" size={20} color={theme.textGreen} />
+            <Text style={[styles.uploadRowText, { color: theme.textGreen }]}>Datei hochladen</Text>
           </Pressable>
 
           {collections.length > 0 && (
@@ -290,7 +288,7 @@ function RootLevel({
                   ]}
                   onPress={() => onSelectCollection(c)}
                 >
-                  <Ionicons name="folder-outline" size={20} color={colors.primary[600]} />
+                  <Ionicons name="folder-outline" size={20} color={theme.textGreen} />
                   <View style={styles.rowText}>
                     <Text style={[styles.rowTitle, { color: theme.text }]}>{c.name}</Text>
                   </View>
