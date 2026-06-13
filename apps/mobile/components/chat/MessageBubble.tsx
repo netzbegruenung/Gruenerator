@@ -25,6 +25,8 @@ import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { ConfirmActionCard } from './ConfirmActionCard';
+import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { MessageActionsSheet } from './MessageActionsSheet';
@@ -260,6 +262,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
   const generatedImage = metadata.generatedImage;
+  const confirmAction = metadata.confirmAction;
+  const createdDocument = metadata.createdDocument;
   const [actionsVisible, setActionsVisible] = useState(false);
 
   const messageText = useMemo(() => {
@@ -290,6 +294,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
           <View style={styles.assistantContent}>
             <MessagePrimitive.Parts components={partsComponents} />
             {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
+            {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
+            {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
             {citations && citations.length > 0 && (
               <CitationsFooter citations={citations} theme={theme} />
             )}

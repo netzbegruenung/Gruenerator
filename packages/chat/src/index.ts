@@ -1,5 +1,13 @@
 // Unified Message Metadata
-export { type ChatMessageMetadata } from './types/messageMetadata';
+export {
+  type ChatMessageMetadata,
+  type ConfirmActionData,
+  type ConfirmActionType,
+  type DocumentCreatedData,
+} from './types/messageMetadata';
+
+// Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
+export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
 // Extra Actions Context
 export {
