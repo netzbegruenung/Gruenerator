@@ -30,6 +30,12 @@ const MAIN_TOOLS: ToolItem[] = [
     icon: RiSpyLine,
   },
   {
+    id: 'monitor',
+    title: 'Monitor',
+    path: '/monitor',
+    icon: getIcon('navigation', 'monitor')!,
+  },
+  {
     id: 'gruen-veraendern',
     title: 'Bild mit KI begrünen',
     path: '/studio/ki/green-edit',

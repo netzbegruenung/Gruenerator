@@ -39,13 +39,13 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
     case 'ionos':
       return 'openai/gpt-oss-120b';
     case 'litellm':
-      return 'gpt-oss:120b';
+      return 'verdigado-pro';
     case 'mistral':
       return 'mistral-medium-2604';
     case 'regolo':
       return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
-      return 'gpt-oss:120b';
+      return 'verdigado-pro';
   }
 }
 
@@ -59,7 +59,7 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
     case 'ionos':
       return 'openai/gpt-oss-120b';
     case 'litellm':
-      return 'gpt-oss:120b';
+      return 'verdigado-pro';
     case 'regolo':
       return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:

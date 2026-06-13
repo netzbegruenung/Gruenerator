@@ -100,7 +100,7 @@ Respond with JSON:
         ],
         options: {
           provider: 'litellm',
-          model: 'gpt-oss:120b',
+          model: 'verdigado-pro',
           max_tokens: 600,
           temperature: 0.1,
         },

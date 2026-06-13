@@ -119,7 +119,7 @@ ${refsSummary}`;
         messages: [{ role: 'user', content: enhancedUserPrompt }],
         options: {
           provider: 'litellm',
-          model: 'gpt-oss:120b',
+          model: 'verdigado-pro',
           max_tokens: 6000,
           temperature: 0.3,
         },
