@@ -3,10 +3,16 @@ import * as MediaLibrary from 'expo-media-library';
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 import { reelApi } from '../services/reel';
+import {
+  ensureUploadableSize,
+  cancelCompression,
+  type CompressionHandle,
+} from '../services/videoCompression';
 import { getErrorMessage } from '../utils/errors';
 
 export type ReelStatus =
   | 'idle'
+  | 'compressing'
   | 'uploading'
   | 'processing'
   | 'downloading'
@@ -16,6 +22,7 @@ export type ReelStatus =
 
 export interface ReelProcessingState {
   status: ReelStatus;
+  compressionProgress: number;
   uploadProgress: number;
   processingStage: number;
   stageName: string;
@@ -23,6 +30,8 @@ export interface ReelProcessingState {
   overallProgress: number;
   downloadProgress: number;
   uploadId: string | null;
+  /** Name of the file actually uploaded (matches the X-Filename header). */
+  videoFilename: string | null;
   videoUri: string | null;
   savedToGallery: boolean;
   error: string | null;
@@ -48,6 +57,7 @@ export const ERROR_MESSAGES = {
 
 const initialState: ReelProcessingState = {
   status: 'idle',
+  compressionProgress: 0,
   uploadProgress: 0,
   processingStage: 1,
   stageName: PROCESSING_STAGES[1].name,
@@ -55,6 +65,7 @@ const initialState: ReelProcessingState = {
   overallProgress: 0,
   downloadProgress: 0,
   uploadId: null,
+  videoFilename: null,
   videoUri: null,
   savedToGallery: false,
   error: null,
@@ -65,6 +76,7 @@ const initialState: ReelProcessingState = {
 export function useReelProcessing() {
   const [state, setState] = useState<ReelProcessingState>(initialState);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const compressionRef = useRef<CompressionHandle | null>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
   const uploadIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -202,17 +214,56 @@ export function useReelProcessing() {
     [pollProgress]
   );
 
+  /**
+   * Compress oversized videos before upload (see services/videoCompression).
+   * Returns the uri to upload, or null when the user cancelled meanwhile.
+   * Compression is best-effort: on failure the original file is uploaded and
+   * the server-side size limits decide.
+   */
+  const compressForUpload = useCallback(
+    async (fileUri: string, signal: AbortSignal): Promise<string | null> => {
+      const handle: CompressionHandle = { cancellationId: null };
+      compressionRef.current = handle;
+      updateState({ status: 'compressing', compressionProgress: 0 });
+      try {
+        const uri = await ensureUploadableSize(
+          fileUri,
+          (percent) => {
+            if (isMountedRef.current) {
+              updateState({ compressionProgress: percent });
+            }
+          },
+          handle
+        );
+        return signal.aborted ? null : uri;
+      } catch (error: unknown) {
+        if (signal.aborted) return null;
+        console.warn(
+          '[ReelProcessing] Compression failed, uploading original:',
+          getErrorMessage(error)
+        );
+        return fileUri;
+      } finally {
+        compressionRef.current = null;
+      }
+    },
+    [updateState]
+  );
+
   const startProcessing = useCallback(
     async (fileUri: string) => {
       reset();
       uploadIdRef.current = null;
       const controller = new AbortController();
       uploadAbortRef.current = controller;
-      updateState({ status: 'uploading' });
 
       try {
+        const uploadUri = await compressForUpload(fileUri, controller.signal);
+        if (uploadUri == null || !isMountedRef.current) return;
+        updateState({ status: 'uploading' });
+
         const uploadId = await reelApi.uploadVideo(
-          fileUri,
+          uploadUri,
           (progress) => {
             if (isMountedRef.current) {
               updateState({ uploadProgress: progress });
@@ -227,6 +278,7 @@ export function useReelProcessing() {
         updateState({
           status: 'processing',
           uploadId,
+          videoFilename: uploadUri.split('/').pop() || 'video.mp4',
           uploadProgress: 100,
         });
 
@@ -240,12 +292,16 @@ export function useReelProcessing() {
         handleError('upload_failed', getErrorMessage(error));
       }
     },
-    [handleError, reset, startPolling, updateState, user]
+    [compressForUpload, handleError, reset, startPolling, updateState, user]
   );
 
   const cancelProcessing = useCallback(() => {
     uploadAbortRef.current?.abort();
     uploadAbortRef.current = null;
+    if (compressionRef.current) {
+      cancelCompression(compressionRef.current);
+      compressionRef.current = null;
+    }
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
@@ -310,11 +366,14 @@ export function useReelProcessing() {
       uploadIdRef.current = null;
       const controller = new AbortController();
       uploadAbortRef.current = controller;
-      updateState({ status: 'uploading' });
 
       try {
+        const uploadUri = await compressForUpload(fileUri, controller.signal);
+        if (uploadUri == null || !isMountedRef.current) return;
+        updateState({ status: 'uploading' });
+
         const uploadId = await reelApi.uploadVideo(
-          fileUri,
+          uploadUri,
           (progress) => {
             if (isMountedRef.current) {
               updateState({ uploadProgress: progress });
@@ -329,6 +388,7 @@ export function useReelProcessing() {
         updateState({
           status: 'transcribing',
           uploadId,
+          videoFilename: uploadUri.split('/').pop() || 'video.mp4',
           uploadProgress: 100,
           stageName: 'Untertitel werden grüneriert...',
         });
@@ -343,7 +403,7 @@ export function useReelProcessing() {
         handleError('upload_failed', getErrorMessage(error));
       }
     },
-    [handleError, reset, startManualPolling, updateState]
+    [compressForUpload, handleError, reset, startManualPolling, updateState]
   );
 
   return {

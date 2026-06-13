@@ -33,17 +33,64 @@ function parseTimestamp(timeStr: string): { min: number; sec: number; fracSecond
 }
 
 /**
- * Parse subtitle text format into segment array
- * Format: "MM:SS.F - MM:SS.F\nText\n\nMM:SS.F - MM:SS.F\nText..."
- * Accepts 1–2 fractional digits per timestamp (tenths or centiseconds);
- * extra digits are truncated. Emitters write 1 digit until Phase B.
+ * Parse a JSON-stored segment array: `JSON.stringify(SubtitleSegment[])`
+ * as written by the canonicalized POST /subtitler/projects create path
+ * (projectSavingService stores `JSON.stringify(projectData.subtitles)`).
+ * The wire segments carry no `id`; indexes are assigned here. Returns null
+ * when the string isn't a valid segment array so the caller can fall back
+ * to the text format.
+ */
+function parseJsonSegments(text: string): SubtitleSegment[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+
+  const segments: SubtitleSegment[] = [];
+  for (const item of parsed) {
+    if (typeof item !== 'object' || item === null) return null;
+    const segment = item as Record<string, unknown>;
+    if (
+      typeof segment.text !== 'string' ||
+      typeof segment.startTime !== 'number' ||
+      typeof segment.endTime !== 'number'
+    ) {
+      return null;
+    }
+    segments.push({
+      id: segments.length,
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+      text: segment.text,
+    });
+  }
+  return segments;
+}
+
+/**
+ * Parse stored subtitles into a segment array. Accepts BOTH persisted
+ * formats — the DB `subtitles` column holds either depending on which
+ * code path wrote it:
+ * - JSON segment array (`[{"text":…,"startTime":…,"endTime":…}]`) from the
+ *   canonicalized create path (2026-04-13 contract unification)
+ * - Text format "MM:SS.F - MM:SS.F\nText\n\n…" from the update path and
+ *   the transcription pipeline. Accepts 1–2 fractional digits per
+ *   timestamp (tenths or centiseconds); extra digits are truncated.
  *
- * @param text - Raw subtitle text from backend
+ * @param text - Raw subtitle string from backend
  * @returns Array of parsed subtitle segments
  */
 export function parseSubtitlesText(text: string | null | undefined): SubtitleSegment[] {
   if (!text || typeof text !== 'string' || text.trim() === '') {
     return [];
+  }
+
+  if (text.trimStart().startsWith('[')) {
+    const fromJson = parseJsonSegments(text);
+    if (fromJson) return fromJson;
   }
 
   const safeText =
