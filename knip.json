@@ -20,6 +20,10 @@
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["src/tiptap-editor/**"]
     },
+    "packages/chat": {
+      "entry": ["src/index.ts!", "src/index.native.ts!"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
     "packages/sites": {
       "entry": ["src/index.ts!"],
       "project": ["src/**/*.{ts,tsx}"]

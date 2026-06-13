@@ -19,8 +19,16 @@ import type {
   ReelPickerProject,
   TriggerDocEdit,
   TriggerBoardAction,
+  ConfirmActionEvent,
+  DocumentCreatedEvent,
+  SearchResultPayload,
+  ThinkingStepPayload,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
+
+// Wire shapes shared with the chat runtime parser — defined once in
+// @gruenerator/contracts (chatStreamEvents) and re-exported for the emitters.
+export type { SearchResultPayload, ThinkingStepPayload };
 
 /**
  * SSE event types for chat streaming.
@@ -74,35 +82,6 @@ export type SSEEventType =
  * Reasons a primary model can fail in a way that triggers fallback.
  */
 export type FallbackReason = 'first_token_timeout' | 'empty_completion' | 'upstream_error';
-
-/**
- * Search result structure sent to the client.
- */
-export interface SearchResultPayload {
-  source: string;
-  title: string;
-  content: string;
-  url?: string;
-  relevance?: number;
-}
-
-/**
- * Payload for deep agent thinking step events.
- * Emitted when the agent starts/completes a tool call.
- */
-export interface ThinkingStepPayload {
-  stepId: string;
-  toolName: string;
-  title: string;
-  status: 'in_progress' | 'completed';
-  args?: Record<string, unknown>;
-  result?: {
-    resultCount?: number;
-    results?: unknown[];
-    image?: GeneratedImageResult;
-    error?: string;
-  };
-}
 
 /**
  * Payload for internal pipeline-progress events (classify, rerank, brief).
@@ -211,7 +190,7 @@ export interface SSEEventPayloads {
     reason: FallbackReason;
   };
   document_indexed: { documentId: string; title: string };
-  document_created: { documentId: string; title: string; subtype: string; url: string };
+  document_created: DocumentCreatedEvent;
   trigger_doc_edit: TriggerDocEdit;
   trigger_board_action: TriggerBoardAction;
   interrupt: {
@@ -220,18 +199,7 @@ export interface SSEEventPayloads {
     options?: string[];
     threadId?: string;
   };
-  confirm_action: {
-    actionId: string;
-    type: ConfirmActionType;
-    title: string;
-    description?: string;
-    icon?: string;
-    metadata?: Array<{ key: string; value: string }>;
-    variant?: 'default' | 'destructive';
-    confirmLabel?: string;
-    cancelLabel?: string;
-    threadId?: string;
-  };
+  confirm_action: ConfirmActionEvent;
   memory_context: {
     memoryCount: number;
     memories: Array<{ content: string; category: string | null }>;
