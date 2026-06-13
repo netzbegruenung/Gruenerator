@@ -1,3 +1,4 @@
+import { type KiLabelMode } from '@gruenerator/contracts';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useMediaPicker, type MediaItem } from '@gruenerator/shared/media-library';
 import {
@@ -13,6 +14,8 @@ import {
   AIPromptInput,
   Button,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -20,13 +23,13 @@ import {
   ResponsiveMenuItem,
   ResponsiveMenuSection,
   SettingsDropdown,
-  pillActive,
   pillBase,
+  pillInactive,
   type SettingConfig,
 } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Download, Image as ImageIcon, ImagePlus, X } from 'lucide-react';
+import { Check, Download, Image as ImageIcon, ImagePlus, Settings, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -84,102 +87,300 @@ const MODELS_BY_FAMILY = IMAGE_FAMILIES.map((family) => ({
       : IMAGE_MODELS.filter((m) => m.family === family.id),
 }));
 
-function ImageModelDropdown({
-  value,
-  onChange,
+const itemSelectedClass = 'text-primary-700 dark:text-primary-300';
+
+// One gear menu bundling all secondary image settings (Stil, Modell, Format),
+// mirroring the notebook composer's settings dropdown. The Modus pill stays
+// outside since it switches the entire input UI.
+function BilderSettingsMenu({
+  settings,
+  settingsValues,
+  onSettingChange,
+  modelValue,
+  onModelChange,
+  format,
+  kiLabel,
+  onKiLabelChange,
 }: {
-  value: ImageModelId;
-  onChange: (id: ImageModelId) => void;
+  settings: SettingConfig[];
+  settingsValues: Record<string, unknown>;
+  onSettingChange: (key: string, value: string) => void;
+  modelValue: ImageModelId | null;
+  onModelChange: (id: ImageModelId) => void;
+  format: { config: SettingConfig; value: string; onChange: (value: string) => void } | null;
+  kiLabel: KiLabelMode | null;
+  onKiLabelChange: (value: KiLabelMode) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const selected = IMAGE_MODEL_BY_ID[value];
-  const select = (id: ImageModelId) => {
-    onChange(id);
+  const hasSelectSections = settings.length > 0 || modelValue !== null || format !== null;
+  if (!hasSelectSections && kiLabel === null) return null;
+
+  const selectModel = (id: ImageModelId) => {
+    onModelChange(id);
     setOpen(false);
   };
-  const itemSelectedClass = 'text-primary-700 dark:text-primary-300';
 
-  // Desktop: a Flux submenu nested under the model list; single-model families
-  // select directly.
-  const desktopContent = MODELS_BY_FAMILY.map(({ family, models }) => {
-    if (models.length === 1) {
-      const m = models[0];
-      const isSelected = m.id === value;
-      return (
-        <DropdownMenuItem
-          key={family.id}
-          onSelect={() => select(m.id)}
-          className={cn(isSelected && itemSelectedClass)}
-        >
-          <span className="flex-1">{m.name}</span>
-          {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
-        </DropdownMenuItem>
-      );
-    }
-    const familyActive = models.some((m) => m.id === value);
-    return (
-      <DropdownMenuSub key={family.id}>
-        <DropdownMenuSubTrigger className={cn(familyActive && itemSelectedClass)}>
-          {family.name}
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {models.map((m) => {
-            const isSelected = m.id === value;
-            return (
-              <DropdownMenuItem
-                key={m.id}
-                onSelect={() => select(m.id)}
-                className={cn(isSelected && itemSelectedClass)}
+  const subHint = (label: string | null) =>
+    label && <span className="ml-auto truncate pl-3 text-xs text-grey-500">{label}</span>;
+
+  const desktopItem = (
+    key: string,
+    label: React.ReactNode,
+    isSelected: boolean,
+    onSelect: () => void,
+    detail?: string
+  ) => (
+    <DropdownMenuItem key={key} onSelect={onSelect} className={cn(isSelected && itemSelectedClass)}>
+      <span className="flex-1">{label}</span>
+      {detail && <span className="text-xs text-grey-500">{detail}</span>}
+      {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
+    </DropdownMenuItem>
+  );
+
+  const desktopContent = (
+    <>
+      {settings.map((config) => {
+        const current = (settingsValues[config.key] as string) ?? '';
+        return (
+          <DropdownMenuSub key={config.key}>
+            <DropdownMenuSubTrigger>
+              {config.label ?? config.key}
+              {subHint(config.options.find((o) => o.id === current)?.label ?? null)}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {config.options.map((option) =>
+                desktopItem(option.id, option.label, option.id === current, () =>
+                  onSettingChange(config.key, option.id)
+                )
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        );
+      })}
+      {modelValue !== null && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            Modell
+            {subHint(IMAGE_MODEL_BY_ID[modelValue]?.name ?? null)}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {MODELS_BY_FAMILY.map(({ family, models }) =>
+              models.length === 1 ? (
+                desktopItem(family.id, models[0].name, models[0].id === modelValue, () =>
+                  selectModel(models[0].id)
+                )
+              ) : (
+                <React.Fragment key={family.id}>
+                  <DropdownMenuLabel className="text-xs text-grey-500">
+                    {family.name}
+                  </DropdownMenuLabel>
+                  {models.map((m) =>
+                    desktopItem(
+                      m.id,
+                      m.name.replace(FLUX_VARIANT_LABEL_RE, ''),
+                      m.id === modelValue,
+                      () => selectModel(m.id),
+                      shortCost(m.costMultiplier)
+                    )
+                  )}
+                </React.Fragment>
+              )
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+      {format !== null && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {format.config.label ?? format.config.key}
+            {subHint(format.config.options.find((o) => o.id === format.value)?.label ?? null)}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {format.config.options.map((option) =>
+              desktopItem(option.id, option.label, option.id === format.value, () =>
+                format.onChange(option.id)
+              )
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+      {kiLabel !== null && (
+        <>
+          {hasSelectSections && <DropdownMenuSeparator />}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              Kennzeichnung
+              {subHint(KI_LABEL_OPTIONS.find((o) => o.id === kiLabel)?.label ?? null)}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {KI_LABEL_OPTIONS.map((option) =>
+                desktopItem(option.id, option.label, option.id === kiLabel, () =>
+                  onKiLabelChange(option.id)
+                )
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </>
+      )}
+    </>
+  );
+
+  // Mobile: flat titled sections in a bottom sheet (nested fly-outs are awkward
+  // on touch). Flux variants keep their full name to stay distinguishable.
+  const mobileContent = (
+    <>
+      {settings.map((config) => {
+        const current = (settingsValues[config.key] as string) ?? '';
+        return (
+          <ResponsiveMenuSection key={config.key} title={config.label ?? config.key}>
+            {config.options.map((option) => (
+              <ResponsiveMenuItem
+                key={option.id}
+                active={option.id === current}
+                onClick={() => {
+                  onSettingChange(config.key, option.id);
+                  setOpen(false);
+                }}
               >
-                <span className="flex-1">{m.name.replace(FLUX_VARIANT_LABEL_RE, '')}</span>
-                <span className="text-xs text-grey-500">{shortCost(m.costMultiplier)}</span>
-                {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-    );
-  });
-
-  // Mobile: a flat bottom sheet — Flux variants grouped in a titled section,
-  // single-model families as loose rows. (Nested side fly-outs are awkward on touch.)
-  const mobileContent = MODELS_BY_FAMILY.map(({ family, models }) =>
-    models.length > 1 ? (
-      <ResponsiveMenuSection key={family.id} title={family.name}>
-        {models.map((m) => (
-          <ResponsiveMenuItem key={m.id} active={m.id === value} onClick={() => select(m.id)}>
-            {m.name.replace(FLUX_VARIANT_LABEL_RE, '')} · {shortCost(m.costMultiplier)}
-          </ResponsiveMenuItem>
-        ))}
-      </ResponsiveMenuSection>
-    ) : (
-      <ResponsiveMenuItem
-        key={family.id}
-        active={models[0].id === value}
-        onClick={() => select(models[0].id)}
-      >
-        {models[0].name}
-      </ResponsiveMenuItem>
-    )
+                {option.label}
+              </ResponsiveMenuItem>
+            ))}
+          </ResponsiveMenuSection>
+        );
+      })}
+      {modelValue !== null && (
+        <ResponsiveMenuSection title="Modell">
+          {MODELS_BY_FAMILY.flatMap(({ models }) =>
+            models.map((m) => (
+              <ResponsiveMenuItem
+                key={m.id}
+                active={m.id === modelValue}
+                onClick={() => selectModel(m.id)}
+              >
+                {models.length > 1
+                  ? `${m.name.replace(/^⭐\s+/, '')} · ${shortCost(m.costMultiplier)}`
+                  : m.name}
+              </ResponsiveMenuItem>
+            ))
+          )}
+        </ResponsiveMenuSection>
+      )}
+      {format !== null && (
+        <ResponsiveMenuSection title={format.config.label ?? format.config.key}>
+          {format.config.options.map((option) => (
+            <ResponsiveMenuItem
+              key={option.id}
+              active={option.id === format.value}
+              onClick={() => {
+                format.onChange(option.id);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
+      {kiLabel !== null && (
+        <ResponsiveMenuSection title="Kennzeichnung">
+          {KI_LABEL_OPTIONS.map((option) => (
+            <ResponsiveMenuItem
+              key={option.id}
+              active={option.id === kiLabel}
+              onClick={() => {
+                onKiLabelChange(option.id);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
+    </>
   );
 
   return (
     <ResponsiveMenu
       open={open}
       onOpenChange={setOpen}
-      sheetTitle="Modell wählen"
+      sheetTitle="Bild-Einstellungen"
       dropdownSide="bottom"
       dropdownAlign="start"
-      dropdownClassName="min-w-[12rem]"
+      dropdownClassName="min-w-[14rem]"
       trigger={
-        <button type="button" className={cn(pillBase, pillActive, 'gap-1')}>
-          <span>{selected.name}</span>
-          <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
+        <button
+          type="button"
+          aria-label="Bild-Einstellungen"
+          className={cn(pillBase, pillInactive)}
+        >
+          <Settings className="size-3.5" />
         </button>
       }
       desktopContent={desktopContent}
       mobileContent={mobileContent}
+    />
+  );
+}
+
+// One "add image" button with a source dropdown (device upload / media
+// library) instead of two side-by-side buttons.
+function AddImageMenu({
+  label,
+  onUpload,
+  onPickFromLibrary,
+}: {
+  label: string;
+  onUpload: () => void;
+  onPickFromLibrary: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const select = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+  const sources = [
+    {
+      key: 'upload',
+      icon: <ImagePlus className="size-4" />,
+      label: 'Vom Gerät hochladen',
+      action: onUpload,
+    },
+    {
+      key: 'library',
+      icon: <ImageIcon className="size-4" />,
+      label: 'Aus der Mediathek',
+      action: onPickFromLibrary,
+    },
+  ];
+
+  return (
+    <ResponsiveMenu
+      open={open}
+      onOpenChange={setOpen}
+      sheetTitle="Bild hinzufügen"
+      dropdownSide="bottom"
+      dropdownAlign="start"
+      trigger={
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
+        >
+          <ImagePlus className="size-3.5" />
+          {label}
+        </button>
+      }
+      desktopContent={sources.map((s) => (
+        <DropdownMenuItem key={s.key} onSelect={() => select(s.action)}>
+          {s.icon}
+          {s.label}
+        </DropdownMenuItem>
+      ))}
+      mobileContent={sources.map((s) => (
+        <ResponsiveMenuItem key={s.key} icon={s.icon} onClick={() => select(s.action)}>
+          {s.label}
+        </ResponsiveMenuItem>
+      ))}
     />
   );
 }
@@ -200,9 +401,61 @@ const ASPECT_RATIO_CONFIG: SettingConfig = {
   multiple: false,
 };
 
+// Format for generation (erstellen): the variant's default size, a preset
+// ratio, or free pixel input.
+type CreateFormat = 'auto' | AspectRatio;
+
+const CREATE_FORMAT_CONFIG: SettingConfig = {
+  key: 'createFormat',
+  label: 'Format',
+  options: [{ id: 'auto', label: 'Automatisch' }, ...ASPECT_RATIO_CONFIG.options],
+  multiple: false,
+};
+
+// Pixel sizes per preset for /imagine/pure — multiples of 16 under its 4MP
+// cap; mirrors the outpaint target sizes on the server.
+const CREATE_ASPECT_DIMENSIONS: Record<
+  Exclude<AspectRatio, 'custom'>,
+  { width: number; height: number }
+> = {
+  '16:9': { width: 1600, height: 896 },
+  '4:3': { width: 1408, height: 1056 },
+  '1:1': { width: 1280, height: 1280 },
+  '3:4': { width: 1056, height: 1408 },
+  '9:16': { width: 896, height: 1600 },
+};
+
+// /imagine/pure rejects images over 4MP and requires sides in multiples of 16.
+const MAX_CREATE_AREA = 4_000_000;
+
+function roundTo16(n: number): number {
+  return Math.round(n / 16) * 16;
+}
+
 const MIN_CUSTOM_SIDE = 256;
 const MAX_CUSTOM_SIDE = 2048;
 const MAX_CUSTOM_AREA = 4_194_304;
+
+// Which AI label gets burned into generated images. Users may shorten or
+// drop it to apply their own AI labeling instead.
+const KI_LABEL_OPTIONS: Array<{ id: KiLabelMode; label: string }> = [
+  { id: 'full', label: '„KI-Generiert mit dem Grünerator“' },
+  { id: 'short', label: 'Nur „KI-Generiert“' },
+  { id: 'none', label: 'Keine Kennzeichnung' },
+];
+
+// Persists the label choice across sessions.
+const KI_LABEL_STORAGE_KEY = 'gruenerator-bilder-ki-label';
+
+function readStoredKiLabel(): KiLabelMode {
+  try {
+    const stored = localStorage.getItem(KI_LABEL_STORAGE_KEY);
+    if (stored === 'short' || stored === 'none') return stored;
+    return 'full';
+  } catch {
+    return 'full';
+  }
+}
 
 const ASPECT_RATIO_VALUE: Record<Exclude<AspectRatio, 'custom'>, number> = {
   '16:9': 16 / 9,
@@ -318,6 +571,7 @@ const BilderInner: React.FC = memo(() => {
           : hintergrundDef;
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [createFormat, setCreateFormat] = useState<CreateFormat>('auto');
   const [customWidth, setCustomWidth] = useState<number>(1280);
   const [customHeight, setCustomHeight] = useState<number>(1280);
   const [outpaintLoading, setOutpaintLoading] = useState(false);
@@ -329,7 +583,26 @@ const BilderInner: React.FC = memo(() => {
     customHeight >= MIN_CUSTOM_SIDE &&
     customHeight <= MAX_CUSTOM_SIDE &&
     customArea <= MAX_CUSTOM_AREA;
+  // Stricter than the outpaint rule: /imagine/pure caps at 4MP after the
+  // sides are rounded to multiples of 16.
+  const createCustomValid =
+    customWidth >= MIN_CUSTOM_SIDE &&
+    customWidth <= MAX_CUSTOM_SIDE &&
+    customHeight >= MIN_CUSTOM_SIDE &&
+    customHeight <= MAX_CUSTOM_SIDE &&
+    roundTo16(customWidth) * roundTo16(customHeight) <= MAX_CREATE_AREA;
   const [outpaintError, setOutpaintError] = useState<string | null>(null);
+  const [createSizeError, setCreateSizeError] = useState<string | null>(null);
+
+  const [kiLabel, setKiLabelState] = useState<KiLabelMode>(readStoredKiLabel);
+  const setKiLabel = useCallback((value: KiLabelMode) => {
+    setKiLabelState(value);
+    try {
+      localStorage.setItem(KI_LABEL_STORAGE_KEY, value);
+    } catch {
+      // Storage unavailable (e.g. private mode) — keep the in-memory value.
+    }
+  }, []);
 
   const { state: modeState, updateField } = useModeState(ERSTELLEN_MODE_ID);
 
@@ -352,6 +625,10 @@ const BilderInner: React.FC = memo(() => {
   const selectedImageModel = (modeState.imageModel as ImageModelId | undefined) ?? null;
   const effectiveImageModel = selectedImageModel ?? defaultImageModel ?? DEFAULT_IMAGE_MODEL_ID;
   const maxRefs = IMAGE_MODEL_BY_ID[effectiveImageModel]?.maxReferenceImages ?? 1;
+  // Format presets/free px only make sense for models that honor width/height
+  // (Regolo/Qwen-Image always renders fixed squares).
+  const supportsCustomDims =
+    IMAGE_MODEL_BY_ID[effectiveImageModel]?.supportsCustomDimensions ?? false;
 
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const usageQuery = useQuery({
@@ -550,6 +827,24 @@ const BilderInner: React.FC = memo(() => {
       const payload: Record<string, unknown> = { prompt: trimmed };
       if (modeState.variant) payload.variant = modeState.variant;
       if (modeState.imageModel) payload.imageModel = modeState.imageModel;
+      if (kiLabel !== 'full') payload.kiLabel = kiLabel;
+      if (supportsCustomDims) {
+        if (createFormat === 'custom') {
+          if (!createCustomValid) {
+            setCreateSizeError(
+              `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CREATE_AREA / 1_000_000} MP.`
+            );
+            return;
+          }
+          payload.width = roundTo16(customWidth);
+          payload.height = roundTo16(customHeight);
+        } else if (createFormat !== 'auto') {
+          const dims = CREATE_ASPECT_DIMENSIONS[createFormat];
+          payload.width = dims.width;
+          payload.height = dims.height;
+        }
+      }
+      setCreateSizeError(null);
       const result = await submitForm(payload);
       const usageFromResponse = (result as { usage?: UsageStatus })?.usage;
       if (usageFromResponse) setUsage(usageFromResponse);
@@ -575,6 +870,12 @@ const BilderInner: React.FC = memo(() => {
     submitForm,
     modeState.variant,
     modeState.imageModel,
+    kiLabel,
+    createFormat,
+    createCustomValid,
+    customWidth,
+    customHeight,
+    supportsCustomDims,
     setResult,
     createImageShare,
     queryClient,
@@ -591,7 +892,8 @@ const BilderInner: React.FC = memo(() => {
         files,
         trimmed,
         'universal',
-        selectedImageModel ?? undefined
+        selectedImageModel ?? undefined,
+        { kiLabel }
       );
       setResult(objectUrl, true);
       createImageShare({
@@ -621,6 +923,7 @@ const BilderInner: React.FC = memo(() => {
     sourceFile,
     extraSourceFiles,
     selectedImageModel,
+    kiLabel,
     editLoading,
     setResult,
     createImageShare,
@@ -633,7 +936,15 @@ const BilderInner: React.FC = memo(() => {
     setGreenEditLoading(true);
     setGreenEditError(null);
     try {
-      const { objectUrl, base64 } = await editAiImage(sourceFile, trimmed, 'green-edit');
+      const { objectUrl, base64 } = await editAiImage(
+        sourceFile,
+        trimmed,
+        'green-edit',
+        undefined,
+        {
+          kiLabel,
+        }
+      );
       setResult(objectUrl, true);
       createImageShare({
         imageData: base64,
@@ -654,7 +965,7 @@ const BilderInner: React.FC = memo(() => {
     } finally {
       setGreenEditLoading(false);
     }
-  }, [prompt, sourceFile, greenEditLoading, setResult, createImageShare, queryClient]);
+  }, [prompt, sourceFile, kiLabel, greenEditLoading, setResult, createImageShare, queryClient]);
 
   const handleSubmitRemoveBg = useCallback(
     async (fileOverride?: File) => {
@@ -738,6 +1049,7 @@ const BilderInner: React.FC = memo(() => {
       form.append('aspectRatio', 'custom');
       form.append('width', String(targetW));
       form.append('height', String(targetH));
+      if (kiLabel !== 'full') form.append('kiLabel', kiLabel);
       const res = await getGlobalApiClient().post<{
         success: boolean;
         image?: { base64?: string };
@@ -787,6 +1099,7 @@ const BilderInner: React.FC = memo(() => {
     customWidth,
     customHeight,
     customSizeValid,
+    kiLabel,
     setResult,
     createImageShare,
     queryClient,
@@ -943,24 +1256,11 @@ const BilderInner: React.FC = memo(() => {
           </div>
         ))}
         {all.length < maxRefs && (
-          <>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-            >
-              <ImagePlus className="size-3.5" />
-              {all.length === 0 ? 'Bild hochladen' : '+ Bild'}
-            </button>
-            <button
-              type="button"
-              onClick={handlePickFromLibrary}
-              className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-            >
-              <ImageIcon className="size-3.5" />
-              Mediathek
-            </button>
-          </>
+          <AddImageMenu
+            label={all.length === 0 ? 'Bild hinzufügen' : '+ Bild'}
+            onUpload={() => fileInputRef.current?.click()}
+            onPickFromLibrary={handlePickFromLibrary}
+          />
         )}
         {all.length >= 2 && (
           <span className="text-[11px] text-grey-400 dark:text-grey-500">
@@ -986,39 +1286,44 @@ const BilderInner: React.FC = memo(() => {
           value={subMode}
           onChange={(val) => setSubMode(val as SubMode)}
         />
-        {isErstellen &&
-          erstellenDef?.settings?.map((config) => (
-            <SettingsDropdown
-              key={config.key}
-              config={config}
-              value={(modeState[config.key] as string) ?? ''}
-              onChange={(val) => updateField(config.key, val as string)}
-            />
-          ))}
-        {(isErstellen || isBearbeiten) && (
-          <ImageModelDropdown
-            value={selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID}
-            onChange={handleModelChange}
-          />
-        )}
+        <BilderSettingsMenu
+          settings={isErstellen ? (erstellenDef?.settings ?? []) : []}
+          settingsValues={modeState}
+          onSettingChange={(key, val) => updateField(key, val)}
+          modelValue={
+            isErstellen || isBearbeiten ? (selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID) : null
+          }
+          onModelChange={handleModelChange}
+          format={
+            isErstellen && supportsCustomDims
+              ? {
+                  config: CREATE_FORMAT_CONFIG,
+                  value: createFormat,
+                  onChange: (val) => setCreateFormat(val as CreateFormat),
+                }
+              : isVergroessern
+                ? {
+                    config: ASPECT_RATIO_CONFIG,
+                    value: aspectRatio,
+                    onChange: (val) => setAspectRatio(val as AspectRatio),
+                  }
+                : null
+          }
+          kiLabel={isHintergrund ? null : kiLabel}
+          onKiLabelChange={setKiLabel}
+        />
         {isBearbeiten && referencePillRow}
         {(isBegruenen || isHintergrund) && filePickerPill}
-        {isVergroessern && (
-          <SettingsDropdown
-            config={ASPECT_RATIO_CONFIG}
-            value={aspectRatio}
-            onChange={(val) => setAspectRatio(val as AspectRatio)}
-          />
-        )}
-        {isVergroessern && isCustomAspect && (
+        {((isVergroessern && isCustomAspect) ||
+          (isErstellen && supportsCustomDims && createFormat === 'custom')) && (
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs',
-              customSizeValid
+              (isErstellen ? createCustomValid : customSizeValid)
                 ? 'border-grey-200 dark:border-grey-700 text-grey-700 dark:text-grey-300'
                 : 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400'
             )}
-            title={`${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CUSTOM_AREA / 1_000_000} MP`}
+            title={`${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${(isErstellen ? MAX_CREATE_AREA : MAX_CUSTOM_AREA) / 1_000_000} MP`}
           >
             <input
               type="number"
@@ -1058,6 +1363,9 @@ const BilderInner: React.FC = memo(() => {
       customWidth,
       customHeight,
       customSizeValid,
+      createFormat,
+      createCustomValid,
+      supportsCustomDims,
       erstellenDef?.settings,
       modeState,
       updateField,
@@ -1066,6 +1374,8 @@ const BilderInner: React.FC = memo(() => {
       filePickerPill,
       referencePillRow,
       aspectRatio,
+      kiLabel,
+      setKiLabel,
       usage,
     ]
   );
@@ -1082,7 +1392,9 @@ const BilderInner: React.FC = memo(() => {
   const error = isErstellen
     ? createError
       ? String(createError)
-      : null
+      : createFormat === 'custom' && !createCustomValid
+        ? createSizeError
+        : null
     : isBearbeiten
       ? editError
       : isBegruenen

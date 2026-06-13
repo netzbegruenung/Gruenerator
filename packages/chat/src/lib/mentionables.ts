@@ -18,7 +18,7 @@ import {
   PiNotePencil,
   PiPlugsConnected,
   PiChartBar,
-} from 'react-icons/pi';
+} from '@gruenerator/shared/icons';
 import { agentsList, type AgentListItem } from './agents';
 
 export type MentionableType =
