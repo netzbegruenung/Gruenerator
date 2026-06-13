@@ -44,8 +44,18 @@ export {
   type SelectedModel,
 } from './lib/resolveAutoModel';
 
-// Composer controls — shared source of truth for the chat composer's modes/labels/icons
-export { COMPOSER_MODES, type ComposerModeDef, type ComposerIconKey } from './lib/composerControls';
+// Composer controls — shared source of truth for the chat composer's modes/tools/labels/icons
+export {
+  COMPOSER_MODES,
+  COMPOSER_TOOLS,
+  SEARCH_DEPTHS,
+  type ComposerModeDef,
+  type ComposerIconKey,
+  type ComposerToolDef,
+  type ComposerToolIconKey,
+  type SearchDepthDef,
+  type SearchDepthIconKey,
+} from './lib/composerControls';
 
 // Context & API Client
 export {
