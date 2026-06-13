@@ -1,3 +1,4 @@
+/** Display colors for parties in the monitor poll views (DE + AT). */
 export const PARTY_COLORS: Record<string, string> = {
   'CDU/CSU': '#000000',
   AfD: '#009ee0',
@@ -13,4 +14,5 @@ export const PARTY_COLORS: Record<string, string> = {
   NEOS: '#E84188',
   SPÖ: '#e3000f',
   FPÖ: '#0E6EB8',
+  KPÖ: '#d40000',
 };

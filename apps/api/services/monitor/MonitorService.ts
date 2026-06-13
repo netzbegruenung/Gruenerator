@@ -13,7 +13,7 @@ import { classifyArticles } from '../nlp/nlpClient.js';
 import { getHotTopicAnalysis } from './HotTopicPipeline.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
-import { getPolls } from './PollScraper.js';
+import { getPolitProPolls } from './PolitProService.js';
 import { scrapeTwitterTrends } from './TwitterTrendsScraper.js';
 import { TOPIC_CATEGORIES } from './types.js';
 import { WATCHER_ENTITIES } from './watcherEntities.js';
@@ -183,7 +183,8 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
 
   const warmTasks: Array<{ name: string; run: () => Promise<unknown> }> = [];
 
-  warmTasks.push({ name: 'polls', run: () => getPolls() });
+  warmTasks.push({ name: 'polls:de', run: () => getPolitProPolls('deutschland') });
+  warmTasks.push({ name: 'polls:at', run: () => getPolitProPolls('oesterreich') });
 
   for (const locale of ['de', 'at'] as const) {
     warmTasks.push({
