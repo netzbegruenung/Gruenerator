@@ -171,7 +171,7 @@ const MODELS: ModelConfig[] = [
   {
     name: 'GPT-OSS 120B (LiteLLM)',
     provider: litellmProvider,
-    modelId: 'gpt-oss:120b',
+    modelId: 'verdigado-pro',
     skip: () => !process.env.LITELLM_BASE_URL || !process.env.LITELLM_API_KEY,
   },
   {

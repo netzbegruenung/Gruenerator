@@ -327,7 +327,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
     const { systemPrompt, userPrompt, references } = promptResult;
 
     // Stream the AI summary
-    const model = getModel('litellm', 'gpt-oss:120b');
+    const model = getModel('litellm', 'verdigado-pro');
     const streamResult = streamText({
       model,
       messages: [
@@ -587,7 +587,7 @@ Verfügbare Quellenreferenzen:
 ${refsSummary}`;
 
     // Stream the dossier
-    const model = getModel('litellm', 'gpt-oss:120b');
+    const model = getModel('litellm', 'verdigado-pro');
     const streamResult = streamText({
       model,
       messages: [

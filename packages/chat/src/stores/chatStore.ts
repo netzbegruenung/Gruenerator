@@ -8,6 +8,7 @@ import {
   type TextProvider,
 } from '@gruenerator/shared/models';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
+import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -67,7 +68,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     id: 'litellm',
     name: 'GPT-OSS',
     description: 'Selbst gehostet',
-    model: 'gpt-oss:120b',
+    model: 'verdigado-pro',
   },
 ];
 
@@ -198,6 +199,11 @@ export const useAgentStore = create<AgentState>()(
         // variant from the old thread must not stay pinned — nor be sent as
         // the currentSharepic edit target — in the new one.
         useSharepicLiveStore.getState().setActiveVariant(null);
+        // Same for Reel-Modus: a stale activeReel would inject the old
+        // thread's transcript into the new one, hijack bare edit verbs into
+        // subtitle edits of the old reel, and bind the wrong reel to the new
+        // thread on the first successful edit.
+        useReelLiveStore.getState().setActiveReel(null);
       },
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
