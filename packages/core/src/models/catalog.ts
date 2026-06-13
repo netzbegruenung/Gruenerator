@@ -84,7 +84,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'litellm',
     name: '🌳 GPT-OSS',
     description: 'Schnellstes Modell',
-    model: 'gpt-oss:120b',
+    model: 'verdigado-pro',
     provider: 'litellm',
     icon: 'server',
     region: 'self-hosted',

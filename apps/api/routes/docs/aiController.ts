@@ -97,7 +97,7 @@ export type AiRequestBody = z.infer<typeof aiRequestBodySchema>;
 // reasoning into content (verified failure for tool calls). Each entry below was
 // probed against a tool-call request and confirmed to return finish_reason:tool_calls.
 const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  litellm: 'gpt-oss:120b',
+  litellm: 'verdigado-pro',
   regolo: 'mistral-small-4-119b',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
