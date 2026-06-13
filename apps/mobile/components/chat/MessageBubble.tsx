@@ -5,6 +5,7 @@ import {
   BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
+import { resolveToolEntry } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
@@ -24,11 +25,15 @@ import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { ConfirmActionCard } from './ConfirmActionCard';
+import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { MessageActionsSheet } from './MessageActionsSheet';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
+import { ImageResultCard } from './tool-ui/ImageResultCard';
+import { KeyValueCard } from './tool-ui/KeyValueCard';
 import { PersonResultCard } from './tool-ui/PersonResultCard';
 import { PressemitteilungExamplesCard } from './tool-ui/PressemitteilungExamplesCard';
 import { ResearchArtifactCard } from './tool-ui/ResearchArtifactCard';
@@ -217,19 +222,31 @@ function AssistantToolCallPart(props: {
   if (result === undefined) {
     return <ToolCallProgress part={props} theme={theme} />;
   }
-  // Completed — pick the renderer matching the tool's result shape.
-  switch (toolName) {
-    case 'gruenerator_person_search':
+  // Completed — the shared registry parses the result to a platform-neutral
+  // view-model; this switch only maps its kind to the native component.
+  const vm = resolveToolEntry(toolName).parse(args, result);
+  switch (vm.kind) {
+    case 'person':
       return <PersonResultCard result={result} theme={theme} />;
-    case 'gruenerator_examples_search':
+    case 'snippets':
       return <ExampleResultsCard part={props} theme={theme} />;
-    case 'scrape_url':
+    case 'link-preview':
       return <ScrapeUrlCard part={props} theme={theme} />;
-    case 'gruenerator_pressemitteilung_examples':
+    case 'press-examples':
       return <PressemitteilungExamplesCard part={props} theme={theme} />;
-    default:
-      // search / web / sources / user-content → compact citation pill.
-      return <ToolResultCard part={props} theme={theme} />;
+    case 'image':
+      return <ImageResultCard vm={vm} theme={theme} />;
+    case 'text-note':
+      return <ToolResultCard part={props} citations={[]} note={vm.text} theme={theme} />;
+    case 'citations':
+      return <ToolResultCard part={props} citations={vm.citations} theme={theme} />;
+    case 'key-value':
+      return <KeyValueCard part={props} vm={vm} theme={theme} />;
+    case 'markdown-report':
+      // research is handled above; defensive for a future markdown-report tool.
+      return <ResearchArtifactCard part={props} theme={theme} />;
+    case 'interactive':
+      return <AskHumanCard args={args} result={result} addResult={addResult} theme={theme} />;
   }
 }
 
@@ -245,6 +262,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
   const generatedImage = metadata.generatedImage;
+  const confirmAction = metadata.confirmAction;
+  const createdDocument = metadata.createdDocument;
   const [actionsVisible, setActionsVisible] = useState(false);
 
   const messageText = useMemo(() => {
@@ -275,6 +294,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
           <View style={styles.assistantContent}>
             <MessagePrimitive.Parts components={partsComponents} />
             {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
+            {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
+            {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
             {citations && citations.length > 0 && (
               <CitationsFooter citations={citations} theme={theme} />
             )}

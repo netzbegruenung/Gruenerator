@@ -4,7 +4,15 @@
 // are excluded to prevent Metro from resolving browser-only dependencies.
 
 // Unified Message Metadata
-export { type ChatMessageMetadata } from './types/messageMetadata';
+export {
+  type ChatMessageMetadata,
+  type ConfirmActionData,
+  type ConfirmActionType,
+  type DocumentCreatedData,
+} from './types/messageMetadata';
+
+// Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
+export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
 // Context & API Client
 export {
@@ -90,8 +98,18 @@ export {
   type SelectedModel,
 } from './lib/resolveAutoModel';
 
-// Composer controls — shared source of truth for the chat composer's modes/labels/icons
-export { COMPOSER_MODES, type ComposerModeDef, type ComposerIconKey } from './lib/composerControls';
+// Composer controls — shared source of truth for the chat composer's modes/tools/labels/icons
+export {
+  COMPOSER_MODES,
+  COMPOSER_TOOLS,
+  SEARCH_DEPTHS,
+  type ComposerModeDef,
+  type ComposerIconKey,
+  type ComposerToolDef,
+  type ComposerToolIconKey,
+  type SearchDepthDef,
+  type SearchDepthIconKey,
+} from './lib/composerControls';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
@@ -157,6 +175,32 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Tool view-models & registry (platform-neutral; each platform maps kind → component)
+export {
+  ToolViewKindSchema,
+  ToolResultVMSchema,
+  type ToolViewKind,
+  type ToolResultVM,
+  type CitationListVM,
+  type LinkPreviewVM,
+  type MarkdownReportVM,
+  type SnippetListVM,
+  type PressExamplesVM,
+  type PersonVM,
+  type ImageResultVM,
+  type TextNoteVM,
+  type KeyValueVM,
+  type KeyValueEntry,
+} from './lib/toolViewModels';
+export {
+  TOOL_REGISTRY,
+  UI_TOOL_NAMES,
+  resolveToolEntry,
+  parseGenericFallback,
+  type UiToolName,
+  type ToolRegistryEntry,
+} from './lib/toolRegistry';
 
 // SerializableCitation type (Zod-derived, JSON-safe — RN-safe as a type)
 export { type SerializableCitation } from './components/tool-ui/citation/schema';

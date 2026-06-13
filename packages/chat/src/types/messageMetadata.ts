@@ -1,3 +1,4 @@
+import type { ConfirmActionType, DocumentCreatedEvent } from '@gruenerator/contracts';
 import type {
   ChatProgress,
   Citation,
@@ -9,7 +10,10 @@ import type {
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
 import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
 
-export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc';
+// Wire enum lives in @gruenerator/contracts (chatStreamEvents); the
+// confirm_action event's optionals are normalized to this required UI shape
+// by parseSSEStream before it reaches a card.
+export type { ConfirmActionType };
 
 export interface ConfirmActionData {
   actionId: string;
@@ -23,12 +27,7 @@ export interface ConfirmActionData {
   threadId: string;
 }
 
-export interface DocumentCreatedData {
-  documentId: string;
-  title: string;
-  subtype: string;
-  url: string;
-}
+export type DocumentCreatedData = DocumentCreatedEvent;
 
 /** A chat-uploaded video being auto-transcribed (ReelProcessingCard). */
 export interface ReelProcessingData {

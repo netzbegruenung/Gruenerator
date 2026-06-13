@@ -14,6 +14,7 @@ const styleLabels: Record<GeneratedImage['style'], string> = {
   realistic: 'Realistisch',
   pixel: 'Pixel Art',
   'green-edit': 'Stadt begrünen',
+  universal: 'Bearbeitet',
   sharepic: 'Sharepic',
 };
 
