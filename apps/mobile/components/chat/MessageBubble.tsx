@@ -19,6 +19,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 
+import { useMessageActions } from '../../hooks/useMessageActions';
 import { useNativeTTS } from '../../hooks/useNativeTTS';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
@@ -29,7 +30,6 @@ import { ConfirmActionCard } from './ConfirmActionCard';
 import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
-import { MessageActionsSheet } from './MessageActionsSheet';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
 import { ImageResultCard } from './tool-ui/ImageResultCard';
@@ -138,16 +138,29 @@ const BranchPicker = memo(function BranchPicker({ theme }: { theme: Theme }) {
   );
 });
 
+// One aligned icon row under each assistant reply. Mirrors web's MessageActions
+// set (copy / download / edit-as-document) inline — previously download and
+// edit-as-document were hidden behind a long-press sheet — plus mobile's TTS and
+// the assistant-ui reload. Every button shares the same 28×28 pill so they line
+// up regardless of which are present.
 const AssistantActionBar = memo(function AssistantActionBar({
   theme,
   messageText,
-  onLongPress,
+  metadata,
 }: {
   theme: Theme;
   messageText: string;
-  onLongPress: () => void;
+  metadata: ChatMessageMetadata;
 }) {
   const { state: ttsState, play, stop } = useNativeTTS();
+  const target = useMemo(
+    () =>
+      messageText
+        ? { role: 'assistant', text: messageText, metadata: metadata as Record<string, unknown> }
+        : null,
+    [messageText, metadata]
+  );
+  const { copied, exporting, copy, exportDocx, openInDocs } = useMessageActions(target);
 
   const handleTTS = useCallback(() => {
     if (ttsState === 'playing') {
@@ -157,38 +170,57 @@ const AssistantActionBar = memo(function AssistantActionBar({
     }
   }, [ttsState, messageText, play, stop]);
 
+  const pill = [styles.actionButton, { backgroundColor: theme.surface }];
+
   return (
     <View style={styles.actionBar}>
-      <ActionBarPrimitive.Copy copiedDuration={2000}>
-        {({ isCopied }) => (
-          <View style={[styles.actionButton, { backgroundColor: theme.surface }]}>
-            <Ionicons
-              name={isCopied ? 'checkmark' : 'copy-outline'}
-              size={14}
-              color={isCopied ? colors.primary[500] : theme.textSecondary}
-            />
-          </View>
-        )}
-      </ActionBarPrimitive.Copy>
-      <Pressable
-        onPress={handleTTS}
-        style={[styles.actionButton, { backgroundColor: theme.surface }]}
-      >
+      {messageText ? (
+        <Pressable onPress={() => void copy()} style={pill} accessibilityLabel="Kopieren">
+          <Ionicons
+            name={copied ? 'checkmark' : 'copy-outline'}
+            size={14}
+            color={copied ? colors.primary[500] : theme.textSecondary}
+          />
+        </Pressable>
+      ) : null}
+      <Pressable onPress={handleTTS} style={pill} accessibilityLabel="Vorlesen">
         <Ionicons
           name={ttsState === 'playing' ? 'stop' : 'volume-medium-outline'}
           size={14}
           color={ttsState === 'playing' ? colors.primary[500] : theme.textSecondary}
         />
       </Pressable>
-      <ActionBarPrimitive.Reload style={[styles.actionButton, { backgroundColor: theme.surface }]}>
+      {messageText ? (
+        <>
+          <Pressable
+            onPress={() => void exportDocx()}
+            disabled={!!exporting}
+            style={pill}
+            accessibilityLabel="Als Word herunterladen"
+          >
+            <Ionicons
+              name={exporting === 'docx' ? 'hourglass-outline' : 'download-outline'}
+              size={14}
+              color={theme.textSecondary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => void openInDocs()}
+            disabled={!!exporting}
+            style={pill}
+            accessibilityLabel="Im Editor öffnen"
+          >
+            <Ionicons
+              name={exporting === 'docs' ? 'hourglass-outline' : 'create-outline'}
+              size={14}
+              color={theme.textSecondary}
+            />
+          </Pressable>
+        </>
+      ) : null}
+      <ActionBarPrimitive.Reload style={pill}>
         <Ionicons name="refresh-outline" size={14} color={theme.textSecondary} />
       </ActionBarPrimitive.Reload>
-      <Pressable
-        onPress={onLongPress}
-        style={[styles.actionButton, { backgroundColor: theme.surface }]}
-      >
-        <Ionicons name="ellipsis-horizontal" size={14} color={theme.textSecondary} />
-      </Pressable>
     </View>
   );
 });
@@ -264,7 +296,6 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const generatedImage = metadata.generatedImage;
   const confirmAction = metadata.confirmAction;
   const createdDocument = metadata.createdDocument;
-  const [actionsVisible, setActionsVisible] = useState(false);
 
   const messageText = useMemo(() => {
     return message.content
@@ -272,10 +303,6 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
       .map((p) => p.text)
       .join('');
   }, [message.content]);
-
-  const handleOpenActions = useCallback(() => {
-    if (messageText) setActionsVisible(true);
-  }, [messageText]);
 
   const partsComponents = useMemo(
     () => ({
@@ -288,40 +315,19 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   );
 
   return (
-    <>
-      <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
-        <Pressable onLongPress={handleOpenActions} style={styles.assistantContent}>
-          <View style={styles.assistantContent}>
-            <MessagePrimitive.Parts components={partsComponents} />
-            {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
-            {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
-            {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
-            {citations && citations.length > 0 && (
-              <CitationsFooter citations={citations} theme={theme} />
-            )}
-          </View>
-        </Pressable>
-        <BranchPicker theme={theme} />
-        <AssistantActionBar
-          theme={theme}
-          messageText={messageText}
-          onLongPress={handleOpenActions}
-        />
-      </MessagePrimitive.Root>
-      <MessageActionsSheet
-        visible={actionsVisible}
-        onClose={() => setActionsVisible(false)}
-        message={
-          messageText
-            ? {
-                role: 'assistant',
-                text: messageText,
-                metadata: metadata as Record<string, unknown>,
-              }
-            : null
-        }
-      />
-    </>
+    <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
+      <View style={styles.assistantContent}>
+        <MessagePrimitive.Parts components={partsComponents} />
+        {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
+        {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
+        {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
+        {citations && citations.length > 0 && (
+          <CitationsFooter citations={citations} theme={theme} />
+        )}
+      </View>
+      <BranchPicker theme={theme} />
+      <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+    </MessagePrimitive.Root>
   );
 });
 

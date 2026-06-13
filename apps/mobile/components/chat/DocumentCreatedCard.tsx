@@ -24,9 +24,10 @@ export function DocumentCreatedCard({
 
   const openDocument = useCallback(() => {
     if (document.documentId) {
+      // doc-editor reads `id` from useLocalSearchParams.
       router.push({
         pathname: '/(fullscreen)/doc-editor',
-        params: { documentId: document.documentId },
+        params: { id: document.documentId },
       });
       return;
     }
