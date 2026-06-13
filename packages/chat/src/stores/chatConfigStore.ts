@@ -36,9 +36,12 @@ export interface ChatConfig {
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
-  fetchSharepicState?: (
-    canvasId: string
-  ) => Promise<{ state: Record<string, unknown>; version: number | null } | null>;
+  fetchSharepicState?: (canvasId: string) => Promise<{
+    state: Record<string, unknown>;
+    version: number | null;
+    /** Per-slide states for multi-page (deck) canvases. */
+    pages?: Array<Record<string, unknown>> | null;
+  } | null>;
   /** Chat-edit version history of a canvas, newest first. */
   fetchSharepicVersions?: (
     canvasId: string
@@ -60,11 +63,43 @@ export interface ChatConfig {
    */
   updateSharepicThumbnail?: (canvasId: string, imageDataUrl: string) => Promise<void>;
   /**
+   * Bundles rendered slide PNGs (data URLs) into a ZIP download (deck
+   * variants). Platform-specific — web posts to /api/exports/zip.
+   */
+  downloadSharepicZip?: (images: string[], canvasType: string) => Promise<void>;
+  /**
    * URL the @wolke picker links to when the user hasn't connected any
    * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
    * link). Omit to hide the CTA — only the warning copy renders.
    */
   wolkeConnectUrl?: string;
+  /**
+   * Uploads a composer-attached video to the subtitler TUS endpoint and
+   * resolves with its uploadId. Required for video attachments — without it
+   * the attachment adapter rejects video files. The abort handle terminates
+   * the transfer (and deletes the partial server-side upload) when the user
+   * removes the attachment mid-upload.
+   */
+  uploadReelVideo?: (
+    file: File,
+    onProgress?: (pct: number) => void
+  ) => { promise: Promise<{ uploadId: string }>; abort: () => void };
+  /** Streaming URL for a subtitler project's video (cookie-authed, Range-capable). */
+  getReelVideoUrl?: (projectId: string) => string;
+  /** Fetch one subtitler project incl. its subtitles blob; null on error. */
+  fetchReelProject?: (
+    projectId: string
+  ) => Promise<{ title: string; subtitles: string | null } | null>;
+  /** Poll the auto-processing pipeline for a chat-uploaded video. */
+  fetchReelAutoProgress?: (uploadId: string) => Promise<{
+    status: 'processing' | 'complete' | 'error' | 'not_found';
+    overallProgress: number;
+    projectId: string | null;
+    subtitles: string | null;
+    error: string | null;
+  } | null>;
+  /** Opens a subtitler project in the Sub-Studio (web: /reel/studio deep link). */
+  onOpenReelStudio?: (projectId: string) => void;
 }
 
 export interface ResolvedEndpoints {
@@ -169,6 +204,12 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
   restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
   updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
+  downloadSharepicZip?: ChatConfig['downloadSharepicZip'];
+  uploadReelVideo?: ChatConfig['uploadReelVideo'];
+  getReelVideoUrl?: ChatConfig['getReelVideoUrl'];
+  fetchReelProject?: ChatConfig['fetchReelProject'];
+  fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
+  onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -259,6 +300,12 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchSharepicVersionState: config?.fetchSharepicVersionState,
       restoreSharepicVersion: config?.restoreSharepicVersion,
       updateSharepicThumbnail: config?.updateSharepicThumbnail,
+      downloadSharepicZip: config?.downloadSharepicZip,
+      uploadReelVideo: config?.uploadReelVideo,
+      getReelVideoUrl: config?.getReelVideoUrl,
+      fetchReelProject: config?.fetchReelProject,
+      fetchReelAutoProgress: config?.fetchReelAutoProgress,
+      onOpenReelStudio: config?.onOpenReelStudio,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },

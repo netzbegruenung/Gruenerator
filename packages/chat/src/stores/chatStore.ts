@@ -8,6 +8,7 @@ import {
   type TextProvider,
 } from '@gruenerator/shared/models';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
+import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -67,7 +68,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     id: 'litellm',
     name: 'GPT-OSS',
     description: 'Selbst gehostet',
-    model: 'gpt-oss:120b',
+    model: 'verdigado-pro',
   },
 ];
 
@@ -146,7 +147,7 @@ export const useAgentStore = create<AgentState>()(
     (set) => ({
       selectedAgentId: null,
       selectedProvider: 'litellm',
-      selectedModel: 'gemma-litellm',
+      selectedModel: AUTO_MODEL_ID,
       currentThreadId: null,
       currentThreadTitle: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
@@ -198,6 +199,11 @@ export const useAgentStore = create<AgentState>()(
         // variant from the old thread must not stay pinned — nor be sent as
         // the currentSharepic edit target — in the new one.
         useSharepicLiveStore.getState().setActiveVariant(null);
+        // Same for Reel-Modus: a stale activeReel would inject the old
+        // thread's transcript into the new one, hijack bare edit verbs into
+        // subtitle edits of the old reel, and bind the wrong reel to the new
+        // thread on the first successful edit.
+        useReelLiveStore.getState().setActiveReel(null);
       },
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
@@ -344,7 +350,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 11,
+      version: 12,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -423,6 +429,14 @@ export const useAgentStore = create<AgentState>()(
         }
         if (version < 11) {
           state.enabledTools = { ...DEFAULT_ENABLED_TOOLS };
+        }
+        if (version < 12) {
+          // 'Automatisch' is the new default selection (notebooks resolve to
+          // Mistral Medium 3.5, general chat keeps Gemma). Move users still on
+          // the old implicit default (gemma-litellm); explicit choices stay.
+          if (state.selectedModel === 'gemma-litellm') {
+            state.selectedModel = AUTO_MODEL_ID;
+          }
         }
         return state;
       },

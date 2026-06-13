@@ -2,6 +2,7 @@
  * Public Site Controller - Renders public-facing site HTML pages
  */
 
+import { renderRichTextToHTMLString } from '@gruenerator/contracts/sites-richtext';
 import express, { type Response, type Router, type RequestHandler } from 'express';
 
 import {
@@ -9,9 +10,10 @@ import {
   THEME_STYLES_DARK,
   type SitesRequest,
   type UserSite,
-  type SiteSection,
   type ThemeColors,
 } from './types.js';
+
+import type { SiteSections } from '@gruenerator/contracts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SitesHandler = RequestHandler<any, any, any, any>;
@@ -73,30 +75,52 @@ function renderSocialLinks(socialLinks: Record<string, string>, _primaryColor: s
     .join('');
 }
 
-function renderSections(sections: SiteSection[], contactEmail?: string): string {
-  return sections
-    .map((section) => {
-      switch (section.type) {
-        case 'text':
-          return `<section class="content-section">
-          ${section.title ? `<h2>${section.title}</h2>` : ''}
-          <p>${section.content || ''}</p>
-        </section>`;
-        case 'contact':
-          return `<section class="content-section contact-section">
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderSections(sections: SiteSections, contactEmail?: string): string {
+  const parts: string[] = [];
+
+  if (sections.about) {
+    parts.push(`<section class="content-section">
+          ${sections.about.title ? `<h2>${escapeHtml(sections.about.title)}</h2>` : ''}
+          ${renderRichTextToHTMLString(sections.about.content)}
+        </section>`);
+  }
+
+  if (sections.themes?.length) {
+    const cards = sections.themes
+      .map(
+        (theme) => `<article class="theme-card">
+            <h3>${escapeHtml(theme.title)}</h3>
+            ${renderRichTextToHTMLString(theme.content)}
+          </article>`
+      )
+      .join('');
+    parts.push(`<section class="content-section">
+          <h2>Meine Themen</h2>
+          ${cards}
+        </section>`);
+  }
+
+  if (contactEmail) {
+    parts.push(`<section class="content-section contact-section">
           <h2>Kontakt</h2>
-          ${contactEmail ? `<p>📧 <a href="mailto:${contactEmail}">${contactEmail}</a></p>` : ''}
-        </section>`;
-        default:
-          return '';
-      }
-    })
-    .join('');
+          <p>📧 <a href="mailto:${escapeHtml(contactEmail)}">${escapeHtml(contactEmail)}</a></p>
+        </section>`);
+  }
+
+  return parts.join('');
 }
 
 function renderSitePage(site: UserSite): string {
   const socialLinks = site.social_links || {};
-  const sections = site.sections || [];
+  const sections = site.sections || {};
   const theme = site.theme || 'gruene';
   const accentColor = site.accent_color || '#46962b';
 
@@ -174,13 +198,6 @@ function renderSitePage(site: UserSite): string {
           margin: 0 auto;
           padding: 2rem;
         }
-        .bio-section {
-          background: ${colors.card};
-          padding: 2rem;
-          margin: 2rem 0;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
         .content-section {
           background: ${colors.card};
           padding: 2rem;
@@ -191,6 +208,17 @@ function renderSitePage(site: UserSite): string {
         .content-section h2 {
           color: ${colors.primary};
           margin-bottom: 1rem;
+        }
+        .content-section ul, .content-section ol {
+          padding-left: 1.5em;
+          margin-bottom: 1rem;
+        }
+        .theme-card {
+          margin-top: 1.5rem;
+        }
+        .theme-card h3 {
+          color: ${colors.primary};
+          margin-bottom: 0.5rem;
         }
         .social-links {
           display: flex;
@@ -238,7 +266,7 @@ function renderSitePage(site: UserSite): string {
            (brand accent) is left untouched. */
         @media (prefers-color-scheme: dark) {
           body { background: ${dark.background}; color: ${dark.text}; }
-          .bio-section, .content-section { background: ${dark.card}; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+          .content-section { background: ${dark.card}; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
           .social-link { background: ${dark.card}; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
           footer { color: #9a9a9a; }
         }
@@ -252,7 +280,6 @@ function renderSitePage(site: UserSite): string {
         ${socialLinksHtml ? `<div class="social-links">${socialLinksHtml}</div>` : ''}
       </div>
       <div class="container">
-        ${site.bio ? `<div class="bio-section"><p>${site.bio}</p></div>` : ''}
         ${sectionsHtml}
       </div>
       <footer>

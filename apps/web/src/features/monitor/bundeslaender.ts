@@ -46,8 +46,21 @@ export const BUNDESLAENDER: Bundesland[] = [
   { id: 'thueringen', code: '16', name: 'Thüringen', short: 'TH' },
 ];
 
+/**
+ * The 9 Austrian Bundesländer (Landtage). `id` is the PolitPro parliament id
+ * served by the poll endpoint; there is no GERDA coverage for Austria.
+ */
+export const AT_BUNDESLAENDER: Array<{ id: string; name: string; display?: string }> = [
+  { id: 'burgenland', name: 'Burgenland' },
+  { id: 'kaernten', name: 'Kärnten' },
+  { id: 'niederoesterreich', name: 'Niederösterreich', display: 'Niederösterr.' },
+  { id: 'oberoesterreich', name: 'Oberösterreich', display: 'Oberösterr.' },
+  { id: 'salzburg', name: 'Salzburg' },
+  { id: 'steiermark', name: 'Steiermark' },
+  { id: 'tirol', name: 'Tirol' },
+  { id: 'vorarlberg', name: 'Vorarlberg' },
+  { id: 'wien', name: 'Wien' },
+];
+
 export const bundeslandById = (id: string): Bundesland | undefined =>
   BUNDESLAENDER.find((b) => b.id === id);
-
-export const bundeslandByCode = (code: string): Bundesland | undefined =>
-  BUNDESLAENDER.find((b) => b.code === code);

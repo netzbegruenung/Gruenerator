@@ -18,7 +18,7 @@ import {
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
 
-const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
+const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
 
 export const VISION_MODEL = {
   provider: 'regolo' as const,
@@ -69,14 +69,14 @@ export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
 
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
-  primary: { provider: 'litellm', model: 'gpt-oss:120b' },
+  primary: { provider: 'litellm', model: 'verdigado-pro' },
   overflow: { provider: 'regolo', model: 'gpt-oss-120b' },
   contextWindow: 32768,
 };
 
 const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
-  primary: { provider: 'litellm', model: 'gemma' },
+  primary: { provider: 'litellm', model: 'verdigado-think' },
   overflow: { provider: 'regolo', model: 'gemma4-31b' },
   contextWindow: 32768,
 };

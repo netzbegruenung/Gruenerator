@@ -272,6 +272,21 @@ export const COLLECTIONS: CollectionConfigMap = {
     includeInDefaultSearch: false,
   },
 
+  hessen: {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Hessen',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)',
+    filterableFields: {
+      content_type: lvContentTypeField,
+      source_type: lvSourceTypeField,
+      published_at: { label: 'Datum', type: 'date_range' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: ['HE', 'HE-F'] },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
   satzungen: {
     name: 'satzungen_documents',
     displayName: 'Satzungen',

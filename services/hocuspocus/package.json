@@ -26,28 +26,28 @@
   "license": "MIT",
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
-    "@hocuspocus/extension-logger": "^3.4.4",
-    "@hocuspocus/server": "^3.4.4",
+    "@hocuspocus/extension-logger": "^4.1.2",
+    "@hocuspocus/server": "^4.1.2",
     "cookie": "^1.1.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jose": "^6.2.3",
     "pg": "^8.21.0",
-    "redis": "^5.12.1",
+    "redis": "^6.0.0",
     "winston": "^3.19.0",
-    "yjs": "^13.6.30"
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.3",
     "@types/pg": "^8.20.0",
     "eslint": "^9.39.4",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }

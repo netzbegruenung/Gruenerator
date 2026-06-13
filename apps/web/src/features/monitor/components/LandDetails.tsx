@@ -5,22 +5,14 @@ import {
   AccordionTrigger,
   Card,
   CardContent,
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
   LoadingSection,
 } from '@gruenerator/ui';
 import { ExternalLink } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import { bundeslandByCode, BUNDESLAENDER } from '../bundeslaender';
 import { useMeinungsbild, useStateElections } from '../hooks/useMonitor';
 import { estimateColor } from '../meinungsbildConfig';
-
-import { PARTY_COLORS, SonntagsfrageChart } from './UmfragenView';
+import { PARTY_COLORS } from '../partyColors';
 
 function partyColor(party: string): string {
   return PARTY_COLORS[party] ?? '#9ca3af';
@@ -65,7 +57,7 @@ function IssueBar({ label, estimate }: { label: string; estimate: number }) {
   );
 }
 
-function LandtagsergebnisCard({ code }: { code: string }) {
+export function LandtagsergebnisCard({ code }: { code: string }) {
   const { data, isLoading } = useStateElections();
   if (isLoading) return <LoadingSection />;
 
@@ -103,7 +95,7 @@ function LandtagsergebnisCard({ code }: { code: string }) {
   );
 }
 
-function MeinungsbildForState({ code }: { code: string }) {
+export function MeinungsbildForState({ code, stateName }: { code: string; stateName: string }) {
   const { data, isLoading } = useMeinungsbild();
 
   const ranked = useMemo(() => {
@@ -123,7 +115,7 @@ function MeinungsbildForState({ code }: { code: string }) {
   return (
     <div>
       <h3 className="text-base font-semibold text-foreground-heading mb-xs">
-        Meinungsbild — Was denkt das Land?
+        Meinungsbild — {stateName}
       </h3>
       <p className="text-xs text-grey-500 mb-md">
         MRP-Schätzung des Zustimmungsanteils zu politischen Aussagen, sortiert nach Zustimmung.
@@ -137,93 +129,39 @@ function MeinungsbildForState({ code }: { code: string }) {
   );
 }
 
-export function BundeslandView() {
-  const [code, setCode] = useState<string | null>(null);
-  const selected = code ? bundeslandByCode(code) : undefined;
-
-  // Combobox value is the state code; items sorted alphabetically by name.
-  const options = useMemo(
-    () => [...BUNDESLAENDER].sort((a, b) => a.name.localeCompare(b.name, 'de')),
-    []
-  );
-
+export function GerdaAttribution() {
   return (
-    <div>
-      <div className="mb-lg max-w-sm">
-        <label className="text-xs font-semibold text-foreground-heading uppercase tracking-wide mb-xs block">
-          Bundesland suchen
-        </label>
-        <Combobox value={code} onValueChange={(v) => setCode(v)}>
-          <ComboboxInput placeholder="Bundesland eingeben oder wählen..." />
-          <ComboboxContent>
-            <ComboboxList>
-              <ComboboxEmpty>Kein Bundesland gefunden</ComboboxEmpty>
-              {options.map((b) => (
-                <ComboboxItem key={b.code} value={b.code}>
-                  {b.name}
-                </ComboboxItem>
-              ))}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
-      </div>
-
-      {!selected ? (
-        <Card>
-          <CardContent className="py-xl text-center text-sm text-grey-500">
-            Wähle ein Bundesland, um Wahlergebnisse, aktuelle Umfragen und das Meinungsbild
-            anzuzeigen.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-xl">
-          <h2 className="text-lg font-bold text-foreground-heading">{selected.name}</h2>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
-            <LandtagsergebnisCard code={selected.code} />
-            <SonntagsfrageChart
-              key={selected.id}
-              parliament={selected.id}
-              title="Aktuelle Sonntagsfrage"
-              subtitle="Wenn am nächsten Sonntag Landtagswahl wäre… Wöchentlich aggregierter Durchschnitt."
-            />
-          </div>
-
-          <MeinungsbildForState code={selected.code} />
-
-          <Accordion type="single" collapsible>
-            <AccordionItem
-              value="gerda-info"
-              className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+    <Accordion
+      type="single"
+      collapsible
+      className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+    >
+      <AccordionItem value="gerda-info">
+        <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
+          Daten: GERDA — German Election Database & PolitPro
+        </AccordionTrigger>
+        <AccordionContent className="px-md">
+          <div className="text-xs text-foreground/80 space-y-sm">
+            <p>
+              Wahlergebnisse und Meinungsbild (MRP-Schätzung) stammen aus GERDA; die Sonntagsfrage
+              wird über PolitPro aggregiert.
+            </p>
+            <p>
+              Heddesheimer, V., Hilbig, H., Sichart, F. &amp; Wiedemann, A. (2025). GERDA: German
+              Election Database. <em>Nature: Scientific Data</em>, 12: 618.
+            </p>
+            <a
+              href="https://github.com/awiedem/german_election_data"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-primary-600 hover:underline"
             >
-              <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
-                Daten: GERDA — German Election Database & PolitPro
-              </AccordionTrigger>
-              <AccordionContent className="px-md">
-                <div className="text-xs text-foreground/80 space-y-sm">
-                  <p>
-                    Wahlergebnisse und Meinungsbild (MRP-Schätzung) stammen aus GERDA; die
-                    Sonntagsfrage wird über PolitPro aggregiert.
-                  </p>
-                  <p>
-                    Heddesheimer, V., Hilbig, H., Sichart, F. &amp; Wiedemann, A. (2025). GERDA:
-                    German Election Database. <em>Nature: Scientific Data</em>, 12: 618.
-                  </p>
-                  <a
-                    href="https://github.com/awiedem/german_election_data"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-medium text-primary-600 hover:underline"
-                  >
-                    github.com/awiedem/german_election_data
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
-      )}
-    </div>
+              github.com/awiedem/german_election_data
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }

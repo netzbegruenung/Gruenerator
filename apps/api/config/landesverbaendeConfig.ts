@@ -845,6 +845,101 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       },
       excludePatterns: ['/fileadmin/', '/typo3/', '#', 'javascript:', '.jpg', '.png'],
     },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // HESSEN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      // gruene-hessen.de is one WordPress (Multisite) install, theme `hessengruen`.
+      // Partei content lives under /partei/* and the Fraktion under /landtag/*.
+      // Both Partei listings (presse, beschluss) publish articles under the same
+      // path prefix as their listing, so the off-path filter is left on. Beschlüsse
+      // are HTML pages (not PDFs). Pagination is WordPress /page/{n}/.
+      id: 'hessen-lv',
+      name: 'Grüne Hessen',
+      shortName: 'HE',
+      type: 'landesverband',
+      baseUrl: 'https://www.gruene-hessen.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/partei/presse/',
+          listSelector: 'h2 a[href], h3 a[href], article a[href]',
+          paginationPattern: 'page/{page}/',
+          maxPages: 40,
+        },
+        {
+          type: 'beschluss',
+          path: '/partei/beschluss/',
+          listSelector: 'h2 a[href], h3 a[href], article a[href]',
+          paginationPattern: 'page/{page}/',
+          maxPages: 30,
+        },
+      ],
+      // hessengruen theme markup: title is <h1 class="eintrag-titel">, body is
+      // <div class="daten">, date is <div class="zeit"> (numeric dd.mm.yyyy, no
+      // <time>). The first bare <h1> is the screenreader skip-link ("Hauptnavigation"),
+      // so eintrag-titel must come first.
+      contentSelectors: {
+        title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
+        date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
+        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: [
+        '/tag/',
+        '/author/',
+        '/feed/',
+        '/wp-content/',
+        '/wp-admin/',
+        '#',
+        'javascript:',
+      ],
+    },
+    {
+      // Fraktion (Landtag). Press-release teasers on the /landtag/presse/ listing
+      // link to articles under /landtag/pressemitteilungen/<slug> — a different path
+      // prefix than the listing, so disableOffPathFilter is required and the
+      // listSelector targets the article path directly (avoids the /landtag/presse/
+      // year-archive and feed links). Pagination is WordPress /page/{n}/.
+      id: 'hessen-fraktion',
+      name: 'Grüne Fraktion Hessen',
+      shortName: 'HE-F',
+      type: 'fraktion',
+      baseUrl: 'https://www.gruene-hessen.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/landtag/presse/',
+          listSelector: 'a[href*="/landtag/pressemitteilungen/"]',
+          disableOffPathFilter: true,
+          paginationPattern: 'page/{page}/',
+          maxPages: 120,
+        },
+      ],
+      // Same hessengruen theme markup as the Partei site (eintrag-titel / daten / zeit).
+      contentSelectors: {
+        title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
+        date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
+        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: [
+        '/tag/',
+        '/author/',
+        '/feed/',
+        '/wp-content/',
+        '/wp-admin/',
+        '#',
+        'javascript:',
+      ],
+    },
   ],
   curatedLists: [
     {

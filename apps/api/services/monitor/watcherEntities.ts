@@ -6,7 +6,6 @@ export interface WatcherEntity {
   locale: MonitorLocale;
   keywords: string[];
   excludePatterns: string[];
-  summaryPrompt: string;
 }
 
 export const WATCHER_ENTITIES: WatcherEntity[] = [
@@ -89,7 +88,6 @@ export const WATCHER_ENTITIES: WatcherEntity[] = [
       'grüne soße',
       'grüne sauce',
     ],
-    summaryPrompt: 'Fasse zusammen, was die Medien aktuell über Bündnis 90/Die Grünen berichten.',
   },
   {
     id: 'gruene-at',
@@ -111,8 +109,6 @@ export const WATCHER_ENTITIES: WatcherEntity[] = [
       'eva blimlinger',
     ],
     excludePatterns: ['grünes licht', 'grünen tisch', 'grünen wasserstoff', 'grüner wasserstoff'],
-    summaryPrompt:
-      'Fasse zusammen, was die österreichischen Medien aktuell über Die Grünen in Österreich berichten.',
   },
 ];
 

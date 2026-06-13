@@ -23,7 +23,7 @@ export type ProviderName = 'mistral' | 'litellm' | 'ionos' | 'regolo';
 // Default models per provider
 const PROVIDER_DEFAULTS = {
   mistral: 'mistral-medium-2604',
-  litellm: 'gpt-oss:120b',
+  litellm: 'verdigado-pro',
   ionos: 'openai/gpt-oss-120b',
   regolo: env.REGOLO_DEFAULT_MODEL ?? 'qwen3.5-122b',
 } as const;
@@ -167,6 +167,14 @@ export function isProviderConfigured(provider: ProviderName | string): boolean {
     default:
       return false;
   }
+}
+
+/**
+ * Preferred provider for background monitor generation: litellm (gpt-oss)
+ * when configured, Mistral otherwise.
+ */
+export function getPreferredMonitorProvider(): ProviderName {
+  return isProviderConfigured('litellm') ? 'litellm' : 'mistral';
 }
 
 /**

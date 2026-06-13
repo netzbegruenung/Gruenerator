@@ -15,6 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gruenerator/contracts": "workspace:*",
+    "@tiptap/core": "3.26.1",
+    "@tiptap/pm": "3.26.1",
+    "@tiptap/static-renderer": "3.26.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
@@ -22,7 +26,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
+    "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
     "typescript": "^6.0.3"
   },

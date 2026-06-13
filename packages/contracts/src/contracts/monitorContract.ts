@@ -19,6 +19,12 @@ import { z } from 'zod';
 import {
   entityResultsResponseSchema,
   entitySummaryResponseSchema,
+  euGreenProfileQuerySchema,
+  euGreenProfileResponseSchema,
+  euGreensHistoryResponseSchema,
+  euGreensResponseSchema,
+  internalSyncEventsBodySchema,
+  internalSyncEventsResponseSchema,
   keywordInsightsResponseSchema,
   meinungsbildResponseSchema,
   monitorBriefingResponseSchema,
@@ -33,13 +39,17 @@ import {
   monitorSnapshotSchema,
   pollDataSchema,
   pollParliamentsResponseSchema,
+  pollsHistoryResponseSchema,
   pollsQuerySchema,
   stateElectionsResponseSchema,
-  stimmungResponseSchema,
   topicArticlesQuerySchema,
   topicArticlesResponseSchema,
   topicCategorySchema,
   watcherEntitiesResponseSchema,
+  whatHappenedQuerySchema,
+  whatHappenedResponseSchema,
+  whatHappenedSummaryQuerySchema,
+  whatHappenedSummaryResponseSchema,
 } from '../schemas/monitor.js';
 
 const c = initContract();
@@ -146,7 +156,57 @@ export const monitorContract = c.router(
       summary: 'Available poll parliaments',
     },
 
-    /** GET /api/monitor/polls — poll averages (PolitPro, wahlrecht.de fallback). */
+    /** GET /api/monitor/polls/eu-greens/history — weekly green trend per country. */
+    euGreensHistory: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens/history',
+      responses: {
+        200: euGreensHistoryResponseSchema,
+        500: monitorErrorResponseSchema,
+        503: monitorErrorResponseSchema,
+      },
+      summary: 'Green party trend history across European parliaments',
+    },
+
+    /** GET /api/monitor/polls/eu-greens/profile — AI party profile (Wikipedia). */
+    euGreenProfile: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens/profile',
+      query: euGreenProfileQuerySchema,
+      responses: {
+        200: euGreenProfileResponseSchema,
+        404: monitorErrorResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'AI profile of one EU green party',
+    },
+
+    /** GET /api/monitor/polls/eu-greens — green-party trend across EU parliaments. */
+    euGreens: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens',
+      responses: {
+        200: euGreensResponseSchema,
+        500: monitorErrorResponseSchema,
+        503: monitorErrorResponseSchema,
+      },
+      summary: 'Green party results across European parliaments',
+    },
+
+    /** GET /api/monitor/polls/history — weekly trend since 2019 + individual polls. */
+    pollsHistory: {
+      method: 'GET',
+      path: '/api/monitor/polls/history',
+      query: pollsQuerySchema,
+      responses: {
+        200: pollsHistoryResponseSchema,
+        404: monitorErrorResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Poll trend history for one parliament',
+    },
+
+    /** GET /api/monitor/polls — poll averages (PolitPro). */
     polls: {
       method: 'GET',
       path: '/api/monitor/polls',
@@ -182,16 +242,29 @@ export const monitorContract = c.router(
       summary: 'State election results (Landtagswahlen)',
     },
 
-    /** GET /api/monitor/stimmung — emotion aggregation + AI mood summary. */
-    stimmung: {
+    /** GET /api/monitor/what-happened/summary — lazy AI digest for one feed day. */
+    whatHappenedSummary: {
       method: 'GET',
-      path: '/api/monitor/stimmung',
-      query: monitorLocaleQuerySchema,
+      path: '/api/monitor/what-happened/summary',
+      query: whatHappenedSummaryQuerySchema,
       responses: {
-        200: stimmungResponseSchema,
+        200: whatHappenedSummaryResponseSchema,
+        404: monitorErrorResponseSchema,
         500: monitorErrorResponseSchema,
       },
-      summary: 'Stimmung (emotion) aggregation',
+      summary: 'AI digest of one day of content-sync additions',
+    },
+
+    /** GET /api/monitor/what-happened — content-sync article feed, day-grouped. */
+    whatHappened: {
+      method: 'GET',
+      path: '/api/monitor/what-happened',
+      query: whatHappenedQuerySchema,
+      responses: {
+        200: whatHappenedResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Articles added to notebooks by the content sync',
     },
 
     /** GET /api/monitor/entities — watcher entity list. */
@@ -254,6 +327,18 @@ export const monitorContract = c.router(
         500: monitorErrorResponseSchema,
       },
       summary: 'Trigger a monitor refresh (admin token)',
+    },
+
+    /** POST /api/internal/monitor/sync-events — content-sync CI posts article events. */
+    internalSyncEvents: {
+      method: 'POST',
+      path: '/api/internal/monitor/sync-events',
+      body: internalSyncEventsBodySchema,
+      responses: {
+        200: internalSyncEventsResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Ingest content-sync article events (admin token)',
     },
 
     /** POST /api/internal/monitor/refresh-instagram — cron Instagram scrape. */

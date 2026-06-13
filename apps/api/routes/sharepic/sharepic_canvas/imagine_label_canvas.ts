@@ -18,13 +18,19 @@ const log = createLogger('imagine_label_c');
 const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const LABEL_TEXT = 'KI-Generiert mit dem Grünerator';
+const LABEL_TEXTS = {
+  full: 'KI-Generiert mit dem Grünerator',
+  short: 'KI-Generiert',
+} as const;
+
+type KiLabelVariant = keyof typeof LABEL_TEXTS;
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
 }
 
-async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
+async function addKiLabel(imageBuffer: Buffer, variant: KiLabelVariant = 'full'): Promise<Buffer> {
+  const labelText = LABEL_TEXTS[variant];
   await checkFiles();
   registerFonts();
 
@@ -43,7 +49,7 @@ async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
   ctx.font = fontFamily;
   ctx.textBaseline = 'middle';
 
-  const textMetrics = ctx.measureText(LABEL_TEXT);
+  const textMetrics = ctx.measureText(labelText);
   const textWidth = textMetrics.width;
   const rectHorizontalPadding = Math.round(fontSize * 0.6);
   const rectVerticalPadding = Math.round(fontSize * 0.35);
@@ -66,7 +72,7 @@ async function addKiLabel(imageBuffer: Buffer): Promise<Buffer> {
   ctx.save();
   ctx.globalAlpha = 0.85;
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(LABEL_TEXT, rectX + rectHorizontalPadding, rectY + rectHeight / 2);
+  ctx.fillText(labelText, rectX + rectHorizontalPadding, rectY + rectHeight / 2);
   ctx.restore();
 
   const rawBuffer = canvas.toBuffer('image/png');

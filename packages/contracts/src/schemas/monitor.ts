@@ -9,6 +9,8 @@
  */
 import { z } from 'zod';
 
+import { contentSyncSourceSchema } from './contentSync.js';
+
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
 /** Audience locale for monitor data. Matches `MonitorLocale` in the API. */
@@ -41,18 +43,6 @@ export const nounCountSchema = z.object({
 });
 export type NounCount = z.infer<typeof nounCountSchema>;
 
-/** Per-article emotion intensities; every field is independently optional. */
-export const emotionScoresSchema = z.object({
-  angst: z.number().optional(),
-  wut: z.number().optional(),
-  hoffnung: z.number().optional(),
-  enttaeuschung: z.number().optional(),
-  vertrauen: z.number().optional(),
-  solidaritaet: z.number().optional(),
-  stolz: z.number().optional(),
-});
-export type EmotionScores = z.infer<typeof emotionScoresSchema>;
-
 export const monitorArticleSchema = z.object({
   url: z.string(),
   title: z.string(),
@@ -64,8 +54,6 @@ export const monitorArticleSchema = z.object({
   topics: z.record(topicCategorySchema, z.number()),
   primaryTopic: topicCategorySchema.nullable(),
   topNouns: z.array(nounCountSchema).optional(),
-  emotionScores: emotionScoresSchema.optional(),
-  erSentiment: z.number().optional(),
 });
 export type MonitorArticle = z.infer<typeof monitorArticleSchema>;
 
@@ -129,62 +117,64 @@ export const monitorSearchResponseSchema = z.object({
   articles: z.array(monitorArticleSchema),
 });
 
-// ── Keyword insights (RAG over party positions) ──────────────────────────────
+// ── Hot-topic analysis (shared briefing + positions pipeline) ────────────────
+
+export const monitorConfidenceSchema = z.enum(['high', 'medium', 'low']);
+export type MonitorConfidence = z.infer<typeof monitorConfidenceSchema>;
+
+export const monitorCitationSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: z.string(),
+  snippet: z.string(),
+});
+export type MonitorCitation = z.infer<typeof monitorCitationSchema>;
+
+export const monitorTweetSchema = z.object({
+  text: z.string(),
+  topic: z.string(),
+  hashtags: z.array(z.string()),
+});
+
+/**
+ * Combined result of the hot-topic pipeline (one research run feeding the
+ * briefing, the tweets and the positions card). This is the redis-cached
+ * shape; the briefing and keyword-insights endpoints each return a slice.
+ */
+export const monitorHotTopicAnalysisSchema = z.object({
+  dominantTopic: z.string(),
+  secondaryTopics: z.array(z.string()),
+  briefing: z.string(),
+  tweets: z.array(monitorTweetSchema),
+  /** Positions prose with [cite:N] markers for CitationTextRenderer. */
+  positionsText: z.string(),
+  citations: z.array(monitorCitationSchema),
+  confidence: monitorConfidenceSchema,
+  generatedAt: z.string(),
+  /** Identity of the source snapshot (topic bucket + top article URLs); a cache hit is only valid while it matches. */
+  sourceFingerprint: z.string(),
+});
+export type MonitorHotTopicAnalysis = z.infer<typeof monitorHotTopicAnalysisSchema>;
+
+// ── Keyword insights (positions slice of the hot-topic analysis) ─────────────
 
 export const keywordInsightsResponseSchema = z.object({
   text: z.string(),
   dominantTopic: z.string(),
   secondaryTopics: z.array(z.string()),
-  citations: z.array(
-    z.object({
-      index: z.string(),
-      cited_text: z.string(),
-      document_title: z.string(),
-      document_id: z.string(),
-      source_url: z.string().nullable(),
-      similarity_score: z.number(),
-      chunk_index: z.number(),
-      collection_id: z.string().optional(),
-      collection_name: z.string().optional(),
-    })
-  ),
-  sources: z.array(
-    z.object({
-      document_id: z.string(),
-      document_title: z.string(),
-      source_url: z.string().nullable(),
-    })
-  ),
-  confidence: z.string(),
+  citations: z.array(monitorCitationSchema),
+  confidence: monitorConfidenceSchema,
+  generatedAt: z.string(),
 });
 
-// ── AI briefing ──────────────────────────────────────────────────────────────
+// ── AI briefing (briefing slice of the hot-topic analysis) ───────────────────
 
 export const monitorBriefingResponseSchema = z.object({
   briefing: z.string(),
-  tweets: z.array(
-    z.object({
-      text: z.string(),
-      topic: z.string(),
-      hashtags: z.array(z.string()),
-    })
-  ),
+  tweets: z.array(monitorTweetSchema),
   generatedAt: z.string(),
-  /**
-   * Optional citations consumed by MonitorOverview. The current backend does
-   * not emit them, but the field is kept so the UI can render them if a future
-   * briefing variant attaches grounding.
-   */
-  citations: z
-    .array(
-      z.object({
-        id: z.string(),
-        title: z.string(),
-        url: z.string(),
-        snippet: z.string(),
-      })
-    )
-    .optional(),
+  // Optional for backward compatibility with cached pre-pipeline responses.
+  citations: z.array(monitorCitationSchema).optional(),
 });
 
 // ── Polls ──────────────────────────────────────────────────────────────────
@@ -193,6 +183,10 @@ export const pollResultSchema = z.object({
   institute: z.string(),
   date: z.string(),
   parties: z.record(z.string(), z.number().nullable()),
+  // Present only when the official PolitPro API served the poll.
+  sampleSize: z.number().nullable().optional(),
+  /** PolitPro institute accuracy score (0–100), when published. */
+  instituteScore: z.number().nullable().optional(),
 });
 
 export const pollDataSchema = z.object({
@@ -200,12 +194,14 @@ export const pollDataSchema = z.object({
   lastElection: pollResultSchema.nullable(),
   average: z.record(z.string(), z.number()),
   scrapedAt: z.string(),
-  // Present only when PolitPro served the data (else the wahlrecht.de fallback).
+  // Optional only for legacy cached payloads — PolitPro is the sole source.
   source: z.literal('politpro').optional(),
   parliament: z.string().optional(),
   trend: z
     .record(z.string(), z.array(z.object({ date: z.string(), value: z.number() })))
     .optional(),
+  /** Official week-over-week change per party (official PolitPro API only). */
+  diffs: z.record(z.string(), z.number()).optional(),
 });
 
 export const pollParliamentSchema = z.object({
@@ -214,6 +210,70 @@ export const pollParliamentSchema = z.object({
 });
 
 export const pollParliamentsResponseSchema = z.array(pollParliamentSchema);
+
+// ── EU greens (green-party trend across European parliaments) ────────────────
+
+export const euGreenResultSchema = z.object({
+  /** PolitPro country code, e.g. 'fi' or 'eu' (EU parliament). */
+  countryCode: z.string(),
+  countryName: z.string(),
+  /** Display label of the green party/alliance, e.g. 'Vihreät'. */
+  party: z.string(),
+  percent: z.number(),
+  /** Official week-over-week change, when published. */
+  diff: z.number().nullable(),
+  /** Change vs the last election, when published. */
+  electionDiff: z.number().nullable(),
+  /** Date of the underlying trend data point. */
+  date: z.string(),
+  /** Caveat, e.g. that the greens run inside a broader alliance. */
+  note: z.string().nullable(),
+});
+
+export const euGreensResponseSchema = z.object({
+  results: z.array(euGreenResultSchema),
+  fetchedAt: z.string(),
+});
+
+export const pollTrendPointSchema = z.object({
+  date: z.string(),
+  value: z.number(),
+});
+
+/** Weekly green-party trend per country, for the EU comparison chart. */
+export const euGreensHistoryResponseSchema = z.object({
+  series: z.array(
+    z.object({
+      countryCode: z.string(),
+      countryName: z.string(),
+      party: z.string(),
+      points: z.array(pollTrendPointSchema),
+    })
+  ),
+  fetchedAt: z.string(),
+});
+
+/** AI party profile (Wikipedia summary + links) for one EU green party. */
+export const euGreenProfileResponseSchema = z.object({
+  countryCode: z.string(),
+  countryName: z.string(),
+  party: z.string(),
+  /** AI summary of the party's Wikipedia article; null if no article exists. */
+  summary: z.string().nullable(),
+  website: z.string().nullable(),
+  wikipediaUrl: z.string().nullable(),
+  generatedAt: z.string(),
+});
+
+/** Full poll history of one parliament: weekly trend + individual polls. */
+export const pollsHistoryResponseSchema = z.object({
+  parliament: z.string(),
+  /** Weekly trend points per party, ascending by date (since 2019). */
+  trend: z.record(z.string(), z.array(pollTrendPointSchema)),
+  /** Individual polls of the last ~2 years, ascending by date. */
+  polls: z.array(z.object({ date: z.string(), parties: z.record(z.string(), z.number()) })),
+  scrapedAt: z.string(),
+});
 
 // ── Meinungsbild (GERDA MRP estimates) ───────────────────────────────────────
 
@@ -259,26 +319,6 @@ export const stateElectionsResponseSchema = z.object({
   fetchedAt: z.string(),
   // Keyed by state code "01"–"16".
   states: z.record(z.string(), stateElectionResultSchema),
-});
-
-// ── Stimmung (emotion aggregation) ───────────────────────────────────────────
-
-const stimmungEmotionsSchema = z.record(z.string(), z.number());
-
-export const stimmungResponseSchema = z.object({
-  overall: stimmungEmotionsSchema,
-  byTopic: z.array(
-    z.object({ topic: z.string(), emotions: stimmungEmotionsSchema, articleCount: z.number() })
-  ),
-  bySource: z.array(
-    z.object({ source: z.string(), emotions: stimmungEmotionsSchema, articleCount: z.number() })
-  ),
-  byKeyword: z.array(
-    z.object({ keyword: z.string(), emotions: stimmungEmotionsSchema, articleCount: z.number() })
-  ),
-  dominantEmotion: z.string().nullable(),
-  moodSummary: z.string().optional(),
-  moodReason: z.string().optional(),
 });
 
 // ── Watcher entities ─────────────────────────────────────────────────────────
@@ -332,6 +372,89 @@ export const monitorInstagramRefreshResponseSchema = z.object({
   posts: z.number(),
 });
 
+// ── "Was ist passiert" (content-sync article feed) ───────────────────────────
+
+/** Source groups that feed notebook collections; social-media is not recorded. */
+export const syncArticleSourceGroupSchema = contentSyncSourceSchema.exclude(['social-media']);
+export type SyncArticleSourceGroup = z.infer<typeof syncArticleSourceGroupSchema>;
+
+export const syncArticleEventTypeSchema = z.enum(['stored', 'updated']);
+export type SyncArticleEventType = z.infer<typeof syncArticleEventTypeSchema>;
+
+export const whatHappenedArticleSchema = z.object({
+  title: z.string(),
+  sourceUrl: z.string(),
+  sourceGroupId: syncArticleSourceGroupSchema,
+  sourceName: z.string(),
+  excerpt: z.string().nullable(),
+  landesverband: z.string().nullable(),
+  collection: z.string(),
+  eventType: syncArticleEventTypeSchema,
+  publishedAt: z.string().nullable(),
+  indexedAt: z.string(),
+  syncRunUrl: z.string().nullable(),
+});
+export type WhatHappenedArticle = z.infer<typeof whatHappenedArticleSchema>;
+
+export const whatHappenedDaySchema = z.object({
+  /** ISO date 'YYYY-MM-DD' (UTC). */
+  date: z.string(),
+  counts: z.object({ stored: z.number(), updated: z.number() }),
+  articles: z.array(whatHappenedArticleSchema),
+});
+export type WhatHappenedDay = z.infer<typeof whatHappenedDaySchema>;
+
+export const whatHappenedResponseSchema = z.object({
+  days: z.array(whatHappenedDaySchema),
+  totalCount: z.number(),
+  /** Distinct values present in the window — feed the expert-mode filters. */
+  sourceGroups: z.array(syncArticleSourceGroupSchema),
+  landesverbaende: z.array(z.string()),
+});
+export type WhatHappenedResult = z.infer<typeof whatHappenedResponseSchema>;
+
+/** One recorded sync event, as POSTed by the content-sync run. */
+export const syncEventInputSchema = z.object({
+  title: z.string().min(1),
+  sourceUrl: z.string().min(1),
+  sourceGroupId: syncArticleSourceGroupSchema,
+  sourceName: z.string().min(1),
+  /** First ~300 chars of the article text, for the blog-style feed cards. */
+  excerpt: z.string().max(500).nullable(),
+  landesverband: z.string().nullable(),
+  collection: z.string().min(1),
+  eventType: syncArticleEventTypeSchema,
+  publishedAt: z.string().nullable(),
+  indexedAt: z.string(),
+});
+export type SyncEventInput = z.infer<typeof syncEventInputSchema>;
+
+export const internalSyncEventsBodySchema = z.object({
+  runId: z.string().nullable(),
+  runUrl: z.string().nullable(),
+  /** Force re-index runs: 'updated' events are dropped server-side. */
+  force: z.boolean(),
+  events: z.array(syncEventInputSchema).max(2000),
+});
+export type InternalSyncEventsBody = z.infer<typeof internalSyncEventsBodySchema>;
+
+export const internalSyncEventsResponseSchema = z.object({
+  success: z.boolean(),
+  received: z.number(),
+  upserted: z.number(),
+});
+
+/** Lazy per-day AI digest of the sync feed (generated on demand, Redis-cached). */
+export const whatHappenedSummaryResponseSchema = z.object({
+  /** ISO date 'YYYY-MM-DD' (UTC). */
+  date: z.string(),
+  /** Markdown with deterministic source links. */
+  summary: z.string(),
+  articleCount: z.number(),
+  generatedAt: z.string(),
+});
+export type WhatHappenedSummaryResult = z.infer<typeof whatHappenedSummaryResponseSchema>;
+
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 export const monitorErrorResponseSchema = z.object({
@@ -362,15 +485,38 @@ export const pollsQuerySchema = z.object({
   parliament: z.string().optional(),
 });
 
+export const euGreenProfileQuerySchema = z.object({
+  country: z.string(),
+});
+
+export const whatHappenedQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(30).optional(),
+  locale: monitorLocaleSchema.optional(),
+  sourceGroup: syncArticleSourceGroupSchema.optional(),
+  landesverband: z.string().optional(),
+  eventType: syncArticleEventTypeSchema.optional(),
+});
+export type WhatHappenedQuery = z.infer<typeof whatHappenedQuerySchema>;
+
+export const whatHappenedSummaryQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+  locale: monitorLocaleSchema.optional(),
+});
+
 // ── Inferred response types (consumed by the frontend hooks) ─────────────────
 
 export type MonitorSearchResult = z.infer<typeof monitorSearchResponseSchema>;
 export type KeywordInsightsResult = z.infer<typeof keywordInsightsResponseSchema>;
 export type MonitorBriefingResult = z.infer<typeof monitorBriefingResponseSchema>;
-export type StimmungResult = z.infer<typeof stimmungResponseSchema>;
 export type PollResult = z.infer<typeof pollResultSchema>;
 export type PollData = z.infer<typeof pollDataSchema>;
 export type PollParliament = z.infer<typeof pollParliamentSchema>;
+export type EuGreenResult = z.infer<typeof euGreenResultSchema>;
+export type EuGreensData = z.infer<typeof euGreensResponseSchema>;
+export type EuGreensHistoryData = z.infer<typeof euGreensHistoryResponseSchema>;
+export type EuGreenProfileData = z.infer<typeof euGreenProfileResponseSchema>;
+export type PollsHistoryData = z.infer<typeof pollsHistoryResponseSchema>;
+export type PollTrendPoint = z.infer<typeof pollTrendPointSchema>;
 export type WatcherEntityInfo = z.infer<typeof watcherEntityInfoSchema>;
 export type EntityResult = z.infer<typeof entityResultsResponseSchema>;
 export type RiskItem = z.infer<typeof riskItemSchema>;

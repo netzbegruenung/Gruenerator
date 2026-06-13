@@ -155,6 +155,7 @@ const baseInfoConfig = createColorTwoTextCanvas({
   textColorMap: TEXT_COLORS,
   backgroundImageMap: BACKGROUND_IMAGES,
   calculateLayout,
+  passthroughStateKeys: ['arrowOpacity'],
   elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {

@@ -41,14 +41,21 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
-  // Verdigado/LiteLLM serves Gemma 4 under the bare alias 'gemma' (resolves
-  // server-side to gemma4:26b-ctx16k). Without this entry, isVisionCapable
-  // would return false and the vision-override would hijack every image
-  // request on the gemma-4 overflow lane to Regolo, defeating alternation.
+  // Verdigado/LiteLLM serves Gemma 4 under the 'verdigado-think' alias
+  // (resolves server-side to gemma4:31b-ctx128k); the legacy bare alias
+  // 'gemma' (gemma4:26b-ctx16k) is kept during rollout. Without these
+  // entries, isVisionCapable would return false and the vision-override
+  // would hijack every image request on the gemma-4 overflow lane to
+  // Regolo, defeating alternation.
+  'verdigado-think': { name: 'Gemma 4', reasoning: true, vision: true },
   gemma: { name: 'Gemma 4', reasoning: true, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
   'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
   'gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
+  // Verdigado/LiteLLM official alias for GPT-OSS (resolves server-side to
+  // gpt-oss:120b-ctx128k); the hidden legacy alias 'gpt-oss:120b' is kept
+  // below during rollout.
+  'verdigado-pro': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'gpt-oss:120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'openai/gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'qwen3.5-122b': { name: 'Qwen 3.5 122B', reasoning: true, vision: true },
@@ -197,7 +204,7 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
       'gpt-oss-120b',
       'mistral-small3.2',
     ].map((id) => enrichModel(id, 'regolo')),
-    [enrichModel('gpt-oss:120b', 'litellm')],
+    [enrichModel('verdigado-pro', 'litellm')],
     [enrichModel('openai/gpt-oss-120b', 'ionos')]
   );
 

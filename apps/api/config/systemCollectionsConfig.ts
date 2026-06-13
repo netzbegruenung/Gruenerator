@@ -376,6 +376,20 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: ['LSA', 'LSA-F'] },
   },
+  'hessen-system': {
+    id: 'hessen-system',
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Hessen',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: ['HE', 'HE-F'] },
+  },
 };
 
 // =============================================================================

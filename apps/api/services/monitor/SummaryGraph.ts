@@ -1,25 +1,21 @@
 /**
- * Monitor Summary LangGraph Pipeline
+ * Monitor entity summary pipeline.
  *
- * 4-node graph: extract → qualityGate → synthesize → linkPost
+ * extract (with quality-gated retry) → [synthesize ∥ analyzeAttacks] → linkPost.
  * Separates fact extraction (structured) from prose synthesis (creative)
- * and link formatting (deterministic code).
+ * and link formatting (deterministic code). Plain async functions — the
+ * previous LangGraph wrapper used none of its features.
  */
 
-import { StateGraph, Annotation, END } from '@langchain/langgraph';
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
-import { getModel, isProviderConfigured } from '../ai/providers.js';
-
-import { EMOTION_NAMES } from './types.js';
+import { getModel, getPreferredMonitorProvider } from '../ai/providers.js';
 
 import type { MonitorArticle } from './types.js';
 
 const log = createLogger('SummaryGraph');
-
-const PROVIDER = isProviderConfigured('litellm') ? 'litellm' : 'mistral';
 
 // ─── Schema ──────────────────────────────────────────────────────────
 
@@ -37,8 +33,6 @@ const ExtractionResultSchema = z.object({
 
 type ExtractedFact = z.infer<typeof ExtractedFactSchema>;
 
-// ─── State ───────────────────────────────────────────────────────────
-
 export const RiskItemSchema = z.object({
   title: z.string().describe('Kurze Überschrift des Risikos/der Chance (max 10 Wörter)'),
   source: z.string().describe('Quelle: Medium oder Institution (z.B. "Bundestag", "Weser-Kurier")'),
@@ -54,35 +48,23 @@ export const RiskAnalysisSchema = z.object({
 export type RiskItem = z.infer<typeof RiskItemSchema>;
 export type RiskAnalysis = z.infer<typeof RiskAnalysisSchema>;
 
-const SummaryStateAnnotation = Annotation.Root({
-  entityLabel: Annotation<string>({ reducer: (x, y) => y ?? x }),
-  summaryPrompt: Annotation<string>({ reducer: (x, y) => y ?? x }),
-  articles: Annotation<MonitorArticle[]>({ reducer: (x, y) => y ?? x }),
-  facts: Annotation<ExtractedFact[]>({ reducer: (_, y) => y }),
-  extractAttempts: Annotation<number>({ reducer: (x, y) => (x || 0) + (y || 0) }),
-  qualityPass: Annotation<boolean>({ reducer: (_, y) => y }),
-  summaryText: Annotation<string>({ reducer: (_, y) => y ?? '' }),
-  attackAnalysis: Annotation<string>({ reducer: (_, y) => y ?? '' }),
-  riskAnalysis: Annotation<RiskAnalysis | null>({ reducer: (_, y) => y ?? null }),
-  finalMarkdown: Annotation<string>({ reducer: (_, y) => y ?? '' }),
-});
+// ─── Step 1: fact extraction (retried via quality gate) ──────────────
 
-type SummaryState = typeof SummaryStateAnnotation.State;
-
-// ─── Nodes ───────────────────────────────────────────────────────────
-
-async function extractNode(state: SummaryState): Promise<Partial<SummaryState>> {
-  const top = state.articles.slice(0, 15);
+async function extractFacts(
+  entityLabel: string,
+  articles: MonitorArticle[],
+  attempt: number
+): Promise<ExtractedFact[]> {
+  const top = articles.slice(0, 15);
   const formatted = top
     .map((a) => `Titel: ${a.title}\nURL: ${a.url}\nQuelle: ${a.source}\n${a.excerpt}`)
     .join('\n---\n');
 
   try {
-    const model = getModel(PROVIDER);
     const result = await generateObject({
-      model,
+      model: getModel(getPreferredMonitorProvider()),
       schema: ExtractionResultSchema,
-      system: `Du extrahierst Fakten aus deutschsprachigen Nachrichtenartikeln über ${state.entityLabel}.
+      system: `Du extrahierst Fakten aus deutschsprachigen Nachrichtenartikeln über ${entityLabel}.
 
 REGELN:
 - Extrahiere NUR Fakten, die WÖRTLICH im Artikeltext stehen
@@ -91,52 +73,39 @@ REGELN:
 - Erfinde KEINE Titel, Rollen oder Funktionen die nicht im Text stehen
 - Jeder Fakt muss eine sourceUrl haben
 - Maximal 10 Fakten, die wichtigsten zuerst`,
-      prompt: `Extrahiere die wichtigsten Fakten aus diesen ${top.length} Artikeln über ${state.entityLabel}:\n\n${formatted}`,
+      prompt: `Extrahiere die wichtigsten Fakten aus diesen ${top.length} Artikeln über ${entityLabel}:\n\n${formatted}`,
       temperature: 0.1,
     });
 
     log.info(
-      `Extract: ${result.object.facts.length} facts from ${top.length} articles (attempt ${(state.extractAttempts || 0) + 1})`
+      `Extract: ${result.object.facts.length} facts from ${top.length} articles (attempt ${attempt})`
     );
-    return { facts: result.object.facts, extractAttempts: 1 };
+    return result.object.facts;
   } catch (error) {
     log.error(`Extract failed: ${error}`);
-    return { facts: [], extractAttempts: 1 };
+    return [];
   }
 }
 
-function qualityGateNode(state: SummaryState): Partial<SummaryState> {
-  const factsWithActors = state.facts.filter((f) => f.actor.length > 1);
-  const pass = state.facts.length >= 3 && factsWithActors.length >= 2;
-
-  if (!pass && (state.extractAttempts || 0) < 2) {
-    log.info(
-      `QualityGate: FAIL (${state.facts.length} facts, ${factsWithActors.length} with actors) — retrying`
-    );
-  } else {
-    log.info(
-      `QualityGate: PASS (${state.facts.length} facts, ${factsWithActors.length} with actors)`
-    );
-  }
-
-  return { qualityPass: pass || (state.extractAttempts || 0) >= 2 };
+function passesQualityGate(facts: ExtractedFact[]): boolean {
+  const factsWithActors = facts.filter((f) => f.actor.length > 1);
+  return facts.length >= 3 && factsWithActors.length >= 2;
 }
 
-async function synthesizeNode(state: SummaryState): Promise<Partial<SummaryState>> {
-  if (state.facts.length === 0) {
-    return {
-      summaryText: `Keine relevanten Fakten über ${state.entityLabel} in der aktuellen Berichterstattung gefunden.`,
-    };
+// ─── Step 2a: prose synthesis ────────────────────────────────────────
+
+async function synthesize(entityLabel: string, facts: ExtractedFact[]): Promise<string> {
+  if (facts.length === 0) {
+    return `Keine relevanten Fakten über ${entityLabel} in der aktuellen Berichterstattung gefunden.`;
   }
 
-  const factsFormatted = state.facts
+  const factsFormatted = facts
     .map((f) => `- ${f.actor}: ${f.action} (${f.context}) [${f.sourceName}]`)
     .join('\n');
 
   try {
-    const model = getModel(PROVIDER);
     const result = await generateText({
-      model,
+      model: getModel(getPreferredMonitorProvider()),
       system: `Du bist ein*e neutrale*r Medienanalyst*in. Schreibe auf Deutsch mit Genderstern (*).
 
 Politischer Kontext (Stand März 2026):
@@ -147,7 +116,7 @@ Politischer Kontext (Stand März 2026):
 WICHTIG:
 - Verwende NUR die unten genannten Fakten. Erfinde NICHTS dazu.
 - Wenn ein Name nur als Nachname angegeben ist (z.B. "Hofreiter"), schreibe NUR den Nachnamen. Erfinde NIEMALS einen Vornamen dazu.`,
-      prompt: `Schreibe ein Medien-Briefing über ${state.entityLabel} basierend auf diesen verifizierten Fakten:
+      prompt: `Schreibe ein Medien-Briefing über ${entityLabel} basierend auf diesen verifizierten Fakten:
 
 ${factsFormatted}
 
@@ -161,42 +130,20 @@ Regeln:
     });
 
     log.info(`Synthesize: ${result.text.split(/\s+/).length} words`);
-    return { summaryText: result.text };
+    return result.text;
   } catch (error) {
     log.error(`Synthesize failed: ${error}`);
-    const fallback = state.facts
+    return facts
       .slice(0, 8)
       .map((f) => `**${f.actor}** ${f.action} (${f.sourceName})`)
       .join('\n\n');
-    return { summaryText: fallback };
   }
 }
 
+// ─── Step 2b: risk/opportunity analysis ──────────────────────────────
+
 function buildRiskContext(articles: MonitorArticle[]): string {
   const lines: string[] = [];
-
-  // Sentiment overview
-  const sentiments = articles.filter((a) => a.erSentiment != null).map((a) => a.erSentiment!);
-  if (sentiments.length > 0) {
-    const avg = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
-    const negCount = sentiments.filter((s) => s < -0.3).length;
-    const label = avg < -0.2 ? 'negativ' : avg > 0.1 ? 'positiv' : 'gemischt';
-    lines.push(`Sentiment-Durchschnitt: ${avg.toFixed(2)} (${label})`);
-    if (negCount > 0) lines.push(`Stark negative Artikel: ${negCount} von ${sentiments.length}`);
-  }
-
-  // Emotion profile
-  const emotionTotals: Record<string, number> = {};
-  for (const a of articles) {
-    for (const [k, v] of Object.entries(a.emotionScores ?? {}) as [string, number | undefined][]) {
-      emotionTotals[k] = (emotionTotals[k] ?? 0) + (v ?? 0);
-    }
-  }
-  const emotionParts = Object.entries(emotionTotals)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 4)
-    .map(([k, v]) => `${EMOTION_NAMES[k] || k} ${Math.round(v)}`);
-  if (emotionParts.length > 0) lines.push(`Emotionsprofil: ${emotionParts.join(', ')}`);
 
   // Topic distribution
   const topicCounts: Record<string, number> = {};
@@ -222,34 +169,29 @@ function buildRiskContext(articles: MonitorArticle[]): string {
     .map(([k]) => k);
   if (topKw.length > 0) lines.push(`Schlagwörter: ${topKw.join(', ')}`);
 
-  // Most negative articles
-  const negArticles = articles
-    .filter((a) => a.erSentiment != null && a.erSentiment < -0.3)
-    .sort((a, b) => (a.erSentiment ?? 0) - (b.erSentiment ?? 0))
-    .slice(0, 3);
-  if (negArticles.length > 0) {
-    lines.push(
-      '\nNegativste Artikel:\n' +
-        negArticles
-          .map((a) => `- [${a.source}] "${a.title}" (Sentiment: ${a.erSentiment!.toFixed(1)})`)
-          .join('\n')
-    );
-  }
-
   return lines.join('\n');
 }
 
-async function attackAnalysisNode(state: SummaryState): Promise<Partial<SummaryState>> {
-  if (state.facts.length < 3) {
-    return { attackAnalysis: '' };
+interface AttackAnalysis {
+  attackAnalysis: string;
+  riskAnalysis: RiskAnalysis | null;
+}
+
+async function analyzeAttacks(
+  entityLabel: string,
+  facts: ExtractedFact[],
+  articles: MonitorArticle[]
+): Promise<AttackAnalysis> {
+  if (facts.length < 3) {
+    return { attackAnalysis: '', riskAnalysis: null };
   }
 
   // Build risk context from article metadata
-  const riskContext = buildRiskContext(state.articles);
+  const riskContext = buildRiskContext(articles);
 
   // Extract key themes from facts for notebook search
-  const themes = [...new Set(state.facts.map((f) => f.context).filter(Boolean))].slice(0, 5);
-  const factsFormatted = state.facts
+  const themes = [...new Set(facts.map((f) => f.context).filter(Boolean))].slice(0, 5);
+  const factsFormatted = facts
     .slice(0, 10)
     .map((f) => `- ${f.actor}: ${f.action} (${f.context})`)
     .join('\n');
@@ -279,9 +221,8 @@ async function attackAnalysisNode(state: SummaryState): Promise<Partial<SummaryS
   }
 
   try {
-    const model = getModel(PROVIDER);
     const result = await generateObject({
-      model,
+      model: getModel(getPreferredMonitorProvider()),
       schema: RiskAnalysisSchema,
       system: `Du bist ein*e politische*r Risikoanalyst*in für Bündnis 90/Die Grünen.
 
@@ -291,9 +232,9 @@ Politischer Kontext (Stand März 2026):
 
 Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret.`,
       prompt: `RISIKO-DATEN:
-${riskContext || 'Keine Sentiment-Daten verfügbar.'}
+${riskContext || 'Keine Daten verfügbar.'}
 
-EXTRAHIERTE FAKTEN über ${state.entityLabel}:
+EXTRAHIERTE FAKTEN über ${entityLabel}:
 ${factsFormatted}
 ${positionsContext}
 
@@ -301,8 +242,7 @@ Analysiere die Berichterstattung und identifiziere:
 - 2-3 konkrete Risiken (Angriffsflächen, negative Berichterstattung, fehlende Positionen)
 - 2-3 konkrete Chancen (positive Themen, starke Positionen, Verstärkungspotenzial)
 
-Jedes Item braucht: kurze Überschrift, Quelle, Begründung, Dringlichkeit (high/medium/low).
-Stark negative Artikel (Sentiment < -0.3) = höhere Dringlichkeit.`,
+Jedes Item braucht: kurze Überschrift, Quelle, Begründung, Dringlichkeit (high/medium/low).`,
       temperature: 0.3,
       maxOutputTokens: 1500,
     });
@@ -328,11 +268,13 @@ Stark negative Artikel (Sentiment < -0.3) = höhere Dringlichkeit.`,
   }
 }
 
-function linkPostNode(state: SummaryState): Partial<SummaryState> {
-  let text = state.summaryText;
+// ─── Step 3: deterministic source linking ────────────────────────────
+
+function linkPost(summaryText: string, facts: ExtractedFact[]): string {
+  let text = summaryText;
   const linkedUrls = new Set<string>();
 
-  for (const fact of state.facts) {
+  for (const fact of facts) {
     if (linkedUrls.has(fact.sourceUrl)) continue;
 
     // Try to find the actor name in the text and link it
@@ -359,29 +301,102 @@ function linkPostNode(state: SummaryState): Partial<SummaryState> {
   }
 
   log.info(`LinkPost: ${linkedUrls.size} links inserted`);
-  return { finalMarkdown: text };
+  return text;
 }
 
-// ─── Graph ───────────────────────────────────────────────────────────
+// ─── Day digest (content-sync feed) ──────────────────────────────────
 
-function routeAfterQualityGate(state: SummaryState): 'extract' | 'synthesize' {
-  if (!state.qualityPass && (state.extractAttempts || 0) < 2) return 'extract';
-  return 'synthesize';
+export interface DigestArticle {
+  title: string;
+  url: string;
+  /** Display source, e.g. "Grüne Berlin" or "KommunalWiki". */
+  source: string;
+  excerpt: string;
 }
 
-const graph = new StateGraph(SummaryStateAnnotation)
-  .addNode('extract', extractNode)
-  .addNode('qualityGate', qualityGateNode)
-  .addNode('synthesize', synthesizeNode)
-  .addNode('analyzeAttacks', attackAnalysisNode)
-  .addNode('linkPost', linkPostNode)
-  .addEdge('__start__', 'extract')
-  .addEdge('extract', 'qualityGate')
-  .addConditionalEdges('qualityGate', routeAfterQualityGate)
-  .addEdge('synthesize', 'analyzeAttacks')
-  .addEdge('analyzeAttacks', 'linkPost')
-  .addEdge('linkPost', END)
-  .compile();
+async function extractDigestFacts(articles: DigestArticle[]): Promise<ExtractedFact[]> {
+  const top = articles.slice(0, 15);
+  const formatted = top
+    .map((a) => `Titel: ${a.title}\nURL: ${a.url}\nQuelle: ${a.source}\n${a.excerpt}`)
+    .join('\n---\n');
+
+  try {
+    const result = await generateObject({
+      model: getModel(getPreferredMonitorProvider()),
+      schema: ExtractionResultSchema,
+      system: `Du extrahierst Kernaussagen aus neuen Inhalten grüner Quellen (Landesverbände, Grünblog, Bundestagsfraktion, KommunalWiki, Böll-Stiftung).
+
+REGELN:
+- Extrahiere NUR Aussagen, die WÖRTLICH im Text stehen
+- "actor" ist die Quelle bzw. der handelnde Verband (z.B. "Grüne Berlin"), oder eine im Text genannte Person — ERFINDE NIEMALS Namen oder Funktionen
+- Jeder Fakt muss eine sourceUrl haben
+- Maximal 10 Fakten, die inhaltlich wichtigsten zuerst`,
+      prompt: `Extrahiere die wichtigsten Aussagen aus diesen ${top.length} neu aufgenommenen Inhalten:\n\n${formatted}`,
+      temperature: 0.1,
+    });
+    log.info(`DigestExtract: ${result.object.facts.length} facts from ${top.length} articles`);
+    return result.object.facts;
+  } catch (error) {
+    log.error(`DigestExtract failed: ${error}`);
+    return [];
+  }
+}
+
+async function synthesizeDigest(facts: ExtractedFact[], articleCount: number): Promise<string> {
+  const factsFormatted = facts
+    .map((f) => `- ${f.actor}: ${f.action} (${f.context}) [${f.sourceName}]`)
+    .join('\n');
+
+  const result = await generateText({
+    model: getModel(getPreferredMonitorProvider()),
+    system: `Du fasst neue Inhalte aus grünen Quellen für Parteimitglieder zusammen. Schreibe auf Deutsch mit Genderstern (*).
+
+WICHTIG:
+- Verwende NUR die unten genannten Fakten. Erfinde NICHTS dazu.
+- Erfinde NIEMALS Vornamen oder Funktionen zu Namen.`,
+    prompt: `Schreibe eine kompakte Tageszusammenfassung der neu in die Wissensdatenbank aufgenommenen Inhalte (${articleCount} Artikel) basierend auf diesen Fakten:
+
+${factsFormatted}
+
+Regeln:
+- Max 150 Wörter, kurze Absätze (2-3 Sätze)
+- Setze wichtige **Quellen/Verbände** und **Schlüsselbegriffe** fett
+- Sachlich-informativ, kein Marketing-Ton
+- Fließtext, keine Aufzählungen oder Überschriften`,
+    temperature: 0.3,
+    maxOutputTokens: 1500,
+  });
+
+  log.info(`DigestSynthesize: ${result.text.split(/\s+/).length} words`);
+  return result.text;
+}
+
+/**
+ * Summary of one day's content-sync additions ("Was ist passiert" tab).
+ * Same shape as the entity pipeline: extract → synthesize → deterministic
+ * source linking; falls back to a plain title list if the LLM steps fail.
+ */
+export async function generateDayDigest(articles: DigestArticle[]): Promise<string> {
+  const fallback = () =>
+    articles
+      .slice(0, 8)
+      .map((a) => `- [${a.title}](${a.url}) (${a.source})`)
+      .join('\n');
+
+  try {
+    // Drop placeholder facts (no real action or no resolvable source) — they
+    // produce meta-prose and broken `[x]()` links downstream.
+    const facts = (await extractDigestFacts(articles)).filter(
+      (f) => f.action.length > 5 && f.sourceUrl.startsWith('http')
+    );
+    if (facts.length === 0) return fallback();
+    const text = await synthesizeDigest(facts, articles.length);
+    return linkPost(text, facts) || fallback();
+  } catch (error) {
+    log.error(`DayDigest failed: ${error}`);
+    return fallback();
+  }
+}
 
 // ─── Public API ──────────────────────────────────────────────────────
 
@@ -393,7 +408,6 @@ export interface EntitySummaryGraphResult {
 
 export async function generateEntitySummary(
   entityLabel: string,
-  summaryPrompt: string,
   articles: MonitorArticle[]
 ): Promise<EntitySummaryGraphResult> {
   if (articles.length === 0) {
@@ -405,26 +419,28 @@ export async function generateEntitySummary(
   }
 
   try {
-    const result = await graph.invoke({
-      entityLabel,
-      summaryPrompt,
-      articles,
-      facts: [],
-      extractAttempts: 0,
-      qualityPass: false,
-      summaryText: '',
-      attackAnalysis: '',
-      riskAnalysis: null,
-      finalMarkdown: '',
-    });
+    let facts: ExtractedFact[] = [];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      facts = await extractFacts(entityLabel, articles, attempt);
+      if (passesQualityGate(facts)) break;
+      if (attempt < 2) log.info('QualityGate: FAIL — retrying extraction');
+    }
+    log.info(
+      `QualityGate: ${passesQualityGate(facts) ? 'PASS' : 'GIVING UP'} (${facts.length} facts)`
+    );
+
+    // Synthesis and risk analysis only depend on the facts — run them in parallel.
+    const [summaryText, attack] = await Promise.all([
+      synthesize(entityLabel, facts),
+      analyzeAttacks(entityLabel, facts, articles),
+    ]);
 
     return {
       summary:
-        result.finalMarkdown ||
-        result.summaryText ||
+        linkPost(summaryText, facts) ||
         `Zusammenfassung für ${entityLabel} konnte nicht erstellt werden.`,
-      attackAnalysis: result.attackAnalysis || '',
-      riskAnalysis: result.riskAnalysis ?? null,
+      attackAnalysis: attack.attackAnalysis,
+      riskAnalysis: attack.riskAnalysis,
     };
   } catch (error) {
     log.error(`SummaryGraph failed for ${entityLabel}: ${error}`);

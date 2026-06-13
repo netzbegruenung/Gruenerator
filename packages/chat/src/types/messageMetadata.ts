@@ -30,6 +30,23 @@ export interface DocumentCreatedData {
   url: string;
 }
 
+/** A chat-uploaded video being auto-transcribed (ReelProcessingCard). */
+export interface ReelProcessingData {
+  uploadId: string;
+  filename: string;
+}
+
+/** Reel project picker payload (ReelPickerCard). */
+export interface ReelPickerData {
+  projects: Array<{
+    projectId: string;
+    title: string;
+    updatedAt: string;
+    thumbnailUrl: string | null;
+    hasSubtitles: boolean;
+  }>;
+}
+
 export type ChatMessageMetadata = {
   progress?: ChatProgress;
   citations?: Citation[];
@@ -46,6 +63,8 @@ export type ChatMessageMetadata = {
   followUpSuggestions?: string[];
   confirmAction?: ConfirmActionData;
   createdDocument?: DocumentCreatedData;
+  reelProcessing?: ReelProcessingData;
+  reelPicker?: ReelPickerData;
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];
