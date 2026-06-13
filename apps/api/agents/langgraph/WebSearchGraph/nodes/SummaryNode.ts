@@ -124,7 +124,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
         messages: [{ role: 'user', content: userPrompt }],
         options: {
           provider: 'litellm',
-          model: 'gpt-oss:120b',
+          model: 'verdigado-pro',
           max_tokens: 500,
           temperature: 0.2,
         },

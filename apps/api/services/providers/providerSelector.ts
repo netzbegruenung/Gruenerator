@@ -18,8 +18,11 @@ import type {
  */
 export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
   const name = String(modelName || '').toLowerCase();
-  // LiteLLM models typically use prefixes like gpt-oss, or are mistral/mixtral variants
-  // Exclude Mistral API models (mistral-medium-2604, etc.)
+  // LiteLLM models are the official verdigado-* aliases, gpt-oss prefixes,
+  // or mistral/mixtral variants. Exclude Mistral API models (mistral-medium-2604, etc.)
+  if (name.includes('verdigado')) {
+    return true;
+  }
   if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
     return true;
   }
@@ -96,7 +99,7 @@ export function selectProviderAndModel({
 }: SelectProviderParams): ProviderResult {
   // Base defaults — GPT-OSS 120B via LiteLLM as primary model
   let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
-  let model: ModelName = options.model || 'gpt-oss:120b';
+  let model: ModelName = options.model || 'verdigado-pro';
 
   // Ultra mode (useUltraMode flag) - routes to IONOS with high-quality model
   if (options.useUltraMode === true) {
@@ -106,7 +109,7 @@ export function selectProviderAndModel({
   // Pro mode (useProMode flag) - routes to high-quality reasoning model
   else if (options.useProMode === true) {
     provider = 'litellm';
-    model = options.model || 'gpt-oss:120b';
+    model = options.model || 'verdigado-pro';
   }
 
   // Type-based defaults
@@ -138,7 +141,7 @@ export function selectProviderAndModel({
     type === 'grosse_anfrage'
   ) {
     provider = 'litellm';
-    model = options.model || 'gpt-oss:120b';
+    model = options.model || 'verdigado-pro';
   }
   // Fast helper tasks — Intermediate model (Regolo)
   else if (
@@ -171,7 +174,7 @@ export function selectProviderAndModel({
     // When explicitly using litellm, ensure model is litellm-compatible
     if (provider === 'litellm' && !isLiteLLMCompatibleModel(model)) {
       // Use explicitly provided litellm model or default
-      model = isLiteLLMCompatibleModel(options.model) ? options.model! : 'gpt-oss:120b';
+      model = isLiteLLMCompatibleModel(options.model) ? options.model! : 'verdigado-pro';
     }
   }
 

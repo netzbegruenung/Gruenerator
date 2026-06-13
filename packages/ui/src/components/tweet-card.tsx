@@ -1,5 +1,5 @@
-import { Check, Copy } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Copy, ExternalLink, Repeat2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -11,24 +11,41 @@ function XIcon({ className }: { className?: string }) {
 
 export interface TweetCardProps {
   text: string;
-  hashtags: string[];
-  topicLabel: string;
-  topicColor: string;
+  hashtags?: string[];
+  topicLabel?: string;
+  topicColor?: string;
   authorName?: string;
   authorHandle?: string;
   authorAvatar?: string;
+  /** Avatar image URL — takes precedence over the `authorAvatar` initials. */
+  avatarUrl?: string | null;
+  /** Platform icon shown top-right. Defaults to the X icon. */
+  icon?: ReactNode;
+  /** Pre-formatted timestamp shown in the footer (e.g. for real posts). */
+  timestamp?: string | null;
+  /** Link to the original post — adds an "Ansehen" action in the footer. */
+  href?: string | null;
+  /** Name of the account that reposted — renders a "Repost von …" line above the header. */
+  repostedBy?: string | null;
   maxChars?: number;
+  showCharCount?: boolean;
 }
 
 export function TweetCard({
   text,
-  hashtags,
+  hashtags = [],
   topicLabel,
-  topicColor,
+  topicColor = '#94a3b8',
   authorName = 'Bündnis 90/Die Grünen',
   authorHandle = '@Die_Gruenen',
   authorAvatar = 'B90',
+  avatarUrl = null,
+  icon,
+  timestamp = null,
+  href = null,
+  repostedBy = null,
   maxChars = 280,
+  showCharCount = true,
 }: TweetCardProps) {
   const [copied, setCopied] = useState(false);
   const charCount = text.length;
@@ -43,17 +60,32 @@ export function TweetCard({
 
   return (
     <div className="relative flex flex-col gap-md overflow-hidden rounded-xl border border-grey-200 dark:border-grey-700 p-lg bg-background">
+      {repostedBy && (
+        <div className="flex items-center gap-1 text-xs text-grey-400 -mb-sm">
+          <Repeat2 className="h-3.5 w-3.5 shrink-0" />
+          Repost von {repostedBy}
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-sm">
-          <div className="h-10 w-10 rounded-full bg-green-600 flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-bold">{authorAvatar}</span>
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-10 w-10 rounded-full object-cover shrink-0"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-green-600 flex items-center justify-center shrink-0">
+              <span className="text-white text-sm font-bold">{authorAvatar}</span>
+            </div>
+          )}
           <div>
             <p className="text-sm font-semibold text-foreground m-0 leading-tight">{authorName}</p>
             <p className="text-xs text-grey-400 m-0">{authorHandle}</p>
           </div>
         </div>
-        <XIcon className="h-5 w-5 text-grey-300" />
+        {icon ?? <XIcon className="h-5 w-5 text-grey-300" />}
       </div>
 
       <p className="text-[15px] leading-relaxed text-foreground m-0 flex-1">
@@ -65,34 +97,52 @@ export function TweetCard({
 
       <div className="flex items-center justify-between pt-sm border-t border-grey-100 dark:border-grey-800">
         <div className="flex items-center gap-sm">
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-            style={{ color: topicColor, backgroundColor: `${topicColor}15` }}
-          >
-            {topicLabel}
-          </span>
-          <span
-            className={`text-[10px] tabular-nums ${charCount > maxChars - 20 ? 'text-red-500' : 'text-grey-400'}`}
-          >
-            {charCount}/{maxChars}
-          </span>
-        </div>
-        <button
-          onClick={handleCopy}
-          className="inline-flex items-center gap-1 text-xs text-grey-400 hover:text-foreground transition-colors border-none bg-transparent cursor-pointer"
-        >
-          {copied ? (
-            <>
-              <Check className="h-3 w-3" />
-              Kopiert
-            </>
-          ) : (
-            <>
-              <Copy className="h-3 w-3" />
-              Kopieren
-            </>
+          {topicLabel && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+              style={{ color: topicColor, backgroundColor: `${topicColor}15` }}
+            >
+              {topicLabel}
+            </span>
           )}
-        </button>
+          {timestamp && <span className="text-[10px] text-grey-400">{timestamp}</span>}
+          {showCharCount && (
+            <span
+              className={`text-[10px] tabular-nums ${charCount > maxChars - 20 ? 'text-red-500' : 'text-grey-400'}`}
+            >
+              {charCount}/{maxChars}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-md">
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1 text-xs text-grey-400 hover:text-foreground transition-colors border-none bg-transparent cursor-pointer"
+          >
+            {copied ? (
+              <>
+                <Check className="h-3 w-3" />
+                Kopiert
+              </>
+            ) : (
+              <>
+                <Copy className="h-3 w-3" />
+                Kopieren
+              </>
+            )}
+          </button>
+          {href && (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Ansehen
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );

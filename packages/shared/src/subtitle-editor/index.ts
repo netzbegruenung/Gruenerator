@@ -30,6 +30,8 @@ export {
 export {
   parseSubtitlesText,
   formatSubtitlesToText,
+  parseStoredSubtitles,
+  serializeStoredSubtitles,
   formatTime,
   formatTimeWithFraction,
   findActiveSegment,
@@ -42,4 +44,8 @@ export {
   segmentsEqual,
 } from './subtitle-utils.js';
 
-export type { SubtitleValidationIssue, SubtitleValidationResult } from './subtitle-utils.js';
+export type {
+  StoredSubtitlesFormat,
+  SubtitleValidationIssue,
+  SubtitleValidationResult,
+} from './subtitle-utils.js';

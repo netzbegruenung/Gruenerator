@@ -54,6 +54,10 @@ export interface BuildRequestBodyParams {
     canvasId: string | null;
     canvasType: string;
   } | null;
+  /** Subtitler project marked active for chat subtitle editing, if any. */
+  currentReel: { projectId: string } | null;
+  /** Composer-attached video, already TUS-uploaded (reel transcription). */
+  reelUpload: { uploadId: string; filename: string } | null;
 }
 
 const lastUserText = (formattedMessages: FormattedMessage[]): string =>
@@ -93,6 +97,8 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
+    currentReel,
+    reelUpload,
   } = params;
 
   if (effectiveMode === 'search') {
@@ -135,6 +141,8 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
     currentSharepic: currentSharepic ?? undefined,
+    currentReel: currentReel ?? undefined,
+    reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
