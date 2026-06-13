@@ -158,6 +158,32 @@ export {
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
 
+// Tool view-models & registry (platform-neutral; each platform maps kind → component)
+export {
+  ToolViewKindSchema,
+  ToolResultVMSchema,
+  type ToolViewKind,
+  type ToolResultVM,
+  type CitationListVM,
+  type LinkPreviewVM,
+  type MarkdownReportVM,
+  type SnippetListVM,
+  type PressExamplesVM,
+  type PersonVM,
+  type ImageResultVM,
+  type TextNoteVM,
+  type KeyValueVM,
+  type KeyValueEntry,
+} from './lib/toolViewModels';
+export {
+  TOOL_REGISTRY,
+  UI_TOOL_NAMES,
+  resolveToolEntry,
+  parseGenericFallback,
+  type UiToolName,
+  type ToolRegistryEntry,
+} from './lib/toolRegistry';
+
 // SerializableCitation type (Zod-derived, JSON-safe — RN-safe as a type)
 export { type SerializableCitation } from './components/tool-ui/citation/schema';
 
