@@ -11,6 +11,29 @@ import { type SerializableCitation } from '../components/tool-ui/citation/schema
 
 import { extractDomain, faviconFromHostname, getHostname } from './urlUtils';
 
+import type {
+  ExampleSnippet,
+  MarkdownReportVM,
+  PersonVM,
+  PressemitteilungExample,
+  PressExamplesVM,
+  ResearchCitation,
+  ResearchSearchStep,
+} from './toolViewModels';
+
+// Parser output types are derived from the Zod view-model schemas in
+// toolViewModels.ts (single type source) and re-exported here for
+// backward compatibility.
+export type {
+  ExampleSnippet,
+  PressemitteilungExample,
+  ResearchCitation,
+  ResearchSearchStep,
+} from './toolViewModels';
+export type ParsedResearchResult = Omit<MarkdownReportVM, 'kind'>;
+export type ParsedPersonResult = Omit<PersonVM, 'kind'>;
+export type ParsedPressemitteilungExamples = Omit<PressExamplesVM, 'kind'>;
+
 // ---------------------------------------------------------------------------
 // Safe accessors for `unknown` tool args/results (was duplicated inline in
 // ToolCallUI.tsx and ResearchArtifactCard.tsx).
@@ -90,6 +113,10 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   recall_memory: { label: 'Erinnerung', iconKey: 'message-circle' },
   save_memory: { label: 'Speichern', iconKey: 'message-circle' },
   search_user_content: { label: 'Inhalte', iconKey: 'search' },
+  gruenerator_pressemitteilung_examples: { label: 'Pressemitteilungen', iconKey: 'file' },
+  ask_human: { label: 'Rückfrage', iconKey: 'message-circle' },
+  sharepic_edit: { label: 'Sharepic', iconKey: 'image' },
+  reel_edit: { label: 'Reel', iconKey: 'image' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {
@@ -154,30 +181,7 @@ export function parseWebCitations(result: unknown): SerializableCitation[] {
 // Research result parsing & markdown helpers.
 // ---------------------------------------------------------------------------
 
-export interface ResearchCitation {
-  id: number;
-  title: string;
-  url: string;
-  domain: string;
-  snippet: string;
-}
-
 export type ResearchConfidence = 'high' | 'medium' | 'low';
-
-export interface ResearchSearchStep {
-  tool: string;
-  query: string;
-  resultsCount: number;
-}
-
-export interface ParsedResearchResult {
-  answer: string | null;
-  citations: ResearchCitation[];
-  confidence: string | null;
-  followUpQuestions: string[];
-  searchStepsCount: number;
-  stepsList: ResearchSearchStep[];
-}
 
 /** Human-readable confidence labels (German). Colors are platform-specific. */
 export const CONFIDENCE_LABELS: Record<string, string> = {
@@ -295,13 +299,6 @@ export function buildExportMarkdown(
 // gruenerator_person_search → a single politician profile.
 // ---------------------------------------------------------------------------
 
-export interface ParsedPersonResult {
-  found: boolean;
-  name: string | null;
-  fraktion: string | null;
-  wahlkreis: string | null;
-}
-
 export function parsePersonResult(result: unknown): ParsedPersonResult {
   const person = getObject(result, 'person');
   if (!getBoolean(result, 'isPersonQuery') || !person) {
@@ -319,11 +316,6 @@ export function parsePersonResult(result: unknown): ParsedPersonResult {
 // gruenerator_examples_search → platform-tagged content snippets (no URLs, so
 // these render as snippets rather than citations).
 // ---------------------------------------------------------------------------
-
-export interface ExampleSnippet {
-  platform: string | null;
-  content: string | null;
-}
 
 export function parseExamples(result: unknown): ExampleSnippet[] {
   const items =
@@ -359,20 +351,6 @@ export function parseScrapeResult(args: unknown, result: unknown): ScrapedPage |
 // ---------------------------------------------------------------------------
 // gruenerator_pressemitteilung_examples → press releases grouped by Landesverband.
 // ---------------------------------------------------------------------------
-
-export interface PressemitteilungExample {
-  id: string;
-  title: string;
-  body: string;
-  lv: string;
-  publishedAt: string | null;
-  url: string | null;
-}
-
-export interface ParsedPressemitteilungExamples {
-  examples: PressemitteilungExample[];
-  message: string | null;
-}
 
 const PRESSEMITTEILUNG_LV_LABELS: Record<string, string> = {
   BE: 'Berlin',

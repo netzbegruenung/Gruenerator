@@ -17,6 +17,7 @@ import { colors, spacing, borderRadius } from '../../../theme';
 import { GrueneratorLoadingIcon } from '../GrueneratorLoadingIcon';
 import { getMarkdownStyles } from '../markdownStyles';
 
+import { makeCitationMarkdownRules } from './citationMarkdownRules';
 import { ToolCitationList } from './ToolCitationList';
 
 import type { Theme } from '../../../theme/colors';
@@ -47,6 +48,12 @@ export function ResearchArtifactCard({ part, theme }: { part: ToolCallPart; them
   const parsed = useMemo(
     () => (part.result != null ? parseResearchResult(part.result) : null),
     [part.result]
+  );
+
+  // Inline [N] markers in the report become tappable source chips.
+  const markdownRules = useMemo(
+    () => makeCitationMarkdownRules(new Map((parsed?.citations ?? []).map((c) => [c.id, c]))),
+    [parsed?.citations]
   );
 
   const handleExport = useCallback(() => {
@@ -127,7 +134,11 @@ export function ResearchArtifactCard({ part, theme }: { part: ToolCallPart; them
           {headings.map((h) => `## ${h}`).join('   ·   ')}
         </Text>
       )}
-      {answer && <Markdown style={markdownStyles}>{expanded ? answer : preview}</Markdown>}
+      {answer && (
+        <Markdown style={markdownStyles} rules={markdownRules}>
+          {expanded ? answer : preview}
+        </Markdown>
+      )}
 
       <View style={styles.actions}>
         {answer && (

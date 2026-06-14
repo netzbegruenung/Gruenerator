@@ -3,7 +3,6 @@
 import { memo, useState } from 'react';
 import {
   BookOpen,
-  Check,
   ExternalLink,
   FileSearch,
   Library,
@@ -25,13 +24,6 @@ import {
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
-import {
-  useScopedSelectedNotebookId,
-  useScopedSetSelectedNotebook,
-  useScopedSetThreadMode,
-  useScopedSetCustomRoleName,
-  useScopedThreadMode,
-} from '../../lib/useScopedAgentState';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import {
   getAgentMentionables,
@@ -64,23 +56,10 @@ export const PlusMenu = memo(function PlusMenu({
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
   const allQuickSkills = [...quickSkills, ...customAgents];
-  const threadMode = useScopedThreadMode();
-  const selectedNotebookId = useScopedSelectedNotebookId();
-  const setSelectedNotebook = useScopedSetSelectedNotebook();
-  const setThreadMode = useScopedSetThreadMode();
-  const setCustomRoleName = useScopedSetCustomRoleName();
 
   const handleMobileAction = (action: () => void) => {
     setMenuOpen(false);
     action();
-  };
-
-  // Mirrors ToolToggles' notebook branch: selecting a Quelle switches the
-  // thread into notebook mode, otherwise the selection has no effect.
-  const handleSelectNotebook = (id: string) => {
-    setSelectedNotebook(id);
-    setCustomRoleName(null);
-    setThreadMode('notebook');
   };
 
   const desktopContent = (
@@ -123,15 +102,9 @@ export const PlusMenu = memo(function PlusMenu({
           {notebookMentionables.map((notebook) => {
             const NbIcon = notebook.icon ?? BookOpen;
             return (
-              <DropdownMenuItem
-                key={notebook.identifier}
-                onClick={() => handleSelectNotebook(notebook.identifier)}
-              >
+              <DropdownMenuItem key={notebook.identifier} onClick={() => onInsertMention(notebook)}>
                 <NbIcon className="h-3.5 w-3.5" />
                 <span className="flex-1">{notebook.title}</span>
-                {threadMode === 'notebook' && selectedNotebookId === notebook.identifier && (
-                  <Check className="h-3.5 w-3.5 text-primary-500" />
-                )}
               </DropdownMenuItem>
             );
           })}
@@ -231,8 +204,7 @@ export const PlusMenu = memo(function PlusMenu({
             <ResponsiveMenuItem
               key={notebook.identifier}
               icon={<NbIcon />}
-              active={threadMode === 'notebook' && selectedNotebookId === notebook.identifier}
-              onClick={() => handleMobileAction(() => handleSelectNotebook(notebook.identifier))}
+              onClick={() => handleMobileAction(() => onInsertMention(notebook))}
             >
               {notebook.title}
             </ResponsiveMenuItem>

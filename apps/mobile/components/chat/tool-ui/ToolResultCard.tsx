@@ -1,13 +1,6 @@
-import {
-  getToolMeta,
-  getToolQuery,
-  parseSearchCitations,
-  parseExampleCitations,
-  getString,
-  type SerializableCitation,
-} from '@gruenerator/chat';
+import { getToolMeta, getToolQuery, getString, type SerializableCitation } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius } from '../../../theme';
@@ -25,36 +18,28 @@ interface ToolCallPart {
 }
 
 // Native counterpart of web's ToolCallUI for completed tool calls: a compact,
-// tappable pill that expands to show the parsed result (search/web/example
-// citations). Research has its own richer card; this handles the rest.
-function citationsFor(toolName: string, result: unknown): SerializableCitation[] {
-  switch (toolName) {
-    case 'gruenerator_examples_search':
-      return parseExampleCitations(result);
-    case 'gruenerator_search':
-    case 'search_sources':
-    case 'search_user_content':
-      return parseSearchCitations(result);
-    default:
-      return [];
-  }
-}
-
-export function ToolResultCard({ part, theme }: { part: ToolCallPart; theme: Theme }) {
+// tappable pill that expands to show citations, or surfaces a text note
+// directly (memory tools). The caller parses the result via the shared
+// registry and passes the view-model pieces in.
+export function ToolResultCard({
+  part,
+  citations,
+  note = null,
+  theme,
+}: {
+  part: ToolCallPart;
+  citations: SerializableCitation[];
+  note?: string | null;
+  theme: Theme;
+}) {
   const [expanded, setExpanded] = useState(false);
   const meta = getToolMeta(part.toolName);
   const query = getToolQuery(part.args);
   const error = getString(part.result, 'error');
 
-  const citations = useMemo(
-    () => citationsFor(part.toolName, part.result),
-    [part.toolName, part.result]
-  );
   const count = citations.length;
   const canExpand = count > 0 && !error;
-  // String-returning tools with no citations (e.g. recall_memory / save_memory)
-  // surface their text result directly instead of a bare pill.
-  const textResult = typeof part.result === 'string' ? part.result.trim() : null;
+  const textResult = note?.trim() || null;
 
   return (
     <View style={styles.wrap}>

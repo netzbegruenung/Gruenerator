@@ -1,5 +1,13 @@
 // Unified Message Metadata
-export { type ChatMessageMetadata } from './types/messageMetadata';
+export {
+  type ChatMessageMetadata,
+  type ConfirmActionData,
+  type ConfirmActionType,
+  type DocumentCreatedData,
+} from './types/messageMetadata';
+
+// Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
+export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
 // Extra Actions Context
 export {
@@ -44,8 +52,18 @@ export {
   type SelectedModel,
 } from './lib/resolveAutoModel';
 
-// Composer controls — shared source of truth for the chat composer's modes/labels/icons
-export { COMPOSER_MODES, type ComposerModeDef, type ComposerIconKey } from './lib/composerControls';
+// Composer controls — shared source of truth for the chat composer's modes/tools/labels/icons
+export {
+  COMPOSER_MODES,
+  COMPOSER_TOOLS,
+  SEARCH_DEPTHS,
+  type ComposerModeDef,
+  type ComposerIconKey,
+  type ComposerToolDef,
+  type ComposerToolIconKey,
+  type SearchDepthDef,
+  type SearchDepthIconKey,
+} from './lib/composerControls';
 
 // Context & API Client
 export {
@@ -118,6 +136,7 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
 export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
+export { ReelArtifactPanel } from './components/ReelArtifactPanel';
 export { composerToolbarButtonClass } from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
@@ -318,6 +337,70 @@ export {
   type DocMentionable,
 } from './lib/mentionables';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+
+// Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
+export {
+  getString,
+  getArray,
+  getObject,
+  getNumber,
+  getBoolean,
+  getToolMeta,
+  getToolQuery,
+  toSerializableCitation,
+  parseSearchCitations,
+  parseExampleCitations,
+  parseWebCitations,
+  parseResearchResult,
+  researchCitationToSerializable,
+  extractHeadings,
+  extractFirstParagraph,
+  buildExportMarkdown,
+  CONFIDENCE_LABELS,
+  parsePersonResult,
+  parseExamples,
+  parseScrapeResult,
+  parsePressemitteilungExamples,
+  pressemitteilungLvLabel,
+  formatGermanDate,
+  type ToolIconKey,
+  type ToolMeta,
+  type ResearchCitation,
+  type ResearchConfidence,
+  type ResearchSearchStep,
+  type ParsedResearchResult,
+  type ParsedPersonResult,
+  type ExampleSnippet,
+  type ScrapedPage,
+  type PressemitteilungExample,
+  type ParsedPressemitteilungExamples,
+} from './lib/toolResults';
+
+// Tool view-models & registry (platform-neutral; each platform maps kind → component)
+export {
+  ToolViewKindSchema,
+  ToolResultVMSchema,
+  type ToolViewKind,
+  type ToolResultVM,
+  type CitationListVM,
+  type LinkPreviewVM,
+  type MarkdownReportVM,
+  type SnippetListVM,
+  type PressExamplesVM,
+  type PersonVM,
+  type ImageResultVM,
+  type TextNoteVM,
+  type KeyValueVM,
+  type KeyValueEntry,
+} from './lib/toolViewModels';
+export {
+  TOOL_REGISTRY,
+  UI_TOOL_NAMES,
+  resolveToolEntry,
+  parseGenericFallback,
+  type UiToolName,
+  type ToolRegistryEntry,
+} from './lib/toolRegistry';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,

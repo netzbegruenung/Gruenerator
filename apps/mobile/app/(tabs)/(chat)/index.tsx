@@ -73,7 +73,7 @@ function SettingsBar({ onOpen }: { onOpen: () => void }) {
       {disabledCount > 0 && (
         <View style={[styles.settingsChip, { borderColor: colors.primary[400] }]}>
           <Text style={[styles.settingsChipText, { color: colors.primary[600] }]}>
-            {4 - disabledCount}/4 Tools
+            {TOOL_KEYS.length - disabledCount}/{TOOL_KEYS.length} Tools
           </Text>
         </View>
       )}

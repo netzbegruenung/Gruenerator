@@ -11,26 +11,34 @@ import {
   MessageCircle,
   FileText,
 } from 'lucide-react';
-import { useState, memo, useMemo } from 'react';
+import { Fragment, useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CitationList } from './tool-ui/citation';
 import { LinkPreview } from './tool-ui/link-preview';
+import { PressemitteilungExamplesCard } from './PressemitteilungExamplesCard';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
+import { resolveToolEntry } from '../lib/toolRegistry';
 import {
   getString,
   getArray,
   getObject,
   getNumber,
-  getBoolean,
   getToolMeta,
   getToolQuery,
-  toSerializableCitation,
+  researchCitationToSerializable,
   parseResearchResult,
-  extractDomain,
+  CONFIDENCE_LABELS,
   type ToolIconKey,
 } from '../lib/toolResults';
+import type {
+  ExampleSnippet,
+  ImageResultVM,
+  KeyValueVM,
+  MarkdownReportVM,
+  PersonVM,
+} from '../lib/toolViewModels';
 
 interface ToolCallUIProps {
   toolName: string;
@@ -187,6 +195,8 @@ export const ToolCallUI = memo(function ToolCallUI({
   );
 });
 
+// Dispatches a finished tool result via the shared registry: parse to a
+// platform-neutral view-model, then map its kind to the web component.
 const ToolResultRenderer = memo(function ToolResultRenderer({
   toolName,
   args,
@@ -205,227 +215,182 @@ const ToolResultRenderer = memo(function ToolResultRenderer({
     return <p className="text-xs text-destructive">{error}</p>;
   }
 
-  switch (toolName) {
-    case 'gruenerator_search':
+  const vm = resolveToolEntry(toolName).parse(args, result);
+
+  switch (vm.kind) {
+    case 'citations':
+      if (!vm.citations.length)
+        return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
+      return <CitationList id={`${toolName}-results`} citations={vm.citations} variant="default" />;
+    case 'person':
+      return <CompactPersonResult vm={vm} />;
+    case 'snippets':
+      return <CompactExampleResults items={vm.items} />;
+    case 'link-preview':
       return (
-        <CompactSearchResults
-          results={getArray(result, 'results') || (Array.isArray(result) ? result : [])}
+        <LinkPreview
+          id="scrape-url-preview"
+          href={vm.href}
+          title={vm.title}
+          description={vm.description ?? undefined}
+          domain={vm.domain ?? undefined}
+          favicon={vm.favicon ?? undefined}
         />
       );
-    case 'gruenerator_person_search':
-      return <CompactPersonResult result={result} />;
-    case 'gruenerator_examples_search':
-      return (
-        <CompactExampleResults
-          results={
-            getArray(result, 'examples') ||
-            getArray(result, 'results') ||
-            (Array.isArray(result) ? result : [])
-          }
-        />
-      );
-    case 'search_sources':
-      return (
-        <CompactSearchResults
-          results={getArray(result, 'results') || (Array.isArray(result) ? result : [])}
-        />
-      );
-    case 'web_search':
-      return <CompactWebResults result={result} />;
-    case 'scrape_url':
-      return <ScrapeUrlResult args={args} result={result} />;
-    case 'research':
-      return <ResearchResultUI result={result} />;
-    default:
-      return (
-        <pre className="overflow-x-auto text-xs bg-surface p-2 rounded">
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      );
+    case 'markdown-report':
+      return <ResearchResultUI vm={vm} />;
+    case 'press-examples':
+      // The expandable card parses the raw result itself (it also handles the
+      // empty/message state), so pass it through untouched.
+      return <PressemitteilungExamplesCard query={getToolQuery(args) ?? ''} result={result} />;
+    case 'image':
+      return <ImageResult vm={vm} />;
+    case 'text-note':
+      if (!vm.text) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
+      return <p className="text-xs text-foreground-muted whitespace-pre-wrap">{vm.text}</p>;
+    case 'interactive':
+      // ask_human renders through its own toolkit component, never here.
+      return null;
+    case 'key-value':
+      return <KeyValueResult vm={vm} />;
   }
 });
 
-const CompactSearchResults = memo(function CompactSearchResults({
-  results,
-}: {
-  results: unknown[];
-}) {
-  if (!results.length) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
-
-  const citations = results
-    .slice(0, 5)
-    .map((item, i) => toSerializableCitation(item, i, 'document'));
-
-  return <CitationList id="search-results" citations={citations} variant="default" />;
-});
-
-const CompactPersonResult = memo(function CompactPersonResult({ result }: { result: unknown }) {
-  const isPersonQuery = getBoolean(result, 'isPersonQuery');
-  const person = getObject(result, 'person');
-
-  if (!isPersonQuery || !person) {
+const CompactPersonResult = memo(function CompactPersonResult({ vm }: { vm: PersonVM }) {
+  if (!vm.found) {
     return <p className="text-xs text-foreground-muted">Keine Person gefunden</p>;
   }
-
-  const name = getString(person, 'name');
-  const fraktion = getString(person, 'fraktion');
-  const wahlkreis = getString(person, 'wahlkreis');
 
   return (
     <div className="text-xs">
       <div className="flex items-center gap-2">
         <User className="h-4 w-4 text-secondary-600" />
-        <span className="font-medium">{name || 'Unbekannt'}</span>
+        <span className="font-medium">{vm.name || 'Unbekannt'}</span>
       </div>
       <p className="text-foreground-muted mt-0.5">
-        {fraktion}
-        {wahlkreis && ` · ${wahlkreis}`}
+        {vm.fraktion}
+        {vm.wahlkreis && ` · ${vm.wahlkreis}`}
       </p>
     </div>
   );
 });
 
 const CompactExampleResults = memo(function CompactExampleResults({
-  results,
+  items,
 }: {
-  results: unknown[];
+  items: ExampleSnippet[];
 }) {
-  if (!results.length) return <p className="text-xs text-foreground-muted">Keine Beispiele</p>;
+  if (!items.length) return <p className="text-xs text-foreground-muted">Keine Beispiele</p>;
 
   return (
     <div className="space-y-1.5">
-      {results.slice(0, 3).map((item, i) => {
-        const platform = getString(item, 'platform');
-        const content = getString(item, 'content');
-
-        return (
-          <div key={i} className="text-xs">
-            {platform && (
-              <span className="text-[10px] px-1 py-0.5 rounded bg-badge-platform-bg text-badge-platform">
-                {platform}
-              </span>
-            )}
-            {content && <p className="text-foreground-muted line-clamp-2 mt-0.5">{content}</p>}
-          </div>
-        );
-      })}
+      {items.slice(0, 3).map((item, i) => (
+        <div key={i} className="text-xs">
+          {item.platform && (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-badge-platform-bg text-badge-platform">
+              {item.platform}
+            </span>
+          )}
+          {item.content && (
+            <p className="text-foreground-muted line-clamp-2 mt-0.5">{item.content}</p>
+          )}
+        </div>
+      ))}
     </div>
   );
 });
 
-const CompactWebResults = memo(function CompactWebResults({ result }: { result: unknown }) {
-  const items = getArray(result, 'results') || [];
-
-  if (!items.length) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
-
-  const citations = items.slice(0, 5).map((item, i) => toSerializableCitation(item, i, 'webpage'));
-
-  return <CitationList id="web-results" citations={citations} variant="default" />;
-});
-
-const ScrapeUrlResult = memo(function ScrapeUrlResult({
-  args,
-  result,
-}: {
-  args: Record<string, unknown>;
-  result: unknown;
-}) {
-  const url = getString(args, 'url') || '';
-  const content = typeof result === 'string' ? result : getString(result, 'content') || '';
-  const domain = extractDomain(url);
-  const snippet = content.length > 200 ? content.slice(0, 200) + '…' : content;
-
-  if (!url) return <p className="text-xs text-foreground-muted">Keine URL</p>;
-
+const ImageResult = memo(function ImageResult({ vm }: { vm: ImageResultVM }) {
   return (
-    <LinkPreview
-      id="scrape-url-preview"
-      href={url}
-      title={domain || url}
-      description={snippet || undefined}
-      domain={domain || undefined}
-      favicon={domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : undefined}
-    />
+    <figure className="space-y-1">
+      <img src={vm.url} alt={vm.alt ?? ''} loading="lazy" className="max-h-64 rounded-lg" />
+      {vm.prompt && (
+        <figcaption className="text-[10px] text-foreground-muted">{vm.prompt}</figcaption>
+      )}
+    </figure>
   );
 });
 
-interface Citation {
-  id: number;
-  title: string;
-  url: string;
-  domain: string;
-  snippet: string;
-}
+// Generic fallback for unregistered/future tools — replaces the old raw JSON dump.
+const KeyValueResult = memo(function KeyValueResult({ vm }: { vm: KeyValueVM }) {
+  if (!vm.entries.length && !vm.citations.length && !vm.markdown && !vm.imageUrl) {
+    return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
+  }
+
+  return (
+    <div className="space-y-2 text-xs">
+      {vm.imageUrl && (
+        <img src={vm.imageUrl} alt="" loading="lazy" className="max-h-64 rounded-lg" />
+      )}
+      {vm.markdown && (
+        <div className="text-foreground leading-relaxed">
+          <ReactMarkdown remarkPlugins={remarkPlugins}>{vm.markdown}</ReactMarkdown>
+        </div>
+      )}
+      {vm.entries.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          {vm.entries.map((entry) => (
+            <Fragment key={entry.label}>
+              <dt className="text-foreground-muted">{entry.label}</dt>
+              <dd className="text-foreground break-words">{entry.value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+      {vm.citations.length > 0 && (
+        <CitationList id="fallback-citations" citations={vm.citations} variant="default" />
+      )}
+    </div>
+  );
+});
 
 const remarkPlugins = [remarkGfm];
 
-const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: unknown }) {
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high: 'text-status-green',
+  medium: 'text-status-yellow',
+  low: 'text-status-red',
+};
+
+const ResearchResultUI = memo(function ResearchResultUI({ vm }: { vm: MarkdownReportVM }) {
   const [showAllSources, setShowAllSources] = useState(false);
 
-  const answer = getString(result, 'answer');
-  const citations = getArray(result, 'citations') as Citation[] | null;
-  const followUps = getArray(result, 'followUpQuestions') as string[] | null;
-  const confidence = getString(result, 'confidence');
-  const searchSteps = getArray(result, 'searchSteps');
-
   // Build a citation map for inline [N] chips inside the markdown render.
-  // Massage the local research-Citation shape into the streaming-Citation shape
+  // Massage the research-Citation shape into the streaming-Citation shape
   // (adds required `source`); only id/title/url/domain are read by the renderer.
   const citationMap = useMemo(
-    () =>
-      new Map(
-        (citations ?? []).map((c) => [
-          c.id,
-          {
-            id: c.id,
-            title: c.title,
-            url: c.url,
-            snippet: c.snippet,
-            domain: c.domain,
-            source: 'research',
-          },
-        ])
-      ),
-    [citations]
+    () => new Map(vm.citations.map((c) => [c.id, { ...c, source: 'research' }])),
+    [vm.citations]
   );
   const markdownComponents = useMemo(() => makeCitationComponents(citationMap), [citationMap]);
-  const escapedAnswer = useMemo(() => (answer ? escapeCitationMarkers(answer) : ''), [answer]);
+  const escapedAnswer = useMemo(
+    () => (vm.answer ? escapeCitationMarkers(vm.answer) : ''),
+    [vm.answer]
+  );
 
-  if (!answer && (!citations || citations.length === 0)) {
+  if (!vm.answer && vm.citations.length === 0) {
     return <p className="text-xs text-foreground-muted">Keine Recherche-Ergebnisse</p>;
   }
-
-  const confidenceColors = {
-    high: 'text-status-green',
-    medium: 'text-status-yellow',
-    low: 'text-status-red',
-  };
-
-  const confidenceLabels = {
-    high: 'Hohe Konfidenz',
-    medium: 'Mittlere Konfidenz',
-    low: 'Niedrige Konfidenz',
-  };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-[10px]">
-        {confidence && (
+        {vm.confidence && (
           <span
-            className={`flex items-center gap-1 ${confidenceColors[confidence as keyof typeof confidenceColors] || 'text-grey-500'}`}
+            className={`flex items-center gap-1 ${CONFIDENCE_COLORS[vm.confidence] || 'text-grey-500'}`}
           >
             <Sparkles className="h-3 w-3" />
-            {confidenceLabels[confidence as keyof typeof confidenceLabels] || confidence}
+            {CONFIDENCE_LABELS[vm.confidence] || vm.confidence}
           </span>
         )}
-        {searchSteps && searchSteps.length > 0 && (
+        {vm.stepsList.length > 0 && (
           <span className="text-foreground-muted">
-            &middot; {searchSteps.length} Suche{searchSteps.length > 1 ? 'n' : ''}
+            &middot; {vm.stepsList.length} Suche{vm.stepsList.length > 1 ? 'n' : ''}
           </span>
         )}
       </div>
 
-      {answer && (
+      {vm.answer && (
         <div className="text-sm leading-relaxed text-foreground">
           <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
             {escapedAnswer}
@@ -433,7 +398,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
         </div>
       )}
 
-      {citations && citations.length > 0 && (
+      {vm.citations.length > 0 && (
         <div className="pt-2 border-t border-section-border">
           <button
             onClick={() => setShowAllSources(!showAllSources)}
@@ -442,14 +407,14 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
             <ChevronRight
               className={`h-3 w-3 transition-transform ${showAllSources ? 'rotate-90' : ''}`}
             />
-            Quellen ({citations.length})
+            Quellen ({vm.citations.length})
           </button>
 
           {showAllSources && (
             <div className="mt-2">
               <CitationList
                 id="research-sources"
-                citations={citations.map((c) => toSerializableCitation(c, c.id, 'document'))}
+                citations={vm.citations.map(researchCitationToSerializable)}
                 variant="default"
               />
             </div>
@@ -457,14 +422,14 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
         </div>
       )}
 
-      {followUps && followUps.length > 0 && (
+      {vm.followUpQuestions.length > 0 && (
         <div className="pt-2 border-t border-section-border">
           <div className="flex items-center gap-1 text-[10px] font-medium text-foreground-muted mb-1.5">
             <MessageCircle className="h-3 w-3" />
             Weiterführende Fragen
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {followUps.map((question, idx) => (
+            {vm.followUpQuestions.map((question, idx) => (
               <span
                 key={idx}
                 className="text-[10px] px-2 py-1 rounded-full bg-surface text-foreground-muted hover:bg-surface-hover cursor-pointer transition-colors"

@@ -13,7 +13,12 @@
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
-import type { WolkeFileRef, ConnectFileRef, CurrentBoard } from '@gruenerator/contracts';
+import type {
+  WolkeFileRef,
+  ConnectFileRef,
+  CurrentBoard,
+  ConfirmActionType,
+} from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard };
@@ -594,7 +599,8 @@ export interface ChartData {
  * Confirm action types for HITL (Human-In-The-Loop) confirmation.
  * Used when the agent wants to perform a side-effect that requires user approval.
  */
-export type ConfirmActionType = 'save_as_doc' | 'modify_doc' | 'modify_board' | 'share_doc';
+// Wire enum shared with the chat clients — single source in @gruenerator/contracts.
+export type { ConfirmActionType };
 
 /**
  * Type-safe payloads for each confirm action type.

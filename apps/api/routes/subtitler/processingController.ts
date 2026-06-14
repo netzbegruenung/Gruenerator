@@ -24,14 +24,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { type z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import AssSubtitleService, {
   type TextOverlay as AssTextOverlay,
 } from '../../services/subtitler/assSubtitleService.js';
-import {
-  processVideoAutomatically,
-  type ProcessingResult,
-} from '../../services/subtitler/autoProcessingService.js';
+import { startAutoProcessing } from '../../services/subtitler/autoProcessingService.js';
 import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
 import { processVideoExportInBackground } from '../../services/subtitler/backgroundExportService.js';
 import {
@@ -40,7 +36,6 @@ import {
   processChunkedDownload,
   processSubtitleSegments,
 } from '../../services/subtitler/downloadUtils.js';
-import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
 import {
   parseAutoProgress,
   parseExportProgress,
@@ -663,83 +658,16 @@ router.post(
       }
       const originalFilename = (await getOriginalFilename(uploadId)) || 'video.mp4';
 
-      await redisClient.set(
-        `auto:${uploadId}`,
-        JSON.stringify({ status: 'processing', stage: 1, stageProgress: 0, overallProgress: 0 }),
-        { EX: 3600 }
-      );
-
-      res.status(202).json({ status: 'processing' });
-
-      processVideoAutomatically(videoPath, uploadId, {
-        stylePreference: 'shadow',
-        heightPreference: 'tief',
+      await startAutoProcessing({
+        uploadId,
+        videoPath,
+        originalFilename,
+        userId,
         locale,
         maxResolution,
-        ...(userId != null && { userId }),
-        originalFilename,
-      })
-        .then(async (result: ProcessingResult) => {
-          let savedProjectId: string | null = null;
-          if (userId) {
-            try {
-              const r = await autoSaveProject({
-                userId,
-                outputPath: result.outputPath,
-                originalVideoPath: videoPath,
-                uploadId,
-                originalFilename,
-                segments: result.segments,
-                metadata: result.metadata,
-                stylePreference: 'shadow',
-                heightPreference: 'tief',
-                subtitlePreference: 'manual',
-                exportToken: result.autoProcessToken,
-              });
-              savedProjectId = r.projectId;
-            } catch {
-              /* ignored */
-            }
+      });
 
-            if (savedProjectId && result.outputPath) {
-              try {
-                const shareService = getSharedMediaService();
-                await shareService.createVideoShare(userId, {
-                  videoPath: result.outputPath,
-                  title: originalFilename.replace(/\.[^.]+$/, ''),
-                  duration: result.duration,
-                  projectId: savedProjectId,
-                });
-              } catch (shareErr: unknown) {
-                log.warn(
-                  `Auto-share creation failed: ${shareErr instanceof Error ? shareErr.message : String(shareErr)}`
-                );
-              }
-            }
-          }
-          await redisClient.set(
-            `auto:${uploadId}`,
-            JSON.stringify({
-              status: 'complete',
-              stage: 5,
-              stageProgress: 100,
-              overallProgress: 100,
-              outputPath: result.outputPath,
-              duration: result.duration,
-              projectId: savedProjectId,
-              // Canonical segment array — what the frontend should consume
-              // when creating a project. The `subtitles` string is kept for
-              // backward compatibility with any display-layer code that
-              // wants the raw SRT blob, but the POST /subtitler/projects
-              // write path uses `segments` because the schema requires a
-              // typed `SubtitleSegment[]` (canonicalized 2026-04-13).
-              segments: result.segments,
-              subtitles: result.subtitles,
-            }),
-            { EX: 3600 }
-          );
-        })
-        .catch((e: Error) => reportBackgroundError(e, { job: 'subtitler-auto-process', uploadId }));
+      res.status(202).json({ status: 'processing' });
     } catch (e: unknown) {
       if (!res.headersSent)
         res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

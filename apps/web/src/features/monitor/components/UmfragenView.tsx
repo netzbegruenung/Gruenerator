@@ -1,4 +1,8 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   Card,
   CardContent,
   LoadingSection,
@@ -10,12 +14,19 @@ import {
 import { ChevronLeft, ChevronRight, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 
-import { bundeslandById, BUNDESLAENDER } from '../bundeslaender';
-import { usePolls } from '../hooks/useMonitor';
+import { AT_BUNDESLAENDER, bundeslandById, BUNDESLAENDER } from '../bundeslaender';
+import { useEuGreens, useEuGreensHistory, usePolls } from '../hooks/useMonitor';
 import { PARTY_COLORS } from '../partyColors';
 
 import { GerdaAttribution, LandtagsergebnisCard, MeinungsbildForState } from './LandDetails';
 import { MeinungsbildSection } from './MeinungsbildSection';
+import {
+  EuGreenPartyPanel,
+  EuGreensElectionDiffChart,
+  EuGreensTrendSection,
+  SonntagsfrageTrendSection,
+  Sparkline,
+} from './PollTrendCharts';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
 
@@ -46,18 +57,6 @@ function findGrueneValue(average: Record<string, number>): number | null {
   return null;
 }
 
-function findGrueneTrend(
-  trend?: Record<string, Array<{ date: string; value: number }>>
-): number | null {
-  if (!trend) return null;
-  for (const [k, data] of Object.entries(trend)) {
-    if (isGruene(k) && data.length >= 2) {
-      return Math.round((data[data.length - 1].value - data[data.length - 2].value) * 10) / 10;
-    }
-  }
-  return null;
-}
-
 function TrendBadge({ diff }: { diff: number | null }) {
   if (diff == null || diff === 0) return <Minus className="h-3 w-3 text-grey-400" />;
   return (
@@ -77,22 +76,26 @@ function PartyColumn({
   max,
   label,
   trendData,
+  officialDiff,
 }: {
   value: number | null;
   color: string;
   max: number;
   label: string;
   trendData?: Array<{ date: string; value: number }>;
+  /** Official week-over-week change from the PolitPro API, when available. */
+  officialDiff?: number;
 }) {
   const height = value != null && max > 0 ? (value / max) * 100 : 0;
   const isG = isGruene(label);
 
-  const weekChange =
+  const computedChange =
     trendData && trendData.length >= 2
       ? Math.round(
           (trendData[trendData.length - 1].value - trendData[trendData.length - 2].value) * 10
         ) / 10
       : null;
+  const weekChange = officialDiff ?? computedChange;
 
   return (
     <div className={`flex flex-col items-center gap-0.5 w-12 shrink-0 ${isG ? 'relative' : ''}`}>
@@ -118,23 +121,138 @@ function PartyColumn({
   );
 }
 
+/** ISO country code → flag emoji ('eu' resolves to the EU flag). */
+function flagEmoji(code: string): string {
+  return code
+    .toUpperCase()
+    .replace(/[A-Z]/g, (c) => String.fromCodePoint(0x1f1a5 + c.charCodeAt(0)));
+}
+
+export function EuGreensDeck() {
+  const { data } = useEuGreens();
+  const { data: history } = useEuGreensHistory();
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+
+  if (!data || data.results.length === 0) return null;
+
+  const seriesByCountry = new Map(history?.series.map((s) => [s.countryCode, s]) ?? []);
+  const selected = selectedCountry
+    ? data.results.find((r) => r.countryCode === selectedCountry)
+    : undefined;
+
+  return (
+    <div className="mt-xl border-t border-grey-200 dark:border-grey-700 pt-xl">
+      <h3 className="text-lg font-semibold text-foreground-heading">Grüne in Europa</h3>
+      <p className="text-xs text-grey-500 mb-md">
+        Aktuelle Wahltrends grüner Parteien in europäischen Parlamenten. Quelle:{' '}
+        <a
+          href="https://politpro.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-600 hover:underline"
+        >
+          PolitPro.eu
+        </a>
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-xs">
+        {data.results.map((r) => {
+          const isSelected = selectedCountry === r.countryCode;
+          return (
+            <button
+              key={r.countryCode}
+              title={r.note ?? undefined}
+              onClick={() => setSelectedCountry(isSelected ? null : r.countryCode)}
+              className={`flex items-center justify-between gap-xs p-sm rounded-lg border text-left transition-all ${
+                isSelected
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 shadow-sm'
+                  : 'border-grey-200 dark:border-grey-700 hover:border-grey-300 dark:hover:border-grey-600 hover:shadow-sm'
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-foreground truncate">
+                  <span className="mr-xs">{flagEmoji(r.countryCode)}</span>
+                  {r.countryName}
+                </p>
+                <p className="text-[10px] text-grey-400 truncate">
+                  {r.party}
+                  {r.note && <span> *</span>}
+                </p>
+              </div>
+              <div className="flex items-center gap-xs shrink-0">
+                {seriesByCountry.has(r.countryCode) && (
+                  <Sparkline points={seriesByCountry.get(r.countryCode)!.points} />
+                )}
+                {r.diff != null && r.diff !== 0 && <TrendBadge diff={r.diff} />}
+                <span className="text-sm font-bold text-green-600 tabular-nums">{r.percent}%</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-xs text-[10px] text-grey-400">
+        * Grüne treten dort als Teil einer breiteren Liste/Allianz an. Länder ohne separat
+        ausgewiesenes grünes Ergebnis (z.&nbsp;B. Frankreich, Spanien, Polen, Belgien) sind nicht
+        aufgeführt.
+      </p>
+
+      {selected && (
+        <EuGreenPartyPanel
+          key={selected.countryCode}
+          result={selected}
+          points={seriesByCountry.get(selected.countryCode)?.points}
+        />
+      )}
+
+      {history && history.series.length > 0 && (
+        <Accordion
+          type="single"
+          collapsible
+          className="mt-sm border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+        >
+          <AccordionItem value="eu-trends">
+            <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
+              Erweiterte Ansicht: Trends &amp; Vergleich
+            </AccordionTrigger>
+            <AccordionContent className="px-md pb-md">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
+                <EuGreensTrendSection history={history} />
+                <EuGreensElectionDiffChart results={data.results} />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
+    </div>
+  );
+}
+
 function ChartSlide({
   label,
+  sublabel,
   values,
   partyOrder,
   trend,
+  diffs,
 }: {
   label: string;
+  /** Secondary line under the label (e.g. institute score and sample size). */
+  sublabel?: string;
   values: Record<string, number | null | undefined>;
   partyOrder: string[];
   trend?: Record<string, Array<{ date: string; value: number }>>;
+  /** Official week-over-week changes from the PolitPro API (average slide only). */
+  diffs?: Record<string, number | undefined>;
 }) {
   const present = partyOrder.filter((p) => values[p] != null);
   const max = Math.max(...present.map((p) => values[p] ?? 0), 1);
 
   return (
     <div className="w-full shrink-0 snap-center">
-      <p className="text-center text-xs font-medium text-grey-500 mb-sm">{label}</p>
+      <div className="text-center mb-sm">
+        <p className="text-xs font-medium text-grey-500">{label}</p>
+        {sublabel && <p className="text-[10px] text-grey-400">{sublabel}</p>}
+      </div>
       <div className="flex items-end gap-3 px-sm justify-center flex-wrap">
         {present.map((party) => (
           <PartyColumn
@@ -144,6 +262,7 @@ function ChartSlide({
             max={max}
             label={party}
             trendData={trend?.[party]}
+            officialDiff={diffs?.[party]}
           />
         ))}
       </div>
@@ -155,17 +274,30 @@ const POLITPRO_EXPLANATION =
   'PolitPro ist Europas führende Plattform für Wahltrends und politische Daten. Sonntagsfragen aus ' +
   'Wissenschaft und Meinungsforschung werden zu wöchentlichen Durchschnittswerten aggregiert. ' +
   'Politisch unabhängig, genutzt von CNN, ORF, MDR, Bundestag und Nationalrat — aktuell 74 Parlamente ' +
-  'und über 21.000 Sonntagsfragen.';
+  'und über 21.000 Sonntagsfragen. Der PolitPro Score bewertet die Zuverlässigkeit von Instituten ' +
+  'anhand historischer Umfragedaten und Wahlergebnisse.';
+
+/** "Score 87 · n=1.502" — per-poll metadata from the PolitPro API. */
+function pollSublabel(poll: { instituteScore?: number | null; sampleSize?: number | null }) {
+  const parts = [
+    poll.instituteScore != null ? `Score ${poll.instituteScore}` : null,
+    poll.sampleSize != null ? `n=${poll.sampleSize.toLocaleString('de-DE')}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
 
 export function SonntagsfrageChart({
   parliament,
   title,
   subtitle,
+  showDetails = true,
 }: {
   parliament: string;
   /** Omit when an external header (e.g. SectionHeader) already labels the chart. */
   title?: string;
   subtitle: string;
+  /** false renders only the chart carousel (no trend accordion) — Überblick. */
+  showDetails?: boolean;
 }) {
   const { data, isLoading } = usePolls(parliament);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -208,7 +340,9 @@ export function SonntagsfrageChart({
       <p className="text-xs text-grey-500 mb-md">
         {subtitle}
         {polls.length > 0 && polls[0]?.date && (
-          <span className="ml-sm text-grey-400">Letzte Umfrage: {polls[0].date}</span>
+          <span className="ml-sm text-grey-400">
+            Letzte Umfrage: {formatPollDate(polls[0].date)}
+          </span>
         )}
       </p>
 
@@ -223,11 +357,13 @@ export function SonntagsfrageChart({
             values={data.average}
             partyOrder={partyOrder}
             trend={data.trend}
+            diffs={data.diffs}
           />
           {polls.map((poll, i) => (
             <ChartSlide
               key={`${poll.institute}-${i}`}
               label={`${poll.institute}${poll.date ? ` · ${formatPollDate(poll.date)}` : ''}`}
+              sublabel={pollSublabel(poll)}
               values={poll.parties}
               partyOrder={partyOrder}
             />
@@ -289,6 +425,23 @@ export function SonntagsfrageChart({
           </Tooltip>
         </TooltipProvider>
       </div>
+
+      {showDetails && (
+        <Accordion
+          type="single"
+          collapsible
+          className="mt-sm border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+        >
+          <AccordionItem value="trendverlauf">
+            <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
+              Trendverlauf &amp; Einzelumfragen
+            </AccordionTrigger>
+            <AccordionContent className="px-md pb-md">
+              <SonntagsfrageTrendSection parliament={parliament} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 }
@@ -315,7 +468,6 @@ function LandCard({
 }) {
   const { data } = usePolls(id);
   const grueneValue = data ? findGrueneValue(data.average) : null;
-  const grueneTrend = data ? findGrueneTrend(data.trend) : null;
   // Only show date if we have real institute polls (not just the interpolated PolitPro aggregate)
   const lastDate = data && data.polls.length > 1 ? data.polls[0]?.date : undefined;
 
@@ -350,36 +502,112 @@ function LandCard({
   );
 }
 
-function useSortedLaender() {
-  const pollResults = LAENDER.map((land) => {
-    // Hook count is constant (LAENDER is static), so this is safe
+/**
+ * "Grüne in den Ländern" selector grid, sorted by Grüne polling strength.
+ * Mounted per locale with a static `laender` list, so the per-card poll
+ * hooks keep a constant count.
+ */
+function LaenderGrid({
+  laender,
+  nationalLabel,
+  nationalSubLabel,
+  selected,
+  onSelect,
+}: {
+  laender: Array<{ id: string; name: string }>;
+  nationalLabel: string;
+  nationalSubLabel: string;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const pollResults = laender.map((land) => {
+    // Hook count is constant (laender is static per mount site), so this is safe
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const { data } = usePolls(land.id);
     return { ...land, data };
   });
 
-  return useMemo(() => {
+  const dataFingerprint = pollResults.map((q) => q.data?.scrapedAt).join();
+
+  const sorted = useMemo(() => {
     return [...pollResults].sort((a, b) => {
       const aVal = a.data ? (findGrueneValue(a.data.average) ?? 0) : 0;
       const bVal = b.data ? (findGrueneValue(b.data.average) ?? 0) : 0;
       return bVal - aVal;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pollResults.map((q) => q.data?.scrapedAt).join()]);
+  }, [dataFingerprint]);
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-foreground-heading uppercase tracking-wide mb-sm">
+        Grüne in den Ländern
+      </p>
+      <div className="grid grid-cols-2 gap-xs">
+        <button
+          onClick={() => onSelect(null)}
+          className={`col-span-2 flex items-center justify-between gap-xs p-sm rounded-lg border transition-all text-left w-full
+            ${
+              !selected
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 shadow-sm'
+                : 'border-grey-200 dark:border-grey-700 hover:border-grey-300 dark:hover:border-grey-600 hover:shadow-sm'
+            }`}
+        >
+          <p
+            className={`text-xs font-semibold ${!selected ? 'text-primary-700 dark:text-primary-400' : 'text-foreground'}`}
+          >
+            {nationalLabel}
+          </p>
+          <span className="text-[10px] text-grey-400">{nationalSubLabel}</span>
+        </button>
+        {sorted.map((land) => (
+          <LandCard
+            key={land.id}
+            id={land.id}
+            name={land.name}
+            isSelected={selected === land.id}
+            onClick={() => onSelect(selected === land.id ? null : land.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
+
+const AT_LAENDER = AT_BUNDESLAENDER.map((b) => ({ id: b.id, name: b.display ?? b.name }));
 
 export function UmfragenView({ locale, showMeinungsbild = true }: UmfragenViewProps) {
   const [selectedLand, setSelectedLand] = useState<string | null>(null);
-  const sortedLaender = useSortedLaender();
 
   if (locale === 'at') {
+    const activeParliament = selectedLand ?? 'oesterreich';
+    const activeTitle = selectedLand
+      ? `Sonntagsfrage — ${AT_LAENDER.find((l) => l.id === selectedLand)?.name ?? selectedLand}`
+      : 'Sonntagsfrage — Österreich';
+    const activeSubtitle = selectedLand
+      ? 'Wenn am nächsten Sonntag Landtagswahl wäre… Wöchentlich aggregierter Durchschnitt.'
+      : 'Wenn am nächsten Sonntag Nationalratswahl wäre… Wöchentlich aggregierter Durchschnitt.';
+
     return (
       <div>
-        <SonntagsfrageChart
-          parliament="oesterreich"
-          title="Sonntagsfrage — Österreich"
-          subtitle="Wenn am nächsten Sonntag Nationalratswahl wäre… Wöchentlich aggregierter Durchschnitt."
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-start">
+          <div>
+            <SonntagsfrageChart
+              key={activeParliament}
+              parliament={activeParliament}
+              title={activeTitle}
+              subtitle={activeSubtitle}
+            />
+          </div>
+          <LaenderGrid
+            laender={AT_LAENDER}
+            nationalLabel="Bundestrend"
+            nationalSubLabel="Österreich"
+            selected={selectedLand}
+            onSelect={setSelectedLand}
+          />
+        </div>
+        <EuGreensDeck />
       </div>
     );
   }
@@ -405,40 +633,16 @@ export function UmfragenView({ locale, showMeinungsbild = true }: UmfragenViewPr
           />
           {land && <LandtagsergebnisCard code={land.code} />}
         </div>
-
-        <div>
-          <p className="text-xs font-semibold text-foreground-heading uppercase tracking-wide mb-sm">
-            Grüne in den Ländern
-          </p>
-          <div className="grid grid-cols-2 gap-xs">
-            <button
-              onClick={() => setSelectedLand(null)}
-              className={`col-span-2 flex items-center justify-between gap-xs p-sm rounded-lg border transition-all text-left w-full
-                ${
-                  !selectedLand
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 shadow-sm'
-                    : 'border-grey-200 dark:border-grey-700 hover:border-grey-300 dark:hover:border-grey-600 hover:shadow-sm'
-                }`}
-            >
-              <p
-                className={`text-xs font-semibold ${!selectedLand ? 'text-primary-700 dark:text-primary-400' : 'text-foreground'}`}
-              >
-                Bundestrend
-              </p>
-              <span className="text-[10px] text-grey-400">Deutschland</span>
-            </button>
-            {sortedLaender.map((land) => (
-              <LandCard
-                key={land.id}
-                id={land.id}
-                name={land.name}
-                isSelected={selectedLand === land.id}
-                onClick={() => setSelectedLand(selectedLand === land.id ? null : land.id)}
-              />
-            ))}
-          </div>
-        </div>
+        <LaenderGrid
+          laender={LAENDER}
+          nationalLabel="Bundestrend"
+          nationalSubLabel="Deutschland"
+          selected={selectedLand}
+          onSelect={setSelectedLand}
+        />
       </div>
+
+      <EuGreensDeck />
 
       {land ? (
         <div className="mt-xl border-t border-grey-200 dark:border-grey-700 pt-xl space-y-lg">
