@@ -1,12 +1,8 @@
-import {
-  getAgentSlug,
-  SKILLS,
-  USER_SELECTABLE_TOOLS,
-  type Skill,
-} from '@gruenerator/shared/agents';
+import { getAgentSlug, USER_SELECTABLE_TOOLS } from '@gruenerator/shared/agents';
+import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
 import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
 import { Button, Input, Textarea } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { formToPayload, type FormState, type Locale } from './agentFormState';
@@ -18,7 +14,9 @@ import { IconPicker } from './icons/IconPicker';
 import PageContainer from '@/components/common/PageContainer';
 import { useNotebookCollections } from '@/features/auth/hooks/useProfileData';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
-import { useAuthStore } from '@/stores/authStore';
+
+// The same model set the chat composer offers, single-sourced from the catalog.
+const MODEL_OPTIONS = TEXT_MODELS.filter((m) => isModelEnabledByDefault(m.id));
 
 const selectCls =
   'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';
@@ -58,15 +56,6 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
     setForm((prev) => ({ ...prev, [k]: v }));
   };
 
-  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
-  const skillOptions = useMemo(
-    () =>
-      SKILLS.filter(
-        (s: Skill) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
-      ),
-    [userLocale]
-  );
-
   const { query: notebooksQuery } = useNotebookCollections({ isActive: true });
   const userNotebooks = notebooksQuery.data ?? [];
 
@@ -101,6 +90,10 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
     .split('\n')
     .map((s) => s.trim())
     .filter(Boolean);
+
+  // Match the stored {model, provider} pair back to a catalog option id.
+  const currentModelId =
+    MODEL_OPTIONS.find((m) => m.model === form.model && m.provider === form.provider)?.id ?? '';
 
   const notebookSelect = (
     <select
@@ -175,34 +168,23 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
         <div className="flex flex-col gap-lg">
           {/* Tier 1 — always visible core */}
           <div className="flex flex-col gap-md">
-            <div className="flex flex-wrap items-end gap-md">
-              <div className="flex flex-col gap-xs text-sm font-medium">
-                Icon
-                <IconPicker
-                  value={form.iconKey}
-                  onChange={(v) => set('iconKey', v)}
-                  backgroundColor={form.backgroundColor}
-                />
-              </div>
-              <label className={labelCls}>
-                Hintergrundfarbe
-                <input
-                  type="color"
-                  className="h-10 w-24 cursor-pointer rounded border border-grey-300 dark:border-grey-700"
-                  value={form.backgroundColor}
-                  onChange={(e) => set('backgroundColor', e.target.value)}
+            <div className="flex items-end gap-sm">
+              <label className={`${labelCls} flex-1`}>
+                Name
+                <Input
+                  value={form.title}
+                  onChange={(e) => set('title', e.target.value)}
+                  maxLength={100}
+                  placeholder="Gib deinem Agenten einen Namen"
                 />
               </label>
-            </div>
-            <label className={labelCls}>
-              Name
-              <Input
-                value={form.title}
-                onChange={(e) => set('title', e.target.value)}
-                maxLength={100}
-                placeholder="Gib deinem Agenten einen Namen"
+              <IconPicker
+                compact
+                value={form.iconKey}
+                onChange={(v) => set('iconKey', v)}
+                backgroundColor={form.backgroundColor}
               />
-            </label>
+            </div>
             <label className={labelCls}>
               Beschreibung
               <Input
@@ -300,28 +282,6 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
                 </select>
               </label>
 
-              <fieldset className="flex flex-col gap-xs">
-                <legend className="mb-xs text-sm font-medium">
-                  Skill-Schnellstarts (optional)
-                </legend>
-                <div className="flex flex-wrap gap-xs">
-                  {skillOptions.map((s) => {
-                    const active = form.skillMentions.includes(s.mention);
-                    return (
-                      <Button
-                        type="button"
-                        key={s.mention}
-                        variant={active ? 'brand' : 'brand-outline'}
-                        size="sm"
-                        onClick={() => set('skillMentions', toggle(form.skillMentions, s.mention))}
-                      >
-                        {s.title}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
               <label className={labelCls}>
                 Tags (kommagetrennt)
                 <Input
@@ -333,31 +293,27 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
 
               <label className={labelCls}>
                 Modell
-                <Input value={form.model} onChange={(e) => set('model', e.target.value)} />
-              </label>
-              <label className={labelCls}>
-                Provider
                 <select
                   className={selectCls}
-                  value={form.provider}
-                  onChange={(e) => set('provider', e.target.value as FormState['provider'])}
+                  value={currentModelId}
+                  onChange={(e) => {
+                    const opt = MODEL_OPTIONS.find((m) => m.id === e.target.value);
+                    if (!opt) return;
+                    setJustSaved(false);
+                    setForm((prev) => ({ ...prev, model: opt.model, provider: opt.provider }));
+                  }}
                 >
-                  <option value="mistral">Mistral</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="litellm">LiteLLM</option>
-                  <option value="regolo">Regolo</option>
+                  {!currentModelId && (
+                    <option value="" disabled>
+                      Modell wählen
+                    </option>
+                  )}
+                  {MODEL_OPTIONS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} – {m.description}
+                    </option>
+                  ))}
                 </select>
-              </label>
-              <label className={labelCls}>
-                Temperatur
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={form.temperature}
-                  min={0}
-                  max={1}
-                  onChange={(e) => set('temperature', Number(e.target.value))}
-                />
               </label>
             </div>
           </details>
