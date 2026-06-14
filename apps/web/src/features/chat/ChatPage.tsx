@@ -13,6 +13,7 @@ import {
   getLandesverbandHubBySlug,
   getSystemAgent,
   resolveAgentSlug,
+  resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -68,11 +69,18 @@ function ChatPage() {
   // agents instead of resolving straight to one. Checked first so the slug
   // never falls through to agent resolution (which would bind a bogus agent).
   const hub = slug ? getLandesverbandHubBySlug(slug) : null;
+  // Agentura skill links land on `/chat?skill=<mention>` (e.g. presse-bayern).
+  // Resolve the mention to its agent identifier so the agent activates and its
+  // own welcome screen (welcomeQuestion + opening-question examples) renders
+  // instead of the generic overview greeting. Lowest priority in the chain so
+  // an explicit ?agent= or path slug still wins.
+  const skillParam = hub ? null : searchParams.get('skill');
+  const resolvedFromSkill = skillParam ? resolveSkillMention(skillParam) : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
     ? null
-    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null));
+    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null) ?? resolvedFromSkill);
   const modeParam = searchParams.get('mode');
 
   // When the URL carries an agent or mode param, jump straight into the thread —
