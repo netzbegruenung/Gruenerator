@@ -5,6 +5,7 @@
 
 import { getPlatformShareUrl, type SharePlatform } from '@gruenerator/shared';
 import * as Clipboard from 'expo-clipboard';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Share as RNShare, Linking, Platform } from 'react-native';
 
@@ -47,6 +48,27 @@ export async function shareFile(
  * @param title - Optional title
  * @param message - Optional message
  */
+/**
+ * Share a base64-encoded image via the native share sheet: writes it to a
+ * cache file, shares, and cleans up. (Pattern shared by chat's generated
+ * images and the sharepic result view.)
+ */
+export async function shareBase64Image(base64: string, dialogTitle = 'Bild teilen'): Promise<void> {
+  const data = base64.replace(/^data:image\/\w+;base64,/, '');
+  const file = new File(Paths.cache, `share_${Date.now()}.png`);
+  const binaryString = atob(data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  file.write(bytes);
+  try {
+    await shareFile(file.uri, { mimeType: 'image/png', dialogTitle });
+  } finally {
+    file.delete();
+  }
+}
+
 export async function shareUrl(url: string, title?: string, message?: string): Promise<boolean> {
   try {
     const shareContent =

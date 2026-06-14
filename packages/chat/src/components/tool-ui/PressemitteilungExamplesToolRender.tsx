@@ -2,6 +2,7 @@
 
 import { Newspaper, Loader2 } from 'lucide-react';
 import { PressemitteilungExamplesCard } from '../PressemitteilungExamplesCard';
+import { getToolQuery } from '../../lib/toolResults';
 
 interface PressemitteilungExamplesToolRenderProps {
   args: Record<string, unknown>;
@@ -12,7 +13,7 @@ export function PressemitteilungExamplesToolRender({
   args,
   result,
 }: PressemitteilungExamplesToolRenderProps) {
-  const query = getString(args, 'query') ?? '';
+  const query = getToolQuery(args) ?? '';
 
   if (result != null) {
     return <PressemitteilungExamplesCard query={query} result={result} />;
@@ -35,12 +36,4 @@ export function PressemitteilungExamplesToolRender({
       </div>
     </div>
   );
-}
-
-function getString(obj: unknown, key: string): string | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return typeof val === 'string' ? val : null;
-  }
-  return null;
 }

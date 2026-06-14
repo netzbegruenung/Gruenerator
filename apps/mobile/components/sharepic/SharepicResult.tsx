@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 
-import { shareFile } from '../../services/share';
+import { shareBase64Image } from '../../services/share';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { Button } from '../common';
 
@@ -79,20 +79,7 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
     if (!currentSharepic?.image) return;
 
     try {
-      const base64Data = currentSharepic.image.replace(/^data:image\/\w+;base64,/, '');
-      const file = new File(Paths.cache, `sharepic_share_${Date.now()}.png`);
-
-      // Convert base64 to Uint8Array and write
-      const binaryString = atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      file.write(bytes);
-
-      await shareFile(file.uri, { mimeType: 'image/png', dialogTitle: 'Sharepic teilen' });
-
-      file.delete();
+      await shareBase64Image(currentSharepic.image, 'Sharepic teilen');
     } catch (error) {
       console.error('[SharepicResult] Share error:', error);
       Alert.alert('Fehler', 'Das Sharepic konnte nicht geteilt werden.');

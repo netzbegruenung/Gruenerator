@@ -5,6 +5,7 @@ import {
   BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
+import { resolveToolEntry } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
@@ -18,17 +19,21 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 
+import { useMessageActions } from '../../hooks/useMessageActions';
 import { useNativeTTS } from '../../hooks/useNativeTTS';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { ConfirmActionCard } from './ConfirmActionCard';
+import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
-import { MessageActionsSheet } from './MessageActionsSheet';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
+import { ImageResultCard } from './tool-ui/ImageResultCard';
+import { KeyValueCard } from './tool-ui/KeyValueCard';
 import { PersonResultCard } from './tool-ui/PersonResultCard';
 import { PressemitteilungExamplesCard } from './tool-ui/PressemitteilungExamplesCard';
 import { ResearchArtifactCard } from './tool-ui/ResearchArtifactCard';
@@ -133,16 +138,29 @@ const BranchPicker = memo(function BranchPicker({ theme }: { theme: Theme }) {
   );
 });
 
+// One aligned icon row under each assistant reply. Mirrors web's MessageActions
+// set (copy / download / edit-as-document) inline — previously download and
+// edit-as-document were hidden behind a long-press sheet — plus mobile's TTS and
+// the assistant-ui reload. Every button shares the same 28×28 pill so they line
+// up regardless of which are present.
 const AssistantActionBar = memo(function AssistantActionBar({
   theme,
   messageText,
-  onLongPress,
+  metadata,
 }: {
   theme: Theme;
   messageText: string;
-  onLongPress: () => void;
+  metadata: ChatMessageMetadata;
 }) {
   const { state: ttsState, play, stop } = useNativeTTS();
+  const target = useMemo(
+    () =>
+      messageText
+        ? { role: 'assistant', text: messageText, metadata: metadata as Record<string, unknown> }
+        : null,
+    [messageText, metadata]
+  );
+  const { copied, exporting, copy, exportDocx, openInDocs } = useMessageActions(target);
 
   const handleTTS = useCallback(() => {
     if (ttsState === 'playing') {
@@ -152,38 +170,57 @@ const AssistantActionBar = memo(function AssistantActionBar({
     }
   }, [ttsState, messageText, play, stop]);
 
+  const pill = [styles.actionButton, { backgroundColor: theme.surface }];
+
   return (
     <View style={styles.actionBar}>
-      <ActionBarPrimitive.Copy copiedDuration={2000}>
-        {({ isCopied }) => (
-          <View style={[styles.actionButton, { backgroundColor: theme.surface }]}>
-            <Ionicons
-              name={isCopied ? 'checkmark' : 'copy-outline'}
-              size={14}
-              color={isCopied ? colors.primary[500] : theme.textSecondary}
-            />
-          </View>
-        )}
-      </ActionBarPrimitive.Copy>
-      <Pressable
-        onPress={handleTTS}
-        style={[styles.actionButton, { backgroundColor: theme.surface }]}
-      >
+      {messageText ? (
+        <Pressable onPress={() => void copy()} style={pill} accessibilityLabel="Kopieren">
+          <Ionicons
+            name={copied ? 'checkmark' : 'copy-outline'}
+            size={14}
+            color={copied ? colors.primary[500] : theme.textSecondary}
+          />
+        </Pressable>
+      ) : null}
+      <Pressable onPress={handleTTS} style={pill} accessibilityLabel="Vorlesen">
         <Ionicons
           name={ttsState === 'playing' ? 'stop' : 'volume-medium-outline'}
           size={14}
           color={ttsState === 'playing' ? colors.primary[500] : theme.textSecondary}
         />
       </Pressable>
-      <ActionBarPrimitive.Reload style={[styles.actionButton, { backgroundColor: theme.surface }]}>
+      {messageText ? (
+        <>
+          <Pressable
+            onPress={() => void exportDocx()}
+            disabled={!!exporting}
+            style={pill}
+            accessibilityLabel="Als Word herunterladen"
+          >
+            <Ionicons
+              name={exporting === 'docx' ? 'hourglass-outline' : 'download-outline'}
+              size={14}
+              color={theme.textSecondary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => void openInDocs()}
+            disabled={!!exporting}
+            style={pill}
+            accessibilityLabel="Im Editor öffnen"
+          >
+            <Ionicons
+              name={exporting === 'docs' ? 'hourglass-outline' : 'create-outline'}
+              size={14}
+              color={theme.textSecondary}
+            />
+          </Pressable>
+        </>
+      ) : null}
+      <ActionBarPrimitive.Reload style={pill}>
         <Ionicons name="refresh-outline" size={14} color={theme.textSecondary} />
       </ActionBarPrimitive.Reload>
-      <Pressable
-        onPress={onLongPress}
-        style={[styles.actionButton, { backgroundColor: theme.surface }]}
-      >
-        <Ionicons name="ellipsis-horizontal" size={14} color={theme.textSecondary} />
-      </Pressable>
     </View>
   );
 });
@@ -217,19 +254,31 @@ function AssistantToolCallPart(props: {
   if (result === undefined) {
     return <ToolCallProgress part={props} theme={theme} />;
   }
-  // Completed — pick the renderer matching the tool's result shape.
-  switch (toolName) {
-    case 'gruenerator_person_search':
+  // Completed — the shared registry parses the result to a platform-neutral
+  // view-model; this switch only maps its kind to the native component.
+  const vm = resolveToolEntry(toolName).parse(args, result);
+  switch (vm.kind) {
+    case 'person':
       return <PersonResultCard result={result} theme={theme} />;
-    case 'gruenerator_examples_search':
+    case 'snippets':
       return <ExampleResultsCard part={props} theme={theme} />;
-    case 'scrape_url':
+    case 'link-preview':
       return <ScrapeUrlCard part={props} theme={theme} />;
-    case 'gruenerator_pressemitteilung_examples':
+    case 'press-examples':
       return <PressemitteilungExamplesCard part={props} theme={theme} />;
-    default:
-      // search / web / sources / user-content → compact citation pill.
-      return <ToolResultCard part={props} theme={theme} />;
+    case 'image':
+      return <ImageResultCard vm={vm} theme={theme} />;
+    case 'text-note':
+      return <ToolResultCard part={props} citations={[]} note={vm.text} theme={theme} />;
+    case 'citations':
+      return <ToolResultCard part={props} citations={vm.citations} theme={theme} />;
+    case 'key-value':
+      return <KeyValueCard part={props} vm={vm} theme={theme} />;
+    case 'markdown-report':
+      // research is handled above; defensive for a future markdown-report tool.
+      return <ResearchArtifactCard part={props} theme={theme} />;
+    case 'interactive':
+      return <AskHumanCard args={args} result={result} addResult={addResult} theme={theme} />;
   }
 }
 
@@ -245,7 +294,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
   const generatedImage = metadata.generatedImage;
-  const [actionsVisible, setActionsVisible] = useState(false);
+  const confirmAction = metadata.confirmAction;
+  const createdDocument = metadata.createdDocument;
 
   const messageText = useMemo(() => {
     return message.content
@@ -253,10 +303,6 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
       .map((p) => p.text)
       .join('');
   }, [message.content]);
-
-  const handleOpenActions = useCallback(() => {
-    if (messageText) setActionsVisible(true);
-  }, [messageText]);
 
   const partsComponents = useMemo(
     () => ({
@@ -269,38 +315,19 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   );
 
   return (
-    <>
-      <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
-        <Pressable onLongPress={handleOpenActions} style={styles.assistantContent}>
-          <View style={styles.assistantContent}>
-            <MessagePrimitive.Parts components={partsComponents} />
-            {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
-            {citations && citations.length > 0 && (
-              <CitationsFooter citations={citations} theme={theme} />
-            )}
-          </View>
-        </Pressable>
-        <BranchPicker theme={theme} />
-        <AssistantActionBar
-          theme={theme}
-          messageText={messageText}
-          onLongPress={handleOpenActions}
-        />
-      </MessagePrimitive.Root>
-      <MessageActionsSheet
-        visible={actionsVisible}
-        onClose={() => setActionsVisible(false)}
-        message={
-          messageText
-            ? {
-                role: 'assistant',
-                text: messageText,
-                metadata: metadata as Record<string, unknown>,
-              }
-            : null
-        }
-      />
-    </>
+    <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
+      <View style={styles.assistantContent}>
+        <MessagePrimitive.Parts components={partsComponents} />
+        {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
+        {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
+        {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
+        {citations && citations.length > 0 && (
+          <CitationsFooter citations={citations} theme={theme} />
+        )}
+      </View>
+      <BranchPicker theme={theme} />
+      <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+    </MessagePrimitive.Root>
   );
 });
 
