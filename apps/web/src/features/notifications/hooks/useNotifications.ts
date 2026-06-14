@@ -41,7 +41,7 @@ export function useUnreadCount() {
       setUnreadCount(count);
       return count;
     },
-    // ProfileButton mounts on every route (including /login), but the
+    // SidebarAccount mounts on every route (including /login), but the
     // unread-count endpoint requires auth. Without this gate, guests get
     // a 401-retry storm that surfaces as an "Unerwarteter Fehler" toast
     // and incidentally triggers apiClient's 401-recovery session probe.

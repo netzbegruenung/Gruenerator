@@ -129,8 +129,8 @@ const NotificationList = ({ unreadCount }: NotificationListProps) => {
   if (notifications.length === 0) return null;
 
   return (
-    <>
-      <div className="flex items-center justify-between px-md pt-xs pb-0 border-t border-grey-200 dark:border-grey-700">
+    <div className="mx-1 my-1 overflow-hidden rounded-lg border border-grey-200 dark:border-grey-700 bg-background-alt">
+      <div className="flex items-center justify-between px-md pt-xs pb-0">
         <span className="text-xs font-medium text-foreground">Benachrichtigungen</span>
         <div className="flex gap-xs">
           {unreadCount > 0 && (
@@ -156,7 +156,7 @@ const NotificationList = ({ unreadCount }: NotificationListProps) => {
         </div>
       </div>
 
-      <ScrollArea className="max-h-[280px]">
+      <ScrollArea className="max-h-[260px]">
         {sections.map((section, sectionIdx) => (
           <div key={section.category}>
             {sectionIdx > 0 && <Separator />}
@@ -213,7 +213,7 @@ const NotificationList = ({ unreadCount }: NotificationListProps) => {
           </>
         )}
       </ScrollArea>
-    </>
+    </div>
   );
 };
 
