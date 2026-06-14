@@ -3,8 +3,15 @@ import {
   DEFAULT_USER_AGENT_TOOLS,
   DEFAULT_AGENT_ICON,
 } from '@gruenerator/shared/agents';
+import { TEXT_MODEL_BY_ID } from '@gruenerator/shared/models';
 
 export type Locale = 'de-DE' | 'de-AT';
+
+/** Agent avatars are always the brand "Eucalyptus" green (secondary-600). */
+export const AGENT_BACKGROUND_COLOR = '#5F8575';
+
+/** Default model for new agents — the chat composer's allrounder pick. */
+const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['mistral-medium-3.5'];
 
 export interface FormState {
   identifier: string;
@@ -36,7 +43,7 @@ export const EMPTY_FORM: FormState = {
   systemRole: '',
   avatar: '✨',
   iconKey: DEFAULT_AGENT_ICON,
-  backgroundColor: '#316049',
+  backgroundColor: AGENT_BACKGROUND_COLOR,
   locale: 'de-DE',
   openingMessage: '',
   openingQuestions: '',
@@ -44,8 +51,8 @@ export const EMPTY_FORM: FormState = {
   skillMentions: [],
   defaultNotebookId: '',
   tags: '',
-  model: 'mistral-large-latest',
-  provider: 'mistral',
+  model: DEFAULT_AGENT_MODEL.model,
+  provider: DEFAULT_AGENT_MODEL.provider,
   maxTokens: 3000,
   temperature: 0.5,
 };
@@ -72,7 +79,7 @@ export function formToPayload(form: FormState) {
     systemRole: form.systemRole.trim(),
     avatar: form.avatar.trim() || '✨',
     iconKey: form.iconKey,
-    backgroundColor: form.backgroundColor,
+    backgroundColor: AGENT_BACKGROUND_COLOR,
     tags,
     model: form.model,
     provider: form.provider,
@@ -95,7 +102,7 @@ export function hydrateFormState(agent: Agent): FormState {
     systemRole: agent.systemRole,
     avatar: agent.avatar,
     iconKey: agent.iconKey ?? DEFAULT_AGENT_ICON,
-    backgroundColor: agent.backgroundColor,
+    backgroundColor: AGENT_BACKGROUND_COLOR,
     locale: agent.locale === 'de-AT' ? 'de-AT' : 'de-DE',
     openingMessage: agent.openingMessage,
     openingQuestions: agent.openingQuestions.join('\n'),
