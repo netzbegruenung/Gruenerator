@@ -47,7 +47,9 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     (): GrueneratorAdapterConfig => ({
       agentId: selectedAgentId,
       modelId: selectedModel,
-      enabledTools,
+      // Web search is removed from the mobile app; the shared store may still
+      // carry web: true from web/legacy state, so force it off here.
+      enabledTools: { ...enabledTools, web: false },
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
       threadMode,

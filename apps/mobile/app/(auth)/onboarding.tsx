@@ -51,7 +51,7 @@ const SLIDES: Slide[] = [
   },
   {
     title: 'Werkzeuge für deinen Alltag',
-    subtitle: 'Reels, KI-Bilder, Transkription, Scanner und mehr – an einem Ort.',
+    subtitle: 'Reels, KI-Bilder, Scanner und mehr – an einem Ort.',
     Illustration: ToolsIllustration,
   },
 ];

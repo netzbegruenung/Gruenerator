@@ -255,7 +255,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme }: Props) {
       >
         {isLoading && (
           <View style={styles.centerState}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
+            <ActivityIndicator size="large" color={theme.textGreen} />
             <Text style={[styles.stateText, { color: theme.textSecondary }]}>Suche läuft…</Text>
           </View>
         )}

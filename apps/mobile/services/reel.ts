@@ -5,6 +5,23 @@ import { secureStorage } from './storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
+/**
+ * Short, human-readable message from an error response body. API errors are
+ * JSON (`{ error }`); infrastructure errors (nginx) are whole HTML pages,
+ * which must never reach the UI — fall back to the status code instead.
+ */
+function serverErrorMessage(status: number, body: string | null): string {
+  if (body) {
+    try {
+      const parsed = JSON.parse(body) as { error?: string };
+      if (parsed.error) return parsed.error;
+    } catch {
+      // not JSON (e.g. nginx HTML error page)
+    }
+  }
+  return `HTTP ${status}`;
+}
+
 export type AutoProgressResponse = AutoProgress;
 
 export interface ManualResultResponse {
@@ -49,8 +66,11 @@ export async function uploadVideo(
   });
 
   const result = await task.uploadAsync();
+  if (result.status === 413) {
+    throw new Error('Video ist zu groß. Maximal 500MB erlaubt.');
+  }
   if (result.status < 200 || result.status >= 300) {
-    throw new Error(`Upload fehlgeschlagen: ${result.status} - ${result.body}`);
+    throw new Error(`Upload fehlgeschlagen: ${serverErrorMessage(result.status, result.body)}`);
   }
 
   const parsed = JSON.parse(result.body) as { uploadId?: string };
@@ -99,7 +119,9 @@ export async function startAutoProcess(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to start auto processing: ${response.status} - ${errorText}`);
+    throw new Error(
+      `Verarbeitung konnte nicht gestartet werden: ${serverErrorMessage(response.status, errorText)}`
+    );
   }
 }
 
@@ -191,7 +213,9 @@ export async function startManualProcess(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to start manual processing: ${response.status} - ${errorText}`);
+    throw new Error(
+      `Transkription konnte nicht gestartet werden: ${serverErrorMessage(response.status, errorText)}`
+    );
   }
 }
 
@@ -267,7 +291,7 @@ export async function exportVideo(params: {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Export fehlgeschlagen: ${response.status} - ${errorText}`);
+    throw new Error(`Export fehlgeschlagen: ${serverErrorMessage(response.status, errorText)}`);
   }
 
   const data = (await response.json()) as { exportToken: string };

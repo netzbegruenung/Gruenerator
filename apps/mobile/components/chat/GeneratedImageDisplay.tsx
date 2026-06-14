@@ -2,7 +2,7 @@ import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, useColorScheme } from 'react-native';
 
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
@@ -27,6 +27,7 @@ const STYLE_LABELS: Record<GeneratedImage['style'], string> = {
 export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage; theme: Theme }) {
   const [zoomed, setZoomed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isDark = useColorScheme() === 'dark';
   const src = image.base64 || image.url;
 
   if (!src) return null;
@@ -57,9 +58,20 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
 
       <View style={styles.meta}>
         <View style={styles.metaLeft}>
-          <View style={[styles.badge, { backgroundColor: colors.primary[100] }]}>
-            <Ionicons name="image-outline" size={11} color={colors.primary[700]} />
-            <Text style={[styles.badgeText, { color: colors.primary[700] }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: isDark ? colors.primary[950] : colors.primary[100] },
+            ]}
+          >
+            <Ionicons
+              name="image-outline"
+              size={11}
+              color={isDark ? theme.textGreen : colors.primary[700]}
+            />
+            <Text
+              style={[styles.badgeText, { color: isDark ? theme.textGreen : colors.primary[700] }]}
+            >
               {STYLE_LABELS[image.style] ?? image.style}
             </Text>
           </View>

@@ -1,9 +1,12 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { colors } from '../../theme';
+import { colors, lightTheme, darkTheme } from '../../theme';
 
 export function GuestBanner() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
   const isGuest = useDocsEditorBridgeStore((s) => s.isGuest);
   const guestName = useDocsEditorBridgeStore((s) => s.guestName);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
@@ -11,8 +14,13 @@ export function GuestBanner() {
   if (!isGuest) return null;
 
   return (
-    <View style={styles.banner}>
-      <Text style={styles.text}>
+    <View
+      style={[
+        styles.banner,
+        { backgroundColor: isDark ? colors.primary[950] : colors.primary[100] },
+      ]}
+    >
+      <Text style={[styles.text, { color: isDark ? theme.textGreen : colors.primary[800] }]}>
         {canEdit ? 'Du bearbeitest' : 'Du liest'} als Gast
         {guestName ? ` (${guestName})` : ''}
       </Text>
@@ -22,13 +30,11 @@ export function GuestBanner() {
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: colors.primary[100],
     paddingVertical: 6,
     paddingHorizontal: 16,
     alignItems: 'center',
   },
   text: {
     fontSize: 13,
-    color: colors.primary[800],
   },
 });
