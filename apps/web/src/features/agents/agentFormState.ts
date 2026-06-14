@@ -50,6 +50,42 @@ export const EMPTY_FORM: FormState = {
   temperature: 0.5,
 };
 
+/**
+ * Map the editable form state to the API payload shared by create (POST) and
+ * edit (PATCH). The caller adds `identifier`/`author` for create; the partial
+ * shape is a valid `UpdateUserAgentBody` for edit. `maxTokens` is no longer
+ * user-editable — it rides through unchanged from `EMPTY_FORM`/`hydrateFormState`.
+ */
+export function formToPayload(form: FormState) {
+  const openingQuestions = form.openingQuestions
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const tags = form.tags
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return {
+    title: form.title.trim(),
+    description: form.description.trim(),
+    systemRole: form.systemRole.trim(),
+    avatar: form.avatar.trim() || '✨',
+    iconKey: form.iconKey,
+    backgroundColor: form.backgroundColor,
+    tags,
+    model: form.model,
+    provider: form.provider,
+    params: { max_tokens: form.maxTokens, temperature: form.temperature },
+    openingMessage: form.openingMessage,
+    openingQuestions,
+    locale: form.locale,
+    enabledTools: form.enabledTools,
+    skillMentions: form.skillMentions,
+    defaultNotebookId: form.defaultNotebookId || null,
+  };
+}
+
 /** Build the editable form state from a saved agent (edit / settings page). */
 export function hydrateFormState(agent: Agent): FormState {
   return {
