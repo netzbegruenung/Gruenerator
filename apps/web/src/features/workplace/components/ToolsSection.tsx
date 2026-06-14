@@ -34,6 +34,7 @@ const MAIN_TOOLS: ToolItem[] = [
     title: 'Monitor',
     path: '/monitor',
     icon: getIcon('navigation', 'monitor')!,
+    devOnly: true,
   },
   {
     id: 'gruen-veraendern',

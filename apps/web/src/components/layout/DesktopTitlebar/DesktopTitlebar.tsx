@@ -2,7 +2,6 @@ import { Suspense, lazy, Component, type ReactNode } from 'react';
 
 import { isDesktopApp } from '../../../utils/platform';
 import { minimizeWindow, toggleMaximizeWindow, closeWindow } from '../../../utils/tauriWindow';
-import ProfileButton from '../Header/ProfileButton';
 
 const TabBar = lazy(() => import('../DesktopTabs/TabBar').catch(() => ({ default: () => null })));
 
@@ -79,12 +78,6 @@ const DesktopTitlebar = () => {
       </TabBarErrorBoundary>
 
       <div className="flex items-center gap-0" style={appRegionNoDrag}>
-        <div
-          className="px-3 flex items-center h-[var(--titlebar-height)] [&_[data-slot=dropdown-menu-trigger]]:!border-none [&_[data-slot=dropdown-menu-trigger]]:!bg-transparent [&_[data-slot=dropdown-menu-trigger]]:!shadow-none [&_[data-slot=dropdown-menu-trigger]]:!w-8 [&_[data-slot=dropdown-menu-trigger]]:!h-8 [&_[data-slot=dropdown-menu-trigger]]:!p-0 [&>button]:!border-none [&>button]:!bg-transparent [&>button]:!shadow-none [&>button]:!w-8 [&>button]:!h-8 [&>button]:!p-0 [&>a]:!border-none [&>a]:!bg-transparent [&>a]:!shadow-none [&>a]:!w-8 [&>a]:!h-8 [&>a]:!p-0 [&_a]:h-[var(--titlebar-height)] [&_a]:flex [&_a]:items-center [&_a_svg]:text-2xl [&_a_svg]:text-grey-500 [&_a:hover_svg]:text-primary-600 dark:[&_a_svg]:text-grey-400 dark:[&_a:hover_svg]:text-primary-400"
-          style={appRegionNoDrag}
-        >
-          <ProfileButton />
-        </div>
         <button
           className="w-[46px] h-[var(--titlebar-height)] flex items-center justify-center bg-transparent border-none text-grey-500 dark:text-grey-400 cursor-pointer transition-colors duration-150 hover:bg-grey-100 hover:text-grey-700 dark:hover:bg-grey-700 dark:hover:text-grey-200 [&_svg]:w-2.5 [&_svg]:h-2.5"
           style={appRegionNoDrag}
