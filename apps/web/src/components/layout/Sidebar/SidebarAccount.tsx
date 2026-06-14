@@ -19,7 +19,7 @@ import NotificationList from '../../../features/notifications/components/Notific
 import { useUnreadCount } from '../../../features/notifications/hooks/useNotifications';
 import { useAuthStore } from '../../../stores/authStore';
 import useDarkMode from '../../hooks/useDarkMode';
-import { NAV_ITEMS } from '../Header/ProfileButton';
+import { NAV_ITEMS } from '../Header/menuData';
 
 import { cn } from '@/utils/cn';
 
@@ -89,9 +89,6 @@ const SidebarAccount = memo(function SidebarAccount({
       sideOffset={8}
       className="w-80"
     >
-      {/* Notifications inline at the top; NotificationList renders null when empty,
-          so the menu starts straight at the nav items when nothing is pending. */}
-      <NotificationList unreadCount={unreadCount} />
       {NAV_ITEMS.map((item) => (
         <DropdownMenuItem key={item.key} onClick={() => onNavigate(item.path, item.label)}>
           <item.icon className="size-4" />
@@ -102,6 +99,10 @@ const SidebarAccount = memo(function SidebarAccount({
         <PiQuestion className="size-4" />
         <span>Support</span>
       </DropdownMenuItem>
+      {/* Notifications sit in their own bounded card between the nav targets and the
+          theme/logout row; NotificationList renders null when empty, so nothing shows
+          here when nothing is pending. */}
+      <NotificationList unreadCount={unreadCount} />
       <DropdownMenuSeparator />
       {/* Theme + logout share one row to save vertical space. */}
       <div className="flex items-center gap-1">
