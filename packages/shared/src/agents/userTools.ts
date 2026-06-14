@@ -1,7 +1,8 @@
 /**
- * User-facing catalog of the ChatGraph tools a user may enable on a custom
- * agent. The keys MUST match the ChatGraph tool registry
- * (`apps/api/agents/langgraph/ChatGraph/tools/registry.ts`).
+ * User-facing catalog of the chat tools a user may enable on a custom
+ * agent. The keys MUST match the `enabledTools` keys the chat pipeline
+ * understands (`intentExecutionService.ts` / `ToolKey` in
+ * `packages/chat/src/stores/chatStore.ts`).
  *
  * This is the single source of truth for:
  *   - the tool picker in the agent builder (labels + descriptions),
@@ -11,9 +12,9 @@
  *     `@gruenerator/contracts` is intentionally dependency-light and can't
  *     import this catalog).
  *
- * Internal/always-on tools (`memory`, `memory_save`, `self_review`,
- * `draft_structured`) are deliberately omitted — they are infrastructure the
- * user never toggles, not user-facing capabilities.
+ * Internal/always-on tools (`memory`, `memory_save`) are deliberately
+ * omitted — they are infrastructure the user never toggles, not user-facing
+ * capabilities.
  */
 
 export interface UserSelectableTool {

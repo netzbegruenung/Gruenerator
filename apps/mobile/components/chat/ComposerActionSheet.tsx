@@ -3,7 +3,10 @@ import {
   MODEL_OPTIONS,
   AUTO_MODEL_ID,
   AUTO_MODEL_OPTION,
-  type ToolKey,
+  COMPOSER_TOOLS,
+  SEARCH_DEPTHS,
+  type ComposerToolIconKey,
+  type SearchDepthIconKey,
 } from '@gruenerator/chat';
 import { QWEN_WARNING } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
@@ -15,15 +18,28 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
-const TOOL_LABELS: Record<string, { label: string; icon: IoniconsIconName }> = {
-  search: { label: 'Dokumentensuche', icon: 'document-text-outline' },
-  examples: { label: 'Beispiele', icon: 'bulb-outline' },
-  research: { label: 'Recherche', icon: 'flask-outline' },
+// Presentation only: keys/labels come from the shared COMPOSER_TOOLS /
+// SEARCH_DEPTHS lists; these map the semantic icon keys → Ionicons names.
+const TOOL_ICONS: Record<ComposerToolIconKey, IoniconsIconName> = {
+  document: 'document-text-outline',
+  globe: 'globe-outline',
+  idea: 'bulb-outline',
+  newspaper: 'newspaper-outline',
+  research: 'flask-outline',
 };
 
-// Web search is intentionally absent — the feature is removed from the mobile app
-// (runtimes force `web: false` regardless of the shared store's value).
-export const TOOL_KEYS: ToolKey[] = ['search', 'examples', 'research'];
+const DEPTH_ICONS: Record<SearchDepthIconKey, IoniconsIconName> = {
+  fast: 'flash-outline',
+  deep: 'telescope-outline',
+};
+
+// Web search is removed from the mobile app (runtimes force `web: false`), so
+// the Websuche toggle is filtered out of the shared composer tool list rather
+// than redefining the list locally.
+const MOBILE_TOOLS = COMPOSER_TOOLS.filter((tool) => tool.key !== 'web');
+
+// Consumed by the chat tab's "N/M Tools" badge.
+export const TOOL_KEYS = MOBILE_TOOLS.map((tool) => tool.key);
 
 interface Props {
   visible: boolean;
@@ -40,15 +56,17 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
 }: Props) {
   const theme = useTheme();
 
-  const { enabledTools, selectedModel } = useAgentStore(
+  const { enabledTools, selectedModel, searchMode } = useAgentStore(
     useShallow((s) => ({
       enabledTools: s.enabledTools,
       selectedModel: s.selectedModel,
+      searchMode: s.searchMode,
     }))
   );
 
   const toggleTool = useAgentStore((s) => s.toggleTool);
   const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
+  const setSearchMode = useAgentStore((s) => s.setSearchMode);
 
   const handlePickFile = useCallback(() => {
     onClose();
@@ -91,23 +109,64 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
 
         {/* Tools */}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-        {TOOL_KEYS.map((key) => {
-          const tool = TOOL_LABELS[key];
-          return (
-            <View key={key} style={[styles.toolRow, { borderBottomColor: theme.border }]}>
-              <View style={styles.toolLabel}>
-                <Ionicons name={tool.icon} size={18} color={theme.textSecondary} />
-                <Text style={[styles.toolText, { color: theme.text }]}>{tool.label}</Text>
-              </View>
-              <Switch
-                value={enabledTools[key] !== false}
-                onValueChange={() => toggleTool(key)}
-                trackColor={{ false: theme.border, true: colors.primary[400] }}
-                thumbColor={enabledTools[key] !== false ? colors.primary[600] : theme.surface}
-              />
+        {MOBILE_TOOLS.map((tool) => (
+          <View key={tool.key} style={[styles.toolRow, { borderBottomColor: theme.border }]}>
+            <View style={styles.toolLabel}>
+              <Ionicons name={TOOL_ICONS[tool.icon]} size={18} color={theme.textSecondary} />
+              <Text style={[styles.toolText, { color: theme.text }]}>{tool.label}</Text>
             </View>
-          );
-        })}
+            <Switch
+              value={enabledTools[tool.key] !== false}
+              onValueChange={() => toggleTool(tool.key)}
+              trackColor={{ false: theme.border, true: colors.primary[400] }}
+              thumbColor={enabledTools[tool.key] !== false ? colors.primary[600] : theme.surface}
+            />
+          </View>
+        ))}
+
+        {/* Search depth */}
+        <Text style={[styles.sectionTitle, { color: theme.text, marginTop: spacing.large }]}>
+          Recherchetiefe
+        </Text>
+        <View style={styles.chipRow}>
+          {SEARCH_DEPTHS.map((depth) => {
+            const active = searchMode === depth.mode;
+            return (
+              <Pressable
+                key={depth.mode}
+                onPress={() => setSearchMode(depth.mode)}
+                style={[
+                  styles.modelChip,
+                  {
+                    backgroundColor: active ? colors.primary[600] : theme.surface,
+                    borderColor: active ? colors.primary[600] : theme.border,
+                  },
+                ]}
+              >
+                <View style={styles.depthHeader}>
+                  <Ionicons
+                    name={DEPTH_ICONS[depth.icon]}
+                    size={14}
+                    color={active ? colors.white : theme.textSecondary}
+                  />
+                  <Text
+                    style={[styles.modelChipText, { color: active ? colors.white : theme.text }]}
+                  >
+                    {depth.label}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.modelChipDesc,
+                    { color: active ? colors.primary[200] : theme.textSecondary },
+                  ]}
+                >
+                  {depth.description}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {/* Model */}
         <Text style={[styles.sectionTitle, { color: theme.text, marginTop: spacing.large }]}>
@@ -234,6 +293,11 @@ const styles = StyleSheet.create({
   },
   toolText: {
     fontSize: 14,
+  },
+  depthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
   },
   modelChip: {
     paddingHorizontal: spacing.small,

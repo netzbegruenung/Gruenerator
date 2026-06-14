@@ -1,15 +1,14 @@
 import { type AgentListItem } from '@gruenerator/chat';
 import { type Agent } from '@gruenerator/shared/agents';
-import { Badge, Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
-import { PiEye, PiPencilSimple, PiSparkle, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
+import { Badge } from '@gruenerator/ui';
+import { type KeyboardEvent, type ReactNode } from 'react';
+import { PiPencilSimple, PiSparkle, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
 
 import { type SharedAgentEntry } from '../../agents/api';
 import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 
 import { CapabilityTags } from './CapabilityTags';
 
-import { Markdown } from '@/components/common/Markdown';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
 
 const CARD_CLASS =
@@ -46,73 +45,46 @@ interface SkillCardProps {
 
 export function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardProps) {
   const Icon = skill.icon ?? PiSparkle;
-  const [showText, setShowText] = useState(false);
   return (
-    <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={(e) => {
-          if ((e.target as HTMLElement).closest('button')) return;
-          onSelect(skill);
-        }}
-        onKeyDown={(e) => cardKeyActivate(e, () => onSelect(skill))}
-        className={CARD_CLASS}
-      >
-        <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
-          <Icon className="text-2xl" />
-        </div>
-        <div className="flex flex-col flex-1 p-md min-w-0">
-          <div className="flex justify-between items-start gap-sm mb-xs">
-            <div className="flex min-w-0 items-start gap-xs">
-              <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
-                {skill.title}
-              </h3>
-              <TypeBadge kind="skill" />
-            </div>
-            <div className="flex shrink-0 gap-1">
-              <button
-                type="button"
-                aria-label="Skill-Text anzeigen"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowText(true);
-                }}
-                onKeyDown={(e) => e.stopPropagation()}
-                className={ICON_BTN}
-              >
-                <PiEye className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleFavorite(skill.mention);
-                }}
-                onKeyDown={(e) => e.stopPropagation()}
-                className={ICON_BTN}
-              >
-                {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          <p className="text-sm text-foreground leading-relaxed m-0 line-clamp-2">
-            {skill.description}
-          </p>
-        </div>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        onSelect(skill);
+      }}
+      onKeyDown={(e) => cardKeyActivate(e, () => onSelect(skill))}
+      className={CARD_CLASS}
+    >
+      <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
+        <Icon className="text-2xl" />
       </div>
-      <Dialog open={showText} onOpenChange={setShowText}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{skill.title}</DialogTitle>
-          </DialogHeader>
-          <Markdown fallback={<p>{skill.description}</p>}>
-            {skill.skillSystemPrompt ?? skill.description}
-          </Markdown>
-        </DialogContent>
-      </Dialog>
-    </>
+      <div className="flex flex-col flex-1 p-md min-w-0">
+        <div className="flex justify-between items-start gap-sm mb-xs">
+          <div className="flex min-w-0 items-start gap-xs">
+            <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
+              {skill.title}
+            </h3>
+            <TypeBadge kind="skill" />
+          </div>
+          <button
+            type="button"
+            aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(skill.mention);
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+            className={`shrink-0 ${ICON_BTN}`}
+          >
+            {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
+          </button>
+        </div>
+        <p className="text-sm text-foreground leading-relaxed m-0 line-clamp-2">
+          {skill.description}
+        </p>
+      </div>
+    </div>
   );
 }
 

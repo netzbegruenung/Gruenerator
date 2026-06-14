@@ -113,6 +113,20 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
     if (Array.isArray(sharepicVariants) && sharepicVariants.length > 0) {
       custom.sharepicData = { variants: sharepicVariants };
     }
+
+    // Reconstruct reel cards on reload (same mechanism as sharepicData): the
+    // live stream sets these from the reel_processing / reel_picker SSE
+    // events; the persisted tool results carry the identical payloads.
+    const reelProcessingCall = m.metadata?.toolCalls?.find(
+      (tc) => tc.toolName === 'reel_processing'
+    );
+    if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
+    const reelPickerCall = m.metadata?.toolCalls?.find((tc) => tc.toolName === 'reel_picker');
+    const reelPickerProjects = (reelPickerCall?.result as { projects?: unknown } | undefined)
+      ?.projects;
+    if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
+      custom.reelPicker = { projects: reelPickerProjects };
+    }
     if (m.metadata?.intent)
       custom.streamMetadata = {
         intent: m.metadata.intent,

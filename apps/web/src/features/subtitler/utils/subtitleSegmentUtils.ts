@@ -7,12 +7,16 @@
  * (SubtitlerPage, SubtitlerBetaPage, SubtitleEditor, segmentsToTranscript).
  */
 
-import { parseSubtitlesText, formatSubtitlesToText } from '@gruenerator/shared';
+import { parseStoredSubtitles, formatSubtitlesToText } from '@gruenerator/shared';
 
 import type { SubtitleSegment } from '../types';
 
 export function parseSubtitleBlocks(subtitles: string): SubtitleSegment[] {
-  return parseSubtitlesText(subtitles);
+  // Tolerant parse: the subtitles column holds either the text wire format
+  // or a JSON segment array (auto-saved projects, incl. chat uploads).
+  // parseSubtitlesText alone returned [] for JSON projects, so the studio
+  // opened them with an empty transcript.
+  return parseStoredSubtitles(subtitles).segments;
 }
 
 export function formatSubtitleBlocks(segments: SubtitleSegment[]): string {

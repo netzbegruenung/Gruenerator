@@ -141,6 +141,67 @@ export function formatSubtitlesToText(segments: SubtitleSegment[]): string {
     .join('\n\n');
 }
 
+export type StoredSubtitlesFormat = 'json' | 'text';
+
+/**
+ * Parse whatever the `subtitler_projects.subtitles` column holds. The column
+ * has two formats in the wild: a JSON-stringified segment array (written by
+ * projectSavingService for auto-saved and contract-created projects) and the
+ * "MM:SS.F - MM:SS.F\nText" text format (parseSubtitlesText). Returns the
+ * detected format so writers can round-trip without converting the project.
+ */
+export function parseStoredSubtitles(blob: string | null | undefined): {
+  segments: SubtitleSegment[];
+  format: StoredSubtitlesFormat;
+} {
+  const trimmed = (blob ?? '').trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        const segments: SubtitleSegment[] = [];
+        for (const [index, entry] of parsed.entries()) {
+          if (typeof entry !== 'object' || entry === null) continue;
+          const rec = entry as Record<string, unknown>;
+          if (
+            typeof rec.text !== 'string' ||
+            typeof rec.startTime !== 'number' ||
+            typeof rec.endTime !== 'number'
+          ) {
+            continue;
+          }
+          segments.push({
+            id: typeof rec.id === 'number' ? rec.id : index,
+            startTime: rec.startTime,
+            endTime: rec.endTime,
+            text: rec.text,
+          });
+        }
+        return { segments, format: 'json' };
+      }
+    } catch {
+      // fall through to the text parser
+    }
+  }
+  return { segments: parseSubtitlesText(trimmed), format: 'text' };
+}
+
+/**
+ * Serialize segments back into the format they were read from, so editing a
+ * project never silently migrates its storage format.
+ */
+export function serializeStoredSubtitles(
+  segments: SubtitleSegment[],
+  format: StoredSubtitlesFormat
+): string {
+  if (format === 'json') {
+    return JSON.stringify(
+      segments.map((s) => ({ text: s.text, startTime: s.startTime, endTime: s.endTime }))
+    );
+  }
+  return formatSubtitlesToText(segments);
+}
+
 /**
  * Format seconds to MM:SS display format
  *
