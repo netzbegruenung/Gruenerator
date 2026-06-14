@@ -21,7 +21,7 @@ import {
 import { useQueries } from '@tanstack/react-query';
 import { ChevronLeft, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { HiDocumentText, HiCollection, HiLink } from 'react-icons/hi';
+import { HiDocumentText, HiLink } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
 
 import { ICONS } from '../../../config/icons';
@@ -54,21 +54,13 @@ interface ContentCategory {
   contentType: string;
 }
 
-type CategoryId =
-  | 'collabDocs'
-  | 'boards'
-  | 'documents'
-  | 'texts'
-  | 'generators'
-  | 'notebooks'
-  | 'links';
+type CategoryId = 'collabDocs' | 'boards' | 'documents' | 'texts' | 'notebooks' | 'links';
 
 interface ContentState {
   collabDocs: ContentItem[];
   boards: ContentItem[];
   documents: ContentItem[];
   texts: ContentItem[];
-  generators: ContentItem[];
   notebooks: ContentItem[];
 }
 
@@ -114,7 +106,6 @@ const CONTENT_CATEGORIES: ContentCategory[] = [
   },
   { id: 'documents', label: 'Dokumente', icon: HiDocumentText, contentType: 'documents' },
   { id: 'texts', label: 'Texte', icon: HiDocumentText, contentType: 'user_documents' },
-  { id: 'generators', label: 'Grüneratoren', icon: HiCollection, contentType: 'custom_generators' },
   {
     id: 'notebooks',
     label: 'Notebooks',
@@ -196,11 +187,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         enabled: isOpen,
       },
       {
-        queryKey: ['add-to-group', 'generators'],
-        queryFn: () => profileApiService.getCustomGenerators(),
-        enabled: isOpen,
-      },
-      {
         queryKey: ['add-to-group', 'notebooks'],
         queryFn: () => profileApiService.getNotebookCollections(),
         enabled: isOpen,
@@ -211,7 +197,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const isLoading = contentQueries.some((q) => q.isLoading);
 
   const content = useMemo<ContentState>(() => {
-    const [collabDocs, boards, docs, texts, generators, notebooks] = contentQueries.map(
+    const [collabDocs, boards, docs, texts, notebooks] = contentQueries.map(
       (q) => (q.data as ContentItem[] | undefined) ?? []
     );
     const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({
@@ -223,7 +209,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       boards,
       documents: docs,
       texts,
-      generators,
       notebooks: [...notebooks, ...systemNotebookItems],
     };
   }, [contentQueries]);
