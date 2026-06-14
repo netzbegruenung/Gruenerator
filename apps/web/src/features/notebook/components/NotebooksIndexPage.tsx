@@ -30,10 +30,16 @@ import {
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 
+import NotebookGalleryCard from './NotebookGalleryCard';
 import { NotebookPageContent } from './NotebookPage';
 import { VonDerBasisSection } from './VonDerBasisSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
+
+// Responsive grid of the tall notebook cards — shared by the system and the
+// "Eigene" sections so both read as one gallery.
+const NOTEBOOK_GRID_CLASS =
+  'grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-md max-sm:grid-cols-2';
 
 const EMPTY_COLLECTIONS: NotebookCollection[] = [];
 
@@ -71,62 +77,57 @@ const NotebookCard = memo(
       }
     };
 
+    const hasMenu = canStar || groups.length > 0;
+
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        className="group flex items-center gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md px-md py-md min-h-[4rem] cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
-        onClick={() => navigate(notebook.path, { state: { freshConversation: true } })}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            void navigate(notebook.path, { state: { freshConversation: true } });
-          }
-        }}
-      >
-        <notebook.icon className="text-base text-secondary-600 shrink-0" />
-        <span className="text-sm font-medium text-foreground-heading flex-1">{notebook.title}</span>
-        <div
-          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
-                aria-label="Aktionen"
-              >
-                <HiDotsVertical size={14} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canStar && (
-                <DropdownMenuItem onClick={() => toggleFavourite(notebook.id)}>
-                  {starred ? <PiStarFill /> : <PiStar />}
-                  {starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                </DropdownMenuItem>
-              )}
-              {groups.length > 0 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <HiShare />
-                    Teilen
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {groups.map((group) => (
-                      <DropdownMenuItem key={group.id} onClick={() => handleShareToGroup(group.id)}>
-                        <HiUserGroup />
-                        {sharedGroupId === group.id ? 'Geteilt!' : group.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      <NotebookGalleryCard
+        title={notebook.title}
+        meta={notebook.meta}
+        icon={notebook.icon}
+        onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
+        menu={
+          hasMenu ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Aktionen"
+                >
+                  <HiDotsVertical size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canStar && (
+                  <DropdownMenuItem onClick={() => toggleFavourite(notebook.id)}>
+                    {starred ? <PiStarFill /> : <PiStar />}
+                    {starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                  </DropdownMenuItem>
+                )}
+                {groups.length > 0 && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <HiShare />
+                      Teilen
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {groups.map((group) => (
+                        <DropdownMenuItem
+                          key={group.id}
+                          onClick={() => handleShareToGroup(group.id)}
+                        >
+                          <HiUserGroup />
+                          {sharedGroupId === group.id ? 'Geteilt!' : group.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : undefined
+        }
+      />
     );
   }
 );
@@ -136,12 +137,10 @@ const NotebookSection = memo(
   ({
     title,
     notebooks,
-    columns = 1,
     groups = [],
   }: {
     title: string;
     notebooks: NotebookConfigEntry[];
-    columns?: 1 | 2;
     groups?: GroupSummary[];
   }) => {
     const filtered = notebooks.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));
@@ -150,13 +149,7 @@ const NotebookSection = memo(
     return (
       <section className="mt-xl">
         <SectionHeader title={title} />
-        <div
-          className={
-            columns === 2
-              ? 'grid grid-cols-4 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1 gap-sm'
-              : 'flex flex-col gap-sm'
-          }
-        >
+        <div className={NOTEBOOK_GRID_CLASS}>
           {filtered.map((notebook) => (
             <NotebookCard key={notebook.id} notebook={notebook} groups={groups} />
           ))}
@@ -246,14 +239,17 @@ const EigeneNotebooks = memo(
       <div className="mt-xl">
         <SectionHeader title="Eigene" onCreate={onCreate} createLabel="Notebook erstellen" />
         {loading ? (
-          <div className="flex flex-col gap-sm">
+          <div className={NOTEBOOK_GRID_CLASS}>
             {Array.from({ length: 3 }, (_, i) => (
               <div
                 key={i}
-                className="flex items-center gap-sm border border-grey-200 dark:border-grey-700 rounded-md px-md py-md min-h-[4rem] max-w-[14rem]"
+                className="overflow-hidden rounded-xl border border-grey-200/80 dark:border-grey-700/60"
               >
-                <Skeleton className="size-5 rounded shrink-0" />
-                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="aspect-[5/4] rounded-none" />
+                <div className="px-3 py-2.5">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="mt-1.5 h-3 w-1/2" />
+                </div>
               </div>
             ))}
           </div>
@@ -263,34 +259,20 @@ const EigeneNotebooks = memo(
           </p>
         ) : (
           <>
-            <div className="flex flex-col gap-sm">
+            <div className={NOTEBOOK_GRID_CLASS}>
               {visible.map((c) => (
-                <div
+                <NotebookGalleryCard
                   key={c.id}
-                  role="button"
-                  tabIndex={0}
-                  className="group flex items-center gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md px-md py-md min-h-[4rem] max-w-[14rem] cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
-                  onClick={() => onView(c.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onView(c.id);
-                    }
-                  }}
-                >
-                  <NotebookIcon className="text-base text-secondary-600 shrink-0" />
-                  <span className="text-sm font-medium text-foreground-heading truncate flex-1">
-                    {c.name}
-                  </span>
-                  <div
-                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  title={c.name}
+                  meta={c.description || 'Eigenes Notebook'}
+                  icon={NotebookIcon}
+                  onActivate={() => onView(c.id)}
+                  menu={
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="flex items-center justify-center w-6 h-6 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
+                          className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
                           aria-label="Aktionen"
                         >
                           <HiDotsVertical size={14} />
@@ -349,8 +331,8 @@ const EigeneNotebooks = memo(
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                </div>
+                  }
+                />
               ))}
             </div>
             {shouldCollapse && (
@@ -456,28 +438,18 @@ function NotebooksIndexFooter() {
 
   return (
     <section className="mt-xl">
-      <div className="flex flex-wrap gap-xl max-md:flex-col">
-        <div className="flex-1 min-w-0">
-          <NotebookSection
-            title="Notebooks"
-            notebooks={allNotebooks}
-            columns={2}
-            groups={stableGroups}
-          />
-        </div>
-        <div>
-          <EigeneNotebooks
-            qaCollections={qaCollections}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onShare={handleShare}
-            onCreate={handleCreate}
-            loading={collectionsLoading}
-            copiedId={copiedId}
-          />
-        </div>
-      </div>
+      <NotebookSection title="Notebooks" notebooks={allNotebooks} groups={stableGroups} />
+
+      <EigeneNotebooks
+        qaCollections={qaCollections}
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onShare={handleShare}
+        onCreate={handleCreate}
+        loading={collectionsLoading}
+        copiedId={copiedId}
+      />
 
       <VonDerBasisSection />
     </section>

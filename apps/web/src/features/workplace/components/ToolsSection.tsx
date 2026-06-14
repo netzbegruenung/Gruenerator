@@ -118,9 +118,16 @@ function filterTools(tools: ToolItem[]): ToolItem[] {
   return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
 }
 
+// Uniform tool cells: reserve a fixed two-line label height and clamp to two
+// lines (targets the IconButton's label span — its only direct `span` child; the
+// icon span is nested inside the circle). Without this, labels wrap to 1–3 lines
+// and the round buttons end up at different heights. `max-w-32` lets the longest
+// labels ("Audio mit KI transkribieren") fit two lines instead of three.
+const TOOL_LABEL_CLASS = '[&>span]:line-clamp-2 [&>span]:min-h-[2.5rem] [&>span]:max-w-32';
+
 function IconGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] justify-items-center gap-lg px-md md:px-lg">
+    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] justify-items-center gap-xl px-md md:px-lg">
       {children}
     </div>
   );
@@ -138,6 +145,7 @@ function ToolIconRow({ tools }: { tools: ToolItem[] }) {
             size="lg"
             icon={<Icon />}
             label={tool.title}
+            className={TOOL_LABEL_CLASS}
             onClick={() => navigate(tool.path)}
           />
         );
@@ -157,6 +165,7 @@ function FavoriteIconRow({ favorites }: { favorites: FavoriteItem[] }) {
             size="lg"
             icon={<Icon />}
             label={fav.title}
+            className={TOOL_LABEL_CLASS}
             onClick={() => window.open(fav.href, '_blank', 'noopener,noreferrer')}
           />
         );
