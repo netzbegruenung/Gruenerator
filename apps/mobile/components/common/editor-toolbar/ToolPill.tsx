@@ -4,7 +4,7 @@
  */
 
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { Pressable, Text, StyleSheet, View } from 'react-native';
+import { Pressable, Text, StyleSheet, View, useColorScheme } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -12,7 +12,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -39,6 +39,11 @@ export function ToolPill({
   showChevron = true,
   disabled = false,
 }: ToolPillProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
+  const activeColor = isDark ? theme.textGreen : colors.primary[700];
+  const activeBackground = isDark ? colors.primary[950] : colors.primary[100];
   const scale = useSharedValue(1);
   const activeProgress = useSharedValue(isActive ? 1 : 0);
 
@@ -51,7 +56,7 @@ export function ToolPill({
     const backgroundColor = interpolateColor(
       activeProgress.value,
       [0, 1],
-      ['transparent', colors.primary[100]]
+      ['transparent', activeBackground]
     );
 
     return {
@@ -82,8 +87,8 @@ export function ToolPill({
       accessibilityRole="button"
       accessibilityState={{ disabled }}
     >
-      <Ionicons name={icon} size={18} color={isActive ? colors.primary[700] : colors.grey[600]} />
-      <Text style={[styles.label, { color: isActive ? colors.primary[700] : colors.grey[600] }]}>
+      <Ionicons name={icon} size={18} color={isActive ? activeColor : theme.textSecondary} />
+      <Text style={[styles.label, { color: isActive ? activeColor : theme.textSecondary }]}>
         {label}
       </Text>
       {badge !== undefined && badge > 0 && (
@@ -92,12 +97,7 @@ export function ToolPill({
         </View>
       )}
       {showChevron && isActive && (
-        <Ionicons
-          name="chevron-down"
-          size={14}
-          color={colors.primary[700]}
-          style={styles.chevron}
-        />
+        <Ionicons name="chevron-down" size={14} color={activeColor} style={styles.chevron} />
       )}
     </AnimatedPressable>
   );

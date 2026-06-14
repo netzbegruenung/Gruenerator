@@ -15,7 +15,11 @@ export default function FullscreenSubtitleEditor() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ projectId: string; projectData: string }>();
+  const params = useLocalSearchParams<{
+    projectId: string;
+    projectData: string;
+    openShare?: string;
+  }>();
 
   // Clear editor state on unmount so a later session can't observe a
   // previous project's state if its load path skips loadProject().
@@ -41,7 +45,12 @@ export default function FullscreenSubtitleEditor() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ErrorBoundary>
-        <SubtitleEditorScreen project={project} onBack={handleClose} onSaved={handleClose} />
+        <SubtitleEditorScreen
+          project={project}
+          onBack={handleClose}
+          onSaved={handleClose}
+          initialShowShare={params.openShare === '1'}
+        />
       </ErrorBoundary>
       <Pressable
         style={[styles.closeButton, { top: insets.top + 8 }]}

@@ -7,31 +7,26 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
+  useColorScheme,
   type ViewStyle,
   type TextStyle,
   type ImageStyle,
 } from 'react-native';
 
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
 import { Button } from '../common/Button';
 
 interface VideoUploaderProps {
   onVideoSelected: (uri: string) => void;
-  uploadProgress: number;
-  isUploading: boolean;
-  onBack?: () => void;
 }
 
 const MAX_FILE_SIZE_MB = 500;
 const MAX_DURATION_SECONDS = 600; // 10 minutes
 
-export function VideoUploader({
-  onVideoSelected,
-  uploadProgress,
-  isUploading,
-  onBack,
-}: VideoUploaderProps) {
+export function VideoUploader({ onVideoSelected }: VideoUploaderProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
   const [selectedVideo, setSelectedVideo] = useState<{
     uri: string;
     duration?: number;
@@ -43,13 +38,18 @@ export function VideoUploader({
   const pickVideo = useCallback(async () => {
     setError(null);
 
-    // No permission request: launchImageLibraryAsync uses the Android Photo
-    // Picker, which needs no runtime permission (Google Play media policy).
+    // `legacy: true` skips the Android Photo Picker: on devices that record
+    // HEVC/HDR (e.g. Samsung), the Photo Picker transcodes long videos to
+    // AVC/SDR before handing them over ("Ausgewählte Medien werden
+    // vorbereitet…" for minutes). The legacy document-style picker returns
+    // the original file untouched — the subtitler backend (ffmpeg) handles
+    // HEVC fine. Neither picker needs a runtime permission.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       allowsEditing: false,
       quality: 1,
       videoMaxDuration: MAX_DURATION_SECONDS,
+      legacy: true,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -113,55 +113,53 @@ export function VideoUploader({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (isUploading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.uploadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-          <Text style={styles.uploadingText}>Video wird hochgeladen...</Text>
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { width: `${uploadProgress}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {onBack && (
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary[600]} />
-          <Text style={styles.backButtonText}>Zurück</Text>
-        </Pressable>
-      )}
-
       {!selectedVideo ? (
         <>
           <View style={styles.iconContainer}>
-            <Ionicons name="videocam" size={64} color={colors.primary[600]} />
+            <Ionicons name="videocam" size={64} color={theme.textGreen} />
           </View>
 
-          <Text style={styles.title}>Automatische Reel-Erstellung</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: theme.text }]}>Automatische Reel-Erstellung</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Wähle ein Video aus oder nimm eines auf. Das Video wird automatisch optimiert und mit
             Untertiteln versehen.
           </Text>
 
           <View style={styles.buttonContainer}>
-            <Pressable style={styles.optionButton} onPress={pickVideo}>
-              <Ionicons name="images-outline" size={32} color={colors.primary[600]} />
-              <Text style={styles.optionText}>Aus Galerie</Text>
+            <Pressable
+              style={[
+                styles.optionButton,
+                {
+                  backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+                  borderColor: isDark ? colors.primary[800] : colors.primary[200],
+                },
+              ]}
+              onPress={pickVideo}
+            >
+              <Ionicons name="images-outline" size={32} color={theme.textGreen} />
+              <Text style={[styles.optionText, { color: theme.textGreen }]}>Aus Galerie</Text>
             </Pressable>
 
-            <Pressable style={styles.optionButton} onPress={recordVideo}>
-              <Ionicons name="camera-outline" size={32} color={colors.primary[600]} />
-              <Text style={styles.optionText}>Aufnehmen</Text>
+            <Pressable
+              style={[
+                styles.optionButton,
+                {
+                  backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+                  borderColor: isDark ? colors.primary[800] : colors.primary[200],
+                },
+              ]}
+              onPress={recordVideo}
+            >
+              <Ionicons name="camera-outline" size={32} color={theme.textGreen} />
+              <Text style={[styles.optionText, { color: theme.textGreen }]}>Aufnehmen</Text>
             </Pressable>
           </View>
 
-          <Text style={styles.hint}>Max. {MAX_FILE_SIZE_MB}MB, bis zu 10 Minuten</Text>
+          <Text style={[styles.hint, { color: theme.textSecondary }]}>
+            Max. {MAX_FILE_SIZE_MB}MB, bis zu 10 Minuten
+          </Text>
         </>
       ) : (
         <>
@@ -177,7 +175,9 @@ export function VideoUploader({
             )}
           </View>
 
-          <Text style={styles.readyText}>Video bereit zur Verarbeitung</Text>
+          <Text style={[styles.readyText, { color: theme.textSecondary }]}>
+            Video bereit zur Verarbeitung
+          </Text>
 
           <Button onPress={handleStartProcessing}>Reel erstellen</Button>
         </>
@@ -195,8 +195,6 @@ export function VideoUploader({
 
 const styles = StyleSheet.create<{
   container: ViewStyle;
-  backButton: ViewStyle;
-  backButtonText: TextStyle;
   iconContainer: ViewStyle;
   title: TextStyle;
   subtitle: TextStyle;
@@ -210,11 +208,6 @@ const styles = StyleSheet.create<{
   durationBadge: ViewStyle;
   durationText: TextStyle;
   readyText: TextStyle;
-  uploadingContainer: ViewStyle;
-  uploadingText: TextStyle;
-  progressContainer: ViewStyle;
-  progressBar: ViewStyle;
-  progressText: TextStyle;
   errorContainer: ViewStyle;
   errorText: TextStyle;
 }>({
@@ -224,33 +217,16 @@ const styles = StyleSheet.create<{
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButton: {
-    position: 'absolute',
-    top: spacing.medium,
-    left: spacing.medium,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-    paddingVertical: spacing.small,
-    paddingHorizontal: spacing.small,
-  },
-  backButtonText: {
-    ...typography.body,
-    color: colors.primary[600],
-    fontWeight: '500',
-  },
   iconContainer: {
     marginBottom: spacing.large,
   },
   title: {
     ...typography.h2,
-    color: colors.grey[800],
     textAlign: 'center',
     marginBottom: spacing.small,
   },
   subtitle: {
     ...typography.body,
-    color: colors.grey[600],
     textAlign: 'center',
     marginBottom: spacing.xlarge,
     paddingHorizontal: spacing.medium,
@@ -261,22 +237,18 @@ const styles = StyleSheet.create<{
     marginBottom: spacing.large,
   },
   optionButton: {
-    backgroundColor: colors.primary[50],
     paddingVertical: spacing.large,
     paddingHorizontal: spacing.xlarge,
     borderRadius: borderRadius.large,
     alignItems: 'center',
     gap: spacing.small,
     borderWidth: 1,
-    borderColor: colors.primary[200],
   },
   optionText: {
     ...typography.button,
-    color: colors.primary[600],
   },
   hint: {
     ...typography.caption,
-    color: colors.grey[500],
   },
   previewContainer: {
     width: '100%',
@@ -315,31 +287,7 @@ const styles = StyleSheet.create<{
   },
   readyText: {
     ...typography.body,
-    color: colors.grey[600],
     marginBottom: spacing.large,
-  },
-  uploadingContainer: {
-    alignItems: 'center',
-    gap: spacing.medium,
-  },
-  uploadingText: {
-    ...typography.body,
-    color: colors.grey[700],
-  },
-  progressContainer: {
-    width: 200,
-    height: 6,
-    backgroundColor: colors.grey[200],
-    borderRadius: borderRadius.small,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.primary[600],
-  },
-  progressText: {
-    ...typography.caption,
-    color: colors.grey[600],
   },
   errorContainer: {
     flexDirection: 'row',

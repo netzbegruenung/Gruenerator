@@ -56,7 +56,7 @@ export default function JoinGroupScreen() {
       <View style={styles.content}>
         {verify.isPending ? (
           <>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
+            <ActivityIndicator size="large" color={theme.textGreen} />
             <Text style={[styles.text, { color: theme.textSecondary }]}>
               Einladung wird geprüft...
             </Text>
@@ -82,8 +82,8 @@ export default function JoinGroupScreen() {
           </>
         ) : (
           <>
-            <View style={[styles.iconCircle, { backgroundColor: colors.primary[600] + '18' }]}>
-              <Ionicons name="people" size={48} color={colors.primary[600]} />
+            <View style={[styles.iconCircle, { backgroundColor: theme.textGreen + '18' }]}>
+              <Ionicons name="people" size={48} color={theme.textGreen} />
             </View>
             <Text style={[styles.heading, { color: theme.text }]}>{verify.data?.group.name}</Text>
             <Text style={[styles.text, { color: theme.textSecondary }]}>

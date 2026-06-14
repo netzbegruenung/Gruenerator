@@ -23,8 +23,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build:android": "EAS_NO_VCS=1 eas build -p android --profile production",
-    "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview",
-    "eas-build-post-install": "pnpm -w --filter @gruenerator/canvas-editor build:css"
+    "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
     "@assistant-ui/react-native": "^0.1.22",
@@ -33,7 +32,6 @@
     "@expo/metro-runtime": "~56.0.11",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "~56.0.12",
-    "@gruenerator/canvas-editor": "workspace:*",
     "@gruenerator/chat": "workspace:*",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
@@ -59,6 +57,7 @@
     "expo-glass-effect": "~56.0.4",
     "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.8",
+    "expo-image-and-video-compressor": "^1.0.2",
     "expo-image-picker": "~56.0.12",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.11",
@@ -96,6 +95,7 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",
+    "expo-atlas": "^0.4.0",
     "globals": "^17.6.0",
     "typescript": "~6.0.3"
   }

@@ -18,7 +18,7 @@ import {
   PiTree,
   PiWaves,
   PiXLogo,
-} from 'react-icons/pi';
+} from '@gruenerator/shared/icons';
 import type { SkillIcon } from '@gruenerator/shared/agents';
 
 export const SKILL_ICONS: Record<string, SkillIcon> = {
