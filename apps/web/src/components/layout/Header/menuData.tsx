@@ -1,3 +1,5 @@
+import { FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
+import { HiCog } from 'react-icons/hi';
 import { PiGlobe } from 'react-icons/pi';
 import { SlNotebook } from 'react-icons/sl';
 
@@ -10,6 +12,21 @@ import type { IconType } from 'react-icons';
 export interface MenuFlags {
   isAustrian?: boolean;
 }
+
+// Account-menu nav targets, shared by the sidebar account block (SidebarAccount).
+export interface NavItem {
+  key: string;
+  label: string;
+  path: string;
+  icon: IconType;
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
+  { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
+  { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
+];
 
 // Menu item type definition
 export interface MenuItemType {
