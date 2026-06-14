@@ -297,67 +297,6 @@ router.get(
 );
 
 // ============================================================================
-// Custom Generators Gallery
-// ============================================================================
-
-router.get(
-  '/custom-generators',
-  ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { searchTerm = '', category } = req.query;
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const conditions = ['is_active = true'];
-      const params: unknown[] = [];
-      let paramIndex = 1;
-
-      if (category === 'own') {
-        conditions.push(`user_id = $${paramIndex++}`);
-        params.push(userId);
-      }
-
-      if (searchTerm && String(searchTerm).trim().length > 0) {
-        const term = `%${String(searchTerm).trim()}%`;
-        conditions.push(`(name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-        params.push(term);
-      }
-
-      const query = `
-      SELECT id, name, slug, description, created_at, user_id
-      FROM custom_generators
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
-    `;
-
-      const data = await postgres.query(query, params, { table: 'custom_generators' });
-
-      const generators = (data || []).map((g: Record<string, unknown>) => ({
-        id: g.id,
-        name: g.name,
-        slug: g.slug,
-        description: g.description,
-        created_at: g.created_at,
-      }));
-
-      res.json({ success: true, generators });
-    } catch (err) {
-      const error = err as Error;
-      log.error('[Gallery] /custom-generators GET error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Fehler beim Laden der Grüneratoren',
-        details: error.message,
-        generators: [],
-      });
-    }
-  }
-);
-
-// ============================================================================
 // PR Texts Gallery
 // ============================================================================
 
