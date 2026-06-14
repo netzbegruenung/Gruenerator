@@ -11,12 +11,10 @@ import ChatInner from './ChatInner';
 const BilderInner = lazy(() => import('./BilderInner'));
 const BoardsInner = lazy(() => import('./BoardsInner'));
 const DocsInner = lazy(() => import('./DocsInner'));
-const EigeneTab = lazy(() => import('../../texte/tabs/EigeneTab'));
 
 const CreatorSection: React.FC = memo(() => {
   const [mode, setMode] = useState(DEFAULT_MODE);
   const isChat = mode === 'chat';
-  const isEigene = mode === 'eigene';
   const isBoards = mode === 'boards';
   const isDocs = mode === 'docs';
   const isBilder = mode === 'bilder';
@@ -37,9 +35,7 @@ const CreatorSection: React.FC = memo(() => {
             </div>
           }
         >
-          {isEigene ? (
-            <EigeneTab />
-          ) : isBilder ? (
+          {isBilder ? (
             <BilderInner key={mode} />
           ) : isBoards ? (
             <BoardsInner key={mode} />

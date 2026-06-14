@@ -98,14 +98,6 @@ export interface CustomGenerator extends CustomGeneratorData {
   id: string | number;
 }
 
-export interface CustomGeneratorResponse {
-  success?: boolean;
-  message?: string;
-  generator?: CustomGenerator;
-  generators?: CustomGenerator[];
-  [key: string]: unknown;
-}
-
 // === SAVED TEXT TYPES ===
 export interface SavedText {
   id: string | number;
@@ -267,18 +259,6 @@ interface NotebookCollectionMutationResponse {
 interface NotebookCollectionUpdateResponse {
   success: boolean;
   message?: string;
-}
-
-interface CustomGeneratorsResponse {
-  generators?: CustomGenerator[];
-}
-
-interface CustomGeneratorMutationResponse {
-  generator: CustomGenerator;
-}
-
-interface GeneratorDocumentsResponse {
-  documents?: Document[];
 }
 
 interface SavedTextsResponse {
@@ -598,85 +578,6 @@ export const profileApiService = {
     }
 
     return json;
-  },
-
-  // === CUSTOM GENERATORS ===
-  async getCustomGenerators(): Promise<CustomGenerator[]> {
-    const response = await apiClient.get<CustomGeneratorsResponse>('/auth/custom_generator', {
-      skipAuthRedirect: true,
-    });
-    return response.data?.generators ?? [];
-  },
-
-  async updateCustomGenerator(
-    generatorId: string | number,
-    updateData: CustomGeneratorData
-  ): Promise<CustomGenerator> {
-    const response = await apiClient.put<CustomGeneratorMutationResponse>(
-      `/auth/custom_generator/${generatorId}`,
-      updateData
-    );
-    return response.data.generator;
-  },
-
-  async deleteCustomGenerator(generatorId: string | number): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.delete<CustomGeneratorResponse>(
-      `/auth/custom_generator/${generatorId}`
-    );
-    return response.data;
-  },
-
-  async getGeneratorDocuments(generatorId: string | number): Promise<Document[]> {
-    const response = await apiClient.get<GeneratorDocumentsResponse>(
-      `/auth/custom_generator/${generatorId}/documents`
-    );
-    return response.data.documents ?? [];
-  },
-
-  async addDocumentsToGenerator(
-    generatorId: string | number,
-    documentIds: string[]
-  ): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.post<CustomGeneratorResponse>(
-      `/auth/custom_generator/${generatorId}/documents`,
-      {
-        documentIds: documentIds,
-      }
-    );
-    return response.data;
-  },
-
-  async removeDocumentFromGenerator(
-    generatorId: string | number,
-    documentId: string | number
-  ): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.delete<CustomGeneratorResponse>(
-      `/auth/custom_generator/${generatorId}/documents/${documentId}`
-    );
-    return response.data;
-  },
-
-  async createCustomGenerator(
-    generatorData: CustomGeneratorData
-  ): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.post<CustomGeneratorResponse>(
-      '/auth/custom_generator/create',
-      generatorData
-    );
-    return response.data;
-  },
-
-  // === SAVED GENERATORS ===
-  async getSavedGenerators(): Promise<CustomGenerator[]> {
-    const response = await apiClient.get<CustomGeneratorsResponse>('/auth/saved_generators');
-    return response.data?.generators ?? [];
-  },
-
-  async unsaveGenerator(generatorId: string | number): Promise<CustomGeneratorResponse> {
-    const response = await apiClient.delete<CustomGeneratorResponse>(
-      `/auth/saved_generators/${generatorId}`
-    );
-    return response.data;
   },
 
   // === USER TEXTS ===

@@ -46,7 +46,7 @@ const ProfilePage = () => {
     }
 
     if (tab === 'grueneratoren') {
-      void navigate('/texte?tab=eigene', { replace: true });
+      void navigate('/agentura', { replace: true });
       return;
     }
 
@@ -169,5 +169,5 @@ const ProfilePage = () => {
 
 export default withAuthRequired(ProfilePage, {
   title: 'Profil',
-  message: 'Melde dich an, um dein Profil zu verwalten und eigene Grüneratoren zu erstellen.',
+  message: 'Melde dich an, um dein Profil zu verwalten und eigene Agent*innen zu erstellen.',
 });

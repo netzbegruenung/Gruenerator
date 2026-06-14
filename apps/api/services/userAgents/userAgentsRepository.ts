@@ -9,52 +9,8 @@
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
 import { and, eq } from 'drizzle-orm';
 
-import { customGenerators } from '../../database/schema/generators.js';
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-
-/**
- * Identifier prefix that namespaces custom_generators virtualized as agents.
- * `cg-<slug>`. Avoids collision with native user-agents (any slug) and system
- * agents (`gruenerator-*`). The agent loader uses this prefix to route lookups
- * back to the custom_generators table.
- */
-export const CUSTOM_GENERATOR_AGENT_PREFIX = 'cg-';
-
-interface CustomGeneratorRow {
-  id: string;
-  user_id: string | null;
-  name: string;
-  slug: string;
-  description: string | null;
-  prompt: string;
-  is_active: boolean;
-}
-
-/**
- * Map a custom_generators row to the canonical Agent shape so existing CGs
- * appear as agents in the sidebar without any data migration. system_role is
- * the CG's prompt verbatim; the user provides context conversationally rather
- * than via the legacy form.
- */
-function customGeneratorToAgent(row: CustomGeneratorRow): Agent {
-  return {
-    identifier: `${CUSTOM_GENERATOR_AGENT_PREFIX}${row.slug}`,
-    title: row.name,
-    description: row.description ?? `Custom Grünerator: ${row.name}`,
-    systemRole: row.prompt,
-    avatar: '✨',
-    backgroundColor: '#316049',
-    tags: ['custom'],
-    model: 'mistral-large-latest',
-    provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
-    openingMessage: `Hallo! Ich bin ${row.name}. Wie kann ich helfen?`,
-    openingQuestions: [],
-    locale: 'de-DE',
-    author: 'Custom Grünerator',
-  };
-}
 
 export interface UserAgentInput {
   identifier: string;
@@ -165,99 +121,8 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
 
 export async function listUserAgents(userId: string): Promise<Agent[]> {
   const db = getDrizzleInstance();
-  const [agentRows, cgRows] = await Promise.all([
-    db.select().from(userAgents).where(eq(userAgents.user_id, userId)),
-    db
-      .select({
-        id: customGenerators.id,
-        user_id: customGenerators.user_id,
-        name: customGenerators.name,
-        slug: customGenerators.slug,
-        description: customGenerators.description,
-        prompt: customGenerators.prompt,
-        is_active: customGenerators.is_active,
-      })
-      .from(customGenerators)
-      .where(eq(customGenerators.user_id, userId)),
-  ]);
-  // If a CG has already been converted (a real user_agents row with identifier
-  // `cg-<slug>` exists), skip the virtualized version so it doesn't appear
-  // twice in the sidebar.
-  const realIdentifiers = new Set(agentRows.map((r) => r.identifier));
-  const virtualizedCgs = cgRows
-    .filter((cg) => !realIdentifiers.has(`${CUSTOM_GENERATOR_AGENT_PREFIX}${cg.slug}`))
-    .map(customGeneratorToAgent);
-  return [...agentRows.map(rowToAgent), ...virtualizedCgs];
-}
-
-/**
- * Build a UserAgentInput from a custom_generators row. Used by the convert
- * endpoint to persist a virtualized CG as a real user_agents row. Mirrors
- * `customGeneratorToAgent` but produces the camelCase Input shape the
- * repository's `createUserAgent` accepts. Defaults are intentional: anything
- * the user doesn't like is editable on the agent afterwards.
- */
-export function customGeneratorToUserAgentInput(row: CustomGeneratorRow): UserAgentInput {
-  return {
-    identifier: `${CUSTOM_GENERATOR_AGENT_PREFIX}${row.slug}`,
-    title: row.name,
-    description: row.description ?? `Custom Grünerator: ${row.name}`,
-    systemRole: row.prompt,
-    avatar: '✨',
-    backgroundColor: '#316049',
-    tags: ['custom', 'converted'],
-    model: 'mistral-large-latest',
-    provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
-    openingMessage: `Hallo! Ich bin ${row.name}. Wie kann ich helfen?`,
-    openingQuestions: [],
-    locale: 'de-DE',
-    author: 'Custom Grünerator',
-    enabledTools: ['search', 'web'],
-  };
-}
-
-export async function getCustomGeneratorRow(
-  userId: string,
-  slug: string
-): Promise<CustomGeneratorRow | undefined> {
-  const db = getDrizzleInstance();
-  const rows = await db
-    .select({
-      id: customGenerators.id,
-      user_id: customGenerators.user_id,
-      name: customGenerators.name,
-      slug: customGenerators.slug,
-      description: customGenerators.description,
-      prompt: customGenerators.prompt,
-      is_active: customGenerators.is_active,
-    })
-    .from(customGenerators)
-    .where(and(eq(customGenerators.user_id, userId), eq(customGenerators.slug, slug)))
-    .limit(1);
-  return rows[0];
-}
-
-export async function getCustomGeneratorAsAgent(
-  userId: string,
-  slug: string
-): Promise<Agent | undefined> {
-  const db = getDrizzleInstance();
-  const rows = await db
-    .select({
-      id: customGenerators.id,
-      user_id: customGenerators.user_id,
-      name: customGenerators.name,
-      slug: customGenerators.slug,
-      description: customGenerators.description,
-      prompt: customGenerators.prompt,
-      is_active: customGenerators.is_active,
-    })
-    .from(customGenerators)
-    .where(and(eq(customGenerators.user_id, userId), eq(customGenerators.slug, slug)))
-    .limit(1);
-  const row = rows[0];
-  return row ? customGeneratorToAgent(row) : undefined;
+  const agentRows = await db.select().from(userAgents).where(eq(userAgents.user_id, userId));
+  return agentRows.map(rowToAgent);
 }
 
 export async function getUserAgent(userId: string, identifier: string): Promise<Agent | undefined> {
