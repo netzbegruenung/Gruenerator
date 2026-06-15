@@ -1,7 +1,7 @@
 import { useAuiState, AttachmentPrimitive } from '@assistant-ui/react-native';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, borderRadius } from '../../theme';
 
@@ -10,6 +10,8 @@ import { colors, borderRadius } from '../../theme';
  * Layout: [thumb/icon] [filename] [X]
  */
 export function ComposerAttachmentUI() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const name = useAuiState((s) => s.attachment.name);
   const type = useAuiState((s) => s.attachment.type);
   const imageUri = useAuiState((s) => {
@@ -22,15 +24,35 @@ export function ComposerAttachmentUI() {
   });
 
   return (
-    <View style={styles.composerBadge}>
+    <View
+      style={[
+        styles.composerBadge,
+        {
+          backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+          borderColor: isDark ? colors.primary[800] : colors.primary[200],
+        },
+      ]}
+    >
       {type === 'image' && imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.composerThumb} contentFit="cover" />
       ) : (
-        <View style={styles.composerIconBox}>
-          <Ionicons name={getFileIcon(name)} size={16} color={colors.primary[600]} />
+        <View
+          style={[
+            styles.composerIconBox,
+            { backgroundColor: isDark ? colors.primary[900] : colors.primary[100] },
+          ]}
+        >
+          <Ionicons
+            name={getFileIcon(name)}
+            size={16}
+            color={isDark ? colors.primary[400] : colors.primary[600]}
+          />
         </View>
       )}
-      <Text style={styles.composerName} numberOfLines={1}>
+      <Text
+        style={[styles.composerName, { color: isDark ? colors.grey[100] : colors.grey[700] }]}
+        numberOfLines={1}
+      >
         {name}
       </Text>
       <AttachmentPrimitive.Remove style={styles.removeHitArea} hitSlop={8}>
@@ -97,9 +119,7 @@ const styles = StyleSheet.create({
   composerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary[50],
     borderWidth: 1,
-    borderColor: colors.primary[200],
     borderRadius: borderRadius.medium,
     paddingLeft: 4,
     paddingRight: 28, // room for remove button
@@ -119,14 +139,12 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: borderRadius.small,
-    backgroundColor: colors.primary[100],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
   },
   composerName: {
     fontSize: 13,
-    color: colors.grey[700],
     flexShrink: 1,
   },
   removeHitArea: {

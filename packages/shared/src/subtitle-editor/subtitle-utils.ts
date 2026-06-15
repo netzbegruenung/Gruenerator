@@ -33,17 +33,64 @@ function parseTimestamp(timeStr: string): { min: number; sec: number; fracSecond
 }
 
 /**
- * Parse subtitle text format into segment array
- * Format: "MM:SS.F - MM:SS.F\nText\n\nMM:SS.F - MM:SS.F\nText..."
- * Accepts 1–2 fractional digits per timestamp (tenths or centiseconds);
- * extra digits are truncated. Emitters write 1 digit until Phase B.
+ * Parse a JSON-stored segment array: `JSON.stringify(SubtitleSegment[])`
+ * as written by the canonicalized POST /subtitler/projects create path
+ * (projectSavingService stores `JSON.stringify(projectData.subtitles)`).
+ * The wire segments carry no `id`; indexes are assigned here. Returns null
+ * when the string isn't a valid segment array so the caller can fall back
+ * to the text format.
+ */
+function parseJsonSegments(text: string): SubtitleSegment[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+
+  const segments: SubtitleSegment[] = [];
+  for (const item of parsed) {
+    if (typeof item !== 'object' || item === null) return null;
+    const segment = item as Record<string, unknown>;
+    if (
+      typeof segment.text !== 'string' ||
+      typeof segment.startTime !== 'number' ||
+      typeof segment.endTime !== 'number'
+    ) {
+      return null;
+    }
+    segments.push({
+      id: segments.length,
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+      text: segment.text,
+    });
+  }
+  return segments;
+}
+
+/**
+ * Parse stored subtitles into a segment array. Accepts BOTH persisted
+ * formats — the DB `subtitles` column holds either depending on which
+ * code path wrote it:
+ * - JSON segment array (`[{"text":…,"startTime":…,"endTime":…}]`) from the
+ *   canonicalized create path (2026-04-13 contract unification)
+ * - Text format "MM:SS.F - MM:SS.F\nText\n\n…" from the update path and
+ *   the transcription pipeline. Accepts 1–2 fractional digits per
+ *   timestamp (tenths or centiseconds); extra digits are truncated.
  *
- * @param text - Raw subtitle text from backend
+ * @param text - Raw subtitle string from backend
  * @returns Array of parsed subtitle segments
  */
 export function parseSubtitlesText(text: string | null | undefined): SubtitleSegment[] {
   if (!text || typeof text !== 'string' || text.trim() === '') {
     return [];
+  }
+
+  if (text.trimStart().startsWith('[')) {
+    const fromJson = parseJsonSegments(text);
+    if (fromJson) return fromJson;
   }
 
   const safeText =
@@ -92,6 +139,67 @@ export function formatSubtitlesToText(segments: SubtitleSegment[]): string {
       return `${startFormatted} - ${endFormatted}\n${segment.text}`;
     })
     .join('\n\n');
+}
+
+export type StoredSubtitlesFormat = 'json' | 'text';
+
+/**
+ * Parse whatever the `subtitler_projects.subtitles` column holds. The column
+ * has two formats in the wild: a JSON-stringified segment array (written by
+ * projectSavingService for auto-saved and contract-created projects) and the
+ * "MM:SS.F - MM:SS.F\nText" text format (parseSubtitlesText). Returns the
+ * detected format so writers can round-trip without converting the project.
+ */
+export function parseStoredSubtitles(blob: string | null | undefined): {
+  segments: SubtitleSegment[];
+  format: StoredSubtitlesFormat;
+} {
+  const trimmed = (blob ?? '').trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        const segments: SubtitleSegment[] = [];
+        for (const [index, entry] of parsed.entries()) {
+          if (typeof entry !== 'object' || entry === null) continue;
+          const rec = entry as Record<string, unknown>;
+          if (
+            typeof rec.text !== 'string' ||
+            typeof rec.startTime !== 'number' ||
+            typeof rec.endTime !== 'number'
+          ) {
+            continue;
+          }
+          segments.push({
+            id: typeof rec.id === 'number' ? rec.id : index,
+            startTime: rec.startTime,
+            endTime: rec.endTime,
+            text: rec.text,
+          });
+        }
+        return { segments, format: 'json' };
+      }
+    } catch {
+      // fall through to the text parser
+    }
+  }
+  return { segments: parseSubtitlesText(trimmed), format: 'text' };
+}
+
+/**
+ * Serialize segments back into the format they were read from, so editing a
+ * project never silently migrates its storage format.
+ */
+export function serializeStoredSubtitles(
+  segments: SubtitleSegment[],
+  format: StoredSubtitlesFormat
+): string {
+  if (format === 'json') {
+    return JSON.stringify(
+      segments.map((s) => ({ text: s.text, startTime: s.startTime, endTime: s.endTime }))
+    );
+  }
+  return formatSubtitlesToText(segments);
 }
 
 /**

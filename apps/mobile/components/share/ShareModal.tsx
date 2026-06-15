@@ -21,6 +21,7 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTheme } from '../../hooks/useTheme';
 import { shareService } from '../../services/share';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import { getErrorMessage } from '../../utils/errors';
@@ -48,6 +49,7 @@ export function ShareModal({
   defaultTitle = 'Mein Reel',
 }: ShareModalProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const [shareTitle, setShareTitle] = useState(defaultTitle);
   const [step, setStep] = useState<ShareStep>('input');
   const [copied, setCopied] = useState(false);
@@ -147,13 +149,20 @@ export function ShareModal({
       case 'input':
         return (
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Titel</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Titel</Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  borderColor: theme.border,
+                  color: theme.text,
+                  backgroundColor: theme.surface,
+                },
+              ]}
               value={shareTitle}
               onChangeText={setShareTitle}
               placeholder="Titel eingeben..."
-              placeholderTextColor={colors.grey[400]}
+              placeholderTextColor={theme.textSecondary}
               maxLength={200}
             />
 
@@ -163,8 +172,7 @@ export function ShareModal({
               </Button>
 
               <Button onPress={handleDirectShare} variant="outline">
-                <Ionicons name="share-outline" size={18} color={colors.primary[600]} /> Direkt
-                teilen
+                <Ionicons name="share-outline" size={18} color={theme.textGreen} /> Direkt teilen
               </Button>
             </View>
           </View>
@@ -173,8 +181,10 @@ export function ShareModal({
       case 'loading':
         return (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary[600]} />
-            <Text style={styles.loadingText}>Link wird erstellt...</Text>
+            <ActivityIndicator size="large" color={theme.textGreen} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+              Link wird erstellt...
+            </Text>
           </View>
         );
 
@@ -186,8 +196,8 @@ export function ShareModal({
         return (
           <View style={styles.successContainer}>
             <View style={styles.successHeader}>
-              <Ionicons name="checkmark-circle" size={32} color={colors.primary[600]} />
-              <Text style={styles.successTitle}>Link erstellt!</Text>
+              <Ionicons name="checkmark-circle" size={32} color={theme.textGreen} />
+              <Text style={[styles.successTitle, { color: theme.text }]}>Link erstellt!</Text>
             </View>
 
             <ShareLinkDisplay
@@ -198,8 +208,8 @@ export function ShareModal({
             />
 
             <Button onPress={handleDirectShare} variant="outline" style={styles.directShareButton}>
-              <Ionicons name="videocam-outline" size={18} color={colors.primary[600]} /> Video
-              direkt teilen
+              <Ionicons name="videocam-outline" size={18} color={theme.textGreen} /> Video direkt
+              teilen
             </Button>
           </View>
         );
@@ -209,7 +219,7 @@ export function ShareModal({
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={48} color={colors.error[500]} />
             <Text style={styles.errorTitle}>Fehler</Text>
-            <Text style={styles.errorText}>
+            <Text style={[styles.errorText, { color: theme.textSecondary }]}>
               {localError || 'Link konnte nicht erstellt werden.'}
             </Text>
             <Button onPress={handleRetry} variant="outline">
@@ -230,16 +240,19 @@ export function ShareModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView behavior="padding" style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Teilen</Text>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <Text style={[styles.title, { color: theme.text }]}>Teilen</Text>
           <Pressable
             onPress={onClose}
             style={styles.closeButton}
             accessibilityLabel="Schließen"
             accessibilityRole="button"
           >
-            <Ionicons name="close" size={24} color={colors.grey[600]} />
+            <Ionicons name="close" size={24} color={theme.textSecondary} />
           </Pressable>
         </View>
 
@@ -276,7 +289,6 @@ const styles = StyleSheet.create<{
 }>({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
   },
   header: {
     flexDirection: 'row',
@@ -285,11 +297,9 @@ const styles = StyleSheet.create<{
     paddingVertical: spacing.medium,
     paddingHorizontal: spacing.large,
     borderBottomWidth: 1,
-    borderBottomColor: colors.grey[200],
   },
   title: {
     ...typography.h3,
-    color: colors.grey[800],
   },
   closeButton: {
     position: 'absolute',
@@ -305,18 +315,14 @@ const styles = StyleSheet.create<{
   },
   label: {
     ...typography.label,
-    color: colors.grey[700],
     marginBottom: spacing.xxsmall,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.grey[300],
     borderRadius: borderRadius.medium,
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
     fontSize: 16,
-    color: colors.grey[800],
-    backgroundColor: colors.white,
   },
   buttonGroup: {
     gap: spacing.medium,
@@ -330,7 +336,6 @@ const styles = StyleSheet.create<{
   },
   loadingText: {
     ...typography.body,
-    color: colors.grey[600],
   },
   successContainer: {
     gap: spacing.medium,
@@ -344,7 +349,6 @@ const styles = StyleSheet.create<{
   },
   successTitle: {
     ...typography.h3,
-    color: colors.grey[800],
   },
   directShareButton: {
     marginTop: spacing.medium,
@@ -361,7 +365,6 @@ const styles = StyleSheet.create<{
   },
   errorText: {
     ...typography.body,
-    color: colors.grey[600],
     textAlign: 'center',
     marginBottom: spacing.medium,
   },

@@ -111,6 +111,7 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().optional(),
   APIFY_TOKEN: z.string().optional(),
   EVENT_REGISTRY_API_KEY: z.string().optional(),
+  POLITPRO_API_KEY: z.string().optional(),
   NLP_SERVICE_URL: z.string().optional(),
 
   // ── Nango ──────────────────────────────────────────────────────────────

@@ -9,7 +9,11 @@
  *   - /api/monitor/*          → requireAuth + publicReadLimiter
  *   - /api/internal/monitor/* → requireAdminToken
  */
-import { monitorContract, type MonitorHotTopicAnalysis } from '@gruenerator/contracts';
+import {
+  monitorContract,
+  type MonitorHotTopicAnalysis,
+  type PollData,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -17,6 +21,7 @@ import {
   getWhatHappenedDaySummary,
   upsertSyncEvents,
 } from '../../services/monitor/ContentSyncEventsService.js';
+import { getEuGreenProfile } from '../../services/monitor/EuGreenProfileService.js';
 import { getHotTopicAnalysis } from '../../services/monitor/HotTopicPipeline.js';
 import { getMeinungsbild } from '../../services/monitor/MeinungsbildService.js';
 import {
@@ -29,8 +34,13 @@ import {
   refreshInstagram,
 } from '../../services/monitor/MonitorService.js';
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
-import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/PolitProService.js';
-import { getPolls } from '../../services/monitor/PollScraper.js';
+import {
+  getEuGreens,
+  getEuGreensHistory,
+  getPolitProHistory,
+  getPolitProPolls,
+  POLITPRO_PARLIAMENTS,
+} from '../../services/monitor/PolitProService.js';
 import { getStateElections } from '../../services/monitor/StateElectionsService.js';
 import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -169,16 +179,77 @@ export const monitorContractRouter = s.router(monitorContract, {
     return { status: 200 as const, body: [...POLITPRO_PARLIAMENTS] };
   },
 
+  euGreensHistory: async ({ res }) => {
+    try {
+      const data = await getEuGreensHistory();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'EU greens history unavailable' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens/history failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch EU greens history' } };
+    }
+  },
+
+  euGreenProfile: async ({ query, res }) => {
+    try {
+      const data = await getEuGreenProfile(query.country);
+      if (!data) {
+        return { status: 404 as const, body: { error: 'Unknown party' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens/profile failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to generate party profile' } };
+    }
+  },
+
+  euGreens: async ({ res }) => {
+    try {
+      const data = await getEuGreens();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'EU greens data unavailable' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/eu-greens failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch EU greens data' } };
+    }
+  },
+
+  pollsHistory: async ({ query, res }) => {
+    try {
+      const data = await getPolitProHistory(query.parliament ?? 'deutschland');
+      if (!data) {
+        return { status: 404 as const, body: { error: 'No history for this parliament' } };
+      }
+      cache(res, 'private, max-age=3600, stale-while-revalidate=7200');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /polls/history failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch poll history' } };
+    }
+  },
+
   polls: async ({ query, res }) => {
     try {
       const parliament = query.parliament ?? 'deutschland';
-      const politProData = await getPolitProPolls(parliament);
-      if (!politProData) {
-        log.warn(`PolitPro returned null for "${parliament}", falling back to wahlrecht.de`);
-      }
-      const data = politProData ?? (await getPolls());
+      // PolitPro is the only poll source — if it has nothing, serve empty data.
+      const data: PollData | null = await getPolitProPolls(parliament);
       cache(res, 'private, max-age=1800, stale-while-revalidate=3600');
-      return { status: 200 as const, body: data };
+      return {
+        status: 200 as const,
+        body: data ?? {
+          polls: [],
+          lastElection: null,
+          average: {},
+          scrapedAt: new Date().toISOString(),
+        },
+      };
     } catch (error) {
       log.error(`GET /polls failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch polls' } };

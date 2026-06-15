@@ -2,9 +2,9 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import * as ExpoImagePicker from 'expo-image-picker';
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
 
 interface ImagePickerProps {
   onImageSelected: (base64: string, fileName: string) => void;
@@ -23,6 +23,9 @@ export function ImagePicker({
   onClear,
   maxSizeMB = DEFAULT_MAX_SIZE_MB,
 }: ImagePickerProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
   const [loading, setLoading] = useState(false);
 
   const pickImage = useCallback(async () => {
@@ -103,8 +106,10 @@ export function ImagePicker({
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-          <Text style={styles.loadingText}>Bild wird geladen...</Text>
+          <ActivityIndicator size="large" color={theme.textGreen} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+            Bild wird geladen...
+          </Text>
         </View>
       </View>
     );
@@ -113,7 +118,7 @@ export function ImagePicker({
   if (selectedImage) {
     return (
       <View style={styles.container}>
-        <View style={styles.previewContainer}>
+        <View style={[styles.previewContainer, { backgroundColor: theme.surface }]}>
           <Image source={{ uri: selectedImage.uri }} style={styles.preview} contentFit="cover" />
           <Pressable
             style={styles.clearButton}
@@ -124,7 +129,7 @@ export function ImagePicker({
             <Ionicons name="close-circle" size={28} color={colors.white} />
           </Pressable>
         </View>
-        <Text style={styles.fileName} numberOfLines={1}>
+        <Text style={[styles.fileName, { color: theme.textSecondary }]} numberOfLines={1}>
           {selectedImage.fileName}
         </Text>
       </View>
@@ -134,25 +139,47 @@ export function ImagePicker({
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Ionicons name="image-outline" size={48} color={colors.primary[600]} />
+        <Ionicons name="image-outline" size={48} color={theme.textGreen} />
       </View>
 
-      <Text style={styles.title}>Bild auswählen</Text>
-      <Text style={styles.subtitle}>Wähle ein Bild aus deiner Galerie oder nimm ein Foto auf</Text>
+      <Text style={[styles.title, { color: theme.text }]}>Bild auswählen</Text>
+      <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+        Wähle ein Bild aus deiner Galerie oder nimm ein Foto auf
+      </Text>
 
       <View style={styles.buttonContainer}>
-        <Pressable style={styles.optionButton} onPress={pickImage}>
-          <Ionicons name="images-outline" size={28} color={colors.primary[600]} />
-          <Text style={styles.optionText}>Galerie</Text>
+        <Pressable
+          style={[
+            styles.optionButton,
+            {
+              backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+              borderColor: isDark ? colors.primary[800] : colors.primary[200],
+            },
+          ]}
+          onPress={pickImage}
+        >
+          <Ionicons name="images-outline" size={28} color={theme.textGreen} />
+          <Text style={[styles.optionText, { color: theme.textGreen }]}>Galerie</Text>
         </Pressable>
 
-        <Pressable style={styles.optionButton} onPress={takePhoto}>
-          <Ionicons name="camera-outline" size={28} color={colors.primary[600]} />
-          <Text style={styles.optionText}>Kamera</Text>
+        <Pressable
+          style={[
+            styles.optionButton,
+            {
+              backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+              borderColor: isDark ? colors.primary[800] : colors.primary[200],
+            },
+          ]}
+          onPress={takePhoto}
+        >
+          <Ionicons name="camera-outline" size={28} color={theme.textGreen} />
+          <Text style={[styles.optionText, { color: theme.textGreen }]}>Kamera</Text>
         </Pressable>
       </View>
 
-      <Text style={styles.hint}>Max. {maxSizeMB}MB, JPG/PNG/WebP</Text>
+      <Text style={[styles.hint, { color: theme.textSecondary }]}>
+        Max. {maxSizeMB}MB, JPG/PNG/WebP
+      </Text>
     </View>
   );
 }
@@ -169,20 +196,17 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.grey[600],
   },
   iconContainer: {
     marginBottom: spacing.medium,
   },
   title: {
     ...typography.h3,
-    color: colors.grey[800],
     textAlign: 'center',
     marginBottom: spacing.xsmall,
   },
   subtitle: {
     ...typography.body,
-    color: colors.grey[600],
     textAlign: 'center',
     marginBottom: spacing.large,
     paddingHorizontal: spacing.medium,
@@ -193,24 +217,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.medium,
   },
   optionButton: {
-    backgroundColor: colors.primary[50],
     paddingVertical: spacing.medium,
     paddingHorizontal: spacing.large,
     borderRadius: borderRadius.large,
     alignItems: 'center',
     gap: spacing.xsmall,
     borderWidth: 1,
-    borderColor: colors.primary[200],
     minWidth: 100,
   },
   optionText: {
     ...typography.button,
-    color: colors.primary[600],
     fontSize: 13,
   },
   hint: {
     ...typography.caption,
-    color: colors.grey[500],
   },
   previewContainer: {
     width: '100%',
@@ -219,7 +239,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: colors.grey[100],
   },
   preview: {
     width: '100%',
@@ -235,7 +254,6 @@ const styles = StyleSheet.create({
   },
   fileName: {
     ...typography.caption,
-    color: colors.grey[600],
     marginTop: spacing.small,
   },
 });

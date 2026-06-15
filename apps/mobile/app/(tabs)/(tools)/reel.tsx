@@ -1,6 +1,7 @@
 import { type Project, getVideoUrl, saveProject, useProjectsStore } from '@gruenerator/shared';
 import { parseSubtitlesText } from '@gruenerator/shared/subtitle-editor';
-import { useFocusEffect, router } from 'expo-router';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useFocusEffect, router, Stack } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -8,18 +9,19 @@ import {
   useColorScheme,
   Text,
   BackHandler,
+  Pressable,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PulseLoader } from '../../../components/common';
-import { VideoUploader, ProjectList } from '../../../components/reel';
+import { VideoUploader, ProjectList, ReelReadyScreen } from '../../../components/reel';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
 import { shareService } from '../../../services/share';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 
-type ScreenMode = 'projects' | 'creating' | 'transcribing';
+type ScreenMode = 'projects' | 'creating' | 'transcribing' | 'ready';
 
 export default function ReelScreen() {
   const colorScheme = useColorScheme();
@@ -27,12 +29,16 @@ export default function ReelScreen() {
 
   const [screenMode, setScreenMode] = useState<ScreenMode>('projects');
   const [isSavingProject, setIsSavingProject] = useState(false);
+  // The freshly created project shown on the "ready" end screen.
+  const [readyProject, setReadyProject] = useState<Project | null>(null);
 
   const {
     status,
+    compressionProgress,
     uploadProgress,
     stageName,
     uploadId,
+    videoFilename,
     error,
     errorDetail,
     transcribedSubtitles,
@@ -54,12 +60,13 @@ export default function ReelScreen() {
     setScreenMode('projects');
   }, [cancelProcessing]);
 
-  const handleEditProject = useCallback((project: Project) => {
+  const handleEditProject = useCallback((project: Project, openShare = false) => {
     router.push({
       pathname: '/(fullscreen)/subtitle-editor',
       params: {
         projectId: project.id,
         projectData: JSON.stringify(project),
+        ...(openShare ? { openShare: '1' } : {}),
       },
     });
   }, []);
@@ -109,18 +116,15 @@ export default function ReelScreen() {
             heightPreference: 'tief',
             modePreference: 'manual',
             title: 'Neues Reel',
+            videoFilename: videoFilename || `video_${uploadId}.mp4`,
           });
 
           void useProjectsStore.getState().fetchProjects();
 
-          setScreenMode('projects');
-          router.push({
-            pathname: '/(fullscreen)/subtitle-editor',
-            params: {
-              projectId: savedProject.id,
-              projectData: JSON.stringify(savedProject),
-            },
-          });
+          // End screen instead of jumping straight into the editor — the
+          // reel is created; editing is one of the offered options.
+          setReadyProject(savedProject);
+          setScreenMode('ready');
         } catch (error) {
           console.error('[ReelScreen] Failed to auto-save project:', error);
           const tempProject: Project = {
@@ -132,7 +136,7 @@ export default function ReelScreen() {
             video_path: null,
             video_metadata: null,
             video_size: 0,
-            video_filename: null,
+            video_filename: videoFilename,
             subtitles: transcribedSubtitles,
             style_preference: 'shadow',
             height_preference: 'tief',
@@ -141,14 +145,8 @@ export default function ReelScreen() {
             last_edited_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
           };
-          setScreenMode('projects');
-          router.push({
-            pathname: '/(fullscreen)/subtitle-editor',
-            params: {
-              projectId: tempProject.id,
-              projectData: JSON.stringify(tempProject),
-            },
-          });
+          setReadyProject(tempProject);
+          setScreenMode('ready');
         } finally {
           setIsSavingProject(false);
         }
@@ -156,7 +154,7 @@ export default function ReelScreen() {
 
       void saveAndNavigate();
     }
-  }, [screenMode, status, transcribedSubtitles, uploadId, isSavingProject]);
+  }, [screenMode, status, transcribedSubtitles, uploadId, videoFilename, isSavingProject]);
 
   useFocusEffect(
     useCallback(() => {
@@ -188,25 +186,45 @@ export default function ReelScreen() {
 
     // Show video uploader for new reel
     if (screenMode === 'creating') {
+      return <VideoUploader onVideoSelected={handleVideoSelected} />;
+    }
+
+    // End screen: reel created, user picks how to continue.
+    if (screenMode === 'ready' && readyProject) {
       return (
-        <VideoUploader
-          onVideoSelected={handleVideoSelected}
-          uploadProgress={0}
-          isUploading={false}
-          onBack={handleBackToProjects}
+        <ReelReadyScreen
+          project={readyProject}
+          onEdit={() => handleEditProject(readyProject)}
+          onShare={() => handleEditProject(readyProject, true)}
+          onNewReel={handleNewReel}
         />
       );
     }
 
     // Create-first: upload the video, transcribe, then auto-save + open editor.
     if (screenMode === 'transcribing') {
+      // Oversized videos are re-encoded on-device before upload (nginx caps
+      // the request body — see services/videoCompression.ts).
+      if (status === 'compressing') {
+        return (
+          <PulseLoader
+            title="Video wird komprimiert..."
+            subtitle={
+              compressionProgress > 0 ? `${Math.round(compressionProgress)} %` : 'Einen Moment...'
+            }
+            icon="film-outline"
+            onCancel={handleBackToProjects}
+          />
+        );
+      }
+
       if (status === 'uploading') {
         return (
-          <VideoUploader
-            onVideoSelected={handleVideoSelected}
-            uploadProgress={uploadProgress}
-            isUploading={true}
-            onBack={handleBackToProjects}
+          <PulseLoader
+            title="Video wird hochgeladen..."
+            subtitle={uploadProgress > 0 ? `${Math.round(uploadProgress)} %` : 'Einen Moment...'}
+            icon="cloud-upload-outline"
+            onCancel={handleBackToProjects}
           />
         );
       }
@@ -215,14 +233,7 @@ export default function ReelScreen() {
       // the stale "Video wird analysiert..." stage alongside the error overlay)
       // and return to the picker so the user can retry. The error renders below.
       if (status === 'error') {
-        return (
-          <VideoUploader
-            onVideoSelected={handleVideoSelected}
-            uploadProgress={0}
-            isUploading={false}
-            onBack={handleBackToProjects}
-          />
-        );
+        return <VideoUploader onVideoSelected={handleVideoSelected} />;
       }
 
       return (
@@ -255,6 +266,22 @@ export default function ReelScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       edges={['bottom']}
     >
+      {/* In create/upload mode the header back returns to the project list
+          (cancelling any in-flight upload) instead of leaving the screen —
+          mirrors the hardware-back handling above and avoids a second
+          in-content "Zurück" button. */}
+      {screenMode !== 'projects' && (
+        <Stack.Screen
+          options={{
+            headerBackVisible: false,
+            headerLeft: () => (
+              <Pressable onPress={handleBackToProjects} hitSlop={8}>
+                <Ionicons name="arrow-back" size={24} color={theme.text} />
+              </Pressable>
+            ),
+          }}
+        />
+      )}
       <View style={styles.content}>
         {renderContent()}
 

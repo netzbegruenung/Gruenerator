@@ -7,6 +7,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
+import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface ShareLinkDisplayProps {
@@ -17,8 +18,11 @@ interface ShareLinkDisplayProps {
 }
 
 export function ShareLinkDisplay({ shareUrl, onCopy, onShare, copied }: ShareLinkDisplayProps) {
+  const theme = useTheme();
+
   return (
     <View style={styles.container}>
+      {/* QR tile stays white in both schemes: QR codes need a light background to scan reliably */}
       <View style={styles.qrContainer}>
         <QRCode
           value={shareUrl}
@@ -28,35 +32,45 @@ export function ShareLinkDisplay({ shareUrl, onCopy, onShare, copied }: ShareLin
         />
       </View>
 
-      <Text style={styles.label}>Link zum Teilen</Text>
+      <Text style={[styles.label, { color: theme.textSecondary }]}>Link zum Teilen</Text>
 
-      <View style={styles.linkContainer}>
-        <Text style={styles.linkText} numberOfLines={1} ellipsizeMode="middle">
+      <View style={[styles.linkContainer, { backgroundColor: theme.surface }]}>
+        <Text
+          style={[styles.linkText, { color: theme.text }]}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
           {shareUrl}
         </Text>
 
         <View style={styles.actions}>
           <Pressable
             onPress={onCopy}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: pressed ? theme.buttonBackground : theme.background },
+            ]}
           >
             <Ionicons
               name={copied ? 'checkmark' : 'copy-outline'}
               size={20}
-              color={copied ? colors.primary[600] : colors.grey[600]}
+              color={copied ? theme.textGreen : theme.textSecondary}
             />
           </Pressable>
 
           <Pressable
             onPress={onShare}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { backgroundColor: pressed ? theme.buttonBackground : theme.background },
+            ]}
           >
-            <Ionicons name="share-outline" size={20} color={colors.grey[600]} />
+            <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
           </Pressable>
         </View>
       </View>
 
-      {copied && <Text style={styles.copiedText}>Link kopiert!</Text>}
+      {copied && <Text style={[styles.copiedText, { color: theme.textGreen }]}>Link kopiert!</Text>}
     </View>
   );
 }
@@ -79,13 +93,11 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.caption,
-    color: colors.grey[500],
     marginBottom: spacing.small,
   },
   linkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.grey[100],
     borderRadius: borderRadius.medium,
     paddingLeft: spacing.medium,
     paddingRight: spacing.xsmall,
@@ -95,7 +107,6 @@ const styles = StyleSheet.create({
   linkText: {
     flex: 1,
     ...typography.body,
-    color: colors.grey[700],
     fontSize: 13,
   },
   actions: {
@@ -108,14 +119,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
-  },
-  iconButtonPressed: {
-    backgroundColor: colors.grey[200],
   },
   copiedText: {
     ...typography.caption,
-    color: colors.primary[600],
     marginTop: spacing.small,
   },
 });

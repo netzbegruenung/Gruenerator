@@ -90,15 +90,6 @@ interface PromptRequestBody {
 }
 
 /**
- * Custom generator record loaded from database
- */
-interface GeneratorRecord {
-  prompt: string;
-  name?: string | undefined;
-  [key: string]: unknown;
-}
-
-/**
  * Generation stats logging (lazy-loaded ES module)
  * Lazy loading prevents circular dependencies
  */
@@ -288,29 +279,6 @@ export function loadPromptConfig(type: string): PromptConfig {
 }
 
 /**
- * Handle custom_generator special case - load prompt from database
- * Lazy loads PostgresService to avoid circular dependencies
- * @param slug - Generator slug
- * @returns Generator data from database
- */
-
-export async function loadCustomGeneratorPrompt(slug: string): Promise<GeneratorRecord | null> {
-  const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-  const postgresService = getPostgresInstance();
-  const generators = await postgresService.query(
-    'SELECT * FROM custom_generators WHERE slug = $1 LIMIT 1',
-    [slug],
-    { table: 'custom_generators' }
-  );
-
-  if (!generators || generators.length === 0) {
-    throw new Error('Generator nicht gefunden');
-  }
-
-  return generators[0] as GeneratorRecord;
-}
-
-/**
  * Apply validation rules from config
  * @param requestBody - Request body data
  * @param config - Prompt configuration
@@ -380,14 +348,9 @@ export async function applyProfileDefaults(
  * Build system role with extensions
  * @param config - Prompt configuration
  * @param requestData - Request data
- * @param generatorData - Custom generator data (if applicable)
  * @returns Built system role string
  */
-export function buildSystemRole(
-  config: PromptConfig,
-  requestData: PromptRequestBody,
-  generatorData: GeneratorRecord | null = null
-): string {
+export function buildSystemRole(config: PromptConfig, requestData: PromptRequestBody): string {
   // Handle sharepic multi-type case
   if (config.types) {
     const type = requestData.type || requestData.sharepicType || 'dreizeilen';
@@ -401,7 +364,7 @@ export function buildSystemRole(
     );
   }
 
-  let systemRole: string = generatorData?.prompt || config.systemRole;
+  let systemRole: string = config.systemRole;
 
   // Apply extensions based on request data
   if (config.systemRoleExtensions) {
@@ -433,13 +396,11 @@ export function buildSystemRole(
  * Build request content using template
  * @param config - Prompt configuration
  * @param requestData - Request data
- * @param generatorData - Custom generator data (if applicable)
  * @returns Built request content
  */
 export function buildRequestContent(
   config: PromptConfig,
-  requestData: PromptRequestBody,
-  generatorData: GeneratorRecord | null = null
+  requestData: PromptRequestBody
 ): string | PromptRequestBody {
   const { customPrompt } = requestData;
 
@@ -452,36 +413,6 @@ export function buildRequestContent(
     } else {
       return requestData; // Return structured data for custom prompts
     }
-  }
-
-  // Handle custom_generator with processed prompt
-  if (config.id === 'custom_generator' && generatorData) {
-    let processedPrompt = generatorData.prompt;
-
-    // Replace form data placeholders
-    const cleanFormData: Record<string, string> = { ...requestData.formData };
-    delete cleanFormData.useWebSearchTool;
-    delete cleanFormData.usePrivacyMode;
-    delete cleanFormData.attachments;
-    delete cleanFormData.useBedrock;
-
-    for (const [key, value] of Object.entries(cleanFormData)) {
-      const placeholder = `{{${key}}}`;
-      processedPrompt = processedPrompt.replace(new RegExp(placeholder, 'g'), value || '');
-    }
-
-    // Manually build the request content with form data
-    let requestContent = processedPrompt;
-
-    // Add form data section if there are fields
-    if (Object.keys(cleanFormData).length > 0) {
-      requestContent += '\n\nFormulardaten:\n';
-      for (const [key, value] of Object.entries(cleanFormData)) {
-        requestContent += `${key}: ${value}\n`;
-      }
-    }
-
-    return requestContent;
   }
 
   // Handle sharepic multi-type case
@@ -781,19 +712,11 @@ export async function processGraphRequest(
         typeof requestData.customPrompt === 'string' ? requestData.customPrompt : null;
     }
 
-    // Handle custom_generator special case
-    let generatorData: GeneratorRecord | null = null;
-    if (config.features?.customPromptFromDb) {
-      const rawGenerator = await loadCustomGeneratorPrompt(requestData.slug as string);
-      generatorData = rawGenerator as GeneratorRecord | null;
-      console.log(`[promptProcessor] Loaded generator: ${generatorData?.name ?? 'unknown'}`);
-    }
-
     // Build system role
-    const systemRole = buildSystemRole(config, requestData, generatorData);
+    const systemRole = buildSystemRole(config, requestData);
 
     // Build request content
-    const requestContent = buildRequestContent(config, requestData, generatorData);
+    const requestContent = buildRequestContent(config, requestData);
 
     // Build constraints
     const constraints = buildConstraints(config, requestData);

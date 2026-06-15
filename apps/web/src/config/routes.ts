@@ -54,6 +54,15 @@ const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
 const LegacyAgentSlugRedirect = lazy(() =>
   Promise.resolve({ default: LegacyAgentSlugRedirectComponent })
 );
+// Legacy custom-generator links: /gruenerator/:slug → the converted agent's
+// chat at /agents/cg-:slug (custom generators are now `cg-<slug>` user agents).
+const LegacyGeneratorSlugRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { slug } = useParams();
+  return createElement(Navigate, { to: `/agents/cg-${slug ?? ''}`, replace: true });
+};
+const LegacyGeneratorSlugRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyGeneratorSlugRedirectComponent })
+);
 const DocumentToDocsRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
   return createElement(Navigate, { to: `/docs/${id || ''}`, replace: true });
@@ -110,10 +119,6 @@ const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPa
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
-const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
-const CreateCustomGeneratorPage = lazy(
-  () => import('../features/generators/CreateCustomGeneratorPage')
-);
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
@@ -190,7 +195,11 @@ const CollabCanvasStudioPage = lazy(
   () => import('../features/image-studio/CollabCanvasStudioPage')
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
-const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
+const MonitorUebersichtPage = lazy(() => import('../features/monitor/pages/MonitorUebersichtPage'));
+const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
+const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
+const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
+const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
@@ -218,7 +227,6 @@ export const GrueneratorenBundle = {
   DocumentView: DocumentViewPage,
   VorlagenListe: VorlagenGallery,
   Reel: Reel,
-  CustomGenerator: CustomGeneratorPage,
   Chat: ChatPage,
   MobileEditor: MobileEditorPage,
   Scanner: ScannerPage,
@@ -287,7 +295,12 @@ const standardRoutes: RouteConfig[] = [
     path: '/research',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  { path: '/monitor', component: MonitorPage },
+  { path: '/monitor', component: MonitorUebersichtPage, devOnly: true },
+  { path: '/monitor/themen', component: MonitorThemenPage, devOnly: true },
+  { path: '/monitor/themen/:topic', component: MonitorThemenPage, devOnly: true },
+  { path: '/monitor/umfragen', component: MonitorUmfragenPage, devOnly: true },
+  { path: '/monitor/watcher', component: MonitorWatcherPage, devOnly: true },
+  { path: '/monitor/feed', component: MonitorFeedPage, devOnly: true },
   { path: '/briefing', component: BriefingPage },
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
   { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
@@ -431,8 +444,13 @@ const standardRoutes: RouteConfig[] = [
     public: true,
   },
   { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome', public: true },
-  { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
-  { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
+  // Custom generators are removed — prompts were auto-converted to agents.
+  // Keep old links working: create page → agent creator; generator → its agent.
+  {
+    path: '/gruenerator/erstellen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agents/new') })),
+  },
+  { path: '/gruenerator/:slug', component: LegacyGeneratorSlugRedirect },
   // Redirects for removed pages
   // Legacy singular `/agent/:slug` URLs now route to the canonical plural
   // `/agents/:slug` so old bookmarks open the agent's chat instead of

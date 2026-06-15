@@ -1,13 +1,12 @@
 import { type DraftedAgentSpec } from '@gruenerator/contracts';
 import { useCallback, useState } from 'react';
 
-import AgentBuilderForm from './AgentBuilderForm';
-import { type FormState } from './agentFormState';
+import AgentEditor from './AgentEditor';
+import { EMPTY_FORM, type FormState } from './agentFormState';
 import AgentStartScreen from './AgentStartScreen';
 import { useDraftAgent } from './api';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
-import PageContainer from '@/components/common/PageContainer';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 
 /** Map a synthesized draft into the wizard's form state. The fields the LLM
@@ -65,11 +64,11 @@ function AgentCreatorPage() {
 
   if (phase === 'build') {
     return (
-      <PageContainer maxWidth="md" title="Neuer Agent">
-        <div className="mx-auto max-w-3xl">
-          <AgentBuilderForm initialState={initialState ?? undefined} onCancel={handleBack} />
-        </div>
-      </PageContainer>
+      <AgentEditor
+        mode="create"
+        initialState={{ ...EMPTY_FORM, ...initialState }}
+        onCancel={handleBack}
+      />
     );
   }
 

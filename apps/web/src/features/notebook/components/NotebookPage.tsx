@@ -332,6 +332,11 @@ export const NotebookPageContent = ({
     return entry?.mention ?? null;
   }, [config.id]);
 
+  // Canonical notebook id (matches LV agents' `defaultNotebookId`). For dynamic
+  // user notebooks `config.id` is a UUID, so this matches no agent and the
+  // agents section self-hides.
+  const notebookId = `${config.id}-notebook`;
+
   const chatContent = (
     <NotebookChatProvider
       collections={providerCollections}
@@ -371,6 +376,7 @@ export const NotebookPageContent = ({
                     hideGlobalChat={hideGlobalChat}
                     manualSearchNotebookId={manualSearchNotebookId}
                     notebookMention={notebookMention}
+                    notebookId={notebookId}
                     footer={startpageFooter}
                   />
                 </div>

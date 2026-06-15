@@ -1,0 +1,92 @@
+import { z } from 'zod';
+
+/**
+ * Wire payloads for /api/chat-service SSE events that both the Express
+ * emitters (apps/api `sseHelpers.ts`) and the chat runtime parser
+ * (packages/chat `parseSSEStream.ts`) depend on. Single source of truth —
+ * server and client derive their types from these schemas instead of
+ * hand-duplicating the shapes on each side of the stream.
+ */
+
+export const searchResultPayloadSchema = z.object({
+  source: z.string(),
+  title: z.string(),
+  content: z.string(),
+  url: z.string().optional(),
+  relevance: z.number().optional(),
+});
+export type SearchResultPayload = z.infer<typeof searchResultPayloadSchema>;
+
+/**
+ * Union of every style either side can produce: the generator emits
+ * 'illustration' … 'universal'; the sharepic flow stamps 'sharepic'.
+ * (Server and client previously declared two drifting subsets.)
+ */
+export const generatedImageStyleSchema = z.enum([
+  'illustration',
+  'realistic',
+  'pixel',
+  'green-edit',
+  'universal',
+  'sharepic',
+]);
+export type GeneratedImageStyle = z.infer<typeof generatedImageStyleSchema>;
+
+export const generatedImagePayloadSchema = z.object({
+  base64: z.string(),
+  url: z.string(),
+  filename: z.string(),
+  prompt: z.string(),
+  style: generatedImageStyleSchema,
+  generationTimeMs: z.number(),
+});
+export type GeneratedImagePayload = z.infer<typeof generatedImagePayloadSchema>;
+
+/** Emitted when the agent starts/completes a user-facing tool call. */
+export const thinkingStepPayloadSchema = z.object({
+  stepId: z.string(),
+  toolName: z.string(),
+  title: z.string(),
+  status: z.enum(['in_progress', 'completed']),
+  args: z.record(z.string(), z.unknown()).optional(),
+  result: z
+    .object({
+      resultCount: z.number().optional(),
+      results: z.array(z.unknown()).optional(),
+      image: generatedImagePayloadSchema.optional(),
+      error: z.string().optional(),
+    })
+    .optional(),
+});
+export type ThinkingStepPayload = z.infer<typeof thinkingStepPayloadSchema>;
+
+export const confirmActionTypeSchema = z.enum([
+  'save_as_doc',
+  'modify_doc',
+  'modify_board',
+  'share_doc',
+]);
+export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
+
+/** confirm_action SSE event — the client fills the optionals with defaults. */
+export const confirmActionEventSchema = z.object({
+  actionId: z.string(),
+  type: confirmActionTypeSchema,
+  title: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  metadata: z.array(z.object({ key: z.string(), value: z.string() })).optional(),
+  variant: z.enum(['default', 'destructive']).optional(),
+  confirmLabel: z.string().optional(),
+  cancelLabel: z.string().optional(),
+  threadId: z.string().optional(),
+});
+export type ConfirmActionEvent = z.infer<typeof confirmActionEventSchema>;
+
+export const documentCreatedEventSchema = z.object({
+  documentId: z.string(),
+  title: z.string(),
+  subtype: z.string(),
+  url: z.string(),
+});
+export type DocumentCreatedEvent = z.infer<typeof documentCreatedEventSchema>;

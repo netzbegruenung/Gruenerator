@@ -8,6 +8,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import type { GeneratedImagePayload, SearchResultPayload } from '@gruenerator/contracts';
 import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
@@ -46,13 +47,11 @@ export interface SharepicData {
   variants: SharepicVariant[];
 }
 
-export interface GeneratedImage {
-  base64: string;
-  url: string;
-  filename: string;
-  prompt: string;
-  style: 'illustration' | 'realistic' | 'pixel' | 'green-edit' | 'sharepic';
-  generationTimeMs: number;
+// Wire shape from @gruenerator/contracts (chatStreamEvents) plus the
+// client-side sharepic attachment stamped on after parsing. The style union
+// previously drifted from the server's ('sharepic' vs 'universal') — the
+// contracts schema is now the single source.
+export interface GeneratedImage extends GeneratedImagePayload {
   sharepicData?: SharepicData;
 }
 
@@ -107,13 +106,8 @@ export interface Citation {
   collectionId?: string;
 }
 
-export interface SearchResult {
-  source: string;
-  title: string;
-  content: string;
-  url?: string;
-  relevance?: number;
-}
+// Wire shape shared with apps/api sseHelpers via @gruenerator/contracts.
+export type SearchResult = SearchResultPayload;
 
 export interface StreamMetadata {
   intent: SearchIntent;

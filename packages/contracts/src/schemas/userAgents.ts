@@ -129,8 +129,8 @@ export const userAgentDeleteResponseSchema = z.object({
 });
 
 /**
- * Error body. `agent` is optional because the convert-cg conflict (409)
- * returns the already-converted agent alongside the message.
+ * Error body. `agent` is optional so a conflict response can carry the
+ * conflicting agent alongside the message.
  */
 export const userAgentErrorResponseSchema = z.object({
   success: z.boolean(),
