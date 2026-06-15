@@ -40,6 +40,8 @@ export {
 
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 
+export { LANDESVERBAENDE, type LandesverbandEntry } from './landesverbaende.js';
+
 export {
   LV_HUBS,
   type LvHub,
