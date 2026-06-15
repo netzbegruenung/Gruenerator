@@ -100,7 +100,8 @@ function AgenturaPage() {
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
 
-  const showCreateAgentCta = import.meta.env.DEV;
+  // Public, but still experimental — the creator flow carries a warning banner.
+  const showCreateAgentCta = true;
   const q = search.toLowerCase();
 
   const isSkillFav = (s: AgentListItem) => favorites.includes(s.mention.toLowerCase());
