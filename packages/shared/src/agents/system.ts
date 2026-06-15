@@ -4,7 +4,10 @@ import { CORE_AGENTS } from './coreAgents.js';
 import { LV_HUBS } from './landesverbandHubs.js';
 import { LV_BUERGER_AGENTS, type LV_BUERGER_SPECS } from './lvBuergerAgents.js';
 import { LV_PR_AGENTS, type LV_PR_SPECS } from './lvPrAgents.js';
-import { OEFFENTLICHKEITSARBEIT_AGENTS } from './oeffentlichkeitsarbeitAgents.js';
+import {
+  OEFFENTLICHKEITSARBEIT_AGENTS,
+  type OeffentlichkeitsarbeitAgentId,
+} from './oeffentlichkeitsarbeitAgents.js';
 import { PERSONA_AGENTS } from './personaAgents.js';
 
 import type { Agent } from './types.js';
@@ -27,8 +30,8 @@ const RAW_SYSTEM_AGENTS: readonly Agent[] = [
 // A Landesverband's two specialist agents (PR + Bürger*innenanfragen) are owned by
 // its hub, which pins the LV notebook. When that notebook is turned off
 // (`enabled: false`), hide both agents from discovery — same single switch, no
-// per-agent flag. LV_HUBS is the authoritative notebook→agents map; the
-// hand-written PR agents carry no `defaultNotebookId`, so we can't derive from that.
+// per-agent flag. LV_HUBS (itself derived from the LV registry) is the
+// authoritative notebook→agents map, so we resolve both agent ids from it.
 const disabledLvAgentIds = new Set<string>(
   LV_HUBS.filter((hub) => getDisabledNotebookIds().has(hub.notebookId)).flatMap((hub) => [
     hub.prAgentId,
@@ -50,7 +53,7 @@ export const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
 
 type BaseSystemAgentId =
   | (typeof CORE_AGENTS)[number]['identifier']
-  | (typeof OEFFENTLICHKEITSARBEIT_AGENTS)[number]['identifier']
+  | OeffentlichkeitsarbeitAgentId
   | (typeof PERSONA_AGENTS)[number]['identifier'];
 type LvPrAgentId = `gruenerator-oeffentlichkeitsarbeit-${(typeof LV_PR_SPECS)[number]['lv']}`;
 type LvBuergerAgentId = `gruenerator-buergeranfragen-${(typeof LV_BUERGER_SPECS)[number]['lv']}`;
