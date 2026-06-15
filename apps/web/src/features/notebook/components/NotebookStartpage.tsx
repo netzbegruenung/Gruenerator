@@ -17,18 +17,14 @@ import { StatisticsSection } from './StatisticsSection';
 
 interface ExampleQuestion {
   icon: string;
+  /** One-word label shown on the chip. */
+  tag: string;
+  /** Full question sent as the chat prompt when the chip is clicked. */
   text: string;
-}
-
-interface StartpageSourceInfo {
-  name?: string;
-  count?: string;
 }
 
 interface NotebookStartpageProps {
   title: string;
-  subtitle: string;
-  sources?: StartpageSourceInfo[];
   placeholder: string;
   exampleQuestions: ExampleQuestion[];
   composerSourceFilters?: SourceFilterConfig;
@@ -74,7 +70,7 @@ const ExampleChip = memo(({ question }: { question: ExampleQuestion }) => (
       <span className="shrink-0 text-base" aria-hidden>
         {question.icon}
       </span>
-      <span className="truncate">{question.text}</span>
+      <span className="truncate">{question.tag}</span>
     </button>
   </ThreadPrimitive.Suggestion>
 ));
@@ -82,8 +78,6 @@ ExampleChip.displayName = 'ExampleChip';
 
 export function NotebookStartpage({
   title,
-  subtitle,
-  sources,
   placeholder,
   exampleQuestions,
   composerSourceFilters,
@@ -118,21 +112,6 @@ export function NotebookStartpage({
         <h1 className="mb-xs text-4xl font-semibold text-foreground-heading max-md:text-2xl">
           {title}
         </h1>
-        <p className="text-lg text-grey-500 dark:text-grey-400">{subtitle}</p>
-        {sources && sources.length > 0 && (
-          <div className="mt-sm flex flex-wrap items-center justify-center gap-xs text-sm text-grey-500 dark:text-grey-400">
-            {sources.map(
-              (s, i) =>
-                s.name && (
-                  <span key={s.name} className="inline-flex items-center gap-1">
-                    <span>{s.name}</span>
-                    {s.count && <span className="text-grey-400">· {s.count}</span>}
-                    {i < sources.length - 1 && <span className="mx-xs">·</span>}
-                  </span>
-                )
-            )}
-          </div>
-        )}
       </div>
 
       {anyExtraTabAvailable && (
