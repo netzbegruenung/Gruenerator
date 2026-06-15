@@ -1,4 +1,4 @@
-import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { Button, Popover, PopoverContent, PopoverTrigger, Switch } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
@@ -14,7 +14,13 @@ import TemplatePreviewModal from '../TemplatePreviewModal';
 
 import VorlagenCard from './VorlagenCard';
 
+import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
+
+const LOCALE_LABEL: Record<string, string> = {
+  'de-DE': 'Deutschland',
+  'de-AT': 'Österreich',
+};
 
 const DEBOUNCE_DELAY = 500;
 
@@ -34,7 +40,6 @@ interface VorlageItem {
   download_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
-  source?: 'community' | 'system';
   [key: string]: unknown;
 }
 
@@ -73,12 +78,14 @@ const fetchVorlagen = async ({
   searchMode,
   selectedCategory,
   tags,
+  localeFilter,
   signal,
 }: {
   searchTerm: string;
   searchMode: string;
   selectedCategory: string;
   tags: string[];
+  localeFilter: boolean;
   signal?: AbortSignal;
 }): Promise<VorlageItem[]> => {
   const params: Record<string, unknown> = {};
@@ -91,6 +98,10 @@ const fetchVorlagen = async ({
   }
   if (tags.length > 0) {
     params.tags = JSON.stringify(tags);
+  }
+  // Locale filtering is on by default server-side; only signal when turned off.
+  if (!localeFilter) {
+    params.localeFilter = 'false';
   }
 
   const response = await apiClient.get<VorlagenResponse>('/auth/vorlagen', { params, signal });
@@ -112,6 +123,12 @@ const VorlagenGallery = memo((): JSX.Element => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  // Scope the gallery to the user's region by default; the settings popover
+  // lets them turn it off to browse templates from all audiences.
+  const [localeFilter, setLocaleFilter] = useState(true);
+
+  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  const localeLabel = LOCALE_LABEL[userLocale] ?? 'meine Region';
 
   useEffect(() => {
     const handler = setTimeout(() => setSearchTerm(inputValue), DEBOUNCE_DELAY);
@@ -126,12 +143,19 @@ const VorlagenGallery = memo((): JSX.Element => {
   });
 
   const dataQuery = useQuery({
-    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags],
+    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, localeFilter],
     staleTime: 30_000,
     gcTime: 60_000,
     refetchOnMount: 'always' as const,
     queryFn: ({ signal }) =>
-      fetchVorlagen({ searchTerm: textQuery, searchMode, selectedCategory, tags, signal }),
+      fetchVorlagen({
+        searchTerm: textQuery,
+        searchMode,
+        selectedCategory,
+        tags,
+        localeFilter,
+        signal,
+      }),
     placeholderData: (prev) => prev,
   });
 
@@ -200,23 +224,40 @@ const VorlagenGallery = memo((): JSX.Element => {
               aria-label="Vorlagen durchsuchen"
               className="h-full w-full rounded-full border-2 border-background-alt bg-background pl-11 pr-12 text-base text-foreground outline-none transition-colors placeholder:text-foreground/50 focus:border-primary-500"
             />
-            {showCategoryFilter && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      'absolute right-1.5 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
-                      selectedCategory !== 'all' && 'bg-primary-500/10 text-primary-500'
-                    )}
-                    aria-label="Filter"
-                    title="Filter"
-                  >
-                    <HiOutlineAdjustmentsHorizontal className="size-5" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="end" sideOffset={8} className="w-[16rem] space-y-3 p-3">
-                  <div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'absolute right-1.5 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
+                    (!localeFilter || selectedCategory !== 'all') &&
+                      'bg-primary-500/10 text-primary-500'
+                  )}
+                  aria-label="Einstellungen"
+                  title="Einstellungen"
+                >
+                  <HiOutlineAdjustmentsHorizontal className="size-5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={8} className="w-[18rem] space-y-4 p-4">
+                <label className="flex items-start justify-between gap-3 text-left">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">
+                      Auf {localeLabel} beschränken
+                    </span>
+                    <span className="mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
+                      Zeigt nur Vorlagen für deine Region.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={localeFilter}
+                    onCheckedChange={setLocaleFilter}
+                    aria-label={`Auf ${localeLabel} beschränken`}
+                  />
+                </label>
+
+                {showCategoryFilter && (
+                  <div className="border-t border-grey-200 pt-3 dark:border-grey-700">
                     <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
                       Kategorie
                     </span>
@@ -238,9 +279,9 @@ const VorlagenGallery = memo((): JSX.Element => {
                       ))}
                     </div>
                   </div>
-                </PopoverContent>
-              </Popover>
-            )}
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
           <Button
             variant="brand"
@@ -286,12 +327,6 @@ const VorlagenGallery = memo((): JSX.Element => {
               <span className="text-sm font-medium">Neue Vorlage</span>
             </button>
             {items.map((item) => {
-              // Community = user-submitted. Fall back to author presence so cards
-              // are still marked correctly if the API hasn't been redeployed with
-              // `source`.
-              const isCommunity = item.source
-                ? item.source === 'community'
-                : Boolean(item.metadata?.author_name);
               const hasUrl = Boolean(resolveTemplateUrl(item));
               return (
                 <VorlagenCard
@@ -300,13 +335,6 @@ const VorlagenGallery = memo((): JSX.Element => {
                   onOpen={() => setPreviewTemplate(item)}
                   onOpenExternal={hasUrl ? () => openExternal(item) : undefined}
                   onCopyLink={hasUrl ? () => copyLink(item) : undefined}
-                  badge={
-                    isCommunity ? (
-                      <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
-                        Community
-                      </Badge>
-                    ) : null
-                  }
                 />
               );
             })}
