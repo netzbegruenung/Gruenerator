@@ -117,6 +117,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         ...(body.fewShotExamples != null
           ? { fewShotExamples: toFewShot(body.fewShotExamples) }
           : {}),
+        ...(body.inlineSourceLinks != null ? { inlineSourceLinks: body.inlineSourceLinks } : {}),
       };
 
       const agent = await createUserAgent(userId, input);
@@ -259,6 +260,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
       if (b.enabledTools != null) patch.enabledTools = b.enabledTools;
       if (b.skillMentions != null) patch.skillMentions = b.skillMentions;
       if (b.fewShotExamples != null) patch.fewShotExamples = toFewShot(b.fewShotExamples);
+      if (b.inlineSourceLinks != null) patch.inlineSourceLinks = b.inlineSourceLinks;
 
       const agent = await updateUserAgent(userId, args.params.identifier, patch);
       if (!agent) {
