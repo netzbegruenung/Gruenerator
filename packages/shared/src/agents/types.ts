@@ -180,6 +180,14 @@ export interface Agent {
    * copy per user locale without forking into two registry entries.
    */
   localized?: Partial<Record<'de-DE' | 'de-AT', AgentLocalization>>;
+  /**
+   * When true, the source URLs of search hits are injected into the model's
+   * text context, so the agent can write concrete article links inline into
+   * its answer (e.g. ready-to-send emails/letters whose copied text doesn't
+   * carry the chat UI's clickable `[N]` source cards). Default off — normal
+   * chat relies on the `[N]` cards instead. Read by the ChatGraph respond node.
+   */
+  inlineSourceLinks?: boolean;
 }
 
 export type AgentCategory = 'gruppen';
