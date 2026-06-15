@@ -16,17 +16,15 @@ interface NotebookCollection {
 
 interface ExampleQuestion {
   icon: string;
+  /** One-word label shown on the chip. */
+  tag: string;
+  /** Full question sent as the chat prompt when the chip is clicked. */
   text: string;
 }
 
 interface DocumentInfo {
   title: string;
   detail: string;
-}
-
-interface SourceInfo {
-  name: string;
-  count: string;
 }
 
 interface NotebookConfig {
@@ -42,11 +40,9 @@ interface NotebookConfig {
   collections: NotebookCollection[];
   startPageTitle: string;
   placeholder: string;
-  infoPanelDescription: string;
   headerIcon: IconType;
   exampleQuestions: ExampleQuestion[];
   documents?: DocumentInfo[];
-  sources?: SourceInfo[];
   externalUrl?: string;
   persistMessages: boolean;
   useSystemUserId: boolean;
@@ -232,13 +228,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     ],
     startPageTitle: 'Was möchtest du wissen?',
     placeholder: 'Stell deine Frage zu grüner Politik...',
-    infoPanelDescription:
-      'Durchsucht automatisch mehrere Quellen parallel und kombiniert die Ergebnisse.',
     headerIcon: HiCollection,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagen die Grünen zum Klimaschutz?' },
-      { icon: '🇪🇺', text: 'Wie ist die grüne Position zur EU?' },
-      { icon: '⚡', text: 'Was steht zur Energiewende in den Programmen?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen zum Klimaschutz?' },
+      { icon: '🇪🇺', tag: 'EU', text: 'Wie ist die grüne Position zur EU?' },
+      { icon: '⚡', tag: 'Energiewende', text: 'Was steht zur Energiewende in den Programmen?' },
     ],
     persistMessages: true,
     useSystemUserId: false,
@@ -258,20 +252,17 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     ],
     startPageTitle: 'Was möchtest du über die Grundsatzprogramme wissen?',
     placeholder: 'Stell deine Frage zu den Grundsatzprogrammen...',
-    infoPanelDescription:
-      'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
-      { icon: '🇪🇺', text: 'Wie positionieren sich die Grünen zur EU?' },
-      { icon: '🏛️', text: 'Was sagt das Regierungsprogramm zu Bildung?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
+      { icon: '🇪🇺', tag: 'EU', text: 'Wie positionieren sich die Grünen zur EU?' },
+      { icon: '🏛️', tag: 'Bildung', text: 'Was sagt das Regierungsprogramm zu Bildung?' },
     ],
     documents: [
       { title: 'Grundsatzprogramm 2020', detail: '136 Seiten' },
       { title: 'EU-Wahlprogramm 2024', detail: '114 Seiten' },
       { title: 'Regierungsprogramm 2025', detail: '160 Seiten' },
     ],
-    sources: [{ name: 'Grundsatzprogramme', count: '3 Programme' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -291,13 +282,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     ],
     startPageTitle: 'Was möchtest du über die Grüne Bundestagsfraktion wissen?',
     placeholder: 'Stell deine Frage zur Grünen Bundestagsfraktion...',
-    infoPanelDescription:
-      'Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sind die Klimaziele der Fraktion?' },
-      { icon: '📋', text: 'Welche Positionen gibt es zur Migrationspolitik?' },
-      { icon: '💶', text: 'Wie positioniert sich die Fraktion zum Haushalt?' },
+      { icon: '🌍', tag: 'Klima', text: 'Was sind die Klimaziele der Fraktion?' },
+      { icon: '📋', tag: 'Migration', text: 'Welche Positionen gibt es zur Migrationspolitik?' },
+      { icon: '💶', tag: 'Haushalt', text: 'Wie positioniert sich die Fraktion zum Haushalt?' },
     ],
     documents: [
       { title: 'Fachtexte', detail: '468 Artikel' },
@@ -305,7 +294,6 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       { title: 'Einfach erklärt', detail: '24 Artikel' },
     ],
     externalUrl: 'https://www.gruene-bundestag.de',
-    sources: [{ name: 'Bundestagsfraktion', count: '542 Artikel' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -325,20 +313,17 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     ],
     startPageTitle: 'Was möchtest du über Die Grünen Österreich wissen?',
     placeholder: 'Stell deine Frage zu den Programmen der Grünen Österreich...',
-    infoPanelDescription:
-      'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
-      { icon: '🇪🇺', text: 'Wie positionieren sich Die Grünen Österreich zur EU?' },
-      { icon: '🏛️', text: 'Was sagt das Wahlprogramm zur Nationalratswahl?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
+      { icon: '🇪🇺', tag: 'EU', text: 'Wie positionieren sich Die Grünen Österreich zur EU?' },
+      { icon: '🏛️', tag: 'Wahlprogramm', text: 'Was sagt das Wahlprogramm zur Nationalratswahl?' },
     ],
     documents: [
       { title: 'Grundsatzprogramm', detail: '88 Seiten' },
       { title: 'EU-Wahlprogramm 2024', detail: '108 Seiten' },
       { title: 'Nationalratswahl-Programm', detail: '112 Seiten' },
     ],
-    sources: [{ name: 'Die Grünen Österreich', count: '3 Programme' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -358,19 +343,17 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     ],
     startPageTitle: 'Was möchtest du über die Grünen Hamburg wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Hamburg...',
-    infoPanelDescription: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagen die Grünen Hamburg zum Klimaschutz?' },
-      { icon: '🚲', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
-      { icon: '🏙️', text: 'Was sind die Beschlüsse zur Stadtentwicklung?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Hamburg zum Klimaschutz?' },
+      { icon: '🚲', tag: 'Mobilität', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
+      { icon: '🏙️', tag: 'Stadtentwicklung', text: 'Was sind die Beschlüsse zur Stadtentwicklung?' },
     ],
     documents: [
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
       { title: 'Pressemitteilungen', detail: 'Aktuelle Positionen' },
     ],
     externalUrl: 'https://www.gruene-hamburg.de',
-    sources: [{ name: 'Grüne Hamburg', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -390,17 +373,14 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     ],
     startPageTitle: 'Was möchtest du über die Grünen Schleswig-Holstein wissen?',
     placeholder: 'Stell deine Frage zum Wahlprogramm der Grünen Schleswig-Holstein...',
-    infoPanelDescription:
-      'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌊', text: 'Was sagen die Grünen SH zum Küstenschutz?' },
-      { icon: '🌍', text: 'Welche Klimaziele hat das Wahlprogramm?' },
-      { icon: '🚆', text: 'Was steht zur Verkehrswende in Schleswig-Holstein?' },
+      { icon: '🌊', tag: 'Küstenschutz', text: 'Was sagen die Grünen SH zum Küstenschutz?' },
+      { icon: '🌍', tag: 'Klima', text: 'Welche Klimaziele hat das Wahlprogramm?' },
+      { icon: '🚆', tag: 'Verkehr', text: 'Was steht zur Verkehrswende in Schleswig-Holstein?' },
     ],
     documents: [{ title: 'Wahlprogramm LTW 2022', detail: 'Landtagswahl' }],
     externalUrl: 'https://sh-gruene.de',
-    sources: [{ name: 'Grüne Schleswig-Holstein', count: '1 Programm' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -415,17 +395,14 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'bayern-system', name: 'Grüne Bayern' }],
     startPageTitle: 'Was möchtest du über die Grünen Bayern wissen?',
     placeholder: 'Stell deine Frage zum Regierungsprogramm der Grünen Bayern...',
-    infoPanelDescription:
-      'Durchsuchbar ist das Regierungsprogramm der Grünen Bayern zur Landtagswahl.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🏔️', text: 'Was sagen die Grünen Bayern zum Naturschutz?' },
-      { icon: '🌍', text: 'Welche Klimaziele hat das Regierungsprogramm?' },
-      { icon: '🚆', text: 'Was steht zur Verkehrswende in Bayern?' },
+      { icon: '🏔️', tag: 'Naturschutz', text: 'Was sagen die Grünen Bayern zum Naturschutz?' },
+      { icon: '🌍', tag: 'Klima', text: 'Welche Klimaziele hat das Regierungsprogramm?' },
+      { icon: '🚆', tag: 'Verkehr', text: 'Was steht zur Verkehrswende in Bayern?' },
     ],
     documents: [{ title: 'Regierungsprogramm LTW 2023', detail: 'Landtagswahl' }],
     externalUrl: 'https://www.gruene-bayern.de',
-    sources: [{ name: 'Grüne Bayern', count: '1 Programm' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -439,13 +416,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'thueringen-system', name: 'Grüne Thüringen' }],
     startPageTitle: 'Was möchtest du über die Grünen Thüringen wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Thüringen...',
-    infoPanelDescription:
-      'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌳', text: 'Was sagen die Grünen Thüringen zum Waldschutz?' },
-      { icon: '🌍', text: 'Welche Klimaziele hat das Wahlprogramm?' },
-      { icon: '🏘️', text: 'Was steht zum Strukturwandel in Thüringen?' },
+      { icon: '🌳', tag: 'Waldschutz', text: 'Was sagen die Grünen Thüringen zum Waldschutz?' },
+      { icon: '🌍', tag: 'Klima', text: 'Welche Klimaziele hat das Wahlprogramm?' },
+      { icon: '🏘️', tag: 'Strukturwandel', text: 'Was steht zum Strukturwandel in Thüringen?' },
     ],
     documents: [
       { title: 'Wahlprogramme', detail: '5 Landtagswahlen' },
@@ -453,7 +428,6 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       { title: 'Pressemitteilungen', detail: 'LV + Landtagsfraktion' },
     ],
     externalUrl: 'https://gruene-thueringen.de',
-    sources: [{ name: 'Grüne Thüringen', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -468,13 +442,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'berlin-system', name: 'Grüne Berlin' }],
     startPageTitle: 'Was möchtest du über die Grünen Berlin wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Berlin...',
-    infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Wahlprogramm 2026 der Grünen Berlin.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagen die Grünen Berlin zum Klimaschutz?' },
-      { icon: '🚲', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
-      { icon: '📋', text: 'Was steht im Wahlprogramm zur Stadtentwicklung?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Berlin zum Klimaschutz?' },
+      { icon: '🚲', tag: 'Mobilität', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
+      { icon: '📋', tag: 'Stadtentwicklung', text: 'Was steht im Wahlprogramm zur Stadtentwicklung?' },
     ],
     documents: [
       { title: 'Wahlprogramm 2026', detail: '6 Kapitel' },
@@ -482,7 +454,6 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
     ],
     externalUrl: 'https://gruene.berlin',
-    sources: [{ name: 'Grüne Berlin', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -498,20 +469,17 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     startPageTitle: 'Was möchtest du über die Grünen Mecklenburg-Vorpommern wissen?',
     placeholder:
       'Stell deine Frage zu Beschlüssen und Positionen der Grünen Mecklenburg-Vorpommern...',
-    infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌊', text: 'Was sagen die Grünen MV zum Küstenschutz?' },
-      { icon: '🌍', text: 'Welche Klimaziele haben die Grünen MV?' },
-      { icon: '🏗️', text: 'Was steht zum Strukturwandel in Mecklenburg-Vorpommern?' },
+      { icon: '🌊', tag: 'Küstenschutz', text: 'Was sagen die Grünen MV zum Küstenschutz?' },
+      { icon: '🌍', tag: 'Klima', text: 'Welche Klimaziele haben die Grünen MV?' },
+      { icon: '🏗️', tag: 'Strukturwandel', text: 'Was steht zum Strukturwandel in Mecklenburg-Vorpommern?' },
     ],
     documents: [
       { title: 'Pressemitteilungen', detail: 'Aktuelle Positionen' },
       { title: 'Parteitagsbeschlüsse', detail: 'Beschlüsse' },
     ],
     externalUrl: 'https://gruene-mv.de',
-    sources: [{ name: 'Grüne Mecklenburg-Vorpommern', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -526,13 +494,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'brandenburg-system', name: 'Grüne Brandenburg' }],
     startPageTitle: 'Was möchtest du über die Grünen Brandenburg wissen?',
     placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Brandenburg...',
-    infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagen die Grünen Brandenburg zum Klimaschutz?' },
-      { icon: '🏗️', text: 'Welche Beschlüsse gibt es zur Strukturpolitik in der Lausitz?' },
-      { icon: '🚆', text: 'Was steht im Wahlprogramm zur Verkehrswende?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Brandenburg zum Klimaschutz?' },
+      { icon: '🏗️', tag: 'Lausitz', text: 'Welche Beschlüsse gibt es zur Strukturpolitik in der Lausitz?' },
+      { icon: '🚆', tag: 'Verkehr', text: 'Was steht im Wahlprogramm zur Verkehrswende?' },
     ],
     documents: [
       { title: 'Pressemitteilungen', detail: 'Aktuelle und archivierte PMs' },
@@ -540,7 +506,6 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       { title: 'Landtagswahlprogramm 2024', detail: 'Wahlprogramm zur Landtagswahl' },
     ],
     externalUrl: 'https://gruene-brandenburg.de',
-    sources: [{ name: 'Grüne Brandenburg', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -556,13 +521,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     startPageTitle: 'Was möchtest du über die Grünen Sachsen-Anhalt wissen?',
     placeholder:
       'Stell deine Frage zum Wahlprogramm und zu Positionen der Grünen Sachsen-Anhalt...',
-    infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2026 der Grünen Sachsen-Anhalt.',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagen die Grünen Sachsen-Anhalt zum Klimaschutz?' },
-      { icon: '🗳️', text: 'Was steht im Wahlprogramm zur Landtagswahl 2026?' },
-      { icon: '🚆', text: 'Welche Positionen gibt es zur Verkehrswende?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Sachsen-Anhalt zum Klimaschutz?' },
+      { icon: '🗳️', tag: 'Wahlprogramm', text: 'Was steht im Wahlprogramm zur Landtagswahl 2026?' },
+      { icon: '🚆', tag: 'Verkehr', text: 'Welche Positionen gibt es zur Verkehrswende?' },
     ],
     documents: [
       { title: 'Pressemitteilungen', detail: 'Landesverband & Fraktion' },
@@ -570,7 +533,6 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       { title: 'Landtagswahlprogramm 2026', detail: 'Wahlprogramm zur Landtagswahl' },
     ],
     externalUrl: 'https://www.gruene-lsa.de',
-    sources: [{ name: 'Grüne Sachsen-Anhalt', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -584,20 +546,21 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'hessen-system', name: 'Grüne Hessen' }],
     startPageTitle: 'Was möchtest du über die Grünen Hessen wissen?',
     placeholder: 'Stell deine Frage zu Positionen und Beschlüssen der Grünen Hessen...',
-    infoPanelDescription:
-      'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion).',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagen die Grünen Hessen zum Klimaschutz?' },
-      { icon: '🚆', text: 'Welche Positionen gibt es zur Verkehrswende im Rhein-Main-Gebiet?' },
-      { icon: '🏙️', text: 'Was fordern die Grünen zu bezahlbarem Wohnen in Frankfurt?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Hessen zum Klimaschutz?' },
+      {
+        icon: '🚆',
+        tag: 'Verkehr',
+        text: 'Welche Positionen gibt es zur Verkehrswende im Rhein-Main-Gebiet?',
+      },
+      { icon: '🏙️', tag: 'Wohnen', text: 'Was fordern die Grünen zu bezahlbarem Wohnen in Frankfurt?' },
     ],
     documents: [
       { title: 'Pressemitteilungen', detail: 'Landesverband & Fraktion' },
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
     ],
     externalUrl: 'https://www.gruene-hessen.de',
-    sources: [{ name: 'Grüne Hessen', count: 'Archiv' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -612,16 +575,13 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'kommunalwiki-system', name: 'KommunalWiki' }],
     startPageTitle: 'Was möchtest du über Kommunalpolitik wissen?',
     placeholder: 'Stell deine Frage zur Kommunalpolitik...',
-    infoPanelDescription:
-      'Fachwissen zur Kommunalpolitik aus dem KommunalWiki der Heinrich-Böll-Stiftung.',
     headerIcon: HiDocumentText,
     exampleQuestions: [
-      { icon: '🏛️', text: 'Wie funktioniert ein Gemeinderat?' },
-      { icon: '📋', text: 'Was sind die Aufgaben einer Bürgermeisterin?' },
-      { icon: '💡', text: 'Wie kann man kommunale Klimapolitik gestalten?' },
+      { icon: '🏛️', tag: 'Gemeinderat', text: 'Wie funktioniert ein Gemeinderat?' },
+      { icon: '📋', tag: 'Bürgermeister', text: 'Was sind die Aufgaben einer Bürgermeisterin?' },
+      { icon: '💡', tag: 'Klimapolitik', text: 'Wie kann man kommunale Klimapolitik gestalten?' },
     ],
     externalUrl: 'https://kommunalwiki.boell.de',
-    sources: [{ name: 'KommunalWiki', count: 'Wiki' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -636,16 +596,13 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'boell-stiftung-system', name: 'Heinrich-Böll-Stiftung' }],
     startPageTitle: 'Was möchtest du über die Analysen der Böll-Stiftung wissen?',
     placeholder: 'Stell deine Frage zu Analysen und Dossiers...',
-    infoPanelDescription:
-      'Durchsuchbar sind Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung.',
     headerIcon: HiDocumentText,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was sagt der Fleischatlas über Ernährung?' },
-      { icon: '🔋', text: 'Welche Analysen gibt es zur Energiewende?' },
-      { icon: '🌐', text: 'Was sind die Dossiers zu Digitalisierung?' },
+      { icon: '🌍', tag: 'Ernährung', text: 'Was sagt der Fleischatlas über Ernährung?' },
+      { icon: '🔋', tag: 'Energiewende', text: 'Welche Analysen gibt es zur Energiewende?' },
+      { icon: '🌐', tag: 'Digitalisierung', text: 'Was sind die Dossiers zu Digitalisierung?' },
     ],
     externalUrl: 'https://www.boell.de',
-    sources: [{ name: 'Heinrich-Böll-Stiftung', count: 'Publikationen' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
@@ -660,16 +617,13 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collections: [{ id: 'gruenblog-system', name: 'Grünblog' }],
     startPageTitle: 'Was möchtest du über das Onlinemagazin der Grünen wissen?',
     placeholder: 'Stell deine Frage zu Artikeln aus dem Grünblog...',
-    infoPanelDescription:
-      'Durchsuchbar sind die Artikel des Grünblogs – dem Onlinemagazin der Grünen.',
     headerIcon: HiDocumentText,
     exampleQuestions: [
-      { icon: '🌍', text: 'Was schreibt der Grünblog zum Klimaschutz?' },
-      { icon: '💡', text: 'Welche Artikel gibt es zu Demokratie?' },
-      { icon: '⚡', text: 'Was steht zur Energiewende im Grünblog?' },
+      { icon: '🌍', tag: 'Klimaschutz', text: 'Was schreibt der Grünblog zum Klimaschutz?' },
+      { icon: '💡', tag: 'Demokratie', text: 'Welche Artikel gibt es zu Demokratie?' },
+      { icon: '⚡', tag: 'Energiewende', text: 'Was steht zur Energiewende im Grünblog?' },
     ],
     externalUrl: 'https://gruenblog.com',
-    sources: [{ name: 'Grünblog', count: 'Magazin' }],
     persistMessages: true,
     useSystemUserId: true,
     systemUserId: SYSTEM_USER_ID,
