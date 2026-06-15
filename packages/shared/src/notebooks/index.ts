@@ -171,6 +171,11 @@ export const NOTEBOOK_REGISTRY = [
     order: 4,
     category: 'landesebene',
     audience: 'de-DE',
+    // LV Hamburg decided against keeping their notebook. Turned off here (the
+    // single switch): hidden from galleries, chat picker, hub and agents, and
+    // skipped by scheduled scraping — while the data stays intact and links stay
+    // routable. To re-enable, delete this one line.
+    enabled: false,
     defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     mention: {
       alias: 'hamburg',
@@ -392,6 +397,25 @@ const isEnabled = (nb: NotebookDefinition): boolean => nb.enabled !== false;
 
 export const getNotebookDefinition = (id: string): NotebookDefinition | undefined =>
   NOTEBOOK_REGISTRY.find((nb) => nb.id === id);
+
+/**
+ * Whether a notebook is enabled, by id. Unknown ids are treated as enabled so
+ * non-registry notebooks (user notebooks, agent-only collections) aren't
+ * accidentally gated. The single switch for a Landesverband is `enabled: false`
+ * on its registry entry — every discovery surface derives its gating from here.
+ */
+export const isNotebookEnabled = (id: string): boolean => {
+  const nb = getNotebookDefinition(id);
+  return nb ? isEnabled(nb) : true;
+};
+
+/**
+ * Ids of notebooks explicitly disabled via `enabled: false`. The single cascade
+ * source: backend chat routing, the chat mention picker, LV hub discovery, the
+ * agent inventory, and scheduled scraping all derive their gating from this set.
+ */
+export const getDisabledNotebookIds = (): ReadonlySet<string> =>
+  new Set(NOTEBOOK_REGISTRY.filter((nb) => nb.enabled === false).map((nb) => nb.id));
 
 /**
  * Enabled notebooks, sorted by `order`. `devOnly` notebooks are excluded unless
