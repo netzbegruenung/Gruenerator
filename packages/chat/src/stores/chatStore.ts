@@ -209,12 +209,19 @@ export const useAgentStore = create<AgentState>()(
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
 
       toggleTool: (tool) =>
-        set((state) => ({
-          enabledTools: {
-            ...state.enabledTools,
-            [tool]: !state.enabledTools[tool],
-          },
-        })),
+        set((state) => {
+          const next = !state.enabledTools[tool];
+          return {
+            enabledTools: {
+              ...state.enabledTools,
+              [tool]: next,
+              // The merged "Recherche" tool gates both backend search paths;
+              // keep the internal `web` gate key in lockstep so disabling the
+              // single toggle stops the auto web search too.
+              ...(tool === 'research' ? { web: next } : {}),
+            },
+          };
+        }),
 
       setAllTools: (enabled) =>
         set({
