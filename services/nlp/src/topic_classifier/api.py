@@ -104,3 +104,27 @@ def analyze_keywords(request: KeywordsRequest):
     items = [{"id": t.id, "title": t.title, "text": t.text} for t in request.texts]
     keywords = classifier.extract_keywords_batch(items, top_n=request.top_n)
     return KeywordsResponse(keywords=[KeywordItem(**k) for k in keywords])
+
+
+class PersonItem(BaseModel):
+    person: str
+    count: int
+
+
+class PersonsRequest(BaseModel):
+    texts: list[TextItem]
+    top_n: int = 20
+
+
+class PersonsResponse(BaseModel):
+    persons: list[PersonItem]
+
+
+@app.post("/analyze/persons", response_model=PersonsResponse)
+def analyze_persons(request: PersonsRequest):
+    if not classifier:
+        return PersonsResponse(persons=[])
+
+    items = [{"id": t.id, "title": t.title, "text": t.text} for t in request.texts]
+    persons = classifier.extract_persons_batch(items, top_n=request.top_n)
+    return PersonsResponse(persons=[PersonItem(**p) for p in persons])
