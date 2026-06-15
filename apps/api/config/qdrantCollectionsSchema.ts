@@ -404,6 +404,28 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  // Cold archive for Landesverband documents past their source's maxAgeYears.
+  // The scraper moves stale points here (vectors + payload preserved) instead of
+  // deleting them, so notebooks/agents — which only ever query
+  // landesverbaende_documents — never surface them, while historical/research
+  // functions can still opt in by querying this collection explicitly. Mirrors
+  // the main collection's indexes (incl. `landesverband`) so a per-notebook
+  // archive view is just a filter, not a separate physical collection.
+  landesverbaende_archive: {
+    name: 'landesverbaende_archive',
+    optimizer: 'small',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'landesverband', type: 'keyword' },
+      { field: 'source_id', type: 'keyword' },
+      { field: 'published_at', type: 'keyword' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
   // mem0 user memory collection for cross-thread persistent context
   user_memories: {
     name: 'user_memories',
