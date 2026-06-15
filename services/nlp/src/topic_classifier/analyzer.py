@@ -74,8 +74,12 @@ class TopicClassifier:
                 f"  python -m spacy download {model}"
             )
 
-        # Only need tokenization, POS tagging, morphology, and lemmatization
-        self.nlp.select_pipes(enable=["tok2vec", "tagger", "morphologizer", "lemmatizer"])
+        # Tokenization, POS tagging, morphology, lemmatization (topics/keywords)
+        # plus NER for person extraction. The topic/keyword passes opt out of NER
+        # per-call via `disable=["ner"]` so only the persons pass pays for it.
+        self.nlp.select_pipes(
+            enable=["tok2vec", "tagger", "morphologizer", "lemmatizer", "ner"]
+        )
         self._emotion_analyzer = EmotionAnalyzer()
         self._ready = True
 
@@ -134,7 +138,7 @@ class TopicClassifier:
 
         results = []
         for idx, (doc, item) in enumerate(zip(
-            self.nlp.pipe(text_contents, batch_size=50, n_process=1),
+            self.nlp.pipe(text_contents, batch_size=50, n_process=1, disable=["ner"]),
             texts,
         )):
             noun_counts: Counter[TopicCategory] = Counter()
@@ -210,7 +214,7 @@ class TopicClassifier:
             for item in texts
         ]
 
-        for doc in self.nlp.pipe(text_contents, batch_size=50, n_process=1):
+        for doc in self.nlp.pipe(text_contents, batch_size=50, n_process=1, disable=["ner"]):
             for token in doc:
                 if token.pos_ not in ("NOUN", "PROPN"):
                     continue
@@ -230,5 +234,51 @@ class TopicClassifier:
                 "count": count,
                 "topic": primary,
             })
+
+        return results
+
+    def extract_persons_batch(
+        self,
+        texts: list[dict],
+        top_n: int = 20,
+    ) -> list[dict]:
+        """Extract the most frequently mentioned person names across all texts.
+
+        Uses spaCy NER (PER entities) and counts DOCUMENT frequency — each person
+        is counted at most once per document, so the ranking reflects "appears in
+        the most documents" rather than "repeated most often in one document".
+
+        Returns a ranked list of {person, count} dicts.
+        """
+        # document frequency per normalized name; keep the most common surface form
+        doc_counts: Counter[str] = Counter()
+        surface_counts: dict[str, Counter[str]] = {}
+
+        text_contents = [
+            f"{item.get('title', '')} {item.get('text', '')}"
+            for item in texts
+        ]
+
+        for doc in self.nlp.pipe(text_contents, batch_size=25, n_process=1):
+            seen_in_doc: set[str] = set()
+            for ent in doc.ents:
+                if ent.label_ != "PER":
+                    continue
+                name = " ".join(ent.text.split()).strip(" .,;:\"'()")
+                # Names are capitalized; drop length-1 fragments and lowercase noise.
+                if len(name) < 3 or not name[0].isupper():
+                    continue
+                norm = name.casefold()
+                if norm in seen_in_doc:
+                    continue
+                seen_in_doc.add(norm)
+                doc_counts[norm] += 1
+                surface_counts.setdefault(norm, Counter())[name] += 1
+
+        results = []
+        for norm, count in doc_counts.most_common(top_n):
+            # most frequent surface spelling becomes the display name
+            display = surface_counts[norm].most_common(1)[0][0]
+            results.append({"person": display, "count": count})
 
         return results

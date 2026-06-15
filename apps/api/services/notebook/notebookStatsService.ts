@@ -18,6 +18,7 @@ const MONTHLY_SCROLL_MAX = 5000;
 const CATEGORY_TOP_N = 10;
 const MONTHLY_BUCKETS = 12;
 const TOP_WORDS_LIMIT = 40;
+const TOP_PERSONS_LIMIT = 20;
 
 export interface FacetBucket {
   value: string;
@@ -43,6 +44,7 @@ export interface NotebookStats {
   topWords: Array<{ word: string; count: number }>;
   topicDistribution: TopicCount[];
   topicSampleSize: number;
+  topPersons: Array<{ person: string; count: number }>;
 }
 
 function emptyStats(): NotebookStats {
@@ -55,6 +57,7 @@ function emptyStats(): NotebookStats {
     topWords: [],
     topicDistribution: [],
     topicSampleSize: 0,
+    topPersons: [],
   };
 }
 
@@ -171,12 +174,14 @@ interface SnapshotData {
   topWords: Array<{ word: string; count: number }>;
   topicDistribution: TopicCount[];
   topicSampleSize: number;
+  topPersons: Array<{ person: string; count: number }>;
 }
 
 const EMPTY_SNAPSHOT: SnapshotData = {
   topWords: [],
   topicDistribution: [],
   topicSampleSize: 0,
+  topPersons: [],
 };
 
 /**
@@ -202,6 +207,7 @@ async function readSnapshotData(collectionId: string): Promise<SnapshotData> {
       topWords,
       topicDistribution,
       topicSampleSize: snapshot.sampleSize,
+      topPersons: snapshot.persons.map((p) => ({ person: p.person, count: p.count })),
     };
   } catch (error) {
     log.warn(
@@ -303,6 +309,7 @@ async function fetchStatsForCollection(collectionId: string): Promise<NotebookSt
     topWords: snapshotData.topWords,
     topicDistribution: snapshotData.topicDistribution,
     topicSampleSize: snapshotData.topicSampleSize,
+    topPersons: snapshotData.topPersons,
   };
 }
 
@@ -315,6 +322,7 @@ function mergeStats(parts: NotebookStats[]): NotebookStats {
   const mergedMonths = new Map<string, number>();
   const mergedWords = new Map<string, number>();
   const mergedTopics = new Map<string, number>();
+  const mergedPersons = new Map<string, number>();
   let totalDocuments = 0;
   let topicSampleSize = 0;
   let min: string | null = null;
@@ -337,6 +345,9 @@ function mergeStats(parts: NotebookStats[]): NotebookStats {
     }
     for (const { topic, count } of p.topicDistribution) {
       mergedTopics.set(topic, (mergedTopics.get(topic) ?? 0) + count);
+    }
+    for (const { person, count } of p.topPersons) {
+      mergedPersons.set(person, (mergedPersons.get(person) ?? 0) + count);
     }
     if (p.dateRange.min && (!min || p.dateRange.min < min)) min = p.dateRange.min;
     if (p.dateRange.max && (!max || p.dateRange.max > max)) max = p.dateRange.max;
@@ -365,6 +376,10 @@ function mergeStats(parts: NotebookStats[]): NotebookStats {
       .map(([topic, count]) => ({ topic, count }))
       .sort((a, b) => b.count - a.count),
     topicSampleSize,
+    topPersons: [...mergedPersons.entries()]
+      .map(([person, count]) => ({ person, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, TOP_PERSONS_LIMIT),
   };
 }
 
