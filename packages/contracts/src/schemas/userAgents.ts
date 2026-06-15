@@ -73,6 +73,7 @@ export const userAgentSchema = z.object({
   enabledTools: z.array(z.string()).readonly().optional(),
   skillMentions: z.array(z.string()).readonly().optional(),
   fewShotExamples: z.array(agentFewShotExampleSchema).readonly().optional(),
+  inlineSourceLinks: z.boolean().optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
@@ -101,6 +102,7 @@ export const createUserAgentBodySchema = z.object({
   enabledTools: z.array(z.string()).nullish(),
   skillMentions: z.array(z.string()).nullish(),
   fewShotExamples: z.array(agentFewShotExampleSchema).nullish(),
+  inlineSourceLinks: z.boolean().nullish(),
 });
 
 export type CreateUserAgentBody = z.infer<typeof createUserAgentBodySchema>;
