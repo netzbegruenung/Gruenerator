@@ -1,5 +1,6 @@
 import { type NotebookId, isNotebookEnabled } from '../notebooks/index.js';
 
+import { LANDESVERBAENDE } from './landesverbaende.js';
 import { type SystemAgentId } from './system.js';
 import { type AgentAudience } from './types.js';
 
@@ -32,94 +33,33 @@ export interface LvHub {
   audience: AgentAudience;
 }
 
-export const LV_HUBS = [
-  {
-    lvId: 'berlin',
-    slug: 'gruene-berlin',
-    name: 'Grüne Berlin',
-    notebookId: 'berlin-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-berlin',
-    buergerAgentId: 'gruenerator-buergeranfragen-berlin',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'hamburg',
-    slug: 'gruene-hamburg',
-    name: 'Grüne Hamburg',
-    notebookId: 'hamburg-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
-    buergerAgentId: 'gruenerator-buergeranfragen-hamburg',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'mecklenburg-vorpommern',
-    slug: 'gruene-mv',
-    name: 'Grüne Mecklenburg-Vorpommern',
-    notebookId: 'mecklenburg-vorpommern-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
-    buergerAgentId: 'gruenerator-buergeranfragen-mecklenburg-vorpommern',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'thueringen',
-    slug: 'gruene-thueringen',
-    name: 'Grüne Thüringen',
-    notebookId: 'thueringen-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
-    buergerAgentId: 'gruenerator-buergeranfragen-thueringen',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'brandenburg',
-    slug: 'gruene-brandenburg',
-    name: 'Grüne Brandenburg',
-    notebookId: 'brandenburg-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
-    buergerAgentId: 'gruenerator-buergeranfragen-brandenburg',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'bayern',
-    slug: 'gruene-bayern',
-    name: 'Grüne Bayern',
-    notebookId: 'bayern-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-bayern',
-    buergerAgentId: 'gruenerator-buergeranfragen-bayern',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'sachsen-anhalt',
-    slug: 'gruene-sachsen-anhalt',
-    name: 'Grüne Sachsen-Anhalt',
-    notebookId: 'sachsen-anhalt-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
-    buergerAgentId: 'gruenerator-buergeranfragen-sachsen-anhalt',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'hessen',
-    slug: 'gruene-hessen',
-    name: 'Grüne Hessen',
-    notebookId: 'hessen-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hessen',
-    buergerAgentId: 'gruenerator-buergeranfragen-hessen',
-    audience: 'de-DE',
-  },
-  {
-    lvId: 'oesterreich',
-    slug: 'gruene-oesterreich',
-    name: 'Grüne Österreich',
-    notebookId: 'oesterreich-notebook',
-    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-at',
-    buergerAgentId: 'gruenerator-buergeranfragen-oesterreich',
-    audience: 'de-AT',
-  },
-] as const satisfies readonly LvHub[];
+/**
+ * Derived from the LV registry (`landesverbaende.ts`): every Landesverband that
+ * declares a `hub` becomes a hub. notebookId / agent ids / audience all come
+ * from the single registry entry, so a hub can never drift from the agents it
+ * points at. The registry types the agent ids as `string`; they are valid
+ * `SystemAgentId`s by construction, so the cast is the assertion at this boundary.
+ */
+export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.flatMap((lv) =>
+  'hub' in lv
+    ? [
+        {
+          lvId: lv.id,
+          slug: lv.hub.slug,
+          name: lv.hub.name,
+          notebookId: lv.notebookId,
+          prAgentId: lv.prAgentId as SystemAgentId,
+          buergerAgentId: lv.buergerAgentId as SystemAgentId,
+          audience: lv.audience,
+        },
+      ]
+    : []
+);
 
-const hubBySlug = new Map<string, (typeof LV_HUBS)[number]>(LV_HUBS.map((hub) => [hub.slug, hub]));
+const hubBySlug = new Map<string, LvHub>(LV_HUBS.map((hub) => [hub.slug, hub]));
 
 /** Resolve a URL slug to its Landesverband hub, or `null` if it isn't one. */
-export function getLandesverbandHubBySlug(slug: string): (typeof LV_HUBS)[number] | null {
+export function getLandesverbandHubBySlug(slug: string): LvHub | null {
   return hubBySlug.get(slug) ?? null;
 }
 
@@ -128,7 +68,7 @@ export function getLandesverbandHubBySlug(slug: string): (typeof LV_HUBS)[number
  * locale-specific (the AT hub surfaces only for Austrian users, the rest only
  * for German users) — so unlike agents, a hub never has an `'all'` audience.
  */
-export function getLandesverbandHubs(userLocale: string): readonly (typeof LV_HUBS)[number][] {
+export function getLandesverbandHubs(userLocale: string): readonly LvHub[] {
   return LV_HUBS.filter((hub) => hub.audience === userLocale && isNotebookEnabled(hub.notebookId));
 }
 
