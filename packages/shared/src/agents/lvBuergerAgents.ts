@@ -108,6 +108,30 @@ export const LV_BUERGER_SPECS = [
   audience?: 'de-AT';
 }>;
 
+// Splits a comma-separated `themes` string into individual topics, ignoring
+// commas inside parentheses (e.g. Hessen's "Naturschutz (Wald, Wasser)") and
+// stripping the parentheticals so the topics read cleanly inside a prompt.
+function splitThemes(themes: string): string[] {
+  return themes
+    .split(/,\s*(?![^()]*\))/)
+    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
+    .filter(Boolean);
+}
+
+// Concrete, LV-specific example prompts for the welcome screen — derived from
+// the spec's own `themes` so every LV gets tailored Beispiel-Karten without
+// hand-authoring a prompt list per Landesverband.
+function buildLvBuergerOpeningQuestions(spec: (typeof LV_BUERGER_SPECS)[number]): string[] {
+  const topics = splitThemes(spec.themes);
+  const [t0, t1, t2] = [topics[0], topics[1] ?? topics[0], topics[2] ?? topics[0]];
+  return [
+    `Beantworte eine Bürger*innenanfrage zu ${t0}: …`,
+    `Wie positionieren sich die Grünen ${spec.title} zu ${t1}?`,
+    `Formuliere eine freundliche Antwort auf eine kritische Mail zu ${t2}: …`,
+    'Antworte auf diese E-Mail einer Bürgerin: …',
+  ];
+}
+
 function buildLvBuergerSystemRole(spec: (typeof LV_BUERGER_SPECS)[number]): string {
   const isAT = 'audience' in spec && spec.audience === 'de-AT';
   const partyName = isAT ? 'Die Grünen Österreich' : `BÜNDNIS 90/DIE GRÜNEN ${spec.title}`;
@@ -154,12 +178,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     params: { max_tokens: 3000, temperature: 0.4 },
     openingMessage: `Hallo! Ich beantworte Bürger*innenanfragen für die Grünen ${spec.title}.\n\nFüge die eingegangene E-Mail oder das Anliegen ein — ich recherchiere die Positionen des Landesverbands und formuliere eine versandfertige Antwort-E-Mail mit weiterführenden Links.`,
     welcomeQuestion: `Welche Anfrage soll ${spec.title} beantworten?`,
-    openingQuestions: [
-      'Beantworte diese Bürger*innenanfrage: …',
-      `Wie steht ${spec.title} zu …?`,
-      'Formuliere eine freundliche Antwort auf diese kritische Mail: …',
-      'Antworte auf eine Frage zur Verkehrs-/Energiepolitik: …',
-    ],
+    openingQuestions: buildLvBuergerOpeningQuestions(spec),
     locale: isAT ? 'de-AT' : 'de-DE',
     author: 'Grünerator',
     enabledTools: ['search', 'web', 'scrape', 'memory', 'self_review'],

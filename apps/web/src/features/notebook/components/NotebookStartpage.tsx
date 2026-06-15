@@ -10,6 +10,7 @@ import { memo, useState, type ReactNode } from 'react';
 import PageContainer from '../../../components/common/PageContainer';
 
 import { LastAddedSection } from './LastAddedSection';
+import { NotebookAgentsSection } from './NotebookAgentsSection';
 import { NotebookGlobalChatLauncher } from './NotebookGlobalChatLauncher';
 import { NotebookManualSearch } from './NotebookManualSearch';
 import { StatisticsSection } from './StatisticsSection';
@@ -52,6 +53,9 @@ interface NotebookStartpageProps {
   manualSearchNotebookId?: string;
   /** Mention slug for the global-chat tab (e.g. 'berlin'). Null hides the tab. */
   notebookMention?: string | null;
+  /** Canonical notebook id (e.g. 'brandenburg-notebook') used to surface the
+   *  notebook's LV agents. The agents section self-hides when none match. */
+  notebookId?: string;
   footer?: ReactNode;
 }
 
@@ -94,6 +98,7 @@ export function NotebookStartpage({
   hideGlobalChat = false,
   manualSearchNotebookId,
   notebookMention,
+  notebookId,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
@@ -119,7 +124,7 @@ export function NotebookStartpage({
             {sources.map(
               (s, i) =>
                 s.name && (
-                  <span key={i} className="inline-flex items-center gap-1">
+                  <span key={s.name} className="inline-flex items-center gap-1">
                     <span>{s.name}</span>
                     {s.count && <span className="text-grey-400">· {s.count}</span>}
                     {i < sources.length - 1 && <span className="mx-xs">·</span>}
@@ -175,8 +180,8 @@ export function NotebookStartpage({
             />
             {exampleQuestions.length > 0 && (
               <div className="mt-md grid grid-cols-1 gap-sm md:grid-cols-3">
-                {exampleQuestions.map((q, i) => (
-                  <ExampleChip key={i} question={q} />
+                {exampleQuestions.map((q) => (
+                  <ExampleChip key={q.text} question={q} />
                 ))}
               </div>
             )}
@@ -188,6 +193,8 @@ export function NotebookStartpage({
               showSourceLabel={showRecentSourceLabel}
             />
           )}
+
+          {notebookId && <NotebookAgentsSection notebookId={notebookId} />}
 
           {showStats && recentCollectionIds.length > 0 && (
             <StatisticsSection collectionIds={recentCollectionIds} />

@@ -19,6 +19,10 @@ import { z } from 'zod';
 import {
   entityResultsResponseSchema,
   entitySummaryResponseSchema,
+  euGreenProfileQuerySchema,
+  euGreenProfileResponseSchema,
+  euGreensHistoryResponseSchema,
+  euGreensResponseSchema,
   internalSyncEventsBodySchema,
   internalSyncEventsResponseSchema,
   keywordInsightsResponseSchema,
@@ -35,6 +39,7 @@ import {
   monitorSnapshotSchema,
   pollDataSchema,
   pollParliamentsResponseSchema,
+  pollsHistoryResponseSchema,
   pollsQuerySchema,
   stateElectionsResponseSchema,
   topicArticlesQuerySchema,
@@ -151,7 +156,57 @@ export const monitorContract = c.router(
       summary: 'Available poll parliaments',
     },
 
-    /** GET /api/monitor/polls — poll averages (PolitPro, wahlrecht.de fallback). */
+    /** GET /api/monitor/polls/eu-greens/history — weekly green trend per country. */
+    euGreensHistory: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens/history',
+      responses: {
+        200: euGreensHistoryResponseSchema,
+        500: monitorErrorResponseSchema,
+        503: monitorErrorResponseSchema,
+      },
+      summary: 'Green party trend history across European parliaments',
+    },
+
+    /** GET /api/monitor/polls/eu-greens/profile — AI party profile (Wikipedia). */
+    euGreenProfile: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens/profile',
+      query: euGreenProfileQuerySchema,
+      responses: {
+        200: euGreenProfileResponseSchema,
+        404: monitorErrorResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'AI profile of one EU green party',
+    },
+
+    /** GET /api/monitor/polls/eu-greens — green-party trend across EU parliaments. */
+    euGreens: {
+      method: 'GET',
+      path: '/api/monitor/polls/eu-greens',
+      responses: {
+        200: euGreensResponseSchema,
+        500: monitorErrorResponseSchema,
+        503: monitorErrorResponseSchema,
+      },
+      summary: 'Green party results across European parliaments',
+    },
+
+    /** GET /api/monitor/polls/history — weekly trend since 2019 + individual polls. */
+    pollsHistory: {
+      method: 'GET',
+      path: '/api/monitor/polls/history',
+      query: pollsQuerySchema,
+      responses: {
+        200: pollsHistoryResponseSchema,
+        404: monitorErrorResponseSchema,
+        500: monitorErrorResponseSchema,
+      },
+      summary: 'Poll trend history for one parliament',
+    },
+
+    /** GET /api/monitor/polls — poll averages (PolitPro). */
     polls: {
       method: 'GET',
       path: '/api/monitor/polls',

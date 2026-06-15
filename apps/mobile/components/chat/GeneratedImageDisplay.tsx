@@ -2,9 +2,10 @@ import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, useColorScheme } from 'react-native';
 
 import { saveImageToGallery } from '../../services/imageStudio';
+import { shareBase64Image } from '../../services/share';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
@@ -19,12 +20,14 @@ const STYLE_LABELS: Record<GeneratedImage['style'], string> = {
   realistic: 'Realistisch',
   pixel: 'Pixel Art',
   'green-edit': 'Stadt begrünen',
+  universal: 'Bearbeitet',
   sharepic: 'Sharepic',
 };
 
 export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage; theme: Theme }) {
   const [zoomed, setZoomed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isDark = useColorScheme() === 'dark';
   const src = image.base64 || image.url;
 
   if (!src) return null;
@@ -55,9 +58,20 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
 
       <View style={styles.meta}>
         <View style={styles.metaLeft}>
-          <View style={[styles.badge, { backgroundColor: colors.primary[100] }]}>
-            <Ionicons name="image-outline" size={11} color={colors.primary[700]} />
-            <Text style={[styles.badgeText, { color: colors.primary[700] }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: isDark ? colors.primary[950] : colors.primary[100] },
+            ]}
+          >
+            <Ionicons
+              name="image-outline"
+              size={11}
+              color={isDark ? theme.textGreen : colors.primary[700]}
+            />
+            <Text
+              style={[styles.badgeText, { color: isDark ? theme.textGreen : colors.primary[700] }]}
+            >
               {STYLE_LABELS[image.style] ?? image.style}
             </Text>
           </View>
@@ -69,16 +83,26 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
         </View>
 
         {image.base64 && (
-          <Pressable onPress={handleSave} disabled={saving} style={styles.save} hitSlop={8}>
-            <Ionicons
-              name={saving ? 'hourglass-outline' : 'download-outline'}
-              size={14}
-              color={theme.textSecondary}
-            />
-            <Text style={[styles.saveText, { color: theme.textSecondary }]}>
-              {saving ? 'Speichern…' : 'Speichern'}
-            </Text>
-          </Pressable>
+          <View style={styles.metaActions}>
+            <Pressable
+              onPress={() => void shareBase64Image(image.base64, 'Bild teilen')}
+              style={styles.save}
+              hitSlop={8}
+            >
+              <Ionicons name="share-outline" size={14} color={theme.textSecondary} />
+              <Text style={[styles.saveText, { color: theme.textSecondary }]}>Teilen</Text>
+            </Pressable>
+            <Pressable onPress={handleSave} disabled={saving} style={styles.save} hitSlop={8}>
+              <Ionicons
+                name={saving ? 'hourglass-outline' : 'download-outline'}
+                size={14}
+                color={theme.textSecondary}
+              />
+              <Text style={[styles.saveText, { color: theme.textSecondary }]}>
+                {saving ? 'Speichern…' : 'Speichern'}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -124,6 +148,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xsmall,
+  },
+  metaActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
   },
   save: {
     flexDirection: 'row',

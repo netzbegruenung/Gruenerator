@@ -15,6 +15,8 @@ import { subtitlerProjects } from '../../database/schema/index.js';
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
+import { processSubtitleSegments } from './downloadUtils.js';
+
 import type {
   SubtitlerProject,
   SubtitlerProjectListItem,
@@ -37,6 +39,38 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function validatePathId(id: string, label: string): string {
   if (!UUID_RE.test(id)) throw new Error(`Invalid ${label}: must be a UUID`);
   return id;
+}
+
+/**
+ * Normalize any accepted `subtitles` wire shape to the canonical stored
+ * format: `JSON.stringify(SubtitleSegment[])` — the same format the create
+ * path writes. Historically the update path persisted the raw
+ * "MM:SS.F - MM:SS.F\nText" string, leaving the column with two formats
+ * and forcing every reader to dual-parse. Normalizing at this write
+ * boundary makes the column converge; the clients' dual parser remains
+ * only for rows written before this change.
+ */
+function normalizeSubtitlesForStorage(subtitles: unknown): string {
+  if (Array.isArray(subtitles)) {
+    return JSON.stringify(
+      subtitles.map((s: { startTime: number; endTime: number; text: string }) => ({
+        startTime: s.startTime,
+        endTime: s.endTime,
+        text: s.text,
+      }))
+    );
+  }
+  if (typeof subtitles === 'string') {
+    if (subtitles.trimStart().startsWith('[')) return subtitles;
+    return JSON.stringify(
+      processSubtitleSegments(subtitles).map((s) => ({
+        startTime: s.startTime,
+        endTime: s.endTime,
+        text: s.text,
+      }))
+    );
+  }
+  return JSON.stringify([]);
 }
 function toSubtitlerProject(row: SubtitlerProjectRow): SubtitlerProject {
   return {
@@ -375,6 +409,10 @@ export class SubtitlerProjectService {
         } else if (updates[camelCaseField as keyof UpdateProjectData] !== undefined) {
           updateData[field] = updates[camelCaseField as keyof UpdateProjectData];
         }
+      }
+
+      if (updateData.subtitles != null) {
+        updateData.subtitles = normalizeSubtitlesForStorage(updateData.subtitles);
       }
 
       updateData.last_edited_at = new Date();

@@ -5,9 +5,8 @@
  * All routes require authentication (requireAuth is applied at the
  * /api/user-agents prefix in routes.ts).
  *
- * Route ordering note: `convertCg` (POST /convert-cg/:slug) is a literal path
- * under POST, distinct from `create` (POST /), so no ordering hazard. `get`,
- * `update`, `remove` share the `:identifier` param route.
+ * Route ordering note: `get`, `update`, `remove` share the `:identifier` param
+ * route.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
@@ -27,7 +26,7 @@ const c = initContract();
 
 export const userAgentsContract = c.router(
   {
-    /** GET /api/user-agents — the caller's own agents (+ virtualized custom generators). */
+    /** GET /api/user-agents — the caller's own agents. */
     list: {
       method: 'GET',
       path: '/api/user-agents',
@@ -68,22 +67,6 @@ export const userAgentsContract = c.router(
         500: userAgentErrorResponseSchema,
       },
       summary: 'Draft an agent spec from the creator conversation',
-    },
-
-    /** POST /api/user-agents/convert-cg/:slug — persist a virtualized custom generator. */
-    convertCg: {
-      method: 'POST',
-      path: '/api/user-agents/convert-cg/:slug',
-      pathParams: z.object({ slug: z.string() }),
-      body: z.object({}).optional(),
-      responses: {
-        201: userAgentItemResponseSchema,
-        401: userAgentErrorResponseSchema,
-        404: userAgentErrorResponseSchema,
-        409: userAgentErrorResponseSchema,
-        500: userAgentErrorResponseSchema,
-      },
-      summary: 'Convert a custom generator into a user agent',
     },
 
     /** GET /api/user-agents/:identifier — a single owned agent. */

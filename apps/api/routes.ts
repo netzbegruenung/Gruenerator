@@ -246,7 +246,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const {
     default: authRouter,
     authCoreRouter: _authCoreRouter,
-    userCustomGeneratorsRouter: _userCustomGeneratorsRouter,
     contentRouter: _userContentRouter,
     templatesRouter: _userTemplatesRouter,
     groupsRouter: _userGroupsRouter,
@@ -256,10 +255,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: claudeAlttextRoute } = await import('./routes/texte/alttext.js');
   const { default: claudeGrueneratorAskRoute } = await import('./routes/texte/gruenerator_ask.js');
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
-  const { default: customGeneratorRoute } =
-    await import('./routes/custom_generators/custom_generator.js');
-  const { default: generatorConfiguratorRoute } =
-    await import('./routes/custom_generators/generator_configurator.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
@@ -545,9 +540,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
   app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
   app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
-  app.use('/api/custom_generator', aiGenerationLimiter, customGeneratorRoute);
-  app.use('/api/auth/custom_generator', aiGenerationLimiter, customGeneratorRoute);
-  app.use('/api/generate_generator_config', aiGenerationLimiter, generatorConfiguratorRoute);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   // ts-rest contract router for user-created agents — replaces the legacy

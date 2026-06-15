@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
 import { FileText, Pencil, LayoutGrid, Share2, Check, X, ArrowRight, Loader2 } from 'lucide-react';
 import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { confirmChatAction } from '../../lib/confirmAction';
 
 type CardStatus = 'idle' | 'loading' | 'confirmed' | 'rejected' | 'error' | 'expired';
 
@@ -25,50 +25,21 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
 
   async function handleConfirm(confirmed: boolean) {
     setStatus('loading');
-    try {
-      const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
-      const response = await configFetch(endpoints.chatConfirm, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          threadId: action.threadId,
-          actionId: action.actionId,
-          confirmed,
-        }),
-      });
-
-      if (response.status === 404) {
-        setStatus('expired');
-        return;
-      }
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        setErrorMessage(data?.error || 'Fehler bei der Ausführung.');
-        setStatus('error');
-        return;
-      }
-
-      if (!confirmed) {
-        setStatus('rejected');
-        return;
-      }
-
-      const data = await response.json();
-      if (data.url) {
-        const isDocsUrl = data.url.startsWith('/document/');
-        if (isDocsUrl) {
-          const docId = data.url.replace('/document/', '');
-          setResultUrl(`/docs/${docId}`);
-        } else {
-          setResultUrl(data.url);
-        }
-      }
-      setStatus('confirmed');
-    } catch {
-      setErrorMessage('Verbindungsfehler. Bitte versuche es erneut.');
+    const outcome = await confirmChatAction(action, confirmed);
+    if (outcome.status === 'error') {
+      setErrorMessage(outcome.message);
       setStatus('error');
+      return;
     }
+    if (outcome.status === 'confirmed' && outcome.url) {
+      // /document/<id> is the API's canonical path; the web docs route is /docs/<id>.
+      setResultUrl(
+        outcome.url.startsWith('/document/')
+          ? `/docs/${outcome.url.replace('/document/', '')}`
+          : outcome.url
+      );
+    }
+    setStatus(outcome.status);
   }
 
   if (status === 'confirmed') {

@@ -33,6 +33,12 @@
       "import": "./dist/hooks/index.js",
       "default": "./dist/hooks/index.js"
     },
+    "./icons": {
+      "development": "./src/icons/index.ts",
+      "types": "./src/icons/index.ts",
+      "import": "./dist/icons/index.js",
+      "default": "./dist/icons/index.js"
+    },
     "./utils": {
       "development": "./src/utils/index.ts",
       "types": "./src/utils/index.ts",

@@ -1,5 +1,5 @@
-import { MdDiversity1 } from 'react-icons/md';
 import {
+  MdDiversity1,
   PiBank,
   PiBooks,
   PiCompass,
@@ -13,8 +13,7 @@ import {
   PiNewspaper,
   PiScales,
   PiTree,
-} from 'react-icons/pi';
-
+} from '../icons';
 import { type NotebookId } from '../notebooks';
 
 import type { IconType } from 'react-icons';

@@ -1,7 +1,15 @@
 import BottomSheet, { BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Linking,
+  ActivityIndicator,
+  useColorScheme,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing, borderRadius } from '../../theme';
@@ -21,6 +29,7 @@ const MAX_DISPLAY_LENGTH = 50_000;
 export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }: Props) {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
+  const isDark = useColorScheme() === 'dark';
   const snapPoints = useMemo(() => ['50%', '85%'], []);
   const [fullText, setFullText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,8 +83,18 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
 
         <View style={styles.metaRow}>
           {citation.collectionName && (
-            <View style={[styles.badge, { backgroundColor: colors.primary[100] }]}>
-              <Text style={[styles.badgeText, { color: colors.primary[700] }]}>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: isDark ? colors.primary[950] : colors.primary[100] },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: isDark ? theme.textGreen : colors.primary[700] },
+                ]}
+              >
                 {citation.collectionName}
               </Text>
             </View>
@@ -103,17 +122,20 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
             <Pressable
               style={({ pressed }) => [
                 styles.actionButton,
-                { backgroundColor: colors.primary[50], opacity: pressed ? 0.7 : 1 },
+                {
+                  backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+                  opacity: pressed ? 0.7 : 1,
+                },
               ]}
               onPress={handleLoadFullText}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={colors.primary[600]} />
+                <ActivityIndicator size="small" color={theme.textGreen} />
               ) : (
-                <Ionicons name="document-text-outline" size={16} color={colors.primary[600]} />
+                <Ionicons name="document-text-outline" size={16} color={theme.textGreen} />
               )}
-              <Text style={[styles.actionText, { color: colors.primary[600] }]}>
+              <Text style={[styles.actionText, { color: theme.textGreen }]}>
                 {isLoading ? 'Wird geladen...' : 'Volltext laden'}
               </Text>
             </Pressable>

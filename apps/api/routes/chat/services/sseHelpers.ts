@@ -16,10 +16,19 @@ import type {
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   CanvasAiSuggestion,
+  ReelPickerProject,
   TriggerDocEdit,
   TriggerBoardAction,
+  ConfirmActionEvent,
+  DocumentCreatedEvent,
+  SearchResultPayload,
+  ThinkingStepPayload,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
+
+// Wire shapes shared with the chat runtime parser — defined once in
+// @gruenerator/contracts (chatStreamEvents) and re-exported for the emitters.
+export type { SearchResultPayload, ThinkingStepPayload };
 
 /**
  * SSE event types for chat streaming.
@@ -38,6 +47,10 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
+  | 'reel_processing'
+  | 'reel_picker'
+  | 'reel_updated'
+  | 'reel_edit_error'
   | 'tool_step_start'
   | 'tool_step_result'
   | 'response_start'
@@ -69,35 +82,6 @@ export type SSEEventType =
  * Reasons a primary model can fail in a way that triggers fallback.
  */
 export type FallbackReason = 'first_token_timeout' | 'empty_completion' | 'upstream_error';
-
-/**
- * Search result structure sent to the client.
- */
-export interface SearchResultPayload {
-  source: string;
-  title: string;
-  content: string;
-  url?: string;
-  relevance?: number;
-}
-
-/**
- * Payload for deep agent thinking step events.
- * Emitted when the agent starts/completes a tool call.
- */
-export interface ThinkingStepPayload {
-  stepId: string;
-  toolName: string;
-  title: string;
-  status: 'in_progress' | 'completed';
-  args?: Record<string, unknown>;
-  result?: {
-    resultCount?: number;
-    results?: unknown[];
-    image?: GeneratedImageResult;
-    error?: string;
-  };
-}
 
 /**
  * Payload for internal pipeline-progress events (classify, rerank, brief).
@@ -177,6 +161,19 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
+  // Reel branch (chat subtitle editing of subtitler projects). The frontend
+  // polls GET /subtitler/auto-progress/:uploadId after reel_processing; full
+  // segments travel via reel_updated only (compact tool results in the DB).
+  reel_processing: { uploadId: string; filename: string };
+  reel_picker: { projects: ReelPickerProject[] };
+  reel_updated: {
+    projectId: string;
+    title: string;
+    segments: Array<{ id: number; startTime: number; endTime: number; text: string }>;
+    summary: string;
+    changedIndices: number[];
+  };
+  reel_edit_error: { projectId?: string; error: string };
   // Agentic tool loop (CHAT_TOOL_LOOP): one start/result pair per tool step.
   // Args/summaries are compact display data — full state still travels via
   // sharepic_updated only.
@@ -193,7 +190,7 @@ export interface SSEEventPayloads {
     reason: FallbackReason;
   };
   document_indexed: { documentId: string; title: string };
-  document_created: { documentId: string; title: string; subtype: string; url: string };
+  document_created: DocumentCreatedEvent;
   trigger_doc_edit: TriggerDocEdit;
   trigger_board_action: TriggerBoardAction;
   interrupt: {
@@ -202,18 +199,7 @@ export interface SSEEventPayloads {
     options?: string[];
     threadId?: string;
   };
-  confirm_action: {
-    actionId: string;
-    type: ConfirmActionType;
-    title: string;
-    description?: string;
-    icon?: string;
-    metadata?: Array<{ key: string; value: string }>;
-    variant?: 'default' | 'destructive';
-    confirmLabel?: string;
-    cancelLabel?: string;
-    threadId?: string;
-  };
+  confirm_action: ConfirmActionEvent;
   memory_context: {
     memoryCount: number;
     memories: Array<{ content: string; category: string | null }>;

@@ -15,7 +15,10 @@ export interface Project {
   id: string;
   user_id: string;
   title: string;
-  upload_id: string;
+  // Only present on client-constructed temp projects (`temp-<uploadId>`).
+  // The server consumes uploadId at create time (copies the video out of
+  // tus-temp) and never stores it — server-returned rows have no upload_id.
+  upload_id: string | null;
   thumbnail_path: string | null;
   video_path: string | null;
   video_metadata: VideoMetadata | null;
@@ -75,12 +78,20 @@ export interface SaveProjectData {
   heightPreference?: string;
   modePreference?: string;
   videoMetadata?: VideoMetadata;
-  videoFilename?: string;
+  // Required by `projectDataBodySchema` (`z.string()`): the server keys
+  // find-or-update on it and 500s on `undefined`. Was `?:` here, which let
+  // mobile callers omit it and break the save at runtime.
+  videoFilename: string;
   videoSize?: number;
 }
 
 export interface UpdateProjectData {
-  subtitles?: string;
+  // Transitional union mirroring `updateProjectBodySchema`: the canonical
+  // wire shape is `SubtitleSegment[]`; the text-format string remains
+  // accepted (and is normalized server-side) so clients deployed against
+  // an older server keep working. Switch senders to segments once the
+  // server-side normalization (ProjectService.updateProject) is deployed.
+  subtitles?: string | SubtitleSegment[];
   title?: string;
   stylePreference?: string;
   heightPreference?: string;

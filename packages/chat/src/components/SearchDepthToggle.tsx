@@ -10,28 +10,17 @@ import {
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../lib/utils';
 import { useChatDensity } from './thread/chatDensityContext';
-import { type SearchMode } from '../stores/chatStore';
+import { SEARCH_DEPTHS, type SearchDepthIconKey } from '../lib/composerControls';
 import { useScopedSearchMode, useScopedSetSearchMode } from '../lib/useScopedAgentState';
 
-const DEPTH_CONFIG: Array<{
-  mode: SearchMode;
-  label: string;
-  description: string;
-  Icon: typeof Zap;
-}> = [
-  {
-    mode: 'web',
-    label: 'Schnell',
-    description: 'Web + Dokumente, sofortige Antwort',
-    Icon: Zap,
-  },
-  {
-    mode: 'deep',
-    label: 'Tiefe Recherche',
-    description: 'Mehrere Suchläufe, längeres Dossier',
-    Icon: Telescope,
-  },
-];
+// Presentation only: the modes, labels, and descriptions come from the shared
+// SEARCH_DEPTHS list; this maps the semantic icon key → lucide component.
+const DEPTH_ICONS: Record<SearchDepthIconKey, typeof Zap> = {
+  fast: Zap,
+  deep: Telescope,
+};
+
+const DEPTH_CONFIG = SEARCH_DEPTHS.map((depth) => ({ ...depth, Icon: DEPTH_ICONS[depth.icon] }));
 
 export const SearchDepthToggle = memo(function SearchDepthToggle() {
   const isCompact = useChatDensity() === 'compact';

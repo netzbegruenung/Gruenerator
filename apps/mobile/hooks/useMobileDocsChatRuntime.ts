@@ -34,7 +34,7 @@ export function useMobileDocsChatRuntime(docThreadId: string | null) {
       modelId: '',
       enabledTools: {
         search: true,
-        web: true,
+        web: false,
         examples: true,
         pressemitteilung_examples: false,
         research: true,
