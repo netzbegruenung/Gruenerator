@@ -148,7 +148,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         };
       }
 
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -174,6 +175,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         is_private: false,
         is_example: false,
         status: 'pending_review',
+        // Target the creator's locale so the gallery can scope by audience.
+        audience: user.locale ?? 'all',
       };
 
       const newTemplate = await postgres.insert('user_templates', templateData);
@@ -239,7 +242,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
   create: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const {
         title,
         description,
@@ -286,6 +290,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         is_private: isPrivate,
         is_example: false,
         status: isPrivate ? 'draft' : 'pending_review',
+        // Target the creator's locale so the gallery can scope by audience.
+        audience: user.locale ?? 'all',
       };
 
       const newTemplate = await postgres.insert('user_templates', templateData);

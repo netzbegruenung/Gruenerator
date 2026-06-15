@@ -4,7 +4,6 @@ import { HiCheck, HiX, HiExternalLink } from 'react-icons/hi';
 
 import type { AdminVorlage } from '../hooks/useAdminVorlagen';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
 
 interface VorlagenReviewCardProps {
@@ -30,11 +29,10 @@ const VorlagenReviewCard = ({
 }: VorlagenReviewCardProps) => {
   const [imageError, setImageError] = useState(false);
 
-  const thumbnailUrl = vorlage.thumbnail_url
-    ? vorlage.thumbnail_url.startsWith('http')
+  const thumbnailUrl =
+    vorlage.thumbnail_url && vorlage.thumbnail_url.startsWith('http')
       ? vorlage.thumbnail_url
-      : `${API_BASE_URL}/template-previews/${vorlage.thumbnail_url}`
-    : null;
+      : null;
 
   const typeLabel = TEMPLATE_TYPE_LABELS[vorlage.template_type] || vorlage.template_type;
   const rejectionReason = vorlage.metadata?.rejection_reason as string | undefined;
