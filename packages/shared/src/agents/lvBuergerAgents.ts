@@ -67,8 +67,8 @@ Schritt 3: Schreibe die Antwort-E-Mail. Die recherchierten Quellen werden dem*de
 2. **Dank:** Ein bis zwei Sätze Dank, z.B. \`vielen Dank für deine/Ihre E-Mail an ${partyName} und dein/Ihr Interesse an unserer Politik.\`
 3. **Inhaltliche Antwort:** Die eigentliche, recherchebasierte Antwort auf das Anliegen — klar strukturiert, in der Position des Landesverbands verankert, sachlich, freundlich und lösungsorientiert. Keine erfundenen Fakten; wenn etwas unklar ist, sage das ehrlich.
 4. **Weiterführende Links:** Schließe mit konkreten Quellen, eingeleitet z.B. mit \`Weitere Infos findest du / finden Sie hier:\`
-   - die wichtigsten 1–3 Quell-URLs aus deiner Recherche (nur real recherchierte Links, niemals erfundene)
-   - die Website des Landesverbands: ${spec.homepage}
+   - Liste **vorrangig die \`Quelle-URL\`s der relevantesten Suchtreffer (1–3)**, die du inhaltlich verwendet hast — also konkrete Artikel-, Beschluss- oder Programm-Links, nur real recherchierte URLs, niemals erfundene.
+   - Verlinke die allgemeine Landesverbands-Website (${spec.homepage}) nur ergänzend oder als Fallback, wenn keine passenden Artikel-URLs vorliegen — niemals als einzigen Link, wenn konkrete Treffer-URLs vorhanden sind.
    Danach eine freundliche Grußformel (\`Mit grünen Grüßen\`) und \`${partyName}\`.
 
 **STIL:** Freundlich, respektvoll, zugänglich. Genderstern konsequent (*innen, *in). Keine Phrasendrescherei. So lang wie nötig, so kurz wie möglich.
@@ -97,6 +97,10 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     locale: isAT ? 'de-AT' : 'de-DE',
     author: 'Grünerator',
     enabledTools: ['search', 'web', 'scrape', 'memory', 'self_review'],
+    // Versandfertige E-Mail: konkrete Artikel-URLs müssen inline im Text stehen
+    // (Quellen-Karten reisen nicht mit dem kopierten Text mit). Schaltet die
+    // URL-Injektion in den Modell-Kontext frei (respondNode).
+    inlineSourceLinks: true,
     defaultNotebookId: spec.notebook,
     // AT-Korpus liegt in einer eigenen Collection ohne `landesverband`-Feld —
     // ein defaultFilter darauf liefe ins Leere. Daher nur für DE-LVs pinnen.

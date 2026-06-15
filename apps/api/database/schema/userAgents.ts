@@ -1,5 +1,14 @@
 import { type InferSelectModel } from 'drizzle-orm';
-import { index, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 export const userAgents = pgTable(
   'user_agents',
@@ -28,6 +37,9 @@ export const userAgents = pgTable(
     plugins: jsonb('plugins').$type<string[]>(),
     enabled_tools: jsonb('enabled_tools').$type<string[]>(),
     skill_mentions: jsonb('skill_mentions').$type<string[]>(),
+    // When true, source URLs of search hits are injected into the model context
+    // so the agent writes concrete article links inline (e.g. ready-to-send mails).
+    inline_source_links: boolean('inline_source_links'),
     few_shot_examples:
       jsonb('few_shot_examples').$type<
         Array<{ input: string; output: string; reasoning?: string }>

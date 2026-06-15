@@ -852,8 +852,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
         // Deduplicate in case of overlap
         const uniqueCollections = [...new Set(collectionsToSearch)];
+        // Deep-recall path also applies to agents bound to a notebook via
+        // `defaultNotebookId` (→ defaultNotebookCollectionIds), not just to
+        // explicitly @mentioned notebooks — otherwise such agents search the
+        // right collection but with the shallow 3/8 recall, collapsing to too
+        // few distinct sources after per-article dedup.
         const isNotebookScoped =
-          state.notebookCollectionIds && state.notebookCollectionIds.length > 0;
+          (state.notebookCollectionIds?.length ?? 0) > 0 ||
+          (state.defaultNotebookCollectionIds?.length ?? 0) > 0;
 
         const query = truncateQuery(searchQuery || '');
 
