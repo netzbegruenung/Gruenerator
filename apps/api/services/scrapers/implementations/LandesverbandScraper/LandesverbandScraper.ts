@@ -20,6 +20,7 @@ import {
   type ContentPath,
   type LandesverbandSource,
 } from '../../../../config/landesverbaendeConfig.js';
+import { getDisabledLandesverbandShortNames } from '../../../../config/notebookCollectionMap.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,
@@ -512,8 +513,14 @@ export class LandesverbandScraper extends BaseScraper {
       sources = getSourcesByLandesverband(landesverband);
     }
 
+    // Skip sources for a Landesverband whose notebook is turned off
+    // (`enabled: false`) — derived from the same single switch, so no separate
+    // `dormant` flag is needed to stop scheduled scraping. Direct
+    // `scrapeSource(id)` calls bypass this, so the data can still be re-scraped.
+    const disabledLvCodes = getDisabledLandesverbandShortNames();
     const dormantSources = sources.filter((s) => s.dormant);
-    sources = sources.filter((s) => !s.dormant);
+    const disabledLvSources = sources.filter((s) => !s.dormant && disabledLvCodes.has(s.shortName));
+    sources = sources.filter((s) => !s.dormant && !disabledLvCodes.has(s.shortName));
 
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
     console.log('║       Landesverbaende Scraper - Full Crawl                ║');
@@ -521,6 +528,9 @@ export class LandesverbandScraper extends BaseScraper {
     this.log(`Sources to process: ${sources.length}`);
     if (dormantSources.length > 0) {
       this.log(`Dormant sources skipped: ${dormantSources.map((s) => s.id).join(', ')}`);
+    }
+    if (disabledLvSources.length > 0) {
+      this.log(`Disabled-LV sources skipped: ${disabledLvSources.map((s) => s.id).join(', ')}`);
     }
     if (sourceType) this.log(`Filter by type: ${sourceType}`);
     if (landesverband) this.log(`Filter by LV: ${landesverband}`);
