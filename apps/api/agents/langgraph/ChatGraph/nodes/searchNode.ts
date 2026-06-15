@@ -1060,6 +1060,45 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      case 'scrape_url': {
+        // User pasted URL(s) into their message. The classifier detected them
+        // deterministically (state.detectedUrls); crawl the pages and inject the
+        // content as context. Unlike `web`, there's no search step — the URLs are
+        // user-chosen, so give them a longer per-URL timeout. First link ranks highest.
+        const urls = state.detectedUrls ?? [];
+        if (urls.length === 0) {
+          log.warn('[Search] scrape_url intent reached with no detectedUrls');
+          break;
+        }
+        const seeds: CrawlableResult[] = urls.map((url, idx) => ({
+          url,
+          title: url,
+          content: '',
+          relevance: 1 - idx * 0.1,
+        }));
+        try {
+          const crawled = await selectAndCrawlTopUrls(seeds, searchQuery || '', {
+            maxUrls: 3,
+            timeout: 8000,
+          });
+          results = crawled
+            .filter((r) => r.crawled && (r.fullContent || r.content))
+            .map((r) => ({
+              ...r,
+              content: r.fullContent || r.content || '',
+              source: 'web',
+              title: r.title || r.url || '',
+            }));
+          log.info(`[Search] scrape_url crawled ${results.length}/${urls.length} pasted URL(s)`);
+        } catch (err: unknown) {
+          log.warn(
+            `[Search] scrape_url crawling failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+        citations = buildCitations(results);
+        break;
+      }
+
       case 'pressemitteilung_examples':
       case 'examples': {
         // Build kinds from intent + secondaryIntent. The dual SearchIntent

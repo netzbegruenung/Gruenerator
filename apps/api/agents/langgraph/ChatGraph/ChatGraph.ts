@@ -226,6 +226,10 @@ const ChatStateAnnotation = Annotation.Root({
   subQueries: Annotation<string[] | null>({
     reducer: (x, y) => y ?? x,
   }),
+  detectedUrls: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+    default: () => [],
+  }),
   reasoning: Annotation<string>({
     reducer: (x, y) => y ?? x,
   }),
@@ -482,6 +486,7 @@ function routeAfterClassification(
     search: 'search',
     // person: 'person', // DISABLED: Person search not production ready
     web: 'web',
+    scrape_url: 'scrape',
     examples: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
     image: 'image',
@@ -768,6 +773,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     searchSources: [],
     searchQuery: null,
     subQueries: null,
+    detectedUrls: [],
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
