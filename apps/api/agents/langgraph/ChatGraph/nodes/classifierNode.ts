@@ -26,6 +26,7 @@ import {
   heuristicClassify,
   extractSearchTopic,
   extractMessageText,
+  extractUrls,
   formatConversationHistory,
   hasImageEditVerb,
   mentionsImageNoun,
@@ -97,11 +98,40 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'compare';
   }
 
+  // ── URL context: pasted link(s) → additive scrape_url step ──
+  // When the active agent has scraping enabled and the message contains URL(s),
+  // crawl them so the page content becomes context. Additive, not exclusive:
+  // a pure link paste (or a creative task whose only "search" is the link) takes
+  // the scrape_url slot directly; otherwise it rides as the secondary intent so
+  // "schreib einen Tweet zu <url>" both crawls the page AND drafts the tweet.
+  let secondaryIntent = result.secondaryIntent ?? null;
+  // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
+  // name 'scrape_url') and the user must not have toggled it off in the composer.
+  const scrapeWhitelist = state.agentConfig?.enabledTools;
+  const agentAllowsScrape =
+    !scrapeWhitelist ||
+    scrapeWhitelist.includes('scrape') ||
+    scrapeWhitelist.includes('scrape_url');
+  const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
+  const detectedUrls = scrapeEnabled ? extractUrls(userText) : [];
+  if (detectedUrls.length > 0) {
+    if (!intent || intent === 'direct') {
+      intent = 'scrape_url';
+    } else if (!secondaryIntent && intent !== 'scrape_url') {
+      secondaryIntent = 'scrape_url';
+    }
+    log.info(
+      `[Classifier] Detected ${detectedUrls.length} URL(s) → scrape_url (intent=${intent}, secondary=${secondaryIntent ?? 'none'})`
+    );
+  }
+
   const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);
 
   return {
     ...result,
     intent: intent ?? result.intent,
+    secondaryIntent,
+    detectedUrls,
     documentSources,
     synthesisMode,
   };
