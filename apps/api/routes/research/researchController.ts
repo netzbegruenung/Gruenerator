@@ -123,6 +123,8 @@ export interface FilterEntry {
   label: string;
   type: 'keyword' | 'date_range';
   values?: Array<{ value: string; count: number }>;
+  /** Maps raw facet values to display labels (e.g. theme code → German name). */
+  valueLabels?: Record<string, string>;
   min?: string;
   max?: string;
 }
@@ -203,6 +205,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
             label: field.label,
             type: field.type as 'keyword' | 'date_range',
             values,
+            valueLabels: field.valueLabels,
           };
         }
       } catch (fieldError) {
@@ -241,6 +244,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
       }
     } else {
       const values = 'values' in result ? (result.values ?? []) : [];
+      const valueLabels = 'valueLabels' in result ? result.valueLabels : undefined;
       if (mergedFilters[result.field]) {
         const existing = mergedFilters[result.field];
         const countMap = new Map<string, number>();
@@ -253,11 +257,13 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
         existing.values = Array.from(countMap.entries())
           .map(([value, count]) => ({ value, count }))
           .sort((a, b) => b.count - a.count);
+        if (valueLabels) existing.valueLabels = { ...existing.valueLabels, ...valueLabels };
       } else {
         mergedFilters[result.field] = {
           label: result.label,
           type: 'keyword',
           values,
+          ...(valueLabels && { valueLabels }),
         };
       }
     }
