@@ -13,6 +13,7 @@ import {
   adminVorlagenStatsResponseSchema,
   adminVorlagenSuccessResponseSchema,
   adminVorlagenErrorResponseSchema,
+  approveVorlageBodySchema,
   rejectVorlageBodySchema,
 } from '../schemas/adminVorlagen.js';
 
@@ -64,7 +65,7 @@ export const adminVorlagenContract = c.router(
     approve: {
       method: 'POST',
       path: '/api/auth/admin/vorlagen/:id/approve',
-      body: z.object({}),
+      body: approveVorlageBodySchema,
       responses: {
         200: adminVorlagenSuccessResponseSchema,
         401: adminVorlagenErrorResponseSchema,
