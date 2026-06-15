@@ -70,6 +70,15 @@ const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
 
 /**
+ * Cold archive collection for documents past their source's maxAgeYears. Stale
+ * points are moved here (see #archiveStaleDocuments) instead of being deleted,
+ * so notebooks/agents — which only ever query landesverbaende_documents — never
+ * surface them, while historical/research functions can opt in explicitly.
+ * Created at boot from COLLECTION_SCHEMAS in qdrantCollectionsSchema.ts.
+ */
+const LANDESVERBAENDE_ARCHIVE_COLLECTION = 'landesverbaende_archive';
+
+/**
  * Main scraper class - orchestrates all modules
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
@@ -491,6 +500,18 @@ export class LandesverbandScraper extends BaseScraper {
       result.newArticles.push(...pathResult.newArticles);
     }
 
+    // Enforce the age cap on already-stored documents, not just at ingestion.
+    // Skipped on dry runs so a preview never mutates the index.
+    if (!options.dryRun) {
+      const liveCollection = source.qdrantCollection || this.config.collectionName;
+      const archived = await this.#archiveStaleDocuments(source, liveCollection);
+      if (archived > 0) {
+        this.log(
+          `Archived ${archived} stored point(s) older than ${source.maxAgeYears}y for ${source.name}`
+        );
+      }
+    }
+
     return result;
   }
 
@@ -823,6 +844,122 @@ export class LandesverbandScraper extends BaseScraper {
     if (!indexedAt) return false;
     const age = Date.now() - new Date(indexedAt).getTime();
     return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
+  }
+
+  /**
+   * Enforce the source's age cap on documents that are ALREADY stored by moving
+   * them to the cold archive collection instead of deleting them.
+   *
+   * The DocumentProcessor age filter only rejects new content at ingestion.
+   * Documents indexed before a source's window was tightened linger forever:
+   * #isFreshlyIndexed never re-fetches settled history (published > 2y ago) and
+   * dedup only ever touches URLs that are re-encountered. Sachsen-Anhalt, for
+   * example, was scraped under the 10-year default before its 5-year cap was
+   * set, so 2016–2020 documents stayed in the live collection and surfaced in
+   * the notebook.
+   *
+   * Stale points (published_at older than maxAgeYears) are copied — vectors and
+   * payload intact — into LANDESVERBAENDE_ARCHIVE_COLLECTION, then deleted from
+   * the live collection. Notebooks/agents only ever query the live collection,
+   * so the cap is enforced there structurally (no per-query filter to forget),
+   * while historical/research functions can still query the archive explicitly.
+   *
+   * Undated points are kept in the live collection — consistent with the
+   * ingestion filter (DocumentProcessor STEP 2), which only rejects dated
+   * content. Sources without a configured cap are left untouched. The copy uses
+   * the same deterministic point ids, so the move is idempotent: a re-run
+   * re-archives the same ids (overwriting in the archive) before deleting. We
+   * archive a batch before deleting it, so a mid-run failure never loses data —
+   * worst case a point is duplicated into the archive and re-deleted next run.
+   *
+   * @returns number of points moved to the archive
+   */
+  async #archiveStaleDocuments(
+    source: LandesverbandSource,
+    liveCollection: string
+  ): Promise<number> {
+    if (source.maxAgeYears == null) return 0;
+    const ageLimit = source.maxAgeYears;
+
+    const staleIds: (string | number)[] = [];
+    let offset: string | number | Record<string, unknown> | undefined;
+
+    try {
+      // Phase 1: cheap payload-only scroll to find stale point ids.
+      do {
+        const page = await this.qdrantClient.scroll(liveCollection, {
+          filter: { must: [{ key: 'source_id', match: { value: source.id } }] },
+          with_payload: { include: ['published_at'] },
+          with_vector: false,
+          limit: 256,
+          ...(offset !== undefined ? { offset } : {}),
+        });
+
+        for (const point of page.points) {
+          const publishedAt = (point.payload as { published_at?: string } | null)?.published_at;
+          if (!publishedAt) continue; // undated content is kept, mirroring ingestion
+          const pubDate = new Date(publishedAt);
+          if (Number.isNaN(pubDate.getTime())) continue;
+          if (DateExtractor.isDateTooOld(pubDate, ageLimit)) {
+            staleIds.push(point.id);
+          }
+        }
+
+        offset = page.next_page_offset ?? undefined;
+      } while (offset !== undefined);
+
+      if (staleIds.length === 0) return 0;
+
+      // Phase 2: per batch, fetch the full points (with vectors), copy them into
+      // the archive, then delete them from the live collection.
+      const archivedAt = new Date().toISOString();
+      const batchSize = 128;
+      let archived = 0;
+
+      for (let i = 0; i < staleIds.length; i += batchSize) {
+        const idBatch = staleIds.slice(i, i + batchSize);
+        const records = await this.qdrantClient.retrieve(liveCollection, {
+          ids: idBatch,
+          with_payload: true,
+          with_vector: true,
+        });
+
+        // Single unnamed vector per point; skip anything without a usable vector
+        // so we never archive (and then delete) an unrecoverable point.
+        const archivePoints = records
+          .filter((r) => Array.isArray(r.vector))
+          .map((r) => ({
+            id: r.id,
+            vector: r.vector as number[],
+            payload: {
+              ...((r.payload as Record<string, unknown>) || {}),
+              archived_at: archivedAt,
+              archived_from: liveCollection,
+            },
+          }));
+
+        if (archivePoints.length === 0) continue;
+
+        await this.qdrantClient.upsert(LANDESVERBAENDE_ARCHIVE_COLLECTION, {
+          wait: true,
+          points: archivePoints,
+        });
+        await this.qdrantClient.delete(liveCollection, {
+          wait: true,
+          points: archivePoints.map((p) => p.id),
+        });
+        archived += archivePoints.length;
+      }
+
+      return archived;
+    } catch (error) {
+      // Best-effort maintenance — never fail a scrape over it. Because we delete
+      // only after a successful archive upsert, a failure here leaves the live
+      // collection untouched for the un-processed remainder; the next run retries.
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Landesverband] Archive prune failed for ${source.id}: ${message}`);
+      return 0;
+    }
   }
 
   /**
