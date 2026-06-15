@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { formToPayload, type FormState, type Locale } from './agentFormState';
 import { AgentPreview } from './AgentPreview';
 import { useCreateUserAgent, useUpdateUserAgent } from './api';
+import { ExperimentalAgentBanner } from './experimentalWarning';
 import { AgentAvatar } from './icons/AgentAvatar';
 import { IconPicker } from './icons/IconPicker';
 
@@ -161,6 +162,8 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
         </div>
       </header>
 
+      <ExperimentalAgentBanner className="mb-md" />
+
       {error && <p className="mb-md text-sm text-destructive">{error}</p>}
 
       <div className="grid grid-cols-1 gap-lg lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
@@ -239,8 +242,8 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
             <span>
               <span className="block text-sm font-medium">Quell-Links direkt im Antworttext</span>
               <span className="block text-xs text-foreground-muted">
-                Für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche erscheinen
-                inline im Text statt nur als Quellen-Karten.
+                Für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche
+                erscheinen inline im Text statt nur als Quellen-Karten.
               </span>
             </span>
           </label>
