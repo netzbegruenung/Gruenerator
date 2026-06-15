@@ -232,22 +232,6 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
             </div>
           </fieldset>
 
-          <label className="flex cursor-pointer items-start gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={form.inlineSourceLinks}
-              onChange={(e) => set('inlineSourceLinks', e.target.checked)}
-            />
-            <span>
-              <span className="block text-sm font-medium">Quell-Links direkt im Antworttext</span>
-              <span className="block text-xs text-foreground-muted">
-                Für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche
-                erscheinen inline im Text statt nur als Quellen-Karten.
-              </span>
-            </span>
-          </label>
-
           <label className={labelCls}>
             Wissen
             <span className="text-xs font-normal text-foreground-muted">
@@ -289,6 +273,24 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
               Erweiterte Einstellungen
             </summary>
             <div className="mt-md flex flex-col gap-md">
+              <label className="flex cursor-pointer items-start gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.inlineSourceLinks}
+                  onChange={(e) => set('inlineSourceLinks', e.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    Quell-Links direkt im Antworttext
+                  </span>
+                  <span className="block text-xs text-foreground-muted">
+                    Für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche
+                    erscheinen inline im Text statt nur als Quellen-Karten.
+                  </span>
+                </span>
+              </label>
+
               <label className={labelCls}>
                 Region
                 <select
