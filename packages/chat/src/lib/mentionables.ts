@@ -1,7 +1,6 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import {
-  PiGlobeHemisphereWest,
   PiFlask,
   PiFiles,
   PiChatCircleDots,
@@ -51,6 +50,13 @@ export interface Mentionable {
   icon?: React.ComponentType<{ className?: string }>;
   /** Locale visibility (skills/agents): de-DE / de-AT / all. Undefined ≈ all. */
   audience?: 'de-DE' | 'de-AT' | 'all';
+  /**
+   * Extra mention strings that resolve to this same mentionable but are NOT
+   * shown as separate picker entries. Used for back-compat after merging tools
+   * (e.g. the merged "Recherche" tool keeps `websearch` resolving so old
+   * @websearch mentions in existing threads still work).
+   */
+  aliases?: string[];
 }
 
 export interface CustomAgentMentionable {
@@ -164,28 +170,22 @@ export const notebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) =>
 
 export const toolMentionables: Mentionable[] = [
   {
-    type: 'tool',
-    category: 'function',
-    trigger: '@',
-    identifier: 'web',
-    title: 'Websuche',
-    description: 'Aktuelle Infos aus dem Web',
-    avatar: '🌐',
-    icon: PiGlobeHemisphereWest,
-    backgroundColor: '#2563EB',
-    mention: 'websearch',
-  },
-  {
+    // Merged search tool (formerly two separate tools "Websuche" + "Recherche").
+    // The backend auto-scales depth: simple/news queries route to a fast web
+    // search, complex ones to deep multi-source research (see ChatGraph
+    // classifier + executeResearch complexity scaling). `websearch` stays a
+    // resolving alias so old @websearch mentions keep working.
     type: 'tool',
     category: 'function',
     trigger: '@',
     identifier: 'research',
     title: 'Recherche',
-    description: 'Tiefgehende Multi-Quellen-Recherche',
+    description: 'Web & Quellen – automatische Suchtiefe',
     avatar: '🔬',
     icon: PiFlask,
     backgroundColor: '#7C3AED',
     mention: 'recherche',
+    aliases: ['websearch'],
   },
   {
     type: 'tool',
@@ -666,6 +666,14 @@ function rebuildMentionableMap(): void {
       const key = m.mention.toLowerCase();
       if (!mentionableMap.has(key)) {
         mentionableMap.set(key, m);
+      }
+      // Back-compat aliases resolve to the same mentionable (not shown in the
+      // picker). Same first-wins dedup as the primary mention.
+      for (const alias of m.aliases ?? []) {
+        const aliasKey = alias.toLowerCase();
+        if (!mentionableMap.has(aliasKey)) {
+          mentionableMap.set(aliasKey, m);
+        }
       }
     }
   }
