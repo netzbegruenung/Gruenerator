@@ -117,6 +117,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['BE', 'BE-F'] },
+    defaultNotebookId: 'berlin-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
@@ -158,6 +159,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: 'HH' },
+    defaultNotebookId: 'hamburg-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -199,6 +201,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['MV', 'MV-F'] },
+    defaultNotebookId: 'mecklenburg-vorpommern-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
@@ -240,6 +243,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['TH', 'TH-F'] },
+    defaultNotebookId: 'thueringen-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
@@ -281,6 +285,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: 'BB' },
+    defaultNotebookId: 'brandenburg-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
@@ -322,6 +327,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['BY', 'BY-F'] },
+    defaultNotebookId: 'bayern-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
@@ -363,6 +369,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['LSA', 'LSA-F'] },
+    defaultNotebookId: 'sachsen-anhalt-notebook',
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -404,6 +411,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['HE', 'HE-F'] },
+    defaultNotebookId: 'hessen-notebook',
   },
   // ─── Dedicated Öffentlichkeitsarbeit-Agent für Österreich ───
   // Spiegelbild zu den hand-getunten DE-LV-Agents. Verwendet gruene.at-Stil,
