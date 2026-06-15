@@ -206,6 +206,7 @@ async function testExpandedContextWindow() {
     secondaryIntent: null,
     searchQuery: 'test query',
     subQueries: null,
+    detectedUrls: [],
     reasoning: 'test',
     contentType: null,
     documentSubtype: null,
