@@ -1,5 +1,5 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
-import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
+import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
 import {
   PiFlask,
   PiFiles,
@@ -153,7 +153,12 @@ export function getCustomAgentMentionables(): Mentionable[] {
 // Derived from the shared notebook registry so the @-mention picker always matches the
 // web/mobile galleries. Adding a notebook to `@gruenerator/shared/notebooks` surfaces it
 // here automatically; the icon is resolved by id from the shared NOTEBOOK_ICONS map.
-export const notebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) => ({
+//
+// Two views: `allNotebookMentionables` (incl. disabled) backs `resolveMentionable`
+// so old `@hamburg`/`@sh` tokens in existing threads still resolve, while the
+// exported `notebookMentionables` (enabled only) is what the picker offers — so a
+// notebook turned off via `enabled: false` disappears from discovery.
+const allNotebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) => ({
   type: 'notebook',
   category: 'function',
   trigger: '@',
@@ -165,6 +170,10 @@ export const notebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) =>
   backgroundColor: nb.mention.backgroundColor,
   mention: nb.mention.alias,
 }));
+
+export const notebookMentionables: Mentionable[] = allNotebookMentionables.filter((m) =>
+  isNotebookEnabled(m.identifier)
+);
 
 export const toolMentionables: Mentionable[] = [
   {
@@ -636,7 +645,8 @@ function rebuildMentionableMap(): void {
     agentMentionables,
     customAgentMentionables,
     dynamicUserNotebookMentionables,
-    notebookMentionables,
+    // Full set (incl. disabled) so historical `@hamburg`/`@sh` tokens still resolve.
+    allNotebookMentionables,
     toolMentionables,
     boardToolMentionables,
     dynamicBoardMentionables,

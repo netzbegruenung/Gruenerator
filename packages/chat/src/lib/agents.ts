@@ -1,6 +1,7 @@
 import {
   DEFAULT_SYSTEM_AGENT_ID,
   SKILLS,
+  getSystemAgent,
   getVisibleSystemAgentsForLocale,
   resolveSkillMention,
   type Skill,
@@ -17,7 +18,14 @@ export {
 
 type ResolvedSkill = Skill & { icon: SkillIcon };
 
-export const agentsList: ResolvedSkill[] = SKILLS.map((skill) => ({
+// Drop skills whose owning agent is hidden from inventory (e.g. a Landesverband
+// turned off via `enabled: false` hides its presse-/insta-<lv> skills). The
+// generated SKILLS carry no agent metadata, so resolve the agent by identifier.
+// Resolution maps in `skills/index.ts` are untouched, so historical `/presse-<lv>`
+// mentions still resolve.
+export const agentsList: ResolvedSkill[] = SKILLS.filter(
+  (skill) => getSystemAgent(skill.identifier)?.hiddenFromInventory !== true
+).map((skill) => ({
   ...skill,
   icon: resolveSkillIcon(skill.iconKey),
 }));
