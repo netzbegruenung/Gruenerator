@@ -1,6 +1,14 @@
+import { LV_NOTEBOOK_BY_PR_AGENT_ID } from './landesverbaende.js';
+
 import type { Agent } from './types.js';
 
-export const OEFFENTLICHKEITSARBEIT_AGENTS = [
+// Hand-tuned PR agents: the general Öffentlichkeitsarbeit agent plus one
+// corpus-derived variant per Landesverband. Editorial content (systemRole,
+// prompts, tone) is hand-written; the LV notebook pin is NOT — it is injected
+// from the LV registry below (see `OEFFENTLICHKEITSARBEIT_AGENTS`) so it can
+// never be forgotten. Forgetting it is exactly what hid 8 of these agents from
+// their Landesverband notebook page.
+const PR_AGENT_DEFINITIONS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     autoRoutingHint: 'creative',
@@ -496,9 +504,24 @@ Schritt 5: \`self_review\` prüft Stil, Vokabular (kein deutsches Vokabular!), S
       'memory_save',
       'self_review',
     ],
-    defaultNotebookId: 'oesterreich-notebook',
     toolRestrictions: {
       examplesCountry: 'AT',
     },
   },
 ] as const satisfies readonly Agent[];
+
+/** Literal union of the hand-tuned PR agent identifiers — feeds `SystemAgentId`.
+ *  Derived from the raw `as const` definitions so the union stays exact even
+ *  though the exported array below is mapped (and therefore type-widened). */
+export type OeffentlichkeitsarbeitAgentId = (typeof PR_AGENT_DEFINITIONS)[number]['identifier'];
+
+/**
+ * Public registry array. Each per-LV agent gets its `defaultNotebookId` from the
+ * LV registry by identifier, so the notebook pin is impossible to omit — the
+ * notebook page lists an agent only when `defaultNotebookId === notebookId`. The
+ * general agent has no registry entry and is passed through unchanged.
+ */
+export const OEFFENTLICHKEITSARBEIT_AGENTS: readonly Agent[] = PR_AGENT_DEFINITIONS.map((def) => {
+  const notebookId = LV_NOTEBOOK_BY_PR_AGENT_ID.get(def.identifier);
+  return notebookId ? { ...def, defaultNotebookId: notebookId } : def;
+});
