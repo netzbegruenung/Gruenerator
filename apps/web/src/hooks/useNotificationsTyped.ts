@@ -43,14 +43,6 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
   }
 }
 
-export async function markAllNotificationsAsRead(): Promise<void> {
-  const client = getContractsClient();
-  const result = await client.notifications.markAllAsRead({ body: {} });
-  if (result.status !== 200) {
-    throw new Error(`Failed to mark all as read (HTTP ${result.status})`);
-  }
-}
-
 export async function dismissNotificationById(notificationId: string): Promise<void> {
   const client = getContractsClient();
   const result = await client.notifications.dismiss({
