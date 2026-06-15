@@ -45,7 +45,10 @@ export interface ComposerToolDef {
  */
 export const COMPOSER_TOOLS: ComposerToolDef[] = [
   { key: 'search', label: 'Dokumentensuche', icon: 'document' },
-  { key: 'web', label: 'Websuche', icon: 'globe' },
+  // Merged search tool: a single "Recherche" toggle gates both backend search
+  // paths (fast web + deep research). The `web` ToolKey lives on internally as a
+  // gate/back-compat key (see chatStore `toggleTool`), but is no longer a
+  // separate user-facing toggle.
   { key: 'examples', label: 'Beispiele', icon: 'idea' },
   { key: 'pressemitteilung_examples', label: 'Pressemitteilungen', icon: 'newspaper' },
   { key: 'research', label: 'Recherche', icon: 'research' },
