@@ -491,6 +491,18 @@ export class LandesverbandScraper extends BaseScraper {
       result.newArticles.push(...pathResult.newArticles);
     }
 
+    // Enforce the age cap on already-stored documents, not just at ingestion.
+    // Skipped on dry runs so a preview never mutates the index.
+    if (!options.dryRun) {
+      const pruneCollection = source.qdrantCollection || this.config.collectionName;
+      const pruned = await this.#pruneStaleDocuments(source, pruneCollection);
+      if (pruned > 0) {
+        this.log(
+          `Pruned ${pruned} stored point(s) older than ${source.maxAgeYears}y for ${source.name}`
+        );
+      }
+    }
+
     return result;
   }
 
@@ -823,6 +835,78 @@ export class LandesverbandScraper extends BaseScraper {
     if (!indexedAt) return false;
     const age = Date.now() - new Date(indexedAt).getTime();
     return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
+  }
+
+  /**
+   * Enforce the source's age cap on documents that are ALREADY stored.
+   *
+   * The DocumentProcessor age filter only rejects new content at ingestion.
+   * Documents indexed before a source's window was tightened linger forever:
+   * #isFreshlyIndexed never re-fetches settled history (published > 2y ago) and
+   * dedup only ever touches URLs that are re-encountered. Sachsen-Anhalt, for
+   * example, was scraped under the 10-year default before its 5-year cap was
+   * set, so 2016–2020 documents stayed in Qdrant and surfaced in the notebook.
+   *
+   * This scrolls the source's stored points and deletes any whose published_at
+   * is older than maxAgeYears, so the cap applies to the stored set and not just
+   * at ingestion. Undated points are kept — consistent with the ingestion filter
+   * (DocumentProcessor STEP 2), which only rejects dated content. Sources without
+   * a configured cap are left untouched. Idempotent and cheap when nothing is
+   * stale (a single payload-only scroll pass, no deletes).
+   *
+   * @returns number of points deleted
+   */
+  async #pruneStaleDocuments(
+    source: LandesverbandSource,
+    targetCollection: string
+  ): Promise<number> {
+    if (source.maxAgeYears == null) return 0;
+    const ageLimit = source.maxAgeYears;
+
+    const staleIds: (string | number)[] = [];
+    let offset: string | number | Record<string, unknown> | undefined;
+
+    try {
+      do {
+        const page = await this.qdrantClient.scroll(targetCollection, {
+          filter: { must: [{ key: 'source_id', match: { value: source.id } }] },
+          with_payload: { include: ['published_at'] },
+          with_vector: false,
+          limit: 256,
+          ...(offset !== undefined ? { offset } : {}),
+        });
+
+        for (const point of page.points) {
+          const publishedAt = (point.payload as { published_at?: string } | null)?.published_at;
+          if (!publishedAt) continue; // undated content is kept, mirroring ingestion
+          const pubDate = new Date(publishedAt);
+          if (Number.isNaN(pubDate.getTime())) continue;
+          if (DateExtractor.isDateTooOld(pubDate, ageLimit)) {
+            staleIds.push(point.id);
+          }
+        }
+
+        offset = page.next_page_offset ?? undefined;
+      } while (offset !== undefined);
+
+      if (staleIds.length === 0) return 0;
+
+      // Delete by point id in batches (one point == one chunk).
+      const deleteBatchSize = 256;
+      for (let i = 0; i < staleIds.length; i += deleteBatchSize) {
+        await this.qdrantClient.delete(targetCollection, {
+          wait: true,
+          points: staleIds.slice(i, i + deleteBatchSize),
+        });
+      }
+
+      return staleIds.length;
+    } catch (error) {
+      // Pruning is best-effort maintenance — never fail a scrape over it.
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Landesverband] Prune failed for ${source.id}: ${message}`);
+      return 0;
+    }
   }
 
   /**
