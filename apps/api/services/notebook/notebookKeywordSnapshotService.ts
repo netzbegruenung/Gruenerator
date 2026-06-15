@@ -7,13 +7,14 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { TOPIC_CATEGORIES, type TopicCategory } from '../monitor/types.js';
-import { classifyArticles, extractKeywordsBatched } from '../nlp/nlpClient.js';
+import { classifyArticles, extractKeywordsBatched, extractPersonsBatched } from '../nlp/nlpClient.js';
 
 const log = createLogger('notebookKeywords');
 
 const SAMPLE_SIZE = 80;
 const TEXT_CHARS_PER_DOC = 1500;
 const TOP_N = 40;
+const PERSON_TOP_N = 20;
 const NLP_BATCH_SIZE = 15;
 const NLP_TIMEOUT_MS = 30_000;
 
@@ -24,6 +25,7 @@ export interface KeywordSnapshotRecord {
   month: string;
   keywords: Array<{ keyword: string; count: number; topic: string | null }>;
   topicCounts: TopicCountMap;
+  persons: Array<{ person: string; count: number }>;
   totalDocuments: number;
   sampleSize: number;
   computedAt: string;
@@ -130,15 +132,16 @@ export async function refreshKeywordSnapshot(
     log.warn(`[${collectionId}] no sample docs — storing empty snapshot`);
     await db().query(
       `INSERT INTO notebook_keyword_snapshots
-         (collection_id, month, keywords, topic_counts, total_documents, sample_size, computed_at)
-       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, now())
+         (collection_id, month, keywords, topic_counts, persons, total_documents, sample_size, computed_at)
+       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6, $7, now())
        ON CONFLICT (collection_id, month) DO UPDATE
          SET keywords = EXCLUDED.keywords,
              topic_counts = EXCLUDED.topic_counts,
+             persons = EXCLUDED.persons,
              total_documents = EXCLUDED.total_documents,
              sample_size = EXCLUDED.sample_size,
              computed_at = now()`,
-      [collectionId, month, JSON.stringify([]), JSON.stringify({}), totalDocuments, 0]
+      [collectionId, month, JSON.stringify([]), JSON.stringify({}), JSON.stringify([]), totalDocuments, 0]
     );
     return {
       collectionId,
@@ -155,12 +158,16 @@ export async function refreshKeywordSnapshot(
   // `classifyArticles` doesn't accept a batchSize today (one-shot per call),
   // so for very large samples we'd need a chunked variant — at SAMPLE_SIZE=80
   // it stays well under the 30s NLP timeout.
-  const [keywords, classifications] = await Promise.all([
+  const [keywords, classifications, persons] = await Promise.all([
     extractKeywordsBatched(docs, TOP_N, {
       timeoutMs: NLP_TIMEOUT_MS,
       batchSize: NLP_BATCH_SIZE,
     }),
     classifyArticles<TopicCategory>(docs),
+    extractPersonsBatched(docs, PERSON_TOP_N, {
+      timeoutMs: NLP_TIMEOUT_MS,
+      batchSize: NLP_BATCH_SIZE,
+    }),
   ]);
   if (keywords.length === 0) {
     log.warn(`[${collectionId}] NLP returned 0 keywords (likely failure/timeout)`);
@@ -185,14 +192,16 @@ export async function refreshKeywordSnapshot(
     count: k.count,
     topic: k.topic ?? null,
   }));
+  const personsPayload = persons.map((p) => ({ person: p.person, count: p.count }));
 
   await db().query(
     `INSERT INTO notebook_keyword_snapshots
-       (collection_id, month, keywords, topic_counts, total_documents, sample_size, computed_at)
-     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, now())
+       (collection_id, month, keywords, topic_counts, persons, total_documents, sample_size, computed_at)
+     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6, $7, now())
      ON CONFLICT (collection_id, month) DO UPDATE
        SET keywords = EXCLUDED.keywords,
            topic_counts = EXCLUDED.topic_counts,
+           persons = EXCLUDED.persons,
            total_documents = EXCLUDED.total_documents,
            sample_size = EXCLUDED.sample_size,
            computed_at = now()`,
@@ -201,6 +210,7 @@ export async function refreshKeywordSnapshot(
       month,
       JSON.stringify(payload),
       JSON.stringify(topicCounts),
+      JSON.stringify(personsPayload),
       totalDocuments,
       docs.length,
     ]
@@ -209,7 +219,7 @@ export async function refreshKeywordSnapshot(
   const dt = Date.now() - t0;
   const classifiedCount = classifications.filter((c) => c.primaryTopic).length;
   log.info(
-    `[${collectionId}] snapshot stored: ${keywords.length} keywords, ${classifiedCount} classified docs, sample=${docs.length}, total=${totalDocuments}, ${dt}ms`
+    `[${collectionId}] snapshot stored: ${keywords.length} keywords, ${persons.length} persons, ${classifiedCount} classified docs, sample=${docs.length}, total=${totalDocuments}, ${dt}ms`
   );
 
   return {
@@ -261,11 +271,21 @@ function parseTopicCounts(raw: unknown): TopicCountMap {
   return out;
 }
 
+function parsePersons(raw: unknown): KeywordSnapshotRecord['persons'] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { person, count } = entry as Record<string, unknown>;
+    if (typeof person !== 'string' || typeof count !== 'number') return [];
+    return [{ person, count }];
+  });
+}
+
 export async function getLatestKeywordSnapshot(
   collectionId: string
 ): Promise<KeywordSnapshotRecord | null> {
   const rows = await db().query(
-    `SELECT collection_id, month, keywords, topic_counts, total_documents, sample_size, computed_at
+    `SELECT collection_id, month, keywords, topic_counts, persons, total_documents, sample_size, computed_at
        FROM notebook_keyword_snapshots
       WHERE collection_id = $1
       ORDER BY month DESC
@@ -279,6 +299,7 @@ export async function getLatestKeywordSnapshot(
     month: r.month as string,
     keywords: r.keywords as KeywordSnapshotRecord['keywords'],
     topicCounts: parseTopicCounts(r.topic_counts),
+    persons: parsePersons(r.persons),
     totalDocuments: r.total_documents as number,
     sampleSize: r.sample_size as number,
     computedAt: r.computed_at instanceof Date ? r.computed_at.toISOString() : String(r.computed_at),
@@ -294,7 +315,7 @@ export async function getKeywordHistory(
   months: number = 6
 ): Promise<KeywordSnapshotRecord[]> {
   const rows = await db().query(
-    `SELECT collection_id, month, keywords, topic_counts, total_documents, sample_size, computed_at
+    `SELECT collection_id, month, keywords, topic_counts, persons, total_documents, sample_size, computed_at
        FROM notebook_keyword_snapshots
       WHERE collection_id = $1
       ORDER BY month DESC
@@ -306,6 +327,7 @@ export async function getKeywordHistory(
     month: r.month as string,
     keywords: r.keywords as KeywordSnapshotRecord['keywords'],
     topicCounts: parseTopicCounts(r.topic_counts),
+    persons: parsePersons(r.persons),
     totalDocuments: r.total_documents as number,
     sampleSize: r.sample_size as number,
     computedAt: r.computed_at instanceof Date ? r.computed_at.toISOString() : String(r.computed_at),
