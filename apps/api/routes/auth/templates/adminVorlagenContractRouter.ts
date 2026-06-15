@@ -15,6 +15,7 @@ import { adminVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { createNotification } from '../../../services/notifications/index.js';
 import { enrichTemplate } from '../../../services/templates/templateEnrichment.js';
 import { isAdminByEmail } from '../../../utils/adminEmails.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
@@ -128,10 +129,11 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
       if (!(await checkIsAdmin(userId, authedUser.email))) return FORBIDDEN;
 
       const { id } = args.params;
+      const message = args.body.message?.trim() || null;
       const postgres = getPostgresInstance();
 
       const template = await postgres.queryOne(
-        'SELECT id, metadata FROM user_templates WHERE id = $1',
+        'SELECT id, user_id, title, metadata FROM user_templates WHERE id = $1',
         [id],
         { table: 'user_templates' }
       );
@@ -148,6 +150,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
         ...(existingMetadata as Record<string, unknown>),
         reviewed_by: userId,
         reviewed_at: new Date().toISOString(),
+        ...(message ? { approval_message: message } : {}),
       };
 
       await postgres.query(
@@ -162,6 +165,19 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
       void enrichTemplate(id).catch((e) =>
         log.warn('[adminVorlagenContract.approve] enrichTemplate failed', e)
       );
+
+      // Notify the submitter (in-app + email + push). Skip self-reviews.
+      if (template.user_id && template.user_id !== userId) {
+        const baseBody = `„${template.title}" ist jetzt in der Vorlagen-Galerie verfügbar.`;
+        void createNotification({
+          userId: template.user_id as string,
+          type: 'template_approved',
+          title: 'Deine Vorlage wurde freigegeben 🎉',
+          body: message ? `${baseBody}\n\n${message}` : baseBody,
+          actionUrl: '/vorlagen',
+          metadata: { templateId: id, ...(message ? { approvalMessage: message } : {}) },
+        }).catch(() => {});
+      }
 
       log.info(`[adminVorlagenContract] Vorlage ${id} approved by ${userId}`);
       return {
@@ -184,11 +200,11 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
       if (!(await checkIsAdmin(userId, authedUser.email))) return FORBIDDEN;
 
       const { id } = args.params;
-      const reason = args.body.reason ?? null;
+      const reason = args.body.reason?.trim() || null;
       const postgres = getPostgresInstance();
 
       const template = await postgres.queryOne(
-        'SELECT id, metadata FROM user_templates WHERE id = $1',
+        'SELECT id, user_id, title, metadata FROM user_templates WHERE id = $1',
         [id],
         { table: 'user_templates' }
       );
@@ -220,6 +236,19 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
       void enrichTemplate(id).catch((e) =>
         log.warn('[adminVorlagenContract.reject] enrichTemplate failed', e)
       );
+
+      // Notify the submitter (in-app + email + push). Skip self-reviews.
+      if (template.user_id && template.user_id !== userId) {
+        void createNotification({
+          userId: template.user_id as string,
+          type: 'template_rejected',
+          title: 'Deine Vorlage wurde nicht freigegeben',
+          body: reason
+            ? `„${template.title}" wurde abgelehnt: ${reason}`
+            : `„${template.title}" wurde leider nicht freigegeben.`,
+          metadata: { templateId: id, ...(reason ? { rejectionReason: reason } : {}) },
+        }).catch(() => {});
+      }
 
       log.info(`[adminVorlagenContract] Vorlage ${id} rejected by ${userId}`);
       return { status: 200 as const, body: { success: true, message: 'Vorlage wurde abgelehnt.' } };
