@@ -30,11 +30,13 @@ const ContentManagementView = memo(
       >
         <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-md">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 m-0">
-            Diese Seite wird bald entfernt. Deine gespeicherten Texte findest du jetzt unter{' '}
+            <strong>Dieser Bereich ist archiviert.</strong> Du kannst deine Inhalte hier nur noch
+            ansehen und herunterladen – Hochladen, Bearbeiten und Löschen sind nicht mehr möglich.
+            Gespeicherte Texte findest du jetzt unter{' '}
             <a href="/recherche" className="font-medium underline hover:no-underline">
               Recherche
             </a>
-            . Hochgeladene Dokumente kannst du hier noch bis Juni 2026 herunterladen.
+            , Dokumente verwaltest du im Notebook.
           </p>
         </div>
         <DocumentsSection
