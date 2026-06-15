@@ -1,4 +1,4 @@
-import { type NotebookId } from '../notebooks/index.js';
+import { type NotebookId, isNotebookEnabled } from '../notebooks/index.js';
 
 import { type SystemAgentId } from './system.js';
 import { type AgentAudience } from './types.js';
@@ -129,7 +129,7 @@ export function getLandesverbandHubBySlug(slug: string): (typeof LV_HUBS)[number
  * for German users) — so unlike agents, a hub never has an `'all'` audience.
  */
 export function getLandesverbandHubs(userLocale: string): readonly (typeof LV_HUBS)[number][] {
-  return LV_HUBS.filter((hub) => hub.audience === userLocale);
+  return LV_HUBS.filter((hub) => hub.audience === userLocale && isNotebookEnabled(hub.notebookId));
 }
 
 /**
