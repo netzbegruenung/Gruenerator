@@ -110,6 +110,9 @@ export const FILTERABLE_FIELD_NAMES = [
   'curated_lists',
   'platform',
   'published_at',
+  // NLP-enriched per-document facets (themes = topic categories, persons = NER names)
+  'themes',
+  'persons',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];
