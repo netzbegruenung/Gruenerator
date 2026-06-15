@@ -3,7 +3,6 @@ import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import {
   PiFlask,
   PiFiles,
-  PiChatCircleDots,
   PiNote,
   PiPaintBrush,
   PiTreeEvergreen,
@@ -11,7 +10,6 @@ import {
   PiImagesSquare,
   PiClipboardText,
   PiFileText,
-  PiPaperclip,
   PiSparkle,
   PiCloud,
   PiNotePencil,
@@ -217,18 +215,6 @@ export const toolMentionables: Mentionable[] = [
     type: 'tool',
     category: 'function',
     trigger: '@',
-    identifier: 'documentchat',
-    title: 'Dokument-Chat',
-    description: 'Mit ausgewählten Dokumenten chatten',
-    avatar: '💬',
-    icon: PiChatCircleDots,
-    backgroundColor: '#6366F1',
-    mention: 'dokumentchat',
-  },
-  {
-    type: 'tool',
-    category: 'function',
-    trigger: '@',
     identifier: 'summary',
     title: 'Zusammenfassung',
     description: 'Dokument(e) zusammenfassen',
@@ -349,16 +335,22 @@ export const docToolMentionables: Mentionable[] = [
     mention: 'dokument-erstellen',
   },
   {
+    // Single document entry point. Opens the unified file/doc browser
+    // (notebook files, uploads, saved texts, collaborative docs). Replaces the
+    // former @datei ("Datei auswählen") and @dokumentchat ("Dokument-Chat")
+    // pickers — `aliases` keep those names resolving here for back-compat and
+    // surface this entry when a user types the old triggers.
     type: 'doc',
     category: 'function',
     trigger: '@',
     identifier: 'docs-picker-trigger',
-    title: 'Dokument einfuegen',
-    description: 'Kollaboratives Dokument als Kontext hinzufuegen',
+    title: 'Dokument einfügen',
+    description: 'Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen',
     avatar: '📄',
     icon: PiFileText,
     backgroundColor: '#0891B2',
     mention: 'docs',
+    aliases: ['datei', 'dokumentchat', 'document', 'dokument'],
   },
 ];
 
@@ -418,20 +410,15 @@ export function getUserNotebookMentionables(): Mentionable[] {
   return dynamicUserNotebookMentionables;
 }
 
-export const documentMentionables: Mentionable[] = [
-  {
-    type: 'document',
-    category: 'function',
-    trigger: '@',
-    identifier: 'datei-trigger',
-    title: 'Datei auswählen',
-    description: 'Dokument aus einem Notizbuch referenzieren',
-    avatar: '📎',
-    icon: PiPaperclip,
-    backgroundColor: '#6366F1',
-    mention: 'datei',
-  },
-];
+/**
+ * The legacy @datei ("Datei auswählen") and @dokumentchat ("Dokument-Chat")
+ * pickers were merged into the single @docs entry below — it opens the same
+ * unified file/doc browser (notebook files, uploads, saved texts, collab docs).
+ * This list stays empty (no separate picker entry); @datei / @dokumentchat
+ * tokens in existing threads still resolve via `mentionParser` special-cases
+ * and the `aliases` on the @docs mentionable.
+ */
+export const documentMentionables: Mentionable[] = [];
 
 // @wolke opens a sub-popover that lets the user pick files from their
 // connected Nextcloud share link(s). Selected files are inserted into the
@@ -722,7 +709,9 @@ export function filterMentionables(query: string): {
   const matchFn = (m: Mentionable) =>
     m.mention.toLowerCase().includes(q) ||
     m.title.toLowerCase().includes(q) ||
-    m.identifier.toLowerCase().includes(q);
+    m.identifier.toLowerCase().includes(q) ||
+    // Back-compat aliases (e.g. typing @datei / @dokumentchat surfaces @docs).
+    (m.aliases?.some((a) => a.toLowerCase().includes(q)) ?? false);
 
   const isNotebookCategoryQuery =
     'notebook'.startsWith(q) ||
