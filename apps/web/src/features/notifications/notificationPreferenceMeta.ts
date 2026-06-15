@@ -198,6 +198,18 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: Heart,
     group: 'system',
   },
+  template_approved: {
+    label: 'Vorlage freigegeben',
+    description: 'Wenn deine eingereichte Vorlage freigegeben wird',
+    icon: FileText,
+    group: 'system',
+  },
+  template_rejected: {
+    label: 'Vorlage abgelehnt',
+    description: 'Wenn deine eingereichte Vorlage abgelehnt wird',
+    icon: FileText,
+    group: 'system',
+  },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
     description: 'Neue Dateien in den Wolke-Ordnern deiner Notizbücher',
