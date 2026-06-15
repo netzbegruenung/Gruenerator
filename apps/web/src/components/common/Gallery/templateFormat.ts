@@ -70,7 +70,14 @@ const deriveTool = (item: FormatSource): TemplateFormat['tool'] => {
     (item.content_data as { originalUrl?: string } | undefined)?.originalUrl ||
     item.external_url ||
     '';
-  if (url.includes('canva.com')) return 'Canva';
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname === 'canva.com' || hostname.endsWith('.canva.com')) return 'Canva';
+  } catch {
+    // Ignore invalid/relative URLs and fall through to existing fallback logic.
+  }
+
   if (item.download_url) return 'Download';
   return 'Link';
 };
