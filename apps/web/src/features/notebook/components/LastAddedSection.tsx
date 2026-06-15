@@ -80,7 +80,7 @@ function Loading({ count }: { count: number }) {
 export function LastAddedSection({
   collectionIds,
   title = 'Zuletzt hinzugefügt',
-  limit = 6,
+  limit = 3,
   showSourceLabel,
 }: LastAddedSectionProps) {
   const { data, isLoading } = useLastAddedDocuments({ collectionIds, limit });
