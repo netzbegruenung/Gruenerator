@@ -390,6 +390,7 @@ function BoardViewContent({
           currentUserId={currentUserId}
           boardId={boardId}
           provider={provider}
+          expertMode={expertMode}
         />
       )}
 
@@ -442,11 +443,12 @@ function BoardViewContent({
           onUpdateField={boardState.updateField}
           boardId={boardId}
           currentUserId={currentUserId}
+          expertMode={expertMode}
         />
       )}
 
-      {/* AI assistant — only once the board state is synced and a user is present. */}
-      {isSynced && userId && (
+      {/* AI assistant — expert-only, and only once the board state is synced and a user is present. */}
+      {isSynced && userId && expertMode && (
         <>
           {/* Hidden while the panel is open — the fixed panel overlays the FAB's
               corner (composer/send button), and the panel has its own close button. */}
