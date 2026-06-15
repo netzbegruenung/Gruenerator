@@ -3,6 +3,7 @@ import { useVoxtralDictation } from '@gruenerator/voice';
 
 import AgentCard from './AgentCard';
 import { useUserAgents } from './api';
+import { ExperimentalAgentBanner } from './experimentalWarning';
 
 import PageContainer from '@/components/common/PageContainer';
 
@@ -51,6 +52,7 @@ function AgentStartScreen({
       title="Was für einen Agent möchtest du bauen?"
       subtitle="Beschreibe Zweck, Ton und Fähigkeiten — daraus entsteht ein Entwurf, den du vor dem Anlegen noch anpassen kannst."
     >
+      <ExperimentalAgentBanner className="mx-auto mb-md max-w-3xl" />
       <div className="mx-auto flex max-w-3xl flex-col gap-sm">
         <AIPromptInput
           useDictation={useVoxtralDictation}
