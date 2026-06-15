@@ -39,6 +39,27 @@ export async function classifyArticles<Topic extends string = string>(
   }
 }
 
+/**
+ * Run `classifyArticles` over a list in chunks. Unlike keyword/person extraction
+ * (which aggregate), topic classification is per-document, so results are simply
+ * concatenated in input order. Chunking avoids the 30s NLP timeout on large
+ * inputs (a full-collection enrichment can be thousands of docs).
+ */
+export async function classifyArticlesBatched<Topic extends string = string>(
+  articles: Array<{ id: string; title: string; text: string }>,
+  options: { batchSize?: number } = {}
+): Promise<NlpClassificationResult<Topic>[]> {
+  if (articles.length === 0) return [];
+  const batchSize = options.batchSize ?? 15;
+
+  const results: NlpClassificationResult<Topic>[] = [];
+  for (let i = 0; i < articles.length; i += batchSize) {
+    const batch = articles.slice(i, i + batchSize);
+    results.push(...(await classifyArticles<Topic>(batch)));
+  }
+  return results;
+}
+
 export async function extractKeywords<Topic = string | null>(
   articles: Array<{ id: string; title: string; text: string }>,
   topN = 50,
