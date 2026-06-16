@@ -293,6 +293,27 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </NavTooltip>
         </div>
       )}
+
+      {/* Legal links - only shown when sidebar is expanded */}
+      {sidebarExpanded && (
+        <div className="shrink-0 px-4 pb-3 pt-1 flex items-center gap-2 text-xs text-foreground opacity-60">
+          <Link
+            to="/impressum"
+            className="hover:text-primary-500 hover:underline transition-colors"
+            onClick={() => handleLinkClick('/impressum', 'Impressum')}
+          >
+            Impressum
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            to="/datenschutz"
+            className="hover:text-primary-500 hover:underline transition-colors"
+            onClick={() => handleLinkClick('/datenschutz', 'Datenschutz')}
+          >
+            Datenschutz
+          </Link>
+        </div>
+      )}
     </>
   );
 
