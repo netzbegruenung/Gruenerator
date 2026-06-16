@@ -34,6 +34,7 @@ import {
   normalizeRecentLimit,
 } from '../../services/notebook/notebookRecentService.js';
 import { getNotebookStats } from '../../services/notebook/notebookStatsService.js';
+import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -211,6 +212,14 @@ export const notebookContractRouter = s.router(notebookContract, {
         fastMode,
       });
 
+      // Track usage only for explicitly-selected collections (fire-and-forget);
+      // recording the default set would pollute every user's ordering.
+      if (collectionIds) {
+        for (const id of collectionIds) {
+          recordItemUsageSafe(auth.userId, 'notebook', id as string);
+        }
+      }
+
       return { status: 200 as const, body: result };
     } catch (error) {
       log.error('[notebookContract.askMulti] Error:', error);
@@ -267,6 +276,9 @@ export const notebookContractRouter = s.router(notebookContract, {
       } catch (logError) {
         log.error('[notebookContract.askSingle] Error logging usage:', logError);
       }
+
+      // Track usage for "favourites first" ordering (fire-and-forget).
+      recordItemUsageSafe(userId, 'notebook', collectionId as string);
 
       return { status: 200 as const, body: result };
     } catch (error) {

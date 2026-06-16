@@ -46,7 +46,8 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
   const activeFormatting = useDocsEditorBridgeStore((s) => s.activeFormatting);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
-  const setAiEditOpen = useDocsEditorBridgeStore((s) => s.setAiEditOpen);
+  // AI features disabled (buggy): setAiEditOpen no longer used here
+  // const setAiEditOpen = useDocsEditorBridgeStore((s) => s.setAiEditOpen);
 
   if (!activeFormatting.hasSelection) return null;
 
@@ -160,6 +161,7 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* AI features disabled (buggy): "Mit KI bearbeiten" button commented out
         <Pressable
           onPress={() => setAiEditOpen(true)}
           style={styles.button}
@@ -168,6 +170,7 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
           <Ionicons name="sparkles" size={18} color={colors.secondary[600]} />
         </Pressable>
         <View style={[styles.divider, { backgroundColor: theme.border }]} />
+        */}
         {items.map((item) => {
           if (isDivider(item)) {
             return (

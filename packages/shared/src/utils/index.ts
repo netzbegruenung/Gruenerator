@@ -38,3 +38,7 @@ export {
   buildGroupSlug,
   extractSlugSuffix,
 } from './slug.js';
+
+// Usage-based ranking (favourites-first ordering for notebooks & agents)
+export { compareUsageStats, sortByUsage } from './usageRanking.js';
+export type { UsageStat, UsageMap } from './usageRanking.js';
