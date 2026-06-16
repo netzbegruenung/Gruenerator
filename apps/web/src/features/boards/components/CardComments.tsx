@@ -333,6 +333,24 @@ export const CardComments = memo(function CardComments({
     [updateMentionState]
   );
 
+  // ── Submit ──────────────────────────────────────────────────────────
+
+  const handleSubmit = useCallback(() => {
+    const trimmed = commentText.trim();
+    if (!trimmed) return;
+    const blocks = parseTextToBlocks(trimmed, trackedMentions);
+    addComment.mutate(
+      { blocks, parentId: replyToId ?? undefined },
+      {
+        onSuccess: () => {
+          setCommentText('');
+          setReplyToId(null);
+          setTrackedMentions([]);
+        },
+      }
+    );
+  }, [commentText, trackedMentions, replyToId, addComment]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (mentionQuery !== null) {
@@ -358,26 +376,10 @@ export const CardComments = memo(function CardComments({
         handleSubmit();
       }
     },
-    [mentionQuery]
+    // handleSubmit must be a dep — otherwise the Cmd/Ctrl+Enter handler keeps a
+    // stale closure over the empty initial commentText and never sends.
+    [mentionQuery, handleSubmit]
   );
-
-  // ── Submit ──────────────────────────────────────────────────────────
-
-  const handleSubmit = useCallback(() => {
-    const trimmed = commentText.trim();
-    if (!trimmed) return;
-    const blocks = parseTextToBlocks(trimmed, trackedMentions);
-    addComment.mutate(
-      { blocks, parentId: replyToId ?? undefined },
-      {
-        onSuccess: () => {
-          setCommentText('');
-          setReplyToId(null);
-          setTrackedMentions([]);
-        },
-      }
-    );
-  }, [commentText, trackedMentions, replyToId, addComment]);
 
   const handleToggleReaction = useCallback(
     (commentId: string, emoji: string) => {
