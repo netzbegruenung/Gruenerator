@@ -15,9 +15,11 @@
 
 import { userAgentsContract, type AgentFewShotExample } from '@gruenerator/contracts';
 import { isUserSelectableTool } from '@gruenerator/shared/agents';
+import { sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { draftAgentSpec } from '../../services/userAgents/agentDraftService.js';
 import {
   createUserAgent,
@@ -65,7 +67,11 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const agents = await listUserAgents(userId);
-      return { status: 200 as const, body: { success: true, agents } };
+      // Favourites-first: float most-recently/most-used agents to the top,
+      // never-used keep their creation order.
+      const usageMap = await getUsageMap(userId, 'agent');
+      const sorted = sortByUsage(agents, (a) => a.identifier, usageMap);
+      return { status: 200 as const, body: { success: true, agents: sorted } };
     } catch (error) {
       const err = error as Error;
       log.error('[userAgentsContract.list] Error:', err);

@@ -88,6 +88,10 @@ export function createCorsOptions(allowedOrigins: string[]): CorsOptions {
       'Content-Type',
       'Authorization',
       'Range',
+      // App locale hint sent by the web/desktop client (apiClient). Required in the
+      // allowlist or cross-origin clients (e.g. the Tauri webview at tauri://localhost)
+      // fail the CORS preflight and every API call is blocked.
+      'X-User-Locale',
       // TUS specific headers
       'Upload-Length',
       'Upload-Offset',
