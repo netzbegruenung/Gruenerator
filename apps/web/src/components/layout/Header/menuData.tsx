@@ -87,15 +87,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     activePaths: ['/notebooks', '/notebook'],
   };
 
-  items.experiments = {
-    id: 'experiments',
-    path: '/experiments',
-    title: 'Experimente',
-    description: 'Neue, experimentelle Funktionen',
-    icon: getIcon('actions', 'labor'),
-    activePaths: ['/experiments'],
-  };
-
   if (import.meta.env.DEV) {
     items.sites = {
       id: 'sites',
