@@ -34,14 +34,16 @@ export function NativeSlashMenu() {
   const slashQuery = useDocsEditorBridgeStore((s) => s.slashQuery);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
   const setSlashMenu = useDocsEditorBridgeStore((s) => s.setSlashMenu);
-  const setAiEditOpen = useDocsEditorBridgeStore((s) => s.setAiEditOpen);
+  // AI features disabled (buggy): setAiEditOpen no longer used here
+  // const setAiEditOpen = useDocsEditorBridgeStore((s) => s.setAiEditOpen);
 
   const q = slashQuery.trim().toLowerCase();
   const items = useMemo(
     () => (!q ? ITEMS : ITEMS.filter((i) => i.label.toLowerCase().includes(q))),
     [q]
   );
-  const showAi = !q || 'ki'.startsWith(q) || 'ai'.startsWith(q);
+  // AI features disabled (buggy): the KI chip is hidden
+  const showAi = false;
 
   if (!slashMenuOpen || (items.length === 0 && !showAi)) return null;
 
@@ -50,13 +52,14 @@ export function NativeSlashMenu() {
     setSlashMenu(false, '');
   };
 
-  const handleAi = () => {
-    // Clear the typed "/" (convert to empty paragraph), close the menu, then
-    // open the inline "Mit KI bearbeiten" sheet to generate at the cursor.
-    dispatchAction({ type: 'slash-select', blockType: 'paragraph' });
-    setSlashMenu(false, '');
-    setAiEditOpen(true);
-  };
+  // AI features disabled (buggy): "Mit KI schreiben" handler commented out
+  // const handleAi = () => {
+  //   // Clear the typed "/" (convert to empty paragraph), close the menu, then
+  //   // open the inline "Mit KI bearbeiten" sheet to generate at the cursor.
+  //   dispatchAction({ type: 'slash-select', blockType: 'paragraph' });
+  //   setSlashMenu(false, '');
+  //   setAiEditOpen(true);
+  // };
 
   return (
     <KeyboardStickyView style={styles.sticky}>
@@ -67,6 +70,7 @@ export function NativeSlashMenu() {
           contentContainerStyle={styles.row}
           keyboardShouldPersistTaps="always"
         >
+          {/* AI features disabled (buggy): "Mit KI schreiben" chip commented out
           {showAi && (
             <TouchableOpacity
               style={[styles.chip, styles.aiChip, { borderColor: colors.primary[600] }]}
@@ -77,6 +81,7 @@ export function NativeSlashMenu() {
               <Text style={[styles.chipText, { color: colors.primary[600] }]}>KI</Text>
             </TouchableOpacity>
           )}
+          */}
           {items.map((item) => (
             <TouchableOpacity
               key={item.label}
