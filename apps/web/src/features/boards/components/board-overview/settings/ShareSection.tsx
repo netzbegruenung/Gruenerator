@@ -104,7 +104,7 @@ export const ShareSection = memo(function ShareSection({
 
   if (isLoading || !shareSettings) {
     return (
-      <section className="max-w-2xl">
+      <section className="w-full max-w-[42rem]">
         {showHeading && <h2 className="text-base font-semibold text-foreground">Teilen</h2>}
         <p className="py-md text-sm text-grey-500">Laden…</p>
       </section>
@@ -112,7 +112,7 @@ export const ShareSection = memo(function ShareSection({
   }
 
   return (
-    <section className="flex max-w-2xl flex-col gap-md">
+    <section className="flex w-full max-w-[42rem] flex-col gap-md">
       {showHeading && (
         <div>
           <h2 className="text-base font-semibold text-foreground">Teilen &amp; Berechtigungen</h2>

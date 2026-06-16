@@ -27,7 +27,7 @@ export const DangerZoneSection = memo(function DangerZoneSection({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   return (
-    <section className="flex max-w-2xl flex-col gap-md">
+    <section className="flex w-full max-w-[42rem] flex-col gap-md">
       <div>
         <h2 className="text-base font-semibold text-foreground">Gefahrenzone</h2>
         <p className="mt-0.5 text-sm text-grey-500">Archivieren, duplizieren oder löschen.</p>
