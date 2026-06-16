@@ -53,7 +53,7 @@ export function useVorlagenStats(enabled = true) {
 export function useApproveVorlage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => approveVorlage(id),
+    mutationFn: ({ id, message }: { id: string; message?: string }) => approveVorlage(id, message),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['admin-vorlagen'] });
       void qc.invalidateQueries({ queryKey: ['admin-vorlagen-stats'] });

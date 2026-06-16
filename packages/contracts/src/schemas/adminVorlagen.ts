@@ -33,6 +33,10 @@ export const vorlagenStatsSchema = z.object({
 
 // ── Request bodies ───────────────────────────────────────────────────────────
 
+export const approveVorlageBodySchema = z.object({
+  message: z.string().nullish(),
+});
+
 export const rejectVorlageBodySchema = z.object({
   reason: z.string().nullish(),
 });

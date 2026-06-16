@@ -105,7 +105,10 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       getAuthedUser(args.req);
       const { url, preview, title, description, metadata } = args.body;
 
-      const validation = await UrlValidator.validateUrl(url);
+      // The user explicitly pasted this single template link — skip robots.txt
+      // (that's for bulk crawling; Canva disallows /design/ outright). Format
+      // and SSRF/private-network checks still run.
+      const validation = await UrlValidator.validateUrl(url, { checkRobots: false });
       if (!validation.isValid) {
         return {
           status: 400 as const,
@@ -113,23 +116,18 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         };
       }
 
-      const crawlResult = await urlCrawlerService.crawlUrl(url, {
-        enhancedMetadata: true,
-        metadataOnly: true,
-        timeout: 15000,
-      });
+      // Metadata crawl is best-effort enrichment only. Many template hosts
+      // (Canva /design/ links especially) block crawling or require a browser,
+      // so a failure here must NOT prevent previewing or saving the link.
+      const crawlResult = await urlCrawlerService
+        .crawlUrl(url, {
+          enhancedMetadata: true,
+          metadataOnly: true,
+          timeout: 15000,
+        })
+        .catch(() => null);
 
-      if (!crawlResult.success || !crawlResult.data) {
-        return {
-          status: 400 as const,
-          body: {
-            success: false,
-            message: crawlResult.error || 'Seite konnte nicht geladen werden.',
-          },
-        };
-      }
-
-      const crawled = crawlResult.data;
+      const crawled = crawlResult?.success && crawlResult.data ? crawlResult.data : null;
 
       if (preview) {
         return {
@@ -137,18 +135,19 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
           body: {
             success: true,
             preview: {
-              title: crawled.title || null,
-              description: crawled.description || null,
-              thumbnail_url: crawled.previewImage || null,
-              dimensions: crawled.dimensions || null,
-              categories: crawled.categories || [],
-              final_url: crawled.canonical || url,
+              title: crawled?.title || null,
+              description: crawled?.description || null,
+              thumbnail_url: crawled?.previewImage || null,
+              dimensions: crawled?.dimensions || null,
+              categories: crawled?.categories || [],
+              final_url: crawled?.canonical || url,
             },
           },
         };
       }
 
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -157,23 +156,25 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const templateData = {
         user_id: userId,
         type: 'template',
-        title: (title || crawled.title || 'Vorlage').trim(),
-        description: (description || crawled.description || '').trim() || null,
+        title: (title || crawled?.title || 'Vorlage').trim(),
+        description: (description || crawled?.description || '').trim() || null,
         template_type: 'canva',
-        external_url: crawled.canonical || url,
-        thumbnail_url: crawled.previewImage || null,
-        images: JSON.stringify(crawled.previewImage ? [{ url: crawled.previewImage }] : []),
+        external_url: crawled?.canonical || url,
+        thumbnail_url: crawled?.previewImage || null,
+        images: JSON.stringify(crawled?.previewImage ? [{ url: crawled.previewImage }] : []),
         categories: JSON.stringify([]),
         tags: JSON.stringify(mergedTags),
         content_data: JSON.stringify({}),
         metadata: JSON.stringify({
           ...(metadata || {}),
           crawled_from: url,
-          dimensions: crawled.dimensions || null,
+          dimensions: crawled?.dimensions || null,
         }),
         is_private: false,
         is_example: false,
         status: 'pending_review',
+        // Target the creator's locale so the gallery can scope by audience.
+        audience: user.locale ?? 'all',
       };
 
       const newTemplate = await postgres.insert('user_templates', templateData);
@@ -239,7 +240,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
   create: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const {
         title,
         description,
@@ -286,6 +288,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         is_private: isPrivate,
         is_example: false,
         status: isPrivate ? 'draft' : 'pending_review',
+        // Target the creator's locale so the gallery can scope by audience.
+        audience: user.locale ?? 'all',
       };
 
       const newTemplate = await postgres.insert('user_templates', templateData);

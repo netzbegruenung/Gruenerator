@@ -2,6 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Component, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
+import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface Props {
@@ -13,6 +14,25 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+// Function component wrapper: the class ErrorBoundary cannot use hooks.
+function ErrorFallback({ error, onRetry }: { error: Error | null; onRetry: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.container}>
+      <Ionicons name="warning-outline" size={48} color={colors.warning} />
+      <Text style={[styles.title, { color: theme.text }]}>Etwas ist schiefgelaufen</Text>
+      <Text style={[styles.message, { color: theme.textSecondary }]}>
+        {error?.message || 'Ein unerwarteter Fehler ist aufgetreten.'}
+      </Text>
+      <Pressable style={styles.retryButton} onPress={onRetry}>
+        <Ionicons name="refresh" size={20} color={colors.white} />
+        <Text style={styles.retryText}>Erneut versuchen</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -37,19 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      return (
-        <View style={styles.container}>
-          <Ionicons name="warning-outline" size={48} color={colors.warning} />
-          <Text style={styles.title}>Etwas ist schiefgelaufen</Text>
-          <Text style={styles.message}>
-            {this.state.error?.message || 'Ein unerwarteter Fehler ist aufgetreten.'}
-          </Text>
-          <Pressable style={styles.retryButton} onPress={this.handleRetry}>
-            <Ionicons name="refresh" size={20} color={colors.white} />
-            <Text style={styles.retryText}>Erneut versuchen</Text>
-          </Pressable>
-        </View>
-      );
+      return <ErrorFallback error={this.state.error} onRetry={this.handleRetry} />;
     }
 
     return this.props.children;
@@ -71,7 +79,6 @@ const styles = StyleSheet.create({
   message: {
     ...typography.body,
     textAlign: 'center',
-    color: colors.grey[600],
   },
   retryButton: {
     flexDirection: 'row',

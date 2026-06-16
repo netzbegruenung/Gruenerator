@@ -11,7 +11,7 @@ import {
   acceptDocumentAI,
   rejectDocumentAI,
   type DocsAdapter,
-} from '@gruenerator/docs';
+} from '@gruenerator/docs/mobile';
 import { type DOMProps } from 'expo/dom';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 

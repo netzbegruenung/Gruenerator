@@ -14,6 +14,11 @@
       "require": "./src/index.ts",
       "types": "./src/index.ts"
     },
+    "./mobile": {
+      "import": "./src/mobile.ts",
+      "require": "./src/mobile.ts",
+      "types": "./src/mobile.ts"
+    },
     "./templates": {
       "import": "./src/lib/templates.ts",
       "require": "./src/lib/templates.ts",

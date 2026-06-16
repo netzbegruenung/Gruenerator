@@ -54,6 +54,8 @@ interface SubtitleEditorScreenProps {
   project: Project;
   onBack: () => void;
   onSaved?: () => void;
+  /** Open the share/export sheet right away (deep link from ReelReadyScreen). */
+  initialShowShare?: boolean;
 }
 
 const TOOLBAR_HEIGHT = 80;
@@ -63,6 +65,7 @@ export function SubtitleEditorScreen({
   project: initialProject,
   onBack,
   onSaved,
+  initialShowShare = false,
 }: SubtitleEditorScreenProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -76,7 +79,7 @@ export function SubtitleEditorScreen({
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [inlineCategory, setInlineCategory] = useState<SubtitleEditCategory | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(initialShowShare);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -132,13 +135,16 @@ export function SubtitleEditorScreen({
 
     loadProjectToStore(
       project.id,
-      project.upload_id,
+      // Server rows carry no upload_id (consumed at create time); only
+      // client-built temp projects have it. Derive from the temp id as a
+      // fallback so the store never sees null.
+      project.upload_id ?? (isTempProject ? project.id.replace('temp-', '') : ''),
       project.subtitles,
       stylePreference,
       heightPreference,
       duration
     );
-  }, [project, loadProjectToStore, isLoadingProject, needsFullProjectFetch]);
+  }, [project, loadProjectToStore, isLoadingProject, needsFullProjectFetch, isTempProject]);
 
   useEffect(() => {
     return () => {
@@ -147,7 +153,7 @@ export function SubtitleEditorScreen({
   }, [reset]);
 
   const videoUri = isTempProject
-    ? `${API_BASE_URL}/subtitler/internal-video/${project.upload_id}`
+    ? `${API_BASE_URL}/subtitler/internal-video/${project.upload_id ?? project.id.replace('temp-', '')}`
     : getVideoUrl(project.id);
 
   const videoSource = isTempProject

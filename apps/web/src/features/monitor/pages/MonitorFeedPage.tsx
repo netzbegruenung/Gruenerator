@@ -3,7 +3,7 @@ import { MonitorShell } from '../components/MonitorShell';
 import { WhatHappenedView } from '../components/WhatHappenedView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-/** /monitor/feed — neue Inhalte aus grünen Quellen, tagesweise gruppiert. */
+/** /experiments/monitor/feed — neue Inhalte aus grünen Quellen, tagesweise gruppiert. */
 function MonitorFeedPage() {
   const { locale } = useMonitorLocaleParam();
 

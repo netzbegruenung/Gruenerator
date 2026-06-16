@@ -370,7 +370,13 @@ export type ProjectDataBody = z.infer<typeof projectDataBodySchema>;
 
 export const updateProjectBodySchema = z.object({
   title: z.string().nullish(),
-  subtitles: z.string().nullish(),
+  // Transitional union: legacy clients send the "MM:SS.F - MM:SS.F" text
+  // format (or a pre-stringified JSON blob); canonical clients send
+  // SubtitleSegment[]. The server normalizes EVERY accepted shape to
+  // JSON.stringify(SubtitleSegment[]) before persisting
+  // (ProjectService.updateProject) so the stored column converges on the
+  // canonical format — same one the create path writes.
+  subtitles: z.union([z.string(), z.array(subtitleSegmentSchema)]).nullish(),
   style_preference: z.string().nullish(),
   stylePreference: z.string().nullish(),
   height_preference: z.string().nullish(),

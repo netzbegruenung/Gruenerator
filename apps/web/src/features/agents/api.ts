@@ -106,27 +106,6 @@ export function useUpdateUserAgent(identifier: string) {
   });
 }
 
-/**
- * Convert a custom_generators row into a real user_agents row.
- * Returns the new agent on 201, or { conflict: true, agent } on 409
- * (CG already converted), or throws on other errors.
- */
-export function useConvertCustomGenerator() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (slug: string): Promise<{ agent: Agent; conflict: boolean }> => {
-      const res = await getContractsClient().userAgents.convertCg({ params: { slug }, body: {} });
-      if (res.status === 201) return { agent: res.body.agent, conflict: false };
-      const err = readError(res.body);
-      if (res.status === 409 && err.agent) return { agent: err.agent, conflict: true };
-      throw new Error(err.message);
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: KEY });
-    },
-  });
-}
-
 export function useShareSystemAgentWithGroup() {
   const qc = useQueryClient();
   return useMutation({

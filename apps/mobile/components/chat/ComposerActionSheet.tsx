@@ -33,6 +33,14 @@ const DEPTH_ICONS: Record<SearchDepthIconKey, IoniconsIconName> = {
   deep: 'telescope-outline',
 };
 
+// Web search is removed from the mobile app (runtimes force `web: false`), so
+// the Websuche toggle is filtered out of the shared composer tool list rather
+// than redefining the list locally.
+const MOBILE_TOOLS = COMPOSER_TOOLS.filter((tool) => tool.key !== 'web');
+
+// Consumed by the chat tab's "N/M Tools" badge.
+export const TOOL_KEYS = MOBILE_TOOLS.map((tool) => tool.key);
+
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -101,7 +109,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
 
         {/* Tools */}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-        {COMPOSER_TOOLS.map((tool) => (
+        {MOBILE_TOOLS.map((tool) => (
           <View key={tool.key} style={[styles.toolRow, { borderBottomColor: theme.border }]}>
             <View style={styles.toolLabel}>
               <Ionicons name={TOOL_ICONS[tool.icon]} size={18} color={theme.textSecondary} />

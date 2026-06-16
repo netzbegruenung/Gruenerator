@@ -1,7 +1,7 @@
 // Untertitel-Element-Komponente
 
 import { Play, Clock, Edit2, Save, X } from 'lucide-react';
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 
 import { useUpdateChunkText } from '../stores/historyStore';
 import { formatTime } from '../utils/timeUtils';
@@ -33,21 +33,12 @@ export function SubtitleItem({
 }: SubtitleItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(chunk.text);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const updateChunkText = useUpdateChunkText();
 
   // Bearbeitungstext aktualisieren, wenn sich der Chunk-Text ändert
   useEffect(() => {
     setEditText(chunk.text);
   }, [chunk.text]);
-
-  // Beim Betreten des Bearbeitungsmodus automatisch fokussieren und Text auswählen
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.select();
-    }
-  }, [isEditing]);
 
   const handleToggleSelection = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,7 +140,11 @@ export function SubtitleItem({
           {isEditing ? (
             <div className="space-y-2">
               <textarea
-                ref={textareaRef}
+                // autoFocus on the freshly-mounted textarea (replaces a
+                // useEffect focus that concurrent rendering can drop); select-all
+                // on focus preserves the prior "edit selects existing text" UX.
+                autoFocus
+                onFocus={(e) => e.currentTarget.select()}
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 onKeyDown={handleKeyDown}

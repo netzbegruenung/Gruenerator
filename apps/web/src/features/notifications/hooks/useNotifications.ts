@@ -4,7 +4,6 @@ import {
   fetchNotificationsPage,
   fetchUnreadCount,
   markNotificationAsRead,
-  markAllNotificationsAsRead,
   dismissNotificationById,
   dismissAllNotificationsClient,
 } from '../../../hooks/useNotificationsTyped';
@@ -41,7 +40,7 @@ export function useUnreadCount() {
       setUnreadCount(count);
       return count;
     },
-    // ProfileButton mounts on every route (including /login), but the
+    // SidebarAccount mounts on every route (including /login), but the
     // unread-count endpoint requires auth. Without this gate, guests get
     // a 401-retry storm that surfaces as an "Unerwarteter Fehler" toast
     // and incidentally triggers apiClient's 401-recovery session probe.
@@ -63,21 +62,6 @@ export function useMarkAsRead() {
     },
     onSuccess: () => {
       decrementUnreadCount();
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    },
-  });
-}
-
-export function useMarkAllAsRead() {
-  const queryClient = useQueryClient();
-  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
-
-  return useMutation({
-    mutationFn: async () => {
-      await markAllNotificationsAsRead();
-    },
-    onSuccess: () => {
-      setUnreadCount(0);
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });

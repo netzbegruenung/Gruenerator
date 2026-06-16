@@ -7,6 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  useConfirm,
 } from '@gruenerator/ui';
 import { memo, useRef } from 'react';
 import {
@@ -71,6 +72,7 @@ export const ColumnHeader = memo(function ColumnHeader({
   onMoveRight,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
+  const confirm = useConfirm();
   const titleRef = useRef<EditableTitleHandle>(null);
   const overLimit = column.limit != null && cardCount > column.limit;
 
@@ -213,7 +215,19 @@ export const ColumnHeader = memo(function ColumnHeader({
               Grünerator-Aufgabe entfernen
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={onDelete} className="text-red-600">
+          <DropdownMenuItem
+            onClick={async () => {
+              const ok = await confirm({
+                title: 'Spalte löschen?',
+                description:
+                  cardCount > 0
+                    ? `„${column.name}" wird gelöscht. Die ${cardCount} ${cardCount === 1 ? 'Karte' : 'Karten'} darin verlieren ihren Status.`
+                    : `„${column.name}" wird gelöscht.`,
+              });
+              if (ok) onDelete();
+            }}
+            className="text-red-600"
+          >
             <FiTrash2 className="mr-2" size={14} />
             Spalte löschen
           </DropdownMenuItem>

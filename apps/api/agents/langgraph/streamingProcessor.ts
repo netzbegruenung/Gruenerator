@@ -35,7 +35,6 @@ import {
   buildWebSearchQuery,
   validateRequest,
   applyProfileDefaults,
-  loadCustomGeneratorPrompt,
 } from './PromptProcessor.js';
 
 import type { PRAgentRequest } from './PRAgent/types.js';
@@ -163,15 +162,9 @@ export async function processGraphRequestStreaming(
       extractedInstructions = requestData.customPrompt;
     }
 
-    // Handle custom_generator special case
-    let generatorData: Awaited<ReturnType<typeof loadCustomGeneratorPrompt>> = null;
-    if (config.features?.customPromptFromDb) {
-      generatorData = await loadCustomGeneratorPrompt(requestData.slug ?? '');
-    }
-
     // Build prompt components
-    const systemRole = buildSystemRole(config, requestData, generatorData);
-    const requestContent = buildRequestContent(config, requestData, generatorData);
+    const systemRole = buildSystemRole(config, requestData);
+    const requestContent = buildRequestContent(config, requestData);
     const constraints = buildConstraints(config, requestData);
     const formatting = getFormattingInstructions(config);
     const taskInstructions = getTaskInstructions(config, requestData);

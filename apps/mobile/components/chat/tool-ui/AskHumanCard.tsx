@@ -1,7 +1,7 @@
 import { getString, getArray } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
-import { View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
+import { View, Text, Pressable, TextInput, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius } from '../../../theme';
 
@@ -23,6 +23,7 @@ export function AskHumanCard({
   theme: Theme;
 }) {
   const [customInput, setCustomInput] = useState('');
+  const isDark = useColorScheme() === 'dark';
 
   const question = getString(args, 'question') ?? 'Wie kann ich dir helfen?';
   const options = (getArray(args, 'options') ?? []).filter(
@@ -53,7 +54,7 @@ export function AskHumanCard({
       style={[styles.card, { backgroundColor: theme.surface, borderColor: colors.primary[500] }]}
     >
       <View style={styles.questionRow}>
-        <Ionicons name="help-circle-outline" size={16} color={colors.primary[600]} />
+        <Ionicons name="help-circle-outline" size={16} color={theme.textGreen} />
         <Text style={[styles.question, { color: theme.text }]}>{question}</Text>
       </View>
 
@@ -66,8 +67,12 @@ export function AskHumanCard({
               style={({ pressed }) => [
                 styles.option,
                 {
-                  borderColor: colors.primary[300],
-                  backgroundColor: pressed ? colors.primary[50] : theme.card,
+                  borderColor: isDark ? colors.primary[800] : colors.primary[300],
+                  backgroundColor: pressed
+                    ? isDark
+                      ? colors.primary[950]
+                      : colors.primary[50]
+                    : theme.card,
                 },
               ]}
             >
@@ -92,7 +97,7 @@ export function AskHumanCard({
           disabled={!customInput.trim()}
           style={[styles.sendButton, { opacity: customInput.trim() ? 1 : 0.4 }]}
         >
-          <Ionicons name="send" size={16} color={colors.primary[600]} />
+          <Ionicons name="send" size={16} color={theme.textGreen} />
         </Pressable>
       </View>
     </View>

@@ -46,6 +46,7 @@ export type SearchIntent =
   | 'search' // Gruenerator document search (party programs, positions)
   // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
   | 'web' // Web search (current events, external facts)
+  | 'scrape_url' // Crawl URL(s) pasted in the user message and use the page content as context
   | 'examples' // Social media examples/templates
   | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
@@ -446,6 +447,10 @@ export interface ChatGraphState {
   searchSources: SearchSource[];
   searchQuery: string | null;
   subQueries: string[] | null;
+  // URLs the user pasted into the message. Set by the classifier when the active
+  // agent has 'scrape' enabled; consumed by searchNode's 'scrape_url' case to crawl
+  // the pages and inject their content as context/citations.
+  detectedUrls: string[];
   reasoning: string;
   contentType: string | null;
   documentSubtype: string | null;

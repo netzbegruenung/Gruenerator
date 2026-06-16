@@ -1,9 +1,8 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
-import { Dialog, DialogContent, DialogTitle, SectionHeader } from '@gruenerator/ui';
+import { cn, Dialog, DialogContent, DialogTitle, SectionHeader } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import ToolGrid from '../../../components/common/ToolGrid';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import NotebookCreationProgress from '../../notebook/components/NotebookCreationProgress';
@@ -11,13 +10,22 @@ import NotebookEditor from '../../notebook/components/NotebookEditor';
 import {
   getAustrianNotebooks,
   getNotebooksByCategory,
-  SYSTEM_NOTEBOOKS,
 } from '../../notebook/config/notebooksConfig';
 
-import type { ToolEntry } from '../../../components/common/ToolGrid';
+import NotebookCard, { type NotebookCardModel } from './NotebookCard';
+
 import type { NotebookCollection } from '../../../types/notebook';
 
-const INITIAL_COUNT = 5;
+// Single horizontally-scrollable row at every breakpoint — the notebooks read as
+// "one line" of cards (≈5 visible on desktop, the rest peeking/scrollable),
+// mirroring the Zuletzt row rather than a wrapping grid.
+const NOTEBOOK_ROW_CLASS = cn(
+  // `overflow-x-auto` also clips vertically, so the cards' upward hover-lift +
+  // shadow would be cut off — `pt-2` (matching `pb-2`) gives them room.
+  'grid grid-flow-col gap-md overflow-x-auto pt-2 pb-2',
+  'auto-cols-[68%] sm:auto-cols-[40%] md:auto-cols-[30%] lg:auto-cols-[19%]',
+  '-mx-4 px-4 lg:mx-0 lg:px-0'
+);
 
 type CreationPhase =
   | { kind: 'closed' }
@@ -32,7 +40,6 @@ type CreationPhase =
 const NotebooksSection: React.FC = memo(() => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<CreationPhase>({ kind: 'closed' });
-  const [showAll, setShowAll] = useState(false);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
@@ -41,7 +48,7 @@ const NotebooksSection: React.FC = memo(() => {
   });
   const qaCollections = query.data ?? [];
 
-  const systemTools: ToolEntry[] = useMemo(
+  const systemCards: NotebookCardModel[] = useMemo(
     () =>
       (isAustrian
         ? getAustrianNotebooks()
@@ -50,30 +57,30 @@ const NotebooksSection: React.FC = memo(() => {
             ...getNotebooksByCategory('landesebene'),
             ...getNotebooksByCategory('weitere'),
           ]
-      )
-        .slice(0, showAll ? undefined : INITIAL_COUNT)
-        .map((nb) => ({
-          id: nb.id,
-          title: nb.title.replace(/^Frag\s+/i, ''),
-          description: nb.description,
-          path: nb.path,
-          icon: nb.icon,
-        })),
-    [isAustrian, showAll]
+      ).map((nb) => ({
+        id: nb.id,
+        title: nb.title.replace(/^Frag\s+/i, ''),
+        meta: nb.meta,
+        path: nb.path,
+        icon: nb.icon,
+        isUser: false,
+      })),
+    [isAustrian]
   );
 
-  const userTools: ToolEntry[] = useMemo(
+  const userCards: NotebookCardModel[] = useMemo(
     () =>
       qaCollections.slice(0, 3).map((c: NotebookCollection) => ({
         id: c.id,
         title: c.name,
-        description: c.description || 'Eigenes Notebook',
+        meta: 'Eigenes Notebook',
         path: `/notebook/${c.id}`,
+        isUser: true,
       })),
     [qaCollections]
   );
 
-  const allTools = useMemo(() => [...userTools, ...systemTools], [userTools, systemTools]);
+  const allCards = useMemo(() => [...userCards, ...systemCards], [userCards, systemCards]);
 
   const handleCreate = useCallback(() => setPhase({ kind: 'editing' }), []);
   const handleClose = useCallback(() => setPhase({ kind: 'closed' }), []);
@@ -123,23 +130,23 @@ const NotebooksSection: React.FC = memo(() => {
         onCreate={handleCreate}
         createLabel="Eigenes Notebook erstellen"
       />
-      <ToolGrid
-        tools={allTools}
-        columns={5}
-        compact
-        showFavourites
-        onShare={handleShare}
-        onDelete={handleDelete}
-      />
-      {SYSTEM_NOTEBOOKS.length > INITIAL_COUNT && (
-        <button
-          type="button"
-          onClick={() => setShowAll((v) => !v)}
-          className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
-        >
-          {showAll ? 'Weniger anzeigen' : 'Weitere Notebooks'}
-        </button>
-      )}
+      <div className={NOTEBOOK_ROW_CLASS}>
+        {allCards.map((card) => (
+          <NotebookCard
+            key={card.id}
+            item={card}
+            onShare={handleShare}
+            onDelete={handleDelete}
+          />
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => navigate('/notebooks')}
+        className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+      >
+        Mehr anzeigen
+      </button>
 
       <Dialog
         open={dialogOpen}

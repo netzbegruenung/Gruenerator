@@ -4,7 +4,6 @@
  * Replaces the legacy Express router in userAgents.ts. Covers:
  *   - GET    /api/user-agents
  *   - POST   /api/user-agents
- *   - POST   /api/user-agents/convert-cg/:slug
  *   - GET    /api/user-agents/:identifier
  *   - PATCH  /api/user-agents/:identifier
  *   - DELETE /api/user-agents/:identifier
@@ -22,10 +21,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { draftAgentSpec } from '../../services/userAgents/agentDraftService.js';
 import {
   createUserAgent,
-  CUSTOM_GENERATOR_AGENT_PREFIX,
-  customGeneratorToUserAgentInput,
   deleteUserAgent,
-  getCustomGeneratorRow,
   getUserAgent,
   listUserAgents,
   updateUserAgent,
@@ -121,6 +117,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         ...(body.fewShotExamples != null
           ? { fewShotExamples: toFewShot(body.fewShotExamples) }
           : {}),
+        ...(body.inlineSourceLinks != null ? { inlineSourceLinks: body.inlineSourceLinks } : {}),
       };
 
       const agent = await createUserAgent(userId, input);
@@ -207,46 +204,6 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
     }
   },
 
-  convertCg: async (args) => {
-    try {
-      const userId = getAuthedUser(args.req).id;
-      const cgRow = await getCustomGeneratorRow(userId, args.params.slug);
-      if (!cgRow) {
-        return {
-          status: 404 as const,
-          body: { success: false, message: 'Custom Grünerator nicht gefunden.' },
-        };
-      }
-
-      const targetIdentifier = `${CUSTOM_GENERATOR_AGENT_PREFIX}${cgRow.slug}`;
-      const existing = await getUserAgent(userId, targetIdentifier);
-      if (existing) {
-        return {
-          status: 409 as const,
-          body: {
-            success: false,
-            message: 'Dieser Grünerator wurde bereits konvertiert.',
-            agent: existing,
-          },
-        };
-      }
-
-      const input = customGeneratorToUserAgentInput(cgRow);
-      const agent = await createUserAgent(userId, input);
-      return { status: 201 as const, body: { success: true, agent } };
-    } catch (error) {
-      const err = error as Error;
-      log.error('[userAgentsContract.convertCg] Error:', err);
-      if (err.message.includes('unique')) {
-        return {
-          status: 409 as const,
-          body: { success: false, message: 'Dieser Grünerator wurde bereits konvertiert.' },
-        };
-      }
-      return { status: 500 as const, body: { success: false, message: err.message } };
-    }
-  },
-
   get: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
@@ -303,6 +260,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
       if (b.enabledTools != null) patch.enabledTools = b.enabledTools;
       if (b.skillMentions != null) patch.skillMentions = b.skillMentions;
       if (b.fewShotExamples != null) patch.fewShotExamples = toFewShot(b.fewShotExamples);
+      if (b.inlineSourceLinks != null) patch.inlineSourceLinks = b.inlineSourceLinks;
 
       const agent = await updateUserAgent(userId, args.params.identifier, patch);
       if (!agent) {

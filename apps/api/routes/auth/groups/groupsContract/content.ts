@@ -15,12 +15,10 @@ import {
   getUserId,
   groupErrorResponse,
   notebookHelper,
-  systemTemplates,
   CONTENT_TABLE_NAME_MAP,
   CONTENT_LABELS,
   type ShareRecord,
   type ContentItem,
-  type SystemTemplate,
 } from './shared.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
@@ -602,24 +600,11 @@ export const contentRoutes = {
           ORDER BY created_at DESC`,
         [templateTags],
         { table: 'user_templates' }
-      )) as Array<Record<string, unknown> & SystemTemplate>;
-
-      const lowerTags = templateTags.map((t) => t.toLowerCase());
-      const matchingSystemTemplates = systemTemplates
-        .filter((t) => {
-          const tTags = (t.tags || []).map((tag) => tag.toLowerCase());
-          const tCategories = (t.categories || []).map((c) => c.toLowerCase());
-          const tType = (t.template_type || '').toLowerCase();
-          return lowerTags.some(
-            (groupTag) =>
-              tTags.includes(groupTag) || tCategories.includes(groupTag) || tType === groupTag
-          );
-        })
-        .map((t) => ({ ...t, is_system: true }));
+      )) as Array<Record<string, unknown> & { id: string }>;
 
       const seenIds = new Set<string>();
       const vorlagen: Record<string, unknown>[] = [];
-      for (const t of [...(dbTemplates || []), ...matchingSystemTemplates]) {
+      for (const t of dbTemplates || []) {
         if (!seenIds.has(t.id)) {
           seenIds.add(t.id);
           vorlagen.push({
@@ -630,9 +615,9 @@ export const contentRoutes = {
             thumbnail_url: t.thumbnail_url,
             external_url: t.external_url,
             tags: t.tags || [],
-            categories: (t as Record<string, unknown>).categories || [],
-            is_system: !!(t as { is_system?: boolean }).is_system,
-            created_at: 'created_at' in t ? t.created_at : null,
+            categories: t.categories || [],
+            is_system: false,
+            created_at: t.created_at ?? null,
           });
         }
       }

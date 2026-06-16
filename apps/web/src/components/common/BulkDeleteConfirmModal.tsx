@@ -33,18 +33,14 @@ const BulkDeleteConfirmModal = ({
 }: BulkDeleteConfirmModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [confirmText, setConfirmText] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const isConfirmValid = confirmText.trim().toLowerCase() === 'löschen';
 
-  // Reset state when modal opens/closes
+  // Reset the confirmation text each time the modal opens. The input itself uses
+  // autoFocus (below) instead of a setTimeout focus — more reliable than racing
+  // the portal mount, which the old 100ms timeout was working around.
   useEffect(() => {
-    if (isOpen) {
-      setConfirmText('');
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    }
+    if (isOpen) setConfirmText('');
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -142,7 +138,7 @@ const BulkDeleteConfirmModal = ({
               Um fortzufahren, gib <strong>"löschen"</strong> ein:
             </label>
             <input
-              ref={inputRef}
+              autoFocus
               type="text"
               className={`form-input bulk-delete-confirmation-input ${isConfirmValid ? 'valid' : ''}`}
               value={confirmText}
