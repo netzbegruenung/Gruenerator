@@ -25,11 +25,10 @@ export function AgentSwitchListener() {
       return;
     }
 
+    // Clear the per-thread context but keep the just-selected agent, then start
+    // a fresh thread. (resetChatContext would wipe selectedAgentId too.)
     const store = useAgentStore.getState();
-    store.setThreadMode('chat');
-    store.setCustomSystemPrompt(null);
-    store.setCustomRoleName(null);
-    store.setCustomEnabledTools(null);
+    store.resetThreadContext();
     store.setCurrentThread(null);
     void assistantRuntime.threads.switchToNewThread();
   }, [selectedAgentId, assistantRuntime]);
