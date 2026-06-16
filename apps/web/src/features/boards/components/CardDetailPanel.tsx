@@ -14,6 +14,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  useConfirm,
 } from '@gruenerator/ui';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -178,6 +179,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   expertMode = false,
 }: CardDetailPanelProps) {
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -517,7 +519,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
-                      onClick={() => {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Karte löschen?',
+                          description:
+                            'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
+                        });
+                        if (!ok) return;
                         onDelete(row.id);
                         onOpenChange(false);
                       }}
