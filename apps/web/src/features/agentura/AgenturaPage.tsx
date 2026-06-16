@@ -5,6 +5,7 @@ import {
   type Agent,
   type SkillCategory,
 } from '@gruenerator/shared/agents';
+import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
 import { Button, Input } from '@gruenerator/ui';
 import { useMemo } from 'react';
 import { PiMagnifyingGlass, PiPlus } from 'react-icons/pi';
@@ -17,6 +18,7 @@ import {
   type SharedAgentEntry,
 } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
+import { useItemUsage } from '../usage/useItemUsage';
 
 import { AgentCard, SharedAgentCard, SkillCard } from './components/cards';
 import { CategoryNav, type AisleNavItem } from './components/CategoryNav';
@@ -49,15 +51,21 @@ function matchesQuery(haystack: string[], q: string): boolean {
   return haystack.some((v) => v.toLowerCase().includes(q));
 }
 
-/** Reorder a list per the active sort; `empfohlen` keeps registry order. */
+/**
+ * Reorder a list per the active sort. `empfohlen` (the default) ranks by the
+ * user's own usage when a `usage` option is supplied — most-recently/most-used
+ * first, registry order for never-used — otherwise keeps registry order.
+ */
 function sortBy<T>(
   items: T[],
   sort: AgenturaSort,
   title: (t: T) => string,
-  isFav: (t: T) => boolean
+  isFav: (t: T) => boolean,
+  usage?: { getId: (t: T) => string; map: UsageMap }
 ): T[] {
   if (sort === 'az') return [...items].sort((a, b) => title(a).localeCompare(title(b)));
   if (sort === 'favoriten') return [...items].sort((a, b) => Number(isFav(b)) - Number(isFav(a)));
+  if (usage) return sortByUsage(items, usage.getId, usage.map);
   return items;
 }
 
@@ -99,6 +107,7 @@ function AgenturaPage() {
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
+  const { data: agentUsage = {} } = useItemUsage('agent');
 
   const showCreateAgentCta = import.meta.env.DEV;
   const q = search.toLowerCase();
@@ -185,14 +194,21 @@ function AgenturaPage() {
     deleteUserAgent.mutate(agent.identifier);
   };
 
-  const sortedUserAgents = sortBy(filteredUserAgents, sort, (a) => a.title, isAgentFav);
+  const sortedUserAgents = sortBy(filteredUserAgents, sort, (a) => a.title, isAgentFav, {
+    getId: (a) => a.identifier,
+    map: agentUsage,
+  });
   const sortedSharedAgents = sortBy(
     filteredSharedAgents,
     sort,
     (e) => e.agent.title,
-    (e) => isAgentFav(e.agent)
+    (e) => isAgentFav(e.agent),
+    { getId: (e) => e.agent.identifier, map: agentUsage }
   );
-  const sortedGeneralAgents = sortBy(generalSystemAgents, sort, (a) => a.title, isAgentFav);
+  const sortedGeneralAgents = sortBy(generalSystemAgents, sort, (a) => a.title, isAgentFav, {
+    getId: (a) => a.identifier,
+    map: agentUsage,
+  });
 
   // LV agents + skills, grouped per region so each region's entries sit together.
   const lvEntries = [

@@ -111,6 +111,7 @@ import {
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
+import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -365,6 +366,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-values', requireAuth);
   mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
+  // ts-rest contract router for /api/item-usage (usage-based "favourites first"
+  // ordering). requireAuth at the prefix — returns user-specific data.
+  app.use('/api/item-usage', requireAuth, publicReadLimiter);
+  mountItemUsageContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
