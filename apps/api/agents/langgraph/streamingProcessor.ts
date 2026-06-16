@@ -352,6 +352,7 @@ export async function processGraphRequestStreaming(
     }, 8000);
 
     try {
+      // eslint-disable-next-line @typescript-eslint/await-thenable -- AI SDK fullStream is async-iterable; the rule mis-types it
       for await (const part of result.fullStream) {
         if (abortController.signal.aborted) break;
 
