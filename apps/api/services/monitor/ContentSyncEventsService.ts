@@ -1,11 +1,21 @@
 /**
- * Persistence for the content-sync article event log ("Was ist passiert").
+ * The "Was ist passiert" feed: recently *published* Landesverband articles,
+ * read live from the Qdrant corpus and grouped by publish day.
  *
- * Events are recorded in-process by the scrapers (syncEventRecorder) and reach
- * this service either via POST /api/internal/monitor/sync-events (the GitHub
- * Action has no Postgres access) or directly from in-process sync runs.
+ * The feed used to read a sync-event log (`content_sync_articles`) recording
+ * only newly stored/changed articles. That made it dominated by whichever
+ * Landesverband was last freshly (re)scraped — a single LV's full backfill
+ * would flood the feed while already-indexed LVs (no new sync events) stayed
+ * invisible. Sourcing it from the `landesverbaende_documents` corpus by publish
+ * date instead means every Landesverband always shows its latest content
+ * regardless of sync churn. The feed is Landesverband-only by design.
+ *
+ * The sync-event ingestion below (`upsertSyncEvents`) is retained — it still
+ * records run provenance via POST /api/internal/monitor/sync-events — but the
+ * read path no longer depends on it.
  */
 import {
+  whatHappenedArticleSchema,
   whatHappenedSummaryResponseSchema,
   type MonitorLocale,
   type SyncArticleSourceGroup,
@@ -16,11 +26,10 @@ import {
   type WhatHappenedResult,
   type WhatHappenedSummaryResult,
 } from '@gruenerator/contracts';
+import { z } from 'zod';
 
-import { type ContentSyncArticleRow } from '../../database/schema/contentSync.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
@@ -33,16 +42,75 @@ const RETENTION_DAYS = 90;
 const INSERT_CHUNK_SIZE = 500;
 const DIGEST_ARTICLE_LIMIT = 15;
 const EXCERPT_CHARS = 500;
-/** Past days are final; today may still receive sync events (also invalidated on insert). */
+/** Past days are final; today may still gain articles, so refresh its digest hourly. */
 const SUMMARY_TTL_PAST_SECONDS = 7 * 24 * 3600;
 const SUMMARY_TTL_TODAY_SECONDS = 3600;
+
+/** The feed surfaces at most the last 30 days (the query schema's `days` ceiling). */
+const FEED_WINDOW_DAYS = 30;
+/** The corpus scan is expensive; cache the recent set briefly. */
+const RECENT_CACHE_TTL_SECONDS = 15 * 60;
+const SCROLL_PAGE = 1000;
+/** Safety bound per collection (chunk_index=0 points = articles). Warns if hit. */
+const SCROLL_MAX_PER_COLLECTION = 40_000;
+
+/**
+ * All Landesverbände share one Qdrant collection, partitioned by the payload
+ * `landesverband` short code (e.g. 'BY', 'BY-F', 'HE'). The feed reads only
+ * this collection — Landesverband-only by design.
+ */
+const LV_COLLECTION = 'landesverbaende_documents';
+const LV_SOURCE_GROUP: SyncArticleSourceGroup = 'landesverbaende';
+/** Fallback when a point carries no `source_name`. */
+const LV_FALLBACK_NAME = 'Landesverband';
+
+const recentArticlesSchema = z.array(whatHappenedArticleSchema);
 
 function summaryCacheKey(date: string, locale: MonitorLocale): string {
   return `monitor:what-happened-summary:${date}:${locale}`;
 }
 
+/** The LV feed is locale-independent (all Landesverbände are German), so one key. */
+const RECENT_CACHE_KEY = 'monitor:what-happened-lv';
+
 function utcToday(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Shift a 'YYYY-MM-DD' day by `delta` days, staying in UTC. */
+function utcDayOffset(day: string, delta: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Reduce a payload date string to its UTC calendar day, or null if it isn't a
+ * real `YYYY-MM-DD[...]` date. Scrapers store published_at inconsistently
+ * (date-only for LVs, full ISO with offset for gruene.at), so we key off the
+ * leading date and reject impossible dates like 2024-02-31.
+ */
+function toUtcDay(raw: string | null): string | null {
+  if (!raw) return null;
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const day = `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== day) return null;
+  return day;
+}
+
+/** The day an article is bucketed under: publish day, else index day. */
+function dayOf(article: WhatHappenedArticle): string | null {
+  return toUtcDay(article.publishedAt) ?? toUtcDay(article.indexedAt);
+}
+
+function pickString(payload: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const v = payload[key];
+    if (typeof v === 'string' && v.trim().length > 0) return v;
+  }
+  return null;
 }
 
 function localeOfSourceGroup(sourceGroupId: string): MonitorLocale {
@@ -154,54 +222,157 @@ export async function upsertSyncEvents(
   return upserted;
 }
 
+/** Sort key: publish date if known, else index date. */
+function sortKey(a: WhatHappenedArticle): string {
+  return a.publishedAt ?? a.indexedAt;
+}
+
+/** Build a feed article from a Qdrant LV point, or null if it has no URL/date. */
+function toCorpusArticle(payload: Record<string, unknown>): WhatHappenedArticle | null {
+  const sourceUrl = pickString(payload, 'source_url', 'url', 'external_url');
+  if (!sourceUrl) return null;
+  const publishedAt = pickString(payload, 'published_at', 'publishedAt', 'date');
+  const indexedAt = pickString(payload, 'indexed_at', 'indexedAt') ?? publishedAt;
+  if (!indexedAt) return null; // no date at all → can't place it on the feed
+
+  const fullText = pickString(payload, 'full_text', 'chunk_text', 'description', 'summary');
+  const excerpt = fullText ? fullText.replace(/\s+/g, ' ').trim().slice(0, EXCERPT_CHARS) : null;
+
+  return {
+    title: pickString(payload, 'title', 'name', 'headline') ?? 'Ohne Titel',
+    sourceUrl,
+    sourceGroupId: LV_SOURCE_GROUP,
+    sourceName: pickString(payload, 'source_name') ?? LV_FALLBACK_NAME,
+    excerpt,
+    landesverband: pickString(payload, 'landesverband'),
+    collection: LV_COLLECTION,
+    // Every corpus article is a published item; there is no stored/updated
+    // distinction here. Kept as 'stored' for response-shape compatibility.
+    eventType: 'stored',
+    publishedAt,
+    indexedAt,
+    syncRunUrl: null,
+  };
+}
+
 /**
- * Day-grouped article feed for the "Was ist passiert" tab.
- *
- * Locale follows the monitor convention: 'at' shows the gruene-at source
- * group, 'de' everything else. The sourceGroups/landesverbaende facets are
- * computed before the expert-mode filters so the filter options stay stable
- * while a filter is active.
+ * Scroll the Landesverband corpus and build the recent-article set (published
+ * within FEED_WINDOW_DAYS). published_at is keyword-indexed in Qdrant — its
+ * order_by/range returns 400 — so we page the whole collection (chunk_index=0
+ * = one point per article) and bucket by date in Node, the same pattern as
+ * notebookStatsService. Redis-cached because the full scan is expensive.
+ */
+async function loadRecentLvArticles(): Promise<WhatHappenedArticle[]> {
+  const cached = await getCachedJson(RECENT_CACHE_KEY, recentArticlesSchema);
+  if (cached) return cached;
+
+  const today = utcToday();
+  const cutoffDay = utcDayOffset(today, -(FEED_WINDOW_DAYS - 1));
+
+  const qdrant = getQdrantInstance();
+  await qdrant.init();
+  const client = qdrant.client;
+  if (!client) {
+    log.warn('Qdrant client unavailable for the what-happened feed');
+    return [];
+  }
+
+  const filter: Record<string, unknown> = {
+    must: [{ key: 'chunk_index', match: { value: 0 } }],
+  };
+  const articles: WhatHappenedArticle[] = [];
+  let offset: string | number | null = null;
+  let scanned = 0;
+
+  try {
+    while (scanned < SCROLL_MAX_PER_COLLECTION) {
+      const result = await client.scroll(LV_COLLECTION, {
+        filter,
+        limit: SCROLL_PAGE,
+        with_payload: true,
+        with_vector: false,
+        ...(offset != null && { offset }),
+      });
+      const points = result.points ?? [];
+      for (const p of points) {
+        const article = toCorpusArticle((p.payload as Record<string, unknown>) ?? {});
+        if (!article) continue;
+        const day = dayOf(article);
+        if (!day || day < cutoffDay || day > today) continue;
+        articles.push(article);
+      }
+      scanned += points.length;
+      const next = result.next_page_offset;
+      offset = typeof next === 'string' || typeof next === 'number' ? next : null;
+      if (!offset || points.length === 0) break;
+    }
+    if (scanned >= SCROLL_MAX_PER_COLLECTION) {
+      log.warn(
+        `what-happened scan hit the ${SCROLL_MAX_PER_COLLECTION}-article cap; some recent LV articles may be omitted`
+      );
+    }
+  } catch (error) {
+    log.warn(`what-happened corpus scroll failed: ${toError(error).message}`);
+    return [];
+  }
+
+  // Newest first, then dedupe by URL (the same article can be re-indexed or
+  // aliased under multiple paths). The first (newest) occurrence wins.
+  articles.sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
+  const seen = new Set<string>();
+  const deduped = articles.filter((a) => (seen.has(a.sourceUrl) ? false : seen.add(a.sourceUrl)));
+
+  await setCachedJson(RECENT_CACHE_KEY, deduped, RECENT_CACHE_TTL_SECONDS);
+  return deduped;
+}
+
+/**
+ * Day-grouped feed of recently published Landesverband articles. The
+ * landesverbaende facet is computed before the expert-mode filters so the
+ * filter options stay stable while a filter is active. The `locale` query is
+ * accepted but does not narrow results — all Landesverbände are German.
  */
 export async function getWhatHappened(query: WhatHappenedQuery): Promise<WhatHappenedResult> {
   const days = query.days ?? 7;
-  const locale = query.locale ?? 'de';
+  const recent = await loadRecentLvArticles();
 
-  // event_date::text — the pg driver parses DATE columns into JS Dates at
-  // *local* midnight, which shifts the day when serialized back to UTC.
-  const rows = await db().query<ContentSyncArticleRow & { event_day: string }>(
-    `SELECT *, event_date::text AS event_day FROM content_sync_articles
-     WHERE event_date >= (now() AT TIME ZONE 'UTC')::date - ($1::int - 1)
-       AND ${locale === 'at' ? `source_group_id = 'gruene-at'` : `source_group_id <> 'gruene-at'`}
-     ORDER BY event_date DESC, indexed_at DESC`,
-    [days]
-  );
+  const today = utcToday();
+  const cutoffDay = utcDayOffset(today, -(days - 1));
+  const inWindow = recent.filter((a) => {
+    const day = dayOf(a);
+    return day !== null && day >= cutoffDay && day <= today;
+  });
 
-  const sourceGroups = [...new Set(rows.map((r) => r.source_group_id))].sort();
+  const sourceGroups = [...new Set(inWindow.map((a) => a.sourceGroupId))].sort();
   const landesverbaende = [
-    ...new Set(rows.map((r) => r.landesverband).filter((lv): lv is string => lv !== null)),
+    ...new Set(inWindow.map((a) => a.landesverband).filter((lv): lv is string => lv !== null)),
   ].sort();
 
-  const filtered = rows.filter(
-    (r) =>
-      (!query.sourceGroup || r.source_group_id === query.sourceGroup) &&
-      (!query.landesverband || r.landesverband === query.landesverband) &&
-      (!query.eventType || r.event_type === query.eventType)
+  const filtered = inWindow.filter(
+    (a) =>
+      (!query.sourceGroup || a.sourceGroupId === query.sourceGroup) &&
+      (!query.landesverband || a.landesverband === query.landesverband) &&
+      (!query.eventType || a.eventType === query.eventType)
   );
 
   const dayBuckets = new Map<string, WhatHappenedDay>();
-  for (const row of filtered) {
-    const date = row.event_day;
+  for (const article of filtered) {
+    const date = dayOf(article);
+    if (!date) continue;
     let bucket = dayBuckets.get(date);
     if (!bucket) {
       bucket = { date, counts: { stored: 0, updated: 0 }, articles: [] };
       dayBuckets.set(date, bucket);
     }
-    bucket.counts[row.event_type] += 1;
-    bucket.articles.push(toArticle(row));
+    bucket.counts.stored += 1;
+    bucket.articles.push(article);
   }
 
+  // Newest day first; articles within a day already arrive newest-first.
+  const dayList = [...dayBuckets.values()].sort((a, b) => b.date.localeCompare(a.date));
+
   return {
-    days: [...dayBuckets.values()],
+    days: dayList,
     totalCount: filtered.length,
     sourceGroups: sourceGroups as SyncArticleSourceGroup[],
     landesverbaende,
@@ -209,9 +380,8 @@ export async function getWhatHappened(query: WhatHappenedQuery): Promise<WhatHap
 }
 
 /**
- * Lazy AI digest of one feed day. Articles come from content_sync_articles;
- * their text is fetched from Qdrant by source_url (chunk 0 carries full_text).
- * Returns null when the day has no articles for the locale (handler → 404).
+ * Lazy AI digest of one feed day, drawn from the same recent LV set as the
+ * feed. Returns null when the day has no articles (handler → 404).
  */
 export async function getWhatHappenedDaySummary(
   date: string,
@@ -221,89 +391,26 @@ export async function getWhatHappenedDaySummary(
   const cached = await getCachedJson(key, whatHappenedSummaryResponseSchema);
   if (cached) return cached;
 
-  const rows = await db().query<ContentSyncArticleRow>(
-    `SELECT * FROM content_sync_articles
-     WHERE event_date = $1::date
-       AND ${locale === 'at' ? `source_group_id = 'gruene-at'` : `source_group_id <> 'gruene-at'`}
-     ORDER BY indexed_at DESC`,
-    [date]
-  );
-  if (rows.length === 0) return null;
+  const recent = await loadRecentLvArticles();
+  const dayArticles = recent.filter((a) => dayOf(a) === date);
+  if (dayArticles.length === 0) return null;
 
-  const articles = await buildDigestArticles(rows.slice(0, DIGEST_ARTICLE_LIMIT));
-  const summary = await generateDayDigest(articles);
+  const digestArticles: DigestArticle[] = dayArticles.slice(0, DIGEST_ARTICLE_LIMIT).map((a) => ({
+    title: a.title,
+    url: a.sourceUrl,
+    source: a.sourceName,
+    excerpt: a.excerpt ?? '',
+  }));
+  const summary = await generateDayDigest(digestArticles);
 
   const result: WhatHappenedSummaryResult = {
     date,
     summary,
-    articleCount: rows.length,
+    articleCount: dayArticles.length,
     generatedAt: new Date().toISOString(),
   };
 
   const ttl = date === utcToday() ? SUMMARY_TTL_TODAY_SECONDS : SUMMARY_TTL_PAST_SECONDS;
   await setCachedJson(key, result, ttl);
   return result;
-}
-
-/** Fetch article text from Qdrant, batched per collection; missing text → title-only. */
-async function buildDigestArticles(rows: ContentSyncArticleRow[]): Promise<DigestArticle[]> {
-  const excerpts = new Map<string, string>();
-
-  try {
-    const qdrant = getQdrantInstance();
-    await qdrant.init();
-    const byCollection = new Map<string, string[]>();
-    for (const row of rows) {
-      const urls = byCollection.get(row.collection) ?? [];
-      urls.push(row.source_url);
-      byCollection.set(row.collection, urls);
-    }
-
-    await Promise.all(
-      [...byCollection.entries()].map(async ([collection, urls]) => {
-        const points = await scrollDocuments(
-          qdrant.client!,
-          collection,
-          {
-            must: [
-              { key: 'source_url', match: { any: urls } },
-              { key: 'chunk_index', match: { value: 0 } },
-            ],
-          },
-          { limit: urls.length, withPayload: true, withVector: false }
-        );
-        for (const point of points) {
-          const payload = point.payload as Record<string, unknown>;
-          const url = payload.source_url as string;
-          const text = (payload.full_text ?? payload.chunk_text ?? '') as string;
-          if (url && text) excerpts.set(url, text.slice(0, EXCERPT_CHARS));
-        }
-      })
-    );
-  } catch (error) {
-    log.warn(`Digest excerpt fetch failed (using titles only): ${toError(error).message}`);
-  }
-
-  return rows.map((row) => ({
-    title: row.title,
-    url: row.source_url,
-    source: row.source_name,
-    excerpt: excerpts.get(row.source_url) ?? row.excerpt ?? '',
-  }));
-}
-
-function toArticle(row: ContentSyncArticleRow): WhatHappenedArticle {
-  return {
-    title: row.title,
-    sourceUrl: row.source_url,
-    sourceGroupId: row.source_group_id,
-    sourceName: row.source_name,
-    excerpt: row.excerpt,
-    landesverband: row.landesverband,
-    collection: row.collection,
-    eventType: row.event_type,
-    publishedAt: row.published_at,
-    indexedAt: row.indexed_at,
-    syncRunUrl: row.sync_run_url,
-  };
 }
