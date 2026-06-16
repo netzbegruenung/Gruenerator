@@ -23,6 +23,8 @@ export interface VorlagenCardProps {
   item: VorlagenCardItem;
   /** Top-right overlay marker (e.g. "Community"). */
   badge?: ReactNode;
+  /** Top-right overlay actions menu (e.g. the 3-dot dropdown on "Meine Vorlagen"). */
+  menu?: ReactNode;
   onOpen: () => void;
   /** Opens the external/source URL directly (hover action). Omitted when none exists. */
   onOpenExternal?: () => void;
@@ -44,9 +46,17 @@ const ToolIcon = ({ tool }: { tool: ReturnType<typeof getTemplateFormat>['tool']
  * meta row plus hover actions.
  */
 const VorlagenCard = memo(
-  ({ item, badge, onOpen, onOpenExternal, onCopyLink }: VorlagenCardProps): JSX.Element => {
+  ({ item, badge, menu, onOpen, onOpenExternal, onCopyLink }: VorlagenCardProps): JSX.Element => {
     const format = getTemplateFormat(item);
     const title = item.title || 'Unbenannte Vorlage';
+
+    // The stage is a 4:5 box. Fit the proportioned template inside *both* axes
+    // (contain, never crop): wide formats (e.g. 16:9, 3:1) are constrained by
+    // width, tall/square ones by height. Pinning only the height clipped wide
+    // templates horizontally.
+    const STAGE_RATIO = 4 / 5;
+    const [ratioW, ratioH] = format.aspectRatio.split('/').map((n) => parseFloat(n));
+    const isWiderThanStage = ratioW / ratioH > STAGE_RATIO;
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -75,7 +85,13 @@ const VorlagenCard = memo(
         <div className="relative flex aspect-[4/5] w-full items-center justify-center overflow-hidden bg-background-alt p-3">
           <div
             className="flex max-h-full max-w-full items-center justify-center overflow-hidden rounded-sm bg-background shadow-sm ring-1 ring-black/5"
-            style={{ aspectRatio: format.aspectRatio, height: '100%' }}
+            style={{
+              aspectRatio: format.aspectRatio,
+              // Constrain the dominant axis so the template always fits the stage
+              // fully (contain, never crop): width for landscape formats, height
+              // for portrait/square. Pinning height alone clipped wide formats.
+              ...(isWiderThanStage ? { width: '100%' } : { height: '100%' }),
+            }}
           >
             {item.thumbnail_url ? (
               <img
@@ -95,7 +111,12 @@ const VorlagenCard = memo(
           >
             {format.typeLabel}
           </Badge>
-          {badge != null && <div className="absolute right-2 top-2">{badge}</div>}
+          {(badge != null || menu != null) && (
+            <div className="absolute right-2 top-2 flex items-center gap-1.5">
+              {badge}
+              {menu}
+            </div>
+          )}
 
           {(onOpenExternal || onCopyLink) && (
             <div
