@@ -187,9 +187,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
         const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
         if (forced && !universalEditForced) {
-          classifiedState.intent = forced;
+          // The merged "Recherche" tool (identifier 'research', alias
+          // 'websearch') forces *search-class* without pinning a depth: keep the
+          // classifier's web↔research choice (auto-depth) and only fall back to
+          // research when it picked a non-search intent. Document search
+          // ('search') and non-search tools (image/sharepic/…) stay hard-pinned.
+          if (forced === 'research' || forced === 'web') {
+            if (classifiedState.intent !== 'web' && classifiedState.intent !== 'research') {
+              classifiedState.intent = 'research';
+            }
+          } else {
+            classifiedState.intent = forced;
+          }
           forcedTool = true;
-          log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
+          log.info(
+            `[ChatGraph] Intent forced via @tool mention: forced="${forced}", resolved="${classifiedState.intent}"`
+          );
 
           // When the classifier returned a non-search intent (e.g. 'direct')
           // and the @-mention forces a search intent, the classifier never
@@ -198,7 +211,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // context. Pull the user's last message text in as the query.
           const FORCED_SEARCH_INTENTS = new Set(['research', 'web', 'search']);
           if (
-            FORCED_SEARCH_INTENTS.has(forced) &&
+            FORCED_SEARCH_INTENTS.has(classifiedState.intent) &&
             (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
             lastUserMessage
           ) {

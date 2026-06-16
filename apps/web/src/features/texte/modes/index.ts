@@ -39,7 +39,6 @@ export const MODE_GROUPS: ModeGroupEntry[] = [
   { id: 'bilder', label: 'Bilder' },
   { id: 'boards', label: 'Boards' },
   { id: 'docs', label: 'Dokumente' },
-  { id: 'eigene', label: 'Eigene' },
 ];
 
 export const DEFAULT_MODE = 'chat';

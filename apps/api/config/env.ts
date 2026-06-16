@@ -163,6 +163,10 @@ const envSchema = z.object({
   CRAWLER_MODE: z.string().optional(),
   CONTENT_SYNC_EMAIL: z.string().trim().optional(),
   TEST_EMAIL_TO: z.string().trim().optional(),
+  // Kill-switch: when true, the ChatGraph respond node skips injecting the
+  // monthly corpus-insight overlay into PR agents (instant revert to the static
+  // systemRole without a deploy rollback). See services/agents/prAgentInsightService.ts.
+  PR_AGENT_INSIGHTS_DISABLED: boolFlag(false),
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),

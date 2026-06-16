@@ -1,3 +1,4 @@
+import { useConfirm } from '@gruenerator/ui';
 import { memo, useRef, useState } from 'react';
 import { FiDownload, FiImage, FiPaperclip, FiStar, FiTrash2, FiUploadCloud } from 'react-icons/fi';
 
@@ -28,6 +29,7 @@ export const CardAttachments = memo(function CardAttachments({
   onCoverChange,
 }: CardAttachmentsProps) {
   const { attachmentsQuery, upload, remove, setCover } = useBoardAttachments(boardId, cardId);
+  const confirm = useConfirm();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -92,7 +94,13 @@ export const CardAttachments = memo(function CardAttachments({
                   <FiDownload size={13} />
                 </a>
                 <button
-                  onClick={() => remove.mutate(att.id)}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Anhang löschen?',
+                      description: `„${att.file_name}" wird unwiderruflich gelöscht.`,
+                    });
+                    if (ok) remove.mutate(att.id);
+                  }}
                   className="sm:opacity-0 sm:group-hover/att:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity p-2 sm:p-1"
                   title="Löschen"
                 >

@@ -37,18 +37,4 @@ export const TOOLS: ToolDef[] = [
     icon: 'scan',
     route: '/(tabs)/(tools)/scanner',
   },
-  {
-    id: 'transkription',
-    title: 'Transkription',
-    description: 'Audio-Dateien in Text umwandeln',
-    icon: 'mic',
-    route: '/(tabs)/(tools)/transkription',
-  },
-  {
-    id: 'websuche',
-    title: 'Websuche',
-    description: 'Das Web nach aktuellen Informationen durchsuchen',
-    icon: 'globe',
-    route: '/(tabs)/(recherche)/suche',
-  },
 ];

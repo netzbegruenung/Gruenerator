@@ -271,6 +271,9 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
           stylePreference,
           heightPreference,
           title: 'Neues Reel',
+          // Same fallback the server uses for uploads without metadata
+          // (`getUploadFilename`) — the original name isn't in scope here.
+          videoFilename: `video_${uploadId}.mp4`,
         });
 
         useSubtitleEditorStore.getState().setProjectId(newProject.id);

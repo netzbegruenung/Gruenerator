@@ -41,6 +41,7 @@ import {
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
+import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { chatSuggestions } from '../lib/suggestions';
@@ -363,17 +364,22 @@ export function GrueneratorChatRuntimeProvider({
   );
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      <ExternalThreadProvider value={externalCtx}>
-        <ThreadTitleEffect />
-        <AgentSwitchListener />
-        {threadListPortalSlotId && (
-          <ChatThreadListPortal slotId={threadListPortalSlotId} onRequestOpen={onRequestOpenChat} />
-        )}
-        <ChatCollaborationBridge userId={userId} userName={userName}>
-          {children}
-        </ChatCollaborationBridge>
-      </ExternalThreadProvider>
-    </AssistantRuntimeProvider>
+    <ChatRuntimeReadyProvider>
+      <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+        <ExternalThreadProvider value={externalCtx}>
+          <ThreadTitleEffect />
+          <AgentSwitchListener />
+          {threadListPortalSlotId && (
+            <ChatThreadListPortal
+              slotId={threadListPortalSlotId}
+              onRequestOpen={onRequestOpenChat}
+            />
+          )}
+          <ChatCollaborationBridge userId={userId} userName={userName}>
+            {children}
+          </ChatCollaborationBridge>
+        </ExternalThreadProvider>
+      </AssistantRuntimeProvider>
+    </ChatRuntimeReadyProvider>
   );
 }

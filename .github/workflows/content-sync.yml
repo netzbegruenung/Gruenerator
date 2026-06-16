@@ -11,7 +11,7 @@ on:
         required: false
         type: string
       landesverband:
-        description: 'Single Landesverband shortName prefix (BB, BE, HH, LSA, MV, TH). Mutually exclusive with source.'
+        description: 'Single Landesverband shortName prefix (BB, BE, BY, HE, HH, LSA, MV, TH). Mutually exclusive with source.'
         required: false
         type: string
       dry_run:
@@ -48,7 +48,7 @@ jobs:
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
         run: |
-          ALL_LVS='["BB","BE","BY","HH","LSA","MV","TH"]'
+          ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","TH"]'
           ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]'
           EMPTY='[]'
 
