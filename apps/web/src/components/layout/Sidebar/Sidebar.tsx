@@ -1,5 +1,6 @@
 import { useAgentStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
+import { sortByUsage } from '@gruenerator/shared/utils';
 import {
   Sheet,
   SheetContent,
@@ -16,6 +17,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useUserAgents } from '../../../features/agents/api';
+import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
@@ -379,8 +381,11 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFav = useAgentFavoritesStore((s) => s.toggle);
   const { data: userAgents = [] } = useUserAgents();
+  const { data: agentUsage = {} } = useItemUsage('agent');
 
   // Agent favourites live in the normal favourites list (system + user agents).
+  // Within the user's manual favourites, float the most-recently/most-used to
+  // the top; never-used keep their add order.
   const agentItems = useMemo(() => {
     const rows: { identifier: string; title: string; Icon: IconType; path: string }[] = [];
     for (const identifier of favoriteIdentifiers) {
@@ -404,8 +409,8 @@ const SidebarFavourites = memo(function SidebarFavourites({
         });
       }
     }
-    return rows;
-  }, [favoriteIdentifiers, userAgents]);
+    return sortByUsage(rows, (r) => r.identifier, agentUsage);
+  }, [favoriteIdentifiers, userAgents, agentUsage]);
 
   const expanded = isOpen || forceExpanded;
 
