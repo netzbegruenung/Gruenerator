@@ -264,6 +264,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   search: ['Durchsuche...', 'Stöbere...', 'Wälze...'],
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
   web: ['Surfe...', 'Suche im Netz...', 'Recherchiere online...'],
+  scrape_url: ['Lese Webseite...', 'Öffne den Link...', 'Rufe die Seite ab...'],
   examples: ['Krame...', 'Hole Beispiele...', 'Suche Inspiration...'],
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],

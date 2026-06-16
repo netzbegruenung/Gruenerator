@@ -167,7 +167,7 @@ function AgentDetailPage() {
             <PiChatCircleText />
             Im Chat öffnen
           </Button>
-          {isUserAgent && import.meta.env.DEV && (
+          {isUserAgent && (
             <Button
               variant="outline"
               size="icon"

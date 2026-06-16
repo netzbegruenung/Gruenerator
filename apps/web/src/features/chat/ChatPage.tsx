@@ -6,6 +6,7 @@ import {
   SharepicArtifactPanel,
   setMentionLocale,
   useAgentStore,
+  useChatRuntimeReady,
   useUserAgentsRegistry,
   type UserRole,
 } from '@gruenerator/chat';
@@ -13,6 +14,7 @@ import {
   getLandesverbandHubBySlug,
   getSystemAgent,
   resolveAgentSlug,
+  resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -44,6 +46,11 @@ function ChatPage() {
   const [searchParams] = useSearchParams();
   const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
+  // False while the lazy assistant-ui runtime chunk is still loading (or in the
+  // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
+  // content below on it keeps useAssistantRuntime()/useComposerRuntime() from
+  // running outside the provider — the "requires an AuiProvider" prod crash.
+  const runtimeReady = useChatRuntimeReady();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
@@ -68,11 +75,18 @@ function ChatPage() {
   // agents instead of resolving straight to one. Checked first so the slug
   // never falls through to agent resolution (which would bind a bogus agent).
   const hub = slug ? getLandesverbandHubBySlug(slug) : null;
+  // Agentura skill links land on `/chat?skill=<mention>` (e.g. presse-bayern).
+  // Resolve the mention to its agent identifier so the agent activates and its
+  // own welcome screen (welcomeQuestion + opening-question examples) renders
+  // instead of the generic overview greeting. Lowest priority in the chain so
+  // an explicit ?agent= or path slug still wins.
+  const skillParam = hub ? null : searchParams.get('skill');
+  const resolvedFromSkill = skillParam ? resolveSkillMention(skillParam) : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
     ? null
-    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null));
+    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null) ?? resolvedFromSkill);
   const modeParam = searchParams.get('mode');
 
   // When the URL carries an agent or mode param, jump straight into the thread —
@@ -125,7 +139,7 @@ function ChatPage() {
     } else {
       notebookAppliedForRef.current = null;
       if (store.selectedAgentId !== null) {
-        store.setSelectedAgent(null);
+        store.resetChatContext();
       }
     }
     if (
@@ -156,6 +170,14 @@ function ChatPage() {
     store.setThreadMode('eigener');
     store.setChatViewMode('thread');
   }, []);
+
+  // Don't mount runtime-dependent content until the assistant-ui runtime is
+  // actually present. On a cold direct load the Suspense fallback renders this
+  // page without the provider; a neutral shell (matching withAuthRequired's
+  // fallback) avoids the AuiProvider crash until the chunk loads.
+  if (!runtimeReady) {
+    return <div className="flex min-h-0 h-full bg-background" />;
+  }
 
   return (
     <div className="flex min-h-0 h-full bg-background">

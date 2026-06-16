@@ -3,10 +3,6 @@
  * Handles public template gallery, examples, and vorlagen browsing
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
 import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
@@ -14,7 +10,6 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
-import { setContentDisposition } from '../../../utils/http/contentDisposition.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -25,71 +20,10 @@ const similarBodySchema = z.object({
   limit: z.number().optional(),
 });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const log = createLogger('templateGallery');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
-
-// Load system templates and files from JSON file
-interface SystemTemplate {
-  id: string;
-  title: string;
-  description: string;
-  template_type: string;
-  thumbnail_url: string;
-  preview_image?: string;
-  external_url: string;
-  images: unknown[];
-  categories: string[];
-  tags: string[];
-  content_data: unknown;
-  metadata: unknown;
-  created_at: string;
-  updated_at: string;
-  similarity?: number;
-  similarity_score?: number;
-}
-
-let systemTemplates: SystemTemplate[] = [];
-let systemFiles: Array<Record<string, unknown>> = [];
-const apiRoot = process.cwd();
-const systemFilesDir = path.resolve(apiRoot, 'static-data/files');
-const templatePreviewsDir = path.resolve(apiRoot, 'config/templates/previews');
-
-try {
-  const systemTemplatesPath = path.resolve(apiRoot, 'config/templates/system-templates.json');
-  const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
-  const parsed = JSON.parse(data) as {
-    templates?: Array<SystemTemplate & { preview_image?: string }>;
-    files?: Array<Record<string, unknown>>;
-  };
-  systemTemplates = (parsed.templates ?? []).map((t) => ({
-    ...t,
-    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
-  }));
-  systemFiles = parsed.files ?? [];
-  log.info(
-    `[Template Gallery] Loaded ${systemTemplates.length} system templates and ${systemFiles.length} system files`
-  );
-} catch (err) {
-  log.warn('[Template Gallery] Could not load system templates:', err);
-}
-
-// Helper to get download URL for system files (mounted at /auth/system-files)
-const getFileDownloadUrl = (fileName: string) =>
-  `/auth/system-files/${encodeURIComponent(fileName)}`;
-
-// Helper to get the gallery thumbnail URL for a system file.
-const getFileThumbnailUrl = (fileName: string) =>
-  `/auth/system-files/thumbs/${encodeURIComponent(fileName)}`;
-
-// Seasonal system files (e.g. Pride) are only surfaced during their month.
-// Evaluated per request so they appear/disappear at the month boundary with
-// no manual cleanup. Pride month = June (month index 5).
-const isPrideMonth = () => new Date().getMonth() === 5;
 
 // ============================================================================
 // Shared gallery builder
@@ -100,19 +34,24 @@ export interface GalleryFilters {
   searchMode?: string;
   templateType?: string;
   tags?: string;
+  /**
+   * When set, restrict the gallery to templates targeted at this locale plus
+   * the locale-agnostic 'all'. Omit to return templates for every audience
+   * (used by the favorites lookup, and when the user turns the locale filter off).
+   */
+  audience?: 'de-DE' | 'de-AT';
 }
 
 /**
- * Build the merged Vorlagen gallery list (published user vorlagen + system
- * templates + system files), applying the same search/type/tag filters used by
- * GET /vorlagen. Extracted so the template-interactions favorites endpoint can
- * resolve favorited ids back to full gallery objects without duplicating the
- * merge logic.
+ * Build the published Vorlagen gallery list from user-submitted templates,
+ * applying the search/type/tag/audience filters used by GET /vorlagen.
+ * Extracted so the template-interactions favorites endpoint can resolve
+ * favorited ids back to full gallery objects without duplicating the query.
  */
 export async function buildGalleryTemplates(
   filters: GalleryFilters = {}
 ): Promise<Array<Record<string, unknown>>> {
-  const { searchTerm = '', searchMode = 'title', templateType, tags } = filters;
+  const { searchTerm = '', searchMode = 'title', templateType, tags, audience } = filters;
 
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
@@ -120,6 +59,13 @@ export async function buildGalleryTemplates(
   const conditions = ['is_private = $1', 'status = $2'];
   const params: unknown[] = [false, 'published'];
   let paramIndex = 3;
+
+  if (audience) {
+    // Include locale-agnostic ('all') templates alongside the viewer's locale.
+    conditions.push(`audience IN ($${paramIndex}, 'all')`);
+    params.push(audience);
+    paramIndex++;
+  }
 
   if (templateType && templateType !== 'all') {
     conditions.push(`template_type = $${paramIndex++}`);
@@ -151,7 +97,7 @@ export async function buildGalleryTemplates(
 
   const query = `
       SELECT id, title, description, template_type, thumbnail_url, external_url,
-             images, categories, tags, content_data, metadata, created_at, updated_at
+             images, categories, tags, content_data, metadata, audience, created_at, updated_at
       FROM user_templates
       WHERE ${conditions.join(' AND ')}
       ORDER BY created_at DESC
@@ -173,6 +119,7 @@ export async function buildGalleryTemplates(
       tags: string[];
       content_data: unknown;
       metadata: unknown;
+      audience: string;
       created_at: string;
       updated_at: string;
     }>
@@ -188,94 +135,12 @@ export async function buildGalleryTemplates(
     tags: item.tags || [],
     content_data: item.content_data || {},
     metadata: item.metadata || {},
+    audience: item.audience || 'all',
     created_at: item.created_at,
     updated_at: item.updated_at,
-    // User-submitted templates: lets the gallery mark them as community
-    // contributions and surface their author, distinct from official ones.
-    source: 'community' as const,
   }));
 
-  // Filter and merge system templates
-  let filteredSystemTemplates = systemTemplates;
-  if (templateType && templateType !== 'all') {
-    filteredSystemTemplates = systemTemplates.filter((t) => t.template_type === templateType);
-  }
-  if (searchTerm && String(searchTerm).trim().length > 0) {
-    const term = String(searchTerm).trim().toLowerCase();
-    filteredSystemTemplates = filteredSystemTemplates.filter(
-      (t) => t.title?.toLowerCase().includes(term) || t.description?.toLowerCase().includes(term)
-    );
-  }
-  if (tags) {
-    try {
-      const tagsArray = JSON.parse(tags) as string[];
-      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-        filteredSystemTemplates = filteredSystemTemplates.filter((t) =>
-          tagsArray.every((tag: string) => t.tags?.includes(tag.toLowerCase()))
-        );
-      }
-    } catch {
-      // Invalid tags JSON, skip filtering
-    }
-  }
-
-  // Filter system files with same logic
-  let filteredSystemFiles = systemFiles.map((f) => ({
-    ...f,
-    template_type: f.file_type as unknown,
-    download_url: getFileDownloadUrl(f.file_name as string),
-    thumbnail_url: getFileThumbnailUrl(f.file_name as string),
-    external_url: null as null,
-  })) as Array<
-    Record<string, unknown> & {
-      template_type: unknown;
-      download_url: string;
-      thumbnail_url: string;
-      external_url: null;
-    }
-  >;
-
-  // Hide seasonal files (e.g. Pride) outside their month.
-  if (!isPrideMonth()) {
-    filteredSystemFiles = filteredSystemFiles.filter((f) => f.seasonal !== 'pride');
-  }
-
-  if (templateType && templateType !== 'all') {
-    filteredSystemFiles = filteredSystemFiles.filter((f) => f.file_type === templateType);
-  }
-  if (searchTerm && String(searchTerm).trim().length > 0) {
-    const term = String(searchTerm).trim().toLowerCase();
-    filteredSystemFiles = filteredSystemFiles.filter(
-      (f) =>
-        (f.title as string | undefined)?.toLowerCase().includes(term) ||
-        (f.description as string | undefined)?.toLowerCase().includes(term)
-    );
-  }
-  if (tags) {
-    try {
-      const tagsArray = JSON.parse(tags) as string[];
-      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-        filteredSystemFiles = filteredSystemFiles.filter((f) =>
-          tagsArray.every((tag: string) =>
-            (f.tags as string[] | undefined)?.includes(tag.toLowerCase())
-          )
-        );
-      }
-    } catch {
-      // Invalid tags JSON, skip filtering
-    }
-  }
-
-  // System templates first, then system files, then approved user vorlagen.
-  // Tag the official entries so the frontend can distinguish them from
-  // community contributions.
-  // SystemTemplate is a known-shape interface (no index signature); the merged
-  // gallery is intentionally loose, so widen at this boundary.
-  return [
-    ...filteredSystemTemplates.map((t) => ({ ...t, source: 'system' as const })),
-    ...filteredSystemFiles.map((f) => ({ ...f, source: 'system' as const })),
-    ...userVorlagen,
-  ] as Array<Record<string, unknown>>;
+  return userVorlagen as Array<Record<string, unknown>>;
 }
 
 /**
@@ -554,13 +419,19 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
-      const { searchTerm, searchMode, templateType, tags } = req.query;
+      const { searchTerm, searchMode, templateType, tags, localeFilter } = req.query;
+
+      // Scope the gallery to the viewer's locale by default; the client can turn
+      // this off via ?localeFilter=false to browse templates from all audiences.
+      const applyLocaleFilter = localeFilter !== 'false';
+      const viewerLocale = req.user?.locale;
 
       const vorlagen = await buildGalleryTemplates({
         ...(searchTerm !== undefined && { searchTerm: searchTerm as string }),
         ...(searchMode !== undefined && { searchMode: searchMode as string }),
         ...(templateType !== undefined && { templateType: templateType as string }),
         ...(tags !== undefined && { tags: tags as string }),
+        ...(applyLocaleFilter && viewerLocale ? { audience: viewerLocale } : {}),
       });
 
       await attachLikeCounts(vorlagen);
@@ -578,150 +449,9 @@ router.get(
   }
 );
 
-// ============================================================================
-// Template Preview Image Endpoint
-// ============================================================================
-
-router.get(
-  '/template-previews/:fileName',
-  async (req: express.Request<{ fileName: string }>, res: Response): Promise<void> => {
-    try {
-      const { fileName } = req.params;
-      const decodedFileName = decodeURIComponent(fileName);
-      const filePath = path.join(templatePreviewsDir, decodedFileName);
-
-      const resolvedPath = path.resolve(filePath);
-      if (!resolvedPath.startsWith(path.resolve(templatePreviewsDir))) {
-        res.status(403).json({ success: false, message: 'Zugriff verweigert' });
-        return;
-      }
-
-      if (!fs.existsSync(resolvedPath)) {
-        res.status(404).json({ success: false, message: 'Vorschaubild nicht gefunden' });
-        return;
-      }
-
-      const ext = path.extname(decodedFileName).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.webp': 'image/webp',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-      };
-      res.setHeader('Cache-Control', 'public, max-age=604800');
-      res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-
-      const fileStream = fs.createReadStream(resolvedPath);
-      fileStream.pipe(res);
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Template Previews] Error:', err);
-      res.status(500).json({ success: false, message: 'Fehler beim Laden des Vorschaubilds' });
-    }
-  }
-);
-
-// ============================================================================
-// System File Thumbnail Endpoint
-// ============================================================================
-
-// Serve system file thumbnail (optimized for gallery display)
-router.get(
-  '/system-files/thumbs/:fileName',
-  async (req: express.Request<{ fileName: string }>, res: Response): Promise<void> => {
-    try {
-      const { fileName } = req.params;
-      const decodedFileName = decodeURIComponent(fileName);
-
-      // Extract base name and construct thumbnail path
-      const baseName = decodedFileName.replace(/\.[^.]+$/, '');
-      const thumbName = `thumb_${baseName}.jpg`;
-      const thumbPath = path.join(systemFilesDir, 'thumbs', thumbName);
-
-      // Security: ensure file is within the thumbs directory
-      const resolvedPath = path.resolve(thumbPath);
-      const thumbsDir = path.resolve(systemFilesDir, 'thumbs');
-      if (!resolvedPath.startsWith(thumbsDir)) {
-        res.status(403).json({ success: false, message: 'Zugriff verweigert' });
-        return;
-      }
-
-      if (!fs.existsSync(resolvedPath)) {
-        res.status(404).json({ success: false, message: 'Thumbnail nicht gefunden' });
-        return;
-      }
-
-      // Set cache headers for thumbnails (1 day)
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      res.setHeader('Content-Type', 'image/jpeg');
-
-      const fileStream = fs.createReadStream(resolvedPath);
-      fileStream.pipe(res);
-    } catch (error) {
-      const err = error as Error;
-      log.error('[System Files] Thumbnail error:', err);
-      res.status(500).json({ success: false, message: 'Fehler beim Laden des Thumbnails' });
-    }
-  }
-);
-
-// ============================================================================
-// System File Download Endpoint
-// ============================================================================
-
-// Download system file
-router.get(
-  '/system-files/:fileName',
-  async (req: express.Request<{ fileName: string }>, res: Response): Promise<void> => {
-    try {
-      const { fileName } = req.params;
-      const decodedFileName = decodeURIComponent(fileName);
-
-      // Validate file exists in system files list
-      const systemFile = systemFiles.find((f) => f.file_name === decodedFileName);
-      if (!systemFile) {
-        res.status(404).json({ success: false, message: 'Datei nicht gefunden' });
-        return;
-      }
-
-      const filePath = path.join(systemFilesDir, decodedFileName);
-
-      // Security: ensure file is within the files directory
-      const resolvedPath = path.resolve(filePath);
-      if (!resolvedPath.startsWith(path.resolve(systemFilesDir))) {
-        res.status(403).json({ success: false, message: 'Zugriff verweigert' });
-        return;
-      }
-
-      if (!fs.existsSync(resolvedPath)) {
-        res.status(404).json({ success: false, message: 'Datei nicht gefunden' });
-        return;
-      }
-
-      // Set content disposition for download
-      setContentDisposition(res, decodedFileName);
-
-      // Set content type based on file extension
-      const ext = path.extname(decodedFileName).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.png': 'image/png',
-        '.svg': 'image/svg+xml',
-        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        '.pdf': 'application/pdf',
-        '.zip': 'application/zip',
-      };
-      res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-
-      // Stream file
-      const fileStream = fs.createReadStream(resolvedPath);
-      fileStream.pipe(res);
-    } catch (error) {
-      const err = error as Error;
-      log.error('[System Files] Download error:', err);
-      res.status(500).json({ success: false, message: 'Fehler beim Herunterladen' });
-    }
-  }
-);
+// NOTE: The Vorlagen gallery serves only user-submitted templates. The former
+// system-template / system-file content (and its /template-previews and
+// /system-files file-serving endpoints) was removed.
 
 // NOTE: Template likes & favorites live in the ts-rest
 // templateInteractionsContractRouter (mounted at /api/auth/templates), which

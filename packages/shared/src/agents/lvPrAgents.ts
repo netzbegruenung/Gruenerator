@@ -34,6 +34,29 @@ export const LV_PR_SPECS = [
   themes: string;
 }>;
 
+// Splits a comma-separated `themes` string into individual topics, ignoring
+// commas inside parentheses (e.g. "Energiewende (Windkraft Nord, Wasserstoff)")
+// and stripping the parentheticals so the topics read cleanly inside a prompt.
+function splitThemes(themes: string): string[] {
+  return themes
+    .split(/,\s*(?![^()]*\))/)
+    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
+    .filter(Boolean);
+}
+
+// Concrete, LV-specific example prompts for the welcome screen — derived from
+// the spec's own `themes` so every LV gets tailored Beispiel-Karten.
+function buildLvPrOpeningQuestions(spec: (typeof LV_PR_SPECS)[number]): string[] {
+  const topics = splitThemes(spec.themes);
+  const [t0, t1, t2] = [topics[0], topics[1] ?? topics[0], topics[2] ?? topics[0]];
+  return [
+    `Schreib eine Pressemitteilung zu ${t0}`,
+    `Entwirf einen Instagram-Post für ${spec.title} zu ${t1}`,
+    `Formuliere ein Statement zu ${t2}`,
+    'Erstelle einen Facebook-Beitrag zu …',
+  ];
+}
+
 function buildLvPrSystemRole(spec: (typeof LV_PR_SPECS)[number]): string {
   return `Du bist die*der leitende Kommunikationsmanager*in für BÜNDNIS 90/DIE GRÜNEN ${spec.title}. Du erstellst Pressemitteilungen und Social-Media-Inhalte mit klarer regionaler Verankerung.
 
@@ -96,12 +119,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   params: { max_tokens: 3000, temperature: 0.6 },
   openingMessage: `Hallo! Ich bin dein*e Kommunikationsmanager*in für die Grünen ${spec.title}.\n\nIch erstelle:\n- **Pressemitteilungen** (im Stil der ${spec.title}er LV-PMs)\n- **Social-Media-Posts** (Instagram, Facebook, Twitter, LinkedIn)\n- **Reels/TikTok-Skripte**\n\nWorum geht's? Beschreib das Thema und die Plattform.`,
   welcomeQuestion: `Was soll ${spec.title} sagen?`,
-  openingQuestions: [
-    `Schreib eine Pressemitteilung zu …`,
-    `Entwirf einen Instagram-Post für ${spec.title} zu …`,
-    `Formuliere ein Statement zu …`,
-    `Erstelle einen Facebook-Beitrag zu …`,
-  ],
+  openingQuestions: buildLvPrOpeningQuestions(spec),
   locale: 'de-DE',
   author: 'Grünerator',
   enabledTools: [

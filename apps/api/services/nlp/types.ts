@@ -9,6 +9,11 @@ export interface KeywordEntry<Topic = string | null> {
   topic: Topic;
 }
 
+export interface PersonEntry {
+  person: string;
+  count: number;
+}
+
 export interface NlpClassificationResult<Topic extends string = string> {
   id: string;
   topics: Partial<Record<Topic, number>>;

@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SonntagsfrageChart } from '../components/UmfragenView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-/** Compact national Sonntagsfrage carousel, linking into /monitor/umfragen. */
+/** Compact national Sonntagsfrage carousel, linking into /experiments/monitor/umfragen. */
 export function SonntagsfrageSection() {
   const navigate = useNavigate();
   const { locale, withLocale } = useMonitorLocaleParam();
@@ -20,10 +20,10 @@ export function SonntagsfrageSection() {
     <section className="mb-2xl">
       <SectionHeader
         title="Umfragen"
-        onTitleClick={() => navigate(withLocale('/monitor/umfragen'))}
+        onTitleClick={() => navigate(withLocale('/experiments/monitor/umfragen'))}
         actions={
           <Link
-            to={withLocale('/monitor/umfragen')}
+            to={withLocale('/experiments/monitor/umfragen')}
             className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
           >
             Alle Umfragen

@@ -11,10 +11,10 @@ import { z } from 'zod';
 // ── Gallery template (favorites resolution) ──────────────────────────────────
 
 /**
- * A gallery item as returned by GET /auth/vorlagen. The gallery merges three
- * heterogeneous sources (system templates, system files, published user
- * vorlagen), so the shape is intentionally loose and passthrough-friendly — the
- * favorites endpoint resolves favorited ids back to whichever objects exist.
+ * A gallery item as returned by GET /auth/vorlagen. The gallery serves
+ * published user-submitted vorlagen; the shape is intentionally loose and
+ * passthrough-friendly — the favorites endpoint resolves favorited ids back to
+ * whichever objects exist.
  */
 export const galleryTemplateSchema = z
   .object({

@@ -124,6 +124,14 @@ interface AgentState {
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
+  /** Clear per-thread chat context (skill mention, custom prompt/role/tools,
+   *  thread mode) while keeping the selected agent. Used when switching agents
+   *  so the new agent starts from a clean thread. */
+  resetThreadContext: () => void;
+  /** Full blank-slate reset for a NEW chat: `resetThreadContext()` plus
+   *  deselecting the agent. The single source of truth for "new chat" used by
+   *  every new-chat surface (workplace composer, /chat overview, ChatPage). */
+  resetChatContext: () => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
 }
@@ -171,6 +179,25 @@ export const useAgentStore = create<AgentState>()(
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId, activeSkillMention: null }),
 
+      resetThreadContext: () =>
+        set({
+          activeSkillMention: null,
+          customSystemPrompt: null,
+          customRoleName: null,
+          customEnabledTools: null,
+          threadMode: 'chat',
+        }),
+
+      resetChatContext: () =>
+        set({
+          selectedAgentId: null,
+          activeSkillMention: null,
+          customSystemPrompt: null,
+          customRoleName: null,
+          customEnabledTools: null,
+          threadMode: 'chat',
+        }),
+
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
 
       setSelectedModel: (model) => {
@@ -209,12 +236,19 @@ export const useAgentStore = create<AgentState>()(
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
 
       toggleTool: (tool) =>
-        set((state) => ({
-          enabledTools: {
-            ...state.enabledTools,
-            [tool]: !state.enabledTools[tool],
-          },
-        })),
+        set((state) => {
+          const next = !state.enabledTools[tool];
+          return {
+            enabledTools: {
+              ...state.enabledTools,
+              [tool]: next,
+              // The merged "Recherche" tool gates both backend search paths;
+              // keep the internal `web` gate key in lockstep so disabling the
+              // single toggle stops the auto web search too.
+              ...(tool === 'research' ? { web: next } : {}),
+            },
+          };
+        }),
 
       setAllTools: (enabled) =>
         set({
@@ -350,7 +384,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 12,
+      version: 13,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -438,15 +472,23 @@ export const useAgentStore = create<AgentState>()(
             state.selectedModel = AUTO_MODEL_ID;
           }
         }
+        if (version < 13) {
+          // selectedAgentId / threadMode are no longer persisted. Drop any stale
+          // values so existing localStorage doesn't restore the last agent into
+          // a fresh chat (the initializer defaults fill in: null / 'chat').
+          delete state.selectedAgentId;
+          delete state.threadMode;
+        }
         return state;
       },
       partialize: (state) => ({
-        selectedAgentId: state.selectedAgentId,
+        // selectedAgentId and threadMode are deliberately NOT persisted: they are
+        // transient chat context. The URL (/agents/:slug) is the source of truth
+        // for the active agent; persisting it leaked the last agent into new chats.
         selectedProvider: state.selectedProvider,
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
         selectedNotebookId: state.selectedNotebookId,
-        threadMode: state.threadMode,
         searchMode: state.searchMode,
         // Survive a reload that happens between text generation and the first
         // user message (no thread exists yet, so server-side persistence

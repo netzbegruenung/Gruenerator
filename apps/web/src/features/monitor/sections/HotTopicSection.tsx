@@ -41,7 +41,7 @@ export function HotTopicSection() {
           )}
           <div className="flex items-center gap-sm flex-wrap">
             <Link
-              to={withLocale(`/monitor/themen/${hotTopic.topic}`)}
+              to={withLocale(`/experiments/monitor/themen/${hotTopic.topic}`)}
               className="inline-flex items-center gap-xs text-xs font-medium px-2 py-0.5 rounded-full no-underline hover:opacity-80 transition-opacity"
               style={{
                 color: TOPIC_COLORS[hotTopic.topic],

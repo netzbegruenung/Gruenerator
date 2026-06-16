@@ -481,10 +481,12 @@ CREATE TABLE IF NOT EXISTS user_templates (
     is_private BOOLEAN DEFAULT TRUE,
     is_example BOOLEAN DEFAULT FALSE,
     status TEXT DEFAULT 'published',
+    audience TEXT NOT NULL DEFAULT 'all',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     vector_indexed_at TIMESTAMPTZ,
-    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active', 'pending_review', 'rejected'))
+    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active', 'pending_review', 'rejected')),
+    CONSTRAINT valid_template_audience CHECK (audience IN ('de-DE', 'de-AT', 'all'))
 );
 
 CREATE TABLE IF NOT EXISTS template_likes (
@@ -829,6 +831,7 @@ CREATE INDEX IF NOT EXISTS idx_user_templates_user_id ON user_templates(user_id)
 CREATE INDEX IF NOT EXISTS idx_user_templates_type ON user_templates(type);
 CREATE INDEX IF NOT EXISTS idx_user_templates_is_example ON user_templates(is_example);
 CREATE INDEX IF NOT EXISTS idx_user_templates_status ON user_templates(status);
+CREATE INDEX IF NOT EXISTS idx_user_templates_audience ON user_templates(audience);
 CREATE INDEX IF NOT EXISTS idx_user_templates_user_example ON user_templates(user_id, is_example);
 CREATE INDEX IF NOT EXISTS idx_user_templates_metadata ON user_templates USING GIN (metadata);
 CREATE INDEX IF NOT EXISTS idx_user_templates_tags ON user_templates USING GIN (tags);

@@ -1,3 +1,5 @@
+import { LANDESVERBAENDE } from './landesverbaende.js';
+
 import type { Agent } from './types.js';
 
 // ─── Per-LV "Bürger*innenanfragen"-Agents ───
@@ -6,107 +8,44 @@ import type { Agent } from './types.js';
 // Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine
 // versandfertige Antwort-E-Mail (Anrede → Dank → Antwort → weiterführende
 // Links). Wiederverwendet die bestehenden LV-Notebooks via defaultNotebookId.
-export const LV_BUERGER_SPECS = [
-  {
-    lv: 'berlin',
-    title: 'Berlin',
-    codes: ['BE', 'BE-F'],
-    notebook: 'berlin-notebook',
-    homepage: 'https://gruene.berlin',
-    themes:
-      'Mieten und bezahlbares Wohnen, Verkehrswende und BVG, lebenswerte Kieze, Kultur und Clubkultur, soziale Gerechtigkeit',
-  },
-  {
-    lv: 'hamburg',
-    title: 'Hamburg',
-    codes: 'HH',
-    notebook: 'hamburg-notebook',
-    homepage: 'https://www.gruene-hamburg.de',
-    themes:
-      'Hafen und maritime Wirtschaft, Verkehrswende und ÖPNV (U5), Wohnen, Klimaschutz, hanseatischer Weg',
-  },
-  {
-    lv: 'mecklenburg-vorpommern',
-    title: 'Mecklenburg-Vorpommern',
-    codes: ['MV', 'MV-F'],
-    notebook: 'mecklenburg-vorpommern-notebook',
-    homepage: 'https://gruene-mv.de',
-    themes:
-      'Energiewende und Offshore-Windkraft als Wirtschaftsfaktor, Ostsee- und Küstenschutz, ländlicher Raum, Tourismus',
-  },
-  {
-    lv: 'thueringen',
-    title: 'Thüringen',
-    codes: ['TH', 'TH-F'],
-    notebook: 'thueringen-notebook',
-    homepage: 'https://gruene-thueringen.de',
-    themes:
-      'Energiewende und Reparaturbonus, Demokratie und Schutz vor Rechtsextremismus, ländlicher Raum, Bildung',
-  },
-  {
-    lv: 'brandenburg',
-    title: 'Brandenburg',
-    codes: 'BB',
-    notebook: 'brandenburg-notebook',
-    homepage: 'https://gruene-brandenburg.de',
-    themes:
-      'Strukturwandel in der Lausitz (Just Transition Fund), Kita und Bildung, Demokratiearbeit gegen rechte Gewalt, Mobilität (RE3)',
-  },
-  {
-    lv: 'bayern',
-    title: 'Bayern',
-    codes: ['BY', 'BY-F'],
-    notebook: 'bayern-notebook',
-    homepage: 'https://www.gruene-bayern.de',
-    themes:
-      'Erneuerbare als „Freiheitsenergie" und Wirtschaftsfaktor, Verkehrswende im ländlichen Raum, Alpen- und Naturschutz, bezahlbares Wohnen',
-  },
-  {
-    lv: 'sachsen-anhalt',
-    title: 'Sachsen-Anhalt',
-    codes: ['LSA', 'LSA-F'],
-    notebook: 'sachsen-anhalt-notebook',
-    homepage: 'https://www.gruene-lsa.de',
-    themes:
-      'Energiewende und Wasserstoff (Mitteldeutsches Revier), Strukturwandel und gute Arbeit, Bildung und Kita, ländlicher Raum und Mobilität, Demokratie und Schutz vor Rechtsextremismus',
-  },
-  {
-    lv: 'hessen',
-    title: 'Hessen',
-    codes: ['HE', 'HE-F'],
-    notebook: 'hessen-notebook',
-    homepage: 'https://www.gruene-hessen.de',
-    themes:
-      'Verkehrswende und RMV im Rhein-Main-Gebiet, Energiewende und Naturschutz (Wald, Wasser), bezahlbares Wohnen in Frankfurt und den Ballungsräumen, Bildung und Kita, Demokratie und Schutz vor Rechtsextremismus',
-  },
-  {
-    lv: 'schleswig-holstein',
-    title: 'Schleswig-Holstein',
-    codes: 'SH',
-    notebook: 'schleswig-holstein-notebook',
-    homepage: 'https://sh-gruene.de',
-    themes:
-      'Energiewende (Windkraft, Wasserstoff), Küstenschutz, Tourismus, Landwirtschaft, dänische Minderheit',
-  },
-  {
-    lv: 'oesterreich',
-    title: 'Österreich',
-    codes: 'AT',
-    notebook: 'oesterreich-notebook',
-    homepage: 'https://gruene.at',
-    themes:
-      'Klimakrise und Energiewende, leistbares Wohnen, Klimaticket und Öffis (ÖBB), Anti-Korruption und Transparenz',
-    audience: 'de-AT',
-  },
-] as const satisfies ReadonlyArray<{
-  lv: string;
-  title: string;
-  codes: string | readonly string[];
-  notebook: string;
-  homepage: string;
-  themes: string;
-  audience?: 'de-AT';
-}>;
+//
+// Die Specs werden aus der LV-Registry (`landesverbaende.ts`) abgeleitet — der
+// einen Quelle der Wahrheit für notebookId, codes, homepage und themes pro LV.
+// `audience` wird nur für Österreich gesetzt (mirror der früheren Inline-Specs),
+// damit `'audience' in spec` im Builder weiterhin DE von AT unterscheidet.
+export const LV_BUERGER_SPECS = LANDESVERBAENDE.map((lv) => ({
+  lv: lv.id,
+  title: lv.title,
+  codes: lv.codes,
+  notebook: lv.notebookId,
+  homepage: lv.homepage,
+  themes: lv.themes,
+  ...(lv.audience === 'de-AT' ? { audience: 'de-AT' as const } : {}),
+}));
+
+// Splits a comma-separated `themes` string into individual topics, ignoring
+// commas inside parentheses (e.g. Hessen's "Naturschutz (Wald, Wasser)") and
+// stripping the parentheticals so the topics read cleanly inside a prompt.
+function splitThemes(themes: string): string[] {
+  return themes
+    .split(/,\s*(?![^()]*\))/)
+    .map((t) => t.replace(/\s*\([^)]*\)/g, '').trim())
+    .filter(Boolean);
+}
+
+// Concrete, LV-specific example prompts for the welcome screen — derived from
+// the spec's own `themes` so every LV gets tailored Beispiel-Karten without
+// hand-authoring a prompt list per Landesverband.
+function buildLvBuergerOpeningQuestions(spec: (typeof LV_BUERGER_SPECS)[number]): string[] {
+  const topics = splitThemes(spec.themes);
+  const [t0, t1, t2] = [topics[0], topics[1] ?? topics[0], topics[2] ?? topics[0]];
+  return [
+    `Beantworte eine Bürger*innenanfrage zu ${t0}: …`,
+    `Wie positionieren sich die Grünen ${spec.title} zu ${t1}?`,
+    `Formuliere eine freundliche Antwort auf eine kritische Mail zu ${t2}: …`,
+    'Antworte auf diese E-Mail einer Bürgerin: …',
+  ];
+}
 
 function buildLvBuergerSystemRole(spec: (typeof LV_BUERGER_SPECS)[number]): string {
   const isAT = 'audience' in spec && spec.audience === 'de-AT';
@@ -128,8 +67,8 @@ Schritt 3: Schreibe die Antwort-E-Mail. Die recherchierten Quellen werden dem*de
 2. **Dank:** Ein bis zwei Sätze Dank, z.B. \`vielen Dank für deine/Ihre E-Mail an ${partyName} und dein/Ihr Interesse an unserer Politik.\`
 3. **Inhaltliche Antwort:** Die eigentliche, recherchebasierte Antwort auf das Anliegen — klar strukturiert, in der Position des Landesverbands verankert, sachlich, freundlich und lösungsorientiert. Keine erfundenen Fakten; wenn etwas unklar ist, sage das ehrlich.
 4. **Weiterführende Links:** Schließe mit konkreten Quellen, eingeleitet z.B. mit \`Weitere Infos findest du / finden Sie hier:\`
-   - die wichtigsten 1–3 Quell-URLs aus deiner Recherche (nur real recherchierte Links, niemals erfundene)
-   - die Website des Landesverbands: ${spec.homepage}
+   - Liste **vorrangig die \`Quelle-URL\`s der relevantesten Suchtreffer (1–3)**, die du inhaltlich verwendet hast — also konkrete Artikel-, Beschluss- oder Programm-Links, nur real recherchierte URLs, niemals erfundene.
+   - Verlinke die allgemeine Landesverbands-Website (${spec.homepage}) nur ergänzend oder als Fallback, wenn keine passenden Artikel-URLs vorliegen — niemals als einzigen Link, wenn konkrete Treffer-URLs vorhanden sind.
    Danach eine freundliche Grußformel (\`Mit grünen Grüßen\`) und \`${partyName}\`.
 
 **STIL:** Freundlich, respektvoll, zugänglich. Genderstern konsequent (*innen, *in). Keine Phrasendrescherei. So lang wie nötig, so kurz wie möglich.
@@ -154,15 +93,14 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     params: { max_tokens: 3000, temperature: 0.4 },
     openingMessage: `Hallo! Ich beantworte Bürger*innenanfragen für die Grünen ${spec.title}.\n\nFüge die eingegangene E-Mail oder das Anliegen ein — ich recherchiere die Positionen des Landesverbands und formuliere eine versandfertige Antwort-E-Mail mit weiterführenden Links.`,
     welcomeQuestion: `Welche Anfrage soll ${spec.title} beantworten?`,
-    openingQuestions: [
-      'Beantworte diese Bürger*innenanfrage: …',
-      `Wie steht ${spec.title} zu …?`,
-      'Formuliere eine freundliche Antwort auf diese kritische Mail: …',
-      'Antworte auf eine Frage zur Verkehrs-/Energiepolitik: …',
-    ],
+    openingQuestions: buildLvBuergerOpeningQuestions(spec),
     locale: isAT ? 'de-AT' : 'de-DE',
     author: 'Grünerator',
     enabledTools: ['search', 'web', 'scrape', 'memory', 'self_review'],
+    // Versandfertige E-Mail: konkrete Artikel-URLs müssen inline im Text stehen
+    // (Quellen-Karten reisen nicht mit dem kopierten Text mit). Schaltet die
+    // URL-Injektion in den Modell-Kontext frei (respondNode).
+    inlineSourceLinks: true,
     defaultNotebookId: spec.notebook,
     // AT-Korpus liegt in einer eigenen Collection ohne `landesverband`-Feld —
     // ein defaultFilter darauf liefe ins Leere. Daher nur für DE-LVs pinnen.

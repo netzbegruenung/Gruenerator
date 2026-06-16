@@ -258,6 +258,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
+  const { internalAgentInsightRouter } = await import(
+    './routes/agents/internalAgentInsightController.js'
+  );
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
@@ -678,6 +681,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);
+  app.use('/api/internal/agents', internalAgentInsightRouter);
   // Content-sync is a ts-rest contract router; apply the admin-token prefix
   // before the endpoints register on `app` (createExpressEndpoints uses
   // absolute paths, so prefix middleware must be mounted first).

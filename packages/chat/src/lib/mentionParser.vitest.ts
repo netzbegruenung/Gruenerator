@@ -5,7 +5,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { parseAllMentions } from './mentionParser';
-import { setBoardMentionables, setDocMentionables } from './mentionables';
+import {
+  documentMentionables,
+  filterMentionables,
+  resolveMentionable,
+  setBoardMentionables,
+  setDocMentionables,
+  toolMentionables,
+} from './mentionables';
 
 beforeAll(() => {
   // Set up some known mentionables
@@ -74,5 +81,24 @@ describe('mentionParser: unresolvedMentions', () => {
     const result = parseAllMentions('@docs browse documents');
     // @docs is registered as docs-picker-trigger in docToolMentionables
     expect(result.unresolvedMentions).toHaveLength(0);
+  });
+});
+
+describe('document mentions merged into @docs', () => {
+  it('@datei and @dokumentchat are no longer separate picker entries', () => {
+    expect(documentMentionables).toHaveLength(0);
+    expect(toolMentionables.some((m) => m.mention === 'dokumentchat')).toBe(false);
+  });
+
+  it('legacy @datei / @dokumentchat aliases redirect to the @docs entry', () => {
+    for (const alias of ['datei', 'dokumentchat']) {
+      const resolved = resolveMentionable(alias);
+      expect(resolved?.identifier).toBe('docs-picker-trigger');
+    }
+  });
+
+  it('typing an old document trigger surfaces the @docs entry in the picker', () => {
+    const docs = filterMentionables('datei').docs;
+    expect(docs.some((m) => m.identifier === 'docs-picker-trigger')).toBe(true);
   });
 });

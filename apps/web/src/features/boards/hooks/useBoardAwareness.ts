@@ -82,8 +82,14 @@ export function useBoardAwareness(provider: HocuspocusProvider | null) {
     awareness.on('change', handleChange);
     handleChange();
 
+    // Idle-but-connected peers stop broadcasting cursor moves, so no 'change'
+    // event fires to drop their now-stale cursor. Re-evaluate on a timer so the
+    // STALE_MS filter actually expires them.
+    const staleSweep = setInterval(handleChange, 1000);
+
     return () => {
       awareness.off('change', handleChange);
+      clearInterval(staleSweep);
       if (pendingRef.current) clearTimeout(pendingRef.current);
     };
   }, [provider]);

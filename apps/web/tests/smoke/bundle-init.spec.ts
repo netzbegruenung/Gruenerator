@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test';
  * `apps/web/vite.config.ts` advancedChunks.groups:
  *   - /imagine        → vendor-konva, pkg-canvas-editor, vendor-imgly, vendor-onnxruntime
  *   - /boards         → vendor-excalidraw, vendor-collab, vendor-mermaid
- *   - /monitor        → vendor-recharts
+ *   - /experiments/monitor → vendor-recharts
  *   - /docs/<id>      → vendor-blocknote-export (lazy on Export click — not asserted here)
  *   - /chat, /workplace, /dashboard, /settings → entry chunk only
  *
@@ -34,7 +34,7 @@ const ROUTES = [
   '/dashboard',
   '/imagine',
   '/boards',
-  '/monitor',
+  '/experiments/monitor',
   '/chat',
   '/workplace',
   '/settings',
