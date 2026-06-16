@@ -9,3 +9,10 @@
  * is always available.
  */
 export const SHOW_AGENT_CREATOR = true;
+
+/**
+ * Whether the collaborative Canvas-Editor (boards/docs/canvas) surfaces are
+ * exposed. Still dev-only while it stabilises — gates e.g. the "Canvas-Editor
+ * Vorlagen" section on /vorlagen/meine so it stays hidden in production.
+ */
+export const SHOW_CANVAS_EDITOR = import.meta.env.DEV;
