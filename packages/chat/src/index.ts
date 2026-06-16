@@ -88,6 +88,7 @@ export {
 
 // Runtime
 export { GrueneratorChatProvider, preloadChatRuntime } from './runtime/GrueneratorChatProvider';
+export { useChatRuntimeReady } from './context/ChatRuntimeReadyContext';
 export { convertToThreadMessageLike } from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {

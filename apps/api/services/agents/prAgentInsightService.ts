@@ -289,7 +289,9 @@ function stripJsonFences(raw: string): string {
 }
 
 function longWords(text: string): string[] {
-  return (text.toLowerCase().match(/[a-zäöüß]{6,}/g) ?? []).filter((w) => w.length >= LONG_WORD_MIN);
+  return (text.toLowerCase().match(/[a-zäöüß]{6,}/g) ?? []).filter(
+    (w) => w.length >= LONG_WORD_MIN
+  );
 }
 
 interface AnalysisOutcome {
@@ -330,10 +332,16 @@ async function analyzeScope(scope: PrAgentScope, docs: SampledDoc[]): Promise<An
     few_shot_examples?: unknown;
   };
   try {
-    parsed = JSON.parse(stripJsonFences(result.text));
+    parsed = JSON.parse(stripJsonFences(result.text)) as typeof parsed;
   } catch (err) {
     log.warn(`[${scope.identifier}] analysis JSON parse failed: ${toError(err).message}`);
-    return { themes: [], speakers: [], tics: [], fewShot: [], dropped: { speakers: 0, themes: 0, fewShot: 0 } };
+    return {
+      themes: [],
+      speakers: [],
+      tics: [],
+      fewShot: [],
+      dropped: { speakers: 0, themes: 0, fewShot: 0 },
+    };
   }
 
   const dropped = { speakers: 0, themes: 0, fewShot: 0 };
@@ -591,7 +599,9 @@ export async function refreshAllPrAgentInsights(
   options: { sendDigest?: boolean } = {}
 ): Promise<RefreshResult[]> {
   const scopes = getPrAgentScopes();
-  log.info(`Starting monthly PR-agent insight refresh for ${scopes.length} agents (month=${month})`);
+  log.info(
+    `Starting monthly PR-agent insight refresh for ${scopes.length} agents (month=${month})`
+  );
 
   const results: RefreshResult[] = [];
   for (const scope of scopes) {
@@ -721,7 +731,13 @@ function parseFewShot(raw: unknown): FewShotInsight[] {
     if (!e || typeof e !== 'object') return [];
     const o = e as Record<string, unknown>;
     if (typeof o.input !== 'string' || typeof o.output !== 'string') return [];
-    return [{ input: o.input, output: o.output, reasoning: typeof o.reasoning === 'string' ? o.reasoning : '' }];
+    return [
+      {
+        input: o.input,
+        output: o.output,
+        reasoning: typeof o.reasoning === 'string' ? o.reasoning : '',
+      },
+    ];
   });
 }
 
