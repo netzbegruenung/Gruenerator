@@ -10,6 +10,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  Input,
+  Label,
 } from '@gruenerator/ui';
 import { memo, useState } from 'react';
 import {
@@ -30,12 +32,13 @@ import { ShareBoardDialog } from './ShareBoardDialog';
 
 interface BoardDropdownProps {
   boardId: string;
+  title: string;
   isArchived: boolean;
   expertMode: boolean;
   onDelete: () => void;
   onArchiveToggle: () => void;
   onExpertModeToggle: () => void;
-  onRequestRename: () => void;
+  onRename: (title: string) => void;
   // Board-overview actions (kanban boards only — omitted for whiteboards).
   onOpenSettings?: () => void;
   onOpenActivity?: () => void;
@@ -44,19 +47,35 @@ interface BoardDropdownProps {
 
 export const BoardDropdown = memo(function BoardDropdown({
   boardId,
+  title,
   isArchived,
   expertMode,
   onDelete,
   onArchiveToggle,
   onExpertModeToggle,
-  onRequestRename,
+  onRename,
   onOpenSettings,
   onOpenActivity,
   onDuplicate,
 }: BoardDropdownProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(title);
   const navigate = useNavigate();
+
+  const openRename = () => {
+    setRenameValue(title);
+    setRenameOpen(true);
+  };
+
+  const submitRename = () => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== title) {
+      onRename(trimmed);
+    }
+    setRenameOpen(false);
+  };
 
   return (
     <>
@@ -69,7 +88,7 @@ export const BoardDropdown = memo(function BoardDropdown({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-          <DropdownMenuItem onClick={onRequestRename}>
+          <DropdownMenuItem onClick={openRename}>
             <FiEdit2 className="mr-2" size={14} />
             Umbenennen
           </DropdownMenuItem>
@@ -110,6 +129,40 @@ export const BoardDropdown = memo(function BoardDropdown({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Board umbenennen</DialogTitle>
+            <DialogDescription>Gib einen neuen Namen für dieses Board ein.</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitRename();
+            }}
+          >
+            <div className="grid gap-2">
+              <Label htmlFor="board-rename-input">Name</Label>
+              <Input
+                id="board-rename-input"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder="Board-Name"
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="mt-md">
+              <Button type="button" variant="outline" onClick={() => setRenameOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" disabled={!renameValue.trim()}>
+                Speichern
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent>
