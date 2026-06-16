@@ -63,6 +63,7 @@ describe('buildRequestBody', () => {
     mergedDocChatIds: [],
     hasDocumentChat: false,
     injectedCurrentDocument: undefined,
+    injectedCurrentBoard: undefined,
     injectedAttachmentContext: undefined,
     seededInitialAssistantMessage: undefined,
     currentSharepic: null,
