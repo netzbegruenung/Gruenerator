@@ -1,4 +1,4 @@
-import { useCollaboration } from '@gruenerator/collab';
+import { useCollaboration, useSyncGate } from '@gruenerator/collab';
 import { DocsProvider, useDocumentStore, type createDocsApiClient } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import {
@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
 } from '@gruenerator/ui';
 import { marked } from 'marked';
-import React, { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react';
 import { FaFileWord } from 'react-icons/fa6';
 import { FiDownload, FiExternalLink } from 'react-icons/fi';
 
@@ -21,8 +21,6 @@ import type { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
 const BlockNoteEditor = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.BlockNoteEditor }))
 );
-
-const SYNC_TIMEOUT_MS = 8000;
 
 interface EditorState {
   documentId: string;
@@ -38,7 +36,6 @@ interface InlineEditorProps {
 
 const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: InlineEditorProps) => {
   const user = useAuthStore((s) => s.user);
-  const [syncTimedOut, setSyncTimedOut] = useState(false);
   const [editor, setEditor] = useState<BlockNoteEditorCore | null>(null);
   const { updateDocument } = useDocumentStore();
 
@@ -53,12 +50,6 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
     user: collabUser,
     config: collabConfig,
   });
-
-  useEffect(() => {
-    if (!provider || isSynced || syncTimedOut) return;
-    const timer = setTimeout(() => setSyncTimedOut(true), SYNC_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, [provider, isSynced, syncTimedOut]);
 
   const htmlContent = useMemo(() => {
     if (!editorState.initialContent) return undefined;
@@ -97,7 +88,7 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
   }, [editor, editorState.title]);
 
   const docsUrl = `/docs/${editorState.documentId}`;
-  const isReady = provider && (isSynced || syncTimedOut);
+  const isReady = useSyncGate(provider, isSynced);
 
   const rightActions = (
     <>
@@ -156,7 +147,7 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
                 initialContent={htmlContent}
                 ydoc={ydoc}
                 provider={provider}
-                isSynced={isSynced || syncTimedOut}
+                isSynced={isReady}
                 showComments={false}
                 onEditorReady={handleEditorReady}
               />
