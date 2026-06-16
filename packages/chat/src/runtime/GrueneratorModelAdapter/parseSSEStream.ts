@@ -689,6 +689,23 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'warning': {
+          // Non-fatal degradation the user should know about (model fell back to
+          // default, Wolke refs dropped, …). Carries a ready-made German message.
+          // Surface as a toast; fall back to console where sonner isn't installed
+          // (e.g. mobile host), mirroring dictationErrorHandler.
+          const { code, message } = data as { code: string; message: string };
+          console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+          if (message) {
+            void import('sonner')
+              .then(({ toast }) => toast.warning(message))
+              .catch(() => {
+                // sonner not installed in host app — console-only above is enough.
+              });
+          }
+          break;
+        }
+
         case 'interrupt': {
           interruptPending = true;
           yield buildResult();
