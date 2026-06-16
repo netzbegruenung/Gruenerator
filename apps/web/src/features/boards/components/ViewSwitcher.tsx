@@ -11,7 +11,7 @@ import type { BoardView, ViewLayout } from '../types';
 
 import { cn } from '@/utils/cn';
 
-const VIEW_ICONS: Record<ViewLayout, typeof FiColumns> = {
+export const VIEW_ICONS: Record<ViewLayout, typeof FiColumns> = {
   kanban: FiColumns,
   table: FiGrid,
   list: FiList,
@@ -19,7 +19,7 @@ const VIEW_ICONS: Record<ViewLayout, typeof FiColumns> = {
   gantt: FiBarChart2,
 };
 
-const VIEW_LABELS: Record<ViewLayout, string> = {
+export const VIEW_LABELS: Record<ViewLayout, string> = {
   kanban: 'Kanban',
   table: 'Tabelle',
   list: 'Liste',

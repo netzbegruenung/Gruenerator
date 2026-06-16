@@ -26,8 +26,28 @@ import {
   ResponsiveMenu,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { lazy, memo, Suspense, useCallback, useDeferredValue, useMemo, useState } from 'react';
-import { FiCloud, FiFile, FiPlus, FiSearch, FiUpload, FiUsers, FiX } from 'react-icons/fi';
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  FiChevronDown,
+  FiChevronUp,
+  FiCloud,
+  FiFile,
+  FiPlus,
+  FiSearch,
+  FiUpload,
+  FiUsers,
+  FiX,
+} from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -117,6 +137,34 @@ type UnifiedItem =
     }
   | { kind: 'board'; data: Board; sortKey: number };
 
+// Personal documents collapse to this many rows; "Mehr anzeigen" reveals the rest
+// so the group sections below stay reachable without scrolling past a long grid.
+const COLLAPSED_ROWS = 2;
+
+// Counts the resolved columns of an auto-fill grid so "2 rows" is correct at any
+// viewport width. auto-fill generates the full set of tracks even when empty, so
+// the measurement holds regardless of how many items are currently rendered.
+function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
+  const [columns, setColumns] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const measure = () => {
+      const tracks = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
+      setColumns(tracks);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return columns;
+}
+
 function DocumentsContent() {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
@@ -205,6 +253,19 @@ function DocumentsContent() {
   }, [documents, boards, deferredSearch]);
 
   const hasFilteredResults = personalItems.length > 0 || groupDocsByGroup.length > 0;
+
+  const personalGridRef = useRef<HTMLDivElement>(null);
+  const personalColumns = useGridColumns(personalGridRef);
+  const [showAllPersonal, setShowAllPersonal] = useState(false);
+  // Until columns are measured (or with no groups to make room for), show everything.
+  const collapsedCount =
+    personalColumns > 0 && groupDocsByGroup.length > 0
+      ? personalColumns * COLLAPSED_ROWS
+      : personalItems.length;
+  const visiblePersonalItems = showAllPersonal
+    ? personalItems
+    : personalItems.slice(0, collapsedCount);
+  const hiddenPersonalCount = personalItems.length - visiblePersonalItems.length;
 
   const handleTemplateSelect = useCallback(
     async (templateType: TemplateType) => {
@@ -409,29 +470,51 @@ function DocumentsContent() {
         ) : (
           <>
             {personalItems.length > 0 && (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-                {personalItems.map((item) => {
-                  if (item.kind === 'document')
+              <>
+                <div
+                  ref={personalGridRef}
+                  className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]"
+                >
+                  {visiblePersonalItems.map((item) => {
+                    if (item.kind === 'document')
+                      return (
+                        <DocumentCard
+                          key={`doc-${item.data.id}`}
+                          doc={item.data}
+                          adapter={adapter}
+                          onDelete={handleDeleteDoc}
+                          onRename={handleRenameDoc}
+                          onShare={setShareDoc}
+                        />
+                      );
                     return (
-                      <DocumentCard
-                        key={`doc-${item.data.id}`}
-                        doc={item.data}
-                        adapter={adapter}
-                        onDelete={handleDeleteDoc}
-                        onRename={handleRenameDoc}
-                        onShare={setShareDoc}
+                      <BoardCard
+                        key={`board-${item.data.id}`}
+                        board={item.data}
+                        onDelete={handleDeleteBoard}
+                        onRename={handleRenameBoard}
                       />
                     );
-                  return (
-                    <BoardCard
-                      key={`board-${item.data.id}`}
-                      board={item.data}
-                      onDelete={handleDeleteBoard}
-                      onRename={handleRenameBoard}
-                    />
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+                {(hiddenPersonalCount > 0 || showAllPersonal) && (
+                  <div className="mt-md flex justify-center">
+                    <Button variant="ghost" onClick={() => setShowAllPersonal((prev) => !prev)}>
+                      {showAllPersonal ? (
+                        <>
+                          <FiChevronUp size={16} />
+                          Weniger anzeigen
+                        </>
+                      ) : (
+                        <>
+                          <FiChevronDown size={16} />
+                          Mehr anzeigen ({hiddenPersonalCount})
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
 
             {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (

@@ -27,16 +27,36 @@ function toIsoDate(d: Date): string {
 }
 
 /**
+ * Parse a `YYYY-MM-DD` string into a local-time Date. `new Date("YYYY-MM-DD")`
+ * parses as UTC midnight, which shifts the day in negative-UTC offsets and can
+ * make "daily" return the same date — so build the Date from local components.
+ * Returns null for empty/invalid input.
+ */
+function parseLocalDate(value: CellValue): Date | null {
+  if (typeof value !== 'string' || !value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!m) return null;
+  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * Advance a due date (`YYYY-MM-DD`) by one recurrence interval. Falls back to
  * "today + interval" when the card has no current due date or an invalid one,
  * so a recurring card without a date still gets a sensible next occurrence.
  */
 export function computeNextDueDate(currentDue: CellValue, pattern: RecurrencePattern): string {
-  const parsed = typeof currentDue === 'string' && currentDue ? new Date(currentDue) : null;
-  const base = parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date();
-  const next = new Date(base);
+  const next = parseLocalDate(currentDue) ?? new Date();
   if (pattern === 'daily') next.setDate(next.getDate() + 1);
   else if (pattern === 'weekly') next.setDate(next.getDate() + 7);
-  else next.setMonth(next.getMonth() + 1);
+  else {
+    // Advance one month, clamping to the target month's last day so a card due
+    // on e.g. the 31st doesn't overflow (setMonth alone rolls Jan 31 → Mar 3).
+    const day = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + 1);
+    const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+    next.setDate(Math.min(day, lastDay));
+  }
   return toIsoDate(next);
 }
