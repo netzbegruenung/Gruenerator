@@ -52,6 +52,13 @@ const ChatInner: React.FC = memo(() => {
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
+  // The workplace composer is a "new chat" entry point — reset any agent/skill
+  // context carried over from a previous session so a message sent from here
+  // starts a clean general chat (mirrors the /chat overview behaviour).
+  useEffect(() => {
+    useAgentStore.getState().resetChatContext();
+  }, []);
+
   if (!threadRuntime) return null;
 
   return (
