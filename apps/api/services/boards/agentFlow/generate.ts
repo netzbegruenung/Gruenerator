@@ -39,7 +39,9 @@ Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze s
 const COMMENT_MODE = `
 
 ## KOMMENTAR-MODUS
-Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage (folge den ANTWORT-REGELN oben). Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.`;
+Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage. Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.
+
+REINER TEXT (überschreibt die Längen- und Formatierungsvorgaben der ANTWORT-REGELN): Der Kommentar-Thread stellt KEIN Markdown dar. Schreibe ausschließlich reinen Fließtext — keine Sternchen für Hervorhebungen (**fett**, *kursiv*), keine Überschriften (#), keine Aufzählungs- oder Nummernlisten (-, *, 1.), keine Code-Backticks (\`). Gliedere höchstens durch einzelne normale Absätze. Halte dich kurz (wenige kurze Absätze). Wenn die Antwort nur mit Überschriften, Listen oder längerer Struktur sinnvoll wäre, ist das ein Zeichen dafür, dass ein Dokument statt eines Kommentars gefragt ist — fasse dich dann trotzdem knapp.`;
 
 /**
  * Run the classifier so we have the intent (for the caller's unsupported-artifact
