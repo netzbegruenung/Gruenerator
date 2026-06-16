@@ -40,6 +40,8 @@ const AdminDashboardPage = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.is_admin === true;
   const [activeTab, setActiveTab] = useState<StatusTab>('pending_review');
+  const [approveTarget, setApproveTarget] = useState<string | null>(null);
+  const [approveMessage, setApproveMessage] = useState('');
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -47,6 +49,15 @@ const AdminDashboardPage = () => {
   const { data: vorlagen, isLoading } = useAdminVorlagen(activeTab, isAdmin);
   const approveMutation = useApproveVorlage();
   const rejectMutation = useRejectVorlage();
+
+  const handleApproveConfirm = () => {
+    if (!approveTarget) return;
+    const trimmed = approveMessage.trim();
+    approveMutation.mutate(
+      { id: approveTarget, ...(trimmed ? { message: trimmed } : {}) },
+      { onSuccess: () => setApproveTarget(null) }
+    );
+  };
 
   const handleRejectConfirm = () => {
     if (!rejectTarget) return;
@@ -163,18 +174,56 @@ const AdminDashboardPage = () => {
                 <VorlagenReviewCard
                   key={v.id}
                   vorlage={v}
-                  onApprove={(id) => approveMutation.mutate(id)}
+                  onApprove={(id) => {
+                    setApproveTarget(id);
+                    setApproveMessage('');
+                  }}
                   onReject={(id) => {
                     setRejectTarget(id);
                     setRejectReason('');
                   }}
-                  isApproving={approveMutation.isPending && approveMutation.variables === v.id}
+                  isApproving={approveMutation.isPending && approveMutation.variables?.id === v.id}
                   isRejecting={rejectMutation.isPending && rejectMutation.variables?.id === v.id}
                 />
               ))}
             </CardGrid>
           )}
         </section>
+
+        <Dialog open={approveTarget !== null} onOpenChange={() => setApproveTarget(null)}>
+          <DialogContent className="bg-background-pure">
+            <DialogHeader>
+              <DialogTitle>Vorlage freigeben</DialogTitle>
+              <DialogDescription>
+                Gib optional eine Nachricht an die einreichende Person mit.
+              </DialogDescription>
+            </DialogHeader>
+            <textarea
+              value={approveMessage}
+              onChange={(e) => setApproveMessage(e.target.value)}
+              placeholder="Nachricht (optional)..."
+              rows={3}
+              className="w-full px-md py-sm border border-grey-200 dark:border-grey-700 rounded-md bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-600"
+            />
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setApproveTarget(null)}
+                className="px-md py-xs rounded-md text-sm font-medium bg-transparent border border-grey-200 dark:border-grey-700 text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 cursor-pointer transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleApproveConfirm}
+                disabled={approveMutation.isPending}
+                className="px-md py-xs rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 cursor-pointer border-none transition-colors"
+              >
+                {approveMutation.isPending ? 'Wird freigegeben...' : 'Freigeben'}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={rejectTarget !== null} onOpenChange={() => setRejectTarget(null)}>
           <DialogContent className="bg-background-pure">

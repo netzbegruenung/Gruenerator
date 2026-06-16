@@ -230,6 +230,46 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
 
   const filterControls = hideFilters ? undefined : (
     <div className="flex flex-wrap items-center gap-xs">
+      {/* NLP-enriched facets (per-document themes + persons). Self-hide until the
+          enrichment job has populated values for the active collections. */}
+      {(['themes', 'persons'] as const).map((field) => {
+        const config = getKeywordConfig(field);
+        const values = config?.values ?? [];
+        const active = getActiveValues(field);
+        if (!config || values.length === 0) return null;
+        return (
+          <DropdownMenu key={field}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <HiTag className="size-4" />
+                {filtersLoading
+                  ? 'Laden...'
+                  : active.length > 0
+                    ? `${active.length} ${config.label}`
+                    : config.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-[20rem] overflow-y-auto">
+              {values.map((v) => (
+                <DropdownMenuCheckboxItem
+                  key={v.value}
+                  checked={active.includes(v.value)}
+                  onCheckedChange={(checked) => {
+                    setKeywordFilter(
+                      field,
+                      checked ? [...active, v.value] : active.filter((t) => t !== v.value)
+                    );
+                  }}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {config.valueLabels?.[v.value] ?? v.value} ({v.count})
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      })}
+
       {/* Hidden 2026-05-18: Typ / Primärkategorie / Unterkategorien / Region facet
           dropdowns removed from manuelle Recherche on the /notebooks index per UX
           request. The underlying filter plumbing stays — only the UI is suppressed.

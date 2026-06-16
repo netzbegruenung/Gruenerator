@@ -27,11 +27,11 @@ export async function fetchVorlagenStats() {
   return result.body.data;
 }
 
-export async function approveVorlage(id: string): Promise<void> {
+export async function approveVorlage(id: string, message?: string): Promise<void> {
   const client = getContractsClient();
   const result = await client.adminVorlagen.approve({
     params: { id },
-    body: {},
+    body: { message: message ?? null },
   });
   if (result.status !== 200) {
     throw new Error(`Failed to approve vorlage (HTTP ${result.status})`);

@@ -1,0 +1,160 @@
+name: Monthly PR-Agent Insights
+
+on:
+  schedule:
+    - cron: '0 4 1 * *' # 1st of each month at 04:00 UTC (1h after keyword snapshots)
+  workflow_dispatch:
+    inputs:
+      identifier:
+        description: 'Single PR agent identifier to refresh (empty = all)'
+        required: false
+        type: string
+      month:
+        description: 'Override month (YYYY-MM, empty = current month)'
+        required: false
+        type: string
+      send_digest:
+        description: 'Send the admin digest email (bulk runs only)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-agent-insights
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh PR-agent insights
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve month
+        id: month
+        run: |
+          MONTH="${{ inputs.month }}"
+          if [ -z "$MONTH" ]; then MONTH=$(date -u '+%Y-%m'); fi
+          echo "value=$MONTH" >> "$GITHUB_OUTPUT"
+          echo "Month: $MONTH"
+
+      - name: Build request payload
+        id: payload
+        run: |
+          PAYLOAD='{}'
+          if [ -n "${{ inputs.identifier }}" ]; then
+            PAYLOAD=$(jq -n --arg id "${{ inputs.identifier }}" '{identifier: $id}')
+          fi
+          if [ -n "${{ inputs.month }}" ]; then
+            PAYLOAD=$(echo "$PAYLOAD" | jq --arg m "${{ inputs.month }}" '. + {month: $m}')
+          fi
+          # Scheduled runs send the digest; manual runs default to no digest unless requested.
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.send_digest }}" = "true" ]; then
+            PAYLOAD=$(echo "$PAYLOAD" | jq '. + {sendDigest: true}')
+          else
+            PAYLOAD=$(echo "$PAYLOAD" | jq '. + {sendDigest: false}')
+          fi
+          echo "payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
+          echo "Payload: $PAYLOAD"
+
+      - name: Trigger insight refresh
+        id: refresh
+        continue-on-error: true
+        run: |
+          echo "POST $API_URL/api/internal/agents/refresh-pr-insights"
+          RESULT=$(curl -sfS -X POST "$API_URL/api/internal/agents/refresh-pr-insights" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '${{ steps.payload.outputs.payload }}' \
+            --max-time 3000)
+
+          echo "$RESULT" | jq .
+          echo "result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RESULT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          RESULT='${{ steps.refresh.outputs.result }}'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
+            {
+              echo "## :x: PR-Agent Insights — No Result"
+              echo ""
+              echo "Service did not return a result. Check [workflow logs]($RUN_URL)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          COUNT=$(echo "$RESULT" | jq -r '.count // (.results | length)')
+          SUCCESS=$(echo "$RESULT" | jq -r '.success')
+
+          if [ "$SUCCESS" = "true" ]; then
+            ICON=":white_check_mark:"
+          else
+            ICON=":x:"
+          fi
+
+          {
+            echo "## $ICON Monthly PR-Agent Insights"
+            echo ""
+            echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+            echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+            echo "**Agents refreshed:** $COUNT"
+            echo ""
+            echo "| Agent | Status | Themes | Speakers | Examples | Sample | Dropped (t/s/f) | Duration (ms) |"
+            echo "|-------|--------|-------:|---------:|---------:|-------:|-----------------|--------------:|"
+            echo "$RESULT" | jq -r '.results[] | "| \(.agentIdentifier) | \(.status) | \(.themeCount) | \(.speakerCount) | \(.fewShotCount) | \(.sampleSize) | \(.droppedThemes)/\(.droppedSpeakers)/\(.droppedFewShot) | \(.durationMs) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Audit PR: export the month's snapshots as committable markdown and open an
+      # `automated` PR. Additive — the live agent reads the same content from the DB,
+      # so the PR never needs merging to take effect; it's a transparency / drift trail.
+      # Skipped on single-agent manual test runs and when the refresh produced nothing.
+      - name: Export insight artifacts
+        id: export
+        if: ${{ steps.refresh.outputs.result != '' && inputs.identifier == '' }}
+        run: |
+          MONTH="${{ steps.month.outputs.value }}"
+          echo "GET $API_URL/api/internal/agents/pr-insights-export?month=$MONTH"
+          EXPORT=$(curl -sfS -X GET "$API_URL/api/internal/agents/pr-insights-export?month=$MONTH" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 600)
+          COUNT=$(echo "$EXPORT" | jq -r '.files | length')
+          echo "Exported $COUNT artifact(s)"
+          mkdir -p apps/api/agent-insights
+          echo "$EXPORT" | jq -r '.files[] | @base64' | while read -r row; do
+            DECODED=$(echo "$row" | base64 --decode)
+            FPATH=$(echo "$DECODED" | jq -r '.path')
+            echo "$DECODED" | jq -r '.content' > "$FPATH"
+            echo "wrote $FPATH"
+          done
+
+      - name: Create audit PR
+        if: ${{ steps.export.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: 'chore(agents): update PR-agent corpus insights [skip ci]'
+          title: 'chore(agents): monthly PR-agent corpus insights (${{ steps.month.outputs.value }})'
+          body: |
+            Automatisch erzeugtes Audit-Artefakt der monatlichen Korpus-Analyse der
+            Öffentlichkeitsarbeit-Agents.
+
+            **Kein Merge nötig, damit es wirkt** — die Live-Agents ziehen denselben Inhalt
+            aus der Datenbank. Dieser PR dient nur der Transparenz und der Drift-Historie.
+          branch: automated/pr-agent-insights
+          add-paths: apps/api/agent-insights/**
+          delete-branch: true
+          labels: automated
+
+      - name: Fail if refresh errored
+        if: steps.refresh.outcome == 'failure'
+        run: exit 1

@@ -97,6 +97,9 @@ export function ChatOverview({
       useAgentStore.getState().setChatViewMode('thread');
       return;
     }
+    // New chat = blank slate: clear any agent/skill context carried over from a
+    // previous session via the canonical reset, then start a fresh thread.
+    useAgentStore.getState().resetChatContext();
     void assistantRuntime.threads.switchToNewThread();
   }, [assistantRuntime]);
 

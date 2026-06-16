@@ -11,6 +11,7 @@ import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { bumpCardComments } from './boardLiveSignalService.js';
 import { GRUENERATOR_BOT_USER_ID } from './grueneratorBot.js';
 
 const db = getPostgresInstance();
@@ -156,6 +157,10 @@ export async function postBotComment(params: PostBotCommentParams): Promise<stri
       JSON.stringify(params.blocks),
     ]
   );
+
+  // Surface the bot's comment live to anyone viewing the card.
+  void bumpCardComments(params.boardId, params.cardId);
+
   return rows[0].id;
 }
 
@@ -166,10 +171,14 @@ export async function postBotComment(params: PostBotCommentParams): Promise<stri
  */
 export async function updateBotComment(commentId: string, blocks: CommentBlock[]): Promise<void> {
   const content = blocksToPlainText(blocks);
-  await db.query(
+  const rows = await db.query<{ board_id: string; card_id: string }>(
     `UPDATE board_comments
         SET blocks = $2, content = $3, is_edited = TRUE, edited_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND user_id = $4`,
+      WHERE id = $1 AND user_id = $4
+      RETURNING board_id, card_id`,
     [commentId, JSON.stringify(blocks), content, GRUENERATOR_BOT_USER_ID]
   );
+
+  // The "working…" comment becoming the answer is the most important live update.
+  if (rows[0]) void bumpCardComments(rows[0].board_id, rows[0].card_id);
 }

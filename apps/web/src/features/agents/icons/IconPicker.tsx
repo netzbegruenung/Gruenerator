@@ -18,6 +18,8 @@ interface IconPickerProps {
   value: string;
   onChange: (iconKey: string) => void;
   backgroundColor?: string;
+  /** Compact trigger: just a small avatar button (no border / "Icon ändern" label). */
+  compact?: boolean;
 }
 
 const MAX_RESULTS = 120;
@@ -27,7 +29,7 @@ const MAX_RESULTS = 120;
  * (only when the dialog first opens); an empty query shows the curated
  * suggestions, a query searches all icon names.
  */
-export function IconPicker({ value, onChange, backgroundColor }: IconPickerProps) {
+export function IconPicker({ value, onChange, backgroundColor, compact }: IconPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [allNames, setAllNames] = useState<string[] | null>(null);
@@ -58,15 +60,26 @@ export function IconPicker({ value, onChange, backgroundColor }: IconPickerProps
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center gap-sm rounded-lg border border-grey-300 p-sm text-left hover:bg-hover-alt dark:border-grey-700"
-        >
-          <AgentAvatar iconKey={value} backgroundColor={backgroundColor} size="lg" />
-          <span className="text-sm font-medium text-primary-600 dark:text-primary-300">
-            Icon ändern
-          </span>
-        </button>
+        {compact ? (
+          <button
+            type="button"
+            title="Icon ändern"
+            aria-label="Icon ändern"
+            className="rounded-full transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <AgentAvatar iconKey={value} backgroundColor={backgroundColor} size="md" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="flex items-center gap-sm rounded-lg border border-grey-300 p-sm text-left hover:bg-hover-alt dark:border-grey-700"
+          >
+            <AgentAvatar iconKey={value} backgroundColor={backgroundColor} size="lg" />
+            <span className="text-sm font-medium text-primary-600 dark:text-primary-300">
+              Icon ändern
+            </span>
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

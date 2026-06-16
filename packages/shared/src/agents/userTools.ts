@@ -34,14 +34,16 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
       'Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki).',
   },
   {
+    // Merged search tool (formerly "Websuche" + "Tiefenrecherche"). One picker
+    // entry; the backend auto-scales depth (fast web ↔ deep multi-source
+    // research) by query complexity. Stored under the legacy `web` key for
+    // back-compat with existing agents (default has always been ['search','web']);
+    // `research` stays a recognized key (see BACKWARD_COMPAT_TOOL_KEYS) and the
+    // backend treats the two as one capability (see `isToolEnabled`).
     key: 'web',
-    label: 'Websuche',
-    description: 'Sucht im Web nach aktuellen Informationen.',
-  },
-  {
-    key: 'research',
-    label: 'Tiefenrecherche',
-    description: 'Führt eine mehrstufige Recherche mit Quellenangaben durch.',
+    label: 'Recherche',
+    description:
+      'Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt.',
   },
   {
     key: 'examples',
@@ -80,8 +82,19 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
   },
 ] as const;
 
-/** Just the keys, for membership checks. */
-export const USER_SELECTABLE_TOOL_KEYS: readonly string[] = USER_SELECTABLE_TOOLS.map((t) => t.key);
+/**
+ * Keys that are no longer shown in the picker but stay VALID so existing agent
+ * configs aren't stripped by server-side validation. `research` was merged into
+ * the single "Recherche" tool (stored under `web`); both keys still gate the
+ * merged search capability (see `isToolEnabled` in the ChatGraph system prompt).
+ */
+export const BACKWARD_COMPAT_TOOL_KEYS: readonly string[] = ['research'];
+
+/** Just the keys, for membership checks (picker keys + back-compat keys). */
+export const USER_SELECTABLE_TOOL_KEYS: readonly string[] = [
+  ...USER_SELECTABLE_TOOLS.map((t) => t.key),
+  ...BACKWARD_COMPAT_TOOL_KEYS,
+];
 
 /** Sensible default capabilities for a brand-new agent. */
 export const DEFAULT_USER_AGENT_TOOLS: readonly string[] = ['search', 'web'];

@@ -10,6 +10,7 @@ import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sideb
 import { BoardDropdown } from './BoardDropdown';
 import { PresenceAvatars } from './PresenceAvatars';
 
+import type { BoardSettingsSection } from './board-overview/settings/BoardSettingsOverlay';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
 interface BoardInlineHeaderProps {
@@ -27,6 +28,7 @@ interface BoardInlineHeaderProps {
   onOpenSettings?: () => void;
   onOpenActivity?: () => void;
   onDuplicate?: () => void;
+  onOpenFullSettings?: (section: BoardSettingsSection) => void;
   compact?: boolean;
 }
 
@@ -45,6 +47,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   onOpenSettings,
   onOpenActivity,
   onDuplicate,
+  onOpenFullSettings,
   compact,
 }: BoardInlineHeaderProps) {
   const navigate = useNavigate();
@@ -108,6 +111,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           onOpenSettings={onOpenSettings}
           onOpenActivity={onOpenActivity}
           onDuplicate={onDuplicate}
+          onOpenFullSettings={onOpenFullSettings}
         />
       </div>
     </div>

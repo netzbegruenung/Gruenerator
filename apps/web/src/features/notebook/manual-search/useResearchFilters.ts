@@ -9,6 +9,8 @@ export interface FilterFieldConfig {
   label: string;
   type: 'keyword' | 'date_range';
   values?: Array<{ value: string; count: number }>;
+  /** Maps raw facet values to display labels (e.g. theme code → German name). */
+  valueLabels?: Record<string, string>;
   min?: string;
   max?: string;
 }
@@ -21,6 +23,9 @@ const ALLOWED_FILTER_FIELDS = new Set([
   'primary_category',
   'subcategories',
   'region',
+  // NLP-enriched per-document facets
+  'themes',
+  'persons',
 ]);
 
 export function useResearchFilters(initialCollectionIds: string[] = []) {

@@ -1,4 +1,4 @@
-import { type JSX, useState, useRef, useEffect } from 'react';
+import { type JSX, useState, useRef } from 'react';
 
 import { cn } from '../../utils/cn';
 
@@ -38,7 +38,6 @@ const SubtitleSegmentList = ({
   columns = 3,
 }: SubtitleSegmentListProps): JSX.Element => {
   const [editingId, setEditingId] = useState<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const getActiveSegmentId = () => {
@@ -71,13 +70,6 @@ const SubtitleSegmentList = ({
       setEditingId(null);
     }
   };
-
-  useEffect(() => {
-    if (editingId !== null && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editingId]);
 
   const defaultFormatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -126,7 +118,11 @@ const SubtitleSegmentList = ({
             >
               {isEditing ? (
                 <input
-                  ref={inputRef}
+                  // autoFocus on the per-segment input that mounts when editing
+                  // begins (replaces a useEffect focus that can be dropped under
+                  // concurrent rendering); select-all keeps the prior edit UX.
+                  autoFocus
+                  onFocus={(e) => e.currentTarget.select()}
                   type="text"
                   className={cn(
                     'w-full p-[4px] border border-[var(--klee)] rounded-[4px]',

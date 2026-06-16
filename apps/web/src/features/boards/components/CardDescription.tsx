@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 import { Markdown } from '@/components/common/Markdown/Markdown';
 
@@ -19,15 +19,10 @@ export const CardDescription = memo(function CardDescription({
 }: CardDescriptionProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setDraft(value);
   }, [value]);
-
-  useEffect(() => {
-    if (editing) ref.current?.focus();
-  }, [editing]);
 
   const commit = () => {
     setEditing(false);
@@ -37,7 +32,10 @@ export const CardDescription = memo(function CardDescription({
   if (editing) {
     return (
       <textarea
-        ref={ref}
+        // autoFocus applies at mount (this textarea mounts fresh on `editing`),
+        // which survives concurrent rendering inside the card detail portal —
+        // a post-paint useEffect focus could be dropped there.
+        autoFocus
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}

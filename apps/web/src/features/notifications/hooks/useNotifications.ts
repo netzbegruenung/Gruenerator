@@ -4,7 +4,6 @@ import {
   fetchNotificationsPage,
   fetchUnreadCount,
   markNotificationAsRead,
-  markAllNotificationsAsRead,
   dismissNotificationById,
   dismissAllNotificationsClient,
 } from '../../../hooks/useNotificationsTyped';
@@ -63,21 +62,6 @@ export function useMarkAsRead() {
     },
     onSuccess: () => {
       decrementUnreadCount();
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    },
-  });
-}
-
-export function useMarkAllAsRead() {
-  const queryClient = useQueryClient();
-  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
-
-  return useMutation({
-    mutationFn: async () => {
-      await markAllNotificationsAsRead();
-    },
-    onSuccess: () => {
-      setUnreadCount(0);
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });

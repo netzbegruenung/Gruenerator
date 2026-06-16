@@ -1,10 +1,8 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
-import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
+import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
 import {
-  PiGlobeHemisphereWest,
   PiFlask,
   PiFiles,
-  PiChatCircleDots,
   PiNote,
   PiPaintBrush,
   PiTreeEvergreen,
@@ -12,7 +10,6 @@ import {
   PiImagesSquare,
   PiClipboardText,
   PiFileText,
-  PiPaperclip,
   PiSparkle,
   PiCloud,
   PiNotePencil,
@@ -51,6 +48,13 @@ export interface Mentionable {
   icon?: React.ComponentType<{ className?: string }>;
   /** Locale visibility (skills/agents): de-DE / de-AT / all. Undefined ≈ all. */
   audience?: 'de-DE' | 'de-AT' | 'all';
+  /**
+   * Extra mention strings that resolve to this same mentionable but are NOT
+   * shown as separate picker entries. Used for back-compat after merging tools
+   * (e.g. the merged "Recherche" tool keeps `websearch` resolving so old
+   * @websearch mentions in existing threads still work).
+   */
+  aliases?: string[];
 }
 
 export interface CustomAgentMentionable {
@@ -149,7 +153,12 @@ export function getCustomAgentMentionables(): Mentionable[] {
 // Derived from the shared notebook registry so the @-mention picker always matches the
 // web/mobile galleries. Adding a notebook to `@gruenerator/shared/notebooks` surfaces it
 // here automatically; the icon is resolved by id from the shared NOTEBOOK_ICONS map.
-export const notebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) => ({
+//
+// Two views: `allNotebookMentionables` (incl. disabled) backs `resolveMentionable`
+// so old `@hamburg`/`@sh` tokens in existing threads still resolve, while the
+// exported `notebookMentionables` (enabled only) is what the picker offers — so a
+// notebook turned off via `enabled: false` disappears from discovery.
+const allNotebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) => ({
   type: 'notebook',
   category: 'function',
   trigger: '@',
@@ -162,30 +171,28 @@ export const notebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) =>
   mention: nb.mention.alias,
 }));
 
+export const notebookMentionables: Mentionable[] = allNotebookMentionables.filter((m) =>
+  isNotebookEnabled(m.identifier)
+);
+
 export const toolMentionables: Mentionable[] = [
   {
-    type: 'tool',
-    category: 'function',
-    trigger: '@',
-    identifier: 'web',
-    title: 'Websuche',
-    description: 'Aktuelle Infos aus dem Web',
-    avatar: '🌐',
-    icon: PiGlobeHemisphereWest,
-    backgroundColor: '#2563EB',
-    mention: 'websearch',
-  },
-  {
+    // Merged search tool (formerly two separate tools "Websuche" + "Recherche").
+    // The backend auto-scales depth: simple/news queries route to a fast web
+    // search, complex ones to deep multi-source research (see ChatGraph
+    // classifier + executeResearch complexity scaling). `websearch` stays a
+    // resolving alias so old @websearch mentions keep working.
     type: 'tool',
     category: 'function',
     trigger: '@',
     identifier: 'research',
     title: 'Recherche',
-    description: 'Tiefgehende Multi-Quellen-Recherche',
+    description: 'Web & Quellen – automatische Suchtiefe',
     avatar: '🔬',
     icon: PiFlask,
     backgroundColor: '#7C3AED',
     mention: 'recherche',
+    aliases: ['websearch'],
   },
   {
     type: 'tool',
@@ -212,18 +219,6 @@ export const toolMentionables: Mentionable[] = [
     mention: 'umfragen',
     promptTemplate: 'Suche aktuelle Umfragen zu ',
     audience: 'all',
-  },
-  {
-    type: 'tool',
-    category: 'function',
-    trigger: '@',
-    identifier: 'documentchat',
-    title: 'Dokument-Chat',
-    description: 'Mit ausgewählten Dokumenten chatten',
-    avatar: '💬',
-    icon: PiChatCircleDots,
-    backgroundColor: '#6366F1',
-    mention: 'dokumentchat',
   },
   {
     type: 'tool',
@@ -349,16 +344,22 @@ export const docToolMentionables: Mentionable[] = [
     mention: 'dokument-erstellen',
   },
   {
+    // Single document entry point. Opens the unified file/doc browser
+    // (notebook files, uploads, saved texts, collaborative docs). Replaces the
+    // former @datei ("Datei auswählen") and @dokumentchat ("Dokument-Chat")
+    // pickers — `aliases` keep those names resolving here for back-compat and
+    // surface this entry when a user types the old triggers.
     type: 'doc',
     category: 'function',
     trigger: '@',
     identifier: 'docs-picker-trigger',
-    title: 'Dokument einfuegen',
-    description: 'Kollaboratives Dokument als Kontext hinzufuegen',
+    title: 'Dokument einfügen',
+    description: 'Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen',
     avatar: '📄',
     icon: PiFileText,
     backgroundColor: '#0891B2',
     mention: 'docs',
+    aliases: ['datei', 'dokumentchat', 'document', 'dokument'],
   },
 ];
 
@@ -418,20 +419,15 @@ export function getUserNotebookMentionables(): Mentionable[] {
   return dynamicUserNotebookMentionables;
 }
 
-export const documentMentionables: Mentionable[] = [
-  {
-    type: 'document',
-    category: 'function',
-    trigger: '@',
-    identifier: 'datei-trigger',
-    title: 'Datei auswählen',
-    description: 'Dokument aus einem Notizbuch referenzieren',
-    avatar: '📎',
-    icon: PiPaperclip,
-    backgroundColor: '#6366F1',
-    mention: 'datei',
-  },
-];
+/**
+ * The legacy @datei ("Datei auswählen") and @dokumentchat ("Dokument-Chat")
+ * pickers were merged into the single @docs entry below — it opens the same
+ * unified file/doc browser (notebook files, uploads, saved texts, collab docs).
+ * This list stays empty (no separate picker entry); @datei / @dokumentchat
+ * tokens in existing threads still resolve via `mentionParser` special-cases
+ * and the `aliases` on the @docs mentionable.
+ */
+export const documentMentionables: Mentionable[] = [];
 
 // @wolke opens a sub-popover that lets the user pick files from their
 // connected Nextcloud share link(s). Selected files are inserted into the
@@ -649,7 +645,8 @@ function rebuildMentionableMap(): void {
     agentMentionables,
     customAgentMentionables,
     dynamicUserNotebookMentionables,
-    notebookMentionables,
+    // Full set (incl. disabled) so historical `@hamburg`/`@sh` tokens still resolve.
+    allNotebookMentionables,
     toolMentionables,
     boardToolMentionables,
     dynamicBoardMentionables,
@@ -666,6 +663,14 @@ function rebuildMentionableMap(): void {
       const key = m.mention.toLowerCase();
       if (!mentionableMap.has(key)) {
         mentionableMap.set(key, m);
+      }
+      // Back-compat aliases resolve to the same mentionable (not shown in the
+      // picker). Same first-wins dedup as the primary mention.
+      for (const alias of m.aliases ?? []) {
+        const aliasKey = alias.toLowerCase();
+        if (!mentionableMap.has(aliasKey)) {
+          mentionableMap.set(aliasKey, m);
+        }
       }
     }
   }
@@ -714,7 +719,9 @@ export function filterMentionables(query: string): {
   const matchFn = (m: Mentionable) =>
     m.mention.toLowerCase().includes(q) ||
     m.title.toLowerCase().includes(q) ||
-    m.identifier.toLowerCase().includes(q);
+    m.identifier.toLowerCase().includes(q) ||
+    // Back-compat aliases (e.g. typing @datei / @dokumentchat surfaces @docs).
+    (m.aliases?.some((a) => a.toLowerCase().includes(q)) ?? false);
 
   const isNotebookCategoryQuery =
     'notebook'.startsWith(q) ||

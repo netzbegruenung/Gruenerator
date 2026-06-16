@@ -99,6 +99,8 @@ interface ColumnBoardProps {
   onCardClick: (row: Row) => void;
   onRenameCard: (rowId: string, title: string) => void;
   fields: Field[];
+  // When false, the AI-column menu actions are hidden (expert-only).
+  expertMode: boolean;
 }
 
 const ColumnBoard = memo(function ColumnBoard({
@@ -124,6 +126,7 @@ const ColumnBoard = memo(function ColumnBoard({
   onCardClick,
   onRenameCard,
   fields,
+  expertMode,
 }: ColumnBoardProps) {
   const onRename = useCallback(
     (name: string) => onRenameGroup(groupId, name),
@@ -180,8 +183,8 @@ const ColumnBoard = memo(function ColumnBoard({
           onColorChange={onColor}
           onDuplicate={onDuplicate}
           hasAiTask={hasAiTask}
-          onConfigureAi={onConfigureAi}
-          onRemoveAi={onRemoveAi}
+          onConfigureAi={expertMode ? onConfigureAi : undefined}
+          onRemoveAi={expertMode ? onRemoveAi : undefined}
           onSetLimit={isRealColumn ? onSetLimitCb : undefined}
           onMoveLeft={isRealColumn && canMoveLeft ? onMoveLeft : undefined}
           onMoveRight={isRealColumn && canMoveRight ? onMoveRight : undefined}
@@ -225,6 +228,8 @@ interface PlannerKanbanProps {
   currentUserId: string;
   boardId?: string;
   provider?: HocuspocusProvider | null;
+  // Grünerator-Spalten (AI columns) are expert-only; gates creation + run buttons.
+  expertMode?: boolean;
 }
 
 export function PlannerKanban({
@@ -243,6 +248,7 @@ export function PlannerKanban({
   currentUserId,
   boardId,
   provider,
+  expertMode = false,
 }: PlannerKanbanProps) {
   const { userName, userAvatarRobotId } = useAuthStore(
     useShallow((s) => ({
@@ -572,9 +578,13 @@ export function PlannerKanban({
           ...statusField.typeOptions,
           options: options.map((o) => {
             if (o.id !== optionId) return o;
-            const next: SelectOption = { id: o.id, name: o.name, color: o.color };
-            if (limit != null) next.limit = limit;
-            return next;
+            // Preserve every other option field (notably aiTask) — only the
+            // WIP limit changes. limit == null clears it.
+            if (limit == null) {
+              const { limit: _drop, ...rest } = o;
+              return rest;
+            }
+            return { ...o, limit };
           }),
         },
       });
@@ -654,10 +664,12 @@ export function PlannerKanban({
                     <FiPlus className="mr-2" size={14} />
                     Neue Spalte
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={openAiDialogForNew}>
-                    <FiZap className="mr-2" size={14} />
-                    Neue Grünerator-Spalte
-                  </DropdownMenuItem>
+                  {expertMode && (
+                    <DropdownMenuItem onClick={openAiDialogForNew}>
+                      <FiZap className="mr-2" size={14} />
+                      Neue Grünerator-Spalte
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               {laneHiddenGroups.length > 0 && (
@@ -716,6 +728,7 @@ export function PlannerKanban({
               onCardClick={handleCardClick}
               onRenameCard={handleRenameCard}
               fields={fields}
+              expertMode={expertMode}
             />
           );
         }}
@@ -781,6 +794,7 @@ export function PlannerKanban({
         currentUserAvatarRobotId={userAvatarRobotId}
         onPrevCard={handlePrevCard}
         onNextCard={handleNextCard}
+        expertMode={expertMode}
       />
     </BoardAwarenessProvider>
   );

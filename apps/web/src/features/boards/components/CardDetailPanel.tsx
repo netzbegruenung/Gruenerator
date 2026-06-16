@@ -14,6 +14,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  useConfirm,
 } from '@gruenerator/ui';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -155,6 +156,8 @@ interface CardDetailPanelProps {
   currentUserAvatarRobotId?: number;
   onPrevCard?: () => void;
   onNextCard?: () => void;
+  // Grünerator-Spalte run button is expert-only.
+  expertMode?: boolean;
 }
 
 export const CardDetailPanel = memo(function CardDetailPanel({
@@ -173,8 +176,10 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   currentUserAvatarRobotId = 1,
   onPrevCard,
   onNextCard,
+  expertMode = false,
 }: CardDetailPanelProps) {
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -514,7 +519,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
-                      onClick={() => {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Karte löschen?',
+                          description:
+                            'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
+                        });
+                        if (!ok) return;
                         onDelete(row.id);
                         onOpenChange(false);
                       }}
@@ -855,8 +866,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             </div>
 
             {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
-                Renders nothing unless the card's status column carries an aiTask. */}
-            {row && (
+                Expert-only; renders nothing unless the card's status column carries an aiTask. */}
+            {row && expertMode && (
               <AgentRunButton
                 boardId={boardId}
                 row={row}

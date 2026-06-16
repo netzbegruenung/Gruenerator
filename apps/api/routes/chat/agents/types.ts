@@ -56,6 +56,12 @@ export interface AgentConfig {
   routeTo?: 'chat' | 'search' | undefined;
   /** Server-side default filter merged into tool calls (e.g. LV scoping). */
   defaultFilter?: AgentDefaultFilter | undefined;
+  /**
+   * When true, inject source URLs of search hits into the model's text context
+   * so the agent can write concrete article links inline (e.g. ready-to-send
+   * emails). Read by the ChatGraph respond node. Default off.
+   */
+  inlineSourceLinks?: boolean | undefined;
 }
 
 export interface Thread {

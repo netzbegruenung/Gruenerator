@@ -16,6 +16,8 @@ import {
   type ValueLabelsFor,
 } from '@gruenerator/shared/search';
 
+import { TOPIC_NAMES } from '../services/monitor/types.js';
+
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 
 // =============================================================================
@@ -77,6 +79,8 @@ export interface SubcategoryFilters {
   source_id?: LandesverbandSourceId | LandesverbandSourceId[];
   source_type?: LandesverbandSourceType | LandesverbandSourceType[];
   curated_lists?: CuratedListId | CuratedListId[];
+  themes?: string | string[];
+  persons?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -96,6 +100,8 @@ const MULTI_VALUE_FILTER_KEYS = [
   'source_id',
   'source_type',
   'curated_lists',
+  'themes',
+  'persons',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -141,6 +147,24 @@ const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
   label: 'Organ',
   type: 'keyword',
   valueLabels: LV_SOURCE_TYPE_LABELS,
+};
+
+/**
+ * NLP-enriched per-document facets, appended to every in-scope collection below.
+ * `themes` maps the 13 topic categories to German labels; `persons` are raw
+ * spaCy NER names (no label vocabulary). Populated by the nightly enrichment job.
+ */
+const THEMES_FIELD: FilterableField<'themes'> = {
+  field: 'themes',
+  label: 'Thema',
+  type: 'keyword',
+  valueLabels: TOPIC_NAMES,
+};
+
+const PERSONS_FIELD: FilterableField<'persons'> = {
+  field: 'persons',
+  label: 'Person',
+  type: 'keyword',
 };
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
@@ -391,6 +415,14 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     defaultFilter: { field: 'landesverband', value: ['HE', 'HE-F'] },
   },
 };
+
+// Append the NLP-enriched theme + person facets to every in-scope collection.
+// Done here (rather than in each literal) to keep the 18 collection blocks
+// focused on their distinctive filters. Excludes dormant `satzungen-system`.
+for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
+  if (id === 'satzungen-system') continue;
+  config.filterableFields = [...config.filterableFields, THEMES_FIELD, PERSONS_FIELD];
+}
 
 // =============================================================================
 // Helper Functions

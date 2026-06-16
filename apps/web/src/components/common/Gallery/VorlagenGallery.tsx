@@ -1,19 +1,26 @@
-import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { Button, Popover, PopoverContent, PopoverTrigger, Switch } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
-import { HiCog6Tooth } from 'react-icons/hi2';
+import { HiOutlineAdjustmentsHorizontal, HiMagnifyingGlass } from 'react-icons/hi2';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
 import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
-import SearchBar from '../../../features/search/components/SearchBar';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
-import IndexCard from '../IndexCard';
 import TemplatePreviewModal from '../TemplatePreviewModal';
 
+import VorlagenCard from './VorlagenCard';
+
+import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
+
+const LOCALE_LABEL: Record<string, string> = {
+  'de-DE': 'Deutschland',
+  'de-AT': 'Österreich',
+};
 
 const DEBOUNCE_DELAY = 500;
 
@@ -30,11 +37,15 @@ interface VorlageItem {
   tags?: string[];
   thumbnail_url?: string;
   external_url?: string;
+  download_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
-  source?: 'community' | 'system';
   [key: string]: unknown;
 }
+
+/** Resolve the openable/shareable URL for a gallery item, if any. */
+const resolveTemplateUrl = (item: VorlageItem): string | undefined =>
+  item.content_data?.originalUrl || item.external_url || item.download_url || undefined;
 
 const parseSearchQuery = (query: string): { textQuery: string; tags: string[] } => {
   const tags: string[] = [];
@@ -67,12 +78,14 @@ const fetchVorlagen = async ({
   searchMode,
   selectedCategory,
   tags,
+  localeFilter,
   signal,
 }: {
   searchTerm: string;
   searchMode: string;
   selectedCategory: string;
   tags: string[];
+  localeFilter: boolean;
   signal?: AbortSignal;
 }): Promise<VorlageItem[]> => {
   const params: Record<string, unknown> = {};
@@ -85,6 +98,10 @@ const fetchVorlagen = async ({
   }
   if (tags.length > 0) {
     params.tags = JSON.stringify(tags);
+  }
+  // Locale filtering is on by default server-side; only signal when turned off.
+  if (!localeFilter) {
+    params.localeFilter = 'false';
   }
 
   const response = await apiClient.get<VorlagenResponse>('/auth/vorlagen', { params, signal });
@@ -106,6 +123,12 @@ const VorlagenGallery = memo((): JSX.Element => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [previewTemplate, setPreviewTemplate] = useState<VorlageItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  // Scope the gallery to the user's region by default; the settings popover
+  // lets them turn it off to browse templates from all audiences.
+  const [localeFilter, setLocaleFilter] = useState(true);
+
+  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  const localeLabel = LOCALE_LABEL[userLocale] ?? 'meine Region';
 
   useEffect(() => {
     const handler = setTimeout(() => setSearchTerm(inputValue), DEBOUNCE_DELAY);
@@ -120,12 +143,19 @@ const VorlagenGallery = memo((): JSX.Element => {
   });
 
   const dataQuery = useQuery({
-    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags],
+    queryKey: ['vorlagen-gallery', textQuery, searchMode, selectedCategory, tags, localeFilter],
     staleTime: 30_000,
     gcTime: 60_000,
     refetchOnMount: 'always' as const,
     queryFn: ({ signal }) =>
-      fetchVorlagen({ searchTerm: textQuery, searchMode, selectedCategory, tags, signal }),
+      fetchVorlagen({
+        searchTerm: textQuery,
+        searchMode,
+        selectedCategory,
+        tags,
+        localeFilter,
+        signal,
+      }),
     placeholderData: (prev) => prev,
   });
 
@@ -144,6 +174,20 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
+  }, []);
+
+  const openExternal = useCallback((item: VorlageItem) => {
+    const url = resolveTemplateUrl(item);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
+
+  const copyLink = useCallback((item: VorlageItem) => {
+    const url = resolveTemplateUrl(item);
+    if (!url) return;
+    void navigator.clipboard
+      ?.writeText(url)
+      .then(() => toast.success('Link kopiert.'))
+      .catch(() => toast.error('Link konnte nicht kopiert werden.'));
   }, []);
 
   useEffect(() => {
@@ -165,93 +209,106 @@ const VorlagenGallery = memo((): JSX.Element => {
           Durchsuche hier Design-Vorlagen für Canva, InDesign und mehr.
         </p>
 
-        <div className="mx-auto mb-xl flex w-full justify-center px-md box-border">
-          <div className="w-full max-w-[960px]">
-            <div className="flex items-center gap-3 max-md:flex-col max-md:items-stretch">
-              <div className="min-w-0 flex-1">
-                <SearchBar
-                  onSearch={() => {}}
-                  value={inputValue}
-                  onChange={setInputValue}
-                  placeholder="Vorlagen durchsuchen..."
-                  hideExamples
-                  hideDisclaimer
-                  settingsContent={
-                    showCategoryFilter ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="flex items-center justify-center rounded-full border-none bg-transparent p-2 text-foreground opacity-70 transition-colors hover:bg-background-alt hover:text-primary-500 hover:opacity-100"
-                            aria-label="Einstellungen"
-                            title="Einstellungen"
-                          >
-                            <HiCog6Tooth className="size-5" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="end"
-                          sideOffset={8}
-                          className="w-[16rem] space-y-3 p-3"
-                        >
-                          <div>
-                            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                              Kategorie
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {categories.map((category) => (
-                                <button
-                                  key={category.id}
-                                  type="button"
-                                  className={cn(
-                                    'rounded-2xl border px-2.5 py-1 text-xs font-medium transition-colors',
-                                    selectedCategory === category.id
-                                      ? 'border-transparent bg-primary-500 text-white'
-                                      : 'border-grey-300 text-grey-700 hover:border-grey-400 dark:border-grey-600 dark:text-grey-300'
-                                  )}
-                                  onClick={() => setSelectedCategory(category.id)}
-                                >
-                                  {category.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    ) : null
-                  }
-                />
-              </div>
-              <Button
-                variant="brand"
-                size="brand"
-                className="max-md:w-full"
-                onClick={() => setShowAddModal(true)}
-              >
-                <HiPlus className="size-5" />
-                Vorlage hinzufügen
-              </Button>
-              <Button asChild variant="brand-outline" size="brand" className="max-md:w-full">
-                <Link to="/vorlagen/meine">Meine Vorlagen</Link>
-              </Button>
-            </div>
-
-            <AddTemplateModal
-              isOpen={showAddModal}
-              onClose={() => setShowAddModal(false)}
-              onSuccess={() => dataQuery.refetch()}
+        <div className="mx-auto mb-xl flex w-full max-w-[760px] flex-wrap items-center justify-center gap-3 px-md box-border max-md:flex-col max-md:items-stretch">
+          {/* Compact, width-limited search field with leading icon. */}
+          <div className="relative h-12 min-w-0 flex-1 max-md:w-full">
+            <HiMagnifyingGlass
+              className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-foreground/50"
+              aria-hidden="true"
             />
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Vorlagen durchsuchen..."
+              aria-label="Vorlagen durchsuchen"
+              className="h-full w-full rounded-full border-2 border-background-alt bg-background pl-11 pr-12 text-base text-foreground outline-none transition-colors placeholder:text-foreground/50 focus:border-primary-500"
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'absolute right-1.5 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border-none bg-transparent text-foreground/60 transition-colors hover:bg-background-alt hover:text-primary-500',
+                    (!localeFilter || selectedCategory !== 'all') &&
+                      'bg-primary-500/10 text-primary-500'
+                  )}
+                  aria-label="Einstellungen"
+                  title="Einstellungen"
+                >
+                  <HiOutlineAdjustmentsHorizontal className="size-5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={8} className="w-[18rem] space-y-4 p-4">
+                <label className="flex items-start justify-between gap-3 text-left">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">
+                      Auf {localeLabel} beschränken
+                    </span>
+                    <span className="mt-0.5 block text-xs text-grey-500 dark:text-grey-400">
+                      Zeigt nur Vorlagen für deine Region.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={localeFilter}
+                    onCheckedChange={setLocaleFilter}
+                    aria-label={`Auf ${localeLabel} beschränken`}
+                  />
+                </label>
+
+                {showCategoryFilter && (
+                  <div className="border-t border-grey-200 pt-3 dark:border-grey-700">
+                    <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+                      Kategorie
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          type="button"
+                          className={cn(
+                            'rounded-2xl border px-2.5 py-1 text-xs font-medium transition-colors',
+                            selectedCategory === category.id
+                              ? 'border-transparent bg-primary-500 text-white'
+                              : 'border-grey-300 text-grey-700 hover:border-grey-400 dark:border-grey-600 dark:text-grey-300'
+                          )}
+                          onClick={() => setSelectedCategory(category.id)}
+                        >
+                          {category.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
+          <Button
+            variant="brand"
+            size="brand-md"
+            className="max-md:w-full"
+            onClick={() => setShowAddModal(true)}
+          >
+            <HiPlus className="size-5" />
+            Vorlage hinzufügen
+          </Button>
+          <Button asChild variant="brand-outline" size="brand-md" className="max-md:w-full">
+            <Link to="/vorlagen/meine">Meine Vorlagen</Link>
+          </Button>
+
+          <AddTemplateModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onSuccess={() => dataQuery.refetch()}
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2xl max-lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] max-md:gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3">
         {dataQuery.isLoading && items.length === 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md col-span-full">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-md bg-background-alt h-[180px]" />
-            ))}
-          </div>
+          Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
+          ))
         ) : dataQuery.error ? (
           <p className="col-span-full text-center text-error">
             {dataQuery.error.message || 'Fehler beim Laden'}
@@ -259,38 +316,29 @@ const VorlagenGallery = memo((): JSX.Element => {
         ) : items.length === 0 ? (
           <p className="col-span-full text-center">Keine Vorlagen gefunden.</p>
         ) : (
-          items.map((item) => {
-            const templateType = item.template_type
-              ? item.template_type.charAt(0).toUpperCase() + item.template_type.slice(1)
-              : '';
-            // Community = user-submitted. Fall back to author presence so cards are
-            // still marked correctly if the API hasn't been redeployed with `source`.
-            const isCommunity = item.source
-              ? item.source === 'community'
-              : Boolean(item.metadata?.author_name);
-            return (
-              <IndexCard
-                key={String(item.id)}
-                title={item.title || 'Unbenannte Vorlage'}
-                description={item.description || ''}
-                meta={templateType}
-                tags={Array.isArray(item.tags) ? item.tags.slice(0, 5) : []}
-                thumbnailUrl={item.thumbnail_url || ''}
-                onTagClick={handleTagClick}
-                onClick={() => setPreviewTemplate(item)}
-                className="vorlagen-card"
-                authorName={item.metadata?.author_name || ''}
-                authorEmail={item.metadata?.contact_email || ''}
-                badge={
-                  isCommunity ? (
-                    <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
-                      Community
-                    </Badge>
-                  ) : null
-                }
-              />
-            );
-          })
+          <>
+            {/* Low-friction add tile, inline in the grid. */}
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="group flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-grey-300 bg-transparent text-grey-500 transition-colors hover:border-primary-500 hover:text-primary-500 dark:border-grey-600"
+            >
+              <HiPlus className="size-7" />
+              <span className="text-sm font-medium">Neue Vorlage</span>
+            </button>
+            {items.map((item) => {
+              const hasUrl = Boolean(resolveTemplateUrl(item));
+              return (
+                <VorlagenCard
+                  key={String(item.id)}
+                  item={item}
+                  onOpen={() => setPreviewTemplate(item)}
+                  onOpenExternal={hasUrl ? () => openExternal(item) : undefined}
+                  onCopyLink={hasUrl ? () => copyLink(item) : undefined}
+                />
+              );
+            })}
+          </>
         )}
       </div>
 
