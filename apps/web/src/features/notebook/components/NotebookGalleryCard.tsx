@@ -18,6 +18,12 @@ export interface NotebookGalleryCardProps {
    * own trigger/menu — it won't navigate the card.
    */
   menu?: ReactNode;
+  /**
+   * Always-visible footer action (e.g. a like button whose count must stay
+   * readable). Unlike `menu` it is not hover-revealed. The card stops click
+   * propagation around it, so the node won't navigate the card.
+   */
+  action?: ReactNode;
   className?: string;
 }
 
@@ -28,7 +34,16 @@ export interface NotebookGalleryCardProps {
  * /notebooks gallery.
  */
 const NotebookGalleryCard = memo(
-  ({ title, meta, icon, metaIcon, onActivate, menu, className }: NotebookGalleryCardProps) => {
+  ({
+    title,
+    meta,
+    icon,
+    metaIcon,
+    onActivate,
+    menu,
+    action,
+    className,
+  }: NotebookGalleryCardProps) => {
     const Icon = icon ?? FiFolder;
     const MetaIcon = metaIcon ?? FiLayers;
 
@@ -67,6 +82,15 @@ const NotebookGalleryCard = memo(
               </p>
             )}
           </div>
+          {action && (
+            <div
+              className="-mr-1 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              {action}
+            </div>
+          )}
           {menu && (
             <div
               className="-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100"
