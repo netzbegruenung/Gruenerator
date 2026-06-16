@@ -797,3 +797,118 @@ export async function getPrAgentInsightFragment(identifier: string): Promise<str
   }
   return fragment;
 }
+
+// ─── Audit export (committed to git via the monthly workflow's PR) ───────────
+
+export interface PrAgentInsightExportFile {
+  /** Repo-relative path the workflow writes this artifact to. */
+  path: string;
+  /** Full human-readable markdown rendering of the snapshot. */
+  content: string;
+}
+
+function renderSnapshotMarkdown(r: PrAgentInsightRecord): string {
+  const lines: string[] = [];
+  lines.push(`# Korpus-Einblicke: ${r.agentIdentifier}`);
+  lines.push('');
+  lines.push(
+    `> Automatisch generiert · Monat **${r.month}** · Status **${r.status}** · ` +
+      `Modell ${r.model ?? '—'} · Sample ${r.sampleSize} · Quelle ${r.sourceCollection ?? '—'} · ` +
+      `Stand ${r.computedAt}`
+  );
+  lines.push('');
+  lines.push(
+    '_Dieses Dokument ist ein automatisch erzeugtes Audit-Artefakt. Der Live-Agent zieht denselben ' +
+      'Inhalt aus der Datenbank (kein Merge nötig). Es dient der Transparenz und der Drift-Historie._'
+  );
+  lines.push('');
+
+  if (r.status !== 'active') {
+    lines.push(
+      `⚠️ Dieser Monat wurde als \`${r.status}\` verworfen (z.B. zu kleines Sample oder ` +
+        'Validierung). Der Live-Agent nutzt den letzten gültigen Monat oder kein Overlay.'
+    );
+    lines.push('');
+  }
+
+  lines.push('## Injizierter Block');
+  lines.push('');
+  lines.push(r.insightsBlock || '_(leer)_');
+  lines.push('');
+
+  if (r.themes.length > 0) {
+    lines.push('## Themen (mit Beleg-Zitat)');
+    lines.push('');
+    for (const t of r.themes) {
+      lines.push(`- **${t.theme}** — ${t.gloss}`);
+      if (t.evidence_quote) lines.push(`  > ${t.evidence_quote}`);
+    }
+    lines.push('');
+  }
+
+  if (r.speakers.length > 0) {
+    lines.push('## Sprecher*innen');
+    lines.push('');
+    for (const s of r.speakers) lines.push(`- ${s.name}${s.role ? ` (${s.role})` : ''}`);
+    lines.push('');
+  }
+
+  if (r.fewShotExamples.length > 0) {
+    lines.push('## Beispiel-Veröffentlichungen (echte, jüngste Posts)');
+    lines.push('');
+    r.fewShotExamples.forEach((f, i) => {
+      lines.push(`### Beispiel ${i + 1} — ${f.input}`);
+      lines.push('');
+      lines.push(f.output);
+      if (f.reasoning) {
+        lines.push('');
+        lines.push(`_${f.reasoning}_`);
+      }
+      lines.push('');
+    });
+  }
+
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
+/**
+ * Render every PR agent's snapshot for a month as committable markdown audit
+ * files. Used by the monthly workflow to open an `automated` PR alongside the
+ * live (DB-driven) overlay — a human-readable, version-controlled trail of how
+ * each agent's voice drifts month over month. Reads only the DB; no LLM/Qdrant.
+ */
+export async function exportPrAgentInsightsForMonth(
+  month: string = currentMonth()
+): Promise<PrAgentInsightExportFile[]> {
+  const rows = await db().query(
+    `SELECT agent_identifier, month, insights_block, few_shot_examples, themes, speakers,
+            status, source_collection, sample_size, model, computed_at
+       FROM pr_agent_insight_snapshots
+      WHERE month = $1
+      ORDER BY agent_identifier`,
+    [month]
+  );
+
+  return (rows as Array<Record<string, unknown>>).map((r) => {
+    const record: PrAgentInsightRecord = {
+      agentIdentifier: r.agent_identifier as string,
+      month: r.month as string,
+      insightsBlock: (r.insights_block as string) ?? '',
+      fewShotExamples: parseFewShot(r.few_shot_examples),
+      themes: parseThemes(r.themes),
+      speakers: parseSpeakers(r.speakers),
+      status: r.status as 'active' | 'rejected',
+      sourceCollection: (r.source_collection as string | null) ?? null,
+      sampleSize: (r.sample_size as number) ?? 0,
+      model: (r.model as string | null) ?? null,
+      computedAt:
+        r.computed_at instanceof Date ? r.computed_at.toISOString() : String(r.computed_at),
+    };
+    return {
+      // Tracked, build-inert location (apps/api/data/ is gitignored). Owned by
+      // this service; the monthly workflow commits these via an automated PR.
+      path: `apps/api/agent-insights/${record.agentIdentifier}.md`,
+      content: renderSnapshotMarkdown(record),
+    };
+  });
+}

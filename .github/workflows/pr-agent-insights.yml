@@ -34,6 +34,16 @@ jobs:
     env:
       API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
     steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve month
+        id: month
+        run: |
+          MONTH="${{ inputs.month }}"
+          if [ -z "$MONTH" ]; then MONTH=$(date -u '+%Y-%m'); fi
+          echo "value=$MONTH" >> "$GITHUB_OUTPUT"
+          echo "Month: $MONTH"
+
       - name: Build request payload
         id: payload
         run: |
@@ -104,6 +114,46 @@ jobs:
             echo "|-------|--------|-------:|---------:|---------:|-------:|-----------------|--------------:|"
             echo "$RESULT" | jq -r '.results[] | "| \(.agentIdentifier) | \(.status) | \(.themeCount) | \(.speakerCount) | \(.fewShotCount) | \(.sampleSize) | \(.droppedThemes)/\(.droppedSpeakers)/\(.droppedFewShot) | \(.durationMs) |"'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Audit PR: export the month's snapshots as committable markdown and open an
+      # `automated` PR. Additive — the live agent reads the same content from the DB,
+      # so the PR never needs merging to take effect; it's a transparency / drift trail.
+      # Skipped on single-agent manual test runs and when the refresh produced nothing.
+      - name: Export insight artifacts
+        id: export
+        if: ${{ steps.refresh.outputs.result != '' && inputs.identifier == '' }}
+        run: |
+          MONTH="${{ steps.month.outputs.value }}"
+          echo "GET $API_URL/api/internal/agents/pr-insights-export?month=$MONTH"
+          EXPORT=$(curl -sfS -X GET "$API_URL/api/internal/agents/pr-insights-export?month=$MONTH" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 600)
+          COUNT=$(echo "$EXPORT" | jq -r '.files | length')
+          echo "Exported $COUNT artifact(s)"
+          mkdir -p apps/api/agent-insights
+          echo "$EXPORT" | jq -r '.files[] | @base64' | while read -r row; do
+            DECODED=$(echo "$row" | base64 --decode)
+            FPATH=$(echo "$DECODED" | jq -r '.path')
+            echo "$DECODED" | jq -r '.content' > "$FPATH"
+            echo "wrote $FPATH"
+          done
+
+      - name: Create audit PR
+        if: ${{ steps.export.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: 'chore(agents): update PR-agent corpus insights [skip ci]'
+          title: 'chore(agents): monthly PR-agent corpus insights (${{ steps.month.outputs.value }})'
+          body: |
+            Automatisch erzeugtes Audit-Artefakt der monatlichen Korpus-Analyse der
+            Öffentlichkeitsarbeit-Agents.
+
+            **Kein Merge nötig, damit es wirkt** — die Live-Agents ziehen denselben Inhalt
+            aus der Datenbank. Dieser PR dient nur der Transparenz und der Drift-Historie.
+          branch: automated/pr-agent-insights
+          add-paths: apps/api/agent-insights/**
+          delete-branch: true
+          labels: automated
 
       - name: Fail if refresh errored
         if: steps.refresh.outcome == 'failure'
