@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { extractUrls } from './classifierHeuristics.js';
 import {
   extractSearchTopic,
   parseClassifierResponse,
@@ -54,6 +55,36 @@ describe('extractSearchTopic', () => {
     expect(extractSearchTopic('Erstelle eine kurze Zusammenfassung über den Atomausstieg')).toBe(
       'den Atomausstieg'
     );
+  });
+});
+
+// ─── extractUrls (scrape_url detection) ───────────────────────────────────
+
+describe('extractUrls', () => {
+  it('returns [] when no URL present', () => {
+    expect(extractUrls('Schreib einen Tweet über Klimapolitik')).toEqual([]);
+  });
+
+  it('detects a single pasted URL', () => {
+    expect(extractUrls('Lies das: https://gruene.de/programm')).toEqual([
+      'https://gruene.de/programm',
+    ]);
+  });
+
+  it('strips trailing sentence punctuation', () => {
+    expect(extractUrls('Quelle ist https://example.com/artikel.')).toEqual([
+      'https://example.com/artikel',
+    ]);
+  });
+
+  it('detects multiple URLs and dedupes', () => {
+    expect(
+      extractUrls('Vergleiche https://a.de und https://b.de sowie nochmal https://a.de')
+    ).toEqual(['https://a.de', 'https://b.de']);
+  });
+
+  it('ignores bare domains without http(s) scheme', () => {
+    expect(extractUrls('Schau auf gruene.de nach')).toEqual([]);
   });
 });
 

@@ -251,6 +251,7 @@ export const notebookStatsResponseSchema = z.object({
   topWords: z.array(z.object({ word: z.string(), count: z.number() })),
   topicDistribution: z.array(z.object({ topic: z.string(), count: z.number() })),
   topicSampleSize: z.number(),
+  topPersons: z.array(z.object({ person: z.string(), count: z.number() })),
 });
 
 export type NotebookStatsResponse = z.infer<typeof notebookStatsResponseSchema>;

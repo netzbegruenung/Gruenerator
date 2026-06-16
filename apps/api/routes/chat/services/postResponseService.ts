@@ -43,6 +43,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   image: 'image_generate',
   image_edit: 'image_edit',
   sharepic: 'sharepic',
+  scrape_url: 'scrape_url',
 };
 
 /**
@@ -68,16 +69,22 @@ interface SharepicToolCallResult {
   variants: SharepicVariant[];
 }
 
+/** Shape the frontend `parseScrapeResult` reads for the link-preview card. */
+interface ScrapeToolCallResult {
+  content: string;
+}
+
 type ToolCallResult =
   | SearchToolCallResult
   | ResearchToolResult
   | ImageToolCallResult
-  | SharepicToolCallResult;
+  | SharepicToolCallResult
+  | ScrapeToolCallResult;
 
 interface PersistedToolCall {
   toolCallId: string;
   toolName: string;
-  args: { query: string };
+  args: { query?: string; url?: string };
   result: ToolCallResult;
 }
 
@@ -135,6 +142,20 @@ function buildToolCalls(
 ): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
+
+  // scrape_url renders a link-preview card per crawled page. The frontend parser
+  // reads `args.url` + `result.content`, so emit one tool call per result rather
+  // than the generic {query}/{results} shape.
+  if (toolName === 'scrape_url') {
+    const crawled = (finalState.searchResults || []).filter((r) => r.url);
+    if (crawled.length === 0) return undefined;
+    return crawled.slice(0, 5).map((r, idx) => ({
+      toolCallId: `tc_${Date.now()}_${idx}`,
+      toolName: 'scrape_url',
+      args: { url: r.url as string },
+      result: { content: r.content || '' },
+    }));
+  }
 
   const subQueries = classifiedState.subQueries;
   const searchSources: SearchSource[] = classifiedState.searchSources || [];

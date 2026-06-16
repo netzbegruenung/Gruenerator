@@ -39,8 +39,22 @@ function isToolEnabled(
   agentWhitelist: string[] | undefined,
   frontendToggles: Record<string, boolean>
 ): boolean {
-  if (agentWhitelist && !agentWhitelist.includes(key)) return false;
-  if (frontendToggles[key] === false) return false;
+  // 'web' and 'research' are the two depths of the single merged "Recherche"
+  // tool — whitelisting or enabling either one enables both, so the guideline
+  // stays consistent for legacy agents (stored 'web') and any stored 'research'.
+  const SEARCH_DEPTH_KEYS = ['web', 'research'];
+  const isSearchDepth = SEARCH_DEPTH_KEYS.includes(key);
+  if (agentWhitelist) {
+    const allowed = isSearchDepth
+      ? SEARCH_DEPTH_KEYS.some((k) => agentWhitelist.includes(k))
+      : agentWhitelist.includes(key);
+    if (!allowed) return false;
+  }
+  if (isSearchDepth) {
+    if (SEARCH_DEPTH_KEYS.every((k) => frontendToggles[k] === false)) return false;
+  } else if (frontendToggles[key] === false) {
+    return false;
+  }
   return true;
 }
 

@@ -74,7 +74,18 @@ function countChar(str: string, char: string): number {
 }
 
 export class UrlValidator {
-  static async validateUrl(url: string): Promise<ValidationResult> {
+  /**
+   * Validate a URL for crawling.
+   *
+   * Set `checkRobots: false` for user-initiated single-link actions (e.g. a
+   * user pasting their own Canva template link to save it). That is not bulk
+   * crawling, so robots.txt must not block it — Canva, for instance, disallows
+   * `/design/` outright. Format and SSRF/private-network checks always run.
+   */
+  static async validateUrl(
+    url: string,
+    options: { checkRobots?: boolean } = {}
+  ): Promise<ValidationResult> {
     if (!url || url.length > MAX_URL_LENGTH) {
       return { isValid: false, error: 'URL is empty or too long' };
     }
@@ -105,12 +116,14 @@ export class UrlValidator {
         }
       }
 
-      const allowed = await isAllowedByRobotsTxt(url);
-      if (!allowed) {
-        return {
-          isValid: false,
-          error: 'Diese URL erlaubt kein automatisches Lesen (robots.txt).',
-        };
+      if (options.checkRobots !== false) {
+        const allowed = await isAllowedByRobotsTxt(url);
+        if (!allowed) {
+          return {
+            isValid: false,
+            error: 'Diese URL erlaubt kein automatisches Lesen (robots.txt).',
+          };
+        }
       }
 
       return { isValid: true };

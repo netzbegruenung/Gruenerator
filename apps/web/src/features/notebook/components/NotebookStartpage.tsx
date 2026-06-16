@@ -10,24 +10,21 @@ import { memo, useState, type ReactNode } from 'react';
 import PageContainer from '../../../components/common/PageContainer';
 
 import { LastAddedSection } from './LastAddedSection';
+import { NotebookAgentsSection } from './NotebookAgentsSection';
 import { NotebookGlobalChatLauncher } from './NotebookGlobalChatLauncher';
 import { NotebookManualSearch } from './NotebookManualSearch';
 import { StatisticsSection } from './StatisticsSection';
 
 interface ExampleQuestion {
   icon: string;
+  /** One-word label shown on the chip. */
+  tag: string;
+  /** Full question sent as the chat prompt when the chip is clicked. */
   text: string;
-}
-
-interface StartpageSourceInfo {
-  name?: string;
-  count?: string;
 }
 
 interface NotebookStartpageProps {
   title: string;
-  subtitle: string;
-  sources?: StartpageSourceInfo[];
   placeholder: string;
   exampleQuestions: ExampleQuestion[];
   composerSourceFilters?: SourceFilterConfig;
@@ -52,6 +49,9 @@ interface NotebookStartpageProps {
   manualSearchNotebookId?: string;
   /** Mention slug for the global-chat tab (e.g. 'berlin'). Null hides the tab. */
   notebookMention?: string | null;
+  /** Canonical notebook id (e.g. 'brandenburg-notebook') used to surface the
+   *  notebook's LV agents. The agents section self-hides when none match. */
+  notebookId?: string;
   footer?: ReactNode;
 }
 
@@ -70,7 +70,7 @@ const ExampleChip = memo(({ question }: { question: ExampleQuestion }) => (
       <span className="shrink-0 text-base" aria-hidden>
         {question.icon}
       </span>
-      <span className="truncate">{question.text}</span>
+      <span className="truncate">{question.tag}</span>
     </button>
   </ThreadPrimitive.Suggestion>
 ));
@@ -78,8 +78,6 @@ ExampleChip.displayName = 'ExampleChip';
 
 export function NotebookStartpage({
   title,
-  subtitle,
-  sources,
   placeholder,
   exampleQuestions,
   composerSourceFilters,
@@ -94,6 +92,7 @@ export function NotebookStartpage({
   hideGlobalChat = false,
   manualSearchNotebookId,
   notebookMention,
+  notebookId,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
@@ -113,21 +112,6 @@ export function NotebookStartpage({
         <h1 className="mb-xs text-4xl font-semibold text-foreground-heading max-md:text-2xl">
           {title}
         </h1>
-        <p className="text-lg text-grey-500 dark:text-grey-400">{subtitle}</p>
-        {sources && sources.length > 0 && (
-          <div className="mt-sm flex flex-wrap items-center justify-center gap-xs text-sm text-grey-500 dark:text-grey-400">
-            {sources.map(
-              (s, i) =>
-                s.name && (
-                  <span key={i} className="inline-flex items-center gap-1">
-                    <span>{s.name}</span>
-                    {s.count && <span className="text-grey-400">· {s.count}</span>}
-                    {i < sources.length - 1 && <span className="mx-xs">·</span>}
-                  </span>
-                )
-            )}
-          </div>
-        )}
       </div>
 
       {anyExtraTabAvailable && (
@@ -175,8 +159,8 @@ export function NotebookStartpage({
             />
             {exampleQuestions.length > 0 && (
               <div className="mt-md grid grid-cols-1 gap-sm md:grid-cols-3">
-                {exampleQuestions.map((q, i) => (
-                  <ExampleChip key={i} question={q} />
+                {exampleQuestions.map((q) => (
+                  <ExampleChip key={q.text} question={q} />
                 ))}
               </div>
             )}
@@ -188,6 +172,8 @@ export function NotebookStartpage({
               showSourceLabel={showRecentSourceLabel}
             />
           )}
+
+          {notebookId && <NotebookAgentsSection notebookId={notebookId} />}
 
           {showStats && recentCollectionIds.length > 0 && (
             <StatisticsSection collectionIds={recentCollectionIds} />

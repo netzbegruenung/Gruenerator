@@ -46,6 +46,8 @@ export const notificationTypeSchema = z.enum([
   'agent_task_completed',
   'agent_task_failed',
   'new_avatars',
+  'template_approved',
+  'template_rejected',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

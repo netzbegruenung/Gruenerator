@@ -47,14 +47,8 @@ interface NotebookCollection {
 
 interface ExampleQuestion {
   icon: string;
+  tag: string;
   text: string;
-}
-
-interface NotebookSource {
-  name?: string;
-  count?: string;
-  id?: string;
-  selected?: boolean;
 }
 
 interface NotebookConfig {
@@ -65,11 +59,9 @@ interface NotebookConfig {
   collections: NotebookCollection[];
   startPageTitle: string;
   placeholder: string;
-  infoPanelDescription: string;
   headerIcon: React.ComponentType<{ className?: string }>;
   exampleQuestions: ExampleQuestion[];
   documents?: Array<{ title: string; detail: string }>;
-  sources?: NotebookSource[];
   externalUrl?: string;
   persistMessages?: boolean;
   useSystemUserId?: boolean;
@@ -332,6 +324,11 @@ export const NotebookPageContent = ({
     return entry?.mention ?? null;
   }, [config.id]);
 
+  // Canonical notebook id (matches LV agents' `defaultNotebookId`). For dynamic
+  // user notebooks `config.id` is a UUID, so this matches no agent and the
+  // agents section self-hides.
+  const notebookId = `${config.id}-notebook`;
+
   const chatContent = (
     <NotebookChatProvider
       collections={providerCollections}
@@ -355,8 +352,6 @@ export const NotebookPageContent = ({
                 <div className="flex flex-1 flex-col overflow-y-auto">
                   <NotebookStartpage
                     title={config.startPageTitle}
-                    subtitle={config.infoPanelDescription}
-                    sources={config.sources}
                     placeholder={config.placeholder}
                     exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
                     composerSourceFilters={sourceFilters}
@@ -371,6 +366,7 @@ export const NotebookPageContent = ({
                     hideGlobalChat={hideGlobalChat}
                     manualSearchNotebookId={manualSearchNotebookId}
                     notebookMention={notebookMention}
+                    notebookId={notebookId}
                     footer={startpageFooter}
                   />
                 </div>
@@ -483,9 +479,6 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     collections: [{ id: collection.id, name: collection.name }],
     startPageTitle: collection.name || 'Notebook',
     placeholder: 'Stellen Sie eine Frage zu den Dokumenten...',
-    infoPanelDescription:
-      collection.description ||
-      `Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`,
     headerIcon: () => null,
     exampleQuestions: [],
     persistMessages: true,

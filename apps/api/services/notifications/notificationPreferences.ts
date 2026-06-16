@@ -55,6 +55,10 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   agent_task_completed: 1,
   agent_task_failed: 1,
   new_avatars: 1,
+  // Tier 1: the user submitted a Vorlage for review and is waiting on the
+  // admin verdict — always deliver (incl. email) regardless of level.
+  template_approved: 1,
+  template_rejected: 1,
 };
 
 export type NotificationLevel = 'low' | 'medium' | 'high';

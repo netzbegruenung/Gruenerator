@@ -20,6 +20,9 @@ export const userTemplates = pgTable(
     is_private: boolean('is_private').notNull().default(true),
     is_example: boolean('is_example').notNull().default(false),
     status: text('status').notNull().default('published'),
+    // Locale targeting ('de-DE' | 'de-AT' | 'all'); set to the creator's locale
+    // on insert so the gallery can be scoped to the viewer's audience.
+    audience: text('audience').notNull().default('all'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     vector_indexed_at: timestamp('vector_indexed_at', { withTimezone: true }),
@@ -29,6 +32,7 @@ export const userTemplates = pgTable(
     index('idx_user_templates_type').on(t.type),
     index('idx_user_templates_is_example').on(t.is_example),
     index('idx_user_templates_status').on(t.status),
+    index('idx_user_templates_audience').on(t.audience),
     index('idx_user_templates_user_example').on(t.user_id, t.is_example),
     index('idx_user_templates_metadata').on(t.metadata),
     index('idx_user_templates_tags').on(t.tags),

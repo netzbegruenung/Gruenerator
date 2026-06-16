@@ -34,6 +34,7 @@ export interface UserAgentInput {
   enabledTools?: string[];
   skillMentions?: string[];
   fewShotExamples?: Array<{ input: string; output: string; reasoning?: string }>;
+  inlineSourceLinks?: boolean;
 }
 
 export type UserAgentPatch = Partial<UserAgentInput>;
@@ -64,6 +65,7 @@ function rowToAgent(row: UserAgentRow): Agent {
     ...(row.enabled_tools ? { enabledTools: row.enabled_tools } : {}),
     ...(row.skill_mentions ? { skillMentions: row.skill_mentions } : {}),
     ...(row.few_shot_examples ? { fewShotExamples: row.few_shot_examples } : {}),
+    ...(row.inline_source_links != null ? { inlineSourceLinks: row.inline_source_links } : {}),
   };
 }
 
@@ -91,6 +93,7 @@ function inputToInsertValues(userId: string, input: UserAgentInput) {
     enabled_tools: input.enabledTools ?? null,
     skill_mentions: input.skillMentions ?? null,
     few_shot_examples: input.fewShotExamples ?? null,
+    inline_source_links: input.inlineSourceLinks ?? null,
   };
 }
 
@@ -116,6 +119,7 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   if (patch.enabledTools !== undefined) out.enabled_tools = patch.enabledTools;
   if (patch.skillMentions !== undefined) out.skill_mentions = patch.skillMentions;
   if (patch.fewShotExamples !== undefined) out.few_shot_examples = patch.fewShotExamples;
+  if (patch.inlineSourceLinks !== undefined) out.inline_source_links = patch.inlineSourceLinks;
   return out;
 }
 

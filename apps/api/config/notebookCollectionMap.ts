@@ -1,17 +1,29 @@
+import { getDisabledNotebookIds } from '@gruenerator/shared/notebooks';
+
+import { COLLECTION_MAP } from './collectionMap.js';
+import { getSystemCollectionConfig } from './systemCollectionsConfig.js';
+
 /**
  * Notebook IDs that are configured but currently disabled.
  *
  * Treated as unknown by `isKnownNotebook`, so chat/notebook routes reject queries
  * against them. Keeping the entry in `NOTEBOOK_COLLECTION_MAP` means existing
  * scrape data and admin tooling still resolve collections — only end-user routing
- * is gated. Mirror in `apps/web/src/features/notebook/config/notebooksConfig.ts`
- * (`enabled: false`) to also hide from the gallery.
+ * is gated.
+ *
+ * Derived from the shared notebook registry (`enabled: false`) so a single switch
+ * cascades here automatically — no mirroring needed. Agent-only collections that
+ * live outside the registry's `NotebookId` union are listed manually below.
  */
-export const DISABLED_NOTEBOOK_IDS: ReadonlySet<string> = new Set<string>([
-  'schleswig-holstein-notebook',
-  // Agent-only (by design, not broken): reachable only via the specialized
-  // `gruenerator-ricarda-lang` agent. End-user routes reject queries against it.
+const AGENT_ONLY_DISABLED_IDS = [
+  // Reachable only via the specialized `gruenerator-ricarda-lang` agent (by
+  // design, not broken). Not a registry notebook, so it can't derive its state.
   'ricarda-lang-notebook',
+] as const;
+
+export const DISABLED_NOTEBOOK_IDS: ReadonlySet<string> = new Set<string>([
+  ...getDisabledNotebookIds(),
+  ...AGENT_ONLY_DISABLED_IDS,
 ]);
 
 /**
@@ -61,6 +73,32 @@ export function isKnownNotebook(id: string): boolean {
 
 export function isDisabledNotebook(id: string): boolean {
   return DISABLED_NOTEBOOK_IDS.has(id);
+}
+
+/**
+ * Landesverband `shortName` codes (e.g. `HH`, `TH`, `TH-F`) belonging to a
+ * disabled notebook, resolved through the existing collection chain:
+ *   notebook id → NOTEBOOK_COLLECTION_MAP → collection key → COLLECTION_MAP
+ *   → systemId → SYSTEM_COLLECTIONS.defaultFilter (`landesverband` value).
+ *
+ * Lets the scheduled scraper skip a disabled Landesverband from the SAME switch
+ * (`enabled: false`) instead of a separate manual `dormant` flag. Manual
+ * `scrapeSource(id)` calls are unaffected, so the data can still be re-scraped.
+ */
+export function getDisabledLandesverbandShortNames(): ReadonlySet<string> {
+  const codes = new Set<string>();
+  for (const notebookId of DISABLED_NOTEBOOK_IDS) {
+    for (const key of NOTEBOOK_COLLECTION_MAP[notebookId] ?? []) {
+      const systemId = COLLECTION_MAP[key]?.systemId;
+      if (!systemId) continue;
+      const filter = getSystemCollectionConfig(systemId)?.defaultFilter;
+      if (filter?.field !== 'landesverband') continue;
+      for (const value of Array.isArray(filter.value) ? filter.value : [filter.value]) {
+        codes.add(value);
+      }
+    }
+  }
+  return codes;
 }
 
 /**
