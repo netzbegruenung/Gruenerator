@@ -29,7 +29,6 @@ const Timeline: React.FC<TimelineProps> = ({
   onTextChange,
 }) => {
   const segmentRefs = useRef<Record<number, HTMLDivElement>>({});
-  const inputRef = useRef<HTMLInputElement>(null);
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const wasScrubbingRef = useRef(false);
@@ -56,13 +55,6 @@ const Timeline: React.FC<TimelineProps> = ({
       });
     }
   }, [activeSegmentId]);
-
-  useEffect(() => {
-    if (editingSegmentId !== null && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editingSegmentId]);
 
   const handleScrubStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
@@ -233,7 +225,11 @@ const Timeline: React.FC<TimelineProps> = ({
             >
               {isEditing ? (
                 <input
-                  ref={inputRef}
+                  // autoFocus on the per-segment input that mounts when editing
+                  // begins (replaces a useEffect focus that can be dropped under
+                  // concurrent rendering); select-all keeps the prior edit UX.
+                  autoFocus
+                  onFocus={(e) => e.currentTarget.select()}
                   type="text"
                   className="min-w-0 flex-1 rounded-lg border-none bg-background px-5 py-4 font-inherit text-[1.05rem] font-medium leading-relaxed text-foreground outline-none"
                   value={segment.text}
