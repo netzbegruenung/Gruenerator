@@ -13,7 +13,7 @@
  */
 
 import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
-import { extractSlugSuffix } from '@gruenerator/shared/utils';
+import { extractSlugSuffix, sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -26,6 +26,7 @@ import {
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
+import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -318,16 +319,21 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         )
       );
 
-      const totalWolkeFolders = transformedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
+      // Favourites-first: float most-recently/most-used notebooks to the top,
+      // never-used keep their incoming (owned → shared → authenticated) order.
+      const usageMap = await getUsageMap(userId, 'notebook');
+      const sortedData = sortByUsage(transformedData, (c) => c.id, usageMap);
+
+      const totalWolkeFolders = sortedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
       log.debug(
-        `[listCollections] returning ${transformedData.length} collection(s) ` +
+        `[listCollections] returning ${sortedData.length} collection(s) ` +
           `(owned=${owned.length} shared=${groupShared.length} authenticated=${authShared.length}), ` +
           `${totalWolkeFolders} wolke_folders total`
       );
 
       return {
         status: 200 as const,
-        body: { success: true, collections: transformedData },
+        body: { success: true, collections: sortedData },
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.listCollections] Error:', error);
