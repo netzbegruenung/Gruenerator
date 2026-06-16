@@ -578,9 +578,13 @@ export function PlannerKanban({
           ...statusField.typeOptions,
           options: options.map((o) => {
             if (o.id !== optionId) return o;
-            const next: SelectOption = { id: o.id, name: o.name, color: o.color };
-            if (limit != null) next.limit = limit;
-            return next;
+            // Preserve every other option field (notably aiTask) — only the
+            // WIP limit changes. limit == null clears it.
+            if (limit == null) {
+              const { limit: _drop, ...rest } = o;
+              return rest;
+            }
+            return { ...o, limit };
           }),
         },
       });

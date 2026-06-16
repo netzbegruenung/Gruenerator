@@ -1,9 +1,6 @@
 import { useCollaborators } from '@gruenerator/collab';
-import {
-  EditableTitle,
-  type EditableTitleHandle,
-} from '@gruenerator/shared/components/EditableTitle';
-import { memo, useRef } from 'react';
+import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
+import { memo } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +10,7 @@ import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sideb
 import { BoardDropdown } from './BoardDropdown';
 import { PresenceAvatars } from './PresenceAvatars';
 
+import type { BoardSettingsSection } from './board-overview/settings/BoardSettingsOverlay';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
 interface BoardInlineHeaderProps {
@@ -30,6 +28,7 @@ interface BoardInlineHeaderProps {
   onOpenSettings?: () => void;
   onOpenActivity?: () => void;
   onDuplicate?: () => void;
+  onOpenFullSettings?: (section: BoardSettingsSection) => void;
   compact?: boolean;
 }
 
@@ -48,11 +47,11 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   onOpenSettings,
   onOpenActivity,
   onDuplicate,
+  onOpenFullSettings,
   compact,
 }: BoardInlineHeaderProps) {
   const navigate = useNavigate();
   const collaborators = useCollaborators(provider);
-  const titleRef = useRef<EditableTitleHandle>(null);
   const isFavourite = useIsFavourite(boardId);
   const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
 
@@ -72,7 +71,6 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           <FiArrowLeft size={compact ? 16 : 18} />
         </button>
         <EditableTitle
-          ref={titleRef}
           as="h1"
           title={title}
           editable
@@ -103,15 +101,17 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         </button>
         <BoardDropdown
           boardId={boardId}
+          title={title}
           isArchived={isArchived}
           expertMode={expertMode}
           onDelete={onDelete}
           onArchiveToggle={onArchiveToggle}
           onExpertModeToggle={onExpertModeToggle}
-          onRequestRename={() => titleRef.current?.startEdit()}
+          onRename={onRename}
           onOpenSettings={onOpenSettings}
           onOpenActivity={onOpenActivity}
           onDuplicate={onDuplicate}
+          onOpenFullSettings={onOpenFullSettings}
         />
       </div>
     </div>
