@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
+import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
@@ -20,6 +21,7 @@ interface NewChatSheetProps {
   onSelectNotebook: (notebookId: string) => void;
   onSelectAgent?: (agentId: string) => void;
   onInsertMention?: (mentionable: Mentionable) => void;
+  onSeeAllAgents?: () => void;
 }
 
 const notebooks = notebookMentionables.filter((m) => m.identifier !== 'gruenerator-notebook');
@@ -33,8 +35,10 @@ export function NewChatSheet({
   onSelectNotebook,
   onSelectAgent,
   onInsertMention,
+  onSeeAllAgents,
 }: NewChatSheetProps) {
   const theme = useTheme();
+  const { data: userAgents = [] } = useUserAgents();
 
   return (
     <BottomSheet visible={visible} onClose={onClose} maxHeight="70%">
@@ -62,6 +66,41 @@ export function NewChatSheet({
       <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
       <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {onSelectAgent && userAgents.length > 0 && (
+          <>
+            <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
+              Meine Agent*innen
+            </Text>
+            {userAgents.map((agent) => (
+              <Pressable
+                key={agent.identifier}
+                style={({ pressed }) => [
+                  styles.row,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
+                onPress={() => {
+                  onClose();
+                  onSelectAgent(agent.identifier);
+                }}
+              >
+                <View style={styles.iconGhost}>
+                  <Ionicons name={agentIcon(agent.iconKey)} size={24} color={colors.eucalyptus} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={[styles.rowTitle, { color: theme.text }]}>{agent.title}</Text>
+                  <Text
+                    style={[styles.rowDescription, { color: theme.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {agent.description}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
+          </>
+        )}
+
         {onSelectAgent && (
           <>
             <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Assistenten</Text>
@@ -91,6 +130,27 @@ export function NewChatSheet({
                 </View>
               </Pressable>
             ))}
+            {onSeeAllAgents && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.row,
+                  { backgroundColor: pressed ? theme.surface : 'transparent' },
+                ]}
+                onPress={() => {
+                  onClose();
+                  onSeeAllAgents();
+                }}
+              >
+                <View style={styles.iconGhost}>
+                  <Ionicons name="ellipsis-horizontal" size={24} color={colors.eucalyptus} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={[styles.rowTitle, { color: theme.text }]}>
+                    Alle Agent*innen ansehen
+                  </Text>
+                </View>
+              </Pressable>
+            )}
             <View style={[styles.separator, { backgroundColor: theme.border }]} />
           </>
         )}
