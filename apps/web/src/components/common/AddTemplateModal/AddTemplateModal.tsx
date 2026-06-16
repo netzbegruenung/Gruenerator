@@ -118,6 +118,7 @@ const AddTemplateModal = ({
   const [templateUrl, setTemplateUrl] = useState('');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewData, setPreviewData] = useState<Partial<UserTemplatePreview> | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
@@ -142,6 +143,7 @@ const AddTemplateModal = ({
       setShowFileUpload(false);
       setTemplateUrl('');
       setPreviewData(null);
+      setPreviewError(null);
       setUploadedFile(null);
       setUploadPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
@@ -171,6 +173,7 @@ const AddTemplateModal = ({
     if (isValidTemplate && canvaValidation.designId !== prevDesignIdRef.current) {
       prevDesignIdRef.current = canvaValidation.designId;
       setPreviewData(null);
+      setPreviewError(null);
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
@@ -181,37 +184,64 @@ const AddTemplateModal = ({
 
   const fetchCanvaPreview = useCallback(async (url: string, fallbackTitle?: string) => {
     setIsLoadingPreview(true);
-    try {
-      const result = await getContractsClient().userTemplates.fromUrl({
-        body: { url: url.trim(), preview: true },
-      });
-      if (result.status === 200) {
-        const preview = result.body.preview;
-        setPreviewData(preview);
+    setPreviewError(null);
 
-        const crawledTitle = preview.title || fallbackTitle || '';
-        setTitle(crawledTitle);
-
-        const rawDesc = preview.description || '';
-        const isGenericCanvaDesc = /^Check out this .* designed by /i.test(rawDesc);
-        const meaningfulDesc = isGenericCanvaDesc ? '' : rawDesc;
-
-        const suggestedTags = suggestTagsFromTemplate(
-          preview as Parameters<typeof suggestTagsFromTemplate>[0],
-          'canva'
-        );
-        setDescription(
-          meaningfulDesc + (meaningfulDesc && suggestedTags ? '\n\n' : '') + suggestedTags
-        );
-
-        setTimeout(() => titleRef.current?.focus(), 50);
-      }
-    } catch {
+    // Reveal the form with whatever we know so the user can always proceed
+    // manually — never leave the modal in a silent dead end.
+    const revealFormWithFallback = (message: string | null) => {
       setPreviewData({});
       if (fallbackTitle) setTitle(fallbackTitle);
       const suggestedTags = suggestTagsFromTemplate(null, 'canva');
       if (suggestedTags) setDescription(suggestedTags);
+      setPreviewError(message);
       setTimeout(() => titleRef.current?.focus(), 50);
+    };
+
+    try {
+      const result = await getContractsClient().userTemplates.fromUrl({
+        body: { url: url.trim(), preview: true },
+      });
+
+      if (result.status !== 200) {
+        const message =
+          (result.body as { message?: string })?.message ||
+          'Automatische Vorschau nicht möglich – bitte Titel und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.';
+        revealFormWithFallback(message);
+        return;
+      }
+
+      const preview = result.body.preview;
+      setPreviewData(preview);
+
+      const crawledTitle = preview.title || fallbackTitle || '';
+      setTitle(crawledTitle);
+
+      const rawDesc = preview.description || '';
+      const isGenericCanvaDesc = /^Check out this .* designed by /i.test(rawDesc);
+      const meaningfulDesc = isGenericCanvaDesc ? '' : rawDesc;
+
+      const suggestedTags = suggestTagsFromTemplate(
+        preview as Parameters<typeof suggestTagsFromTemplate>[0],
+        'canva'
+      );
+      setDescription(
+        meaningfulDesc + (meaningfulDesc && suggestedTags ? '\n\n' : '') + suggestedTags
+      );
+
+      // The request succeeded but the host blocked metadata extraction (e.g.
+      // Canva /design/ links) — tell the user auto-detection failed and they
+      // need to fill in the details. Saving still works.
+      if (!preview.title && !preview.thumbnail_url) {
+        setPreviewError(
+          'Automatische Vorschau nicht möglich – bitte Titel und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.'
+        );
+      }
+
+      setTimeout(() => titleRef.current?.focus(), 50);
+    } catch {
+      revealFormWithFallback(
+        'Automatische Vorschau nicht möglich – bitte Titel und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.'
+      );
     } finally {
       setIsLoadingPreview(false);
     }
@@ -263,7 +293,11 @@ const AddTemplateModal = ({
             metadata,
           },
         });
-        if (result.status !== 201) throw new Error('Fehler beim Erstellen der Vorlage.');
+        if (result.status !== 201) {
+          throw new Error(
+            (result.body as { message?: string })?.message || 'Fehler beim Erstellen der Vorlage.'
+          );
+        }
         templateId = result.body.data.id;
       } else if (previewData) {
         const result = await client.userTemplates.fromUrl({
@@ -274,7 +308,11 @@ const AddTemplateModal = ({
             metadata,
           },
         });
-        if (result.status !== 201) throw new Error('Fehler beim Einreichen der Vorlage.');
+        if (result.status !== 201) {
+          throw new Error(
+            (result.body as { message?: string })?.message || 'Fehler beim Einreichen der Vorlage.'
+          );
+        }
         templateId = result.body.data.id;
       } else {
         const result = await client.userTemplates.create({
@@ -287,7 +325,11 @@ const AddTemplateModal = ({
             metadata,
           },
         });
-        if (result.status !== 201) throw new Error('Fehler beim Erstellen der Vorlage.');
+        if (result.status !== 201) {
+          throw new Error(
+            (result.body as { message?: string })?.message || 'Fehler beim Erstellen der Vorlage.'
+          );
+        }
         templateId = result.body.data.id;
       }
 
@@ -452,6 +494,9 @@ const AddTemplateModal = ({
                   <span className="text-xs text-grey-400">
                     Das sieht nicht nach einem Canva-Vorlagen-Link aus
                   </span>
+                )}
+                {previewError && !isLoadingPreview && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400">{previewError}</span>
                 )}
               </div>
 
