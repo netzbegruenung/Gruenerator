@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import ReelMuster from '../../../assets/images/startseite/Reel_Muster.png';
 import { type IconCategory } from '../../../config/icons';
 import Icon from '../../common/Icon';
+import Footer from '../../layout/Footer/Footer';
 
 const MockGenerator = lazy(() => import('./MockGenerator'));
 const DocumentsMock = lazy(() => import('./DocumentsMock'));
@@ -313,6 +314,8 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      <Footer />
     </main>
   );
 };

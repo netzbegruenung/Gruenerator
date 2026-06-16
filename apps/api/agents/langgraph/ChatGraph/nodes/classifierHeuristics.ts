@@ -33,6 +33,8 @@ export const INTENT_KEYWORDS: Record<
     | 'edit_current_board'
     | 'share_doc'
     | 'pressemitteilung_examples'
+    // scrape_url is detected by URL presence in the message (extractUrls), not keywords.
+    | 'scrape_url'
   >,
   string[]
 > = {
@@ -156,6 +158,28 @@ export function extractMessageText(content: unknown): string {
       .join('');
   }
   return String(content || '');
+}
+
+/**
+ * Detect http(s) URLs in user-typed text. Ported from the frontend's
+ * `urlDetection.ts` regex (web/api boundary forbids a cross-import). Used by the
+ * classifier to route pasted links to the `scrape_url` intent so their page
+ * content becomes chat context. Strips trailing sentence punctuation and dedupes.
+ */
+const URL_PATTERN =
+  /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/gi;
+
+export function extractUrls(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(URL_PATTERN);
+  if (!matches) return [];
+  const seen = new Set<string>();
+  for (const raw of matches) {
+    // Trim trailing punctuation that commonly follows a URL in prose.
+    const cleaned = raw.replace(/[.,;:!?)\]}'"]+$/, '');
+    if (cleaned) seen.add(cleaned);
+  }
+  return [...seen];
 }
 
 /**

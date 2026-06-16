@@ -54,6 +54,19 @@ const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
 const LegacyAgentSlugRedirect = lazy(() =>
   Promise.resolve({ default: LegacyAgentSlugRedirectComponent })
 );
+// Legacy /monitor/themen/:topic → /experiments/monitor/themen/:topic (preserve
+// the topic param). Monitor moved under /experiments to signal experimental
+// status in the URL; the bare /monitor* paths keep redirecting for old links.
+const LegacyMonitorTopicRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { topic } = useParams();
+  return createElement(Navigate, {
+    to: `/experiments/monitor/themen/${topic ?? ''}`,
+    replace: true,
+  });
+};
+const LegacyMonitorTopicRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyMonitorTopicRedirectComponent })
+);
 // Legacy custom-generator links: /gruenerator/:slug → the converted agent's
 // chat at /agents/cg-:slug (custom generators are now `cg-<slug>` user agents).
 const LegacyGeneratorSlugRedirectComponent: FC<Record<string, unknown>> = () => {
@@ -200,6 +213,7 @@ const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorTh
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
 const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
 const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
+const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
@@ -295,12 +309,46 @@ const standardRoutes: RouteConfig[] = [
     path: '/research',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  { path: '/monitor', component: MonitorUebersichtPage, devOnly: true },
-  { path: '/monitor/themen', component: MonitorThemenPage, devOnly: true },
-  { path: '/monitor/themen/:topic', component: MonitorThemenPage, devOnly: true },
-  { path: '/monitor/umfragen', component: MonitorUmfragenPage, devOnly: true },
-  { path: '/monitor/watcher', component: MonitorWatcherPage, devOnly: true },
-  { path: '/monitor/feed', component: MonitorFeedPage, devOnly: true },
+  // Experimental features live under /experiments so the URL signals their
+  // status. Monitor is the first — formerly the dev-only /monitor*, now
+  // production-visible at /experiments/monitor*.
+  { path: '/experiments', component: ExperimentsIndexPage },
+  { path: '/experiments/monitor', component: MonitorUebersichtPage },
+  { path: '/experiments/monitor/themen', component: MonitorThemenPage },
+  { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },
+  { path: '/experiments/monitor/umfragen', component: MonitorUmfragenPage },
+  { path: '/experiments/monitor/watcher', component: MonitorWatcherPage },
+  { path: '/experiments/monitor/feed', component: MonitorFeedPage },
+  // Legacy /monitor* redirects → /experiments/monitor* (old links/bookmarks).
+  {
+    path: '/monitor',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/experiments/monitor') })),
+  },
+  {
+    path: '/monitor/themen',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
+    ),
+  },
+  { path: '/monitor/themen/:topic', component: LegacyMonitorTopicRedirect },
+  {
+    path: '/monitor/umfragen',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/umfragen') })
+    ),
+  },
+  {
+    path: '/monitor/watcher',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/watcher') })
+    ),
+  },
+  {
+    path: '/monitor/feed',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/feed') })
+    ),
+  },
   { path: '/briefing', component: BriefingPage },
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
   { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },

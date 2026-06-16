@@ -8,7 +8,6 @@
  * preserves full per-route type inference across files.
  */
 
-import fs from 'fs';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -45,32 +44,6 @@ export interface ShareRecord {
 export interface ContentItem {
   id: string;
   [key: string]: unknown;
-}
-
-export interface SystemTemplate {
-  id: string;
-  title: string;
-  description: string;
-  template_type: string;
-  thumbnail_url: string;
-  preview_image?: string;
-  external_url: string;
-  tags: string[];
-  categories: string[];
-}
-
-export let systemTemplates: SystemTemplate[] = [];
-try {
-  const systemTemplatesPath = path.resolve(process.cwd(), 'config/templates/system-templates.json');
-  const parsed = JSON.parse(fs.readFileSync(systemTemplatesPath, 'utf-8')) as {
-    templates?: Array<SystemTemplate & { preview_image?: string }>;
-  };
-  systemTemplates = (parsed.templates ?? []).map((t) => ({
-    ...t,
-    thumbnail_url: t.preview_image ? `/auth/template-previews/${t.preview_image}` : t.thumbnail_url,
-  }));
-} catch {
-  log.warn('[groupsContract] Could not load system templates for vorlagen matching');
 }
 
 export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {

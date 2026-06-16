@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from '@gruenerator/ui';
 import { LogOut } from 'lucide-react';
-import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
+import { type MutableRefObject, type ReactNode, Fragment, memo, useEffect, useState } from 'react';
 import { PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
@@ -31,10 +31,10 @@ interface SidebarAccountProps {
 
 // Bottom-of-sidebar account block. The avatar is the single trigger for one
 // unified account menu — identical whether the sidebar is expanded or collapsed.
-// The menu carries notifications inline at the top (they're infrequent), then
-// the nav targets, theme toggle and logout. Mirrors the ChatGPT/Gemini account
-// anchor; replaces the standalone footer theme-toggle and the removed top-right
-// ProfileButton.
+// The menu lists the nav targets, with notifications inline just above
+// Einstellungen, then the theme toggle and logout. Mirrors the ChatGPT/Gemini
+// account anchor; replaces the standalone footer theme-toggle and the removed
+// top-right ProfileButton.
 const SidebarAccount = memo(function SidebarAccount({
   sidebarExpanded,
   openRef,
@@ -90,19 +90,21 @@ const SidebarAccount = memo(function SidebarAccount({
       className="w-80"
     >
       {NAV_ITEMS.map((item) => (
-        <DropdownMenuItem key={item.key} onClick={() => onNavigate(item.path, item.label)}>
-          <item.icon className="size-4" />
-          <span>{item.label}</span>
-        </DropdownMenuItem>
+        <Fragment key={item.key}>
+          {/* Notifications render inline just above Einstellungen; NotificationList
+              returns null (and its bounding separators with it) when nothing is
+              pending, so the menu reads as a plain list when empty. */}
+          {item.key === 'einstellungen' && <NotificationList />}
+          <DropdownMenuItem onClick={() => onNavigate(item.path, item.label)}>
+            <item.icon className="size-4" />
+            <span>{item.label}</span>
+          </DropdownMenuItem>
+        </Fragment>
       ))}
       <DropdownMenuItem onClick={() => onNavigate('/support', 'Support')}>
         <PiQuestion className="size-4" />
         <span>Support</span>
       </DropdownMenuItem>
-      {/* Notifications sit in their own bounded card between the nav targets and the
-          theme/logout row; NotificationList renders null when empty, so nothing shows
-          here when nothing is pending. */}
-      <NotificationList unreadCount={unreadCount} />
       <DropdownMenuSeparator />
       {/* Theme + logout share one row to save vertical space. */}
       <div className="flex items-center gap-1">

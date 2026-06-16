@@ -38,13 +38,15 @@ export default function ActiveFilterChips({
 
   for (const [field, value] of entries) {
     const label = filterFields[field]?.label || field;
+    const valueLabels = filterFields[field]?.valueLabels;
 
     if (Array.isArray(value)) {
       for (const v of value) {
         totalCount++;
         chips.push(
           <Badge key={`${field}:${v}`} variant="secondary" className="gap-1 pr-1">
-            <span className="text-grey-500 dark:text-grey-400">{label}:</span> {v}
+            <span className="text-grey-500 dark:text-grey-400">{label}:</span>{' '}
+            {valueLabels?.[v] ?? v}
             <button
               type="button"
               onClick={() => onRemoveValue(field, v)}

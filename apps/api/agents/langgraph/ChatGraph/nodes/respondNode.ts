@@ -9,6 +9,7 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -225,7 +226,10 @@ Synthese (NUR zur Orientierung — wiederhole sie nicht):
 ${synthesisPreview}`;
 }
 
-export async function formatSearchContext(state: ChatGraphState): Promise<string> {
+export async function formatSearchContext(
+  state: ChatGraphState,
+  includeSourceUrls = false
+): Promise<string> {
   // Research mode with usable synthesis: emit a wrapper-mode block so the
   // model writes a thin conversational reference, not a re-synthesis from
   // raw chunks. The tool artifact (researchMeta) is the single source of
@@ -270,8 +274,12 @@ export async function formatSearchContext(state: ChatGraphState): Promise<string
 
   // Default: budget-based truncation
   // Notebook-scoped searches get more results and higher budget for deeper answers
+  // Includes agents bound to a notebook via `defaultNotebookId` so they get the
+  // same deeper context budget as an explicitly selected notebook.
   const isNotebookScoped =
-    (state.notebookCollectionIds?.length ?? 0) > 0 || (state.notebookDocumentIds?.length ?? 0) > 0;
+    (state.notebookCollectionIds?.length ?? 0) > 0 ||
+    (state.defaultNotebookCollectionIds?.length ?? 0) > 0 ||
+    (state.notebookDocumentIds?.length ?? 0) > 0;
   const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
   // Group chunks → sources so each `[N]` is one source. Dedup means a wolke
   // file with 5 chunks renders as a single `[1]` block (multiple excerpts
@@ -307,7 +315,12 @@ export async function formatSearchContext(state: ChatGraphState): Promise<string
         Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
       const body = formatSourceChunks(s, charBudget);
-      return `[${i + 1}] **${s.title}**\n${body}`.trim();
+      // When the agent writes inline links (e.g. ready-to-send emails), expose
+      // the source URL to the model so it can cite the concrete article instead
+      // of falling back to a hardcoded homepage. Normal chat omits it and uses
+      // the clickable [N] cards instead.
+      const urlPart = includeSourceUrls && s.url ? `\nQuelle-URL: ${s.url}` : '';
+      return `[${i + 1}] **${s.title}**${urlPart}\n${body}`.trim();
     })
     .join('\n\n');
 
@@ -749,7 +762,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     boardContext,
     documentMentionContext,
   } = state;
-  const searchContext = await formatSearchContext(state);
+  const searchContext = await formatSearchContext(state, !!agentConfig.inlineSourceLinks);
   const perSourceContext = formatPerSourceContext(state);
   const currentDocumentContext = formatCurrentDocument(state);
   const attachmentContext = formatAttachmentContext(state);
@@ -822,7 +835,15 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
       ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`
       : '';
 
-  return `${systemRole}${skillFragment}
+  // Monthly corpus-insight overlay for the Öffentlichkeitsarbeit (PR) agents:
+  // an additive, subordinate block (current themes / active speakers / style /
+  // fresh real examples) auto-refreshed from the agent's own corpus. No-op for
+  // non-PR agents, for `summary` (neutral role), or when the kill-switch is set.
+  // See services/agents/prAgentInsightService.ts.
+  const insightsFragment =
+    intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
+
+  return `${systemRole}${skillFragment}${insightsFragment}
 Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN

@@ -6,7 +6,7 @@ import {
   DropdownMenuSubTrigger,
 } from '@gruenerator/ui';
 import React, { useState } from 'react';
-import { FaChevronDown, FaChevronUp, FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
+import { FaArchive, FaChevronDown, FaChevronUp, FaCloud, FaUsers } from 'react-icons/fa';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import type { IconType } from 'react-icons';
@@ -40,7 +40,7 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
     icon: FaUsers,
     hasSubmenu: true,
   },
-  { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'inhalte', label: 'Archiv', path: '/profile/inhalte', icon: FaArchive },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
 ];
 
