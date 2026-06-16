@@ -21,20 +21,10 @@ import { BUNDESLAENDER } from '../bundeslaender';
 import { useWhatHappened, useWhatHappenedSummary } from '../hooks/useMonitor';
 
 import type { MonitorLocale } from '../hooks/useMonitor';
-import type { SyncArticleEventType, SyncArticleSourceGroup } from '@gruenerator/contracts';
 
 interface WhatHappenedViewProps {
   locale: MonitorLocale;
 }
-
-const SOURCE_GROUP_LABELS: Record<SyncArticleSourceGroup, string> = {
-  landesverbaende: 'Landesverbände',
-  gruenblog: 'Grünblog',
-  'gruene-at': 'Grüne Österreich',
-  kommunalwiki: 'KommunalWiki',
-  'boell-stiftung': 'Böll-Stiftung',
-  bundestag: 'Bundestagsfraktion',
-};
 
 // Scraper LV codes are mostly Bundesland shorts; LSA is the odd one out.
 const LV_NAMES: Record<string, string> = {
@@ -110,7 +100,6 @@ function DaySummary({ date, locale }: { date: string; locale: MonitorLocale }) {
 }
 
 const VALID_DAYS = [7, 14, 30];
-const VALID_EVENT_TYPES = ['stored', 'updated'];
 
 export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
   const { get: getMonitorDefault, set: setMonitorDefault } = useUserDefaults<boolean>('monitor');
@@ -120,11 +109,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const daysParam = Number(searchParams.get('days'));
   const days = VALID_DAYS.includes(daysParam) ? daysParam : 7;
-  const sourceGroup = searchParams.get('sourceGroup') ?? ALL;
   const landesverband = searchParams.get('landesverband') ?? ALL;
-  const eventTypeParam = searchParams.get('eventType');
-  const eventType =
-    eventTypeParam !== null && VALID_EVENT_TYPES.includes(eventTypeParam) ? eventTypeParam : ALL;
 
   // Functional form so the monitor ?locale= param is never clobbered;
   // defaults are deleted to keep URLs clean.
@@ -145,9 +130,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
   const filters = expertMode
     ? {
         days,
-        ...(sourceGroup !== ALL && { sourceGroup: sourceGroup as SyncArticleSourceGroup }),
         ...(landesverband !== ALL && { landesverband }),
-        ...(eventType !== ALL && { eventType: eventType as SyncArticleEventType }),
       }
     : { days: 7 };
 
@@ -171,22 +154,6 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
                 <SelectItem value="30">30 Tage</SelectItem>
               </SelectContent>
             </Select>
-            <Select
-              value={sourceGroup}
-              onValueChange={(v) => setFilter('sourceGroup', v === ALL ? null : v)}
-            >
-              <SelectTrigger className="w-[13rem]">
-                <SelectValue placeholder="Quelle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Alle Quellen</SelectItem>
-                {(data?.sourceGroups ?? []).map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {SOURCE_GROUP_LABELS[g] ?? g}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             {(data?.landesverbaende.length ?? 0) > 0 && (
               <Select
                 value={landesverband}
@@ -205,19 +172,6 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
                 </SelectContent>
               </Select>
             )}
-            <Select
-              value={eventType}
-              onValueChange={(v) => setFilter('eventType', v === ALL ? null : v)}
-            >
-              <SelectTrigger className="w-[10rem]">
-                <SelectValue placeholder="Typ" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Neu + aktualisiert</SelectItem>
-                <SelectItem value="stored">Nur neu</SelectItem>
-                <SelectItem value="updated">Nur aktualisiert</SelectItem>
-              </SelectContent>
-            </Select>
           </>
         )}
         <label className="ml-auto flex items-center gap-sm text-xs text-grey-400 cursor-pointer shrink-0">
@@ -251,7 +205,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
           <CardContent className="flex flex-col items-center gap-sm py-2xl text-grey-400">
             <Inbox className="h-8 w-8" />
             <p className="text-sm m-0">
-              Im gewählten Zeitraum wurden keine neuen Inhalte aufgenommen.
+              Im gewählten Zeitraum haben die Landesverbände nichts veröffentlicht.
             </p>
           </CardContent>
         </Card>
@@ -262,8 +216,7 @@ export function WhatHappenedView({ locale }: WhatHappenedViewProps) {
           <div className="flex items-baseline justify-between gap-sm mb-md">
             <h2 className="text-lg font-semibold text-foreground m-0">{formatDay(day.date)}</h2>
             <span className="text-xs text-grey-400 shrink-0">
-              {day.counts.stored} neu
-              {day.counts.updated > 0 && `, ${day.counts.updated} aktualisiert`}
+              {day.counts.stored} {day.counts.stored === 1 ? 'Beitrag' : 'Beiträge'}
             </span>
           </div>
 
