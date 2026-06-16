@@ -32,6 +32,7 @@ import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
+import { useBoardCommentSignal } from './hooks/useBoardCommentSignal';
 import { useBoardDetail } from './hooks/useBoardDetail';
 import { useBoardState } from './hooks/useBoardState';
 import { useDuplicateBoard } from './hooks/useDuplicateBoard';
@@ -127,6 +128,8 @@ function BoardContent() {
   }, [duplicateBoard, navigate]);
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
+  // Live comments: refetch a card's thread when the backend signals a change.
+  useBoardCommentSignal(ydoc, id);
 
   if (isLoading) {
     return (
