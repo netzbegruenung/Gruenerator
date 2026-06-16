@@ -1,6 +1,6 @@
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { Fab } from '@gruenerator/ui';
+import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -559,7 +559,9 @@ function BoardPage() {
   return (
     <DocsProvider adapter={webAppDocsAdapter}>
       <ErrorBoundary>
-        <BoardContent />
+        <ConfirmDialogProvider>
+          <BoardContent />
+        </ConfirmDialogProvider>
       </ErrorBoundary>
     </DocsProvider>
   );
