@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 
 import { requireAdminToken } from '../../middleware/adminTokenMiddleware.js';
 import {
+  exportPrAgentInsightsForMonth,
   refreshAllPrAgentInsights,
   refreshPrAgentInsight,
 } from '../../services/agents/prAgentInsightService.js';
@@ -48,6 +49,30 @@ router.post(
       res.json({ success: true, count: results.length, results });
     } catch (error) {
       log.error(`PR-agent insight refresh failed: ${toError(error).message}`);
+      res.status(500).json({ error: toError(error).message });
+    }
+  }
+);
+
+/**
+ * Export the month's PR-agent snapshots as committable markdown audit files.
+ * The monthly workflow writes these into the repo and opens an `automated` PR —
+ * a version-controlled trail alongside the live (DB-driven) overlay.
+ *
+ * GET /api/internal/agents/pr-insights-export?month=YYYY-MM
+ *   → { success: true, month, files: [{ path, content }] }
+ */
+router.get(
+  '/pr-insights-export',
+  requireAdminToken,
+  async (req: Request, res: Response): Promise<void> => {
+    const monthParam = req.query.month;
+    const month = typeof monthParam === 'string' && monthParam ? monthParam : undefined;
+    try {
+      const files = await exportPrAgentInsightsForMonth(month);
+      res.json({ success: true, month: month ?? null, count: files.length, files });
+    } catch (error) {
+      log.error(`PR-agent insight export failed: ${toError(error).message}`);
       res.status(500).json({ error: toError(error).message });
     }
   }
