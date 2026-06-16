@@ -1,4 +1,4 @@
-import { ScrollArea, Tabs, TabsContent, TabsList, TabsTrigger, useIsMobile } from '@gruenerator/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger, useIsMobile } from '@gruenerator/ui';
 import { memo, useEffect } from 'react';
 import { FiAlertTriangle, FiColumns, FiList, FiSettings, FiShare2, FiX } from 'react-icons/fi';
 
@@ -129,8 +129,8 @@ export const BoardSettingsOverlay = memo(function BoardSettingsOverlay({
         </TabsList>
 
         {NAV.map(({ value }) => (
-          <TabsContent key={value} value={value} className="min-h-0 flex-1">
-            <ScrollArea className="h-full">
+          <TabsContent key={value} value={value} className="min-h-0 min-w-0 flex-1">
+            <div className="h-full overflow-y-auto">
               <div className="px-md py-lg sm:px-xl">
                 {value === 'general' && (
                   <GeneralSection
@@ -161,7 +161,7 @@ export const BoardSettingsOverlay = memo(function BoardSettingsOverlay({
                   />
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
         ))}
       </Tabs>
