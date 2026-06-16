@@ -42,7 +42,7 @@ interface MonitorShellProps {
 }
 
 /**
- * Shared page chrome for all /monitor routes: title, locale switcher and the
+ * Shared page chrome for all /experiments/monitor routes: title, locale switcher and the
  * refresh controls. Navigation into the sub-pages happens via the section
  * headers on the Übersicht (Workplace pattern); sub-pages get a back link.
  * Routes are flat (no router nesting in this app), so every monitor page
@@ -97,7 +97,7 @@ export function MonitorShell({ section, children }: MonitorShellProps) {
 
           {section !== 'uebersicht' && (
             <Link
-              to={withLocale('/monitor')}
+              to={withLocale('/experiments/monitor')}
               className="inline-flex items-center gap-1 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
             >
               <ArrowLeft className="h-3.5 w-3.5" />

@@ -3,7 +3,7 @@ import { MonitorShell } from '../components/MonitorShell';
 import { WatcherView } from '../components/WatcherView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-/** /monitor/watcher — Berichterstattung über die Grünen im Blick. */
+/** /experiments/monitor/watcher — Berichterstattung über die Grünen im Blick. */
 function MonitorWatcherPage() {
   const { locale } = useMonitorLocaleParam();
 

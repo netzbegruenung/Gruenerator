@@ -10,7 +10,7 @@ import {
   WhatHappenedSection,
 } from '../sections';
 
-/** /monitor — the feed home; one headed section per former tab. */
+/** /experiments/monitor — the feed home; one headed section per former tab. */
 function MonitorUebersichtPage() {
   return (
     <MonitorShell section="uebersicht">
