@@ -3,7 +3,7 @@ import { MonitorShell } from '../components/MonitorShell';
 import { UmfragenView } from '../components/UmfragenView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-/** /monitor/umfragen — Sonntagsfrage, Ländertrends, Meinungsbild. */
+/** /experiments/monitor/umfragen — Sonntagsfrage, Ländertrends, Meinungsbild. */
 function MonitorUmfragenPage() {
   const { locale } = useMonitorLocaleParam();
 

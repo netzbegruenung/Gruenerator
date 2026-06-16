@@ -15,7 +15,7 @@ function formatDay(date: string): string {
   });
 }
 
-/** Latest day of content-sync Tagesbeiträge, linking into /monitor/feed. */
+/** Latest day of content-sync Tagesbeiträge, linking into /experiments/monitor/feed. */
 export function WhatHappenedSection() {
   const navigate = useNavigate();
   const { locale, withLocale } = useMonitorLocaleParam();
@@ -29,12 +29,12 @@ export function WhatHappenedSection() {
     <section className="mb-2xl">
       <SectionHeader
         title="Was ist passiert"
-        onTitleClick={() => navigate(withLocale('/monitor/feed'))}
+        onTitleClick={() => navigate(withLocale('/experiments/monitor/feed'))}
         actions={
           <span className="inline-flex items-center gap-sm">
             {day && <span className="text-xs text-grey-400">{formatDay(day.date)}</span>}
             <Link
-              to={withLocale('/monitor/feed')}
+              to={withLocale('/experiments/monitor/feed')}
               className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
             >
               Alle anzeigen
