@@ -139,7 +139,7 @@ function ChatPage() {
     } else {
       notebookAppliedForRef.current = null;
       if (store.selectedAgentId !== null) {
-        store.setSelectedAgent(null);
+        store.resetChatContext();
       }
     }
     if (

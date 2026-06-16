@@ -4,7 +4,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 
-import { getResearchCollectionIds } from '../../config/notebooksConfig';
+import { getNotebookConfigByNotebookId, getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookChatRuntime } from '../../hooks/notebook/useNotebookChatRuntime';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import { colors, spacing, borderRadius } from '../../theme';
@@ -64,6 +64,18 @@ function FilterChip({
 
 export function NotebookChatPanel({ notebookId, kind, theme }: Props) {
   const collectionIds = useMemo(() => getResearchCollectionIds(notebookId), [notebookId]);
+  // Surface the notebook's own example questions on the chat empty state (mirrors
+  // web's startpage chips). Notebooks without a chat config (most Landesverbände)
+  // fall back to generic welcome copy with no suggestions.
+  const welcome = useMemo(() => {
+    const config = getNotebookConfigByNotebookId(notebookId);
+    return {
+      title: config?.title ?? 'Frag dieses Notebook',
+      subtitle:
+        config?.placeholder ?? 'Stelle eine Frage zu den Dokumenten dieses Notebooks.',
+      suggestions: config?.exampleQuestions.map((q) => q.text) ?? [],
+    };
+  }, [notebookId]);
   const { filterFields } = useNotebookFilters(notebookId, kind);
   const keywordFields = filterFields.filter(
     (f) => f.type === 'keyword' && f.values && f.values.length > 0
@@ -152,14 +164,7 @@ export function NotebookChatPanel({ notebookId, kind, theme }: Props) {
           )}
         </ScrollView>
 
-        <AssistantThread
-          theme={theme}
-          welcome={{
-            title: 'Frag dieses Notebook',
-            subtitle: 'Stelle eine Frage zu den Dokumenten dieses Notebooks.',
-            suggestions: [],
-          }}
-        />
+        <AssistantThread theme={theme} welcome={welcome} />
       </View>
 
       {showFilterChip && (

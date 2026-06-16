@@ -97,13 +97,9 @@ export function ChatOverview({
       useAgentStore.getState().setChatViewMode('thread');
       return;
     }
-    // New chat = blank slate: drop any agent carried over from a previous
-    // Agentura session (selectedAgentId is persisted in localStorage). Clearing
-    // it lets AgentSwitchListener run its full reset; we still call
-    // switchToNewThread here for the no-agent case.
-    if (useAgentStore.getState().selectedAgentId !== null) {
-      useAgentStore.getState().setSelectedAgent(null);
-    }
+    // New chat = blank slate: clear any agent/skill context carried over from a
+    // previous session via the canonical reset, then start a fresh thread.
+    useAgentStore.getState().resetChatContext();
     void assistantRuntime.threads.switchToNewThread();
   }, [assistantRuntime]);
 

@@ -35,7 +35,7 @@ const FirstRunWizard = lazy(() =>
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { Toaster, toast } from '@gruenerator/ui';
+import { Toaster, toast, TooltipProvider } from '@gruenerator/ui';
 
 import { toastApiError } from './components/utils/toastError';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
@@ -170,8 +170,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <UserProfileHydrationBridge />
         <Toaster richColors position="top-right" />
-        <Router>
-          <AuthBootstrap />
+        <TooltipProvider>
+          <Router>
+            <AuthBootstrap />
           <ScrollToTop />
           <RouteLogger />
           <SuspenseWrapper>
@@ -222,7 +223,8 @@ function App() {
               })}
             </Routes>
           </SuspenseWrapper>
-        </Router>
+          </Router>
+        </TooltipProvider>
         {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ErrorBoundary>
