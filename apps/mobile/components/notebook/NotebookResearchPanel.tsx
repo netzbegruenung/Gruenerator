@@ -23,6 +23,7 @@ import { colors, spacing, typography, borderRadius } from '../../theme';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomSheet } from '../common/BottomSheet';
 
+import { NotebookOverview } from './NotebookOverview';
 import { ResearchResultCard } from './ResearchResultCard';
 
 import type { Theme } from '../../theme/colors';
@@ -283,14 +284,18 @@ export function NotebookResearchPanel({ notebookId, kind, theme }: Props) {
             />
           ))}
 
-        {!hasSearched && !isLoading && (
-          <View style={styles.centerState}>
-            <Ionicons name="search-outline" size={44} color={theme.textSecondary} />
-            <Text style={[styles.stateText, { color: theme.textSecondary }]}>
-              Durchsuche die Dokumente dieses Notebooks.
-            </Text>
-          </View>
-        )}
+        {!hasSearched &&
+          !isLoading &&
+          (kind === 'system' ? (
+            <NotebookOverview notebookId={notebookId} kind={kind} theme={theme} />
+          ) : (
+            <View style={styles.centerState}>
+              <Ionicons name="search-outline" size={44} color={theme.textSecondary} />
+              <Text style={[styles.stateText, { color: theme.textSecondary }]}>
+                Durchsuche die Dokumente dieses Notebooks.
+              </Text>
+            </View>
+          ))}
 
         {hasSearched && !isLoading && results.length === 0 && !error && (
           <View style={styles.centerState}>
