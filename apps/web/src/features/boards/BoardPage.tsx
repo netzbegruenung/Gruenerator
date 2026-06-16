@@ -1,6 +1,6 @@
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { Fab } from '@gruenerator/ui';
+import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -14,13 +14,13 @@ import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
+import { BoardActivitySheet } from './components/board-overview/BoardActivitySheet';
+import { BoardQuickBar } from './components/board-overview/BoardQuickBar';
+import { BoardSettingsSheet } from './components/board-overview/BoardSettingsSheet';
 import { BoardCalendarView } from './components/BoardCalendarView';
 import { BoardGanttView } from './components/BoardGanttView';
 import { BoardInlineHeader } from './components/BoardInlineHeader';
 import { BoardListView } from './components/BoardListView';
-import { BoardActivitySheet } from './components/board-overview/BoardActivitySheet';
-import { BoardQuickBar } from './components/board-overview/BoardQuickBar';
-import { BoardSettingsSheet } from './components/board-overview/BoardSettingsSheet';
 import { BoardTableView } from './components/BoardTableView';
 import { CardDetailPanel } from './components/CardDetailPanel';
 import { PlannerKanban } from './components/PlannerKanban';
@@ -34,9 +34,8 @@ import { useDuplicateBoard } from './hooks/useDuplicateBoard';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
 
-import type { QuickFilter } from './hooks/useViewData';
-
 import type { BoardInitialStructure } from './hooks/useBoardState';
+import type { QuickFilter } from './hooks/useViewData';
 import type { Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
@@ -505,7 +504,9 @@ function BoardPage() {
   return (
     <DocsProvider adapter={webAppDocsAdapter}>
       <ErrorBoundary>
-        <BoardContent />
+        <ConfirmDialogProvider>
+          <BoardContent />
+        </ConfirmDialogProvider>
       </ErrorBoundary>
     </DocsProvider>
   );

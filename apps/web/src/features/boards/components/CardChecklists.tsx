@@ -1,3 +1,4 @@
+import { useConfirm } from '@gruenerator/ui';
 import { memo, useCallback, useState } from 'react';
 import { FiCheckSquare, FiPlus, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi';
 
@@ -37,6 +38,7 @@ export const CardChecklists = memo(function CardChecklists({
   boardId,
   onChange,
 }: CardChecklistsProps) {
+  const confirm = useConfirm();
   const [newItemText, setNewItemText] = useState<Record<string, string>>({});
   const [newGroupTitle, setNewGroupTitle] = useState('');
 
@@ -156,7 +158,13 @@ export const CardChecklists = memo(function CardChecklists({
                   {done}/{total}
                 </span>
                 <button
-                  onClick={() => deleteGroup(group.id)}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Checkliste löschen?',
+                      description: `„${group.title}" und alle Einträge darin werden gelöscht.`,
+                    });
+                    if (ok) deleteGroup(group.id);
+                  }}
                   className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-2 sm:p-1"
                   title="Checkliste löschen"
                 >
