@@ -167,18 +167,47 @@ const TemplatePreviewModal = ({
   const dimensions = template.content_data?.dimensions || template.metadata?.dimensions;
   const tags = Array.isArray(template.tags) ? template.tags : [];
 
+  const actionBar =
+    onToggleLike || onToggleFavorite ? (
+      <div className="flex shrink-0 items-center justify-center gap-sm border-t border-grey-200 bg-background px-md py-sm dark:border-grey-700">
+        {onToggleLike && (
+          <LikeButton
+            size="lg"
+            showLabel
+            liked={liked}
+            count={likeCount}
+            onToggle={onToggleLike}
+            loading={likeToggling}
+            disabled={!canLike}
+            disabledReason={!canLike ? 'Melde dich an, um zu liken' : undefined}
+          />
+        )}
+        {onToggleFavorite && (
+          <FavoriteButton
+            size="lg"
+            showLabel
+            favorited={favorited}
+            onToggle={onToggleFavorite}
+            loading={favoriteToggling}
+            disabled={!canFavorite}
+            disabledReason={!canFavorite ? 'Melde dich an, um zu merken' : undefined}
+          />
+        )}
+      </div>
+    ) : null;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[900px] max-h-[80vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="flex w-full flex-col sm:max-w-[900px] max-h-[90vh] sm:max-h-[85vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-lg py-md border-b border-grey-200 dark:border-grey-700">
-          <DialogTitle className="truncate pr-md">{template.title || 'Vorlage'}</DialogTitle>
+          <DialogTitle className="truncate pr-lg">{template.title || 'Vorlage'}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden min-h-0 flex">
-          <div className="flex flex-col max-md:flex-col md:flex-row flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
+          <div className="flex flex-shrink-0 flex-col bg-background-alt min-h-0">
             {currentImage?.url ? (
-              <div className="flex-shrink-0 bg-background-alt flex flex-col min-h-0">
-                <div className="relative flex items-center justify-center p-md">
+              <>
+                <div className="relative flex flex-1 items-center justify-center p-md min-h-0">
                   {hasMultipleImages && (
                     <button
                       className="absolute left-sm top-1/2 -translate-y-1/2 bg-background border-none rounded-full w-9 h-9 flex items-center justify-center cursor-pointer shadow-md text-foreground z-10"
@@ -194,7 +223,7 @@ const TemplatePreviewModal = ({
                   <img
                     src={currentImage.url}
                     alt={currentImage.title || template.title || 'Vorschau'}
-                    className="max-w-full max-h-[calc(80vh-140px)] max-md:max-h-[35vh] w-auto h-auto object-contain rounded-sm"
+                    className="max-w-full max-h-[calc(85vh-260px)] max-md:max-h-[38vh] w-auto h-auto object-contain rounded-sm"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
@@ -230,100 +259,81 @@ const TemplatePreviewModal = ({
                     ))}
                   </div>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="shrink-0 flex items-center justify-center bg-background-alt text-grey-500 text-sm min-h-[200px] min-w-[300px] max-md:min-h-[150px] max-md:min-w-0">
+              <div className="flex flex-1 items-center justify-center text-grey-500 text-sm min-h-[200px] md:min-w-[320px] max-md:min-h-[150px]">
                 <span>Keine Vorschau verfügbar</span>
               </div>
             )}
 
-            <div className="flex-1 p-lg max-md:p-md flex flex-col overflow-y-auto min-h-0">
-              {template.description && (
-                <p className="m-0 mb-md text-foreground leading-relaxed text-sm">
-                  {template.description}
-                </p>
-              )}
+            {/* Prominent like/merken action bar — sits directly under the preview. */}
+            {actionBar}
+          </div>
 
-              {template.metadata?.author_name && (
-                <p className="m-0 mb-md text-sm text-grey-500">
-                  <strong className="text-foreground font-medium">Autor*in:</strong>{' '}
-                  {template.metadata.author_name}
-                  {template.metadata?.contact_email && (
-                    <>
-                      {' · '}
-                      <a
-                        href={`mailto:${template.metadata.contact_email}`}
-                        className="text-primary-600 no-underline hover:underline"
-                      >
-                        {template.metadata.contact_email}
-                      </a>
-                    </>
-                  )}
-                </p>
-              )}
+          <div className="flex-1 p-lg max-md:p-md flex flex-col overflow-y-auto min-h-0">
+            {template.description && (
+              <p className="m-0 mb-md text-foreground leading-relaxed text-sm">
+                {template.description}
+              </p>
+            )}
 
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-sm mb-md">
-                  {tags.map((tag: string) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className={cn(
-                        onTagClick &&
-                          'cursor-pointer transition-colors duration-200 hover:bg-primary-500 hover:text-white'
-                      )}
-                      onClick={onTagClick ? () => handleTagClick(tag) : undefined}
-                      role={onTagClick ? 'button' : undefined}
-                      tabIndex={onTagClick ? 0 : undefined}
+            {template.metadata?.author_name && (
+              <p className="m-0 mb-md text-sm text-grey-500">
+                <strong className="text-foreground font-medium">Autor*in:</strong>{' '}
+                {template.metadata.author_name}
+                {template.metadata?.contact_email && (
+                  <>
+                    {' · '}
+                    <a
+                      href={`mailto:${template.metadata.contact_email}`}
+                      className="text-primary-600 no-underline hover:underline"
                     >
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
+                      {template.metadata.contact_email}
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
 
-              <div className="flex flex-wrap gap-sm items-center text-grey-600 dark:text-grey-400 text-xs mt-auto">
-                {templateType && (
-                  <Badge variant="outline" className="gap-1.5">
-                    {isCanva && <SiCanva className="w-3.5 h-3.5" />}
-                    {templateType}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-sm mb-md">
+                {tags.map((tag: string) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className={cn(
+                      onTagClick &&
+                        'cursor-pointer transition-colors duration-200 hover:bg-primary-500 hover:text-white'
+                    )}
+                    onClick={onTagClick ? () => handleTagClick(tag) : undefined}
+                    role={onTagClick ? 'button' : undefined}
+                    tabIndex={onTagClick ? 0 : undefined}
+                  >
+                    #{tag}
                   </Badge>
-                )}
-                {dimensions && (
-                  <span className="font-mono text-xs">
-                    {dimensions.width} × {dimensions.height}
-                  </span>
-                )}
-                {template.created_at && <span>{formatDate(template.created_at)}</span>}
+                ))}
               </div>
+            )}
+
+            <div className="flex flex-wrap gap-sm items-center text-grey-600 dark:text-grey-400 text-xs mt-auto">
+              {templateType && (
+                <Badge variant="outline" className="gap-1.5">
+                  {isCanva && <SiCanva className="w-3.5 h-3.5" />}
+                  {templateType}
+                </Badge>
+              )}
+              {dimensions && (
+                <span className="font-mono text-xs">
+                  {dimensions.width} × {dimensions.height}
+                </span>
+              )}
+              {template.created_at && <span>{formatDate(template.created_at)}</span>}
             </div>
           </div>
         </div>
 
-        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-between items-center gap-md">
-          <div className="flex items-center gap-sm">
-            {onToggleLike && (
-              <LikeButton
-                liked={liked}
-                count={likeCount}
-                onToggle={onToggleLike}
-                loading={likeToggling}
-                disabled={!canLike}
-                disabledReason={!canLike ? 'Melde dich an, um zu liken' : undefined}
-              />
-            )}
-            {onToggleFavorite && (
-              <FavoriteButton
-                favorited={favorited}
-                onToggle={onToggleFavorite}
-                loading={favoriteToggling}
-                disabled={!canFavorite}
-                disabledReason={!canFavorite ? 'Melde dich an, um zu merken' : undefined}
-                showLabel
-              />
-            )}
-          </div>
-          <Button onClick={handleOpenExternal}>
+        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
+          <Button onClick={handleOpenExternal} className="max-sm:w-full">
             {isCanva ? (
               <>
                 <SiCanva />
