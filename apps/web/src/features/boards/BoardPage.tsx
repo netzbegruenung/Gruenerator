@@ -14,13 +14,17 @@ import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
+import { BoardActivitySheet } from './components/board-overview/BoardActivitySheet';
+import { BoardQuickBar } from './components/board-overview/BoardQuickBar';
+import { BoardSettingsSheet } from './components/board-overview/BoardSettingsSheet';
+import {
+  BoardSettingsOverlay,
+  type BoardSettingsSection,
+} from './components/board-overview/settings/BoardSettingsOverlay';
 import { BoardCalendarView } from './components/BoardCalendarView';
 import { BoardGanttView } from './components/BoardGanttView';
 import { BoardInlineHeader } from './components/BoardInlineHeader';
 import { BoardListView } from './components/BoardListView';
-import { BoardActivitySheet } from './components/board-overview/BoardActivitySheet';
-import { BoardQuickBar } from './components/board-overview/BoardQuickBar';
-import { BoardSettingsSheet } from './components/board-overview/BoardSettingsSheet';
 import { BoardTableView } from './components/BoardTableView';
 import { CardDetailPanel } from './components/CardDetailPanel';
 import { PlannerKanban } from './components/PlannerKanban';
@@ -34,9 +38,8 @@ import { useDuplicateBoard } from './hooks/useDuplicateBoard';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
 
-import type { QuickFilter } from './hooks/useViewData';
-
 import type { BoardInitialStructure } from './hooks/useBoardState';
+import type { QuickFilter } from './hooks/useViewData';
 import type { Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
@@ -78,6 +81,14 @@ function BoardContent() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [fullSettings, setFullSettings] = useState<{
+    open: boolean;
+    section: BoardSettingsSection;
+  }>({ open: false, section: 'general' });
+  const openFullSettings = useCallback(
+    (section: BoardSettingsSection = 'general') => setFullSettings({ open: true, section }),
+    []
+  );
 
   const handleDelete = useCallback(() => {
     if (!id) return;
@@ -163,6 +174,7 @@ function BoardContent() {
         onOpenSettings={isWhiteboard ? undefined : () => setSettingsOpen(true)}
         onOpenActivity={isWhiteboard ? undefined : () => setActivityOpen(true)}
         onDuplicate={isWhiteboard ? undefined : handleDuplicate}
+        onOpenFullSettings={isWhiteboard ? undefined : openFullSettings}
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
@@ -193,6 +205,13 @@ function BoardContent() {
           activityOpen={activityOpen}
           onActivityOpenChange={setActivityOpen}
           onSaveDescription={handleSaveDescription}
+          isArchived={isBoardArchived(board)}
+          fullSettings={fullSettings}
+          onFullSettingsChange={setFullSettings}
+          onRename={handleRename}
+          onArchiveToggle={handleArchiveToggle}
+          onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
         />
       )}
     </div>
@@ -216,6 +235,13 @@ function BoardViewContent({
   activityOpen,
   onActivityOpenChange,
   onSaveDescription,
+  isArchived,
+  fullSettings,
+  onFullSettingsChange,
+  onRename,
+  onArchiveToggle,
+  onDelete,
+  onDuplicate,
 }: {
   ydoc: Doc;
   isSynced: boolean;
@@ -233,6 +259,13 @@ function BoardViewContent({
   activityOpen: boolean;
   onActivityOpenChange: (open: boolean) => void;
   onSaveDescription: (value: string) => void;
+  isArchived: boolean;
+  fullSettings: { open: boolean; section: BoardSettingsSection };
+  onFullSettingsChange: (next: { open: boolean; section: BoardSettingsSection }) => void;
+  onRename: (title: string) => void;
+  onArchiveToggle: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const boardState = useBoardState(ydoc, isSynced, generatedStructure);
   const [activeViewId, setActiveViewId] = useState('view-kanban-default');
@@ -344,9 +377,30 @@ function BoardViewContent({
         onSaveDescription={onSaveDescription}
         fields={boardState.fields}
         rows={filteredRows}
+        onOpenFullSettings={() => onFullSettingsChange({ open: true, section: 'general' })}
+      />
+
+      <BoardSettingsOverlay
+        open={fullSettings.open}
+        onOpenChange={(open) => onFullSettingsChange({ ...fullSettings, open })}
+        section={fullSettings.section}
+        onSectionChange={(section) => onFullSettingsChange({ ...fullSettings, section })}
+        boardId={boardId}
+        boardTitle={boardTitle}
+        description={boardDescription}
+        isArchived={isArchived}
+        fields={boardState.fields}
+        views={boardState.views}
         addField={boardState.addField}
         updateField={boardState.updateField}
         removeField={boardState.removeField}
+        onAddView={handleAddView}
+        onRemoveView={handleDeleteView}
+        onRename={onRename}
+        onSaveDescription={onSaveDescription}
+        onArchiveToggle={onArchiveToggle}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
       />
 
       <BoardActivitySheet
