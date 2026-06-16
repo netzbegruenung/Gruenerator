@@ -1,4 +1,4 @@
-import { Badge, SectionHeader } from '@gruenerator/ui';
+import { SectionHeader } from '@gruenerator/ui';
 import { useState, type ComponentProps } from 'react';
 
 import { useEntityFavorites } from '../../favorites/hooks/useEntityFavorites';
@@ -6,11 +6,23 @@ import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
 
 import type { GalleryTemplate } from '@gruenerator/contracts';
 
-import IndexCard from '@/components/common/IndexCard';
+import VorlagenCard from '@/components/common/Gallery/VorlagenCard';
 import TemplatePreviewModal from '@/components/common/TemplatePreviewModal';
 
 const GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-lg max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]';
+  'grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3';
+
+// The gallery card reads a tight subset of fields; map the loosely-typed
+// gallery template onto it (boundary cast for the unknown-typed columns).
+const toCardItem = (t: GalleryTemplate): ComponentProps<typeof VorlagenCard>['item'] => ({
+  id: String(t.id),
+  title: t.title || 'Unbenannte Vorlage',
+  template_type: typeof t.template_type === 'string' ? t.template_type : undefined,
+  tags: Array.isArray(t.tags) ? t.tags : undefined,
+  thumbnail_url: t.thumbnail_url ?? undefined,
+  external_url: t.external_url ?? undefined,
+  content_data: (t.content_data ?? undefined) as Record<string, unknown> | undefined,
+});
 
 /**
  * "Favoriten" section on /vorlagen/meine. Lists the templates the user has
@@ -38,24 +50,9 @@ const FavoriteVorlagenSection = (): React.ReactNode => {
     <section className="mb-xl">
       <SectionHeader title={`Favoriten (${favoriteTemplates.length})`} />
       <div className={GRID_CLASS}>
-        {favoriteTemplates.map((t) => {
-          const templateType =
-            typeof t.template_type === 'string' && t.template_type
-              ? t.template_type.charAt(0).toUpperCase() + t.template_type.slice(1)
-              : 'Vorlage';
-          return (
-            <IndexCard
-              key={String(t.id)}
-              id={String(t.id)}
-              title={t.title || 'Unbenannte Vorlage'}
-              description={t.description || ''}
-              thumbnailUrl={t.thumbnail_url || ''}
-              tags={Array.isArray(t.tags) ? t.tags.slice(0, 5) : []}
-              onClick={() => setPreview(t)}
-              meta={<Badge variant="secondary">{templateType}</Badge>}
-            />
-          );
-        })}
+        {favoriteTemplates.map((t) => (
+          <VorlagenCard key={String(t.id)} item={toCardItem(t)} onOpen={() => setPreview(t)} />
+        ))}
       </div>
 
       {preview && (
