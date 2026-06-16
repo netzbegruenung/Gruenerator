@@ -32,7 +32,7 @@ const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'monitor',
     title: 'Monitor',
-    path: '/monitor',
+    path: '/experiments/monitor',
     icon: getIcon('navigation', 'monitor')!,
     devOnly: true,
   },

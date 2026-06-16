@@ -14,7 +14,7 @@ import { TOPIC_CONFIG } from '../topicConfig';
 
 import type { TopicCategory } from '../topicConfig';
 
-/** /monitor/themen and /monitor/themen/:topic — ranking with drill-in. */
+/** /experiments/monitor/themen and /experiments/monitor/themen/:topic — ranking with drill-in. */
 function MonitorThemenPage() {
   const { topic } = useParams<{ topic?: string }>();
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ function MonitorThemenPage() {
     topic !== undefined && topic in TOPIC_CONFIG ? (topic as TopicCategory) : null;
 
   if (topic !== undefined && topicKey === null) {
-    return <Navigate to={withLocale('/monitor/themen')} replace />;
+    return <Navigate to={withLocale('/experiments/monitor/themen')} replace />;
   }
 
   if (topicKey !== null) {
@@ -34,7 +34,7 @@ function MonitorThemenPage() {
         <TopicDetail
           topic={topicKey}
           locale={locale}
-          onBack={() => navigate(withLocale('/monitor/themen'))}
+          onBack={() => navigate(withLocale('/experiments/monitor/themen'))}
         />
       </MonitorShell>
     );
@@ -50,7 +50,7 @@ function MonitorThemenPage() {
               topics={snapshot.topics}
               totalArticles={snapshot.totalArticles}
               sourcesCount={snapshot.sources.length}
-              onClick={(t) => navigate(withLocale(`/monitor/themen/${t}`))}
+              onClick={(t) => navigate(withLocale(`/experiments/monitor/themen/${t}`))}
             />
             {snapshot.keywords && snapshot.keywords.length > 0 && (
               <div className="mt-xl">

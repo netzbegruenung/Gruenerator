@@ -6,7 +6,7 @@ import { useMonitorSnapshot } from '../hooks/useMonitor';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import { TOPIC_COLORS, TOPIC_CONFIG } from '../topicConfig';
 
-/** Compact ranking of the top five topics, linking into /monitor/themen. */
+/** Compact ranking of the top five topics, linking into /experiments/monitor/themen. */
 export function TopThemenSection() {
   const navigate = useNavigate();
   const { locale, withLocale } = useMonitorLocaleParam();
@@ -20,10 +20,10 @@ export function TopThemenSection() {
     <section className="mb-2xl">
       <SectionHeader
         title="Themen"
-        onTitleClick={() => navigate(withLocale('/monitor/themen'))}
+        onTitleClick={() => navigate(withLocale('/experiments/monitor/themen'))}
         actions={
           <Link
-            to={withLocale('/monitor/themen')}
+            to={withLocale('/experiments/monitor/themen')}
             className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
           >
             Alle Themen
@@ -46,7 +46,7 @@ export function TopThemenSection() {
                 return (
                   <Link
                     key={t.topic}
-                    to={withLocale(`/monitor/themen/${t.topic}`)}
+                    to={withLocale(`/experiments/monitor/themen/${t.topic}`)}
                     className="w-full flex items-center gap-sm px-sm py-1 rounded-md hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors group text-left no-underline"
                   >
                     <Icon className={`h-3.5 w-3.5 shrink-0 ${config.color}`} />

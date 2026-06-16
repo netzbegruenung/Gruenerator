@@ -6,7 +6,7 @@ import { Markdown } from '../../../components/common/Markdown/Markdown';
 import { useEntitySummary } from '../hooks/useMonitor';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-/** Compact watcher teaser: the AI media summary, linking into /monitor/watcher. */
+/** Compact watcher teaser: the AI media summary, linking into /experiments/monitor/watcher. */
 export function WatcherSection() {
   const navigate = useNavigate();
   const { locale, withLocale } = useMonitorLocaleParam();
@@ -20,10 +20,10 @@ export function WatcherSection() {
     <section className="mb-2xl">
       <SectionHeader
         title="Watcher"
-        onTitleClick={() => navigate(withLocale('/monitor/watcher'))}
+        onTitleClick={() => navigate(withLocale('/experiments/monitor/watcher'))}
         actions={
           <Link
-            to={withLocale('/monitor/watcher')}
+            to={withLocale('/experiments/monitor/watcher')}
             className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
           >
             Risiken & Chancen
