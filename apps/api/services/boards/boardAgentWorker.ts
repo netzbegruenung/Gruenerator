@@ -49,6 +49,20 @@ Im Zweifel: eine Frage → "comment"; ein Auftrag, einen Text zu erstellen → "
 // agent can't deliver as a document — answered with a short explanation instead.
 const UNSUPPORTED_INTENTS = new Set<SearchIntent>(['image', 'image_edit', 'sharepic', 'chart']);
 
+// Safety net for the @-mention path: even when the classifier picks "comment",
+// the model can return a long, structured answer. Comments render as plain text
+// (no markdown), so a wall of text / raw markdown belongs in a document instead.
+const COMMENT_MAX_CHARS = 1200;
+
+function looksLongForm(content: string): boolean {
+  if (content.length > COMMENT_MAX_CHARS) return true;
+  // Markdown heading → clearly document-shaped, not a chat reply.
+  if (/^\s{0,3}#{1,3}\s+\S/m.test(content)) return true;
+  // Three or more paragraphs is past "a short comment".
+  if (content.split(/\n\s*\n/).filter((p) => p.trim()).length >= 3) return true;
+  return false;
+}
+
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let initialized = false;
 let draining = false;
@@ -166,8 +180,47 @@ async function processTask(task: AgentTask): Promise<void> {
       throw new Error('Der Agent lieferte kein Ergebnis');
     }
 
-    // Question → answer directly in the comment thread, no document.
-    if (!isDocument) {
+    // Deliver a created text artifact: spin up a document and reply with a link.
+    const deliverAsDocument = async (): Promise<void> => {
+      const title = deriveTitle(task.task_text, content);
+      const doc = await createDocumentWithContent(title, content, 'blank', task.requested_by);
+      const relativeUrl = `/docs/${doc.id}`;
+
+      await completeAgentTask(task.id, doc.id);
+
+      // In-app + push + email (createNotification fans out per the user's prefs).
+      await createNotification({
+        userId: task.requested_by,
+        type: 'agent_task_completed',
+        title: `Dein Dokument ist fertig: ${title}`,
+        body: 'Der Grünerator hat deine Aufgabe erledigt. Öffne das Dokument, um das Ergebnis zu sehen.',
+        actionUrl: relativeUrl,
+        metadata: {
+          boardId: task.board_id,
+          cardId: task.card_id,
+          documentId: doc.id,
+          taskId: task.id,
+        },
+        groupKey: `agent-task-${task.id}`,
+      });
+
+      await finishComment([
+        { type: 'text', text: '✅ Fertig! Ich habe ein Dokument erstellt: ' },
+        { type: 'link', text: title, url: relativeUrl },
+      ]);
+
+      log.info(`Agent task ${task.id} completed → document ${doc.id}`);
+    };
+
+    // Question → answer directly in the comment thread. But if the classifier
+    // said "comment" yet the model produced a long, structured answer, the
+    // plain-text thread would show a wall of raw markdown — promote it to a
+    // document instead.
+    if (!isDocument && looksLongForm(content)) {
+      log.info(`Agent task ${task.id} classified as comment but long-form → promoting to document`);
+    }
+
+    if (!isDocument && !looksLongForm(content)) {
       await completeAgentTask(task.id, null);
       await finishComment([{ type: 'text', text: content }]);
       await createNotification({
@@ -183,34 +236,7 @@ async function processTask(task: AgentTask): Promise<void> {
       return;
     }
 
-    const title = deriveTitle(task.task_text, content);
-    const doc = await createDocumentWithContent(title, content, 'blank', task.requested_by);
-    const relativeUrl = `/docs/${doc.id}`;
-
-    await completeAgentTask(task.id, doc.id);
-
-    // In-app + push + email (createNotification fans out per the user's prefs).
-    await createNotification({
-      userId: task.requested_by,
-      type: 'agent_task_completed',
-      title: `Dein Dokument ist fertig: ${title}`,
-      body: 'Der Grünerator hat deine Aufgabe erledigt. Öffne das Dokument, um das Ergebnis zu sehen.',
-      actionUrl: relativeUrl,
-      metadata: {
-        boardId: task.board_id,
-        cardId: task.card_id,
-        documentId: doc.id,
-        taskId: task.id,
-      },
-      groupKey: `agent-task-${task.id}`,
-    });
-
-    await finishComment([
-      { type: 'text', text: '✅ Fertig! Ich habe ein Dokument erstellt: ' },
-      { type: 'link', text: title, url: relativeUrl },
-    ]);
-
-    log.info(`Agent task ${task.id} completed → document ${doc.id}`);
+    await deliverAsDocument();
   } catch (err) {
     const message = errMsg(err);
     log.error(`Agent task ${task.id} failed: ${message}`);
