@@ -9,6 +9,7 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -834,7 +835,15 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
       ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`
       : '';
 
-  return `${systemRole}${skillFragment}
+  // Monthly corpus-insight overlay for the Öffentlichkeitsarbeit (PR) agents:
+  // an additive, subordinate block (current themes / active speakers / style /
+  // fresh real examples) auto-refreshed from the agent's own corpus. No-op for
+  // non-PR agents, for `summary` (neutral role), or when the kill-switch is set.
+  // See services/agents/prAgentInsightService.ts.
+  const insightsFragment =
+    intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
+
+  return `${systemRole}${skillFragment}${insightsFragment}
 Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
