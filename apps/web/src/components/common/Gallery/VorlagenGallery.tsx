@@ -304,7 +304,7 @@ const VorlagenGallery = memo((): JSX.Element => {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-4 max-md:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] max-md:gap-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3">
         {dataQuery.isLoading && items.length === 0 ? (
           Array.from({ length: 12 }).map((_, i) => (
             <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
