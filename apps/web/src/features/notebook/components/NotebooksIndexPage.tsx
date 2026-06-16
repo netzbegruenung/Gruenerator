@@ -30,6 +30,7 @@ import {
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 
+import NotebookCreateCard from './NotebookCreateCard';
 import NotebookGalleryCard from './NotebookGalleryCard';
 import { NotebookPageContent } from './NotebookPage';
 import { VonDerBasisSection } from './VonDerBasisSection';
@@ -254,9 +255,9 @@ const EigeneNotebooks = memo(
             ))}
           </div>
         ) : qaCollections.length === 0 ? (
-          <p className="text-sm text-grey-500 dark:text-grey-400 mb-sm">
-            Noch keine eigenen Notebooks.
-          </p>
+          <div className={NOTEBOOK_GRID_CLASS}>
+            <NotebookCreateCard onClick={onCreate} />
+          </div>
         ) : (
           <>
             <div className={NOTEBOOK_GRID_CLASS}>
@@ -334,6 +335,7 @@ const EigeneNotebooks = memo(
                   }
                 />
               ))}
+              <NotebookCreateCard onClick={onCreate} />
             </div>
             {shouldCollapse && (
               <button
