@@ -1,4 +1,4 @@
-import { Button, Input } from '@gruenerator/ui';
+import { Button, Input, useConfirm } from '@gruenerator/ui';
 import { memo, useCallback, useState } from 'react';
 import { FiLock, FiPlus, FiTrash2 } from 'react-icons/fi';
 
@@ -134,6 +134,7 @@ const FieldRow = memo(function FieldRow({
   onDelete,
   onOptionsChange,
 }: FieldRowProps) {
+  const confirm = useConfirm();
   const isSelect = field.type === 'singleSelect' || field.type === 'multiSelect';
   const options = (field.typeOptions.options as SelectOption[] | undefined) ?? [];
   const [newOption, setNewOption] = useState('');
@@ -174,7 +175,13 @@ const FieldRow = memo(function FieldRow({
           <FiLock size={12} className="text-grey-300" title="Systemfeld" />
         ) : (
           <button
-            onClick={onDelete}
+            onClick={async () => {
+              const ok = await confirm({
+                title: 'Feld löschen?',
+                description: `Das Feld „${field.name}" und alle zugehörigen Werte auf allen Karten werden gelöscht.`,
+              });
+              if (ok) onDelete();
+            }}
             aria-label={`Feld „${field.name}" löschen`}
             className="cursor-pointer border-none bg-transparent p-0.5 text-grey-400 hover:text-red-600"
           >
@@ -202,7 +209,13 @@ const FieldRow = memo(function FieldRow({
                 className="flex-1 bg-transparent text-sm text-foreground outline-none"
               />
               <button
-                onClick={() => onOptionsChange(options.filter((o) => o.id !== opt.id))}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Option löschen?',
+                    description: `„${opt.name}" wird aus diesem Feld entfernt.`,
+                  });
+                  if (ok) onOptionsChange(options.filter((o) => o.id !== opt.id));
+                }}
                 aria-label="Option löschen"
                 className="cursor-pointer border-none bg-transparent p-0.5 text-grey-400 hover:text-red-600"
               >
