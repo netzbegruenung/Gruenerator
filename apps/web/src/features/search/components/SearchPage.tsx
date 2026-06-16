@@ -13,7 +13,12 @@ import {
   useComposerRuntime,
   useThread,
 } from '@assistant-ui/react';
-import { GrueneratorComposer, GrueneratorThread, useAgentStore } from '@gruenerator/chat';
+import {
+  GrueneratorComposer,
+  GrueneratorThread,
+  useAgentStore,
+  useChatRuntimeReady,
+} from '@gruenerator/chat';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -92,7 +97,7 @@ const COMPOSER_ROOT_CLASS = cn(
   '[&>div>p.text-center]:hidden'
 );
 
-function SearchPage() {
+function SearchPageContent() {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const [isThreadView, setIsThreadView] = useState(false);
@@ -139,6 +144,21 @@ function SearchPage() {
       </p>
     </div>
   );
+}
+
+/**
+ * Gates the runtime-using content until the lazy assistant-ui runtime is
+ * mounted. On a cold direct load of /suche the Suspense fallback renders this
+ * page without the provider; rendering a neutral shell until ready keeps
+ * useAssistantRuntime()/useComposerRuntime() from crashing ("requires an
+ * AuiProvider"). Mirrors the ChatPage guard.
+ */
+function SearchPage() {
+  const runtimeReady = useChatRuntimeReady();
+  if (!runtimeReady) {
+    return <div className="flex h-full flex-col bg-background" />;
+  }
+  return <SearchPageContent />;
 }
 
 export default withAuthRequired(SearchPage, {
