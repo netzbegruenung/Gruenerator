@@ -313,3 +313,14 @@ export const NOTEBOOK_LIST = Object.values(NOTEBOOK_CONFIGS);
 export const getNotebookConfig = (configId: string): NotebookConfig => {
   return NOTEBOOK_CONFIGS[configId] || NOTEBOOK_CONFIGS.gruenerator;
 };
+
+/**
+ * Resolve the per-notebook chat config (placeholder + example questions) from a
+ * canonical notebook id (e.g. `gruenerator-notebook` → the `gruenerator` config).
+ * Returns `null` when no config exists (most Landesverband notebooks), so callers
+ * can fall back to generic copy instead of mislabelling with the gruenerator default.
+ */
+export const getNotebookConfigByNotebookId = (notebookId: string): NotebookConfig | null => {
+  const configId = notebookId.replace(/-notebook$/, '');
+  return NOTEBOOK_CONFIGS[configId] ?? null;
+};
