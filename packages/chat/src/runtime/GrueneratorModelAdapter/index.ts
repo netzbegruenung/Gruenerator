@@ -20,6 +20,7 @@ import type {
 } from './buildRequestBody';
 import type { GrueneratorAdapterConfig, GrueneratorAdapterCallbacks, StreamOutcome } from './types';
 import type { ThreadMode } from '../../stores/chatStore';
+import type { CurrentBoard } from '@gruenerator/contracts';
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -399,6 +400,7 @@ export function createGrueneratorModelAdapter(
       let injectedDocIds: string[] = [];
       let injectedAttachmentContext: string | undefined;
       let injectedCurrentDocument: InjectedCurrentDocument | undefined;
+      let injectedCurrentBoard: CurrentBoard | undefined;
       if (config.threadId) {
         const provider = contextProviders.get(config.threadId);
         if (provider) {
@@ -414,6 +416,10 @@ export function createGrueneratorModelAdapter(
                 selectionText: cd.selectionText ?? null,
               };
             }
+            // Live board context (boards-editor surface). Required for the
+            // classifier to route to edit_current_board and emit
+            // trigger_board_action — without it the assistant only chats.
+            if (ctx.currentBoard) injectedCurrentBoard = ctx.currentBoard;
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
             if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
@@ -469,6 +475,7 @@ export function createGrueneratorModelAdapter(
         mergedDocChatIds,
         hasDocumentChat,
         injectedCurrentDocument,
+        injectedCurrentBoard,
         injectedAttachmentContext,
         seededInitialAssistantMessage,
         currentSharepic: (() => {
