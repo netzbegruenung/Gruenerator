@@ -335,6 +335,37 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Live-comment signal for boards. Board comments live in Postgres (not Yjs),
+  // so we bump a tiny per-card counter in the board doc's `commentSignals` map;
+  // connected clients observe it and refetch that card's comments. A dedicated
+  // top-level key keeps it clear of the board's fields/rows/views state.
+  router.post('/board/:boardId/comment-bump', async (req, res) => {
+    const { boardId } = req.params;
+    const cardId = (req.body as { cardId?: unknown })?.cardId;
+    if (typeof cardId !== 'string' || !cardId) {
+      res.status(400).json({ error: 'cardId (string) is required' });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(boardId);
+      try {
+        await connection.transact((doc) => {
+          const signals = doc.getMap<number>('commentSignals');
+          const prev = signals.get(cardId);
+          signals.set(cardId, (typeof prev === 'number' ? prev : 0) + 1);
+        });
+        res.json({ ok: true });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`comment-bump failed for board ${boardId} card ${cardId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.use('/internal', router);
-  log.info('Internal canvas API registered at /internal/canvas/:documentId/state');
+  log.info('Internal API registered at /internal/canvas/* and /internal/board/*/comment-bump');
 }
