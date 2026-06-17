@@ -102,7 +102,7 @@ export const CardContent = memo(function CardContent({
       tabIndex={0}
       style={{
         borderLeft: activeUser ? `3px solid ${activeUser.user.color}` : undefined,
-        opacity: isBeingDragged ? 0.4 : undefined,
+        opacity: isBeingDragged ? 0.4 : row.archivedAt ? 0.6 : undefined,
       }}
     >
       {row.coverImageUrl ? (
@@ -151,6 +151,15 @@ export const CardContent = memo(function CardContent({
             </span>
           ))}
         </div>
+      )}
+
+      {row.archivedAt && (
+        <Badge
+          variant="outline"
+          className="mb-1 text-[10px] py-0.5 px-1.5 font-normal text-grey-500"
+        >
+          Archiviert
+        </Badge>
       )}
 
       <p className="text-sm text-foreground m-0 leading-snug font-medium">
