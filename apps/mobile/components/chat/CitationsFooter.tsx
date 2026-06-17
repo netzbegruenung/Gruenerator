@@ -13,13 +13,20 @@ interface Props {
   citations: Citation[];
   theme: Theme;
   fetchFullText?: (url: string, collectionId: string) => Promise<string | null>;
+  /**
+   * When provided, taps bubble up to a shared detail sheet (the message owns one,
+   * so inline citation chips and the footer open the same sheet). When omitted,
+   * the footer renders its own sheet (standalone use).
+   */
+  onSelect?: (citation: Citation) => void;
 }
 
-export function CitationsFooter({ citations, theme, fetchFullText }: Props) {
+export function CitationsFooter({ citations, theme, fetchFullText, onSelect }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
 
   const handleClose = useCallback(() => setSelectedCitation(null), []);
+  const handlePress = onSelect ?? setSelectedCitation;
 
   if (!citations || citations.length === 0) return null;
 
@@ -39,14 +46,14 @@ export function CitationsFooter({ citations, theme, fetchFullText }: Props) {
       </Pressable>
 
       {isOpen &&
-        citations.slice(0, 5).map((citation, idx) => (
+        citations.map((citation, idx) => (
           <Pressable
             key={citation.id ?? idx}
             style={({ pressed }) => [
               styles.item,
               { backgroundColor: theme.background, opacity: pressed ? 0.7 : 1 },
             ]}
-            onPress={() => setSelectedCitation(citation)}
+            onPress={() => handlePress(citation)}
           >
             <View style={styles.itemContent}>
               <Text style={[styles.number, { color: theme.textSecondary }]}>
@@ -58,7 +65,7 @@ export function CitationsFooter({ citations, theme, fetchFullText }: Props) {
             </View>
           </Pressable>
         ))}
-      {selectedCitation && (
+      {!onSelect && selectedCitation && (
         <CitationDetailSheet
           citation={selectedCitation}
           theme={theme}

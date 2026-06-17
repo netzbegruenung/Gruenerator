@@ -4,10 +4,13 @@ import {
   toolMentionables,
   type Mentionable,
 } from '@gruenerator/chat';
+import { sortByUsage } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
+import { useItemUsage } from '../../hooks/usage/useItemUsage';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
@@ -24,8 +27,7 @@ interface NewChatSheetProps {
   onSeeAllAgents?: () => void;
 }
 
-const notebooks = notebookMentionables.filter((m) => m.identifier !== 'gruenerator-notebook');
-const agents = agentMentionables;
+const baseNotebooks = notebookMentionables.filter((m) => m.identifier !== 'gruenerator-notebook');
 const tools = toolMentionables;
 
 export function NewChatSheet({
@@ -39,6 +41,23 @@ export function NewChatSheet({
 }: NewChatSheetProps) {
   const theme = useTheme();
   const { data: userAgents = [] } = useUserAgents();
+  const { data: agentUsage = {} } = useItemUsage('agent');
+  const { data: notebookUsage = {} } = useItemUsage('notebook');
+
+  // Favourites-first: float the user's most-recently/most-used entries to the
+  // top of each section; never-used keep their registry order.
+  const sortedUserAgents = useMemo(
+    () => sortByUsage(userAgents, (a) => a.identifier, agentUsage),
+    [userAgents, agentUsage]
+  );
+  const agents = useMemo(
+    () => sortByUsage(agentMentionables, (a) => a.identifier, agentUsage),
+    [agentUsage]
+  );
+  const notebooks = useMemo(
+    () => sortByUsage(baseNotebooks, (nb) => nb.identifier, notebookUsage),
+    [notebookUsage]
+  );
 
   return (
     <BottomSheet visible={visible} onClose={onClose} maxHeight="70%">
@@ -66,12 +85,12 @@ export function NewChatSheet({
       <View style={[styles.separator, { backgroundColor: theme.border }]} />
 
       <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-        {onSelectAgent && userAgents.length > 0 && (
+        {onSelectAgent && sortedUserAgents.length > 0 && (
           <>
             <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
               Meine Agent*innen
             </Text>
-            {userAgents.map((agent) => (
+            {sortedUserAgents.map((agent) => (
               <Pressable
                 key={agent.identifier}
                 style={({ pressed }) => [

@@ -63,7 +63,7 @@ function Card({
         {item.title}
       </Text>
       {item.snippet ? (
-        <Text style={[styles.snippet, { color: theme.textSecondary }]} numberOfLines={3}>
+        <Text style={[styles.snippet, { color: theme.textSecondary }]} numberOfLines={2}>
           {item.snippet}
         </Text>
       ) : null}
@@ -80,7 +80,7 @@ export function LastAddedSection({
   collectionIds,
   theme,
   title = 'Zuletzt hinzugefügt',
-  limit = 4,
+  limit = 3,
   showSourceLabel,
 }: {
   collectionIds: string[];
@@ -126,8 +126,9 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   card: {
-    gap: spacing.xsmall,
-    padding: spacing.medium,
+    gap: spacing.xxsmall,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
     borderRadius: borderRadius.large,
     borderWidth: 1,
   },
