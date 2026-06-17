@@ -16,6 +16,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { getBoardSubscribers } from '../../services/boards/boardSubscriptionService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
+import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
+import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -37,6 +39,63 @@ const BOARD_EVENT_LABEL: Partial<Record<ActivityType, string>> = {
 
 function errMsg(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+interface AssignmentNotificationParams {
+  boardId: string;
+  cardId: string;
+  actorId: string;
+  addedAssigneeIds: string[];
+  cardTitle: string | null;
+}
+
+/**
+ * Notify users who were just assigned to a card (board_card_assigned, tier 1) and
+ * auto-subscribe them so they keep getting comment/attachment updates. Mirrors the
+ * comment-notification pattern in boardCommentsContractRouter.ts.
+ */
+async function fireAssignmentNotifications(params: AssignmentNotificationParams): Promise<void> {
+  const { boardId, cardId, actorId, addedAssigneeIds, cardTitle } = params;
+
+  // Skip self-assignment and the bot; dedupe.
+  const recipients = [...new Set(addedAssigneeIds)].filter(
+    (id) => id && id !== actorId && id !== GRUENERATOR_BOT_USER_ID
+  );
+  if (recipients.length === 0) return;
+
+  const [actorRows, boardRows, knownRows] = await Promise.all([
+    db.query<{ display_name: string }>(`SELECT display_name FROM profiles WHERE id = $1`, [
+      actorId,
+    ]),
+    db.query<{ title: string | null }>(`SELECT title FROM collaborative_documents WHERE id = $1`, [
+      boardId,
+    ]),
+    // Guard against bogus IDs: only notify users that actually exist.
+    db.query<{ id: string }>(`SELECT id FROM profiles WHERE id = ANY($1::uuid[])`, [recipients]),
+  ]);
+
+  const actorName = actorRows[0]?.display_name ?? 'Jemand';
+  const boardTitle = boardRows[0]?.title ?? 'ein Board';
+  const body = cardTitle?.trim() || boardTitle;
+  const actionUrl = `/boards/${boardId}?card=${cardId}`;
+  const knownIds = new Set(knownRows.map((r) => r.id));
+
+  await Promise.allSettled(
+    recipients
+      .filter((id) => knownIds.has(id))
+      .map(async (assigneeId) => {
+        await autoSubscribe(boardId, cardId, assigneeId, 'assignment');
+        await createNotification({
+          userId: assigneeId,
+          type: 'board_card_assigned',
+          title: `${actorName} hat dir eine Aufgabe zugewiesen`,
+          body,
+          actionUrl,
+          metadata: { boardId, cardId },
+          groupKey: `board-assign-${boardId}-${cardId}`,
+        });
+      })
+  );
 }
 
 const s = initServer();
@@ -203,6 +262,26 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
             boardId,
             cardId,
           ]);
+        }
+      }
+
+      // Notify users who were just added as assignees (board_card_assigned).
+      if (type === 'assignees_changed' && cardId) {
+        const rawAdded = (payload as Record<string, unknown> | undefined)?.addedAssigneeIds;
+        const addedAssigneeIds = Array.isArray(rawAdded)
+          ? rawAdded.filter((id): id is string => typeof id === 'string')
+          : [];
+        const rawTitle = (payload as Record<string, unknown> | undefined)?.cardTitle;
+        if (addedAssigneeIds.length > 0) {
+          void fireAssignmentNotifications({
+            boardId,
+            cardId,
+            actorId: userId,
+            addedAssigneeIds,
+            cardTitle: typeof rawTitle === 'string' ? rawTitle : null,
+          }).catch((err) =>
+            log.warn('Failed to send assignment notifications', { error: errMsg(err) })
+          );
         }
       }
 

@@ -59,6 +59,7 @@ export {
   userTemplatesContract,
   templateInteractionsContract,
   userAgentsContract,
+  userAgentsSharingContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -108,6 +109,7 @@ export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
+export * from './schemas/userAgentsSharing.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';

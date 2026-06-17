@@ -38,15 +38,16 @@ const GroupMembersList = ({
   onlineUserIds,
   onlineOnly = false,
 }: GroupMembersListProps) => {
-  const { members: allMembers, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(
-    groupId,
-    { isActive }
-  );
+  const {
+    members: allMembers,
+    isLoadingMembers,
+    isErrorMembers,
+    errorMembers,
+  } = useGroupMembers(groupId, { isActive });
   const members =
     onlineOnly && allMembers
       ? allMembers.filter(
-          (m) =>
-            onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
+          (m) => onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
         )
       : allMembers;
   const { updateMemberRole, isUpdatingRole } = useUpdateMemberRole(groupId);
@@ -89,9 +90,7 @@ const GroupMembersList = ({
         {header}
         <div className="text-xs text-grey-500 italic">
           <p>
-            {onlineOnly
-              ? 'Aktuell ist niemand online.'
-              : 'Noch keine Mitglieder in dieser Gruppe.'}
+            {onlineOnly ? 'Aktuell ist niemand online.' : 'Noch keine Mitglieder in dieser Gruppe.'}
           </p>
         </div>
       </div>
