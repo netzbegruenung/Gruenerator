@@ -380,7 +380,13 @@ function NotebooksIndexFooter() {
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
     isActive: true,
   });
-  const qaCollections = collectionsQuery.data ?? EMPTY_COLLECTIONS;
+  // "Eigene" must only ever show notebooks the user owns. The backend already
+  // returns owned-only, but filter defensively so a non-owned notebook can
+  // never render here even if another path repopulates the query cache.
+  const qaCollections = useMemo(
+    () => (collectionsQuery.data ?? EMPTY_COLLECTIONS).filter(isOwnedCollection),
+    [collectionsQuery.data]
+  );
   const collectionsLoading = collectionsQuery.isLoading;
 
   const handleCreate = useCallback(() => {
