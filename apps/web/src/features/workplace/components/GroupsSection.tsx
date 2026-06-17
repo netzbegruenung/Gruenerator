@@ -5,6 +5,7 @@ import { HiUserGroup } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import ToolGrid from '../../../components/common/ToolGrid';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { useGroups } from '../../groups/hooks/useGroups';
 
 import type { ToolEntry } from '../../../components/common/ToolGrid';
@@ -41,7 +42,7 @@ const GroupsSection: React.FC = memo(() => {
       // slug, falling back to the UUID path (still resolves) if not found.
       const group = (userGroups || []).find((g) => g.id === id);
       const path = group ? buildGroupPath(group) : `/gruppen/${id}`;
-      void navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      void navigator.clipboard.writeText(`${getPublicAppOrigin()}${path}`);
     },
     [userGroups]
   );

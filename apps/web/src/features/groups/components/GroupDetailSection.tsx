@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
@@ -141,7 +142,7 @@ const GroupDetailSection = memo(
 
     const getJoinUrl = useCallback(() => {
       if (!data?.joinToken) return '';
-      return `${window.location.origin}/join-group/${data.joinToken}`;
+      return `${getPublicAppOrigin()}/join-group/${data.joinToken}`;
     }, [data?.joinToken]);
 
     const copyJoinLink = useCallback(() => {

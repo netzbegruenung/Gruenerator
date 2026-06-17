@@ -348,12 +348,21 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       if (!row) return;
       setAssignees(next);
       onUpdateCell(row.id, FIELD_IDS.ASSIGNEE, serializeAssignees(next));
+      // Diff against the previous assignees so the server can notify only the
+      // newly-added users (excluding self). IDs are real user UUIDs from MemberPicker.
+      const prevIds = new Set(assignees.map((a) => a.id).filter(Boolean));
+      const addedAssigneeIds = next
+        .map((a) => a.id)
+        .filter((id) => id && !prevIds.has(id) && id !== currentUserId);
       recordActivity.mutate({
         type: 'assignees_changed',
-        payload: { names: next.map((a) => a.name) },
+        payload: {
+          names: next.map((a) => a.name),
+          ...(addedAssigneeIds.length ? { addedAssigneeIds, cardTitle: title } : {}),
+        },
       });
     },
-    [row, onUpdateCell, recordActivity]
+    [row, onUpdateCell, recordActivity, assignees, currentUserId, title]
   );
 
   // Multi-select: picking a member toggles them in/out of the assignee list.
@@ -391,6 +400,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     if (!row) return;
     onUpdateRow(row.id, { archivedAt: new Date().toISOString() });
     recordActivity.mutate({ type: 'card_archived' });
+    onOpenChange(false);
+  }, [row, onUpdateRow, onOpenChange, recordActivity]);
+
+  const handleRestore = useCallback(() => {
+    if (!row) return;
+    onUpdateRow(row.id, { archivedAt: undefined });
+    recordActivity.mutate({ type: 'card_restored' });
     onOpenChange(false);
   }, [row, onUpdateRow, onOpenChange, recordActivity]);
 
@@ -512,19 +528,43 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         Duplizieren
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={handleArchive}>
-                      <FiArchive className="mr-2" size={13} />
-                      Archivieren
-                    </DropdownMenuItem>
+                    {row.archivedAt ? (
+                      <DropdownMenuItem onClick={handleRestore}>
+                        <FiArchive className="mr-2" size={13} />
+                        Wiederherstellen
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={handleArchive}>
+                        <FiArchive className="mr-2" size={13} />
+                        Archivieren
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
                       onClick={async () => {
-                        const ok = await confirm({
-                          title: 'Karte löschen?',
-                          description:
-                            'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
-                        });
+                        const docCount = linkedDocs.length;
+                        const ok = await confirm(
+                          docCount > 0
+                            ? {
+                                title: 'Aufgabe löschen?',
+                                description: `Diese Aufgabe hat ${docCount} verknüpfte${
+                                  docCount === 1 ? 's' : ''
+                                } Dokument${
+                                  docCount === 1 ? '' : 'e'
+                                }. Die Dokumente bleiben erhalten – du findest sie weiterhin unter „Dokumente". Nur die Verknüpfung zur Aufgabe geht verloren.`,
+                                confirmLabel: 'Trotzdem löschen',
+                                alternateAction: {
+                                  label: 'Archivieren',
+                                  onSelect: handleArchive,
+                                },
+                              }
+                            : {
+                                title: 'Karte löschen?',
+                                description:
+                                  'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
+                              }
+                        );
                         if (!ok) return;
                         onDelete(row.id);
                         onOpenChange(false);
@@ -867,14 +907,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
             {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
                 Expert-only; renders nothing unless the card's status column carries an aiTask. */}
-            {row && expertMode && (
-              <AgentRunButton
-                boardId={boardId}
-                row={row}
-                fields={fields}
-                onLinkDocument={addLinkedDoc}
-              />
-            )}
+            {expertMode && <AgentRunButton boardId={boardId} row={row} fields={fields} />}
 
             {/* Linked documents */}
             <div className="flex flex-row items-start">
