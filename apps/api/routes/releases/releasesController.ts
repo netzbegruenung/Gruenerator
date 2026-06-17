@@ -153,6 +153,88 @@ router.get('/', (_req: Request, res: Response) => {
   res.json([CURRENT_RELEASE]);
 });
 
+// --- Beta (pre-release) desktop builds -------------------------------------
+// A beta is a SEPARATE GitHub pre-release (its own `desktop-v<version>` tag),
+// exposed as a DOWNLOAD ONLY. It is intentionally NOT wired into UPDATER_CONFIG,
+// so publishing a beta never auto-updates existing stable installs. To publish a
+// new beta: create the GitHub pre-release, upload the assets, then update the
+// fields below (set to `null` to hide the beta download entirely).
+interface BetaPlatform {
+  // Human label shown on the download page.
+  label: string;
+  // Asset filename on the GitHub pre-release.
+  filename: string;
+}
+
+interface BetaRelease {
+  version: string;
+  tag: string;
+  name: string;
+  notes: string;
+  published_at: string;
+  platforms: Record<string, BetaPlatform>;
+}
+
+const BETA_RELEASE: BetaRelease | null = {
+  version: '1.2.0-beta.1',
+  tag: 'desktop-v1.2.0-beta.1',
+  name: 'Grünerator Desktop 1.2.0 (Beta)',
+  notes:
+    'Desktop-Beta mit den neuen Webview-Fixes: Bilder & Profilname, Dokumente, Vollbild-Layout, Chat inkl. Thread-Liste und behobenes Sidebar-Flackern.',
+  published_at: '2026-06-17T00:00:00Z',
+  platforms: {
+    // Single universal macOS DMG (Intel + Apple Silicon).
+    'mac-universal': {
+      label: 'macOS (Intel & Apple Silicon)',
+      filename: 'Gruenerator_1.2.0_universal.dmg',
+    },
+  },
+};
+
+const getBetaDownloadUrl = (tag: string, filename: string) =>
+  `https://github.com/${GITHUB_REPO}/releases/download/${tag}/${encodeURIComponent(filename)}`;
+
+// GET /api/releases/beta - latest beta manifest (download-only; never the updater)
+router.get('/beta', (_req: Request, res: Response) => {
+  if (!BETA_RELEASE) {
+    res.status(404).json({ error: 'No beta release available' });
+    return;
+  }
+  res.json({
+    version: BETA_RELEASE.version,
+    name: BETA_RELEASE.name,
+    notes: BETA_RELEASE.notes,
+    publishedAt: BETA_RELEASE.published_at,
+    platforms: Object.fromEntries(
+      Object.entries(BETA_RELEASE.platforms).map(([key, p]) => [
+        key,
+        {
+          label: p.label,
+          filename: p.filename,
+          // Stable gruenerator.eu URL → 302 to the GitHub asset (below).
+          url: `${PRIMARY_URL}/api/releases/beta/download/${key}`,
+        },
+      ])
+    ),
+  });
+});
+
+// GET /api/releases/beta/download/:platform - 302 redirect to the GitHub pre-release asset
+router.get('/beta/download/:platform', (req: Request<{ platform: string }>, res: Response) => {
+  if (!BETA_RELEASE) {
+    res.status(404).json({ error: 'No beta release available' });
+    return;
+  }
+  const platform = BETA_RELEASE.platforms[req.params.platform];
+  if (!platform) {
+    res.status(404).json({ error: 'Platform not found' });
+    return;
+  }
+  const githubUrl = getBetaDownloadUrl(BETA_RELEASE.tag, platform.filename);
+  console.log(`[Releases] Redirecting beta download to GitHub: ${githubUrl}`);
+  res.redirect(302, githubUrl);
+});
+
 // GET /api/releases/updater/latest.json - Tauri updater manifest
 router.get('/updater/latest.json', (_req: Request, res: Response) => {
   res.json(UPDATER_CONFIG);
