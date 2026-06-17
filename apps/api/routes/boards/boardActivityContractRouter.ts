@@ -64,11 +64,12 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
   if (recipients.length === 0) return;
 
   const [actorRows, boardRows, knownRows] = await Promise.all([
-    db.query<{ display_name: string }>(`SELECT display_name FROM profiles WHERE id = $1`, [actorId]),
-    db.query<{ title: string | null }>(
-      `SELECT title FROM collaborative_documents WHERE id = $1`,
-      [boardId]
-    ),
+    db.query<{ display_name: string }>(`SELECT display_name FROM profiles WHERE id = $1`, [
+      actorId,
+    ]),
+    db.query<{ title: string | null }>(`SELECT title FROM collaborative_documents WHERE id = $1`, [
+      boardId,
+    ]),
     // Guard against bogus IDs: only notify users that actually exist.
     db.query<{ id: string }>(`SELECT id FROM profiles WHERE id = ANY($1::uuid[])`, [recipients]),
   ]);

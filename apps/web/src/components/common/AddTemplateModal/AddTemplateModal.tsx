@@ -335,8 +335,7 @@ const AddTemplateModal = ({
         });
         if (result.status !== 201) {
           throw new Error(
-            (result.body as { message?: string })?.message ||
-              'Fehler beim Einreichen der Vorlage.'
+            (result.body as { message?: string })?.message || 'Fehler beim Einreichen der Vorlage.'
           );
         }
         templateId = result.body.data.id;
@@ -392,8 +391,7 @@ const AddTemplateModal = ({
 
   const canSubmit =
     title.trim() &&
-    ((!showFileUpload && isValidTemplate && previewData) ||
-      (showFileUpload && images.length > 0));
+    ((!showFileUpload && isValidTemplate && previewData) || (showFileUpload && images.length > 0));
 
   const renderGhostText = () =>
     tagAutocomplete.suggestionSuffix && (
