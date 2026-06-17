@@ -37,9 +37,7 @@ function formatDateRange(range: { min: string | null; max: string | null }): str
 
 function StatCard({ label, value, theme }: { label: string; value: string; theme: Theme }) {
   return (
-    <View
-      style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-    >
+    <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
       <Text style={[styles.statLabel, { color: theme.textSecondary }]} numberOfLines={1}>
         {label}
       </Text>
@@ -127,9 +125,7 @@ export function StatisticsSection({
   const totalDocs = stats?.totalDocuments ?? 0;
   if (!isLoading && totalDocs === 0) return null;
 
-  const classifiedCount = stats
-    ? stats.topicDistribution.reduce((sum, t) => sum + t.count, 0)
-    : 0;
+  const classifiedCount = stats ? stats.topicDistribution.reduce((sum, t) => sum + t.count, 0) : 0;
   const terms = (stats?.topWords ?? []).slice(0, TOP_TERMS).map((w) => w.word);
   const persons = (stats?.topPersons ?? []).slice(0, TOP_PERSONS).map((p) => p.person);
 
