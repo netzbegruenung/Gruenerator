@@ -30,12 +30,17 @@ export interface EnqueueAgentTaskParams {
   locale: string;
   /** Set for AI-column ("KI-Spalte") tasks; null/undefined = legacy @-mention task. */
   flowConfig?: BoardFlowConfig | null;
+  /**
+   * Identifier of a specific agent (own / group-shared / system) to run this task.
+   * Null/undefined → the default universal agent. A TEXT slug, never a UUID.
+   */
+  agentId?: string | null;
 }
 
 export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<AgentTask> {
   const rows = await db.query<AgentTask>(
-    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config, agent_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       params.boardId,
@@ -45,6 +50,7 @@ export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<
       params.taskText,
       params.locale,
       params.flowConfig ? JSON.stringify(params.flowConfig) : null,
+      params.agentId ?? null,
     ]
   );
   log.info(`Enqueued agent task ${rows[0].id} for board ${params.boardId} card ${params.cardId}`);
