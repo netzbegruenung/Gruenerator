@@ -57,6 +57,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { isDesktopApp } from '../../utils/platform';
+import { platformFetch } from '../../utils/platformFetch';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -172,7 +173,7 @@ function EditorContent() {
   const { data: docData, isLoading: docIsLoading } = useQuery<Document | null>({
     queryKey: ['document', id],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/docs/resolve/${id}`, {
+      const res = await platformFetch(`${API_BASE}/docs/resolve/${id}`, {
         credentials: 'include',
       });
       if (!res.ok) return null;

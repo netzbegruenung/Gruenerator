@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 
+import { platformFetch } from '../../../utils/platformFetch';
+
 interface VoiceRecorderOptions {
   removeTimestamps?: boolean;
 }
@@ -146,7 +148,7 @@ const useVoiceRecorder = (
       );
       console.log('[Voice Recorder] Remove timestamps:', removeTimestamps);
 
-      const response = await fetch(url, {
+      const response = await platformFetch(url, {
         method: 'POST',
         body: formData,
       });

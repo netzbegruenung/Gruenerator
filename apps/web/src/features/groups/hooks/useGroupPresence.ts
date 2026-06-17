@@ -3,6 +3,8 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
+import { deriveCollabWsUrl } from '../../../utils/platform';
+
 import type { CollaborationUser } from '@gruenerator/collab';
 
 export interface PresenceUser {
@@ -10,11 +12,10 @@ export interface PresenceUser {
   name: string;
 }
 
+// Derived from the absolute API base so it resolves in the desktop (Tauri)
+// webview too (window.location would give ws://localhost:1240 there).
 export const HOCUSPOCUS_URL: string =
-  (import.meta.env.VITE_HOCUSPOCUS_URL as string | undefined) ??
-  (window.location.protocol === 'https:'
-    ? `wss://${window.location.host}/ws`
-    : 'ws://localhost:1240');
+  (import.meta.env.VITE_HOCUSPOCUS_URL as string | undefined) ?? deriveCollabWsUrl();
 
 export function useGroupPresence(
   groupId: string | null,

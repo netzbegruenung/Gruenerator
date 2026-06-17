@@ -19,7 +19,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
-import { resolveApiAssetUrl } from '../../../utils/platform';
+import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
 type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
@@ -593,7 +593,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
-    void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
+    void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
   return (
