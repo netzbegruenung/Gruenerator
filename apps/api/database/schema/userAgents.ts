@@ -24,7 +24,7 @@ export const userAgents = pgTable(
     opening_questions: jsonb('opening_questions').$type<string[]>().notNull().default([]),
     locale: text('locale').notNull().default('de-DE'),
     author: text('author').notNull(),
-    default_notebook_id: text('default_notebook_id'),
+    default_notebook_ids: jsonb('default_notebook_ids').$type<string[]>(),
     // Sharing (see migrations/user_agents_sharing_columns.sql). share_mode gates
     // who can see/use the agent; is_public lists it in the public Agentura
     // directory atop share_mode='authenticated'; public_ownership is the legal
