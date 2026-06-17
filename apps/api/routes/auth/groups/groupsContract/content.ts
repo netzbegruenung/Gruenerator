@@ -57,6 +57,18 @@ export const contentRoutes = {
             body: { success: false as const, message: 'Du bist nicht Besitzer*in dieses Inhalts.' },
           };
         }
+        // checkNotebookAccess gates group reads on share_mode='groups' AND a
+        // group_content_shares row. This generic share path only writes the
+        // row, so a private notebook shared here stays unreadable to members
+        // ("Kein Zugriff"). Promote it to 'groups' here, mirroring the notebook
+        // share modal (setShareMode → addGroupShare). Leave 'authenticated'
+        // alone (members already have read access; demoting would narrow the
+        // owner's chosen visibility) and 'groups' alone (already correct).
+        // Runs before the existing-share guard below so it also heals notebooks
+        // that were shared via this path before the fix.
+        if (collection.share_mode !== 'groups' && collection.share_mode !== 'authenticated') {
+          await notebookHelper.updateNotebookCollection(contentId, { share_mode: 'groups' });
+        }
       }
 
       if (

@@ -347,6 +347,64 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * One-shot backfill: heal notebooks that have a `group_content_shares` row
+   * but are still `share_mode='private'`. checkNotebookAccess gates group reads
+   * on `share_mode='groups'`, so these notebooks return "Kein Zugriff" to their
+   * group members even though the share row exists. This drift comes from the
+   * generic group "share content" path, which historically wrote the share row
+   * without promoting share_mode.
+   *
+   * Patches the share_mode payload only via Qdrant's set_payload — leaves the
+   * existing embedding intact (a batchUpsert would require re-supplying the
+   * vector). Only 'private' rows are promoted: 'authenticated' is already
+   * readable by any member and 'groups' is already correct. Idempotent — a
+   * second run finds nothing left at 'private'.
+   */
+  async backfillGroupShareModes(): Promise<{ scanned: number; updated: number }> {
+    await this.ensureInitialized();
+
+    const postgres = getPostgresInstance();
+    const shareRows = (await postgres.query(
+      `SELECT DISTINCT content_id FROM group_content_shares
+         WHERE content_type = 'notebook_collections'`
+    )) as Array<{ content_id: string }>;
+    const sharedIds = new Set(shareRows.map((r) => r.content_id));
+
+    if (sharedIds.size === 0) {
+      logger.info('[backfillGroupShareModes] No group-shared notebooks; nothing to do');
+      return { scanned: 0, updated: 0 };
+    }
+
+    // Single scroll, mirroring backfillSlugSuffixes — notebook counts are
+    // O(thousands) per tenant. Reads point.id directly so set_payload targets
+    // the right point regardless of how the id was derived at create time.
+    const allResults = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: true }
+    );
+
+    let scanned = 0;
+    let updated = 0;
+
+    for (const point of allResults) {
+      scanned++;
+      const collectionId = point.payload.collection_id;
+      if (typeof collectionId !== 'string' || !sharedIds.has(collectionId)) continue;
+      if (normalizeShareMode(point.payload.share_mode) !== 'private') continue;
+
+      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { share_mode: 'groups' },
+        points: [point.id],
+      });
+      updated++;
+    }
+
+    logger.info(`[backfillGroupShareModes] Done. scanned=${scanned} updated=${updated}`);
+    return { scanned, updated };
+  }
+
+  /**
    * One-shot backfill: rewrite legacy `audience='all'` (or missing-audience)
    * notebook rows to the owner's actual locale, looked up once per distinct
    * user_id from `profiles.locale`. Idempotent — a row whose audience is
