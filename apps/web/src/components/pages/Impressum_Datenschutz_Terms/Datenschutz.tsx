@@ -4,24 +4,25 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 12. Mai 2026</p>
+      <p>Stand: 16. Juni 2026</p>
 
       <h2>Kurzzusammenfassung</h2>
       <p>
         <strong>
           Der <a href={PRIMARY_URL}>GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die
-          Eingabefelder eingibst. Diese werden zur AI-Bearbeitung an unseren europäischen
-          Technologiepartner
-          <a href="https://mistral.ai/">Mistral AI</a> weitergeleitet. Deine Daten werden dort nicht
-          zum Training der KI verwendet. Bei Aktivierung des <strong>Reasoning-Modus</strong> wird
-          das erweiterte <strong>Magistral-Modell</strong> von Mistral AI verwendet, das komplexere
-          Aufgaben durch mehrstufiges Nachdenken lösen kann. Bei Nutzung des{' '}
+          Eingabefelder eingibst. Diese werden zur KI-Bearbeitung an einen unserer europäischen
+          KI-Dienstleister weitergeleitet (insbesondere{' '}
+          <a href="https://mistral.ai/">Mistral AI</a> in Frankreich, KI-Modelle der netzbegrünung
+          e.V. sowie Seeweb/Regolo AI in Italien); welches Modell verwendet wird, kannst Du pro
+          Anfrage selbst wählen. Deine Daten werden dort nicht zum Training der KI verwendet. Bei
+          Nutzung des{' '}
           <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder
           direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit
           dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die
           Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI
-          genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen
-          ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine
+          genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen über
+          unsere KI-Dienstleister sowie spezialisierte Suchdienste (in der EU) verarbeitet. Bei
+          Nutzung der Sprachverarbeitung werden deine
           Audiodaten an Mistral AI in der EU verarbeitet (Voxtral für Spracherkennung, Mistral TTS
           für die Sprachausgabe des KI-Agenten). Bei Aktivierung des{' '}
           <strong>Echtzeit-Sprachdialogs</strong> bleibt Dein Mikrofon für die Dauer der Sitzung
@@ -32,21 +33,14 @@ const Datenschutz = () => {
         </strong>
       </p>
       <p>
-        <strong>Hinweis zu den KI-Modi:</strong> Du hast jederzeit die Wahl zwischen verschiedenen
-        Optionen:
+        <strong>Hinweis zu den KI-Anbietern:</strong> Du kannst pro Anfrage selbst wählen, welches
+        KI-Modell und damit welcher Anbieter Deine Eingaben verarbeitet (oder „Automatisch" wählen
+        lassen). Es kommen ausschließlich Anbieter mit Verarbeitung in der EU zum Einsatz:
       </p>
       <ul>
-        <li>
-          <strong>Kreativ-Modus:</strong> Mistral AI (EU) - Standard für kreative Texte
-        </li>
-        <li>
-          <strong>Reasoning-Modus:</strong> Mistral AI Magistral (EU) - erweiterte KI mit
-          Nachdenk-Fähigkeiten
-        </li>
-        <li>
-          <strong>Gruenerator-GPT:</strong> netzbegrünung e.V. (Deutschland) - maximaler Datenschutz
-          durch grüne Netzkultur
-        </li>
+        <li>Mistral AI (Frankreich)</li>
+        <li>KI-Modelle der netzbegrünung e.V. (eigene Server, EU)</li>
+        <li>Seeweb/Regolo AI (Italien)</li>
       </ul>
       <p>Die Auswahl triffst Du bei jeder einzelnen Anfrage selbst.</p>
       <p>
@@ -62,8 +56,8 @@ const Datenschutz = () => {
         Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten findest Du unten auf
         dieser Seite. Weiterführende Informationen dazu, wie Mistral AI Deine Eingaben verarbeitet
         und behandelt, findest Du in der{' '}
-        <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a>
-        sowie in den <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a>
+        <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a>{' '}
+        sowie in den <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a>{' '}
         von Mistral AI.
       </p>
       <p>
@@ -75,9 +69,9 @@ const Datenschutz = () => {
         </a>{' '}
         arbeitet daran alle Daten selbst zu verarbeiten, damit Du den GRUENERATOR schon bald
         komplett sorg- und bedenklos nutzen kannst. Falls Du dieses Ziel unterstützen willst, kannst
-        Du das mit einer
-        <a href="https://netzbegruenung.de/verein/spenden/">Spende</a> oder einer
-        <a href="https://netzbegruenung.de/verein/mitgliedsantrag/">Mitgliedschaft.</a>
+        Du das mit einer{' '}
+        <a href="https://netzbegruenung.de/verein/spenden/">Spende</a> oder einer{' '}
+        <a href="https://netzbegruenung.de/verein/mitgliedsantrag/">Mitgliedschaft</a> tun.
       </p>
 
       <h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
@@ -87,13 +81,13 @@ const Datenschutz = () => {
 
       <h2>Datenschutzhinweise</h2>
       <p>
-        Informationen über die Verarbeitung Ihrer Daten gemäß{' '}
+        Informationen über die Verarbeitung Deiner Daten gemäß{' '}
         <a href="https://dejure.org/gesetze/DSGVO/13.html">
           Art. 13 der Datenschutz-Grundverordnung (DS-GVO)
         </a>
       </p>
 
-      <h3>1. Verantwortlicher und Datenschutzbeauftragter</h3>
+      <h3>1. Verantwortlicher</h3>
       <p>
         Verantwortlich für diese Website ist Moritz Wächter, Villestr. 6-8, 53347 Alfter,
         info@moritz-waechter.de.
@@ -117,93 +111,6 @@ const Datenschutz = () => {
         erforderlich, um eine Auslieferung der Website zu ermöglichen.
       </p>
 
-      <h3>Medienverarbeitung (Video/Audio/Sprache)</h3>
-
-      <p>
-        <strong>Lokale Verarbeitung auf unseren Servern:</strong>
-      </p>
-      <ul>
-        <li>Sprachaufnahme & Reel-Videos: Whisper (Spracherkennung) + FFmpeg (Videobearbeitung)</li>
-        <li>Sofortlöschung der Original-Dateien nach Verarbeitung</li>
-        <li>Keine dauerhafte Speicherung</li>
-        <li>Keine manuelle Sichtung oder Anhörung</li>
-        <li>Keine Nutzung zu Trainingszwecken</li>
-      </ul>
-
-      <p>
-        <strong>Externe Verarbeitung durch Dienstleister:</strong>
-      </p>
-      <ul>
-        <li>Sprache-zu-Text (primär): Regolo / Seeweb (EU-Server, Zero Data Retention)</li>
-        <li>Sprache-zu-Text (Fallback): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
-        <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
-      </ul>
-
-      <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>
-      <p>
-        Der GRUENERATOR bietet einen bidirektionalen Sprachdialog mit der KI an. Du startest die
-        Sitzung über einen sichtbaren Klick auf das Mikrofon-/Voice-Symbol in der Eingabezeile. Eine
-        Sitzung beginnt nur nach Deinem ausdrücklichen, aktiven Einverständnis.
-      </p>
-      <p>
-        <strong>Datenfluss:</strong>
-      </p>
-      <ul>
-        <li>
-          Dein Mikrofon-Audio wird im Browser auf 16&nbsp;kHz (PCM) heruntergerechnet und über eine
-          verschlüsselte WebSocket-Verbindung an unseren Server der netzbegrünung e.V. (EU)
-          gesendet.
-        </li>
-        <li>
-          Unser Server leitet den Audiostream zur Spracherkennung an{' '}
-          <strong>Mistral AI Voxtral</strong> (EU, Frankreich) weiter.
-        </li>
-        <li>
-          Das erkannte Transkript wird in unserer Chat-Pipeline (ChatGraph) mit dem von Dir
-          gewählten KI-Modell verarbeitet (Mistral, Magistral, netzbegrünung-GPT oder anderes
-          eingestelltes Modell — siehe „Hinweis zu den KI-Modi" oben).
-        </li>
-        <li>
-          Die Textantwort des Agenten wird satzweise an <strong>Mistral AI Speech (TTS)</strong>{' '}
-          (EU, Frankreich) gesendet und als Audio-Stream zurück in Deinen Browser geliefert, wo sie
-          lokal über Deine Lautsprecher abgespielt wird.
-        </li>
-      </ul>
-      <p>
-        <strong>Mikrofon-Freigabe:</strong> Das Mikrofon bleibt nur so lange aktiv, wie die
-        Sprachsitzung läuft. Es wird automatisch und unverzüglich freigegeben (
-        <code>MediaStreamTrack.stop</code>), sobald einer dieser Auslöser eintritt:
-      </p>
-      <ul>
-        <li>Du klickst auf das Voice-Symbol oder den Hintergrund des Sprachdialog-Fensters</li>
-        <li>Du wechselst den Browser-Tab oder minimierst das Fenster (Visibility Change)</li>
-        <li>Du verlässt die Seite, lädst neu oder schließt den Tab (pagehide / beforeunload)</li>
-        <li>Du wechselst innerhalb der Anwendung in einen anderen Bereich (Route-Navigation)</li>
-        <li>Der Browser-Tab gerät in den Hintergrund (z. B. iOS-bfcache)</li>
-      </ul>
-      <p>
-        <strong>Speicherung &amp; Training:</strong> Audio-Frames werden ausschließlich im
-        Arbeitsspeicher unseres Servers durchgereicht (Live-Stream, keine Persistenz). Weder wir
-        noch Mistral AI verwenden Deinen Audiostream zum Training von KI-Modellen. Es werden keine
-        Sprachprofile (Voice Prints) erstellt.
-      </p>
-      <p>
-        <strong>Rechtsgrundlage:</strong>{' '}
-        <a href="https://dejure.org/gesetze/DSGVO/6.html">Art. 6 Abs. 1 lit. a DSGVO</a>{' '}
-        (Einwilligung durch aktive Aktivierung der Sprachsitzung). Du kannst Deine Einwilligung
-        jederzeit durch das Beenden der Sitzung widerrufen.
-      </p>
-      <p>
-        <strong>Deine Verantwortung:</strong> Sprache kann unbeabsichtigt sensible Informationen
-        enthalten — politische Meinungen, Gesundheitsangaben, religiöse Überzeugungen,
-        Identifikationsmerkmale Dritter (
-        <a href="https://dejure.org/gesetze/DSGVO/9.html">Art. 9 DSGVO</a>). Bitte nutze den
-        Echtzeit-Sprachdialog nur in einer Umgebung, in der sich keine weiteren Personen ohne deren
-        Einwilligung in Hörweite Deines Mikrofons befinden, und sprich keine Daten Dritter aus, für
-        deren Verarbeitung Du keine Rechtsgrundlage hast. Die Funktion ist nicht für die Nutzung
-        durch Minderjährige unter 16 Jahren ohne Einwilligung der Erziehungsberechtigten bestimmt.
-      </p>
-
       <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
       <p>
         Die Daten werden auf der Grundlage{' '}
@@ -223,11 +130,11 @@ const Datenschutz = () => {
       </p>
 
       <p>
-        Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen, der Suchfunktion und der
-        Fehlerüberwachung spezialisierte technische Dienstleister, die als unsere
-        Auftragsverarbeiter agieren. Für die Anwendungsüberwachung nutzen wir{' '}
-        <strong>GlitchTip</strong> (Burke Software and Consulting LLC, USA) mit EU-Serverstandort in
-        Frankfurt, Deutschland.
+        Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion
+        spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren. Für die
+        Anwendungsüberwachung nutzen wir die selbst gehostete Open-Source-Software{' '}
+        <strong>GlitchTip</strong> auf eigenen Servern in der EU; eine Weitergabe an Dritte findet
+        dabei nicht statt.
       </p>
 
       <h3>Auftragsverarbeitung durch technische Dienstleister</h3>
@@ -254,14 +161,10 @@ const Datenschutz = () => {
       </p>
       <ul>
         <li>
-          Zweck: Text- und Sprachverarbeitung (Kreativ-Modus, Reasoning-Modus, Voxtral für
-          Spracherkennung, Mistral Speech/TTS für die Sprachausgabe im Echtzeit-Sprachdialog)
+          Zweck: Text- und Sprachverarbeitung (KI-Textmodelle, Voxtral für Spracherkennung, Mistral
+          Speech/TTS für die Sprachausgabe im Echtzeit-Sprachdialog)
         </li>
         <li>Server: EU (Frankreich)</li>
-        <li>
-          Modelle: Mistral Medium (Kreativ-Modus), Magistral Medium (Reasoning-Modus mit
-          Nachdenk-Fähigkeiten), Voxtral Mini Realtime (Spracherkennung), Mistral Speech (TTS)
-        </li>
         <li>
           Im Echtzeit-Sprachdialog: Live-Stream-Verarbeitung ohne Persistierung bei netzbegrünung;
           keine Nutzung zu Trainingszwecken; keine Erstellung von Stimmprofilen
@@ -277,10 +180,15 @@ const Datenschutz = () => {
         <strong>2. IONOS SE</strong> (Elgendorfer Str. 57, 56410 Montabaur, Deutschland)
       </p>
       <ul>
-        <li>Zweck: Backup-Provider bei Ausfall anderer KI-Dienste</li>
+        <li>
+          Zweck: Ergänzende KI-Textgenerierung für bestimmte Generator-/Overflow-Funktionen (nicht
+          im Chat wählbar)
+        </li>
         <li>Server: Deutschland</li>
-        <li>Aktivierung: Automatisch nur bei Ausfall der primären Provider</li>
-        <li>Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung</li>
+        <li>
+          Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung, keine Nutzung zu
+          Trainingszwecken
+        </li>
         <li>
           Details:{' '}
           <a href="https://www.ionos.de/terms-gtc/datenschutzerklaerung/">Datenschutzerklärung</a>
@@ -301,10 +209,16 @@ const Datenschutz = () => {
         <strong>4. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
       </p>
       <ul>
-        <li>Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme)</li>
+        <li>
+          Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme) sowie KI-Textmodelle
+          und semantische Aufbereitung (Reranking)
+        </li>
         <li>Server: EU (Italien)</li>
-        <li>Modell: faster-whisper-large-v3</li>
-        <li>Zero Data Retention: Input- und Output-Daten werden am Ende jeder Session gelöscht</li>
+        <li>Transkriptionsmodell: faster-whisper-large-v3</li>
+        <li>
+          Zero Data Retention: Bei der Transkription werden Input- und Output-Daten am Ende jeder
+          Session gelöscht
+        </li>
         <li>DSGVO-konform: Italienisches Unternehmen mit ausschließlicher EU-Datenverarbeitung</li>
         <li>
           Details:{' '}
@@ -328,14 +242,13 @@ const Datenschutz = () => {
             <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
             <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
             <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
-            <li>Gruenerator-GPT (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
+            <li>KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
           </ul>
         </li>
         <li>
           Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle
           Datennutzung
         </li>
-        <li>Backup-Provider: Claude API (bei Ausfall) - EU-Server mit automatischem Fallback</li>
       </ul>
 
       <p>
@@ -366,24 +279,20 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>8. GlitchTip</strong> (Burke Software and Consulting LLC, New York, USA)
+        <strong>8. GlitchTip (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>
-        <li>Server: EU (DigitalOcean Frankfurt, Deutschland)</li>
+        <li>Server: Eigene bzw. von der netzbegrünung betriebene Server in der EU</li>
         <li>Verarbeitete Daten: Fehlerberichte, Stack-Traces, Browserinformationen, IP-Adressen</li>
         <li>Speicherdauer: Automatische Löschung nach 90 Tagen</li>
-        <li>Sicherheit: TLS 1.2+, Verschlüsselung im Ruhezustand, A+ Mozilla Observatory Rating</li>
+        <li>Sicherheit: TLS 1.2+, Verschlüsselung im Ruhezustand</li>
         <li>
-          Besonderheit: Open-Source-Alternative zu Sentry, Daten werden nicht zum KI-Training
-          verwendet, EU-Datenresidenz trotz US-Firmensitz
+          Besonderheit: Selbst gehostete Open-Source-Software (Alternative zu Sentry); keine
+          Weitergabe an Dritte, keine Drittlandübermittlung, keine Nutzung zum KI-Training
         </li>
-        <li>Rechtsgrundlage Drittlandtransfer: EU-US Data Privacy Framework (Art. 45 DSGVO)</li>
         <li>
-          Details: <a href="https://glitchtip.com/legal/privacy/">Datenschutzerklärung</a> und{' '}
-          <a href="https://glitchtip.com/documentation/hosted-architecture/">
-            Architektur &amp; Sicherheit
-          </a>
+          Details: <a href="https://glitchtip.com/legal/privacy/">Datenschutzerklärung</a>
         </li>
       </ul>
 
@@ -488,25 +397,105 @@ const Datenschutz = () => {
         jeweilige Sitzung beendet ist.
       </p>
 
-      <h3>Art der gespeicherten Daten</h3>
+      <h3>Medienverarbeitung (Video/Audio/Sprache)</h3>
+
       <p>
-        Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung
-        Ihrer gespeicherten Daten. Zur Ausübung dieser Rechte können Sie sich jederzeit an uns
-        wenden.
+        <strong>Verarbeitung auf unseren Servern:</strong>
+      </p>
+      <ul>
+        <li>Sprachaufnahme & Reel-Videos: FFmpeg (Videobearbeitung) und Orchestrierung</li>
+        <li>Sofortlöschung der Original-Dateien nach Verarbeitung</li>
+        <li>Keine dauerhafte Speicherung</li>
+        <li>Keine manuelle Sichtung oder Anhörung</li>
+        <li>Keine Nutzung zu Trainingszwecken</li>
+      </ul>
+
+      <p>
+        <strong>Externe Verarbeitung durch Dienstleister (Transkription):</strong>
+      </p>
+      <ul>
+        <li>
+          Sprache-zu-Text (primär): Regolo / Seeweb (EU-Server, Zero Data Retention, Modell
+          faster-whisper-large-v3)
+        </li>
+        <li>Sprache-zu-Text (Fallback): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
+        <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
+      </ul>
+
+      <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>
+      <p>
+        Der GRUENERATOR bietet einen bidirektionalen Sprachdialog mit der KI an. Du startest die
+        Sitzung über einen sichtbaren Klick auf das Mikrofon-/Voice-Symbol in der Eingabezeile. Eine
+        Sitzung beginnt nur nach Deinem ausdrücklichen, aktiven Einverständnis.
+      </p>
+      <p>
+        <strong>Datenfluss:</strong>
+      </p>
+      <ul>
+        <li>
+          Dein Mikrofon-Audio wird im Browser auf 16&nbsp;kHz (PCM) heruntergerechnet und über eine
+          verschlüsselte WebSocket-Verbindung an unseren Server der netzbegrünung e.V. (EU)
+          gesendet.
+        </li>
+        <li>
+          Unser Server leitet den Audiostream zur Spracherkennung an{' '}
+          <strong>Mistral AI Voxtral</strong> (EU, Frankreich) weiter.
+        </li>
+        <li>
+          Das erkannte Transkript wird in unserer Chat-Pipeline (ChatGraph) mit dem von Dir
+          gewählten KI-Modell verarbeitet (siehe „Hinweis zu den KI-Anbietern" oben).
+        </li>
+        <li>
+          Die Textantwort des Agenten wird satzweise an <strong>Mistral AI Speech (TTS)</strong>{' '}
+          (EU, Frankreich) gesendet und als Audio-Stream zurück in Deinen Browser geliefert, wo sie
+          lokal über Deine Lautsprecher abgespielt wird.
+        </li>
+      </ul>
+      <p>
+        <strong>Mikrofon-Freigabe:</strong> Das Mikrofon bleibt nur so lange aktiv, wie die
+        Sprachsitzung läuft. Es wird automatisch und unverzüglich freigegeben (
+        <code>MediaStreamTrack.stop</code>), sobald einer dieser Auslöser eintritt:
+      </p>
+      <ul>
+        <li>Du klickst auf das Voice-Symbol oder den Hintergrund des Sprachdialog-Fensters</li>
+        <li>Du wechselst den Browser-Tab oder minimierst das Fenster (Visibility Change)</li>
+        <li>Du verlässt die Seite, lädst neu oder schließt den Tab (pagehide / beforeunload)</li>
+        <li>Du wechselst innerhalb der Anwendung in einen anderen Bereich (Route-Navigation)</li>
+        <li>Der Browser-Tab gerät in den Hintergrund (z. B. iOS-bfcache)</li>
+      </ul>
+      <p>
+        <strong>Speicherung &amp; Training:</strong> Audio-Frames werden ausschließlich im
+        Arbeitsspeicher unseres Servers durchgereicht (Live-Stream, keine Persistenz). Weder wir
+        noch Mistral AI verwenden Deinen Audiostream zum Training von KI-Modellen. Es werden keine
+        Sprachprofile (Voice Prints) erstellt.
+      </p>
+      <p>
+        <strong>Rechtsgrundlage:</strong>{' '}
+        <a href="https://dejure.org/gesetze/DSGVO/6.html">Art. 6 Abs. 1 lit. a DSGVO</a>{' '}
+        (Einwilligung durch aktive Aktivierung der Sprachsitzung). Du kannst Deine Einwilligung
+        jederzeit durch das Beenden der Sitzung widerrufen.
+      </p>
+      <p>
+        <strong>Deine Verantwortung:</strong> Sprache kann unbeabsichtigt sensible Informationen
+        enthalten — politische Meinungen, Gesundheitsangaben, religiöse Überzeugungen,
+        Identifikationsmerkmale Dritter (
+        <a href="https://dejure.org/gesetze/DSGVO/9.html">Art. 9 DSGVO</a>). Bitte nutze den
+        Echtzeit-Sprachdialog nur in einer Umgebung, in der sich keine weiteren Personen ohne deren
+        Einwilligung in Hörweite Deines Mikrofons befinden, und sprich keine Daten Dritter aus, für
+        deren Verarbeitung Du keine Rechtsgrundlage hast. Die Funktion ist nicht für die Nutzung
+        durch Minderjährige unter 16 Jahren ohne Einwilligung der Erziehungsberechtigten bestimmt.
       </p>
 
-      <h3>Zweck der Datenspeicherung</h3>
+      <h3>Zweck und Dauer der Datenspeicherung</h3>
       <p>
-        Die Speicherung dieser Daten dient dazu, Ihnen die Funktionen unserer Anwendung zur
-        Verfügung zu stellen, insbesondere das Erstellen, Bearbeiten und Abrufen Ihrer Inhalte.
-      </p>
-
-      <h3>Dauer der Datenspeicherung</h3>
-      <p>
-        Ihre Daten werden so lange gespeichert, wie sie für die Bereitstellung unserer Dienste
-        erforderlich sind oder bis Sie eine Löschung beantragen. Nach Beendigung der Nutzung unserer
-        Dienste werden Ihre Daten für weitere 30 Tage aufbewahrt und anschließend gelöscht, es sei
-        denn, gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung.
+        Die Speicherung Deiner Daten dient dazu, Dir die Funktionen unserer Anwendung zur Verfügung
+        zu stellen, insbesondere das Erstellen, Bearbeiten und Abrufen Deiner Inhalte. Deine Daten
+        werden so lange gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich
+        sind oder bis Du eine Löschung beantragst. Nach Beendigung der Nutzung unserer Dienste
+        werden Deine Daten für weitere 30 Tage aufbewahrt und anschließend gelöscht, es sei denn,
+        gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung. Deine Rechte auf
+        Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung sind im Abschnitt
+        „Betroffenenrechte" beschrieben.
       </p>
 
       <h4>Übersicht der Speicherfristen</h4>
@@ -527,7 +516,7 @@ const Datenschutz = () => {
             <td>Bis zur Löschung durch Nutzer</td>
           </tr>
           <tr>
-            <td>KI-Anfragen (Mistral/Claude)</td>
+            <td>KI-Anfragen (KI-Dienstleister)</td>
             <td>Max. 30 Tage (Missbrauchserkennung)</td>
           </tr>
           <tr>
@@ -576,11 +565,14 @@ const Datenschutz = () => {
       </p>
 
       <h4>b. Recht auf Widerspruch</h4>
-      <p>Du hast ein Recht auf Widerspruch aus besonderen Gründen (siehe unter Punkt II).</p>
+      <p>
+        Du hast ein Recht auf Widerspruch aus besonderen Gründen (siehe Abschnitt „Recht auf
+        Widerspruch gemäß Art. 21 Abs. 1 DS-GVO").
+      </p>
 
       <h4>c. Recht auf Berichtigung</h4>
       <p>
-        Sollten die Sie betreffenden Angaben nicht (mehr) zutreffend sein, kannst Du nach{' '}
+        Sollten die Dich betreffenden Angaben nicht (mehr) zutreffend sein, kannst Du nach{' '}
         <a href="https://dejure.org/gesetze/DSGVO/16.html">Art. 16 DS-GVO</a> eine Berichtigung
         verlangen. Sollten Deine Daten unvollständig sein, kannst Du eine Vervollständigung
         verlangen.
@@ -603,7 +595,9 @@ const Datenschutz = () => {
         Wenn Du der Ansicht bist, dass die Verarbeitung Deiner personenbezogenen Daten gegen
         Datenschutzrecht verstößt, hast Du nach{' '}
         <a href="https://dejure.org/gesetze/DSGVO/77.html">Art. 77 Abs. 1 DS-GVO</a> das Recht, Dich
-        bei einer Datenschutzaufsichtsbehörde eigener Wahl zu beschweren.
+        bei einer Datenschutzaufsichtsbehörde eigener Wahl zu beschweren. Die für den
+        Verantwortlichen zuständige Aufsichtsbehörde ist die Landesbeauftragte für Datenschutz und
+        Informationsfreiheit Nordrhein-Westfalen (LDI NRW), Kavalleriestr. 2-4, 40213 Düsseldorf.
       </p>
 
       <h4>g. Recht auf Datenübertragbarkeit</h4>
@@ -621,7 +615,7 @@ const Datenschutz = () => {
         insoweit nicht erfüllt.
       </p>
 
-      <h3>II. Recht auf Widerspruch gemäß Art. 21 Abs. 1 DS-GVO</h3>
+      <h3>Recht auf Widerspruch gemäß Art. 21 Abs. 1 DS-GVO</h3>
       <p>
         Du hast das Recht, aus Gründen, die sich aus Deiner besonderen Situation ergeben, jederzeit
         gegen die Verarbeitung Deiner personenbezogenen Daten, die aufgrund von{' '}
@@ -662,7 +656,7 @@ const Datenschutz = () => {
         Daten können z. B. mit IT-Aufgaben beauftragte Dienstleister gehören oder Anbieter von
         Diensten und Inhalten, die in eine Website eingebunden sind. In solchen Fällen beachten wir
         die gesetzlichen Vorgaben und schließen insbesondere entsprechende Verträge bzw.
-        Vereinbarungen, die dem Schutz Ihrer Daten dienen, mit den Empfängern Ihrer Daten ab.
+        Vereinbarungen, die dem Schutz Deiner Daten dienen, mit den Empfängern Deiner Daten ab.
       </p>
 
       <h2>Internationale Datentransfers</h2>
@@ -676,21 +670,21 @@ const Datenschutz = () => {
         dieser als Grundlage des Datentransfers. Im Übrigen erfolgen Datentransfers nur dann, wenn
         das Datenschutzniveau anderweitig gesichert ist, insbesondere durch Standardvertragsklauseln
         (Art. 46 Abs. 2 lit. c) DSGVO), ausdrückliche Einwilligung oder im Fall vertraglicher oder
-        gesetzlich erforderlicher Übermittlung (Art. 49 Abs. 1 DSGVO). Im Übrigen teilen wir Ihnen
+        gesetzlich erforderlicher Übermittlung (Art. 49 Abs. 1 DSGVO). Im Übrigen teilen wir Dir
         die Grundlagen der Drittlandübermittlung bei den einzelnen Anbietern aus dem Drittland mit,
         wobei die Angemessenheitsbeschlüsse als Grundlagen vorrangig gelten. Informationen zu
-        Drittlandtransfers und vorliegenden Angemessenheitsbeschlüssen können dem
-        Informationsangebot der EU-Kommission entnommen werden.
+        Drittlandtransfers und vorliegenden Angemessenheitsbeschlüssen kannst Du dem
+        Informationsangebot der EU-Kommission entnehmen.
       </p>
 
       <p>
         EU-US Trans-Atlantic Data Privacy Framework: Im Rahmen des sogenannten Data Privacy
         Framework (DPF) hat die EU-Kommission das Datenschutzniveau ebenfalls für bestimmte
-        Unternehmen aus den USA im Rahmen der Angemessenheitsbeschlusses vom 10.07.2023 als sicher
-        anerkannt. Die Liste der zertifizierten Unternehmen als auch weitere Informationen zu dem
-        DPF können Sie der Website des Handelsministeriums der USA unter{' '}
+        Unternehmen aus den USA im Rahmen des Angemessenheitsbeschlusses vom 10.07.2023 als sicher
+        anerkannt. Die Liste der zertifizierten Unternehmen sowie weitere Informationen zu dem DPF
+        kannst Du der Website des Handelsministeriums der USA unter{' '}
         <a href="https://www.dataprivacyframework.gov/">https://www.dataprivacyframework.gov/</a>{' '}
-        (in Englisch) entnehmen. Wir informieren Sie im Rahmen der Datenschutzhinweise, welche von
+        (in Englisch) entnehmen. Wir informieren Dich im Rahmen der Datenschutzhinweise, welche von
         uns eingesetzten Diensteanbieter unter dem Data Privacy Framework zertifiziert sind.
       </p>
 
