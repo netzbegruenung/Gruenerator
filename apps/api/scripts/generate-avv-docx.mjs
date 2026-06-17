@@ -141,11 +141,12 @@ const content = [
   { li: '**Kollaborative Dokumentenbearbeitung:** gemeinsames Erstellen und Bearbeiten von Texten in Echtzeit' },
   { li: '**Web-Recherche:** agentische Recherche mit Quellenangaben (Linkup, SearXNG)' },
   { li: '**Sprachverarbeitung & Echtzeit-Sprachdialog (Voice Agent):** Spracherkennung (Voxtral) und Sprachausgabe (Mistral Speech)' },
-  { p: '(2) Der Auftragnehmer ist berechtigt, den Funktionsumfang der Plattform zu erweitern, einzuschränken oder zu verändern, sofern dies für den Auftraggeber zumutbar ist und das Datenschutzniveau nicht unterschritten wird.' },
+  { p: '(2) Konkret bereitgestellt wird für den Auftraggeber in der Regel ein dediziertes **Notebook**, in das die vom Auftraggeber bereitgestellten Inhalte eingepflegt (eingelesen und indexiert) werden, um eine KI-gestützte Recherche und Frage-Antwort-Funktion auf diesen Inhalten zu ermöglichen. Die Einpflege erfolgt in der Regel automatisiert durch Auslesen (Scraping) der vom Auftraggeber benannten Webseiten; in Ausnahmefällen ist auch eine manuelle Bereitstellung und Einpflege möglich.' },
+  { p: '(3) Der Auftragnehmer ist berechtigt, den Funktionsumfang der Plattform zu erweitern, einzuschränken oder zu verändern, sofern dies für den Auftraggeber zumutbar ist und das Datenschutzniveau nicht unterschritten wird.' },
 
   { h: 3, text: '§ 3 Gegenstand, Art, Umfang und Zweck der Datenverarbeitung' },
   { p: '(1) Im Rahmen der Leistungserbringung verarbeitet der Auftragnehmer personenbezogene Daten ausschließlich auf Weisung und im Auftrag des Auftraggebers. Einzelheiten regelt die als Anlage beigefügte Vereinbarung zur Auftragsverarbeitung (Teil B).' },
-  { p: '(2) **Art und Zweck:** KI-gestützte Erstellung, Bearbeitung und Abruf von Inhalten sowie die zugehörigen technischen Hilfsfunktionen (Transkription, Bildgenerierung, Suche, Sprachverarbeitung).' },
+  { p: '(2) **Art und Zweck:** KI-gestützte Erstellung, Bearbeitung und Abruf von Inhalten sowie die zugehörigen technischen Hilfsfunktionen (Transkription, Bildgenerierung, Suche, Sprachverarbeitung); einschließlich der in der Regel automatisierten Einpflege (Scraping) der vom Auftraggeber benannten Webseiten in ein Notebook und der KI-gestützten Recherche auf diesen Inhalten.' },
   { p: '(3) **Dauer:** für die Laufzeit dieser Leistungsvereinbarung (§ 7).' },
   { p: '(4) Die Kategorien personenbezogener Daten und betroffener Personen sowie der Verarbeitungsort ergeben sich aus § 2 der Vereinbarung zur Auftragsverarbeitung (Teil B).' },
 
@@ -155,14 +156,16 @@ const content = [
 
   { h: 3, text: '§ 5 Mitwirkungspflichten des Auftraggebers' },
   { p: 'Der Auftraggeber benennt weisungsberechtigte Ansprechpersonen (Anhang „Weisungsbefugnis") und stellt sicher, dass die Nutzung der Plattform im Einklang mit den Nutzungsbedingungen erfolgt; insbesondere werden keine personenbezogenen Daten Dritter ohne Rechtsgrundlage eingegeben.' },
+  { p: 'Der Auftraggeber benennt zudem die für das Notebook einzupflegenden Webseiten/Quellen, verantwortet die Rechtmäßigkeit ihrer Bereitstellung (insbesondere eine Rechtsgrundlage für darin enthaltene personenbezogene Daten) und autorisiert das automatisierte Auslesen (Scraping) der benannten Webseiten durch den Auftragnehmer.' },
 
   { h: 3, text: '§ 6 Vergütung' },
   { p: 'Die Nutzung der Plattform ist derzeit unentgeltlich, soweit zwischen den Vertragsparteien nicht ausdrücklich etwas anderes vereinbart ist. Ein Anspruch auf dauerhafte kostenlose Bereitstellung besteht nicht.' },
 
   { h: 3, text: '§ 7 Laufzeit und Kündigung' },
-  { p: '(1) Die Vereinbarung beginnt mit ihrer Unterzeichnung und läuft auf unbestimmte Zeit.' },
-  { p: '(2) Beide Vertragsparteien können die Vereinbarung mit einer Frist von [z. B. vier Wochen] zum Monatsende in Textform kündigen. Das Recht zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.' },
-  { p: '(3) Nach Beendigung gelten die Regelungen zur Löschung und Rückgabe von Daten gemäß § 7 der Vereinbarung zur Auftragsverarbeitung (Teil B).' },
+  { p: '(1) Die Vereinbarung wird auf die Dauer von einem Jahr ab Unterzeichnung geschlossen.' },
+  { p: '(2) Sie verlängert sich um jeweils ein weiteres Jahr, sofern sie nicht mit einer Frist von einem Monat zum jeweiligen Laufzeitende in Textform gekündigt wird.' },
+  { p: '(3) Das Recht zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt.' },
+  { p: '(4) Nach Beendigung gelten die Regelungen zur Löschung und Rückgabe von Daten gemäß § 7 der Vereinbarung zur Auftragsverarbeitung (Teil B); die im Notebook eingepflegten Daten werden innerhalb von 30 Tagen nach Vertragsende gelöscht oder zurückgegeben, sofern keine gesetzliche Aufbewahrungspflicht entgegensteht.' },
 
   { h: 3, text: '§ 8 Datenschutz' },
   { p: 'Die Verarbeitung personenbezogener Daten richtet sich nach der als Anlage beigefügten Vereinbarung zur Auftragsverarbeitung (Teil B), die Bestandteil dieser Leistungsvereinbarung ist.' },
@@ -187,6 +190,7 @@ const content = [
   { p: '(2) Folgende Arten personenbezogener Daten sind Gegenstand der Verarbeitung durch den Auftragsverarbeiter:' },
   { li: 'Personenstammdaten (z. B. Name, Login-Daten)' },
   { li: 'Texteingaben (Inhalte, die Nutzer*innen in die Plattform eingeben)' },
+  { li: 'Vom Verantwortlichen bereitgestellte bzw. von dessen Webseiten automatisiert ausgelesene Inhalte (Notebook-Dokumente)' },
   { li: 'Bilddaten (Uploads zur Bearbeitung)' },
   { li: 'Audio- und Videodaten (Sprachaufnahmen, Video-Reels zur Transkription)' },
   { li: 'Technische Nutzungsdaten (Logs, Session-Daten)' },
