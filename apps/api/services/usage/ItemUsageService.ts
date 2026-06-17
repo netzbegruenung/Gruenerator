@@ -46,11 +46,7 @@ export async function recordItemUsage(
 }
 
 /** Fire-and-forget wrapper for request paths — never throws, never blocks. */
-export function recordItemUsageSafe(
-  userId: string,
-  itemType: ItemUsageType,
-  itemId: string
-): void {
+export function recordItemUsageSafe(userId: string, itemType: ItemUsageType, itemId: string): void {
   void recordItemUsage(userId, itemType, itemId).catch((err) => {
     log.warn(`[ItemUsage] Failed to record ${itemType} usage for ${itemId}:`, err);
   });

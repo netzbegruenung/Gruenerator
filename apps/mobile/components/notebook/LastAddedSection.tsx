@@ -102,12 +102,7 @@ export function LastAddedSection({
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <View style={styles.list}>
         {items.map((item) => (
-          <Card
-            key={item.id}
-            item={item}
-            showSourceLabel={shouldShowSourceLabel}
-            theme={theme}
-          />
+          <Card key={item.id} item={item} showSourceLabel={shouldShowSourceLabel} theme={theme} />
         ))}
       </View>
     </View>

@@ -150,9 +150,7 @@ export function StatisticsSection({
   const noData = !isLoading && totalDocs === 0;
   if (noData) return null;
 
-  const classifiedCount = stats
-    ? stats.topicDistribution.reduce((sum, t) => sum + t.count, 0)
-    : 0;
+  const classifiedCount = stats ? stats.topicDistribution.reduce((sum, t) => sum + t.count, 0) : 0;
   const terms = (stats?.topWords ?? []).slice(0, TOP_TERMS).map((w) => w.word);
   const persons = (stats?.topPersons ?? []).slice(0, TOP_PERSONS).map((p) => p.person);
   const hasFooter = terms.length > 0 || persons.length > 0;
