@@ -29,6 +29,8 @@ export function useBoardAiEditEnabled(boardId: string): {
   const [enabled, setEnabled] = useState<boolean>(() => readInitial(boardId));
 
   useEffect(() => {
+    // Re-read the persisted per-board toggle when switching boards; intentional sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEnabled(readInitial(boardId));
   }, [boardId]);
 

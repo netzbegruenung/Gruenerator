@@ -1,5 +1,4 @@
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -183,6 +182,7 @@ function FilterButton({
             const ops = getOperatorsForField(field);
             const needsValue = !['isEmpty', 'isNotEmpty'].includes(rule.operator);
             return (
+              // eslint-disable-next-line react/no-array-index-key -- editable filter rows have no stable id
               <div key={idx} className="flex items-center gap-1.5">
                 <span className="text-xs text-grey-500 w-20 truncate shrink-0">{field.name}</span>
                 <select
@@ -308,6 +308,7 @@ function SortButton({
           {sorts.map((rule, idx) => {
             const field = fields.find((f) => f.id === rule.fieldId);
             return (
+              // eslint-disable-next-line react/no-array-index-key -- editable sort rows have no stable id
               <div key={idx} className="flex items-center gap-1.5">
                 <span className="text-xs text-grey-500 flex-1 truncate">
                   {field?.name ?? rule.fieldId}
