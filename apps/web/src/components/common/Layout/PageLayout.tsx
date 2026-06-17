@@ -1,14 +1,11 @@
 import { type JSX, useEffect, Suspense, lazy, useState, type ReactNode, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { GlobalChatProvider } from '../../../providers/GlobalChatProvider';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { isDesktopApp } from '../../../utils/platform';
 import { Sidebar } from '../../layout/Sidebar';
 import SidebarToggle from '../../layout/SidebarToggle';
-
-import { GlobalBridges } from './GlobalBridges';
 
 import type { LayoutMode } from '../../../config/routes';
 
@@ -41,7 +38,7 @@ const PageLayout = ({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isHomePage = pathname === '/';
-  const { createTab, tabs, activeTabId } = useDesktopTabsStore();
+  const { createTab, navigateTab, activeTabId } = useDesktopTabsStore();
 
   useEffect(() => {
     const footerTimeout = setTimeout(() => {
@@ -53,13 +50,23 @@ const PageLayout = ({
 
   const handleDesktopNavigation = useCallback(
     (path: string, title: string) => {
-      const activeTab = tabs.find((t) => t.id === activeTabId);
-      if (activeTab?.route !== path) {
-        createTab(path, title);
+      // Compare against the ACTUAL current URL, not the stored tab route — the
+      // tab's route can go stale when navigation happens outside the sidebar
+      // (e.g. opening a document via a link), which would otherwise make a
+      // sidebar click a no-op (clicking "Workplace" from a doc did nothing).
+      if (pathname !== path) {
+        // Navigate WITHIN the current tab. New tabs are opened only manually
+        // (the "+" button / ⌘T); sidebar navigation must not spawn one each
+        // time, or every click piles up another tab.
+        if (activeTabId) {
+          navigateTab(activeTabId, path, title);
+        } else {
+          createTab(path, title);
+        }
         void navigate(path);
       }
     },
-    [tabs, activeTabId, createTab, navigate]
+    [pathname, activeTabId, navigateTab, createTab, navigate]
   );
 
   if (layoutMode === 'noChrome') {
@@ -77,6 +84,9 @@ const PageLayout = ({
         <Suspense fallback={null}>
           <UpdateNotification />
         </Suspense>
+        {/* Chat runtime (GlobalChatProvider) + GlobalBridges are mounted once
+            at the app root (App.tsx), wrapping all routes — not here, which
+            would re-mount on every navigation. */}
         <div className="desktop-content-area">
           <Sidebar isDesktop={true} onNavigate={handleDesktopNavigation} />
           <main className="ml-14 min-h-[calc(100vh-var(--titlebar-height))] flex-1 flex flex-col items-stretch transition-[margin-left] duration-200">
@@ -116,49 +126,48 @@ const PageLayout = ({
 
   const showPageFooter = showFooter && isHomePage && layoutMode === 'default';
 
+  // GlobalChatProvider + GlobalBridges are mounted once at the app root
+  // (App.tsx) wrapping all routes — not per-page here.
   return (
-    <GlobalChatProvider>
-      <GlobalBridges />
-      <div className={layoutClasses}>
-        {!hideHeader ? (
-          <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center px-2.5 h-12 pointer-events-none">
-            <div className="pointer-events-auto flex items-center gap-0">
-              <SidebarToggle />
-              {sidebarOpen && (
-                <>
-                  <img
-                    src="/images/gruenerator_logo_gruen.svg"
-                    alt="Grünerator"
-                    className="h-7 w-auto shrink-0 dark:hidden"
-                  />
-                  <img
-                    src="/images/gruenerator_logo_weiss.svg"
-                    alt="Grünerator"
-                    aria-hidden="true"
-                    className="hidden h-7 w-auto shrink-0 dark:block"
-                  />
-                </>
-              )}
-            </div>
-          </header>
-        ) : isSidebarOnly ? (
-          <div className="fixed top-0 left-0 z-[1002] px-2.5 h-12 flex items-center pointer-events-none">
-            <div className="pointer-events-auto">
-              <SidebarToggle />
-            </div>
+    <div className={layoutClasses}>
+      {!hideHeader ? (
+        <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center px-2.5 h-12 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-0">
+            <SidebarToggle />
+            {sidebarOpen && (
+              <>
+                <img
+                  src="/images/gruenerator_logo_gruen.svg"
+                  alt="Grünerator"
+                  className="h-7 w-auto shrink-0 dark:hidden"
+                />
+                <img
+                  src="/images/gruenerator_logo_weiss.svg"
+                  alt="Grünerator"
+                  aria-hidden="true"
+                  className="hidden h-7 w-auto shrink-0 dark:block"
+                />
+              </>
+            )}
           </div>
-        ) : null}
-        <Sidebar />
-        <div className={appContentClasses}>
-          <main className={mainClasses}>{children}</main>
-          {showPageFooter && (
-            <Suspense fallback={<div style={{ height: '80px' }} />}>
-              <Footer />
-            </Suspense>
-          )}
+        </header>
+      ) : isSidebarOnly ? (
+        <div className="fixed top-0 left-0 z-[1002] px-2.5 h-12 flex items-center pointer-events-none">
+          <div className="pointer-events-auto">
+            <SidebarToggle />
+          </div>
         </div>
+      ) : null}
+      <Sidebar />
+      <div className={appContentClasses}>
+        <main className={mainClasses}>{children}</main>
+        {showPageFooter && (
+          <Suspense fallback={<div style={{ height: '80px' }} />}>
+            <Footer />
+          </Suspense>
+        )}
       </div>
-    </GlobalChatProvider>
+    </div>
   );
 };
 
