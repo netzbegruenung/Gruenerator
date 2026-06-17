@@ -1,4 +1,10 @@
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@gruenerator/ui';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+  Button,
+} from '@gruenerator/ui';
 import { useEffect, useState } from 'react';
 import { HiClipboardCopy, HiCheck, HiExternalLink, HiDownload } from 'react-icons/hi';
 
@@ -291,7 +297,6 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/
 interface BetaPlatform {
   label: string;
   filename: string;
-  url: string;
 }
 
 interface BetaManifest {
@@ -339,7 +344,7 @@ const DesktopDownloadSection = () => {
     );
   }
 
-  const platforms = beta ? Object.values(beta.platforms) : [];
+  const platforms = beta ? Object.entries(beta.platforms) : [];
 
   return (
     <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
@@ -357,15 +362,22 @@ const DesktopDownloadSection = () => {
       {beta && platforms.length > 0 ? (
         <>
           <div className="flex w-full flex-col items-center gap-3">
-            {platforms.map((p) => (
-              <a
-                key={p.filename}
-                href={p.url}
-                className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+            <p className="text-xs font-medium uppercase tracking-wide text-grey-400">
+              Wähle die Version für deinen Mac
+            </p>
+            {platforms.map(([key, p]) => (
+              <Button
+                key={key}
+                asChild
+                variant="brand"
+                size="brand"
+                className="w-full max-w-sm gap-2"
               >
-                <HiDownload className="text-lg" />
-                Für {p.label} herunterladen
-              </a>
+                <a href={`${API_BASE}/releases/beta/download/${key}`}>
+                  <HiDownload className="text-lg" />
+                  {p.label}
+                </a>
+              </Button>
             ))}
             <p className="text-xs text-grey-500">Version {beta.version}</p>
           </div>
