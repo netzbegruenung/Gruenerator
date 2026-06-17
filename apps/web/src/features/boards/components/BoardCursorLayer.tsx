@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/refs */
 import { memo } from 'react';
 
 import type { RemoteCursor } from '../hooks/useBoardAwareness';
