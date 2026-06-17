@@ -258,9 +258,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
-  const { internalAgentInsightRouter } = await import(
-    './routes/agents/internalAgentInsightController.js'
-  );
+  const { internalAgentInsightRouter } =
+    await import('./routes/agents/internalAgentInsightController.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');

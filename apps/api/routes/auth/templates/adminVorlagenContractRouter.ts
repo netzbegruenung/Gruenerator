@@ -177,9 +177,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
           body: message ? `${baseBody}\n\n${message}` : baseBody,
           actionUrl: '/vorlagen',
           metadata: { templateId: id, ...(message ? { approvalMessage: message } : {}) },
-        }).catch((e) =>
-          log.warn('[adminVorlagenContract.approve] createNotification failed', e)
-        );
+        }).catch((e) => log.warn('[adminVorlagenContract.approve] createNotification failed', e));
       }
 
       log.info(`[adminVorlagenContract] Vorlage ${id} approved by ${userId}`);
@@ -251,9 +249,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
             ? `„${template.title}" wurde abgelehnt: ${reason}`
             : `„${template.title}" wurde leider nicht freigegeben.`,
           metadata: { templateId: id, ...(reason ? { rejectionReason: reason } : {}) },
-        }).catch((e) =>
-          log.warn('[adminVorlagenContract.reject] createNotification failed', e)
-        );
+        }).catch((e) => log.warn('[adminVorlagenContract.reject] createNotification failed', e));
       }
 
       log.info(`[adminVorlagenContract] Vorlage ${id} rejected by ${userId}`);

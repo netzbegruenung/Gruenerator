@@ -7,7 +7,11 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { TOPIC_CATEGORIES, type TopicCategory } from '../monitor/types.js';
-import { classifyArticles, extractKeywordsBatched, extractPersonsBatched } from '../nlp/nlpClient.js';
+import {
+  classifyArticles,
+  extractKeywordsBatched,
+  extractPersonsBatched,
+} from '../nlp/nlpClient.js';
 
 const log = createLogger('notebookKeywords');
 
@@ -141,7 +145,15 @@ export async function refreshKeywordSnapshot(
              total_documents = EXCLUDED.total_documents,
              sample_size = EXCLUDED.sample_size,
              computed_at = now()`,
-      [collectionId, month, JSON.stringify([]), JSON.stringify({}), JSON.stringify([]), totalDocuments, 0]
+      [
+        collectionId,
+        month,
+        JSON.stringify([]),
+        JSON.stringify({}),
+        JSON.stringify([]),
+        totalDocuments,
+        0,
+      ]
     );
     return {
       collectionId,
