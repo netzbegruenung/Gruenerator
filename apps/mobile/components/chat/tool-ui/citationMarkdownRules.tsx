@@ -1,8 +1,7 @@
 import { Linking, Text } from 'react-native';
 
-import { colors } from '../../../theme';
+import { CitationBadge } from '../CitationBadge';
 
-import type { ResearchCitation } from '@gruenerator/chat';
 import type { ReactNode } from 'react';
 import type { StyleProp, TextStyle } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -10,15 +9,25 @@ import type { RenderRules } from 'react-native-markdown-display';
 // Same marker grammar as web's processTextWithCitations.
 const CITATION_REGEX = /\[(\d+)\]/g;
 
+/** Minimal shape an inline citation chip needs — satisfied by both the chat
+ *  `Citation` and the tool-result `ResearchCitation` from `@gruenerator/chat`. */
+interface ChipCitation {
+  id: number;
+  url?: string | null;
+  title?: string;
+}
+
 /**
  * react-native-markdown-display rule that renders inline [N] citation markers
- * as tappable chips opening the cited source — the native counterpart of
- * web's CitationBadge popovers (no hover on touch, so tap → source).
- * Returns undefined when there are no citations so Markdown keeps its
- * default text rule.
+ * as tappable chips — the native counterpart of web's CitationBadge.
+ * When `onPress` is given, a tap opens it (e.g. the chat citation detail sheet,
+ * mirroring web's popover); otherwise it falls back to opening the source URL
+ * (used by tool/research cards). Returns undefined when there are no citations
+ * so Markdown keeps its default text rule.
  */
-export function makeCitationMarkdownRules(
-  citations: Map<number, ResearchCitation>
+export function makeCitationMarkdownRules<C extends ChipCitation>(
+  citations: Map<number, C>,
+  onPress?: (citation: C) => void
 ): RenderRules | undefined {
   if (citations.size === 0) return undefined;
 
@@ -48,17 +57,21 @@ export function makeCitationMarkdownRules(
           parts.push(text.slice(lastIndex, match.index));
         }
         const url = citation.url;
+        const handlePress = onPress
+          ? () => onPress(citation)
+          : url
+            ? () => void Linking.openURL(url)
+            : undefined;
+        // Plain space before the badge so the bubble doesn't sit flush against
+        // the preceding word.
+        parts.push(' ');
         parts.push(
-          <Text
+          <CitationBadge
             key={`cite-${match.index}`}
-            style={chipStyle}
-            onPress={url ? () => void Linking.openURL(url) : undefined}
-            accessibilityRole="link"
-            accessibilityLabel={`Quelle ${citation.id}: ${citation.title}`}
-          >
-            {' '}
-            [{citation.id}]
-          </Text>
+            label={citation.id}
+            onPress={handlePress}
+            accessibilityLabel={`Quelle ${citation.id}: ${citation.title ?? ''}`}
+          />
         );
         lastIndex = match.index + match[0].length;
       }
@@ -81,9 +94,3 @@ export function makeCitationMarkdownRules(
     },
   };
 }
-
-const chipStyle = {
-  color: colors.primary[600],
-  fontWeight: '700' as const,
-  fontSize: 11,
-};
