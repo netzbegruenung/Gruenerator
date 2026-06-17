@@ -7,7 +7,7 @@
  */
 
 import { type Agent, type AgentProvider } from '@gruenerator/shared/agents';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -170,4 +170,114 @@ export async function deleteUserAgent(userId: string, identifier: string): Promi
     .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
     .returning({ id: userAgents.id });
   return rows.length > 0;
+}
+
+// ── Sharing ────────────────────────────────────────────────────────────────
+// share_mode gates who can see/use the agent; is_public lists it in the public
+// Agentura directory atop share_mode='authenticated'; `locale` doubles as the
+// audience filter. Group shares live in the polymorphic group_content_shares
+// table keyed by the agent's UUID `id` (content_id), not the per-user
+// `identifier`. See migrations/user_agents_sharing_columns.sql.
+
+export type UserAgentAudience = 'de-DE' | 'de-AT';
+export type UserAgentShareMode = 'private' | 'groups' | 'authenticated';
+export type UserAgentPublicOwnership = 'owner' | 'public_data';
+
+export interface UserAgentSharing {
+  /** The agent's UUID — the group_content_shares.content_id for this agent. */
+  id: string;
+  share_mode: UserAgentShareMode;
+  audience: UserAgentAudience;
+  is_public: boolean;
+  public_ownership: UserAgentPublicOwnership | null;
+}
+
+export interface UserAgentSharingPatch {
+  share_mode?: UserAgentShareMode;
+  audience?: UserAgentAudience;
+  is_public?: boolean;
+  public_ownership?: UserAgentPublicOwnership | null;
+}
+
+function normalizeAudience(locale: string): UserAgentAudience {
+  return locale === 'de-AT' ? 'de-AT' : 'de-DE';
+}
+
+/** Owner-scoped lookup of an agent's sharing state (and its UUID). */
+export async function getAgentSharing(
+  userId: string,
+  identifier: string
+): Promise<UserAgentSharing | undefined> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .select({
+      id: userAgents.id,
+      share_mode: userAgents.share_mode,
+      locale: userAgents.locale,
+      is_public: userAgents.is_public,
+      public_ownership: userAgents.public_ownership,
+    })
+    .from(userAgents)
+    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    share_mode: row.share_mode as UserAgentShareMode,
+    audience: normalizeAudience(row.locale),
+    is_public: row.is_public,
+    public_ownership: (row.public_ownership as UserAgentPublicOwnership | null) ?? null,
+  };
+}
+
+/** Owner-scoped update of sharing fields. `audience` writes the `locale` column. */
+export async function updateAgentSharing(
+  userId: string,
+  identifier: string,
+  patch: UserAgentSharingPatch
+): Promise<boolean> {
+  const db = getDrizzleInstance();
+  const values: Record<string, unknown> = { updated_at: new Date() };
+  if (patch.share_mode !== undefined) values.share_mode = patch.share_mode;
+  if (patch.audience !== undefined) values.locale = patch.audience;
+  if (patch.is_public !== undefined) values.is_public = patch.is_public;
+  if (patch.public_ownership !== undefined) values.public_ownership = patch.public_ownership;
+  const rows = await db
+    .update(userAgents)
+    .set(values)
+    .where(and(eq(userAgents.user_id, userId), eq(userAgents.identifier, identifier)))
+    .returning({ id: userAgents.id });
+  return rows.length > 0;
+}
+
+/**
+ * Hydrate agents by UUID — used by the group-content read path. The UUID `id`
+ * is carried alongside the canonical Agent shape so the caller can match each
+ * agent back to its group_content_shares row (content_id = the UUID).
+ */
+export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & { id: string }>> {
+  if (ids.length === 0) return [];
+  const db = getDrizzleInstance();
+  const rows = await db.select().from(userAgents).where(inArray(userAgents.id, ids));
+  return rows.map((row) => ({ ...rowToAgent(row), id: row.id }));
+}
+
+/**
+ * Public Agentura discovery feed: agents listed publicly (is_public=true atop
+ * share_mode='authenticated'), filtered to the viewer's locale.
+ */
+export async function listPublicUserAgents(viewerLocale: string): Promise<Agent[]> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .select()
+    .from(userAgents)
+    .where(
+      and(
+        eq(userAgents.is_public, true),
+        eq(userAgents.share_mode, 'authenticated'),
+        eq(userAgents.locale, normalizeAudience(viewerLocale))
+      )
+    );
+  return rows.map(rowToAgent);
 }
