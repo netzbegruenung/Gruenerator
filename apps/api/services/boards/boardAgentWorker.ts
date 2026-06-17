@@ -192,7 +192,7 @@ async function processTask(task: AgentTask): Promise<void> {
       // the originating card's "Dokumente" list. Both are best-effort (they log and
       // swallow) so the task still completes if one fails.
       await inheritBoardSharingToDocument(doc.id, task.board_id);
-      await linkDocumentToCard(task.board_id, task.card_id, { id: doc.id, title });
+      const linked = await linkDocumentToCard(task.board_id, task.card_id, { id: doc.id, title });
 
       await completeAgentTask(task.id, doc.id);
 
@@ -213,7 +213,12 @@ async function processTask(task: AgentTask): Promise<void> {
       });
 
       await finishComment([
-        { type: 'text', text: '✅ Fertig! Dokument erstellt und mit der Karte verknüpft: ' },
+        {
+          type: 'text',
+          text: linked
+            ? '✅ Fertig! Dokument erstellt und mit der Karte verknüpft: '
+            : '✅ Fertig! Dokument erstellt: ',
+        },
         { type: 'link', text: title, url: relativeUrl },
       ]);
 
