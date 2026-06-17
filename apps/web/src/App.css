@@ -10,3 +10,16 @@
   color: var(--font-color);
   font-size: var(--font-size-base);
 }
+
+/* Desktop app only — the `docs-editor-desktop` class is applied to the docs
+   editor scroll area solely when running in the Tauri shell (see
+   DocsEditorPage). It makes the editor backdrop match the top bar (no
+   white-bar-over-gray seam) and adds a subtle border so the A4 page still
+   reads as a page. Web never gets this class, so its design is unchanged. */
+.docs-editor-desktop .blocknote-wrapper {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] .docs-editor-desktop .blocknote-wrapper {
+  border-color: rgba(255, 255, 255, 0.1);
+}
