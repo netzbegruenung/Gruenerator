@@ -11,25 +11,24 @@ const Datenschutz = () => {
         <strong>
           Der <a href={PRIMARY_URL}>GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die
           Eingabefelder eingibst. Diese werden zur KI-Bearbeitung an einen unserer europäischen
-          KI-Dienstleister weitergeleitet (insbesondere{' '}
-          <a href="https://mistral.ai/">Mistral AI</a> in Frankreich, KI-Modelle der netzbegrünung
-          e.V. sowie Seeweb/Regolo AI in Italien); welches Modell verwendet wird, kannst Du pro
-          Anfrage selbst wählen. Deine Daten werden dort nicht zum Training der KI verwendet. Bei
-          Nutzung des{' '}
+          KI-Dienstleister weitergeleitet (insbesondere <a href="https://mistral.ai/">Mistral AI</a>{' '}
+          in Frankreich, KI-Modelle der netzbegrünung e.V. sowie Seeweb/Regolo AI in Italien);
+          welches Modell verwendet wird, kannst Du pro Anfrage selbst wählen. Deine Daten werden
+          dort nicht zum Training der KI verwendet. Bei Nutzung des{' '}
           <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder
           direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit
           dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die
           Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI
           genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen über
           unsere KI-Dienstleister sowie spezialisierte Suchdienste (in der EU) verarbeitet. Bei
-          Nutzung der Sprachverarbeitung werden deine
-          Audiodaten an Mistral AI in der EU verarbeitet (Voxtral für Spracherkennung, Mistral TTS
-          für die Sprachausgabe des KI-Agenten). Bei Aktivierung des{' '}
-          <strong>Echtzeit-Sprachdialogs</strong> bleibt Dein Mikrofon für die Dauer der Sitzung
-          aktiv und wird automatisch freigegeben, sobald Du die Sitzung beendest, den Browser-Tab
-          wechselst, die Seite verlässt oder das Fenster schließt. Bitte achte also darauf, dass Du
-          keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst und dass sich
-          keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons befinden.
+          Nutzung der Sprachverarbeitung werden deine Audiodaten an Mistral AI in der EU verarbeitet
+          (Voxtral für Spracherkennung, Mistral TTS für die Sprachausgabe des KI-Agenten). Bei
+          Aktivierung des <strong>Echtzeit-Sprachdialogs</strong> bleibt Dein Mikrofon für die Dauer
+          der Sitzung aktiv und wird automatisch freigegeben, sobald Du die Sitzung beendest, den
+          Browser-Tab wechselst, die Seite verlässt oder das Fenster schließt. Bitte achte also
+          darauf, dass Du keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst
+          und dass sich keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons
+          befinden.
         </strong>
       </p>
       <p>
@@ -56,9 +55,8 @@ const Datenschutz = () => {
         Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten findest Du unten auf
         dieser Seite. Weiterführende Informationen dazu, wie Mistral AI Deine Eingaben verarbeitet
         und behandelt, findest Du in der{' '}
-        <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a>{' '}
-        sowie in den <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a>{' '}
-        von Mistral AI.
+        <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a> sowie in den{' '}
+        <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a> von Mistral AI.
       </p>
       <p>
         <u>Hinweis:</u>
@@ -69,8 +67,7 @@ const Datenschutz = () => {
         </a>{' '}
         arbeitet daran alle Daten selbst zu verarbeiten, damit Du den GRUENERATOR schon bald
         komplett sorg- und bedenklos nutzen kannst. Falls Du dieses Ziel unterstützen willst, kannst
-        Du das mit einer{' '}
-        <a href="https://netzbegruenung.de/verein/spenden/">Spende</a> oder einer{' '}
+        Du das mit einer <a href="https://netzbegruenung.de/verein/spenden/">Spende</a> oder einer{' '}
         <a href="https://netzbegruenung.de/verein/mitgliedsantrag/">Mitgliedschaft</a> tun.
       </p>
 
@@ -242,7 +239,9 @@ const Datenschutz = () => {
             <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
             <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
             <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
-            <li>KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
+            <li>
+              KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)
+            </li>
           </ul>
         </li>
         <li>
@@ -670,8 +669,8 @@ const Datenschutz = () => {
         dieser als Grundlage des Datentransfers. Im Übrigen erfolgen Datentransfers nur dann, wenn
         das Datenschutzniveau anderweitig gesichert ist, insbesondere durch Standardvertragsklauseln
         (Art. 46 Abs. 2 lit. c) DSGVO), ausdrückliche Einwilligung oder im Fall vertraglicher oder
-        gesetzlich erforderlicher Übermittlung (Art. 49 Abs. 1 DSGVO). Im Übrigen teilen wir Dir
-        die Grundlagen der Drittlandübermittlung bei den einzelnen Anbietern aus dem Drittland mit,
+        gesetzlich erforderlicher Übermittlung (Art. 49 Abs. 1 DSGVO). Im Übrigen teilen wir Dir die
+        Grundlagen der Drittlandübermittlung bei den einzelnen Anbietern aus dem Drittland mit,
         wobei die Angemessenheitsbeschlüsse als Grundlagen vorrangig gelten. Informationen zu
         Drittlandtransfers und vorliegenden Angemessenheitsbeschlüssen kannst Du dem
         Informationsangebot der EU-Kommission entnehmen.
