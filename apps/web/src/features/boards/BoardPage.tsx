@@ -278,6 +278,7 @@ function BoardViewContent({
   const [assistantMounted, setAssistantMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickFilters, setQuickFilters] = useState<QuickFilter[]>([]);
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   const toggleQuickFilter = useCallback((filter: QuickFilter) => {
     setQuickFilters((prev) =>
@@ -292,6 +293,7 @@ function BoardViewContent({
     activeViewId,
     searchQuery,
     quickFilters,
+    includeArchived,
     currentUserId: currentUserId || undefined,
     currentUserName: userName ?? undefined,
   });
@@ -369,6 +371,8 @@ function BoardViewContent({
         quickFilters={quickFilters}
         onToggleQuickFilter={toggleQuickFilter}
         hasUser={Boolean(currentUserId || userName)}
+        includeArchived={includeArchived}
+        onToggleArchived={() => setIncludeArchived((v) => !v)}
       />
 
       <BoardSettingsSheet

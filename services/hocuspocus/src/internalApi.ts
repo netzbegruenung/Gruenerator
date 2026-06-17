@@ -18,6 +18,50 @@ const KEY_ID = 'id';
 const KEY_CONFIG_ID = 'configId';
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
+const BOARD_TRANSACT_ORIGIN = 'gruenerator-internal-board-api';
+
+// Board Yjs layout. Duplicated from the frontend FIELD_IDS / apps/api BoardService
+// on purpose — the Hocuspocus service has zero cross-package deps (per CLAUDE.md).
+const BOARD_LINKED_DOCS_FIELD = 'field-linked-docs';
+
+interface LinkedDoc {
+  id: string;
+  title: string;
+}
+
+/**
+ * Append a {id, title} link to a board card's "Dokumente" (field-linked-docs) cell.
+ * The cell is a JSON string array (matches how the frontend writes it). Idempotent:
+ * a doc id already present is a no-op. Returns true when the card row was found.
+ */
+export function linkDocToBoardCard(doc: Y.Doc, cardId: string, linked: LinkedDoc): boolean {
+  let found = false;
+  doc.transact(() => {
+    const rows = doc.getArray<Y.Map<unknown>>('rows');
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows.get(i);
+      if (row.get('id') !== cardId) continue;
+      found = true;
+      const cells = row.get('cells');
+      if (!(cells instanceof Y.Map)) return;
+      const raw = (cells as Y.Map<unknown>).get(BOARD_LINKED_DOCS_FIELD);
+      let current: LinkedDoc[] = [];
+      if (typeof raw === 'string' && raw.trim()) {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) current = parsed as LinkedDoc[];
+        } catch {
+          /* malformed cell → treat as empty */
+        }
+      }
+      if (current.some((d) => d.id === linked.id)) return; // idempotent
+      current.push({ id: linked.id, title: linked.title });
+      (cells as Y.Map<unknown>).set(BOARD_LINKED_DOCS_FIELD, JSON.stringify(current));
+      return;
+    }
+  }, BOARD_TRANSACT_ORIGIN);
+  return found;
+}
 
 interface InternalApiDeps {
   server: Server;
@@ -366,6 +410,53 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Link an agent-generated document into a board card's "Dokumente" list. Goes
+  // through the live doc so the link survives whether or not anyone has the board
+  // open, and never races a live editor. Called by the API's boardLinkService.
+  router.post('/board/:boardId/link-doc', async (req, res) => {
+    const { boardId } = req.params;
+    const body = (req.body ?? {}) as { cardId?: unknown; doc?: unknown };
+    const cardId = body.cardId;
+    const doc = body.doc as { id?: unknown; title?: unknown } | undefined;
+
+    if (typeof cardId !== 'string' || !cardId) {
+      res.status(400).json({ error: 'cardId (string) is required' });
+      return;
+    }
+    if (!doc || typeof doc.id !== 'string' || typeof doc.title !== 'string') {
+      res.status(400).json({ error: 'doc { id, title } is required' });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(boardId);
+      try {
+        let found = false;
+        await connection.transact((ydoc) => {
+          found = linkDocToBoardCard(ydoc, cardId, {
+            id: doc.id as string,
+            title: doc.title as string,
+          });
+        });
+        if (!found) {
+          log.warn(`link-doc: card ${cardId} not found on board ${boardId}`);
+          res.status(404).json({ error: 'card not found on board' });
+          return;
+        }
+        log.info(`Linked doc ${doc.id} to card ${cardId} on board ${boardId}`);
+        res.json({ ok: true });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`link-doc failed for board ${boardId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.use('/internal', router);
-  log.info('Internal API registered at /internal/canvas/* and /internal/board/*/comment-bump');
+  log.info(
+    'Internal API registered at /internal/canvas/* and /internal/board/*/{comment-bump,link-doc}'
+  );
 }
