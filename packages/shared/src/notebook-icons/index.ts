@@ -1,4 +1,5 @@
 import {
+  GiRaccoonHead,
   MdDiversity1,
   PiBank,
   PiBooks,
@@ -50,7 +51,7 @@ export const NOTEBOOK_ICONS = {
   'gruenblog-notebook': PiNewspaper,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
-  'hessen-notebook': PiCrown,
+  'hessen-notebook': GiRaccoonHead,
   'boell-stiftung-notebook': PiLightbulb,
 } satisfies Record<NotebookId, IconType>;
 
