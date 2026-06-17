@@ -21,7 +21,7 @@ interface GroupContentSectionProps {
 interface SectionConfig {
   key: keyof Pick<
     ReturnType<typeof useGroupContent>['data'] & object,
-    'docs' | 'boards' | 'generators' | 'notebooks' | 'texts' | 'templates' | 'documents'
+    'docs' | 'boards' | 'generators' | 'notebooks' | 'agents' | 'texts' | 'templates' | 'documents'
   >;
   label: string;
   icon: IoniconsIconName;
@@ -32,6 +32,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'boards', label: 'Boards', icon: 'grid-outline' },
   { key: 'generators', label: 'Grüneratoren', icon: 'sparkles-outline' },
   { key: 'notebooks', label: 'Notizbücher', icon: 'book-outline' },
+  { key: 'agents', label: 'Agent*innen', icon: 'chatbubbles-outline' },
   { key: 'texts', label: 'Texte', icon: 'reader-outline' },
   { key: 'templates', label: 'Vorlagen', icon: 'albums-outline' },
   { key: 'documents', label: 'Dateien', icon: 'folder-outline' },
@@ -72,6 +73,15 @@ export const GroupContentSection = memo(function GroupContentSection({
           router.push({
             pathname: '/(fullscreen)/web-viewer',
             params: { path: `/notebook/${item.id}`, title: item.title },
+          });
+          return;
+        case 'agent':
+          // Open a native chat with the shared agent (item.id is the agent
+          // identifier). Resolution for non-owner members is handled by the
+          // group-share fallback in getAgentForUser.
+          router.push({
+            pathname: '/(focused)/chat-conversation',
+            params: { threadId: 'new', agentId: item.id },
           });
           return;
         case 'text':
