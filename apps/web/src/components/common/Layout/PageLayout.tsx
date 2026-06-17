@@ -79,7 +79,7 @@ const PageLayout = ({
         </Suspense>
         <div className="desktop-content-area">
           <Sidebar isDesktop={true} onNavigate={handleDesktopNavigation} />
-          <main className="ml-14 min-h-[calc(100vh-var(--titlebar-height))] flex-1 flex flex-col items-center transition-[margin-left] duration-200">
+          <main className="ml-14 min-h-[calc(100vh-var(--titlebar-height))] flex-1 flex flex-col items-stretch transition-[margin-left] duration-200">
             {children}
           </main>
         </div>
