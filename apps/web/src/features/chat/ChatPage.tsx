@@ -107,18 +107,20 @@ function ChatPage() {
         store.setSelectedAgent(agentParam);
         store.setChatViewMode('thread');
       }
-      // Auto-pair the agent's default notebook — but only ONCE per agent, not
-      // on every effect run. System agents (per-LV PR agents etc.) resolve
-      // synchronously; user-created agents resolve from the user-agents list
-      // (which may load late), so we wait until it's available before marking
-      // this agent handled. Applying once avoids clobbering a manual notebook
-      // pick when the user-agents query reference changes later.
+      // Auto-pair the agent's FIRST bound notebook into the composer chip — but
+      // only ONCE per agent, not on every effect run. The agent's full notebook
+      // set scopes search server-side (resolved from the agent record in
+      // ChatGraph); the chip just shows one for continuity. System agents (per-LV
+      // PR agents etc.) resolve synchronously; user-created agents resolve from
+      // the user-agents list (which may load late), so we wait until it's
+      // available before marking this agent handled. Applying once avoids
+      // clobbering a manual notebook pick when the query reference changes later.
       if (notebookAppliedForRef.current !== agentParam) {
         const agentMeta = getSystemAgent(agentParam);
         const userAgentNotebook = agentMeta
           ? undefined
-          : userAgents?.find((a) => a.identifier === agentParam)?.defaultNotebookId;
-        const boundNotebookId = agentMeta?.defaultNotebookId ?? userAgentNotebook;
+          : userAgents?.find((a) => a.identifier === agentParam)?.defaultNotebookIds?.[0];
+        const boundNotebookId = agentMeta?.defaultNotebookIds?.[0] ?? userAgentNotebook;
         // "Resolved" = a system agent (sync) or the user-agents list has loaded.
         const resolved = !!agentMeta || userAgents !== undefined;
         if (boundNotebookId) {

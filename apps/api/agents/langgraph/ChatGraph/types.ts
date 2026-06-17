@@ -312,11 +312,17 @@ export interface ChatGraphInput {
    * enforced there) so the graph can stay synchronous in init.
    */
   notebookDocumentIds?: string[] | undefined;
+  /**
+   * The user's single notebook pick from the composer (system slug). The agent's
+   * own bound notebooks (`agentConfig.defaultNotebookIds`) are resolved
+   * server-side in `initializeChatState` and unioned with this.
+   */
   defaultNotebookId?: string | undefined;
   /**
-   * Document IDs from a user-owned notebook bound to the agent as its default
-   * knowledge base (`defaultNotebookId` resolved to a UUID). Scopes search only
-   * when the user hasn't explicitly picked/mentioned a notebook this turn.
+   * Document IDs from a user-owned (UUID) notebook the user picked in the
+   * composer, pre-resolved by streamContext (ownership enforced there). Unioned
+   * with the agent's own bound user-notebook docs. Scopes search only when the
+   * user hasn't explicitly @mentioned a notebook this turn.
    */
   defaultNotebookDocumentIds?: string[] | undefined;
   documentIds?: string[] | undefined;

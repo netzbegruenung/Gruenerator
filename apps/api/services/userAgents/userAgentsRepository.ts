@@ -30,7 +30,7 @@ export interface UserAgentInput {
   openingQuestions: string[];
   locale: string;
   author: string;
-  defaultNotebookId?: string | null;
+  defaultNotebookIds?: string[] | null;
   plugins?: string[];
   enabledTools?: string[];
   skillMentions?: string[];
@@ -61,7 +61,7 @@ function rowToAgent(row: UserAgentRow): Agent {
     author: row.author,
     ...(row.icon_key ? { iconKey: row.icon_key } : {}),
     ...(row.default_model ? { defaultModel: row.default_model } : {}),
-    ...(row.default_notebook_id ? { defaultNotebookId: row.default_notebook_id } : {}),
+    ...(row.default_notebook_ids?.length ? { defaultNotebookIds: row.default_notebook_ids } : {}),
     ...(row.plugins ? { plugins: row.plugins } : {}),
     ...(row.enabled_tools ? { enabledTools: row.enabled_tools } : {}),
     ...(row.skill_mentions ? { skillMentions: row.skill_mentions } : {}),
@@ -89,7 +89,7 @@ function inputToInsertValues(userId: string, input: UserAgentInput) {
     opening_questions: input.openingQuestions,
     locale: input.locale,
     author: input.author,
-    default_notebook_id: input.defaultNotebookId ?? null,
+    default_notebook_ids: input.defaultNotebookIds ?? null,
     plugins: input.plugins ?? null,
     enabled_tools: input.enabledTools ?? null,
     skill_mentions: input.skillMentions ?? null,
@@ -115,7 +115,7 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   if (patch.openingQuestions !== undefined) out.opening_questions = patch.openingQuestions;
   if (patch.locale !== undefined) out.locale = patch.locale;
   if (patch.author !== undefined) out.author = patch.author;
-  if (patch.defaultNotebookId !== undefined) out.default_notebook_id = patch.defaultNotebookId;
+  if (patch.defaultNotebookIds !== undefined) out.default_notebook_ids = patch.defaultNotebookIds;
   if (patch.plugins !== undefined) out.plugins = patch.plugins;
   if (patch.enabledTools !== undefined) out.enabled_tools = patch.enabledTools;
   if (patch.skillMentions !== undefined) out.skill_mentions = patch.skillMentions;
