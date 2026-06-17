@@ -9,7 +9,7 @@ Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grüner
 
 ## Was du benötigst
 
-Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **100 Dokumente** pro Notebook.
+Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **100 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
 
 ## Schritt-für-Schritt
 
@@ -107,7 +107,7 @@ Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bib
 Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist.
 
 **Mein Dokument wird nicht akzeptiert.**
-Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF). Andere Formate musst du vorher konvertieren.
+Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF) und die Dateigröße (max. 50 MB). Andere Formate musst du vorher konvertieren.
 
 ## Verwandte Themen
 
