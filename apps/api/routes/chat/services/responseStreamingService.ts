@@ -322,6 +322,15 @@ async function streamAndAccumulateOrThrow(params: {
     messages as ModelMessage[]
   );
 
+  // [agent-trace] The single definitive capture of the prompt that actually
+  // reaches the model. If the LV systemRole never made it this far, it shows
+  // here as a generic/short `system` or a non-Brandenburg preview.
+  log.info(
+    `${logPrefix}[agent-trace] system prompt → ${
+      system ? `${system.length}chars "${system.slice(0, 80).replace(/\s+/g, ' ')}…"` : 'NONE'
+    }`
+  );
+
   const result = streamText({
     model,
     ...(system != null && { system }),

@@ -132,6 +132,15 @@ export async function buildStreamContext({
   }
 
   const userId = user.id;
+  // [agent-trace] HTTP entry — what the frontend actually sent. Confirms the
+  // selected LV agent reaches the backend (vs. silently falling back later).
+  log.info(
+    `[${requestId}][agent-trace] body agentId=${JSON.stringify(agentId ?? null)} ` +
+      `defaultNotebookId=${JSON.stringify(rawDefaultNotebookId ?? null)} ` +
+      `notebookIds=${JSON.stringify(rawNotebookIds ?? [])} ` +
+      `activeSkillMention=${JSON.stringify(rawActiveSkillMention ?? null)} ` +
+      `customSystemPrompt=${rawCustomSystemPrompt ? 'set' : 'none'}`
+  );
   const aiWorkerPool = getAIWorkerPool(req);
 
   if (!aiWorkerPool) {
