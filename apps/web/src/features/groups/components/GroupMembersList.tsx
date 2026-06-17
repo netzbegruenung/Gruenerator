@@ -44,12 +44,9 @@ const GroupMembersList = ({
     isErrorMembers,
     errorMembers,
   } = useGroupMembers(groupId, { isActive });
-  const members =
-    onlineOnly && allMembers
-      ? allMembers.filter(
-          (m) => onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
-        )
-      : allMembers;
+  const isMemberOnline = (m: GroupMember) =>
+    onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId);
+  const members = onlineOnly && allMembers ? allMembers.filter(isMemberOnline) : allMembers;
   const { updateMemberRole, isUpdatingRole } = useUpdateMemberRole(groupId);
 
   const header = !hideHeader && (
@@ -97,7 +94,12 @@ const GroupMembersList = ({
     );
   }
 
-  const sortedMembers = sortMembersByName(members);
+  const sortedMembers = onlineUserIds
+    ? [
+        ...sortMembersByName(members.filter(isMemberOnline)),
+        ...sortMembersByName(members.filter((m) => !isMemberOnline(m))),
+      ]
+    : sortMembersByName(members);
 
   return (
     <div className={className}>
@@ -111,18 +113,28 @@ const GroupMembersList = ({
           const isSelf = currentUserId && String(member.user_id) === String(currentUserId);
           const profileImageNumber = validateRobotId(member.avatar_robot_id);
           const canChangeRole = isCurrentUserAdmin && !isSelf && !isCreator;
+          const isOnline = isMemberOnline(member);
 
           return (
             <div
               key={member.user_id}
               className="flex items-center gap-sm px-sm py-xs rounded-md hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors"
             >
-              <RobotAvatar
-                robotId={profileImageNumber}
-                displayName={fullDisplayName}
-                sizePx={28}
-                className="w-7 h-7 shrink-0"
-              />
+              <div className="relative shrink-0">
+                <RobotAvatar
+                  robotId={profileImageNumber}
+                  displayName={fullDisplayName}
+                  sizePx={28}
+                  className="w-7 h-7"
+                />
+                {isOnline && (
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 ring-2 ring-background-pure"
+                    aria-label="Online"
+                    title="Online"
+                  />
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium text-foreground-heading truncate block">
                   {fullDisplayName}
