@@ -28,6 +28,7 @@ export type AppRoute =
   // Focused routes
   | '/(focused)/chat-conversation'
   | '/(focused)/notebook-detail'
+  | '/(focused)/agents'
   | '/(focused)/gruppen'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/style'

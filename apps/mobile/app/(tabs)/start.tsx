@@ -1,7 +1,8 @@
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, useColorScheme, ScrollView } from 'react-native';
 
 import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
 import { ComposerCard } from '../../components/common';
@@ -10,8 +11,8 @@ import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSe
 import { ToolGrid } from '../../components/tools/ToolGrid';
 import { TOOLS } from '../../components/tools/toolsConfig';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { spacing, lightTheme, darkTheme } from '../../theme';
-import { routeWithParams } from '../../types/routes';
+import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { route, routeWithParams } from '../../types/routes';
 
 const EXAMPLE_PROMPTS = [
   { label: 'Pressemitteilung', text: 'Schreibe eine Pressemitteilung über ' },
@@ -71,6 +72,27 @@ export default function StartScreen() {
 
         <RecentlyCreatedSection theme={theme} />
 
+        <View style={styles.section}>
+          <Pressable
+            onPress={() => router.push(route('/(focused)/agents'))}
+            style={({ pressed }) => [styles.sectionLink, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <View style={styles.sectionLinkLabel}>
+              <Ionicons name="sparkles-outline" size={18} color={colors.primary[600]} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Agent*innen</Text>
+            </View>
+            <View style={styles.sectionLinkAction}>
+              <Text style={[styles.sectionLinkText, { color: theme.textSecondary }]}>
+                Alle ansehen
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+            </View>
+          </Pressable>
+          <Text style={[styles.sectionHint, { color: theme.textSecondary }]}>
+            Spezialisierte Assistent*innen und deine eigenen Agent*innen zum Chatten.
+          </Text>
+        </View>
+
         {favoriteTools.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
@@ -120,5 +142,27 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: 'Raleway_700Bold',
     fontSize: 16,
+  },
+  sectionLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionLinkLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+  },
+  sectionLinkAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  sectionLinkText: {
+    fontSize: 13,
+  },
+  sectionHint: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
