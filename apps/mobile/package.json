@@ -23,7 +23,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build:android": "EAS_NO_VCS=1 eas build -p android --profile production",
-    "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
+    "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview",
+    "build:ios": "EAS_NO_VCS=1 eas build -p ios --profile production",
+    "build:all": "EAS_NO_VCS=1 eas build -p all --profile production"
   },
   "dependencies": {
     "@assistant-ui/react-native": "^0.1.22",
