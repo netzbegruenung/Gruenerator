@@ -19,6 +19,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
+import { resolveApiAssetUrl } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
 type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
@@ -194,7 +195,7 @@ const PreviewSheet = memo(({ item }: { item: RecentItem }) => {
   if (item.type === 'image' || item.type === 'video') {
     body = item.thumbnailUrl ? (
       <img
-        src={item.thumbnailUrl}
+        src={resolveApiAssetUrl(item.thumbnailUrl)}
         alt={item.title || FALLBACK_TITLES[item.type]}
         className="h-full w-full object-cover"
         loading="lazy"
@@ -260,7 +261,7 @@ const ImageOwnerCard = memo(
   }) => {
     const [open, setOpen] = useState(false);
     const [shareOpen, setShareOpen] = useState(false);
-    const previewUrl = `/api/share/${item.id}/preview`;
+    const previewUrl = resolveApiAssetUrl(`/api/share/${item.id}/preview`);
 
     const handleDownload = useCallback(async () => {
       try {
@@ -469,8 +470,8 @@ const RecentReelCard = memo(
 
     return (
       <VideoCard
-        src={`/api/subtitler/projects/${videoId}/video`}
-        poster={item.thumbnailUrl}
+        src={resolveApiAssetUrl(`/api/subtitler/projects/${videoId}/video`)}
+        poster={resolveApiAssetUrl(item.thumbnailUrl)}
         title={item.title || FALLBACK_TITLES.video}
         duration={item.duration}
         aspect="square"

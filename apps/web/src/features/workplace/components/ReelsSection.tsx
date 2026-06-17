@@ -4,6 +4,7 @@ import React, { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
+import { resolveApiAssetUrl } from '../../../utils/platform';
 
 interface RecentItem {
   id: string;
@@ -39,8 +40,8 @@ const ReelCard = memo(
 
     return (
       <VideoCard
-        src={`/api/subtitler/projects/${videoId}/video`}
-        poster={item.thumbnailUrl}
+        src={resolveApiAssetUrl(`/api/subtitler/projects/${videoId}/video`)}
+        poster={resolveApiAssetUrl(item.thumbnailUrl)}
         title={item.title || 'Reel'}
         duration={item.duration}
         onClick={() => onClick(item)}
