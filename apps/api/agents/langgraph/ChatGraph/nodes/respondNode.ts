@@ -274,7 +274,7 @@ export async function formatSearchContext(
 
   // Default: budget-based truncation
   // Notebook-scoped searches get more results and higher budget for deeper answers
-  // Includes agents bound to a notebook via `defaultNotebookId` so they get the
+  // Includes agents bound to notebooks via `defaultNotebookIds` so they get the
   // same deeper context budget as an explicitly selected notebook.
   const isNotebookScoped =
     (state.notebookCollectionIds?.length ?? 0) > 0 ||

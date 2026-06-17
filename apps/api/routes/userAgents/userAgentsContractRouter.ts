@@ -116,7 +116,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         author: body.author,
         ...(body.iconKey != null ? { iconKey: body.iconKey } : {}),
         ...(body.defaultModel != null ? { defaultModel: body.defaultModel } : {}),
-        ...(body.defaultNotebookId != null ? { defaultNotebookId: body.defaultNotebookId } : {}),
+        ...(body.defaultNotebookIds != null ? { defaultNotebookIds: body.defaultNotebookIds } : {}),
         ...(body.plugins != null ? { plugins: body.plugins } : {}),
         ...(body.enabledTools != null ? { enabledTools: body.enabledTools } : {}),
         ...(body.skillMentions != null ? { skillMentions: body.skillMentions } : {}),
@@ -242,9 +242,9 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
       }
 
       // Build the patch field-by-field: only keys present on the body mutate a
-      // column. `defaultNotebookId`/`defaultModel` may be `null` (clear), so
-      // they're forwarded on `!== undefined`; the array fields treat `null` as
-      // "leave unchanged" (`!= null`).
+      // column. `defaultModel` may be `null` (clear), so it's forwarded on
+      // `!== undefined`; the array fields (incl. `defaultNotebookIds`) treat
+      // `null` as "leave unchanged" (`!= null`) and an empty array as "clear".
       const patch: UserAgentPatch = {};
       if (b.title !== undefined) patch.title = b.title;
       if (b.description !== undefined) patch.description = b.description;
@@ -261,7 +261,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
       if (b.openingQuestions !== undefined) patch.openingQuestions = b.openingQuestions;
       if (b.locale !== undefined) patch.locale = b.locale;
       if (b.author !== undefined) patch.author = b.author;
-      if (b.defaultNotebookId !== undefined) patch.defaultNotebookId = b.defaultNotebookId;
+      if (b.defaultNotebookIds != null) patch.defaultNotebookIds = b.defaultNotebookIds;
       if (b.plugins != null) patch.plugins = b.plugins;
       if (b.enabledTools != null) patch.enabledTools = b.enabledTools;
       if (b.skillMentions != null) patch.skillMentions = b.skillMentions;
