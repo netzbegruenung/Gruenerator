@@ -7,6 +7,7 @@
 import { groupsContract } from '@gruenerator/contracts';
 
 import { notifyGroupMembers } from '../../../../services/notifications/index.js';
+import { listUserAgentsByIds } from '../../../../services/userAgents/userAgentsRepository.js';
 import { NextcloudShareManager } from '../../../../utils/integrations/nextcloud/index.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
@@ -226,6 +227,7 @@ export const contentRoutes = {
         collaborative_documents: [],
         system_notebooks: [],
         system_agents: [],
+        user_agents: [],
         canvas_template: [],
       };
       sharedContent.forEach((share) => {
@@ -310,6 +312,19 @@ export const contentRoutes = {
             },
             shares: contentByType.system_agents,
           })
+        );
+      }
+      if (contentByType.user_agents.length > 0) {
+        const ids = contentByType.user_agents.map((s) => s.content_id);
+        fetchPromises.push(
+          listUserAgentsByIds(ids).then((agents) => ({
+            type: 'user_agents',
+            // Full Agent shape (+ UUID `id` for share-matching). Unlike system
+            // agents there is no static registry to resolve against, so the
+            // bucket carries the whole agent.
+            result: { data: agents as unknown as Array<Record<string, unknown>> },
+            shares: contentByType.user_agents,
+          }))
         );
       }
       if (contentByType.user_documents.length > 0) {
@@ -407,6 +422,7 @@ export const contentRoutes = {
         collaborative_documents: Record<string, unknown>[];
         system_notebooks: Record<string, unknown>[];
         system_agents: Record<string, unknown>[];
+        user_agents: Record<string, unknown>[];
         canvas_templates: Record<string, unknown>[];
       } = {
         documents: [],
@@ -417,6 +433,7 @@ export const contentRoutes = {
         collaborative_documents: [],
         system_notebooks: [],
         system_agents: [],
+        user_agents: [],
         canvas_templates: [],
       };
 
@@ -429,6 +446,7 @@ export const contentRoutes = {
         collaborative_documents: 'collaborative_documents',
         system_notebooks: 'system_notebooks',
         system_agents: 'system_agents',
+        user_agents: 'user_agents',
         canvas_template: 'canvas_templates',
       };
 
