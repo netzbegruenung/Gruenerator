@@ -56,6 +56,13 @@ export const boardCommentSchema = boardCommentReplySchema.extend({
 export const createCommentBodySchema = z.object({
   blocks: z.array(commentBlockSchema),
   parentId: z.string().optional(),
+  /**
+   * Delegate this comment to a specific agent (own / group-shared / system).
+   * Set when the comment @-mentions a chosen agent; the mention block still uses
+   * the bot user id so the existing bot-detection enqueue fires. An identifier
+   * slug (open set) → plain string, not an enum.
+   */
+  agentId: z.string().optional(),
 });
 
 export const updateCommentBodySchema = z.object({
