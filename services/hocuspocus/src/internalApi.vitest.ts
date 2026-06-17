@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import {
   applyDeckChangesToDoc,
   applyPatchToDoc,
+  linkDocToBoardCard,
   readMergedState,
   type PageDef,
 } from './internalApi.js';
@@ -142,5 +143,94 @@ describe('applyDeckChangesToDoc', () => {
 
     const { pages } = readMergedState(doc);
     for (const p of pages) expect(p.state.headline).toBe('Überall');
+  });
+});
+
+const LINKED_DOCS_FIELD = 'field-linked-docs';
+
+/** Read a card's linked docs back as the frontend does: parse the JSON-string cell. */
+function readLinkedDocs(doc: Y.Doc, cardId: string): Array<{ id: string; title: string }> {
+  const rows = doc.getArray('rows').toJSON() as Array<{
+    id: string;
+    cells: Record<string, unknown>;
+  }>;
+  const row = rows.find((r) => r.id === cardId);
+  const raw = row?.cells[LINKED_DOCS_FIELD];
+  return typeof raw === 'string' ? (JSON.parse(raw) as Array<{ id: string; title: string }>) : [];
+}
+
+describe('linkDocToBoardCard', () => {
+  it('links into a plain-object row (web-client shape — the bug case)', () => {
+    const doc = new Y.Doc();
+    // How useBoardState writes rows: a plain JS object, NOT a Y.Map.
+    doc.getArray('rows').push([{ id: 'row-1', cells: { [LINKED_DOCS_FIELD]: '[]' } }]);
+
+    const found = linkDocToBoardCard(doc, 'row-1', { id: 'doc-1', title: 'Recherche' });
+
+    expect(found).toBe(true);
+    expect(readLinkedDocs(doc, 'row-1')).toEqual([{ id: 'doc-1', title: 'Recherche' }]);
+  });
+
+  it('links into a row with no linked-docs cell yet', () => {
+    const doc = new Y.Doc();
+    doc.getArray('rows').push([{ id: 'row-1', cells: { 'field-title': 'Aufgabe' } }]);
+
+    const found = linkDocToBoardCard(doc, 'row-1', { id: 'doc-1', title: 'Recherche' });
+
+    expect(found).toBe(true);
+    expect(readLinkedDocs(doc, 'row-1')).toEqual([{ id: 'doc-1', title: 'Recherche' }]);
+  });
+
+  it('links into a Y.Map row (API addRowsToBoard shape)', () => {
+    const doc = new Y.Doc();
+    doc.transact(() => {
+      const row = new Y.Map<unknown>();
+      row.set('id', 'row-1');
+      const cells = new Y.Map<unknown>();
+      cells.set(LINKED_DOCS_FIELD, '[]');
+      row.set('cells', cells);
+      doc.getArray('rows').push([row]);
+    });
+
+    const found = linkDocToBoardCard(doc, 'row-1', { id: 'doc-1', title: 'Recherche' });
+
+    expect(found).toBe(true);
+    expect(readLinkedDocs(doc, 'row-1')).toEqual([{ id: 'doc-1', title: 'Recherche' }]);
+  });
+
+  it('is idempotent — linking the same doc id twice yields one entry', () => {
+    const doc = new Y.Doc();
+    doc.getArray('rows').push([{ id: 'row-1', cells: { [LINKED_DOCS_FIELD]: '[]' } }]);
+
+    linkDocToBoardCard(doc, 'row-1', { id: 'doc-1', title: 'Recherche' });
+    linkDocToBoardCard(doc, 'row-1', { id: 'doc-1', title: 'Recherche (neu)' });
+
+    expect(readLinkedDocs(doc, 'row-1')).toEqual([{ id: 'doc-1', title: 'Recherche' }]);
+  });
+
+  it('appends alongside an existing linked doc, leaving other rows untouched', () => {
+    const doc = new Y.Doc();
+    doc.getArray('rows').push([
+      { id: 'row-1', cells: { [LINKED_DOCS_FIELD]: '[{"id":"doc-0","title":"Alt"}]' } },
+      { id: 'row-2', cells: { [LINKED_DOCS_FIELD]: '[]' } },
+    ]);
+
+    linkDocToBoardCard(doc, 'row-1', { id: 'doc-1', title: 'Neu' });
+
+    expect(readLinkedDocs(doc, 'row-1')).toEqual([
+      { id: 'doc-0', title: 'Alt' },
+      { id: 'doc-1', title: 'Neu' },
+    ]);
+    expect(readLinkedDocs(doc, 'row-2')).toEqual([]);
+  });
+
+  it('returns false and mutates nothing when the card is not found', () => {
+    const doc = new Y.Doc();
+    doc.getArray('rows').push([{ id: 'row-1', cells: { [LINKED_DOCS_FIELD]: '[]' } }]);
+
+    const found = linkDocToBoardCard(doc, 'row-missing', { id: 'doc-1', title: 'Recherche' });
+
+    expect(found).toBe(false);
+    expect(readLinkedDocs(doc, 'row-1')).toEqual([]);
   });
 });
