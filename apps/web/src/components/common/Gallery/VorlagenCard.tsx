@@ -1,6 +1,11 @@
 import { Badge } from '@gruenerator/ui';
 import { memo, type JSX, type ReactNode } from 'react';
-import { HiOutlineExternalLink, HiOutlineLink, HiOutlinePhotograph } from 'react-icons/hi';
+import {
+  HiOutlineExternalLink,
+  HiOutlineHeart,
+  HiOutlineLink,
+  HiOutlinePhotograph,
+} from 'react-icons/hi';
 import { HiOutlineArrowDownTray } from 'react-icons/hi2';
 import { SiCanva } from 'react-icons/si';
 
@@ -17,6 +22,7 @@ interface VorlagenCardItem {
   external_url?: string | null;
   download_url?: string;
   content_data?: { originalUrl?: string } | Record<string, unknown>;
+  likes_count?: number;
 }
 
 export interface VorlagenCardProps {
@@ -49,6 +55,7 @@ const VorlagenCard = memo(
   ({ item, badge, menu, onOpen, onOpenExternal, onCopyLink }: VorlagenCardProps): JSX.Element => {
     const format = getTemplateFormat(item);
     const title = item.title || 'Unbenannte Vorlage';
+    const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
 
     // The stage is a 4:5 box. Fit the proportioned template inside *both* axes
     // (contain, never crop): wide formats (e.g. 16:9, 3:1) are constrained by
@@ -168,6 +175,15 @@ const VorlagenCard = memo(
             <span>{format.tool}</span>
             <span aria-hidden="true">·</span>
             <span className="font-medium">{format.ratioLabel}</span>
+            {likesCount > 0 && (
+              <span
+                className="ml-auto flex items-center gap-1 font-medium"
+                title={`${likesCount} mal geliked`}
+              >
+                <HiOutlineHeart className="size-3.5 shrink-0" aria-hidden="true" />
+                {likesCount}
+              </span>
+            )}
           </div>
         </div>
       </div>

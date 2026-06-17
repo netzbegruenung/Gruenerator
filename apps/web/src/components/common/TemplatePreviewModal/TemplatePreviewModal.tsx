@@ -9,6 +9,7 @@ import {
 } from '@gruenerator/ui';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { HiOutlineArrowDownTray } from 'react-icons/hi2';
 import { SiCanva } from 'react-icons/si';
 
 import FavoriteButton from '../FavoriteButton';
@@ -47,6 +48,7 @@ interface Template {
   content_data?: TemplateContentData;
   metadata?: TemplateMetadata;
   external_url?: string;
+  download_url?: string;
   template_type?: string;
   tags?: string[];
   images?: Array<{ url: string; title?: string; display_order?: number }>;
@@ -142,7 +144,8 @@ const TemplatePreviewModal = ({
   }, [isOpen, hasMultipleImages, allImages.length]);
 
   const handleOpenExternal = useCallback(() => {
-    const url = template?.content_data?.originalUrl || template?.external_url;
+    const url =
+      template?.content_data?.originalUrl || template?.external_url || template?.download_url;
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -166,6 +169,13 @@ const TemplatePreviewModal = ({
   const isCanva = template.template_type === 'canva';
   const dimensions = template.content_data?.dimensions || template.metadata?.dimensions;
   const tags = Array.isArray(template.tags) ? template.tags : [];
+  // The single openable target, in priority order. When none exists (e.g. a
+  // file template still being processed) the footer action is hidden entirely
+  // instead of rendering a button that does nothing.
+  const openUrl =
+    template.content_data?.originalUrl || template.external_url || template.download_url || '';
+  const isDownloadOnly =
+    !template.content_data?.originalUrl && !template.external_url && Boolean(template.download_url);
 
   const actionBar =
     onToggleLike || onToggleFavorite ? (
@@ -335,21 +345,28 @@ const TemplatePreviewModal = ({
           </div>
         </div>
 
-        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
-          <Button onClick={handleOpenExternal} className="max-sm:w-full">
-            {isCanva ? (
-              <>
-                <SiCanva />
-                <span>In Canva öffnen</span>
-              </>
-            ) : (
-              <>
-                <HiExternalLink />
-                <span>Öffnen</span>
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        {openUrl && (
+          <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
+            <Button onClick={handleOpenExternal} className="max-sm:w-full">
+              {isCanva ? (
+                <>
+                  <SiCanva />
+                  <span>In Canva öffnen</span>
+                </>
+              ) : isDownloadOnly ? (
+                <>
+                  <HiOutlineArrowDownTray />
+                  <span>Herunterladen</span>
+                </>
+              ) : (
+                <>
+                  <HiExternalLink />
+                  <span>Öffnen</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
