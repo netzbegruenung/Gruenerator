@@ -59,14 +59,32 @@ export async function getAgentForUser(
   userId: string
 ): Promise<AgentConfig | undefined> {
   const builtIn = await getAgent(identifier);
-  if (builtIn) return builtIn;
+  if (builtIn) {
+    // [agent-trace] Resolved from the static system registry — proves the
+    // running shared package actually carries this agent's LV config.
+    log.info(
+      `[AgentLoader][agent-trace] "${identifier}" → system agent (systemRole=${builtIn.systemRole ? `${builtIn.systemRole.length}chars` : 'MISSING'}, defaultFilter=${JSON.stringify(builtIn.defaultFilter ?? null)}, examplesLvScope=${JSON.stringify(builtIn.toolRestrictions?.examplesLvScope ?? null)})`
+    );
+    return builtIn;
+  }
 
   try {
     const userAgent = await getUserAgentRow(userId, identifier);
-    if (userAgent) return userAgent as AgentConfig;
+    if (userAgent) {
+      // [agent-trace] Fell through to a user_agents row — note: that table has
+      // no default_filter column, so LV scoping can only come from the bound
+      // notebook (see resolveExamplesLvScope's collection fallback).
+      log.info(
+        `[AgentLoader][agent-trace] "${identifier}" → user agent (systemRole=${userAgent.systemRole ? `${userAgent.systemRole.length}chars` : 'MISSING'}, defaultNotebookId=${JSON.stringify(userAgent.defaultNotebookId ?? null)})`
+      );
+      return userAgent as AgentConfig;
+    }
   } catch (error) {
     log.error('[AgentLoader] Error looking up user agent:', error);
   }
+  log.warn(
+    `[AgentLoader][agent-trace] "${identifier}" → NOT FOUND (neither system nor user agent)`
+  );
   return undefined;
 }
 
