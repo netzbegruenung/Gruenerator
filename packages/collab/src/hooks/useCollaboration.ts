@@ -198,6 +198,14 @@ export const useCollaboration = ({
         if (ignore) return;
         const reason = data.reason || '';
         if (reason.includes('deleted') || reason.includes('denied')) {
+          // Tear the live IndexedDB provider down BEFORE deleting its database.
+          // destroy() synchronously detaches the Yjs `update` observer, so no
+          // further write is queued; removeDocCache() can then delete the DB
+          // safely. Skipping this lets a subsequent Yjs write (e.g. a paste)
+          // race the pending deleteDatabase and throw "InvalidStateError: the
+          // database connection is closing".
+          idbProviderRef.current?.destroy();
+          idbProviderRef.current = null;
           removeDocCache(documentId);
         }
         setState((prev) => ({ ...prev, authError: reason }));

@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useMemo, type ReactNode } from 'react';
 import { FiFileText, FiSearch } from 'react-icons/fi';
 
+import { platformFetch } from '../../utils/platformFetch';
+
 interface CollabDoc {
   id: string;
   title: string;
@@ -21,7 +23,7 @@ export function CollabDocPicker({ onSelect, excludeIds = [], children }: CollabD
   const { data: docs = [], isLoading: loading } = useQuery<CollabDoc[]>({
     queryKey: ['collab-docs'],
     queryFn: async () => {
-      const res = await fetch('/api/docs', { credentials: 'include' });
+      const res = await platformFetch('/api/docs', { credentials: 'include' });
       if (!res.ok) return [];
       const data: unknown = await res.json();
       if (!Array.isArray(data)) return [];

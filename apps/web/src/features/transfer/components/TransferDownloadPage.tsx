@@ -16,6 +16,7 @@ import {
 import Spinner from '../../../components/common/Spinner';
 import { buildUrl } from '../../../config/domains';
 import { formatFileSize } from '../../../utils/formatFileSize';
+import { getPublicAppOrigin } from '../../../utils/platform';
 
 interface TransferShareData {
   fileName: string | null;
@@ -78,7 +79,7 @@ export default function TransferDownloadPage({ shareToken, shareData }: Transfer
     setIsDownloading(true);
 
     try {
-      const url = new URL(`${baseURL}/share/${shareToken}/download`, window.location.origin);
+      const url = new URL(`${baseURL}/share/${shareToken}/download`, getPublicAppOrigin());
       const headers: Record<string, string> = {};
       if (shareData.isPasswordProtected && password) {
         headers['x-transfer-password'] = password;

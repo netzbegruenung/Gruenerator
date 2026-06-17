@@ -115,31 +115,66 @@ export const validateFiles = (files: File[]): boolean => {
 };
 
 /**
+ * Maps a FileReader DOMException to an actionable, user-ready German message.
+ * NotReadableError/SecurityError mean the OS refused the read — typically a file
+ * still open in another program or an un-hydrated cloud placeholder. The
+ * `[<name>]` suffix keeps the cause diagnosable in telemetry.
+ */
+const describeFileReadError = (fileName: string, error: DOMException): Error => {
+  if (error.name === 'NotReadableError' || error.name === 'SecurityError') {
+    return new Error(
+      `Die Datei „${fileName}" konnte nicht gelesen werden — sie ist vermutlich in einem ` +
+        `anderen Programm geöffnet oder noch nicht fertig synchronisiert. Bitte schließe sie ` +
+        `(oder speichere eine Kopie) und versuche es erneut. [${error.name}]`
+    );
+  }
+  return new Error(`Fehler beim Lesen der Datei ${fileName} [${error.name}]`);
+};
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const readFileAsBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const result = reader.result;
+      // Remove data URL prefix (e.g., "data:application/pdf;base64,")
+      if (typeof result !== 'string' || !result.includes(',')) {
+        reject(new Error(`Fehler beim Konvertieren der Datei ${file.name}`));
+        return;
+      }
+      resolve(result.split(',')[1]);
+    };
+
+    // reader.error is the DOMException describing WHY the read failed.
+    reader.onerror = () => {
+      reject(reader.error ?? new Error(`Fehler beim Lesen der Datei ${file.name}`));
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
  * Converts file to base64 string
  * @param file - The file to convert
  * @returns Base64 encoded string (without data URL prefix)
  */
 export const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      try {
-        // Remove data URL prefix (e.g., "data:application/pdf;base64,")
-        const base64String = (reader.result as string).split(',')[1];
-        resolve(base64String);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        reject(new Error(`Fehler beim Konvertieren der Datei ${file.name}: ${errorMessage}`));
+  return readFileAsBase64(file)
+    .catch((error: unknown) => {
+      // NotReadableError is often transient (cloud placeholder still hydrating);
+      // retry once before surfacing the actionable message.
+      if (error instanceof DOMException && error.name === 'NotReadableError') {
+        return delay(200).then(() => readFileAsBase64(file));
       }
-    };
-
-    reader.onerror = () => {
-      reject(new Error(`Fehler beim Lesen der Datei ${file.name}`));
-    };
-
-    reader.readAsDataURL(file);
-  });
+      throw error;
+    })
+    .catch((error: unknown) => {
+      if (error instanceof DOMException) throw describeFileReadError(file.name, error);
+      throw error instanceof Error ? error : new Error(`Fehler beim Lesen der Datei ${file.name}`);
+    });
 };
 
 /**

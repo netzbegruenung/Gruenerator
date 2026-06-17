@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './alert-dialog';
+import { Button } from './button';
 
 export interface ConfirmOptions {
   /** Dialog heading, e.g. "Spalte löschen?". */
@@ -22,6 +23,12 @@ export interface ConfirmOptions {
   cancelLabel?: string;
   /** Confirm button styling. Defaults to "destructive". */
   variant?: 'default' | 'destructive';
+  /**
+   * Optional third button shown between Cancel and Confirm (e.g. "Archivieren").
+   * Selecting it runs `onSelect` and dismisses the dialog WITHOUT confirming, so
+   * the awaited `confirm(...)` resolves `false`.
+   */
+  alternateAction?: { label: string; onSelect: () => void };
 }
 
 export type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
@@ -73,6 +80,18 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             <AlertDialogCancel onClick={() => settle(false)}>
               {pending?.cancelLabel ?? 'Abbrechen'}
             </AlertDialogCancel>
+            {pending?.alternateAction ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const onSelect = pending.alternateAction?.onSelect;
+                  settle(false);
+                  onSelect?.();
+                }}
+              >
+                {pending.alternateAction.label}
+              </Button>
+            ) : null}
             <AlertDialogAction
               variant={pending?.variant ?? 'destructive'}
               onClick={() => settle(true)}

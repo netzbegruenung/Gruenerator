@@ -4,6 +4,7 @@ import React, { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
+import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 
 interface RecentItem {
   id: string;
@@ -39,8 +40,8 @@ const ReelCard = memo(
 
     return (
       <VideoCard
-        src={`/api/subtitler/projects/${videoId}/video`}
-        poster={item.thumbnailUrl}
+        src={resolveApiAssetUrl(`/api/subtitler/projects/${videoId}/video`)}
+        poster={resolveApiAssetUrl(item.thumbnailUrl)}
         title={item.title || 'Reel'}
         duration={item.duration}
         onClick={() => onClick(item)}
@@ -107,7 +108,7 @@ const ReelsSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
-    void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
+    void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
   const handleClick = useCallback((item: RecentItem) => navigate(item.href), [navigate]);

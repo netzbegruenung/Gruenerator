@@ -89,7 +89,10 @@ function alreadyEnriched(payload: Record<string, unknown>): boolean {
   return contentHash === stamped;
 }
 
-function toHeadDoc(point: { id: string | number; payload: Record<string, unknown> }): HeadDoc | null {
+function toHeadDoc(point: {
+  id: string | number;
+  payload: Record<string, unknown>;
+}): HeadDoc | null {
   const payload = point.payload;
   const sourceUrl = typeof payload.source_url === 'string' ? payload.source_url : '';
   const documentId = typeof payload.document_id === 'string' ? payload.document_id : '';
@@ -112,7 +115,10 @@ function toHeadDoc(point: { id: string | number; payload: Record<string, unknown
   };
 }
 
-function deriveThemes(topics: Partial<Record<TopicCategory, number>>, primary: string | null): string[] {
+function deriveThemes(
+  topics: Partial<Record<TopicCategory, number>>,
+  primary: string | null
+): string[] {
   const themes = (Object.entries(topics) as Array<[TopicCategory, number]>)
     .filter(([topic, score]) => TOPIC_CATEGORIES.includes(topic) && score >= THEME_MIN_SCORE)
     .sort((a, b) => b[1] - a[1])

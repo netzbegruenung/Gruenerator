@@ -146,7 +146,10 @@ export function AssistantComposer({
     <ComposerPrimitive.Root
       style={[
         styles.root,
-        { backgroundColor: transparent ? 'transparent' : theme.background, paddingBottom: bottomInset },
+        {
+          backgroundColor: transparent ? 'transparent' : theme.background,
+          paddingBottom: bottomInset,
+        },
       ]}
     >
       {mention?.visible && (
