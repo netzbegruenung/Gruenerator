@@ -237,6 +237,7 @@ const GroupInfoSection = memo(
       [members, onlineUserIds, currentUserId]
     );
     const onlineCount = onlineMembers.length;
+    const memberCount = members?.length ?? 0;
 
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
@@ -329,7 +330,7 @@ const GroupInfoSection = memo(
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
                   <HiOutlineUserGroup className="size-4 mr-xs" />
-                  Mitglieder ({onlineCount})
+                  Mitglieder ({memberCount})
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
@@ -821,7 +822,7 @@ const GroupInfoSection = memo(
         <Dialog open={membersDialogOpen} onOpenChange={setMembersDialogOpen}>
           <DialogContent className="max-w-md p-md">
             <DialogHeader>
-              <DialogTitle>Mitglieder ({onlineCount})</DialogTitle>
+              <DialogTitle>Mitglieder ({memberCount})</DialogTitle>
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto">
               <GroupMembersList
@@ -832,7 +833,6 @@ const GroupInfoSection = memo(
                 currentUserId={currentUserId}
                 createdBy={data?.groupInfo?.created_by}
                 onlineUserIds={onlineUserIds}
-                onlineOnly
               />
             </div>
           </DialogContent>
