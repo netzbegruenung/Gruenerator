@@ -1,6 +1,6 @@
 import { Input } from '@gruenerator/ui';
 import { memo } from 'react';
-import { FiSearch, FiX } from 'react-icons/fi';
+import { FiArchive, FiSearch, FiX } from 'react-icons/fi';
 
 import type { QuickFilter } from '../../hooks/useViewData';
 
@@ -11,6 +11,10 @@ interface BoardQuickBarProps {
   onToggleQuickFilter: (filter: QuickFilter) => void;
   /** Hide the "Meine Aufgaben" chip when no user is known. */
   hasUser: boolean;
+  /** Whether archived cards are currently shown. */
+  includeArchived: boolean;
+  /** Toggle visibility of archived cards. */
+  onToggleArchived: () => void;
 }
 
 const CHIPS: { id: QuickFilter; label: string }[] = [
@@ -30,6 +34,8 @@ export const BoardQuickBar = memo(function BoardQuickBar({
   quickFilters,
   onToggleQuickFilter,
   hasUser,
+  includeArchived,
+  onToggleArchived,
 }: BoardQuickBarProps) {
   const chips = hasUser ? CHIPS : CHIPS.filter((c) => c.id !== 'mine');
 
@@ -76,6 +82,19 @@ export const BoardQuickBar = memo(function BoardQuickBar({
             </button>
           );
         })}
+
+        <button
+          onClick={onToggleArchived}
+          aria-pressed={includeArchived}
+          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs border cursor-pointer transition-colors ${
+            includeArchived
+              ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400 border-primary-600/30'
+              : 'bg-transparent text-grey-500 hover:text-foreground border-grey-200 dark:border-grey-700 hover:bg-grey-100 dark:hover:bg-grey-800'
+          }`}
+        >
+          <FiArchive size={11} />
+          Archiv
+        </button>
       </div>
     </div>
   );
