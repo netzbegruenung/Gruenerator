@@ -26,10 +26,13 @@ import { createDocFromTemplate } from '../../../services/templates/collaborative
 import {
   enrichTemplate,
   deleteTemplateVector,
+  TEMPLATE_DESCRIPTION_INSTRUCTION,
 } from '../../../services/templates/templateEnrichment.js';
+import { visionService } from '../../../services/vision/index.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
 import { createLogger } from '../../../utils/logger.js';
+import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 
 import type { Application } from 'express';
 
@@ -103,7 +106,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
   fromUrl: async (args) => {
     try {
       getAuthedUser(args.req);
-      const { url, preview, title, description, metadata } = args.body;
+      const { url, preview, title, description, metadata, images, preview_image_url } = args.body;
 
       // The user explicitly pasted this single template link — skip robots.txt
       // (that's for bulk crawling; Canva disallows /design/ outright). Format
@@ -153,6 +156,17 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
       const mergedTags = [...new Set(extractTagsFromDescription(description))];
 
+      // Prefer the user-curated image list (multi-slide previews) over the
+      // single crawled og:image. The first image is the primary thumbnail.
+      const finalImages =
+        images && images.length > 0
+          ? images.map((img, i) => ({ ...img, display_order: img.display_order ?? i }))
+          : crawled?.previewImage
+            ? [{ url: crawled.previewImage, display_order: 0 }]
+            : [];
+      const finalThumbnail =
+        preview_image_url || finalImages[0]?.url || crawled?.previewImage || null;
+
       const templateData = {
         user_id: userId,
         type: 'template',
@@ -160,8 +174,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         description: (description || crawled?.description || '').trim() || null,
         template_type: 'canva',
         external_url: crawled?.canonical || url,
-        thumbnail_url: crawled?.previewImage || null,
-        images: JSON.stringify(crawled?.previewImage ? [{ url: crawled.previewImage }] : []),
+        thumbnail_url: finalThumbnail,
+        images: JSON.stringify(finalImages),
         categories: JSON.stringify([]),
         tags: JSON.stringify(mergedTags),
         content_data: JSON.stringify({}),
@@ -429,7 +443,10 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       if (template_type !== undefined) updateData.template_type = template_type;
       if (externalUrl !== undefined) updateData.external_url = externalUrl;
       if (preview_image_url !== undefined) updateData.thumbnail_url = preview_image_url;
-      if (images !== undefined) updateData.images = Array.isArray(images) ? images : [];
+      // jsonb columns must be passed as JSON text — the pg driver encodes a raw
+      // JS array as a Postgres array literal, which a jsonb column rejects.
+      if (images !== undefined)
+        updateData.images = JSON.stringify(Array.isArray(images) ? images : []);
       if (categories !== undefined)
         updateData.categories = Array.isArray(categories) ? categories : [];
       if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];
@@ -576,6 +593,42 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Aktualisieren der Vorlagen-Metadaten.' },
+      };
+    }
+  },
+
+  describeImage: async (args) => {
+    try {
+      getAuthedUser(args.req);
+      const { image_url } = args.body;
+
+      // Remote URLs are fetched server-side by the vision service — guard against
+      // SSRF. `data:` URLs (not-yet-uploaded local files) carry the bytes inline.
+      if (!image_url.startsWith('data:')) {
+        const validation = await validateUrlForFetch(image_url);
+        if (!validation.isValid) {
+          return {
+            status: 400 as const,
+            body: { success: false, message: validation.error || 'Ungültige Bild-URL.' },
+          };
+        }
+      }
+
+      const description = await visionService.analyzeImage(
+        image_url,
+        TEMPLATE_DESCRIPTION_INSTRUCTION,
+        { maxTokens: 600, temperature: 0.3 }
+      );
+
+      return {
+        status: 200 as const,
+        body: { success: true, description: description.trim() },
+      };
+    } catch (error) {
+      log.error('[userTemplatesContract.describeImage] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Beschreibung konnte nicht generiert werden.' },
       };
     }
   },

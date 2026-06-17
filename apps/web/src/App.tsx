@@ -35,7 +35,7 @@ const FirstRunWizard = lazy(() =>
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { Toaster, toast } from '@gruenerator/ui';
+import { Toaster, toast, TooltipProvider } from '@gruenerator/ui';
 
 import { toastApiError } from './components/utils/toastError';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
@@ -170,59 +170,61 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <UserProfileHydrationBridge />
         <Toaster richColors position="top-right" />
-        <Router>
-          <AuthBootstrap />
-          <ScrollToTop />
-          <RouteLogger />
-          <SuspenseWrapper>
-            {/* <PopupAustriaLaunch /> */}
-            <div id="aria-live-region" aria-live="polite" className="sr-only" />
+        <TooltipProvider>
+          <Router>
+            <AuthBootstrap />
+            <ScrollToTop />
+            <RouteLogger />
+            <SuspenseWrapper>
+              {/* <PopupAustriaLaunch /> */}
+              <div id="aria-live-region" aria-live="polite" className="sr-only" />
 
-            <Routes>
-              {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
-              <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
+              <Routes>
+                {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
+                <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
 
-              {/*
+                {/*
                 Single auth model: auth-required is the default. A route opts
                 out by setting `public: true` in routes.ts. The marketing
                 startpage at `/` additionally redirects authenticated users
                 to `/workplace` via <HomeRedirect>.
               */}
-              {routes.map(({ path, layoutMode, public: isPublic }) => {
-                const routeElement = (
-                  <RouteComponent
-                    path={path}
-                    darkMode={darkMode}
-                    toggleDarkMode={toggleDarkMode}
-                    layoutMode={layoutMode}
-                  />
-                );
-
-                let element: React.ReactNode;
-                if (path === '/' || path === '/startseite') {
-                  // Public but with a logged-in-redirect to /workplace.
-                  element = <HomeRedirect>{routeElement}</HomeRedirect>;
-                } else if (isPublic) {
-                  element = routeElement;
-                } else {
-                  // Wrap with RequireAuth via an index-route pattern so the
-                  // guard renders <Outlet /> on success.
-                  element = null;
-                }
-
-                if (element === null) {
-                  return (
-                    <Route key={path} element={<RequireAuth />}>
-                      <Route path={path} element={routeElement} />
-                    </Route>
+                {routes.map(({ path, layoutMode, public: isPublic }) => {
+                  const routeElement = (
+                    <RouteComponent
+                      path={path}
+                      darkMode={darkMode}
+                      toggleDarkMode={toggleDarkMode}
+                      layoutMode={layoutMode}
+                    />
                   );
-                }
 
-                return <Route key={path} path={path} element={element} />;
-              })}
-            </Routes>
-          </SuspenseWrapper>
-        </Router>
+                  let element: React.ReactNode;
+                  if (path === '/' || path === '/startseite') {
+                    // Public but with a logged-in-redirect to /workplace.
+                    element = <HomeRedirect>{routeElement}</HomeRedirect>;
+                  } else if (isPublic) {
+                    element = routeElement;
+                  } else {
+                    // Wrap with RequireAuth via an index-route pattern so the
+                    // guard renders <Outlet /> on success.
+                    element = null;
+                  }
+
+                  if (element === null) {
+                    return (
+                      <Route key={path} element={<RequireAuth />}>
+                        <Route path={path} element={routeElement} />
+                      </Route>
+                    );
+                  }
+
+                  return <Route key={path} path={path} element={element} />;
+                })}
+              </Routes>
+            </SuspenseWrapper>
+          </Router>
+        </TooltipProvider>
         {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ErrorBoundary>

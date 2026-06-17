@@ -220,9 +220,13 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
 // Profile & Locale Routes
 // ============================================================================
 
-router.get('/profile', ensureAuthenticated, (req: AuthRequest, res: Response): void => {
-  res.json({ user: req.user || null });
-});
+// NOTE: `GET /profile` is intentionally NOT defined here. It is served by the
+// ts-rest `userProfileContract` (userProfileContractRouter), which mounts in
+// routes.ts BEFORE this authRouter and therefore registers `/api/auth/profile`
+// first. The contracted handler reads the full profile from ProfileService
+// (with a display_name fallback) and returns the typed `{ success, user }`
+// shape; the old `res.json({ user: req.user })` duplicate here was dead,
+// shadowed code and has been removed.
 
 router.get('/locale', ensureAuthenticated, (req: AuthRequest, res: Response): void => {
   try {

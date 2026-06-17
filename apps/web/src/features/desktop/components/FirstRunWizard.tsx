@@ -14,7 +14,7 @@ type ThemeOption = 'light' | 'dark' | 'auto';
 
 const STEPS = ['welcome', 'features', 'theme', 'login', 'ready'] as const;
 
-export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWizardProps) {
+export function FirstRunWizard({ onComplete, onLogin }: FirstRunWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedTheme, setSelectedTheme] = useState<ThemeOption>('auto');
   const [isExiting, setIsExiting] = useState(false);
@@ -53,10 +53,6 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
       localStorage.setItem('theme', theme);
     }
   }, []);
-
-  const handleSkipLogin = useCallback(() => {
-    handleNext();
-  }, [handleNext]);
 
   const stepClass = cn(
     'w-full max-w-[800px] animate-[wizardFadeIn_0.4s_ease-out] max-[1280px]:max-w-[700px] max-[1024px]:max-w-[600px] max-md:max-w-full',
@@ -180,40 +176,14 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
       case 'login':
         return (
           <div className={cn('text-center p-[20px]', stepClass)}>
-            <h2 className="text-[1.8rem] text-foreground-heading mb-[16px]">
-              Anmelden für mehr Funktionen
-            </h2>
+            <h2 className="text-[1.8rem] text-foreground-heading mb-[16px]">Anmelden</h2>
             <p className="text-foreground opacity-80 mb-[30px]">
-              Melde dich an, um alle Vorteile zu nutzen.
+              Melde dich an, um den Grünerator zu nutzen.
             </p>
-            <div className="max-w-[400px] mx-auto mb-[30px] text-left max-[900px]:max-w-full">
-              {[
-                { icon: '\u2601\uFE0F', text: 'Texte speichern und synchronisieren' },
-                { icon: '\uD83D\uDCDD', text: 'Eigene Vorlagen erstellen' },
-                { icon: '\uD83D\uDCF1', text: 'Auf allen Geräten verfügbar' },
-              ].map((b) => (
-                <div
-                  key={b.text}
-                  className="flex items-center gap-[12px] py-[12px] px-[16px] mb-[8px] bg-background-alt rounded-xl border-l-[3px] border-l-[var(--klee)]"
-                >
-                  <span className="text-[1.2rem]">{b.icon}</span>
-                  <span className="text-foreground">{b.text}</span>
-                </div>
-              ))}
-            </div>
             <div className="flex flex-col items-center gap-[16px]">
               <div className="w-full max-w-[400px] text-left">
                 <LoginProviders onLogin={(provider) => onLogin?.(provider.source as AuthSource)} />
               </div>
-              <button
-                className={cn(
-                  'bg-transparent border-none text-foreground opacity-70 cursor-pointer text-[0.9rem] py-[8px] px-[16px] transition-opacity duration-200 hover:opacity-100',
-                  requireLogin && 'hidden'
-                )}
-                onClick={handleSkipLogin}
-              >
-                Später anmelden
-              </button>
             </div>
           </div>
         );

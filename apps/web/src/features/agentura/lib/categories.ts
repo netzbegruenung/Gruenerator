@@ -2,6 +2,7 @@ import { SKILL_CATEGORY_LABELS, type SkillCategory } from '@gruenerator/shared/a
 import {
   PiDotsThreeOutline,
   PiFileText,
+  PiGlobe,
   PiMagnifyingGlass,
   PiMapPin,
   PiMegaphone,
@@ -43,6 +44,7 @@ export { SKILL_CATEGORY_LABELS };
 export const AGENT_SECTIONS = {
   meine: { id: 'aisle-meine', label: 'Meine Agent*innen', icon: PiSparkle },
   gruppen: { id: 'aisle-gruppen', label: 'Geteilt mit Gruppen', icon: PiUsersThree },
+  community: { id: 'aisle-community', label: 'Aus der Community', icon: PiGlobe },
   gruenerator: { id: 'aisle-gruenerator', label: 'Grünerator-Agent*innen', icon: PiStorefront },
   landesverbaende: { id: 'aisle-landesverbaende', label: 'Landesverbände', icon: PiMapPin },
   favoriten: { id: 'aisle-favoriten', label: 'Favoriten', icon: PiStar },

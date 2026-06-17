@@ -804,10 +804,12 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
 
   const today = formatGermanDate();
 
-  // User profile instructions (additive — included in all modes)
+  // User profile instructions (additive — included in all modes). When no
+  // profile/roles are set, an explicit guard stops the model from inventing a
+  // role context (e.g. "Landesgeschäftsstelle in Bayern") in its greeting.
   const userInstructionsFormatted = state.userInstructions
     ? `\n\n## PERSÖNLICHE ANWEISUNGEN\n\nDer*die Nutzer*in hat folgendes Profil hinterlegt:\n\n${state.userInstructions}\n\nBefolge diese Anweisungen bei allen Antworten.`
-    : '';
+    : `\n\n## NUTZERKONTEXT\n\nDer*die Nutzer*in hat keine Rolle oder Funktion angegeben. Unterstelle, erfinde oder nenne KEINE konkrete Rolle, Funktion, Gliederung oder Region (z.B. „Landesgeschäftsstelle", „MdL-Büro", Bundesländer). Stelle dich neutral vor und biete allgemeine Unterstützung an oder frage nach, was gebraucht wird.`;
 
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {

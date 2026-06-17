@@ -54,14 +54,14 @@ NICHT chat-weit starten. Der Sharepic-Modus (gedocktes Artifact-Panel,
 
 ### Tool-Set v1 (Sharepic-Modus)
 
-| Tool | Executor (existiert) | Parameter-Schema |
-| --- | --- | --- |
-| `apply_sharepic_ops` | Kern von `handleSharepicEdit` (Ops → Patch → Version) | `canvasAiOperationSchema[]` (existiert) |
-| `search_background_image` | `imagePickerService.selectBestImage` | `{ query }` (existiert als Op) |
-| `generate_background_image` | Flux-Pfad aus dem image-Intent | `{ prompt }` |
-| `read_sharepic_state` | `getCurrentCanvasState` + `buildSharepicSnapshot` | `{ }` (Ziel implizit) |
-| `restore_version` | Restore-Pfad aus `canvasContractRouter` | `{ version }` |
-| `create_variant` | `generateSharepicVariants` | `{ topic, templates? }` |
+| Tool                        | Executor (existiert)                                  | Parameter-Schema                        |
+| --------------------------- | ----------------------------------------------------- | --------------------------------------- |
+| `apply_sharepic_ops`        | Kern von `handleSharepicEdit` (Ops → Patch → Version) | `canvasAiOperationSchema[]` (existiert) |
+| `search_background_image`   | `imagePickerService.selectBestImage`                  | `{ query }` (existiert als Op)          |
+| `generate_background_image` | Flux-Pfad aus dem image-Intent                        | `{ prompt }`                            |
+| `read_sharepic_state`       | `getCurrentCanvasState` + `buildSharepicSnapshot`     | `{ }` (Ziel implizit)                   |
+| `restore_version`           | Restore-Pfad aus `canvasContractRouter`               | `{ version }`                           |
+| `create_variant`            | `generateSharepicVariants`                            | `{ topic, templates? }`                 |
 
 Damit gehen Mehrschritt-Anweisungen in EINEM Turn: „such ein passendes
 Hintergrundbild, mach die Schrift größer und zeig mir das Ergebnis" =
@@ -125,12 +125,12 @@ Executors prüfen Ownership bereits selbst (z. B. `getCanvas` vor Patch).
 
 ## Phasen
 
-| Phase | Inhalt | Umfang | PR |
-| --- | --- | --- | --- |
-| 1 | Tool-Registry + `apply_sharepic_ops` + `read_sharepic_state`; `agenticResponseService` mit stopWhen, SSE-Events; Router-Branch hinter `CHAT_TOOL_LOOP`-Flag (nur Sharepic-Modus) | ~800–1000 LOC | 1 |
-| 2 | Persistenz Multi-Tool-Calls + Frontend-Steps (parseSSEStream, ToolCallUI) | ~400–600 LOC | 2 |
-| 3 | Restliche Tools (`search/generate_background_image`, `restore_version`, `create_variant`) + Budget-/Fehler-Härtung | ~300–400 LOC | 3 |
-| 4 | Tests: Registry-Unit-Tests, Loop-Integration mit Mock-Model (AI SDK `MockLanguageModel`), SSE-Contract | ~500–800 LOC | 3–4 |
+| Phase | Inhalt                                                                                                                                                                           | Umfang        | PR  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --- |
+| 1     | Tool-Registry + `apply_sharepic_ops` + `read_sharepic_state`; `agenticResponseService` mit stopWhen, SSE-Events; Router-Branch hinter `CHAT_TOOL_LOOP`-Flag (nur Sharepic-Modus) | ~800–1000 LOC | 1   |
+| 2     | Persistenz Multi-Tool-Calls + Frontend-Steps (parseSSEStream, ToolCallUI)                                                                                                        | ~400–600 LOC  | 2   |
+| 3     | Restliche Tools (`search/generate_background_image`, `restore_version`, `create_variant`) + Budget-/Fehler-Härtung                                                               | ~300–400 LOC  | 3   |
+| 4     | Tests: Registry-Unit-Tests, Loop-Integration mit Mock-Model (AI SDK `MockLanguageModel`), SSE-Contract                                                                           | ~500–800 LOC  | 3–4 |
 
 **Gesamt MVP: ~1.800–2.500 LOC hinter Flag, 3–4 gestackte PRs.** Erst nach
 Bake-Zeit im Sharepic-Modus entscheiden, ob weitere Intents (Boards, Docs)
@@ -141,13 +141,13 @@ ein Loop kostet pro Schritt einen vollen Modell-Roundtrip.
 
 ## Risiken
 
-| Risiko | Gegenmaßnahme |
-| --- | --- |
-| Latenz: jeder Tool-Step = voller Roundtrip mit wachsendem Kontext | Step-Cap 4; Modus-Scope klein halten; `tool_step_*`-Events zeigen Fortschritt sofort |
-| Token-Kosten 2–4× pro agentischem Turn | Flag + nur Sharepic-Modus; kompakte Tool-Results; Snapshot statt History |
+| Risiko                                                                    | Gegenmaßnahme                                                                                                                        |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Latenz: jeder Tool-Step = voller Roundtrip mit wachsendem Kontext         | Step-Cap 4; Modus-Scope klein halten; `tool_step_*`-Events zeigen Fortschritt sofort                                                 |
+| Token-Kosten 2–4× pro agentischem Turn                                    | Flag + nur Sharepic-Modus; kompakte Tool-Results; Snapshot statt History                                                             |
 | Provider-Kompatibilität (Mistral primär — Tool-Calling-Qualität schwankt) | v1 auf das Modell pinnen, das `canvas_ai_suggest` heute nutzt (tool-forced bewährt); Fallback: ein Step = bisheriger structured call |
-| Doppel-Pfad-Drift (Loop vs. `sharepicEditService`) | Kern (Ops→Patch→Version→SSE) in gemeinsame Funktion extrahieren; `sharepicEditService` wird dünner Aufrufer |
-| Endlos-/Pendel-Loops (Modell ruft wiederholt dasselbe Tool) | stopWhen + Dedup identischer aufeinanderfolgender Tool-Calls (Args-Hash) |
+| Doppel-Pfad-Drift (Loop vs. `sharepicEditService`)                        | Kern (Ops→Patch→Version→SSE) in gemeinsame Funktion extrahieren; `sharepicEditService` wird dünner Aufrufer                          |
+| Endlos-/Pendel-Loops (Modell ruft wiederholt dasselbe Tool)               | stopWhen + Dedup identischer aufeinanderfolgender Tool-Calls (Args-Hash)                                                             |
 
 ## Bewusst NICHT Ziel von v1
 

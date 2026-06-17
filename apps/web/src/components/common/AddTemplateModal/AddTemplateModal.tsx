@@ -1,34 +1,25 @@
 import { type UserTemplatePreview } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  UploadZone,
-} from '@gruenerator/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { HiArrowLeft, HiPhotograph } from 'react-icons/hi';
+import { HiArrowLeft, HiOutlineSparkles, HiPhotograph } from 'react-icons/hi';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
-import apiClient from '../../utils/apiClient';
 import { useTagAutocomplete } from '../TemplateModal';
 
 import { suggestTagsFromTemplate } from './tagSuggestions';
+import TemplateImagesEditor, {
+  type EditorImage,
+  editorImageFromUrl,
+  fileToDataUrl,
+  resolveTemplateImages,
+} from './TemplateImagesEditor';
 
 const READ_ONLY_PERMISSIONS = { read: true, write: false, collaborative: false };
 
 const INPUT_CLASS =
   'w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-md py-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 disabled:opacity-50 transition-colors';
-
-// Binary file uploads go through the (non-contracted, multipart) media
-// endpoint, which returns a shareable URL we then store on the template.
-interface MediaUploadResponse {
-  success: boolean;
-  data: { shareUrl: string };
-}
 
 interface AddTemplateModalProps {
   isOpen: boolean;
@@ -120,11 +111,11 @@ const AddTemplateModal = ({
   const [previewData, setPreviewData] = useState<Partial<UserTemplatePreview> | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
+  const [images, setImages] = useState<EditorImage[]>([]);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [isDescribing, setIsDescribing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [authorName, setAuthorName] = useState('');
@@ -144,10 +135,11 @@ const AddTemplateModal = ({
       setTemplateUrl('');
       setPreviewData(null);
       setPreviewError(null);
-      setUploadedFile(null);
-      setUploadPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
+      setImages((prev) => {
+        prev.forEach((img) => {
+          if (img.file && img.url.startsWith('blob:')) URL.revokeObjectURL(img.url);
+        });
+        return [];
       });
       setTitle('');
       setDescription('');
@@ -205,7 +197,7 @@ const AddTemplateModal = ({
       if (result.status !== 200) {
         const message =
           (result.body as { message?: string })?.message ||
-          'Automatische Vorschau nicht möglich – bitte Titel und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.';
+          'Automatische Vorschau nicht möglich – bitte Titel, Bild und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.';
         revealFormWithFallback(message);
         return;
       }
@@ -215,6 +207,11 @@ const AddTemplateModal = ({
 
       const crawledTitle = preview.title || fallbackTitle || '';
       setTitle(crawledTitle);
+
+      // Seed the image list with the crawled preview; the user can add slides.
+      if (preview.thumbnail_url) {
+        setImages([editorImageFromUrl(preview.thumbnail_url, 'Vorschau')]);
+      }
 
       const rawDesc = preview.description || '';
       const isGenericCanvaDesc = /^Check out this .* designed by /i.test(rawDesc);
@@ -233,27 +230,60 @@ const AddTemplateModal = ({
       // need to fill in the details. Saving still works.
       if (!preview.title && !preview.thumbnail_url) {
         setPreviewError(
-          'Automatische Vorschau nicht möglich – bitte Titel und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.'
+          'Automatische Vorschau nicht möglich – bitte Titel, Bild und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.'
         );
       }
 
       setTimeout(() => titleRef.current?.focus(), 50);
     } catch {
       revealFormWithFallback(
-        'Automatische Vorschau nicht möglich – bitte Titel und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.'
+        'Automatische Vorschau nicht möglich – bitte Titel, Bild und Beschreibung manuell eingeben. Die Vorlage lässt sich trotzdem speichern.'
       );
     } finally {
       setIsLoadingPreview(false);
     }
   }, []);
 
-  const handleFileSelected = useCallback((file: File) => {
-    setUploadedFile(file);
-    setUploadPreviewUrl(URL.createObjectURL(file));
-    const nameWithoutExt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
-    setTitle(nameWithoutExt.charAt(0).toUpperCase() + nameWithoutExt.slice(1));
-    setDescription(suggestTagsFromTemplate(null, 'file'));
-  }, []);
+  // Auto-fill the title from the first uploaded file's name (file-upload path).
+  const handleImagesChange = useCallback(
+    (next: EditorImage[]) => {
+      setImages(next);
+      if (showFileUpload && !title.trim()) {
+        const firstFile = next.find((img) => img.file)?.file;
+        if (firstFile) {
+          const name = firstFile.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+          setTitle(name.charAt(0).toUpperCase() + name.slice(1));
+          if (!description.trim()) setDescription(suggestTagsFromTemplate(null, 'file'));
+        }
+      }
+    },
+    [showFileUpload, title, description]
+  );
+
+  const generateDescription = useCallback(async () => {
+    const primary = images[0];
+    if (!primary) return;
+    setIsDescribing(true);
+    setSubmitError(null);
+    try {
+      const imageUrl = primary.file ? await fileToDataUrl(primary.file) : primary.url;
+      const result = await getContractsClient().userTemplates.describeImage({
+        body: { image_url: imageUrl },
+      });
+      if (result.status === 200) {
+        setDescription(result.body.description);
+      } else {
+        setSubmitError(
+          (result.body as { message?: string })?.message ||
+            'Beschreibung konnte nicht generiert werden.'
+        );
+      }
+    } catch {
+      setSubmitError('Beschreibung konnte nicht generiert werden.');
+    } finally {
+      setIsDescribing(false);
+    }
+  }, [images]);
 
   const handleSubmit = useCallback(async () => {
     setSubmitError(null);
@@ -262,33 +292,26 @@ const AddTemplateModal = ({
     try {
       if (!title.trim()) throw new Error('Titel ist erforderlich.');
 
-      let templateId: string | undefined;
-
       const metadata = {
         author_name: authorName.trim() || null,
         contact_email: contactEmail.trim() || null,
       };
       const client = getContractsClient();
 
-      if (showFileUpload && uploadedFile) {
-        // Binary uploads go through the media library first (the template
-        // create endpoint is JSON-only); we then store the returned URL.
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-        formData.append('uploadSource', 'template-upload');
-        const upload = await apiClient.post<MediaUploadResponse>('/media/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        const shareUrl = upload.data?.data?.shareUrl;
-        if (!shareUrl) throw new Error('Datei konnte nicht hochgeladen werden.');
+      const { images: resolvedImages, preview_image_url } = await resolveTemplateImages(images);
 
+      let templateId: string | undefined;
+
+      if (showFileUpload) {
+        if (resolvedImages.length === 0) throw new Error('Bitte mindestens ein Bild hinzufügen.');
         const result = await client.userTemplates.create({
           body: {
             title: title.trim(),
             description: description.trim(),
             template_type: 'sharepic',
-            external_url: shareUrl,
-            preview_image_url: shareUrl,
+            external_url: preview_image_url,
+            preview_image_url,
+            images: resolvedImages,
             is_private: false,
             metadata,
           },
@@ -305,12 +328,15 @@ const AddTemplateModal = ({
             url: templateUrl.trim(),
             title: title.trim(),
             description: description.trim(),
+            preview_image_url,
+            images: resolvedImages,
             metadata,
           },
         });
         if (result.status !== 201) {
           throw new Error(
-            (result.body as { message?: string })?.message || 'Fehler beim Einreichen der Vorlage.'
+            (result.body as { message?: string })?.message ||
+              'Fehler beim Einreichen der Vorlage.'
           );
         }
         templateId = result.body.data.id;
@@ -321,6 +347,8 @@ const AddTemplateModal = ({
             description: description.trim(),
             external_url: templateUrl.trim() || null,
             template_type: 'canva',
+            preview_image_url,
+            images: resolvedImages,
             is_private: false,
             metadata,
           },
@@ -350,7 +378,7 @@ const AddTemplateModal = ({
   }, [
     showFileUpload,
     previewData,
-    uploadedFile,
+    images,
     title,
     description,
     templateUrl,
@@ -364,7 +392,8 @@ const AddTemplateModal = ({
 
   const canSubmit =
     title.trim() &&
-    ((!showFileUpload && isValidTemplate && previewData) || (showFileUpload && uploadedFile));
+    ((!showFileUpload && isValidTemplate && previewData) ||
+      (showFileUpload && images.length > 0));
 
   const renderGhostText = () =>
     tagAutocomplete.suggestionSuffix && (
@@ -376,20 +405,7 @@ const AddTemplateModal = ({
 
   const renderDetailFields = () => (
     <div className="flex flex-col gap-md">
-      {previewData?.thumbnail_url && (
-        <div className="flex justify-center">
-          <div className="w-[140px] h-[140px] rounded-lg overflow-hidden bg-background-alt border border-grey-200 dark:border-grey-700">
-            <img
-              src={previewData.thumbnail_url}
-              alt="Vorschau"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <TemplateImagesEditor images={images} onChange={handleImagesChange} />
       <input
         ref={titleRef}
         type="text"
@@ -407,8 +423,22 @@ const AddTemplateModal = ({
           onKeyDown={tagAutocomplete.handleKeyDown}
           placeholder="Beschreibung... #tags werden erkannt"
           rows={3}
-          className={cn(INPUT_CLASS, 'resize-y min-h-[80px] bg-transparent relative z-[1]')}
+          className={cn(INPUT_CLASS, 'resize-y min-h-[80px] bg-transparent relative z-[1] pr-10')}
         />
+        <button
+          type="button"
+          onClick={() => void generateDescription()}
+          disabled={images.length === 0 || isDescribing}
+          className="absolute top-2 right-2 z-[2] flex items-center justify-center w-7 h-7 rounded-md text-primary-600 hover:bg-primary-600/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer border-none bg-transparent"
+          aria-label="Beschreibung mit KI generieren"
+          title="Beschreibung aus Vorschaubild generieren"
+        >
+          {isDescribing ? (
+            <span className="inline-block w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <HiOutlineSparkles size={16} />
+          )}
+        </button>
       </div>
       <div className="grid grid-cols-2 gap-md max-sm:grid-cols-1">
         <input
@@ -441,9 +471,12 @@ const AddTemplateModal = ({
                 type="button"
                 onClick={() => {
                   setShowFileUpload(false);
-                  setUploadedFile(null);
-                  if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
-                  setUploadPreviewUrl(null);
+                  setImages((prev) => {
+                    prev.forEach((img) => {
+                      if (img.file && img.url.startsWith('blob:')) URL.revokeObjectURL(img.url);
+                    });
+                    return [];
+                  });
                   setTitle('');
                   setDescription('');
                   setSubmitError(null);
@@ -519,49 +552,7 @@ const AddTemplateModal = ({
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-md">
-              {!uploadedFile ? (
-                <UploadZone
-                  onFileSelected={handleFileSelected}
-                  accept={{
-                    'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
-                    'application/pdf': ['.pdf'],
-                  }}
-                  maxSizeMB={10}
-                  icon={<HiPhotograph className="text-2xl" />}
-                  title="Vorlage auswählen oder hierher ziehen"
-                  subtitle="PNG, JPG, PDF oder WebP · Max. 10 MB"
-                />
-              ) : (
-                <>
-                  {uploadPreviewUrl && (
-                    <div className="flex justify-center">
-                      <div className="relative w-[140px] h-[140px] rounded-lg overflow-hidden bg-background-alt border border-grey-200 dark:border-grey-700">
-                        <img
-                          src={uploadPreviewUrl}
-                          alt="Vorschau"
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUploadedFile(null);
-                            if (uploadPreviewUrl) URL.revokeObjectURL(uploadPreviewUrl);
-                            setUploadPreviewUrl(null);
-                            setTitle('');
-                            setDescription('');
-                          }}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs cursor-pointer border-none hover:bg-black/80 transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {renderDetailFields()}
-                </>
-              )}
-            </div>
+            <div className="flex flex-col gap-md">{renderDetailFields()}</div>
           )}
         </div>
 

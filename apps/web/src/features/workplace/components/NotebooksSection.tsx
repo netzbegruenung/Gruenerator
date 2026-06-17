@@ -132,12 +132,7 @@ const NotebooksSection: React.FC = memo(() => {
       />
       <div className={NOTEBOOK_ROW_CLASS}>
         {allCards.map((card) => (
-          <NotebookCard
-            key={card.id}
-            item={card}
-            onShare={handleShare}
-            onDelete={handleDelete}
-          />
+          <NotebookCard key={card.id} item={card} onShare={handleShare} onDelete={handleDelete} />
         ))}
       </div>
       <button

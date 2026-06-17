@@ -33,6 +33,12 @@ export {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './components/alert-dialog';
+export {
+  ConfirmDialogProvider,
+  useConfirm,
+  type ConfirmFn,
+  type ConfirmOptions,
+} from './components/confirm-dialog';
 export { FeatureToggle, type FeatureToggleProps } from './components/feature-toggle';
 export { FileCard } from './components/file-card';
 export { Ripple } from './components/ripple';

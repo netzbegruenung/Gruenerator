@@ -6,6 +6,7 @@ import {
   SharepicArtifactPanel,
   setMentionLocale,
   useAgentStore,
+  useChatRuntimeReady,
   useUserAgentsRegistry,
   type UserRole,
 } from '@gruenerator/chat';
@@ -45,6 +46,11 @@ function ChatPage() {
   const [searchParams] = useSearchParams();
   const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
+  // False while the lazy assistant-ui runtime chunk is still loading (or in the
+  // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
+  // content below on it keeps useAssistantRuntime()/useComposerRuntime() from
+  // running outside the provider — the "requires an AuiProvider" prod crash.
+  const runtimeReady = useChatRuntimeReady();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
@@ -133,7 +139,7 @@ function ChatPage() {
     } else {
       notebookAppliedForRef.current = null;
       if (store.selectedAgentId !== null) {
-        store.setSelectedAgent(null);
+        store.resetChatContext();
       }
     }
     if (
@@ -164,6 +170,14 @@ function ChatPage() {
     store.setThreadMode('eigener');
     store.setChatViewMode('thread');
   }, []);
+
+  // Don't mount runtime-dependent content until the assistant-ui runtime is
+  // actually present. On a cold direct load the Suspense fallback renders this
+  // page without the provider; a neutral shell (matching withAuthRequired's
+  // fallback) avoids the AuiProvider crash until the chunk loads.
+  if (!runtimeReady) {
+    return <div className="flex min-h-0 h-full bg-background" />;
+  }
 
   return (
     <div className="flex min-h-0 h-full bg-background">
