@@ -348,12 +348,21 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       if (!row) return;
       setAssignees(next);
       onUpdateCell(row.id, FIELD_IDS.ASSIGNEE, serializeAssignees(next));
+      // Diff against the previous assignees so the server can notify only the
+      // newly-added users (excluding self). IDs are real user UUIDs from MemberPicker.
+      const prevIds = new Set(assignees.map((a) => a.id).filter(Boolean));
+      const addedAssigneeIds = next
+        .map((a) => a.id)
+        .filter((id) => id && !prevIds.has(id) && id !== currentUserId);
       recordActivity.mutate({
         type: 'assignees_changed',
-        payload: { names: next.map((a) => a.name) },
+        payload: {
+          names: next.map((a) => a.name),
+          ...(addedAssigneeIds.length ? { addedAssigneeIds, cardTitle: title } : {}),
+        },
       });
     },
-    [row, onUpdateCell, recordActivity]
+    [row, onUpdateCell, recordActivity, assignees, currentUserId, title]
   );
 
   // Multi-select: picking a member toggles them in/out of the assignee list.
