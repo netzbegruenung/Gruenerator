@@ -1,4 +1,4 @@
-import { triggerDocEditSchema } from '@gruenerator/contracts';
+import { triggerDocEditSchema, triggerBoardActionSchema } from '@gruenerator/contracts';
 
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
@@ -689,6 +689,23 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'warning': {
+          // Non-fatal degradation the user should know about (model fell back to
+          // default, Wolke refs dropped, …). Carries a ready-made German message.
+          // Surface as a toast; fall back to console where sonner isn't installed
+          // (e.g. mobile host), mirroring dictationErrorHandler.
+          const { code, message } = data as { code: string; message: string };
+          console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+          if (message) {
+            void import('sonner')
+              .then(({ toast }) => toast.warning(message))
+              .catch(() => {
+                // sonner not installed in host app — console-only above is enough.
+              });
+          }
+          break;
+        }
+
         case 'interrupt': {
           interruptPending = true;
           yield buildResult();
@@ -760,6 +777,39 @@ export async function* parseSSEStream(
             console.warn(
               '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
               payload.targetDocumentId
+            );
+          }
+          break;
+        }
+
+        case 'trigger_board_action': {
+          // Live board edit (boards editor surface). The chat backend has
+          // classified intent=edit_current_board and forwards the user's prompt
+          // here so the boards frontend can plan + apply operations on the live
+          // Yjs board. Handlers are keyed by boardId — one boards surface per
+          // board, registered when BoardAssistantProvider mounts.
+          const parsed = triggerBoardActionSchema.safeParse(data);
+          if (!parsed.success) {
+            console.warn(
+              '[ChatAdapter] trigger_board_action payload failed validation',
+              parsed.error
+            );
+            break;
+          }
+          const payload = parsed.data;
+          const handler = useChatConfigStore
+            .getState()
+            .boardActionHandlers.get(payload.targetBoardId);
+          if (handler) {
+            try {
+              await handler(payload);
+            } catch (err) {
+              console.warn('[ChatAdapter] boardActionHandler threw', err);
+            }
+          } else {
+            console.warn(
+              '[ChatAdapter] trigger_board_action received but no handler registered for board',
+              payload.targetBoardId
             );
           }
           break;

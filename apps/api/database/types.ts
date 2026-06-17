@@ -508,6 +508,16 @@ export interface UserRecentValueRow {
   created_at: Date;
 }
 
+export interface UserItemUsageRow {
+  id: string;
+  user_id: string;
+  item_type: string;
+  item_id: string;
+  use_count: number;
+  last_used_at: Date;
+  created_at: Date;
+}
+
 // ---------------------------------------------------------------------------
 // SECTION 11: SYSTEM TABLES
 // ---------------------------------------------------------------------------
@@ -800,6 +810,7 @@ export interface Database {
   shared_media_downloads: SharedMediaDownloadRow;
   antraege: AntragRow;
   user_recent_values: UserRecentValueRow;
+  user_item_usage: UserItemUsageRow;
   database: DatabaseRow;
   route_usage_stats: RouteUsageStatRow;
   generation_logs: GenerationLogRow;

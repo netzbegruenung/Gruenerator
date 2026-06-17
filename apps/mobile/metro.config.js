@@ -72,6 +72,28 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     );
   }
 
+  // Dedupe @tanstack/react-query (+ query-core) to a single physical copy, for
+  // the same reason as React above. A within-range deps bump moved the shared
+  // packages to react-query 5.101.0 while apps/mobile stayed at 5.100.9, so
+  // Metro shipped two react-query modules — each creating its own
+  // QueryClientContext. The chat tree (via @gruenerator/chat's
+  // useFileMentionData) then read a different context than the app-root
+  // QueryClientProvider, reviving "No QueryClient set" in the notebook/main
+  // chat. Resolving every react-query request from the app root collapses them
+  // to the one instance the provider uses (apps/mobile/node_modules).
+  if (
+    moduleName === '@tanstack/react-query' ||
+    moduleName.startsWith('@tanstack/react-query/') ||
+    moduleName === '@tanstack/query-core' ||
+    moduleName.startsWith('@tanstack/query-core/')
+  ) {
+    return context.resolveRequest(
+      { ...context, originModulePath: path.join(projectRoot, 'index.js') },
+      moduleName,
+      platform
+    );
+  }
+
   // Fix 'use dom' component resolution in monorepo.
   // The DOM transformer generates a relative path from node_modules/expo/dom/entry.js
   // to the component, but miscounts directory levels in a pnpm monorepo.

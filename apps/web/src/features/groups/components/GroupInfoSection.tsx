@@ -16,12 +16,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   LoadingSection,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   SectionHeader,
 } from '@gruenerator/ui';
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   HiDotsVertical,
   HiOutlineBell,
@@ -181,7 +178,6 @@ const GroupInfoSection = memo(
   }: GroupInfoSectionProps) => {
     const navigate = useNavigate();
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
-    const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
@@ -217,8 +213,6 @@ const GroupInfoSection = memo(
       [cloneTemplate, navigate]
     );
     const [showAddContent, setShowAddContent] = useState(false);
-    const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const memberActionOpenRef = useRef(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
@@ -234,32 +228,15 @@ const GroupInfoSection = memo(
       [onUploadAvatar]
     );
 
-    const handleMembersMouseEnter = useCallback(() => {
-      if (popoverTimeoutRef.current) clearTimeout(popoverTimeoutRef.current);
-      setMembersPopoverOpen(true);
-    }, []);
-
-    const handleMembersMouseLeave = useCallback(() => {
-      popoverTimeoutRef.current = setTimeout(() => {
-        if (memberActionOpenRef.current) return;
-        setMembersPopoverOpen(false);
-      }, 200);
-    }, []);
-
-    const handleMemberActionOpenChange = useCallback((open: boolean) => {
-      memberActionOpenRef.current = open;
-      if (open && popoverTimeoutRef.current) {
-        clearTimeout(popoverTimeoutRef.current);
-        popoverTimeoutRef.current = null;
-      }
-    }, []);
-
-    const handleMembersPopoverOpenChange = useCallback((next: boolean) => {
-      if (!next && memberActionOpenRef.current) return;
-      setMembersPopoverOpen(next);
-    }, []);
-
-    const memberCount = members?.length ?? 0;
+    const onlineMembers = useMemo(
+      () =>
+        members?.filter(
+          (m) =>
+            onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
+        ) ?? [],
+      [members, onlineUserIds, currentUserId]
+    );
+    const onlineCount = onlineMembers.length;
 
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
@@ -322,55 +299,27 @@ const GroupInfoSection = memo(
       <>
         <div className="relative mb-xl">
           <div className="absolute right-0 top-0 flex items-center gap-sm">
-            <Popover open={membersPopoverOpen} onOpenChange={handleMembersPopoverOpenChange}>
-              <PopoverTrigger asChild>
-                <button
-                  className="hidden sm:inline-flex items-center -space-x-1.5 cursor-pointer"
-                  onMouseEnter={handleMembersMouseEnter}
-                  onMouseLeave={handleMembersMouseLeave}
-                >
-                  {isLoadingMembers ? (
-                    <span className="text-xs text-foreground">…</span>
-                  ) : (
-                    <>
-                      {members?.slice(0, 5).map((member) => (
-                        <span key={member.user_id} className="relative">
-                          <RobotAvatar
-                            robotId={member.avatar_robot_id}
-                            sizePx={28}
-                            className="size-7 ring-2 ring-background"
-                            alt=""
-                          />
-                          {onlineUserIds?.has(member.user_id) && (
-                            <span className="absolute bottom-0 right-0 size-2 rounded-full bg-green-500 ring-1 ring-background" />
-                          )}
-                        </span>
-                      ))}
-                      {memberCount > 5 && (
-                        <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
-                          +{memberCount - 5}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                className="w-80 p-sm max-h-[min(70vh,480px)] overflow-y-auto"
-                onMouseEnter={handleMembersMouseEnter}
-                onMouseLeave={handleMembersMouseLeave}
+            {!isLoadingMembers && onlineCount > 0 && (
+              <span
+                className="hidden sm:inline-flex items-center -space-x-1.5"
+                aria-label={`${onlineCount} online`}
               >
-                <GroupMembersList
-                  groupId={groupId}
-                  isActive
-                  isCurrentUserAdmin={data?.isAdmin}
-                  currentUserId={currentUserId}
-                  createdBy={data?.groupInfo?.created_by}
-                  onMemberActionOpenChange={handleMemberActionOpenChange}
-                />
-              </PopoverContent>
-            </Popover>
+                {onlineMembers.slice(0, 5).map((member) => (
+                  <RobotAvatar
+                    key={member.user_id}
+                    robotId={member.avatar_robot_id}
+                    sizePx={28}
+                    className="size-7 ring-2 ring-background"
+                    alt=""
+                  />
+                ))}
+                {onlineCount > 5 && (
+                  <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
+                    +{onlineCount - 5}
+                  </span>
+                )}
+              </span>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-xs" aria-label="Gruppenaktionen">
@@ -378,6 +327,11 @@ const GroupInfoSection = memo(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
+                  <HiOutlineUserGroup className="size-4 mr-xs" />
+                  Mitglieder ({onlineCount})
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
                   {isMuted ? (
                     <>
@@ -541,18 +495,6 @@ const GroupInfoSection = memo(
                       ? 'Verwalte Mitglieder und geteilte Inhalte.'
                       : 'Du bist Mitglied dieser Gruppe.')}
                 </p>
-                {!isLoadingMembers && (
-                  <button
-                    type="button"
-                    onClick={() => setMembersDialogOpen(true)}
-                    className="sm:hidden mt-sm self-start inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 px-sm py-xs text-xs font-medium text-foreground hover:bg-grey-200 dark:hover:bg-grey-700 transition-colors"
-                  >
-                    <HiOutlineUserGroup className="size-3.5" aria-hidden="true" />
-                    <span>
-                      {memberCount} {memberCount === 1 ? 'Mitglied' : 'Mitglieder'}
-                    </span>
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -877,7 +819,7 @@ const GroupInfoSection = memo(
         <Dialog open={membersDialogOpen} onOpenChange={setMembersDialogOpen}>
           <DialogContent className="max-w-md p-md">
             <DialogHeader>
-              <DialogTitle>Mitglieder{!isLoadingMembers ? ` (${memberCount})` : ''}</DialogTitle>
+              <DialogTitle>Mitglieder ({onlineCount})</DialogTitle>
             </DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto">
               <GroupMembersList
@@ -887,6 +829,8 @@ const GroupInfoSection = memo(
                 isCurrentUserAdmin={data?.isAdmin}
                 currentUserId={currentUserId}
                 createdBy={data?.groupInfo?.created_by}
+                onlineUserIds={onlineUserIds}
+                onlineOnly
               />
             </div>
           </DialogContent>

@@ -14,6 +14,7 @@ import EditTemplateModal from '@/components/common/EditTemplateModal';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { SHOW_CANVAS_EDITOR } from '@/config/featureFlags';
 
 const MeineVorlagenPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,7 +34,8 @@ const MeineVorlagenPage = () => {
     return { canvasEditor, canva };
   }, [query.data]);
 
-  const isEmpty = !query.isLoading && canvasEditor.length === 0 && canva.length === 0;
+  const isEmpty =
+    !query.isLoading && canva.length === 0 && (!SHOW_CANVAS_EDITOR || canvasEditor.length === 0);
 
   const handleSave = useCallback(
     async (id: string, data: Partial<Template>): Promise<void> => {
@@ -61,7 +63,9 @@ const MeineVorlagenPage = () => {
             Meine Vorlagen
           </h1>
           <p className="mx-auto mb-lg max-w-[640px] text-foreground opacity-80">
-            Verwalte deine Canvas-Editor- und Canva-Vorlagen an einem Ort.
+            {SHOW_CANVAS_EDITOR
+              ? 'Verwalte deine Canvas-Editor- und Canva-Vorlagen an einem Ort.'
+              : 'Verwalte deine Canva-Vorlagen an einem Ort.'}
           </p>
           {!isEmpty && (
             <div className="flex flex-wrap items-center justify-center gap-3">
@@ -87,8 +91,9 @@ const MeineVorlagenPage = () => {
             </div>
             <h2 className="text-lg font-medium text-foreground-heading">Noch keine Vorlagen</h2>
             <p className="mx-auto mt-2 text-sm leading-relaxed text-foreground opacity-70">
-              Speichere Canva-Links oder erstelle Vorlagen im Canvas-Editor, um sie hier an einem
-              Ort zu verwalten.
+              {SHOW_CANVAS_EDITOR
+                ? 'Speichere Canva-Links oder erstelle Vorlagen im Canvas-Editor, um sie hier an einem Ort zu verwalten.'
+                : 'Speichere Canva-Links, um sie hier an einem Ort zu verwalten.'}
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Button variant="brand" size="brand" onClick={() => setShowAddModal(true)}>
@@ -102,14 +107,16 @@ const MeineVorlagenPage = () => {
           </div>
         ) : (
           <>
-            <VorlagenListSection
-              title="Canvas-Editor Vorlagen"
-              items={canvasEditor}
-              loading={query.isLoading}
-              emptyMessage="Du hast noch keine Canvas-Editor-Vorlagen gespeichert."
-              getActions={getActions}
-              onOpen={(t) => void openTemplate(t)}
-            />
+            {SHOW_CANVAS_EDITOR && (
+              <VorlagenListSection
+                title="Canvas-Editor Vorlagen"
+                items={canvasEditor}
+                loading={query.isLoading}
+                emptyMessage="Du hast noch keine Canvas-Editor-Vorlagen gespeichert."
+                getActions={getActions}
+                onOpen={(t) => void openTemplate(t)}
+              />
+            )}
 
             <VorlagenListSection
               title="Canva Vorlagen"

@@ -166,8 +166,9 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
         log.warn('[adminVorlagenContract.approve] enrichTemplate failed', e)
       );
 
-      // Notify the submitter (in-app + email + push). Skip self-reviews.
-      if (template.user_id && template.user_id !== userId) {
+      // Notify the submitter (in-app + email + push). Fires even when the
+      // reviewing admin is the submitter — they still want the verdict.
+      if (template.user_id) {
         const baseBody = `„${template.title}" ist jetzt in der Vorlagen-Galerie verfügbar.`;
         void createNotification({
           userId: template.user_id as string,
@@ -176,7 +177,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
           body: message ? `${baseBody}\n\n${message}` : baseBody,
           actionUrl: '/vorlagen',
           metadata: { templateId: id, ...(message ? { approvalMessage: message } : {}) },
-        }).catch(() => {});
+        }).catch((e) => log.warn('[adminVorlagenContract.approve] createNotification failed', e));
       }
 
       log.info(`[adminVorlagenContract] Vorlage ${id} approved by ${userId}`);
@@ -237,8 +238,9 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
         log.warn('[adminVorlagenContract.reject] enrichTemplate failed', e)
       );
 
-      // Notify the submitter (in-app + email + push). Skip self-reviews.
-      if (template.user_id && template.user_id !== userId) {
+      // Notify the submitter (in-app + email + push). Fires even when the
+      // reviewing admin is the submitter — they still want the verdict.
+      if (template.user_id) {
         void createNotification({
           userId: template.user_id as string,
           type: 'template_rejected',
@@ -247,7 +249,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
             ? `„${template.title}" wurde abgelehnt: ${reason}`
             : `„${template.title}" wurde leider nicht freigegeben.`,
           metadata: { templateId: id, ...(reason ? { rejectionReason: reason } : {}) },
-        }).catch(() => {});
+        }).catch((e) => log.warn('[adminVorlagenContract.reject] createNotification failed', e));
       }
 
       log.info(`[adminVorlagenContract] Vorlage ${id} rejected by ${userId}`);

@@ -57,7 +57,7 @@ export function MemberPicker({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-0">
         <div className="p-2 border-b border-grey-200 dark:border-grey-700">
@@ -72,7 +72,7 @@ export function MemberPicker({
             />
           </div>
         </div>
-        <div className="max-h-48 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto scroll-py-1">
           <button
             onClick={() => handleSelect(null)}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-grey-400 dark:text-grey-300 hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors bg-transparent border-none cursor-pointer"

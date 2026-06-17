@@ -111,9 +111,11 @@ import {
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
+import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
+import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -257,9 +259,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
-  const { internalAgentInsightRouter } = await import(
-    './routes/agents/internalAgentInsightController.js'
-  );
+  const { internalAgentInsightRouter } =
+    await import('./routes/agents/internalAgentInsightController.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
@@ -368,6 +369,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-values', requireAuth);
   mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
+  // ts-rest contract router for /api/item-usage (usage-based "favourites first"
+  // ordering). requireAuth at the prefix — returns user-specific data.
+  app.use('/api/item-usage', requireAuth, publicReadLimiter);
+  mountItemUsageContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
@@ -550,6 +555,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // createExpressEndpoints registers handlers directly on the app, bypassing
   // any later prefix middleware.
   app.use('/api/user-agents', requireAuth);
+  // Sharing router FIRST so the static `/api/user-agents/public` route resolves
+  // before the CRUD `/api/user-agents/:identifier` param route.
+  mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints

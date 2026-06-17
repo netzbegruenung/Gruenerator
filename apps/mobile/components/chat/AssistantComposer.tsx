@@ -1,6 +1,6 @@
 import { useAui, useAuiState, ComposerPrimitive } from '@assistant-ui/react-native';
 import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useCallback, useRef, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 
@@ -26,11 +26,23 @@ interface MentionState {
   mentionStart: number;
 }
 
+/** Optional toolbar button a host can surface in the composer (e.g. a notebook
+ *  filter/mode toggle), so its controls live in the composer instead of a chip bar. */
+export interface ComposerAccessory {
+  icon: IoniconsIconName;
+  onPress: () => void;
+  active?: boolean;
+  accessibilityLabel?: string;
+}
+
 interface Props {
   theme: Theme;
   bottomInset?: number;
   onOpenDocBrowser?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
+  accessory?: ComposerAccessory;
+  /** Transparent outer background so a screen-level gradient shows through. */
+  transparent?: boolean;
 }
 
 export function AssistantComposer({
@@ -38,6 +50,8 @@ export function AssistantComposer({
   bottomInset = 0,
   onOpenDocBrowser,
   inputRef: externalInputRef,
+  accessory,
+  transparent,
 }: Props) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
@@ -47,6 +61,9 @@ export function AssistantComposer({
   const selectionRef = useRef(0);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  // Mic/send merge: an empty composer shows the mic; the first character swaps it
+  // for the send button.
+  const [hasText, setHasText] = useState(false);
   const { isListening, toggle: toggleSpeech } = useSpeechToText();
 
   // Dictation (mirrors web's DictateButton): final transcripts are appended
@@ -55,6 +72,7 @@ export function AssistantComposer({
     void toggleSpeech((transcript) => {
       const newText = appendTranscript(textRef.current, transcript);
       textRef.current = newText;
+      setHasText(newText.trim().length > 0);
       aui.composer().setText(newText);
       inputRef.current?.setNativeProps({ text: newText });
       selectionRef.current = newText.length;
@@ -64,6 +82,7 @@ export function AssistantComposer({
   const onChangeText = useCallback(
     (value: string) => {
       textRef.current = value;
+      setHasText(value.trim().length > 0);
       aui.composer().setText(value);
 
       const cursorPos = selectionRef.current <= value.length ? selectionRef.current : value.length;
@@ -125,7 +144,13 @@ export function AssistantComposer({
 
   return (
     <ComposerPrimitive.Root
-      style={[styles.root, { backgroundColor: theme.background, paddingBottom: bottomInset }]}
+      style={[
+        styles.root,
+        {
+          backgroundColor: transparent ? 'transparent' : theme.background,
+          paddingBottom: bottomInset,
+        },
+      ]}
     >
       {mention?.visible && (
         <MentionSuggestions
@@ -140,57 +165,79 @@ export function AssistantComposer({
       <View style={styles.attachmentsRow}>
         <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
       </View>
-      <View
-        style={[
-          styles.inputRow,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-          styles.inputRowWithActions,
-        ]}
-      >
-        <Pressable
-          onPress={() => setActionSheetVisible(true)}
-          style={styles.actionButton}
-          hitSlop={8}
-        >
-          <Ionicons name="add-circle-outline" size={22} color={theme.textSecondary} />
-        </Pressable>
+      {/* Card-style composer (input on top, action toolbar below) — matches the
+          start screen ComposerCard and the manuelle-Recherche composer. */}
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <TextInput
           ref={inputRef}
           style={[styles.input, { color: theme.text }]}
           placeholder="Nachricht eingeben..."
           placeholderTextColor={theme.textSecondary}
           multiline
+          textAlignVertical="top"
           onChangeText={onChangeText}
           onSelectionChange={onSelectionChange}
         />
-        <Pressable
-          onPress={handleDictate}
-          style={styles.actionButton}
-          hitSlop={8}
-          accessibilityLabel={isListening ? 'Diktat beenden' : 'Diktieren'}
-        >
-          <Ionicons
-            name={isListening ? 'stop' : 'mic-outline'}
-            size={20}
-            color={isListening ? colors.error[500] : theme.textSecondary}
-          />
-        </Pressable>
-        {isRunning ? (
-          <ComposerPrimitive.Cancel style={styles.cancelButton}>
-            <ActivityIndicator size="small" color={colors.error[500]} />
-          </ComposerPrimitive.Cancel>
-        ) : (
-          <ComposerPrimitive.Send
-            style={styles.sendButton}
-            onPressIn={() => {
-              inputRef.current?.clear();
-              textRef.current = '';
-              setMention(null);
-            }}
+        <View style={styles.toolbar}>
+          <Pressable
+            onPress={() => setActionSheetVisible(true)}
+            style={styles.iconButton}
+            hitSlop={8}
           >
-            <Ionicons name="send" size={16} color={colors.white} />
-          </ComposerPrimitive.Send>
-        )}
+            <Ionicons name="add-circle-outline" size={24} color={theme.textSecondary} />
+          </Pressable>
+          {accessory && (
+            <Pressable
+              onPress={accessory.onPress}
+              style={styles.iconButton}
+              hitSlop={8}
+              accessibilityLabel={accessory.accessibilityLabel}
+            >
+              <Ionicons
+                name={accessory.icon}
+                size={22}
+                color={accessory.active ? colors.primary[600] : theme.textSecondary}
+              />
+            </Pressable>
+          )}
+          <View style={styles.spacer} />
+          {/* One merged button: mic while empty, send once there's text. */}
+          {isRunning ? (
+            <ComposerPrimitive.Cancel style={styles.cancelButton}>
+              <ActivityIndicator size="small" color={colors.error[500]} />
+            </ComposerPrimitive.Cancel>
+          ) : hasText ? (
+            <ComposerPrimitive.Send
+              style={styles.sendButton}
+              onPressIn={() => {
+                inputRef.current?.clear();
+                textRef.current = '';
+                setHasText(false);
+                setMention(null);
+              }}
+            >
+              <Ionicons name="arrow-forward" size={20} color={colors.white} />
+            </ComposerPrimitive.Send>
+          ) : (
+            <Pressable
+              onPress={handleDictate}
+              style={[
+                styles.sendButton,
+                isListening
+                  ? { backgroundColor: colors.error[500] }
+                  : { backgroundColor: 'transparent' },
+              ]}
+              hitSlop={8}
+              accessibilityLabel={isListening ? 'Diktat beenden' : 'Diktieren'}
+            >
+              <Ionicons
+                name={isListening ? 'stop' : 'mic'}
+                size={20}
+                color={isListening ? colors.white : theme.textSecondary}
+              />
+            </Pressable>
+          )}
+        </View>
       </View>
       <ComposerActionSheet
         visible={actionSheetVisible}
@@ -204,54 +251,59 @@ export function AssistantComposer({
 
 const styles = StyleSheet.create({
   root: {
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xsmall,
+    paddingHorizontal: spacing.medium,
+    paddingTop: spacing.xsmall,
   },
   attachmentsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: spacing.xsmall,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    borderRadius: borderRadius.pill,
+  card: {
+    borderRadius: borderRadius.xlarge,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingLeft: spacing.medium,
-    paddingRight: spacing.xsmall,
-    paddingVertical: 6,
-    minHeight: 44,
-  },
-  inputRowWithActions: {
-    paddingLeft: spacing.xsmall,
-  },
-  actionButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 28,
-    height: 34,
+    paddingHorizontal: spacing.medium,
+    paddingTop: spacing.small,
+    paddingBottom: spacing.xsmall,
+    minHeight: 92,
   },
   input: {
-    flex: 1,
     fontSize: 16,
+    lineHeight: 22,
+    minHeight: 36,
     maxHeight: 120,
-    paddingVertical: 5,
+    paddingVertical: 0,
+    textAlignVertical: 'top',
+  },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    marginTop: spacing.xsmall,
+  },
+  spacer: {
+    flex: 1,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sendButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.eucalyptus,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: spacing.xsmall,
   },
   cancelButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: spacing.xsmall,
   },
 });

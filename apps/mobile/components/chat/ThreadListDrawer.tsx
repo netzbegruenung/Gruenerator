@@ -327,6 +327,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         onSelectNotebook={handleSelectNotebook}
         onSelectAgent={handleSelectAgent}
         onInsertMention={handleInsertMention}
+        onSeeAllAgents={() => handleNavigate('/(focused)/agents')}
       />
     </ThreadListPrimitive.Root>
   );

@@ -15,6 +15,7 @@ import {
   Alert,
 } from 'react-native';
 
+import { Fab } from '../../../components/common/Fab';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
 import { NotebookCard, notebookGridStyles } from '../../../components/notebook/NotebookCard';
@@ -356,14 +357,7 @@ export default function NotebooksScreen() {
           createCollection={createCollection}
         />
       </ScrollView>
-      {!searchOpen && (
-        <Pressable
-          onPress={toggleSearch}
-          style={[styles.fab, { backgroundColor: colors.primary[600] }]}
-        >
-          <Ionicons name="search" size={22} color={colors.white} />
-        </Pressable>
-      )}
+      {!searchOpen && <Fab icon="search" onPress={toggleSearch} accessibilityLabel="Suchen" />}
     </ScreenScaffold>
   );
 }
@@ -388,21 +382,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     paddingVertical: spacing.xxsmall,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.medium,
-    bottom: spacing.medium,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.27,
-    shadowRadius: 4.65,
   },
   section: {
     marginBottom: spacing.large,
