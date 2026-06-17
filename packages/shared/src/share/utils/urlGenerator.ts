@@ -43,7 +43,8 @@ export function getBaseUrl(): string {
     // Desktop (Tauri) webview: page origin is `tauri://localhost`, useless in a
     // shared link — use the configured public origin instead.
     if (win.window && '__TAURI__' in win.window) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+      const apiBase = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
+        ?.VITE_API_BASE_URL;
       if (apiBase && /^https?:/i.test(apiBase)) {
         try {
           return new URL(apiBase).origin;
