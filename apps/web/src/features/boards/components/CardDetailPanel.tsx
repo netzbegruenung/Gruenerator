@@ -403,6 +403,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     onOpenChange(false);
   }, [row, onUpdateRow, onOpenChange, recordActivity]);
 
+  const handleRestore = useCallback(() => {
+    if (!row) return;
+    onUpdateRow(row.id, { archivedAt: undefined });
+    recordActivity.mutate({ type: 'card_restored' });
+    onOpenChange(false);
+  }, [row, onUpdateRow, onOpenChange, recordActivity]);
+
   const handleCoverImageChange = useCallback(
     (url: string | null) => {
       if (!row) return;
@@ -521,19 +528,43 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         Duplizieren
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={handleArchive}>
-                      <FiArchive className="mr-2" size={13} />
-                      Archivieren
-                    </DropdownMenuItem>
+                    {row.archivedAt ? (
+                      <DropdownMenuItem onClick={handleRestore}>
+                        <FiArchive className="mr-2" size={13} />
+                        Wiederherstellen
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={handleArchive}>
+                        <FiArchive className="mr-2" size={13} />
+                        Archivieren
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
                       onClick={async () => {
-                        const ok = await confirm({
-                          title: 'Karte löschen?',
-                          description:
-                            'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
-                        });
+                        const docCount = linkedDocs.length;
+                        const ok = await confirm(
+                          docCount > 0
+                            ? {
+                                title: 'Aufgabe löschen?',
+                                description: `Diese Aufgabe hat ${docCount} verknüpfte${
+                                  docCount === 1 ? 's' : ''
+                                } Dokument${
+                                  docCount === 1 ? '' : 'e'
+                                }. Die Dokumente bleiben erhalten – du findest sie weiterhin unter „Dokumente". Nur die Verknüpfung zur Aufgabe geht verloren.`,
+                                confirmLabel: 'Trotzdem löschen',
+                                alternateAction: {
+                                  label: 'Archivieren',
+                                  onSelect: handleArchive,
+                                },
+                              }
+                            : {
+                                title: 'Karte löschen?',
+                                description:
+                                  'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
+                              }
+                        );
                         if (!ok) return;
                         onDelete(row.id);
                         onOpenChange(false);
