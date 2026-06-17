@@ -178,7 +178,8 @@ export const docsContractRouter = s.router(docsContract, {
                 (SELECT COUNT(*)::int FROM group_memberships WHERE group_id = gcs.group_id) AS member_count
          FROM group_content_shares gcs
          JOIN groups g ON g.id = gcs.group_id
-         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1`,
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1
+           AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE`,
         [id]
       )) as Array<{
         group_id: string;
@@ -305,25 +306,37 @@ export const docsContractRouter = s.router(docsContract, {
       }
 
       const existing = (await db.query(
-        `SELECT id FROM group_content_shares
+        `SELECT id, permissions FROM group_content_shares
          WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2`,
         [id, group_id]
-      )) as { id: string }[];
-
-      if (existing.length > 0) {
-        return {
-          status: 409 as const,
-          body: { error: 'Document is already shared with this group' },
-        };
-      }
+      )) as { id: string; permissions: { hidden?: boolean } | null }[];
 
       const permissions = { read: true, write: effectiveLevel === 'editor' };
 
-      await db.query(
-        `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-         VALUES ('collaborative_documents', $1, $2, $3, $4)`,
-        [id, group_id, userId, JSON.stringify(permissions)]
-      );
+      if (existing.length > 0) {
+        // Board-inherited shares are created `hidden` (access granted, but kept out of
+        // the group's document listings). An explicit share reveals it — drop the
+        // hidden flag and apply the chosen level. A non-hidden share already exists →
+        // genuine conflict.
+        if (!existing[0].permissions?.hidden) {
+          return {
+            status: 409 as const,
+            body: { error: 'Document is already shared with this group' },
+          };
+        }
+        await db.query(
+          `UPDATE group_content_shares
+           SET permissions = $1, shared_by_user_id = $2, shared_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [JSON.stringify(permissions), userId, existing[0].id]
+        );
+      } else {
+        await db.query(
+          `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
+           VALUES ('collaborative_documents', $1, $2, $3, $4)`,
+          [id, group_id, userId, JSON.stringify(permissions)]
+        );
+      }
 
       // Fire-and-forget: notify group members
       import('../../services/notifications/index.js')
@@ -536,6 +549,7 @@ export const docsContractRouter = s.router(docsContract, {
               INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
               WHERE gcs.content_type = 'collaborative_documents'
                 AND (gcs.permissions->>'read')::boolean IS NOT FALSE
+                AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
             ) THEN 'group'
           END AS access_type,
           COALESCE(
@@ -545,6 +559,7 @@ export const docsContractRouter = s.router(docsContract, {
              INNER JOIN groups g ON g.id = gcs2.group_id
              WHERE gcs2.content_type = 'collaborative_documents'
                AND gcs2.content_id = cd.id::text
+               AND (gcs2.permissions->>'hidden')::boolean IS NOT TRUE
             ), '[]'::json
           ) AS group_shares
          FROM collaborative_documents cd
@@ -562,6 +577,7 @@ export const docsContractRouter = s.router(docsContract, {
               INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
               WHERE gcs.content_type = 'collaborative_documents'
                 AND (gcs.permissions->>'read')::boolean IS NOT FALSE
+                AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
             )
           )
          ORDER BY cd.updated_at DESC

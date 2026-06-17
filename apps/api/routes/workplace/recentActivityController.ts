@@ -99,6 +99,7 @@ export async function fetchRecentDocs(
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
           WHERE gcs.content_type = 'collaborative_documents'
+            AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
         ) THEN 'group'
       END AS access_type
     FROM collaborative_documents cd
@@ -114,6 +115,7 @@ export async function fetchRecentDocs(
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
           WHERE gcs.content_type = 'collaborative_documents'
+            AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
         )
       )
     ORDER BY cd.updated_at DESC
@@ -167,6 +169,7 @@ export async function fetchRecentBoards(
           FROM group_content_shares gcs
           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
           WHERE gcs.content_type = 'collaborative_documents'
+            AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
         )
       )
     ORDER BY cd.updated_at DESC
