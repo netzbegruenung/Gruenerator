@@ -183,10 +183,14 @@ const BETA_RELEASE: BetaRelease | null = {
     'Desktop-Beta mit den neuen Webview-Fixes: Bilder & Profilname, Dokumente, Vollbild-Layout, Chat inkl. Thread-Liste und behobenes Sidebar-Flackern.',
   published_at: '2026-06-17T00:00:00Z',
   platforms: {
-    // Single universal macOS DMG (Intel + Apple Silicon).
-    'mac-universal': {
-      label: 'macOS (Intel & Apple Silicon)',
-      filename: 'Gruenerator_1.2.0_universal.dmg',
+    // Per-architecture macOS DMGs (smaller than a universal build).
+    'mac-aarch64': {
+      label: 'Apple Silicon (M1–M4)',
+      filename: 'Gruenerator_1.2.0_aarch64.dmg',
+    },
+    'mac-intel': {
+      label: 'Intel',
+      filename: 'Gruenerator_1.2.0_x64.dmg',
     },
   },
 };
@@ -205,15 +209,13 @@ router.get('/beta', (_req: Request, res: Response) => {
     name: BETA_RELEASE.name,
     notes: BETA_RELEASE.notes,
     publishedAt: BETA_RELEASE.published_at,
+    // The download URL is built client-side from the platform key against the
+    // current API origin (GET /api/releases/beta/download/:platform), so it
+    // stays correct on both the web app and the desktop webview.
     platforms: Object.fromEntries(
       Object.entries(BETA_RELEASE.platforms).map(([key, p]) => [
         key,
-        {
-          label: p.label,
-          filename: p.filename,
-          // Stable gruenerator.eu URL → 302 to the GitHub asset (below).
-          url: `${PRIMARY_URL}/api/releases/beta/download/${key}`,
-        },
+        { label: p.label, filename: p.filename },
       ])
     ),
   });
