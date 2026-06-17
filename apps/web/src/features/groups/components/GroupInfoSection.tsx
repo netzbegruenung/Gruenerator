@@ -231,8 +231,7 @@ const GroupInfoSection = memo(
     const onlineMembers = useMemo(
       () =>
         members?.filter(
-          (m) =>
-            onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
+          (m) => onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
         ) ?? [],
       [members, onlineUserIds, currentUserId]
     );
