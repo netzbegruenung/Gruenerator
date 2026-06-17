@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
 import apiClient from '../../../components/utils/apiClient';
+import { platformFetch } from '../../../utils/platformFetch';
 
 export interface TranscriptionSegment {
   start: number;
@@ -196,7 +197,7 @@ export function useTranscription() {
         }));
 
         if (useStreamEndpoint) {
-          const response = await fetch('/api/voice/transcribe-upload/stream', {
+          const response = await platformFetch('/api/voice/transcribe-upload/stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

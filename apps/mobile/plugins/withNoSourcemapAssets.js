@@ -13,7 +13,9 @@ function withNoSourcemapAssets(config) {
     cfg.modResults.contents = cfg.modResults.contents.replace(
       /ignoreAssetsPattern '([^']*)'/,
       (match, pattern) =>
-        String(pattern).includes('!*.map') ? match : `ignoreAssetsPattern '${String(pattern)}:!*.map'`
+        String(pattern).includes('!*.map')
+          ? match
+          : `ignoreAssetsPattern '${String(pattern)}:!*.map'`
     );
     return cfg;
   });

@@ -13,7 +13,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   useDeleteUserAgent,
+  usePublicUserAgents,
   useSharedSystemAgents,
+  useSharedUserAgents,
   useUserAgents,
   type SharedAgentEntry,
 } from '../agents/api';
@@ -102,7 +104,9 @@ function AgenturaPage() {
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
 
   const { data: userAgents = [] } = useUserAgents();
-  const { data: sharedAgents = [] } = useSharedSystemAgents();
+  const { data: sharedSystemAgents = [] } = useSharedSystemAgents();
+  const { data: sharedUserAgents = [] } = useSharedUserAgents();
+  const { data: publicAgents = [] } = usePublicUserAgents();
   const deleteUserAgent = useDeleteUserAgent();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
@@ -115,6 +119,18 @@ function AgenturaPage() {
 
   const isSkillFav = (s: AgentListItem) => favorites.includes(s.mention.toLowerCase());
   const isAgentFav = (a: Agent) => agentFavorites.includes(a.identifier);
+
+  // Group-shared agents are system + user-created agents, deduped by identifier
+  // (a system agent and a user agent never collide). Both render as
+  // SharedAgentCard in the "Geteilt mit Gruppen" section.
+  const sharedAgents = useMemo<SharedAgentEntry[]>(() => {
+    const byIdentifier = new Map<string, SharedAgentEntry>();
+    for (const entry of [...sharedSystemAgents, ...sharedUserAgents]) {
+      if (!byIdentifier.has(entry.agent.identifier))
+        byIdentifier.set(entry.agent.identifier, entry);
+    }
+    return [...byIdentifier.values()];
+  }, [sharedSystemAgents, sharedUserAgents]);
 
   const filteredSkills = useMemo(() => {
     const real = agentsList.filter(
@@ -135,6 +151,18 @@ function AgenturaPage() {
     if (!q) return sharedAgents;
     return sharedAgents.filter((e) => matchesQuery([e.agent.title, e.agent.description], q));
   }, [sharedAgents, q]);
+
+  // Publicly-listed community agents, minus the ones the user already owns or
+  // already sees via a group share (avoid showing the same agent twice).
+  const filteredPublicAgents = useMemo(() => {
+    const ownIds = new Set(userAgents.map((a) => a.identifier));
+    const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
+    const pool = publicAgents.filter(
+      (a) => !ownIds.has(a.identifier) && !sharedIds.has(a.identifier)
+    );
+    if (!q) return pool;
+    return pool.filter((a) => matchesQuery([a.title, a.description], q));
+  }, [publicAgents, userAgents, sharedAgents, q]);
 
   const filteredSystemAgents = useMemo(() => {
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
@@ -210,6 +238,10 @@ function AgenturaPage() {
     getId: (a) => a.identifier,
     map: agentUsage,
   });
+  const sortedPublicAgents = sortBy(filteredPublicAgents, sort, (a) => a.title, isAgentFav, {
+    getId: (a) => a.identifier,
+    map: agentUsage,
+  });
 
   // LV agents + skills, grouped per region so each region's entries sit together.
   const lvEntries = [
@@ -247,6 +279,7 @@ function AgenturaPage() {
 
   const showMeine = showAgents && (sortedUserAgents.length > 0 || (showCreateAgentCta && !q));
   const showGruppen = showAgents && sortedSharedAgents.length > 0;
+  const showCommunity = showAgents && sortedPublicAgents.length > 0;
   const showGruenerator = showAgents && sortedGeneralAgents.length > 0;
   const showLv = lvEntries.length > 0;
   const showFavoriten = showSkills && favoriteSkills.length > 0;
@@ -254,6 +287,8 @@ function AgenturaPage() {
   const navItems: AisleNavItem[] = [];
   if (showMeine) navItems.push({ ...AGENT_SECTIONS.meine, count: sortedUserAgents.length });
   if (showGruppen) navItems.push({ ...AGENT_SECTIONS.gruppen, count: sortedSharedAgents.length });
+  if (showCommunity)
+    navItems.push({ ...AGENT_SECTIONS.community, count: sortedPublicAgents.length });
   if (showGruenerator)
     navItems.push({ ...AGENT_SECTIONS.gruenerator, count: sortedGeneralAgents.length });
   if (showLv) navItems.push({ ...AGENT_SECTIONS.landesverbaende, count: lvEntries.length });
@@ -377,6 +412,28 @@ function AgenturaPage() {
                       entry={entry}
                       onSelect={handleSelectAgent}
                       isFavorite={isAgentFav(entry.agent)}
+                      onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
+                    />
+                  ))}
+                />
+              </section>
+            )}
+
+            {showCommunity && (
+              <section className="mb-xl">
+                <SectionIntro
+                  id={AGENT_SECTIONS.community.id}
+                  icon={AGENT_SECTIONS.community.icon}
+                  title={AGENT_SECTIONS.community.label}
+                  description="Öffentlich geteilte Agent*innen aus der Community."
+                />
+                <CollapsibleGrid
+                  items={sortedPublicAgents.map((agent) => (
+                    <AgentCard
+                      key={`pub-${agent.identifier}`}
+                      agent={agent}
+                      onSelect={handleSelectAgent}
+                      isFavorite={isAgentFav(agent)}
                       onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
                     />
                   ))}

@@ -1,9 +1,13 @@
 import { useVoiceAgent, type VoiceAgentPhase } from '@gruenerator/voice';
 
+import { getPublicAppOrigin } from '../../utils/platform';
+
 import { Transcript } from './components/Transcript';
 import { VoiceOrb } from './components/VoiceOrb';
 
-const API_BASE_URL = window.location.origin;
+// Desktop webview origin is tauri://localhost; use the public origin so the
+// voice-agent backend URL is valid.
+const API_BASE_URL = getPublicAppOrigin();
 
 const footerHints: Record<VoiceAgentPhase, string> = {
   idle: 'Klicke um zu starten',
