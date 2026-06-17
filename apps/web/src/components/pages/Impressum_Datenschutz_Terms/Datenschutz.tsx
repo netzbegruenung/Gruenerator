@@ -119,11 +119,11 @@ const Datenschutz = () => {
       <p>
         Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland,
         info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
-        Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als
-        Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert{' '}
-        <strong>Regolo AI</strong> als Auftragsverarbeiter für die Audiotranskription mit Zero Data
-        Retention (EU-Datenverarbeitung). Als Fallback wird <strong>Mistral AI Voxtral</strong> für
-        die Transkription eingesetzt.
+        Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als
+        Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim
+        Reel-Grünerator fungiert <strong>Regolo AI</strong> als Auftragsverarbeiter für die
+        Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird{' '}
+        <strong>Mistral AI Voxtral</strong> für die Transkription eingesetzt.
       </p>
 
       <p>
@@ -193,13 +193,18 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>3. Black Forest Labs Inc.</strong>
+        <strong>3. Black Forest Labs</strong> (FLUX-Bildgenerierung)
       </p>
       <ul>
-        <li>Zweck: Bildbearbeitung (FLUX-Modell im Grünerator Imagine)</li>
-        <li>Server: Ausschließlich EU</li>
+        <li>Zweck: Bildbearbeitung und -generierung (FLUX-Modell im Grünerator Imagine)</li>
+        <li>
+          Server: Ausschließlich EU – über die EU-API von Black Forest Labs (api.eu.bfl.ai) bzw.
+          alternativ über bei IONOS (Deutschland) oder Seeweb/Regolo AI (Italien) betriebene
+          FLUX-Modelle
+        </li>
         <li>Besonderheit: Keine Speicherung auf unseren Servern, direkte Weiterleitung</li>
         <li>Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten</li>
+        <li>Kontakt: support@blackforestlabs.ai</li>
       </ul>
 
       <p>
