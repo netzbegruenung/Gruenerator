@@ -43,5 +43,7 @@ export function compareUsageStats(a: UsageStat | undefined, b: UsageStat | undef
  * (then count). Never-used items keep their incoming order.
  */
 export function sortByUsage<T>(items: T[], getId: (item: T) => string, map: UsageMap): T[] {
-  return [...items].sort((a, b) => compareUsageStats(getStat(map, getId(a)), getStat(map, getId(b))));
+  return [...items].sort((a, b) =>
+    compareUsageStats(getStat(map, getId(a)), getStat(map, getId(b)))
+  );
 }

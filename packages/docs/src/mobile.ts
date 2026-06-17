@@ -8,11 +8,7 @@
  * mobile editor actually renders.
  */
 
-export {
-  DocsProvider,
-  useDocsAdapter,
-  type DocsAdapter,
-} from './context/DocsContext';
+export { DocsProvider, useDocsAdapter, type DocsAdapter } from './context/DocsContext';
 export { BlockNoteEditor, type BlockNoteEditorProps } from './components/editor/BlockNoteEditor';
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { invokeDocumentAI } from './lib/invokeDocumentAI';

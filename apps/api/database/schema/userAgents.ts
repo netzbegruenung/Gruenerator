@@ -1,14 +1,5 @@
 import { type InferSelectModel } from 'drizzle-orm';
-import {
-  boolean,
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 export const userAgents = pgTable(
   'user_agents',

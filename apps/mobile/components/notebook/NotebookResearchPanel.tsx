@@ -258,46 +258,46 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           <View
             style={[styles.composer, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
-        <TextInput
-          style={[styles.composerInput, { color: theme.text }]}
-          placeholder="In diesem Notebook recherchieren…"
-          placeholderTextColor={theme.textSecondary}
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={() => runSearch()}
-          returnKeyType="search"
-          autoCorrect={false}
-          multiline
-        />
-        <View style={styles.composerToolbar}>
-          <Pressable
-            onPress={() => setFiltersSheetVisible(true)}
-            style={styles.iconButton}
-            hitSlop={6}
-          >
-            <Ionicons
-              name="options-outline"
-              size={22}
-              color={activeCount > 0 ? colors.primary[600] : theme.textSecondary}
+            <TextInput
+              style={[styles.composerInput, { color: theme.text }]}
+              placeholder="In diesem Notebook recherchieren…"
+              placeholderTextColor={theme.textSecondary}
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={() => runSearch()}
+              returnKeyType="search"
+              autoCorrect={false}
+              multiline
             />
-            {activeCount > 0 && (
-              <View style={[styles.filterBadge, { backgroundColor: colors.primary[600] }]}>
-                <Text style={styles.filterBadgeText}>{activeCount}</Text>
-              </View>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => runSearch()}
-            style={[
-              styles.sendButton,
-              { backgroundColor: canSearch ? colors.primary[600] : theme.border },
-            ]}
-            disabled={!canSearch}
-          >
-            <Ionicons name="arrow-forward" size={20} color={colors.white} />
-          </Pressable>
-        </View>
-      </View>
+            <View style={styles.composerToolbar}>
+              <Pressable
+                onPress={() => setFiltersSheetVisible(true)}
+                style={styles.iconButton}
+                hitSlop={6}
+              >
+                <Ionicons
+                  name="options-outline"
+                  size={22}
+                  color={activeCount > 0 ? colors.primary[600] : theme.textSecondary}
+                />
+                {activeCount > 0 && (
+                  <View style={[styles.filterBadge, { backgroundColor: colors.primary[600] }]}>
+                    <Text style={styles.filterBadgeText}>{activeCount}</Text>
+                  </View>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => runSearch()}
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: canSearch ? colors.primary[600] : theme.border },
+                ]}
+                disabled={!canSearch}
+              >
+                <Ionicons name="arrow-forward" size={20} color={colors.white} />
+              </Pressable>
+            </View>
+          </View>
         )}
 
         <View style={styles.body}>
