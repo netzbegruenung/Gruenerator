@@ -22,6 +22,8 @@ interface GroupMembersListProps {
   currentUserId?: string;
   createdBy?: string;
   onMemberActionOpenChange?: (open: boolean) => void;
+  onlineUserIds?: Set<string>;
+  onlineOnly?: boolean;
 }
 
 const GroupMembersList = ({
@@ -33,10 +35,20 @@ const GroupMembersList = ({
   currentUserId,
   createdBy,
   onMemberActionOpenChange,
+  onlineUserIds,
+  onlineOnly = false,
 }: GroupMembersListProps) => {
-  const { members, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(groupId, {
-    isActive,
-  });
+  const { members: allMembers, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(
+    groupId,
+    { isActive }
+  );
+  const members =
+    onlineOnly && allMembers
+      ? allMembers.filter(
+          (m) =>
+            onlineUserIds?.has(m.user_id) || String(m.user_id) === String(currentUserId)
+        )
+      : allMembers;
   const { updateMemberRole, isUpdatingRole } = useUpdateMemberRole(groupId);
 
   const header = !hideHeader && (
@@ -76,7 +88,11 @@ const GroupMembersList = ({
       <div className={className}>
         {header}
         <div className="text-xs text-grey-500 italic">
-          <p>Noch keine Mitglieder in dieser Gruppe.</p>
+          <p>
+            {onlineOnly
+              ? 'Aktuell ist niemand online.'
+              : 'Noch keine Mitglieder in dieser Gruppe.'}
+          </p>
         </div>
       </div>
     );
