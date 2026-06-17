@@ -31,7 +31,7 @@ Beim Hochladen werden die gewählten Dateien zunächst als Vorschau **„Bereit 
 
 Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit **„Weiter →"** gelangst du zu Schritt 2 (Details).
 
-:::tip Hochladen vs. Indexieren
+:::tip[Hochladen vs. Indexieren]
 Das **Hochladen** dauert nur Sekunden, das anschließende **Indexieren** (damit der Inhalt durchsuchbar wird) läuft im Hintergrund weiter. Du erkennst noch laufende Indexierung an einem kleinen Lade-Indikator („Wird verarbeitet…") auf der Dokumenten-Karte. Du kannst das Notebook trotzdem schon erstellen.
 :::
 
@@ -57,7 +57,7 @@ Im dritten Schritt („Überprüfen — Alles bereit zum Erstellen?") siehst du 
 
 Klicke unten rechts auf **„Notebook erstellen"**. Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern landest du wieder in der Notebook-Übersicht und siehst eine Erfolgsmeldung.
 
-:::note Veröffentlichen kommt später
+:::note[Veröffentlichen kommt später]
 Beim Erstellen ist dein Notebook **privat**. Ob und für wen es sichtbar wird, legst du danach im **„Teilen"**-Menü fest — siehe unten.
 :::
 
@@ -82,7 +82,7 @@ Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Vo
 
 Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden.
 
-:::warning Privat ist die sichere Voreinstellung
+:::warning[Privat ist die sichere Voreinstellung]
 Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern.
 :::
 
