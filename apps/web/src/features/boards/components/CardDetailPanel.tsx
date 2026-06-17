@@ -37,6 +37,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardActivity } from '../hooks/useBoardActivity';
 import { useCardSubscription } from '../hooks/useCardSubscription';
@@ -334,21 +335,26 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       if (!row) return;
       setAssignees(next);
       onUpdateCell(row.id, FIELD_IDS.ASSIGNEE, serializeAssignees(next));
-      // Diff against the previous assignees so the server can notify only the
-      // newly-added users (excluding self). IDs are real user UUIDs from MemberPicker.
+      // Diff against the previous assignees. Newly-added people get a notification;
+      // a newly-added bot/agent delegates the card's task to it (the worker gathers
+      // the full card context). Agent ids (slugs) must NOT enter addedAssigneeIds —
+      // it is cast to ::uuid[] server-side — so they ride in delegateAgentId.
       const prevIds = new Set(assignees.map((a) => a.id).filter(Boolean));
-      const addedAssigneeIds = next
-        .map((a) => a.id)
-        .filter((id) => id && !prevIds.has(id) && id !== currentUserId);
+      const added = next.filter((a) => a.id && !prevIds.has(a.id) && a.id !== currentUserId);
+      const addedAssigneeIds = added.filter((a) => !a.agentId).map((a) => a.id);
+      const delegateAgentId = added.find((a) => a.agentId)?.agentId;
+      const delegates = addedAssigneeIds.length > 0 || Boolean(delegateAgentId);
       recordActivity.mutate({
         type: 'assignees_changed',
         payload: {
           names: next.map((a) => a.name),
-          ...(addedAssigneeIds.length ? { addedAssigneeIds, cardTitle: title } : {}),
+          ...(addedAssigneeIds.length ? { addedAssigneeIds } : {}),
+          ...(delegates ? { cardTitle: title, cardDescription: description } : {}),
+          ...(delegateAgentId ? { delegateAgentId } : {}),
         },
       });
     },
-    [row, onUpdateCell, recordActivity, assignees, currentUserId, title]
+    [row, onUpdateCell, recordActivity, assignees, currentUserId, title, description]
   );
 
   // Multi-select: picking a member toggles them in/out of the assignee list.
@@ -737,13 +743,19 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                           key={`${a.id}-${a.name}`}
                           className="inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 pl-1 pr-1.5 py-0.5 group/assignee"
                         >
-                          <RobotAvatar
-                            robotId={a.avatarRobotId ?? 1}
-                            displayName={a.name}
-                            sizePx={20}
-                            className="w-5 h-5 shrink-0"
-                            alt=""
-                          />
+                          {a.agentId ? (
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">
+                              <PhosphorIcon name="PiSparkle" className="h-4 w-4" />
+                            </span>
+                          ) : (
+                            <RobotAvatar
+                              robotId={a.avatarRobotId ?? 1}
+                              displayName={a.name}
+                              sizePx={20}
+                              className="w-5 h-5 shrink-0"
+                              alt=""
+                            />
+                          )}
                           <span className="text-xs text-foreground truncate max-w-[120px]">
                             {a.name}
                           </span>

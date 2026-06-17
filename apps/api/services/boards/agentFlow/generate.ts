@@ -15,9 +15,20 @@ import {
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { createSearchTools } from '../../../routes/chat/agents/searchTools.js';
 import { resolveModel } from '../../../routes/chat/services/responseStreamingService.js';
+import { createLogger } from '../../../utils/logger.js';
 import { getAIService } from '../../ai/aiService.js';
 
+const log = createLogger('boardAgentGenerate');
+
 export type UserLocale = 'de-DE' | 'de-AT';
+
+/** Selects which agent runs a board task and on whose behalf (for user/shared agents). */
+export interface AgentSelection {
+  /** Identifier of a specific agent; null/empty → the default universal agent. */
+  agentId?: string | null;
+  /** Requesting user — required so user-created and group-shared agents resolve. */
+  userId?: string;
+}
 
 // Hard ceiling on a single generation so one hung model call can't stall the
 // sequential drain loop.
@@ -43,20 +54,60 @@ Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret
 
 REINER TEXT (überschreibt die Längen- und Formatierungsvorgaben der ANTWORT-REGELN): Der Kommentar-Thread stellt KEIN Markdown dar. Schreibe ausschließlich reinen Fließtext — keine Sternchen für Hervorhebungen (**fett**, *kursiv*), keine Überschriften (#), keine Aufzählungs- oder Nummernlisten (-, *, 1.), keine Code-Backticks (\`). Gliedere höchstens durch einzelne normale Absätze. Halte dich kurz (wenige kurze Absätze). Wenn die Antwort nur mit Überschriften, Listen oder längerer Struktur sinnvoll wäre, ist das ein Zeichen dafür, dass ein Dokument statt eines Kommentars gefragt ist — fasse dich dann trotzdem knapp.`;
 
-/**
- * Run the classifier so we have the intent (for the caller's unsupported-artifact
- * guard) and an intent/locale-aware system prompt. Throws on classifier error.
- */
-export async function prepareAgentState(instruction: string, userLocale: UserLocale) {
-  const userMessage: ModelMessage = { role: 'user', content: instruction };
-
-  const initialState = await initializeChatState({
+async function initializeBoardAgentState(
+  userMessage: ModelMessage,
+  userLocale: UserLocale,
+  agentId: string,
+  userId: string | undefined
+) {
+  return initializeChatState({
     messages: [userMessage],
-    agentId: '', // falsy → ChatGraph resolves the default universal agent
+    // Falsy agentId → ChatGraph resolves the default universal agent. A real id +
+    // userId resolves the chosen agent (system → own → group-shared) with its
+    // persona, default notebooks and tool restrictions.
+    agentId,
+    ...(userId != null && { userId }),
     enabledTools: { search: true, web: true, person: true, examples: true, research: true },
     aiWorkerPool: getAIService(),
     userLocale,
   });
+}
+
+/**
+ * Run the classifier so we have the intent (for the caller's unsupported-artifact
+ * guard) and an intent/locale-aware system prompt. Throws on classifier error.
+ *
+ * `selection` optionally pins a specific agent (own / group-shared / system) on the
+ * requester's behalf. A picked agent that can no longer be resolved (deleted, renamed,
+ * access lost) must not fail an already-queued task — it falls back to the default
+ * universal agent so the work still gets done.
+ */
+export async function prepareAgentState(
+  instruction: string,
+  userLocale: UserLocale,
+  selection?: AgentSelection
+) {
+  const userMessage: ModelMessage = { role: 'user', content: instruction };
+  const requestedAgentId = selection?.agentId || '';
+  const userId = selection?.userId;
+
+  let initialState;
+  try {
+    initialState = await initializeBoardAgentState(
+      userMessage,
+      userLocale,
+      requestedAgentId,
+      userId
+    );
+  } catch (err) {
+    if (!requestedAgentId) throw err;
+    log.warn(
+      `Agent "${requestedAgentId}" could not be resolved; falling back to the default agent: ` +
+        (err instanceof Error ? err.message : String(err))
+    );
+    initialState = await initializeBoardAgentState(userMessage, userLocale, '', userId);
+  }
+
   const classification = await classifierNode(initialState);
   const finalState = { ...initialState, ...classification };
   if (finalState.error) {
@@ -73,11 +124,17 @@ export type PreparedAgentState = Awaited<ReturnType<typeof prepareAgentState>>;
  */
 export async function generateFromState(
   prepared: PreparedAgentState,
-  opts: { longForm: boolean; slotLabel: string }
+  opts: { longForm: boolean; slotLabel: string; contextBlock?: string }
 ): Promise<string> {
   const { finalState, userMessage } = prepared;
   const baseSystemMessage = await buildSystemMessage(finalState);
-  const systemMessage = `${baseSystemMessage}${opts.longForm ? DOCUMENT_MODE : COMMENT_MODE}`;
+  const mode = opts.longForm ? DOCUMENT_MODE : COMMENT_MODE;
+  // The card context (column, comments, attached documents) is injected as
+  // system-level grounding so the user's ask stays the clean classifier input.
+  const context = opts.contextBlock
+    ? `\n\n## Kontext dieser Karte\nNutze diese Informationen aus dem Board als Hintergrund. Wenn die Aufgabe sich darauf bezieht, beziehe dich darauf.\n\n${opts.contextBlock}`
+    : '';
+  const systemMessage = `${baseSystemMessage}${mode}${context}`;
 
   const { agentConfig } = finalState;
   // Resolve via the same path as the chat controller so overflow-lane slots and
