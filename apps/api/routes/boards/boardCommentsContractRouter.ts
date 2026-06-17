@@ -141,7 +141,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { boardId, cardId } = args.params;
-      const { blocks, parentId } = args.body;
+      const { blocks, parentId, agentId } = args.body;
 
       if (blocks.length === 0) {
         return { status: 400 as const, body: { error: 'Kommentar darf nicht leer sein' } };
@@ -235,6 +235,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         content,
         parentId: parentId ?? null,
         mentionedUserIds,
+        agentId: agentId ?? null,
       }).catch((err: unknown) => {
         log.warn('Failed to send comment notifications', { error: errMsg(err) });
       });
@@ -428,6 +429,8 @@ interface CommentNotificationParams {
   content: string;
   parentId: string | null;
   mentionedUserIds: string[];
+  /** Specific agent the comment delegated to (own / shared / system); null = default. */
+  agentId: string | null;
 }
 
 async function fireCommentNotifications(params: CommentNotificationParams): Promise<void> {
@@ -441,6 +444,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     content,
     parentId,
     mentionedUserIds,
+    agentId,
   } = params;
 
   const snippet = content.length > 80 ? content.slice(0, 80) + '…' : content;
@@ -465,6 +469,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
         requestedBy: authorId,
         taskText: content,
         locale: localeRows[0]?.locale ?? 'de-DE',
+        agentId,
       }).catch((err: unknown) => {
         log.warn('Failed to enqueue agent task', { error: errMsg(err) });
       });

@@ -7,13 +7,16 @@
  */
 
 import {
+  assigneesChangedPayloadSchema,
   boardActivityContract,
   type ActivityType,
+  type AssigneesChangedPayload,
   type BoardActivityEntry,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
 import { getBoardSubscribers } from '../../services/boards/boardSubscriptionService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
@@ -96,6 +99,38 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
         });
       })
   );
+}
+
+/**
+ * Delegate a card to an agent (or the generic bot) when it's assigned. The card's
+ * title + description become the task; the worker adds the full card context. Uses
+ * the same durable queue + legacy worker path as the comment @-mention.
+ */
+async function delegateCardToAgent(params: {
+  boardId: string;
+  cardId: string;
+  requestedBy: string;
+  cardTitle: string | null;
+  cardDescription: string | null;
+  agentId: string | null;
+}): Promise<void> {
+  const localeRows = await db.query<{ locale: string }>(
+    `SELECT locale FROM profiles WHERE id = $1`,
+    [params.requestedBy]
+  );
+  const taskText =
+    `${params.cardTitle ?? ''}\n\n${params.cardDescription ?? ''}`.trim() ||
+    'Erledige die in dieser Karte beschriebene Aufgabe.';
+
+  await enqueueAgentTask({
+    boardId: params.boardId,
+    cardId: params.cardId,
+    triggerCommentId: null,
+    requestedBy: params.requestedBy,
+    taskText,
+    locale: localeRows[0]?.locale ?? 'de-DE',
+    agentId: params.agentId,
+  });
 }
 
 const s = initServer();
@@ -265,22 +300,40 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
         }
       }
 
-      // Notify users who were just added as assignees (board_card_assigned).
+      // Notify newly-added assignees, and delegate the card to the bot / a specific
+      // agent when one was just assigned.
       if (type === 'assignees_changed' && cardId) {
-        const rawAdded = (payload as Record<string, unknown> | undefined)?.addedAssigneeIds;
-        const addedAssigneeIds = Array.isArray(rawAdded)
-          ? rawAdded.filter((id): id is string => typeof id === 'string')
-          : [];
-        const rawTitle = (payload as Record<string, unknown> | undefined)?.cardTitle;
+        const parsed = assigneesChangedPayloadSchema.safeParse(payload ?? {});
+        const assignPayload: AssigneesChangedPayload = parsed.success ? parsed.data : {};
+        const addedAssigneeIds = assignPayload.addedAssigneeIds ?? [];
+
         if (addedAssigneeIds.length > 0) {
           void fireAssignmentNotifications({
             boardId,
             cardId,
             actorId: userId,
             addedAssigneeIds,
-            cardTitle: typeof rawTitle === 'string' ? rawTitle : null,
+            cardTitle: assignPayload.cardTitle ?? null,
           }).catch((err) =>
             log.warn('Failed to send assignment notifications', { error: errMsg(err) })
+          );
+        }
+
+        // Assigning the bot (generic) or a specific agent makes it do the task
+        // described by the card. The legacy worker path gathers full card context,
+        // posts a "working…" comment and replies. Agent slugs never enter
+        // addedAssigneeIds (which is cast to ::uuid[]) — they ride in delegateAgentId.
+        const delegateAgentId = assignPayload.delegateAgentId ?? null;
+        if (delegateAgentId || addedAssigneeIds.includes(GRUENERATOR_BOT_USER_ID)) {
+          void delegateCardToAgent({
+            boardId,
+            cardId,
+            requestedBy: userId,
+            cardTitle: assignPayload.cardTitle ?? null,
+            cardDescription: assignPayload.cardDescription ?? null,
+            agentId: delegateAgentId,
+          }).catch((err) =>
+            log.warn('Failed to enqueue assignment delegation', { error: errMsg(err) })
           );
         }
       }

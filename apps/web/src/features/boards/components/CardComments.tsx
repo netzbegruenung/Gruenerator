@@ -25,6 +25,8 @@ interface TrackedMention {
   end: number;
   userId: string;
   displayName: string;
+  /** Set when the mention picked a specific agent — delegates the comment to it. */
+  agentId?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -307,6 +309,7 @@ export const CardComments = memo(function CardComments({
         end: mentionTriggerPos + insertText.trimEnd().length,
         userId: user.userId,
         displayName: user.displayName,
+        ...(user.agentId && { agentId: user.agentId }),
       };
 
       const offsetDiff = insertText.length - (textarea.selectionStart - mentionTriggerPos);
@@ -344,8 +347,10 @@ export const CardComments = memo(function CardComments({
     const trimmed = commentText.trim();
     if (!trimmed) return;
     const blocks = parseTextToBlocks(trimmed, trackedMentions);
+    // If a specific agent was @-mentioned, delegate the comment to it.
+    const agentId = trackedMentions.find((m) => m.agentId)?.agentId;
     addComment.mutate(
-      { blocks, parentId: replyToId ?? undefined },
+      { blocks, parentId: replyToId ?? undefined, agentId },
       {
         onSuccess: () => {
           setCommentText('');
