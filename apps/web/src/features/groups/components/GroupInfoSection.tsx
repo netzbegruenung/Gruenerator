@@ -1,4 +1,5 @@
 import { type GroupContentType } from '@gruenerator/contracts';
+import { getAgentSlug } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Badge,
@@ -33,7 +34,7 @@ import {
   HiX,
 } from 'react-icons/hi';
 import { HiOutlineBellSlash } from 'react-icons/hi2';
-import { PiSquaresFour } from 'react-icons/pi';
+import { PiRobot, PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
@@ -78,6 +79,7 @@ export interface GroupData {
 
 export interface SharedItem {
   id: string | number;
+  identifier?: string;
   title?: string;
   name?: string;
   slug?: string;
@@ -95,6 +97,7 @@ export interface SharedContent {
   documents: SharedItem[];
   generators: SharedItem[];
   notebooks: SharedItem[];
+  agents: SharedItem[];
   texts: SharedItem[];
   canvasTemplates: SharedItem[];
 }
@@ -575,6 +578,14 @@ const GroupInfoSection = memo(
                 getLink: (item) => `/notebook/${item.id}`,
               },
               {
+                label: 'Agent*innen',
+                items: sharedContent.agents,
+                contentType: 'user_agents',
+                icon: PiRobot,
+                getLink: (item) =>
+                  `/agentura/agent/${getAgentSlug(item.identifier ?? String(item.id))}`,
+              },
+              {
                 label: 'Dokumente',
                 items: sharedContent.documents,
                 contentType: 'documents',
@@ -697,7 +708,10 @@ const GroupInfoSection = memo(
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      onUnshareContent(String(item.id), section.contentType)
+                                      onUnshareContent(
+                                        String(item.id),
+                                        item.contentType ?? section.contentType
+                                      )
                                     }
                                     className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
                                     aria-label="Aus Gruppe entfernen"
@@ -745,7 +759,10 @@ const GroupInfoSection = memo(
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    onUnshareContent(String(item.id), section.contentType)
+                                    onUnshareContent(
+                                      String(item.id),
+                                      item.contentType ?? section.contentType
+                                    )
                                   }
                                   className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
                                   aria-label="Aus Gruppe entfernen"
