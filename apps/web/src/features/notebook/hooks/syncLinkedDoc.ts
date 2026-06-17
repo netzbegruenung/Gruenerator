@@ -1,6 +1,7 @@
 import { type LinkedDocRef } from '@gruenerator/contracts';
 
 import { type useDocumentsStore } from '../../../stores/documentsStore';
+import { platformFetch } from '../../../utils/platformFetch';
 
 export type LinkedDocSyncResult =
   | {
@@ -23,7 +24,7 @@ export async function syncLinkedDoc(
 ): Promise<LinkedDocSyncResult> {
   let res: Response;
   try {
-    res = await fetch(`/api/docs/${ref.docId}/export/markdown`, { credentials: 'include' });
+    res = await platformFetch(`/api/docs/${ref.docId}/export/markdown`, { credentials: 'include' });
   } catch (e) {
     return {
       kind: 'error',

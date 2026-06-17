@@ -267,6 +267,7 @@ export {
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useUserProfileStore, type UserRole } from './stores/userProfileStore';
 export { useUserAgentsRegistry } from './stores/userAgentsRegistry';
+export { setThreadListSlot, useThreadListSlot } from './stores/threadListSlotStore';
 
 // Mention detection & insertion (shared logic for web + mobile)
 export {
