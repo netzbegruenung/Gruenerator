@@ -82,7 +82,7 @@ Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Vo
 
 Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden.
 
-:::info Privat ist die sichere Voreinstellung
+:::warning Privat ist die sichere Voreinstellung
 Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern.
 :::
 
