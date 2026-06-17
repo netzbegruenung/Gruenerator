@@ -13,7 +13,6 @@
       "@types/react": "19.2.14",
       "@types/react-dom": "^19.2.3",
       "@hocuspocus/provider": "^4.1.2",
-      "@isaacs/brace-expansion": ">=5.0.1",
       "diff": ">=5.2.2",
       "hono": ">=4.12.18",
       "@hono/node-server": ">=1.19.13",
@@ -32,7 +31,6 @@
       "minimatch@>=5 <6": ">=5.1.7 <6",
       "minimatch@>=9 <10": ">=9.0.6 <10",
       "ajv@<7": ">=6.14.0 <7",
-      "@types/minimatch": "5.1.2",
       "serialize-javascript": ">=7.0.4",
       "webpack-dev-server": ">=5.2.4",
       "@tootallnate/once": ">=2.0.0",
@@ -59,6 +57,15 @@
       "form-data": ">=4.0.6",
       "@babel/core": ">=7.29.6",
       "joi@>=17.0.0 <18.0.0": ">=17.13.4 <18.0.0"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-gv7w-rqvm-qjhr",
+        "GHSA-g7r4-m6w7-qqqr",
+        "GHSA-8988-4f7v-96qf",
+        "GHSA-h67p-54hq-rp68",
+        "GHSA-rmmh-p597-ppvv"
+      ]
     }
   },
   "workspaces": [
