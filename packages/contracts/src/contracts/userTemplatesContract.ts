@@ -20,6 +20,8 @@ import {
   metadataUpdateBodySchema,
   bulkDeleteTemplatesBodySchema,
   instantiateBodySchema,
+  describeImageBodySchema,
+  describeImageResponseSchema,
   userTemplatesListResponseSchema,
   userTemplatePreviewResponseSchema,
   userTemplateCreatedFromUrlResponseSchema,
@@ -126,6 +128,19 @@ export const userTemplatesContract = c.router(
         500: userTemplatesErrorResponseSchema,
       },
       summary: 'Update user template metadata',
+    },
+
+    /** POST /api/auth/user-templates/describe-image — on-demand AI description from an image. */
+    describeImage: {
+      method: 'POST',
+      path: '/api/auth/user-templates/describe-image',
+      body: describeImageBodySchema,
+      responses: {
+        200: describeImageResponseSchema,
+        400: userTemplatesErrorResponseSchema,
+        500: userTemplatesErrorResponseSchema,
+      },
+      summary: 'Generate an AI description for a template image',
     },
 
     /** POST /api/auth/user-templates/:id/instantiate — new collaborative doc from a template. */
