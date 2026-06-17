@@ -21,14 +21,19 @@ export interface LinkedDoc {
   title: string;
 }
 
+/**
+ * Returns whether the link actually persisted. Failures are still logged and
+ * swallowed (the agent task completes regardless), but the boolean lets callers
+ * avoid claiming "verknüpft" in the UI when the link didn't apply.
+ */
 export async function linkDocumentToCard(
   boardId: string,
   cardId: string,
   doc: LinkedDoc
-): Promise<void> {
+): Promise<boolean> {
   if (!INTERNAL_TOKEN) {
     log.warn('HOCUSPOCUS_INTERNAL_TOKEN not configured — skipping card link');
-    return;
+    return false;
   }
   try {
     const res = await fetch(
@@ -48,11 +53,13 @@ export async function linkDocumentToCard(
       throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
     }
     log.info(`Linked doc ${doc.id} to card ${cardId} on board ${boardId}`);
+    return true;
   } catch (err) {
     log.warn(
       `Failed to link doc ${doc.id} to card ${cardId} on board ${boardId}: ${
         err instanceof Error ? err.message : String(err)
       }`
     );
+    return false;
   }
 }
