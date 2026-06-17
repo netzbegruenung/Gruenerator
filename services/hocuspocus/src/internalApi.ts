@@ -37,14 +37,25 @@ interface LinkedDoc {
 export function linkDocToBoardCard(doc: Y.Doc, cardId: string, linked: LinkedDoc): boolean {
   let found = false;
   doc.transact(() => {
-    const rows = doc.getArray<Y.Map<unknown>>('rows');
+    // Rows are stored in one of two shapes: plain JSON objects (how the web
+    // client writes them — useBoardState.updateRowCell delete+re-inserts a plain
+    // object on every cell edit) or Y.Maps (how the API's addRowsToBoard builds
+    // them). Normalise each row to JSON, mutate, and re-insert the whole row —
+    // the same delete+insert the frontend uses — so the link applies regardless
+    // of the original representation. (Assuming a Y.Map here silently dropped the
+    // link for every user-created board, where rows are plain objects.)
+    const rows = doc.getArray<unknown>('rows');
     for (let i = 0; i < rows.length; i++) {
-      const row = rows.get(i);
-      if (row.get('id') !== cardId) continue;
+      const entry = rows.get(i);
+      const rowObj = (entry instanceof Y.Map ? entry.toJSON() : entry) as {
+        id?: unknown;
+        cells?: Record<string, unknown>;
+      } | null;
+      if (!rowObj || rowObj.id !== cardId) continue;
       found = true;
-      const cells = row.get('cells');
-      if (!(cells instanceof Y.Map)) return;
-      const raw = (cells as Y.Map<unknown>).get(BOARD_LINKED_DOCS_FIELD);
+
+      const cells = { ...(rowObj.cells ?? {}) };
+      const raw = cells[BOARD_LINKED_DOCS_FIELD];
       let current: LinkedDoc[] = [];
       if (typeof raw === 'string' && raw.trim()) {
         try {
@@ -54,9 +65,12 @@ export function linkDocToBoardCard(doc: Y.Doc, cardId: string, linked: LinkedDoc
           /* malformed cell → treat as empty */
         }
       }
-      if (current.some((d) => d.id === linked.id)) return; // idempotent
+      if (current.some((d) => d.id === linked.id)) return; // idempotent: already linked
       current.push({ id: linked.id, title: linked.title });
-      (cells as Y.Map<unknown>).set(BOARD_LINKED_DOCS_FIELD, JSON.stringify(current));
+      cells[BOARD_LINKED_DOCS_FIELD] = JSON.stringify(current);
+
+      rows.delete(i, 1);
+      rows.insert(i, [{ ...rowObj, cells }]);
       return;
     }
   }, BOARD_TRANSACT_ORIGIN);
