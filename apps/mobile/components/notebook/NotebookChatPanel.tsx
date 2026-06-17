@@ -1,13 +1,13 @@
 import { AssistantRuntimeProvider } from '@assistant-ui/react-native';
-import { useActionSheet } from '@expo/react-native-action-sheet';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 
-import { getNotebookConfigByNotebookId, getResearchCollectionIds } from '../../config/notebooksConfig';
+import { getResearchCollectionIds, MOBILE_SYSTEM_NOTEBOOKS } from '../../config/notebooksConfig';
 import { useNotebookChatRuntime } from '../../hooks/notebook/useNotebookChatRuntime';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import { colors, spacing, borderRadius } from '../../theme';
+import { type ComposerAccessory } from '../chat/AssistantComposer';
 import { AssistantThread } from '../chat/AssistantThread';
 import { BottomSheet } from '../common/BottomSheet';
 
@@ -32,32 +32,32 @@ const KEYWORD_FILTER_LABELS: Record<string, string> = {
   source_type: 'Organ',
 };
 
-function FilterChip({
+/** Single-select option pill used inside the sheet (no count). */
+function OptionChip({
   label,
   active,
   onPress,
-  icon,
   theme,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
-  icon: IoniconsIconName;
   theme: Theme;
 }) {
   return (
     <Pressable
       onPress={onPress}
       style={[
-        styles.chip,
+        styles.optionChip,
         {
           backgroundColor: active ? colors.primary[600] : theme.surface,
           borderColor: active ? colors.primary[600] : theme.border,
         },
       ]}
     >
-      <Ionicons name={icon} size={14} color={active ? colors.white : theme.textSecondary} />
-      <Text style={[styles.chipText, { color: active ? colors.white : theme.text }]}>{label}</Text>
+      <Text style={[styles.optionChipText, { color: active ? colors.white : theme.text }]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -68,25 +68,36 @@ export function NotebookChatPanel({ notebookId, kind, theme }: Props) {
   // web's startpage chips). Notebooks without a chat config (most Landesverbände)
   // fall back to generic welcome copy with no suggestions.
   const welcome = useMemo(() => {
-    const config = getNotebookConfigByNotebookId(notebookId);
+    const entry = MOBILE_SYSTEM_NOTEBOOKS.find((nb) => nb.id === notebookId);
     return {
-      title: config?.title ?? 'Frag dieses Notebook',
-      subtitle:
-        config?.placeholder ?? 'Stelle eine Frage zu den Dokumenten dieses Notebooks.',
-      suggestions: config?.exampleQuestions.map((q) => q.text) ?? [],
+      // One centered, notebook-specific question header (Claude-style) — minimal.
+      title: entry ? `Was möchtest du von ${entry.title} wissen?` : 'Was möchtest du wissen?',
+      suggestions: [] as const,
+      ...(entry?.icon ? { icon: entry.icon } : {}),
     };
   }, [notebookId]);
   const { filterFields } = useNotebookFilters(notebookId, kind);
   const keywordFields = filterFields.filter(
     (f) => f.type === 'keyword' && f.values && f.values.length > 0
   );
-  const showFilterChip = kind === 'system' && keywordFields.length > 0;
 
   const [mode, setMode] = useState<ChatMode>('fast');
   const [keywordFilters, setKeywordFilters] = useState<Record<string, string[]>>({});
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
-  const { showActionSheetWithOptions } = useActionSheet();
+
+  // Feed the thread's KeyboardAvoidingView the screen-Y where this panel starts,
+  // so it offsets by the header + segment tabs above it. KeyboardAvoidingView
+  // measures relative to its parent and assumes that parent is at the top of the
+  // screen — true for the main chat, but here the thread is nested below chrome.
+  const containerRef = useRef<View>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const measureKeyboardOffset = useCallback(() => {
+    containerRef.current?.measureInWindow((_x, y) => {
+      if (y >= 0) setKeyboardOffset(y);
+    });
+  }, []);
   const keywordFilterCount = Object.values(keywordFilters).reduce((s, a) => s + a.length, 0);
+  const activeCount = (mode !== 'fast' ? 1 : 0) + keywordFilterCount;
 
   // Refs keep getConfig referentially stable so the adapter/runtime is created
   // once; the notebook chat reads fresh filters/mode on the NEXT message.
@@ -112,17 +123,6 @@ export function NotebookChatPanel({ notebookId, kind, theme }: Props) {
   }, []);
   const runtime = useNotebookChatRuntime(getConfig, onThreadCreated);
 
-  const pickMode = () => {
-    const labels = MODE_CYCLE.map((m) => MODE_LABELS[m]);
-    showActionSheetWithOptions(
-      { title: 'Modus', options: [...labels, 'Abbrechen'], cancelButtonIndex: labels.length },
-      (i) => {
-        if (i == null || i >= labels.length) return;
-        setMode(MODE_CYCLE[i]);
-      }
-    );
-  };
-
   const toggleFilterValue = (field: string, value: string) => {
     setKeywordFilters((prev) => {
       const current = prev[field] ?? [];
@@ -137,99 +137,117 @@ export function NotebookChatPanel({ notebookId, kind, theme }: Props) {
     });
   };
 
+  const resetSettings = () => {
+    setMode('fast');
+    setKeywordFilters({});
+  };
+
+  // A single filter/mode control in the composer toolbar — replaces the old chip
+  // bar, so the conversation gets the full height. Mode (Schnell/Tiefenrecherche)
+  // and keyword facets both live behind it.
+  const composerAccessory: ComposerAccessory = useMemo(
+    () => ({
+      icon: 'options-outline',
+      onPress: () => setFiltersSheetVisible(true),
+      active: activeCount > 0,
+      accessibilityLabel: 'Modus und Filter',
+    }),
+    [activeCount]
+  );
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <View style={styles.container}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipBarScroll}
-          contentContainerStyle={styles.chipBar}
-        >
-          <FilterChip
-            label={MODE_LABELS[mode]}
-            active={mode !== 'fast'}
-            onPress={pickMode}
-            icon="flash-outline"
-            theme={theme}
-          />
-          {showFilterChip && (
-            <FilterChip
-              label={keywordFilterCount > 0 ? `Filter (${keywordFilterCount})` : 'Filter'}
-              active={keywordFilterCount > 0}
-              onPress={() => setFiltersSheetVisible(true)}
-              icon="funnel-outline"
-              theme={theme}
-            />
-          )}
-        </ScrollView>
-
-        <AssistantThread theme={theme} welcome={welcome} />
+      <View ref={containerRef} style={styles.container} onLayout={measureKeyboardOffset}>
+        <AssistantThread
+          theme={theme}
+          welcome={welcome}
+          composerAccessory={composerAccessory}
+          transparent
+          // + a gap so the composer doesn't sit flush against the keyboard.
+          keyboardVerticalOffset={keyboardOffset + spacing.large}
+        />
       </View>
 
-      {showFilterChip && (
-        <BottomSheet visible={filtersSheetVisible} onClose={() => setFiltersSheetVisible(false)}>
-          <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter</Text>
-            <Pressable onPress={() => setFiltersSheetVisible(false)} hitSlop={8}>
-              <Ionicons name="close" size={24} color={theme.text} />
+      <BottomSheet
+        padded
+        visible={filtersSheetVisible}
+        onClose={() => setFiltersSheetVisible(false)}
+      >
+        <View style={styles.sheetHeader}>
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>Modus & Filter</Text>
+          {activeCount > 0 && (
+            <Pressable onPress={resetSettings} hitSlop={8} style={styles.resetButton}>
+              <Text style={[styles.resetText, { color: theme.textGreen }]}>Zurücksetzen</Text>
             </Pressable>
+          )}
+          <Pressable onPress={() => setFiltersSheetVisible(false)} hitSlop={8}>
+            <Ionicons name="close" size={24} color={theme.text} />
+          </Pressable>
+        </View>
+        <ScrollView style={styles.sheetScroll}>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Modus</Text>
+            <View style={styles.filterValues}>
+              {MODE_CYCLE.map((m) => (
+                <OptionChip
+                  key={m}
+                  label={MODE_LABELS[m]}
+                  active={mode === m}
+                  onPress={() => setMode(m)}
+                  theme={theme}
+                />
+              ))}
+            </View>
           </View>
-          <ScrollView style={styles.sheetScroll}>
-            {keywordFields.map((field) => (
-              <View key={field.field} style={styles.filterSection}>
-                <Text style={[styles.filterSectionTitle, { color: theme.text }]}>
-                  {KEYWORD_FILTER_LABELS[field.field] ?? field.label}
-                </Text>
-                <View style={styles.filterValues}>
-                  {field.values!.map((v) => {
-                    const isActive = (keywordFilters[field.field] ?? []).includes(v.value);
-                    return (
-                      <Pressable
-                        key={v.value}
-                        onPress={() => toggleFilterValue(field.field, v.value)}
+
+          {keywordFields.map((field) => (
+            <View key={field.field} style={styles.filterSection}>
+              <Text style={[styles.filterSectionTitle, { color: theme.text }]}>
+                {KEYWORD_FILTER_LABELS[field.field] ?? field.label}
+              </Text>
+              <View style={styles.filterValues}>
+                {field.values!.map((v) => {
+                  const isActive = (keywordFilters[field.field] ?? []).includes(v.value);
+                  return (
+                    <Pressable
+                      key={v.value}
+                      onPress={() => toggleFilterValue(field.field, v.value)}
+                      style={[
+                        styles.valueChip,
+                        {
+                          backgroundColor: isActive ? colors.primary[600] : theme.surface,
+                          borderColor: isActive ? colors.primary[600] : theme.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.valueText, { color: isActive ? colors.white : theme.text }]}
+                        numberOfLines={1}
+                      >
+                        {v.value}
+                      </Text>
+                      <Text
                         style={[
-                          styles.valueChip,
-                          {
-                            backgroundColor: isActive ? colors.primary[600] : theme.surface,
-                            borderColor: isActive ? colors.primary[600] : theme.border,
-                          },
+                          styles.valueCount,
+                          { color: isActive ? colors.primary[200] : theme.textSecondary },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.valueText,
-                            { color: isActive ? colors.white : theme.text },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {v.value}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.valueCount,
-                            { color: isActive ? colors.primary[200] : theme.textSecondary },
-                          ]}
-                        >
-                          {v.count}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                        {v.count}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            ))}
-          </ScrollView>
-          <Pressable
-            onPress={() => setFiltersSheetVisible(false)}
-            style={[styles.applyButton, { backgroundColor: colors.primary[600] }]}
-          >
-            <Text style={styles.applyButtonText}>
-              {keywordFilterCount > 0 ? `${keywordFilterCount} Filter aktiv` : 'Schließen'}
-            </Text>
-          </Pressable>
-        </BottomSheet>
-      )}
+            </View>
+          ))}
+        </ScrollView>
+        <Pressable
+          onPress={() => setFiltersSheetVisible(false)}
+          style={[styles.applyButton, { backgroundColor: colors.primary[600] }]}
+        >
+          <Text style={styles.applyButtonText}>Übernehmen</Text>
+        </Pressable>
+      </BottomSheet>
     </AssistantRuntimeProvider>
   );
 }
@@ -238,41 +256,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  chipBarScroll: {
-    flexGrow: 0,
-  },
-  chipBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.small,
-    paddingVertical: 6,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.small,
     marginBottom: spacing.small,
   },
   sheetTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '700',
   },
+  resetButton: {
+    paddingHorizontal: spacing.xsmall,
+  },
+  resetText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   sheetScroll: {
-    maxHeight: 360,
+    maxHeight: 400,
   },
   filterSection: {
     marginTop: spacing.medium,
@@ -286,6 +290,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xsmall,
+  },
+  optionChip: {
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.xsmall,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  optionChipText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   valueChip: {
     flexDirection: 'row',
@@ -304,7 +318,7 @@ const styles = StyleSheet.create({
   },
   applyButton: {
     marginTop: spacing.medium,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: borderRadius.large,
     alignItems: 'center',
   },
