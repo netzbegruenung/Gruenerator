@@ -4,7 +4,7 @@ import React, { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
-import { resolveApiAssetUrl } from '../../../utils/platform';
+import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 
 interface RecentItem {
   id: string;
@@ -108,7 +108,7 @@ const ReelsSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
-    void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
+    void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
   const handleClick = useCallback((item: RecentItem) => navigate(item.href), [navigate]);

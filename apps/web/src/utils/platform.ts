@@ -70,3 +70,46 @@ export function resolveApiAssetUrl(url: string | undefined): string | undefined 
     return url;
   }
 }
+
+/**
+ * The absolute origin of the configured API (`https://gruenerator.eu`), or null
+ * if it can't be resolved. Shared by the helpers below.
+ */
+function apiOriginOrNull(): string | null {
+  const apiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!apiBase || !/^https?:/i.test(apiBase)) return null;
+  try {
+    return new URL(apiBase).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The public app origin for user-facing share / copy / QR-code URLs.
+ *
+ * On web this is `window.location.origin`. In the desktop (Tauri) shell the
+ * page origin is `tauri://localhost`, which is useless in a shared link — use
+ * the configured public origin (`https://gruenerator.eu`) instead.
+ */
+export function getPublicAppOrigin(): string {
+  if (isDesktopApp()) {
+    return apiOriginOrNull() ?? 'https://gruenerator.eu';
+  }
+  return typeof window !== 'undefined' ? window.location.origin : 'https://gruenerator.eu';
+}
+
+/**
+ * Derive the Hocuspocus collaboration WebSocket URL (`wss://<host>/ws`).
+ *
+ * Deriving from `window.location` breaks in the desktop webview (origin
+ * `tauri://localhost` → falls back to `ws://localhost:1240`). Derive the host
+ * from the absolute API base instead; web is unchanged (API host == page host).
+ */
+export function deriveCollabWsUrl(): string {
+  const origin = apiOriginOrNull();
+  if (origin) return `${origin.replace(/^http/, 'ws')}/ws`;
+  return typeof window !== 'undefined' && window.location.protocol === 'https:'
+    ? `wss://${window.location.host}/ws`
+    : 'ws://localhost:1240';
+}
