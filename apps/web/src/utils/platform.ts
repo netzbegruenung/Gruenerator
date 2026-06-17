@@ -39,3 +39,34 @@ export const getDesktopOS = (): DesktopOS => {
 };
 
 export const isMacDesktop = (): boolean => isDesktopApp() && getDesktopOS() === 'macos';
+
+/**
+ * Resolve a (possibly root-relative) API/media URL to one usable by plain
+ * `<img>` / `<video>` tags in the desktop webview.
+ *
+ * On web, a path like `/api/share/x/thumbnail` resolves same-origin to the API
+ * host and just works. In the Tauri webview the origin is `tauri://localhost`,
+ * so the same path points at the bundle (404 → broken image) instead of the
+ * backend. This prefixes the configured API origin (from `VITE_API_BASE_URL`,
+ * e.g. `https://gruenerator.eu/api` → origin `https://gruenerator.eu`) only on
+ * desktop. Absolute (`http(s):`), `data:` and `blob:` URLs pass through
+ * unchanged; on web it is a no-op.
+ *
+ * Use only for endpoints that work without an Authorization header (public or
+ * cookie-less GETs) — `<img>`/`<video>` cannot attach the bearer token.
+ */
+export function resolveApiAssetUrl(url: string): string;
+export function resolveApiAssetUrl(url: string | undefined): string | undefined;
+export function resolveApiAssetUrl(url: string | undefined): string | undefined {
+  if (!url) return url;
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (!isDesktopApp()) return url;
+  const apiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!apiBase || !/^https?:/i.test(apiBase)) return url;
+  try {
+    const apiOrigin = new URL(apiBase).origin;
+    return `${apiOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+  } catch {
+    return url;
+  }
+}
