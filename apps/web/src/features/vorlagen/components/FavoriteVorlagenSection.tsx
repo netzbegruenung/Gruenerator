@@ -22,6 +22,7 @@ const toCardItem = (t: GalleryTemplate): ComponentProps<typeof VorlagenCard>['it
   thumbnail_url: t.thumbnail_url ?? undefined,
   external_url: t.external_url ?? undefined,
   content_data: (t.content_data ?? undefined) as Record<string, unknown> | undefined,
+  likes_count: typeof t.likes_count === 'number' ? t.likes_count : undefined,
 });
 
 /**
@@ -50,9 +51,19 @@ const FavoriteVorlagenSection = (): React.ReactNode => {
     <section className="mb-xl">
       <SectionHeader title={`Favoriten (${favoriteTemplates.length})`} />
       <div className={GRID_CLASS}>
-        {favoriteTemplates.map((t) => (
-          <VorlagenCard key={String(t.id)} item={toCardItem(t)} onOpen={() => setPreview(t)} />
-        ))}
+        {favoriteTemplates.map((t) => {
+          const id = String(t.id);
+          return (
+            <VorlagenCard
+              key={id}
+              item={toCardItem(t)}
+              onOpen={() => setPreview(t)}
+              liked={likedIds.has(id)}
+              onToggleLike={canLike ? () => toggleLike(id) : undefined}
+              likeToggling={isLikeToggling(id)}
+            />
+          );
+        })}
       </div>
 
       {preview && (
