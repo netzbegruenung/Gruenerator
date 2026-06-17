@@ -22,6 +22,7 @@ const toCardItem = (t: GalleryTemplate): ComponentProps<typeof VorlagenCard>['it
   thumbnail_url: t.thumbnail_url ?? undefined,
   external_url: t.external_url ?? undefined,
   content_data: (t.content_data ?? undefined) as Record<string, unknown> | undefined,
+  likes_count: typeof t.likes_count === 'number' ? t.likes_count : undefined,
 });
 
 /**
