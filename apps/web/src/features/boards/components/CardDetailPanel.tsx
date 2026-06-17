@@ -876,7 +876,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
             {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
                 Expert-only; renders nothing unless the card's status column carries an aiTask. */}
-            {row && expertMode && <AgentRunButton boardId={boardId} row={row} fields={fields} />}
+            {expertMode && <AgentRunButton boardId={boardId} row={row} fields={fields} />}
 
             {/* Linked documents */}
             <div className="flex flex-row items-start">
