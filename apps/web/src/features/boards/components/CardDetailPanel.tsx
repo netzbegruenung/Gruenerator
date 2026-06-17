@@ -1,6 +1,5 @@
 import { useAgentStore } from '@gruenerator/chat';
 import {
-  Badge,
   Button,
   Calendar,
   DropdownMenu,
@@ -262,21 +261,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     }
   }, [row, title, onUpdateCell]);
 
-  const toggleLabel = useCallback(
-    (labelId: string) => {
-      if (!row) return;
-      const updated = selectedLabelIds.includes(labelId)
-        ? selectedLabelIds.filter((id) => id !== labelId)
-        : [...selectedLabelIds, labelId];
-      setSelectedLabelIds(updated);
-      onUpdateCell(row.id, FIELD_IDS.LABELS, updated);
-    },
-    [row, selectedLabelIds, onUpdateCell]
-  );
-
   // Explicit removal — works even for labels whose board option no longer exists
-  // (e.g. the option was deleted but the card still references the id), which the
-  // toggle list below can't show.
+  // (e.g. the option was deleted but the card still references the id).
   const removeLabel = useCallback(
     (labelId: string) => {
       if (!row) return;
@@ -659,29 +645,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         </button>
                       </span>
                     ))}
-                  </div>
-                )}
-                {/* Add labels — click an option to assign (already-assigned hidden). */}
-                {labelOptions.some((o) => !selectedLabelIds.includes(o.id)) && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {labelOptions
-                      .filter((opt) => !selectedLabelIds.includes(opt.id))
-                      .map((opt) => (
-                        <Badge
-                          key={opt.id}
-                          className="cursor-pointer text-xs"
-                          style={{ backgroundColor: 'transparent' }}
-                          variant="outline"
-                          onClick={() => toggleLabel(opt.id)}
-                          title="Label hinzufügen"
-                        >
-                          <span
-                            className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
-                            style={{ backgroundColor: opt.color }}
-                          />
-                          {opt.name}
-                        </Badge>
-                      ))}
                   </div>
                 )}
                 <div className="flex gap-1.5 items-center">
