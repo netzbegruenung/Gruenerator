@@ -204,7 +204,10 @@ const TemplatePreviewModal = ({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
-          <div className="flex flex-shrink-0 flex-col bg-background-alt min-h-0">
+          {/* Cap the image column at 60% so wide/landscape previews can't crowd out the
+              sidebar. The column keeps an `auto` basis, so narrow/portrait images still
+              size snugly — the cap only bites when the image would otherwise overflow. */}
+          <div className="flex flex-col bg-background-alt min-h-0 min-w-0 md:max-w-[60%]">
             {currentImage?.url ? (
               <>
                 <div className="relative flex flex-1 items-center justify-center p-md min-h-0">
