@@ -23,6 +23,19 @@ export const templateStatusSchema = z.enum(['draft', 'pending_review', 'publishe
 // | docs | …) — board/docs templates are created server-side. ts-rest validates
 // request bodies at runtime, so an incomplete enum would 400 legitimate creates.
 
+/**
+ * A single preview image for a template. Multi-slide Canva designs carry more
+ * than one. The first image (lowest display_order) is the primary and is
+ * mirrored into thumbnail_url/preview_image_url for the single-image gallery card.
+ */
+export const templateImageSchema = z.object({
+  url: z.string().min(1),
+  title: z.string().optional(),
+  display_order: z.number().optional(),
+});
+
+export type TemplateImage = z.infer<typeof templateImageSchema>;
+
 // ── Template row (response item) ─────────────────────────────────────────────
 
 /**
@@ -58,6 +71,8 @@ export const fromUrlBodySchema = z.object({
   preview: z.boolean().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
+  preview_image_url: z.string().nullish(),
+  images: z.array(templateImageSchema).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -67,7 +82,7 @@ export const createTemplateBodySchema = z.object({
   template_type: z.string().optional(),
   external_url: z.string().nullish(),
   preview_image_url: z.string().nullish(),
-  images: z.array(z.unknown()).optional(),
+  images: z.array(templateImageSchema).optional(),
   categories: z.array(z.unknown()).optional(),
   tags: z.array(z.unknown()).optional(),
   content_data: z.unknown().optional(),
@@ -160,4 +175,16 @@ export const userTemplatesErrorResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
   unauthorized_ids: z.array(z.string()).optional(),
+});
+
+// ── Describe image (on-demand AI description) ─────────────────────────────────
+
+/** image_url may be a remote URL or a `data:` URL for a not-yet-uploaded file. */
+export const describeImageBodySchema = z.object({
+  image_url: z.string().min(1),
+});
+
+export const describeImageResponseSchema = z.object({
+  success: z.boolean(),
+  description: z.string(),
 });

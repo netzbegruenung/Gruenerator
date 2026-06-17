@@ -1,6 +1,15 @@
+import { type TemplateImage } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
 import React, { useState, useCallback } from 'react';
+import { HiOutlineSparkles } from 'react-icons/hi';
 
+import TemplateImagesEditor, {
+  type EditorImage,
+  editorImageFromUrl,
+  fileToDataUrl,
+  resolveTemplateImages,
+} from '../AddTemplateModal/TemplateImagesEditor';
 import { useTagAutocomplete } from '../TemplateModal';
 
 interface TemplateData {
@@ -11,6 +20,7 @@ interface TemplateData {
   canva_url?: string;
   thumbnail_url?: string;
   preview_image_url?: string;
+  images?: Array<{ url: string; title?: string; display_order?: number }>;
   is_private?: boolean;
   [key: string]: unknown;
 }
@@ -18,7 +28,9 @@ interface TemplateData {
 interface SaveData {
   title: string;
   description: string;
-  canva_url: string;
+  external_url: string;
+  preview_image_url?: string;
+  images: TemplateImage[];
   is_private: boolean;
   [key: string]: unknown;
 }
@@ -29,6 +41,18 @@ interface EditTemplateModalProps {
   onSuccess?: () => void;
   onSave: (id: string, data: SaveData) => Promise<void>;
   template: TemplateData;
+}
+
+/** Build the initial editor image list from a template's stored images. */
+function initialImages(template: TemplateData): EditorImage[] {
+  const stored = Array.isArray(template?.images) ? template.images : [];
+  const sorted = [...stored].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  const fromArray = sorted
+    .filter((img) => img?.url)
+    .map((img) => editorImageFromUrl(img.url, img.title));
+  if (fromArray.length > 0) return fromArray;
+  const single = template?.thumbnail_url || template?.preview_image_url;
+  return single ? [editorImageFromUrl(single, 'Vorschau')] : [];
 }
 
 const EditTemplateModal = ({
@@ -43,15 +67,39 @@ const EditTemplateModal = ({
   const [externalUrl, setExternalUrl] = useState(
     template?.external_url || template?.canva_url || ''
   );
-  const [thumbnailUrl, setThumbnailUrl] = useState(
-    template?.thumbnail_url || template?.preview_image_url || ''
-  );
+  const [images, setImages] = useState<EditorImage[]>(() => initialImages(template));
   const [isPrivate, setIsPrivate] = useState(template?.is_private !== false);
 
+  const [isDescribing, setIsDescribing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const tagAutocomplete = useTagAutocomplete(description, setDescription);
+
+  const generateDescription = useCallback(async () => {
+    const primary = images[0];
+    if (!primary) return;
+    setIsDescribing(true);
+    setSubmitError(null);
+    try {
+      const imageUrl = primary.file ? await fileToDataUrl(primary.file) : primary.url;
+      const result = await getContractsClient().userTemplates.describeImage({
+        body: { image_url: imageUrl },
+      });
+      if (result.status === 200) {
+        setDescription(result.body.description);
+      } else {
+        setSubmitError(
+          (result.body as { message?: string })?.message ||
+            'Beschreibung konnte nicht generiert werden.'
+        );
+      }
+    } catch {
+      setSubmitError('Beschreibung konnte nicht generiert werden.');
+    } finally {
+      setIsDescribing(false);
+    }
+  }, [images]);
 
   const handleSubmit = useCallback(async (): Promise<void> => {
     if (!title.trim()) {
@@ -63,10 +111,13 @@ const EditTemplateModal = ({
     setIsSubmitting(true);
 
     try {
+      const { images: resolvedImages, preview_image_url } = await resolveTemplateImages(images);
       const saveData: SaveData = {
         title: title.trim(),
         description: description.trim(),
-        canva_url: externalUrl.trim(),
+        external_url: externalUrl.trim(),
+        preview_image_url: preview_image_url ?? undefined,
+        images: resolvedImages,
         is_private: isPrivate,
       };
       await onSave(template.id || '', saveData);
@@ -79,7 +130,7 @@ const EditTemplateModal = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [template, title, description, externalUrl, isPrivate, onSave, onSuccess, onClose]);
+  }, [template, title, description, externalUrl, images, isPrivate, onSave, onSuccess, onClose]);
 
   if (!template) return null;
 
@@ -98,17 +149,10 @@ const EditTemplateModal = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-lg">
-          {thumbnailUrl && (
-            <div className="w-full max-h-[200px] h-auto flex items-center justify-center mb-md [&_img]:max-w-full [&_img]:max-h-[200px] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain">
-              <img
-                src={thumbnailUrl}
-                alt="Vorschau"
-                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            </div>
-          )}
+          <div className={fieldClass}>
+            <label>Vorschaubilder</label>
+            <TemplateImagesEditor images={images} onChange={setImages} disabled={isSubmitting} />
+          </div>
 
           <div className={fieldClass}>
             <label htmlFor="edit-title">Titel *</label>
@@ -140,8 +184,22 @@ const EditTemplateModal = ({
                 placeholder="Beschreibung der Vorlage..."
                 rows={3}
                 disabled={isSubmitting}
-                className="bg-transparent relative z-[1]"
+                className="bg-transparent relative z-[1] pr-10"
               />
+              <button
+                type="button"
+                onClick={() => void generateDescription()}
+                disabled={images.length === 0 || isDescribing || isSubmitting}
+                className="absolute top-2 right-2 z-[2] flex items-center justify-center w-7 h-7 rounded-md text-primary-600 hover:bg-primary-600/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer border-none bg-transparent"
+                aria-label="Beschreibung mit KI generieren"
+                title="Beschreibung aus Vorschaubild generieren"
+              >
+                {isDescribing ? (
+                  <span className="inline-block w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <HiOutlineSparkles size={16} />
+                )}
+              </button>
             </div>
           </div>
 
