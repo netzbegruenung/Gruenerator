@@ -318,8 +318,9 @@ export async function executeDirectExamplesSearch(params: {
   country?: 'DE' | 'AT';
   /** Override target collection — see `SearchExamplesParams.examplesCollection`. */
   collection?: string;
+  lvScope?: string | readonly string[];
 }): Promise<DirectExamplesResult> {
-  const { query, platform, country, collection } = params;
+  const { query, platform, country, collection, lvScope } = params;
 
   const result = await searchExamples({
     query,
@@ -327,6 +328,7 @@ export async function executeDirectExamplesSearch(params: {
     ...(platform && { platform }),
     ...(country && { country }),
     ...(collection && { examplesCollection: collection }),
+    ...(lvScope !== undefined && { lvScope }),
   });
 
   if (result.errors.social) {
@@ -359,16 +361,27 @@ export async function executeDirectExamplesSearch(params: {
 }
 
 /**
- * Execute a Pressemitteilung-examples search across all Landesverbände.
- * Thin wrapper over the unified `searchExamples` service (kinds=['press']).
+ * Execute a Pressemitteilung-examples search, optionally scoped to one or more
+ * Landesverbände. Thin wrapper over the unified `searchExamples` service
+ * (kinds=['press']). Callers pass `lvScope` (derived via `resolveExamplesLvScope`)
+ * so an LV agent only ever grounds in its own LV's press releases — without it
+ * the composer mimics whichever LV happened to match (wrong-LV PMs).
  */
 export async function executeDirectPressemitteilungExamples(params: {
   query: string;
   limit?: number;
+  lvScope?: string | readonly string[];
+  country?: 'DE' | 'AT';
 }): Promise<DirectPressemitteilungExamplesResult> {
-  const { query, limit = 6 } = params;
+  const { query, limit = 6, lvScope, country } = params;
 
-  const result = await searchExamples({ query, kinds: ['press'], limit });
+  const result = await searchExamples({
+    query,
+    kinds: ['press'],
+    limit,
+    ...(lvScope !== undefined && { lvScope }),
+    ...(country && { country }),
+  });
 
   if (result.errors.press) {
     return {
