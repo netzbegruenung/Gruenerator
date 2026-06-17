@@ -1,6 +1,8 @@
+import { useAgentStore } from '@gruenerator/chat';
+import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,6 +28,19 @@ export default function NotebookDetailScreen() {
   const icon: IoniconsIconName =
     MOBILE_SYSTEM_NOTEBOOKS.find((nb) => nb.id === notebookId)?.icon ?? 'book';
   const displayTitle = title || 'Notebook';
+
+  // Prime the global agent store with the notebook's default (LV) agent, the way
+  // web's notebook page does — so a hop into global chat keeps the regional agent.
+  // The in-notebook chat is collection-scoped and ignores this; reset on unmount
+  // to avoid the agent bleeding into an unrelated conversation.
+  useEffect(() => {
+    const defaultAgent = NOTEBOOK_REGISTRY.find((nb) => nb.id === notebookId)?.defaultAgent;
+    if (!defaultAgent) return;
+    useAgentStore.getState().setSelectedAgent(defaultAgent);
+    return () => {
+      useAgentStore.getState().setSelectedAgent(null);
+    };
+  }, [notebookId]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
@@ -98,9 +113,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
+    gap: spacing.small,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.medium,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backButton: {

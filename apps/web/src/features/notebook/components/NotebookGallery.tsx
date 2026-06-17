@@ -1,9 +1,11 @@
+import { sortByUsage } from '@gruenerator/shared/utils';
 import { memo, useMemo } from 'react';
 import { HiBookOpen, HiCog } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import { useItemUsage } from '../../usage/useItemUsage';
 import {
   getAustrianNotebooks,
   getNotebooksByCategory,
@@ -126,16 +128,22 @@ export function NotebookGallery() {
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
+  const { data: notebookUsage = {} } = useItemUsage('notebook');
+
   const sections = useMemo(() => {
+    // Favourites-first: within each section, float the user's most-used
+    // notebooks up; never-used keep their registry order.
+    const ranked = (notebooks: NotebookConfigEntry[]) =>
+      sortByUsage(notebooks, (nb) => nb.id, notebookUsage);
     if (isAustrian) {
-      return [{ title: 'Notebooks', notebooks: getAustrianNotebooks() }];
+      return [{ title: 'Notebooks', notebooks: ranked(getAustrianNotebooks()) }];
     }
     return [
-      { title: 'Bundesebene', notebooks: getNotebooksByCategory('bundesebene') },
-      { title: 'Landesebene', notebooks: getNotebooksByCategory('landesebene') },
-      { title: 'Weitere', notebooks: getNotebooksByCategory('weitere') },
+      { title: 'Bundesebene', notebooks: ranked(getNotebooksByCategory('bundesebene')) },
+      { title: 'Landesebene', notebooks: ranked(getNotebooksByCategory('landesebene')) },
+      { title: 'Weitere', notebooks: ranked(getNotebooksByCategory('weitere')) },
     ];
-  }, [isAustrian]);
+  }, [isAustrian, notebookUsage]);
 
   return (
     <section>
