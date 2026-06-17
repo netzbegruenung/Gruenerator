@@ -207,11 +207,6 @@ const VorlagenGallery = memo((): JSX.Element => {
     setLocaleFilter(true);
   }, []);
 
-  const openExternal = useCallback((item: VorlageItem) => {
-    const url = resolveTemplateUrl(item);
-    if (url) window.open(url, '_blank', 'noopener,noreferrer');
-  }, []);
-
   const copyLink = useCallback((item: VorlageItem) => {
     const url = resolveTemplateUrl(item);
     if (!url) return;
@@ -391,13 +386,16 @@ const VorlagenGallery = memo((): JSX.Element => {
               <span className="text-sm font-medium">Neue Vorlage</span>
             </button>
             {items.map((item) => {
+              const itemId = String(item.id);
               const hasUrl = Boolean(resolveTemplateUrl(item));
               return (
                 <VorlagenCard
-                  key={String(item.id)}
+                  key={itemId}
                   item={item}
                   onOpen={() => setPreviewTemplate(item)}
-                  onOpenExternal={hasUrl ? () => openExternal(item) : undefined}
+                  liked={likedIds.has(itemId)}
+                  onToggleLike={canLike ? () => toggleLike(itemId) : undefined}
+                  likeToggling={isLikeToggling(itemId)}
                   onCopyLink={hasUrl ? () => copyLink(item) : undefined}
                 />
               );

@@ -51,9 +51,19 @@ const FavoriteVorlagenSection = (): React.ReactNode => {
     <section className="mb-xl">
       <SectionHeader title={`Favoriten (${favoriteTemplates.length})`} />
       <div className={GRID_CLASS}>
-        {favoriteTemplates.map((t) => (
-          <VorlagenCard key={String(t.id)} item={toCardItem(t)} onOpen={() => setPreview(t)} />
-        ))}
+        {favoriteTemplates.map((t) => {
+          const id = String(t.id);
+          return (
+            <VorlagenCard
+              key={id}
+              item={toCardItem(t)}
+              onOpen={() => setPreview(t)}
+              liked={likedIds.has(id)}
+              onToggleLike={canLike ? () => toggleLike(id) : undefined}
+              likeToggling={isLikeToggling(id)}
+            />
+          );
+        })}
       </div>
 
       {preview && (

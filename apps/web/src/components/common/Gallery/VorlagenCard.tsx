@@ -1,6 +1,7 @@
 import { Badge } from '@gruenerator/ui';
 import { memo, type JSX, type ReactNode } from 'react';
 import {
+  HiHeart,
   HiOutlineExternalLink,
   HiOutlineHeart,
   HiOutlineLink,
@@ -36,6 +37,12 @@ export interface VorlagenCardProps {
   onOpenExternal?: () => void;
   /** Copies a shareable link to the clipboard (hover action). */
   onCopyLink?: () => void;
+  /** Whether the current user has liked this template. */
+  liked?: boolean;
+  /** Toggles the like (hover action). Rendered only when provided. */
+  onToggleLike?: () => void;
+  /** Disables the like button while a toggle is in flight. */
+  likeToggling?: boolean;
 }
 
 const ToolIcon = ({ tool }: { tool: ReturnType<typeof getTemplateFormat>['tool'] }) => {
@@ -52,7 +59,17 @@ const ToolIcon = ({ tool }: { tool: ReturnType<typeof getTemplateFormat>['tool']
  * meta row plus hover actions.
  */
 const VorlagenCard = memo(
-  ({ item, badge, menu, onOpen, onOpenExternal, onCopyLink }: VorlagenCardProps): JSX.Element => {
+  ({
+    item,
+    badge,
+    menu,
+    onOpen,
+    onOpenExternal,
+    onCopyLink,
+    liked = false,
+    onToggleLike,
+    likeToggling = false,
+  }: VorlagenCardProps): JSX.Element => {
     const format = getTemplateFormat(item);
     const title = item.title || 'Unbenannte Vorlage';
     const likesCount = typeof item.likes_count === 'number' ? item.likes_count : 0;
@@ -125,14 +142,39 @@ const VorlagenCard = memo(
             </div>
           )}
 
-          {(onOpenExternal || onCopyLink) && (
+          {(onToggleLike || onOpenExternal || onCopyLink) && (
             <div
               className={cn(
                 'absolute inset-x-0 bottom-0 flex items-center justify-end gap-1.5 p-2',
                 'translate-y-1 opacity-0 transition-all duration-200',
-                'group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                'group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:opacity-100',
+                // Keep the bar (filled heart) visible so a like reads at a glance.
+                liked && 'translate-y-0 opacity-100'
               )}
             >
+              {onToggleLike && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    stop(e);
+                    onToggleLike();
+                  }}
+                  disabled={likeToggling}
+                  className={cn(
+                    'flex size-8 items-center justify-center rounded-full bg-background/95 shadow-sm transition-colors hover:bg-red-500 hover:text-white disabled:opacity-60',
+                    liked ? 'text-red-500' : 'text-foreground'
+                  )}
+                  aria-label={liked ? 'Gefällt mir nicht mehr' : 'Gefällt mir'}
+                  aria-pressed={liked}
+                  title={liked ? 'Gefällt mir nicht mehr' : 'Gefällt mir'}
+                >
+                  {liked ? (
+                    <HiHeart className="size-4" aria-hidden="true" />
+                  ) : (
+                    <HiOutlineHeart className="size-4" aria-hidden="true" />
+                  )}
+                </button>
+              )}
               {onOpenExternal && (
                 <button
                   type="button"
