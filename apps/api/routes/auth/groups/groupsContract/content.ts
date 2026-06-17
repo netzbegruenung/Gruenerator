@@ -213,6 +213,7 @@ export const contentRoutes = {
              FROM group_content_shares gcs
              LEFT JOIN profiles p ON p.id = gcs.shared_by_user_id
             WHERE gcs.group_id = $1
+              AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
             ORDER BY gcs.shared_at DESC`,
           [groupId],
           { table: 'group_content_shares' }

@@ -110,6 +110,7 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
        INNER JOIN groups g ON g.id = gcs.group_id
        WHERE gcs.content_type = 'collaborative_documents'
          AND gcs.content_id = $1
+         AND (gcs.permissions->>'hidden')::boolean IS NOT TRUE
        ORDER BY gcs.shared_at DESC`,
       [id]
     )) as GroupShareRow[];

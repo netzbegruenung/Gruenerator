@@ -8,6 +8,10 @@
  * rest of the board members get "no access" on the result. This copies both layers from
  * the board to the document so exactly everyone who can see the board can open the doc.
  *
+ * The copied group shares are tagged `hidden: true`: they grant access exactly like a
+ * normal share, but are filtered out of the group's document listings (the doc is reached
+ * via the board/card, not the group's docs page) until a user explicitly shares it.
+ *
  * Reuses the existing document access checks unchanged — see
  * routes/docs/documentAccess.ts (checkDirectAccess / checkGroupAccess).
  */
@@ -54,11 +58,15 @@ export async function inheritBoardSharingToDocument(
     }
 
     // 2) Group shares: copy each of the board's group_content_shares rows to the
-    //    document. No unique constraint on the table → guard with NOT EXISTS for
-    //    idempotency.
+    //    document, tagged `hidden: true`. The group keeps full read/write ACCESS (the
+    //    access checks ignore the flag), but the doc is kept OUT of the group's
+    //    document listings until someone explicitly shares it — at which point
+    //    addGroupShare drops the flag. No unique constraint on the table → guard with
+    //    NOT EXISTS for idempotency.
     await db.query(
       `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-       SELECT 'collaborative_documents', $1, gcs.group_id, gcs.shared_by_user_id, gcs.permissions
+       SELECT 'collaborative_documents', $1, gcs.group_id, gcs.shared_by_user_id,
+              COALESCE(gcs.permissions, '{}'::jsonb) || '{"hidden": true}'::jsonb
        FROM group_content_shares gcs
        WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
          AND NOT EXISTS (
