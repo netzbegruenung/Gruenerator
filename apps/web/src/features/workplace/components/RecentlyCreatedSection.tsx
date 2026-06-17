@@ -494,12 +494,15 @@ const RecentReelCard = memo(
 );
 RecentReelCard.displayName = 'RecentReelCard';
 
-// Below `lg`: one horizontally-scrollable row (cards sized so the next peeks in,
-// edge-to-edge via the negative margin). At `lg`: the standard 5-column grid.
+// Single horizontally-scrollable row at every breakpoint (≈5 visible on desktop,
+// the rest peeking/scrollable) — mirrors the Notebooks row below it rather than
+// collapsing to a wrapping grid.
 const RECENT_ROW_CLASS = cn(
-  'grid grid-flow-col auto-cols-[75%] sm:auto-cols-[42%] md:auto-cols-[30%]',
-  'gap-md overflow-x-auto pb-2 -mx-4 px-4',
-  'lg:grid-flow-row lg:grid-cols-5 lg:auto-cols-auto lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0'
+  // `overflow-x-auto` also clips vertically, so the cards' upward hover-lift +
+  // shadow would be cut off — `pt-2` (matching `pb-2`) gives them room.
+  'grid grid-flow-col gap-md overflow-x-auto pt-2 pb-2',
+  'auto-cols-[75%] sm:auto-cols-[42%] md:auto-cols-[30%] lg:auto-cols-[19%]',
+  '-mx-4 px-4 lg:mx-0 lg:px-0'
 );
 
 const RecentlyCreatedSection: React.FC = memo(() => {
@@ -512,12 +515,10 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     staleTime: 30_000,
   });
 
-  const items = allItems
-    .filter((item) => {
-      if (item.type === 'text') return false;
-      return true;
-    })
-    .slice(0, 5);
+  const items = allItems.filter((item) => {
+    if (item.type === 'text') return false;
+    return true;
+  });
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
 

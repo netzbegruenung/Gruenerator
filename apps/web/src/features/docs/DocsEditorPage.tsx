@@ -286,6 +286,13 @@ function EditorContent() {
     }
   }, [authError]);
 
+  // A WebSocket auth failure (deleted / access denied) means we've lost live
+  // access even if the REST permissions in docData still say we can edit. Once
+  // that happens the collab session is torn down (cache deleted, socket gone),
+  // so any further edit would persist nowhere and silently vanish on reload —
+  // lock editing down.
+  const isEditable = canEdit && !authError;
+
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
   }, []);
@@ -534,7 +541,7 @@ function EditorContent() {
           title={docData.title}
           connectionStatus={connectionStatus}
           onBack={isGuest ? undefined : () => navigate('/docs')}
-          editable={canEdit}
+          editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
             <>
@@ -767,7 +774,7 @@ function EditorContent() {
             ydoc={ydoc}
             provider={provider}
             isSynced={isSynced}
-            editable={canEdit}
+            editable={isEditable}
             commentsPortalTarget={commentsPortalTarget}
             onEditorReady={handleEditorReady}
           />
