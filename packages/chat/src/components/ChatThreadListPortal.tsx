@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChatThreadList } from './ChatThreadList';
+import { useThreadListSlot } from '../stores/threadListSlotStore';
 
 interface ChatThreadListPortalProps {
-  /** DOM id of the slot to render the thread list into (owned by the host layout). */
-  slotId: string;
+  /**
+   * Kept for API compatibility with the host wiring; the slot node is now
+   * registered synchronously via `setThreadListSlot` (threadListSlotStore)
+   * rather than re-found by id, so this is unused.
+   */
+  slotId?: string;
   /** Invoked when the user clicks the thread list (e.g. navigate to /chat). */
   onRequestOpen?: () => void;
 }
@@ -18,20 +22,14 @@ interface ChatThreadListPortalProps {
  * GrueneratorChatRuntimeProvider, inside AssistantRuntimeProvider), so
  * ChatThreadList is always mounted with a runtime in scope and co-bundles with
  * the runtime chunk — it can never render in the Suspense fallback before the
- * runtime exists. The host (app) supplies only the slot id and an open callback.
+ * runtime exists.
+ *
+ * The slot node is supplied by the host via the threadListSlotStore ref
+ * callback — synchronous with commit, so the portal follows the slot atomically
+ * across per-route remounts (no async MutationObserver lag → no flicker).
  */
-export function ChatThreadListPortal({ slotId, onRequestOpen }: ChatThreadListPortalProps) {
-  const [target, setTarget] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const sync = () => setTarget(document.getElementById(slotId));
-    sync();
-    // The slot mounts/unmounts with the sidebar (layout mode, expand/collapse),
-    // so track it rather than reading it once.
-    const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [slotId]);
+export function ChatThreadListPortal({ onRequestOpen }: ChatThreadListPortalProps) {
+  const target = useThreadListSlot();
 
   if (!target) return null;
 
