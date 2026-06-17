@@ -173,6 +173,59 @@ export function useSharedSystemAgents() {
   });
 }
 
+/**
+ * Aggregates USER-created agents shared into any group the current user belongs
+ * to. Mirrors useSharedSystemAgents, but each group's `/content` bucket already
+ * carries the full agent (no static registry to resolve against). One
+ * round-trip per group; groups list is cached by useGroups.
+ */
+export function useSharedUserAgents() {
+  const { userGroups } = useGroups({ isActive: true });
+  const groupIds = userGroups.map((g) => g.id).sort();
+
+  return useQuery({
+    queryKey: ['shared-user-agents', groupIds],
+    enabled: groupIds.length > 0,
+    queryFn: async (): Promise<SharedAgentEntry[]> => {
+      const results = await Promise.all(
+        userGroups.map(async (group) => {
+          const { data } = await apiClient.get<{
+            success: boolean;
+            content?: { user_agents?: Agent[] };
+          }>(`/auth/groups/${group.id}/content`);
+          return { group, agents: data.content?.user_agents ?? [] };
+        })
+      );
+
+      // Deduplicate by identifier; collect which groups each comes from.
+      const byIdentifier = new Map<string, SharedAgentEntry>();
+      for (const { group, agents } of results) {
+        for (const agent of agents) {
+          const existing = byIdentifier.get(agent.identifier);
+          if (existing) {
+            existing.groups.push(group);
+          } else {
+            byIdentifier.set(agent.identifier, { agent, groups: [group] });
+          }
+        }
+      }
+      return [...byIdentifier.values()];
+    },
+  });
+}
+
+/** Public Agentura discovery feed: agents listed publicly, locale-filtered server-side. */
+export function usePublicUserAgents() {
+  return useQuery({
+    queryKey: ['public-user-agents'],
+    queryFn: async (): Promise<Agent[]> => {
+      const res = await getContractsClient().userAgentsSharing.listPublic();
+      if (res.status === 200) return res.body.agents;
+      throw new Error('Öffentliche Agent*innen konnten nicht geladen werden.');
+    },
+  });
+}
+
 export function useDeleteUserAgent() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,4 +1,4 @@
-import { useAgentStore } from '@gruenerator/chat/stores';
+import { useAgentStore, setThreadListSlot } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
 import { sortByUsage } from '@gruenerator/shared/utils';
 import {
@@ -144,11 +144,25 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     }
   }, [navigate, onNavigate, location.pathname]);
 
-  const handleMouseLeave = useCallback(() => {
-    if (!newMenuOpenRef.current && !accountMenuOpenRef.current) {
-      close();
-    }
-  }, [close]);
+  const handleMouseLeave = useCallback(
+    (e: React.MouseEvent) => {
+      // WebKit (the Tauri desktop webview) dispatches spurious `mouseleave`
+      // events while the aside is mid `transition-[width]`: as the animating
+      // edge sweeps across a stationary cursor it re-resolves the hover target
+      // each frame and emits leave/enter pairs whose `relatedTarget` is a
+      // DESCENDANT of the aside (a thread row, title, the More button…). Acting
+      // on those collapses the sidebar, which immediately re-expands on the
+      // paired enter → an open/close flicker loop while hovering threads.
+      // Honor only genuine exits, where the pointer actually moved to something
+      // outside the sidebar (main content, or the window).
+      const rt = e.relatedTarget;
+      if (rt instanceof Node && e.currentTarget.contains(rt)) return;
+      if (!newMenuOpenRef.current && !accountMenuOpenRef.current) {
+        close();
+      }
+    },
+    [close]
+  );
 
   const titleClass = cn(
     'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
@@ -271,7 +285,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           !sidebarExpanded && 'hidden'
         )}
       >
-        <div id="chat-thread-portal-slot" className="mt-2" />
+        {/* Registers the slot node synchronously (ref callback fires during
+            commit), so the global chat runtime's thread-list portal follows it
+            atomically across per-route remounts — no flicker. */}
+        <div ref={setThreadListSlot} id="chat-thread-portal-slot" className="mt-2" />
       </div>
 
       {/* Account block (authenticated) or login button */}
