@@ -4,7 +4,7 @@ import {
   type Agent,
 } from '@gruenerator/shared/agents';
 import { Badge, Button, CardGrid, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   PiArrowLeft,
   PiBookOpenText,
@@ -22,6 +22,7 @@ import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 
 import { AgentCard } from './components/cards';
 import { ExamplePreview } from './components/ExamplePreview';
+import { ShareAgentModal } from './components/ShareAgentModal';
 import { relatedAgents, useAgentBySlug } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
@@ -78,6 +79,14 @@ function AgentDetailPage() {
 
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // Ownership: the caller's own agents come from useUserAgents(). Only owners
+  // get the share dialog; everyone else gets a plain copy-link.
+  const isOwnAgent = useMemo(
+    () => userAgents.some((a) => a.identifier === agent?.identifier),
+    [userAgents, agent]
+  );
 
   const related = useMemo(() => {
     if (!agent) return [];
@@ -117,7 +126,11 @@ function AgentDetailPage() {
   for (const c of agent.toolRestrictions?.allowedCollections ?? []) knowledge.push(c);
 
   const handleShare = () => {
-    void navigator.clipboard?.writeText(window.location.href);
+    if (isOwnAgent) {
+      setShareOpen(true);
+    } else {
+      void navigator.clipboard?.writeText(window.location.href);
+    }
   };
 
   return (
@@ -185,11 +198,24 @@ function AgentDetailPage() {
           >
             {isFavorite ? <PiStarFill /> : <PiStar />}
           </Button>
-          <Button variant="outline" size="icon" aria-label="Link kopieren" onClick={handleShare}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={isOwnAgent ? 'Teilen' : 'Link kopieren'}
+            onClick={handleShare}
+          >
             <PiShareNetwork />
           </Button>
         </div>
       </header>
+
+      {isOwnAgent && (
+        <ShareAgentModal
+          identifier={agent.identifier}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+        />
+      )}
 
       <dl className="mb-lg grid grid-cols-2 gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700 sm:grid-cols-4">
         <Fact label="Modell" value={agent.model} />
