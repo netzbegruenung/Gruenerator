@@ -425,7 +425,7 @@ function AgenturaPage() {
                   id={AGENT_SECTIONS.community.id}
                   icon={AGENT_SECTIONS.community.icon}
                   title={AGENT_SECTIONS.community.label}
-                  description="Öffentlich geteilte Agent*innen aus der Community."
+                  description="Öffentlich geteilte Agent*innen von der Basis."
                 />
                 <CollapsibleGrid
                   items={sortedPublicAgents.map((agent) => (
