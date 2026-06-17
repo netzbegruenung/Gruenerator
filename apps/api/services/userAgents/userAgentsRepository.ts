@@ -11,6 +11,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { userAgents, type UserAgentRow } from '../../database/schema/userAgents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
 export interface UserAgentInput {
   identifier: string;
@@ -261,6 +262,44 @@ export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & 
   const db = getDrizzleInstance();
   const rows = await db.select().from(userAgents).where(inArray(userAgents.id, ids));
   return rows.map((row) => ({ ...rowToAgent(row), id: row.id }));
+}
+
+/**
+ * Resolve an agent by `identifier` for a requester who is NOT its owner but is
+ * an active member of a group the agent has been shared into (the dedicated
+ * `addGroupShare` flow inserts a `group_content_shares` row keyed by the
+ * agent's UUID `id`). This is what lets group members chat with an agent a
+ * teammate built. Returns undefined unless such an active-membership share
+ * exists.
+ *
+ * `group_content_shares` has no Drizzle table, so the EXISTS join uses the raw
+ * Postgres accessor; the matched row is mapped through the same `rowToAgent`
+ * boundary as the owner-scoped lookups. `content_id` is TEXT, so the UUID is
+ * cast to text for the comparison.
+ */
+export async function getGroupSharedUserAgent(
+  identifier: string,
+  requestingUserId: string
+): Promise<Agent | undefined> {
+  const postgres = getPostgresInstance();
+  const row = await postgres.queryOne<UserAgentRow>(
+    `SELECT ua.*
+       FROM user_agents ua
+      WHERE ua.identifier = $1
+        AND EXISTS (
+          SELECT 1
+            FROM group_content_shares gcs
+            JOIN group_memberships gm ON gm.group_id = gcs.group_id
+           WHERE gcs.content_type = 'user_agents'
+             AND gcs.content_id = ua.id::text
+             AND gm.user_id = $2
+             AND gm.is_active = true
+        )
+      LIMIT 1`,
+    [identifier, requestingUserId],
+    { table: 'user_agents' }
+  );
+  return row ? rowToAgent(row) : undefined;
 }
 
 /**

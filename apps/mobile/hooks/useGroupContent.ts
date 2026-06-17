@@ -1,3 +1,4 @@
+import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
@@ -6,6 +7,7 @@ export type GroupContentKind =
   | 'board'
   | 'generator'
   | 'notebook'
+  | 'agent'
   | 'text'
   | 'template'
   | 'document';
@@ -73,12 +75,32 @@ interface DocumentRow {
   shared_by_name?: string;
 }
 
+// User agents arrive as their full Agent shape (+ UUID `id`); we navigate by
+// `identifier`. System agents arrive as { id: identifier } and get their title
+// from the static registry.
+interface UserAgentRow {
+  id: string;
+  identifier: string;
+  title: string | null;
+  description?: string | null;
+  shared_at?: string;
+  shared_by_name?: string;
+}
+
+interface SystemAgentRow {
+  id: string;
+  shared_at?: string;
+  shared_by_name?: string;
+}
+
 interface ContentApiResponse {
   success: boolean;
   content: {
     collaborative_documents?: CollabDocRow[];
     generators?: GeneratorRow[];
     notebooks?: NotebookRow[];
+    user_agents?: UserAgentRow[];
+    system_agents?: SystemAgentRow[];
     texts?: TextRow[];
     templates?: TemplateRow[];
     documents?: DocumentRow[];
@@ -101,6 +123,7 @@ export interface GroupedContent {
   boards: GroupContentItem[];
   generators: GroupContentItem[];
   notebooks: GroupContentItem[];
+  agents: GroupContentItem[];
   texts: GroupContentItem[];
   templates: GroupContentItem[];
   documents: GroupContentItem[];
@@ -113,6 +136,7 @@ function emptyGroupedContent(): GroupedContent {
     boards: [],
     generators: [],
     notebooks: [],
+    agents: [],
     texts: [],
     templates: [],
     documents: [],
@@ -169,6 +193,31 @@ export function useGroupContent(groupId: string | null | undefined) {
         });
       });
 
+      (raw.user_agents ?? []).forEach((row) => {
+        grouped.agents.push({
+          id: row.identifier,
+          kind: 'agent',
+          title: row.title?.trim() || 'Agent*in',
+          ...(row.description ? { subtitle: row.description } : {}),
+          updatedAt: row.shared_at ?? '',
+          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
+          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
+        });
+      });
+
+      (raw.system_agents ?? []).forEach((row) => {
+        const sys = SYSTEM_AGENTS.find((a) => a.identifier === row.id);
+        grouped.agents.push({
+          id: row.id,
+          kind: 'agent',
+          title: sys?.title ?? row.id,
+          ...(sys?.description ? { subtitle: sys.description } : {}),
+          updatedAt: row.shared_at ?? '',
+          ...(row.shared_at ? { sharedAt: row.shared_at } : {}),
+          ...(row.shared_by_name ? { sharedByName: row.shared_by_name } : {}),
+        });
+      });
+
       (raw.texts ?? []).forEach((row) => {
         grouped.texts.push({
           id: row.id,
@@ -210,6 +259,7 @@ export function useGroupContent(groupId: string | null | undefined) {
         grouped.boards.length +
         grouped.generators.length +
         grouped.notebooks.length +
+        grouped.agents.length +
         grouped.texts.length +
         grouped.templates.length +
         grouped.documents.length;
