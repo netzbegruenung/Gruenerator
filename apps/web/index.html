@@ -7,6 +7,18 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
     />
+    <script>
+      /* Desktop (Tauri) only: the mobile `width=device-width` viewport makes
+         macOS WKWebView lay the whole app out at a narrow mobile width, so
+         responsive grids collapse to their tablet/mobile tiers ("iPad view").
+         Removing the meta AT RUNTIME makes the webview reflow to the real
+         window width. (Stripping it at build time instead leaves WKWebView on
+         its 980px no-viewport default, so it must be a runtime removal.) Web
+         keeps the meta — `__TAURI__` is only present in the desktop shell. */
+      if ('__TAURI__' in window) {
+        document.querySelector('meta[name=viewport]')?.remove();
+      }
+    </script>
     <meta name="theme-color" content="#005538" />
     <meta
       name="description"

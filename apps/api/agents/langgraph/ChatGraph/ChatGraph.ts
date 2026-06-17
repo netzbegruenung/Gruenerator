@@ -684,6 +684,16 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     }
   }
 
+  // [agent-trace] Prove what the backend actually resolved for this turn — the
+  // running shared package can be stale (dist vs source), so log the resolved
+  // identifier alongside the LV-relevant config that drives PM/example scoping.
+  log.info(
+    `[ChatGraph][agent-trace] requested="${input.agentId ?? '(none)'}" resolved="${agentConfig.identifier}" ` +
+      `systemRole=${agentConfig.systemRole ? `${agentConfig.systemRole.length}chars "${agentConfig.systemRole.slice(0, 60).replace(/\s+/g, ' ')}…"` : 'MISSING'} ` +
+      `defaultFilter=${JSON.stringify(agentConfig.defaultFilter ?? null)} ` +
+      `examplesLvScope=${JSON.stringify(agentConfig.toolRestrictions?.examplesLvScope ?? null)}`
+  );
+
   return {
     // Input
     messages: input.messages,

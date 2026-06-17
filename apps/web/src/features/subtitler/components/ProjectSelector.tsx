@@ -7,6 +7,7 @@ import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import useDragDropFiles, { VIDEO_ACCEPT } from '../../../hooks/useDragDropFiles';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
 
 import { cn } from '@/utils/cn';
@@ -61,7 +62,7 @@ const formatFileSize = (bytes: number | string | undefined): string => {
 };
 
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
-const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
+const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${getPublicAppOrigin()}/api`;
 
 const SkeletonCard = () => (
   <div className="overflow-hidden rounded-xl border border-grey-200 bg-background shadow-sm dark:border-grey-700 dark:bg-background-alt">

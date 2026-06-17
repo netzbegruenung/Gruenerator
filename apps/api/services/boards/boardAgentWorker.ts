@@ -27,6 +27,8 @@ import {
   postBotComment,
   updateBotComment,
 } from './agentTaskService.js';
+import { linkDocumentToCard } from './boardLinkService.js';
+import { inheritBoardSharingToDocument } from './boardSharingService.js';
 
 import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
 
@@ -186,6 +188,12 @@ async function processTask(task: AgentTask): Promise<void> {
       const doc = await createDocumentWithContent(title, content, 'blank', task.requested_by);
       const relativeUrl = `/docs/${doc.id}`;
 
+      // Share the document with everyone who can access the board, and link it into
+      // the originating card's "Dokumente" list. Both are best-effort (they log and
+      // swallow) so the task still completes if one fails.
+      await inheritBoardSharingToDocument(doc.id, task.board_id);
+      await linkDocumentToCard(task.board_id, task.card_id, { id: doc.id, title });
+
       await completeAgentTask(task.id, doc.id);
 
       // In-app + push + email (createNotification fans out per the user's prefs).
@@ -205,7 +213,7 @@ async function processTask(task: AgentTask): Promise<void> {
       });
 
       await finishComment([
-        { type: 'text', text: '✅ Fertig! Ich habe ein Dokument erstellt: ' },
+        { type: 'text', text: '✅ Fertig! Dokument erstellt und mit der Karte verknüpft: ' },
         { type: 'link', text: title, url: relativeUrl },
       ]);
 
