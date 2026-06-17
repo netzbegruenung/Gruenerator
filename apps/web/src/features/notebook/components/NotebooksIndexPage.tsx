@@ -21,6 +21,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import { NotebookIcon } from '../../../config/icons';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
@@ -436,7 +437,7 @@ function NotebooksIndexFooter() {
       // Canonical URL: plural `/notebooks/...` with the Notion-style slug. The
       // legacy singular `/notebook/:id` route still redirects, but copying the
       // canonical form means the redirect never fires for share recipients.
-      const url = `${window.location.origin}/notebooks/${buildSlugFragment(collectionId)}`;
+      const url = `${getPublicAppOrigin()}/notebooks/${buildSlugFragment(collectionId)}`;
       void navigator.clipboard.writeText(url);
       setCopiedId(collectionId);
       setTimeout(() => setCopiedId(null), 2000);

@@ -34,6 +34,27 @@ const selectTypingUsers = (
   return typing;
 };
 
+// Derive the Hocuspocus WS host from the absolute API base. In the desktop
+// (Tauri) webview the origin is `tauri://localhost`, so `window.location` would
+// resolve to `ws://localhost:1240` (dev fallback) and never reach the server.
+// Web is unchanged: the API host equals the page host. See the same pattern in
+// apps/web/.../docsAdapter.ts.
+function deriveChatCollabWsUrl(): string {
+  const apiBase = (import.meta.env as unknown as Record<string, string | undefined>)
+    .VITE_API_BASE_URL;
+  if (apiBase && /^https?:/i.test(apiBase)) {
+    try {
+      const u = new URL(apiBase);
+      return `${u.protocol === 'https:' ? 'wss:' : 'ws:'}//${u.host}/ws`;
+    } catch {
+      // fall through to window-based default
+    }
+  }
+  return window.location.protocol === 'https:'
+    ? `wss://${window.location.host}/ws`
+    : 'ws://localhost:1240';
+}
+
 export function useChatCollaboration(threadId: string | null, user: ChatCollaborationUser | null) {
   const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const providerRef = useRef<HocuspocusProvider | null>(null);
@@ -46,9 +67,7 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
     const ydoc = new Y.Doc();
     const url = docsBaseUrl
       ? `${docsBaseUrl.replace(/^http/, 'ws')}/hocuspocus`
-      : window.location.protocol === 'https:'
-        ? `wss://${window.location.host}/ws`
-        : 'ws://localhost:1240';
+      : deriveChatCollabWsUrl();
 
     const p = new HocuspocusProvider({
       url,

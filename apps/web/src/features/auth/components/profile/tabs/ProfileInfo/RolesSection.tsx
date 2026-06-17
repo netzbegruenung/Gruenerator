@@ -36,6 +36,7 @@ import {
   useUserDefault,
 } from '../../../../../../features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '../../../../../../stores/authStore';
+import { platformFetch } from '../../../../../../utils/platformFetch';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -293,7 +294,7 @@ export default function RolesSection() {
     let promptGenFailed = false;
 
     try {
-      const response = await fetch('/api/chat-service/generate-system-prompt', {
+      const response = await platformFetch('/api/chat-service/generate-system-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

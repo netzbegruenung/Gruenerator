@@ -90,8 +90,14 @@ export class Resource { close() {} }
 }
 
 export default defineConfig(({ command }) => ({
-  // Use relative paths for native builds so assets resolve correctly
-  base: isNativeBuild ? './' : '/',
+  // Always use an absolute base. The Tauri webview serves the bundle from the
+  // `tauri://localhost/` origin, so absolute `/assets/...` URLs resolve
+  // correctly regardless of route depth. A relative base (`./`) only works at
+  // the root route — on a deeper route like `/docs/:id` the webview resolves
+  // `./assets/...` against `/docs/`, hits the SPA index.html fallback, and the
+  // main stylesheet/chunks fail to load (symptom: docs editor renders as a
+  // blank white page).
+  base: '/',
   plugins: [
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),

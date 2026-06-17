@@ -27,13 +27,12 @@ const DOT_CYCLE_S = GHI_DOT_CYCLE_S;
 const DOT_STAGGER_S = GHI_DOT_STAGGER_S;
 const FADE_S = GHI_FADE_S;
 
-const KEYFRAMES = `
-@keyframes ghi-cog-spin { to { transform: rotate(360deg); } }
-@keyframes ghi-dot-pulse {
-  0%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-20px); }
-}
-`;
+// NOTE: the @keyframes `ghi-cog-spin` / `ghi-dot-pulse` referenced by the inline
+// `animation:` styles below live in the app's bundled global stylesheet
+// (apps/web/src/App.css), NOT in an inline <style> here. The desktop (Tauri)
+// shell adds a CSP nonce, which makes 'unsafe-inline' ignored and blocks inline
+// <style> elements — so an inline @keyframes wouldn't apply and the icon
+// wouldn't spin. Inline style *attributes* (animation/opacity) still work.
 
 const GrueneratorHomeIconLoading = ({ loading = false, ...svgProps }: Props) => (
   <svg
@@ -52,8 +51,6 @@ const GrueneratorHomeIconLoading = ({ loading = false, ...svgProps }: Props) => 
         <path d="M 98.34 190.85 L 465.34 210.13 L 446.05 577.13 L 79.06 557.84 Z" />
       </clipPath>
     </defs>
-
-    <style>{KEYFRAMES}</style>
 
     {/* Cog — slow continuous spin */}
     <g transform={`translate(${GEAR_CENTER.x} ${GEAR_CENTER.y})`}>

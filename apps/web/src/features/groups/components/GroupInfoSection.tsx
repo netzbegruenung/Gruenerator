@@ -37,6 +37,7 @@ import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
+import { resolveApiAssetUrl } from '../../../utils/platform';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
@@ -396,7 +397,9 @@ const GroupInfoSection = memo(
             <div className="relative group/avatar shrink-0">
               {data?.groupInfo?.avatar_url ? (
                 <img
-                  src={`/api/auth/groups/${groupId}/avatar?t=${avatarTimestamp}`}
+                  src={resolveApiAssetUrl(
+                    `/api/auth/groups/${groupId}/avatar?t=${avatarTimestamp}`
+                  )}
                   alt={data?.groupInfo?.name || 'Gruppe'}
                   className="size-16 rounded-full object-cover ring-2 ring-grey-200 dark:ring-grey-700"
                 />
