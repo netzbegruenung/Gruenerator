@@ -46,6 +46,7 @@ import { LABEL_COLORS } from '../utils/boardDefaults';
 import { RECURRENCE_OPTIONS } from '../utils/recurrence';
 
 import { CardActivity } from './CardActivity';
+import { CardAgentDocuments } from './CardAgentDocuments';
 import { CardAttachments } from './CardAttachments';
 import { CardChecklists } from './CardChecklists';
 import { CardComments } from './CardComments';
@@ -947,6 +948,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 onCoverChange={handleCoverImageChange}
               />
             )}
+
+            {/* Grünerator-Dokumente — agent-created docs (renders only when ≥1 exists) */}
+            {boardId && <CardAgentDocuments boardId={boardId} cardId={row.id} />}
           </div>
 
           {/* Comments */}
