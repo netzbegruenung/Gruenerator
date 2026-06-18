@@ -19,7 +19,7 @@ import { PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import NotificationList from '../../../features/notifications/components/NotificationList';
-import { useUnreadCount } from '../../../features/notifications/hooks/useNotifications';
+import { useNotifications } from '../../../features/notifications/hooks/useNotifications';
 import { useAuthStore } from '../../../stores/authStore';
 import useDarkMode from '../../hooks/useDarkMode';
 import { NAV_ITEMS } from '../Header/menuData';
@@ -47,7 +47,13 @@ const SidebarAccount = memo(function SidebarAccount({
   const logout = useAuthStore((s) => s.logout);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
   const [, , themePreference, cycleTheme] = useDarkMode();
-  const { data: unreadCount = 0 } = useUnreadCount();
+  // Badge and popover both derive from this one unread-only query (shared
+  // cache), so the count can never disagree with the listed notifications.
+  // Page size (20) exceeds the "9+" cap, so page 1 always renders the badge
+  // exactly: an exact number ≤ 9, otherwise "9+".
+  const { data: notifData, hasNextPage } = useNotifications();
+  const unreadCount = notifData?.pages.flat().length ?? 0;
+  const unreadBadgeLabel = hasNextPage || unreadCount > 9 ? '9+' : String(unreadCount);
   const { data: profile } = useProfile(user?.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -82,7 +88,7 @@ const SidebarAccount = memo(function SidebarAccount({
           offset
         )}
       >
-        {unreadCount > 9 ? '9+' : unreadCount}
+        {unreadBadgeLabel}
       </Badge>
     ) : null;
 
