@@ -128,13 +128,19 @@ export async function generateFromState(
 ): Promise<string> {
   const { finalState, userMessage } = prepared;
   const baseSystemMessage = await buildSystemMessage(finalState);
-  const mode = opts.longForm ? DOCUMENT_MODE : COMMENT_MODE;
-  // The card context (column, comments, attached documents) is injected as
-  // system-level grounding so the user's ask stays the clean classifier input.
-  const context = opts.contextBlock
-    ? `\n\n## Kontext dieser Karte\nNutze diese Informationen aus dem Board als Hintergrund. Wenn die Aufgabe sich darauf bezieht, beziehe dich darauf.\n\n${opts.contextBlock}`
-    : '';
-  const systemMessage = `${baseSystemMessage}${mode}${context}`;
+  const systemMessage = `${baseSystemMessage}${opts.longForm ? DOCUMENT_MODE : COMMENT_MODE}`;
+
+  // The card context (column, comments, attached documents) belongs in the user
+  // message as material for this task — NOT in the system prompt (which is the agent's
+  // standing persona/instructions). The task itself stays at the top so the model has
+  // a clear instruction, with the context appended as background below it.
+  const baseContent = typeof userMessage.content === 'string' ? userMessage.content : '';
+  const taskMessage: ModelMessage = {
+    role: 'user',
+    content: opts.contextBlock
+      ? `${baseContent}\n\n---\n## Kontext der Karte (Hintergrundmaterial für genau diese Aufgabe)\n${opts.contextBlock}`
+      : baseContent,
+  };
 
   const { agentConfig } = finalState;
   // Resolve via the same path as the chat controller so overflow-lane slots and
@@ -154,7 +160,7 @@ export async function generateFromState(
     const generated = await generateText({
       model: resolution.model,
       system: systemMessage,
-      messages: [userMessage],
+      messages: [taskMessage],
       tools: createSearchTools(agentConfig),
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
       maxOutputTokens: opts.longForm
