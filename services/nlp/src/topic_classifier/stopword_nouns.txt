@@ -1,0 +1,180 @@
+# Stoppwörter für die Notebook-Keyword-Statistik (NLP-Service)
+#
+# Diese Nomen/Eigennamen werden bei der Keyword-Extraktion herausgefiltert
+# (siehe analyzer.py -> STOPWORD_NOUNS / extract_keywords_batch).
+#
+# Format:
+#   - ein Wort pro Zeile, in Kleinbuchstaben
+#   - gematcht wird gegen das lemmatisierte, kleingeschriebene Token,
+#     also die Grundform eintragen (z.B. "thema", nicht "themen")
+#   - nur Nomen/Eigennamen (NOUN/PROPN) werden überhaupt geprüft –
+#     Verb-/Partizipformen wie "veröffentlicht" haben hier keinen Effekt;
+#     nutze die Nomen-Grundform (z.B. "veröffentlichung")
+#   - Leerzeilen und Zeilen, die mit '#' beginnen, werden ignoriert
+
+# --- Parlamentarisch / prozedural ---
+herr
+frau
+dame
+kollege
+kollegin
+präsident
+präsidentin
+vizepräsident
+vizepräsidentin
+abgeordnete
+abgeordneter
+abg
+antrag
+beschluss
+drucksache
+nummer
+beifall
+zuruf
+zwischenfrage
+verehrten
+geehrten
+verehrte
+
+# --- Parteinamen ---
+spd
+cdu
+csu
+cdu/csu
+fdp
+afd
+grüne
+grünen
+linke
+bsw
+bündnis
+fraktion
+
+# --- Namen / Titel ---
+dr.
+prof.
+dr
+prof
+vincent
+willock
+
+# --- Zeitangaben ---
+jahr
+jahre
+jahren
+monat
+tag
+zeit
+woche
+stunde
+minute
+uhr
+heute
+morgen
+januar
+februar
+märz
+april
+mai
+juni
+juli
+august
+september
+oktober
+november
+dezember
+montag
+dienstag
+mittwoch
+donnerstag
+freitag
+samstag
+sonntag
+
+# --- Generische Begriffe (geringer semantischer Wert) ---
+frage
+antwort
+rede
+debatte
+punkt
+stelle
+bereich
+rahmen
+grund
+art
+weise
+form
+teil
+seite
+beispiel
+fall
+sache
+sachen
+ding
+dinge
+dingen
+thema
+themen
+ende
+endes
+anfang
+blick
+
+# --- Quantitative Begriffe ---
+prozent
+million
+millionen
+milliarde
+milliarden
+euro
+viel
+
+# --- News-spezifisch ---
+foto
+bild
+video
+mensch
+menschen
+land
+länder
+stadt
+deutschland
+österreich
+berlin
+münchen
+wien
+regierung
+partei
+politik
+politiker
+angriff
+folge
+leben
+experte
+kritik
+problem
+druck
+preis
+welt
+haus
+league
+champions
+spiel
+gericht
+bundesregierung
+us-präsident
+datum
+quelle
+artikel
+bericht
+nachricht
+veröffentlichung
+veröffentlicht
+unternehmen
+firma
+mann
+kind
+information
+angabe
+sprecher
+sprecherin
