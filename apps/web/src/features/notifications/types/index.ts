@@ -6,6 +6,7 @@ import {
   MessageSquare,
   Share2,
   Sparkles,
+  UserCheck,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -63,6 +64,21 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     group: 'board',
     subtypes: ['board_comment_added', 'board_comment_reply', 'board_user_mentioned'],
     actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
+  },
+  board_card_assigned: {
+    label: 'Zugewiesene Aufgaben',
+    description:
+      'Wenn dir eine Aufgabe zugewiesen wird oder sich Karten ändern, die du beobachtest',
+    icon: UserCheck,
+    group: 'board',
+    subtypes: [
+      'board_card_assigned',
+      'board_card_status_changed',
+      'board_attachment_added',
+      'board_due_date_reminder',
+      'board_card_watching',
+    ],
+    actions: (ctx) => [openLinkAction('Aufgabe öffnen')(ctx)],
   },
   agent_task_completed: {
     label: 'Grünerator-Agent',

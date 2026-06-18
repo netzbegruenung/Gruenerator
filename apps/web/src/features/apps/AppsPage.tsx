@@ -294,37 +294,36 @@ const ApiAccessSection = () => {
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
-interface BetaPlatform {
+interface ReleasePlatform {
   label: string;
   filename: string;
 }
 
-interface BetaManifest {
+interface ReleaseManifest {
   version: string;
   name: string;
   notes: string;
   publishedAt: string;
-  platforms: Record<string, BetaPlatform>;
+  platforms: Record<string, ReleasePlatform>;
 }
 
-// Desktop download — gated to authenticated users. The build is a pre-release
-// (unsigned/not notarized yet), so it stays out of public view to limit the
-// "unidentified developer" support burden. Manifest is fetched from the API so
-// new betas can be published without a frontend redeploy.
-const DesktopDownloadSection = () => {
-  const user = useAuthStore((s) => s.user);
-  const [beta, setBeta] = useState<BetaManifest | null>(null);
+type ReleaseChannel = 'stable' | 'beta';
+
+// Fetch a channel's download manifest from the API. Manifests are derived from
+// GitHub Releases server-side, so a new release appears here with no redeploy.
+const useReleaseManifest = (channel: ReleaseChannel, enabled: boolean) => {
+  const [manifest, setManifest] = useState<ReleaseManifest | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!enabled) return;
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch(`${API_BASE}/releases/beta`);
+        const res = await fetch(`${API_BASE}/releases/${channel}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as BetaManifest;
-        if (!cancelled) setBeta(data);
+        const data = (await res.json()) as ReleaseManifest;
+        if (!cancelled) setManifest(data);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -332,7 +331,46 @@ const DesktopDownloadSection = () => {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [channel, enabled]);
+
+  return { manifest, failed };
+};
+
+const ReleaseDownloadButtons = ({
+  channel,
+  manifest,
+}: {
+  channel: ReleaseChannel;
+  manifest: ReleaseManifest;
+}) => {
+  const platforms = Object.entries(manifest.platforms);
+  if (platforms.length === 0) return null;
+  return (
+    <div className="flex w-full flex-col items-center gap-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-grey-400">
+        Wähle die Version für deinen Mac
+      </p>
+      {platforms.map(([key, p]) => (
+        <Button key={key} asChild variant="brand" size="brand" className="w-full max-w-sm gap-2">
+          <a href={`${API_BASE}/releases/${channel}/download/${key}`}>
+            <HiDownload className="text-lg" />
+            {p.label}
+          </a>
+        </Button>
+      ))}
+      <p className="text-xs text-grey-500">Version {manifest.version}</p>
+    </div>
+  );
+};
+
+// Desktop download — gated to authenticated users. The stable channel is the
+// signed + notarized release; the beta channel (latest pre-release) is shown
+// below when one exists. Both manifests come from the API, so publishing a
+// GitHub release updates this page with no frontend redeploy.
+const DesktopDownloadSection = () => {
+  const user = useAuthStore((s) => s.user);
+  const { manifest: stable, failed: stableFailed } = useReleaseManifest('stable', Boolean(user));
+  const { manifest: beta } = useReleaseManifest('beta', Boolean(user));
 
   // Public visitors (and logged-out) see only the "coming soon" note.
   if (!user) {
@@ -344,58 +382,39 @@ const DesktopDownloadSection = () => {
     );
   }
 
-  const platforms = beta ? Object.entries(beta.platforms) : [];
-
   return (
     <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
-      <div className="flex items-center gap-2">
-        <h2 className="text-xl font-bold text-foreground-heading">Desktop-App</h2>
-        <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
-          Beta
-        </span>
-      </div>
+      <h2 className="text-xl font-bold text-foreground-heading">Desktop-App</h2>
       <p className="text-center text-sm text-grey-600 dark:text-grey-400">
-        Der Grünerator als native Mac-App. Diese Beta-Version dient zum Testen — bitte melde uns
-        Fehler. {beta?.notes}
+        Der Grünerator als native Mac-App — signiert und von Apple notarisiert.
+        {stable?.notes ? ` ${stable.notes}` : ''}
       </p>
 
-      {beta && platforms.length > 0 ? (
-        <>
-          <div className="flex w-full flex-col items-center gap-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-grey-400">
-              Wähle die Version für deinen Mac
-            </p>
-            {platforms.map(([key, p]) => (
-              <Button
-                key={key}
-                asChild
-                variant="brand"
-                size="brand"
-                className="w-full max-w-sm gap-2"
-              >
-                <a href={`${API_BASE}/releases/beta/download/${key}`}>
-                  <HiDownload className="text-lg" />
-                  {p.label}
-                </a>
-              </Button>
-            ))}
-            <p className="text-xs text-grey-500">Version {beta.version}</p>
-          </div>
-
-          <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-grey-700 dark:border-yellow-900/40 dark:bg-yellow-900/20 dark:text-grey-300">
-            <strong className="font-semibold">Hinweis zur Installation (macOS):</strong> Die Beta
-            ist noch nicht von Apple signiert. Beim ersten Start meldet macOS „nicht verifizierter
-            Entwickler“. Öffne die App dann per <strong>Rechtsklick → Öffnen</strong> und bestätige
-            einmalig — danach startet sie normal.
-          </div>
-        </>
-      ) : failed ? (
+      {stable && Object.keys(stable.platforms).length > 0 ? (
+        <ReleaseDownloadButtons channel="stable" manifest={stable} />
+      ) : stableFailed ? (
         <p className="text-sm text-grey-500">
-          Aktuell ist keine Beta-Version verfügbar. Schau bald wieder vorbei.
+          Aktuell ist keine Version verfügbar. Schau bald wieder vorbei.
         </p>
       ) : (
         <p className="text-sm text-grey-500">Lade Download-Informationen…</p>
       )}
+
+      {beta && Object.keys(beta.platforms).length > 0 ? (
+        <div className="mt-2 flex w-full flex-col items-center gap-3 border-t border-grey-200 pt-6 dark:border-grey-700">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground-heading">Beta-Kanal</h3>
+            <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
+              Beta
+            </span>
+          </div>
+          <p className="text-center text-xs text-grey-500">
+            Vorabversion zum Testen — kann Fehler enthalten. Bitte melde uns Probleme.
+            {beta.notes ? ` ${beta.notes}` : ''}
+          </p>
+          <ReleaseDownloadButtons channel="beta" manifest={beta} />
+        </div>
+      ) : null}
     </section>
   );
 };

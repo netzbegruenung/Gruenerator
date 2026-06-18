@@ -1,7 +1,9 @@
 /**
  * Modal for managing user-agent (Agentura) sharing: visibility
  * (private/groups/authenticated), the set of groups the agent is shared with,
- * and the "in Agentura listen" public-discovery toggle.
+ * and the "Von der Basis" public-discovery toggle. That toggle is shown in
+ * every visibility mode; enabling it from a lower mode auto-promotes
+ * visibility to 'authenticated' first (the backend invariant for a listing).
  *
  * Owner-only: callers must gate by ownership before opening — the server still
  * rejects non-owners with 404/403, but rendering the modal for them is bad UX.
@@ -176,74 +178,92 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
             ) : null}
 
             {shareMode === 'authenticated' ? (
-              <>
-                <p className="text-xs text-grey-500">
-                  Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land.
+              <p className="text-xs text-grey-500">
+                Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land.
+              </p>
+            ) : null}
+
+            {/* "Von der Basis" public listing. Shown in every visibility mode so
+                it's discoverable — enabling it from a lower mode first promotes
+                Sichtbarkeit to 'authenticated' (the backend invariant for an
+                Agentura listing), then lists the agent. */}
+            <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
+              <div className="space-y-xs">
+                <Label htmlFor="agent-agentura-toggle" className="text-sm">
+                  Auf „Von der Basis“ listen
+                </Label>
+                <p className="text-xs text-grey-500 dark:text-grey-400">
+                  Dein*e Agent*in erscheint dann in der Agentura unter „Von der Basis“ zum
+                  Entdecken.
                 </p>
-
-                <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
-                  <div className="space-y-xs">
-                    <Label htmlFor="agent-agentura-toggle" className="text-sm">
-                      In Agentura listen
-                    </Label>
-                    <p className="text-xs text-grey-500 dark:text-grey-400">
-                      Dein*e Agent*in erscheint dann im Agentura-Verzeichnis zum Entdecken.
-                    </p>
-                  </div>
-                  <Switch
-                    id="agent-agentura-toggle"
-                    checked={isPublic}
-                    onCheckedChange={(checked) => {
-                      if (!checked) {
-                        setIsPublic.mutate({ is_public: false, public_ownership: null });
-                      } else {
-                        // Default to 'owner' on first activation — the most
-                        // common case. User can change via the buttons below.
-                        setIsPublic.mutate({
-                          is_public: true,
-                          public_ownership: publicOwnership ?? 'owner',
-                        });
-                      }
-                    }}
-                    disabled={setIsPublic.isPending}
-                  />
-                </div>
-
-                {isPublic ? (
-                  <div className="space-y-sm">
-                    <p className="text-sm text-foreground-heading">Bitte bestätige:</p>
-                    <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
-                      {(['owner', 'public_data'] as const).map((choice: PublicOwnership) => (
-                        <button
-                          key={choice}
-                          type="button"
-                          onClick={() =>
-                            setIsPublic.mutate({ is_public: true, public_ownership: choice })
-                          }
-                          disabled={setIsPublic.isPending}
-                          className={cn(
-                            'flex flex-col gap-xs rounded-lg border p-md text-left transition-colors',
-                            publicOwnership === choice
-                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
-                              : 'border-grey-200 hover:border-primary-300 dark:border-grey-700 dark:hover:border-primary-600'
-                          )}
-                        >
-                          <span className="text-sm font-medium text-foreground">
-                            {choice === 'owner'
-                              ? 'Ich besitze die Inhalte'
-                              : 'Inhalte sind öffentlich verfügbar'}
-                          </span>
-                          <span className="text-xs text-grey-500">
-                            {choice === 'owner'
-                              ? '… oder habe die Rechte zur Veröffentlichung'
-                              : 'z.B. offizielle Inhalte, Pressematerial'}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                {!isPublic && shareMode !== 'authenticated' ? (
+                  <p className="text-xs text-grey-500 dark:text-grey-400">
+                    Beim Aktivieren wird die Sichtbarkeit auf „Mit Anmeldung — alle eingeloggten
+                    Nutzer*innen“ gesetzt.
+                  </p>
                 ) : null}
-              </>
+              </div>
+              <Switch
+                id="agent-agentura-toggle"
+                checked={isPublic}
+                onCheckedChange={(checked) => {
+                  if (!checked) {
+                    setIsPublic.mutate({ is_public: false, public_ownership: null });
+                    return;
+                  }
+                  // Default to 'owner' on first activation — the most common
+                  // case. User can change via the buttons below.
+                  const list = () =>
+                    setIsPublic.mutate({
+                      is_public: true,
+                      public_ownership: publicOwnership ?? 'owner',
+                    });
+                  // Backend rejects is_public unless share_mode='authenticated';
+                  // promote first, then list (sequenced so the listing call sees
+                  // the freshly-updated row).
+                  if (shareMode !== 'authenticated') {
+                    void setShareMode.mutateAsync('authenticated').then(list);
+                  } else {
+                    list();
+                  }
+                }}
+                disabled={setIsPublic.isPending || setShareMode.isPending}
+              />
+            </div>
+
+            {isPublic ? (
+              <div className="space-y-sm">
+                <p className="text-sm text-foreground-heading">Bitte bestätige:</p>
+                <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
+                  {(['owner', 'public_data'] as const).map((choice: PublicOwnership) => (
+                    <button
+                      key={choice}
+                      type="button"
+                      onClick={() =>
+                        setIsPublic.mutate({ is_public: true, public_ownership: choice })
+                      }
+                      disabled={setIsPublic.isPending}
+                      className={cn(
+                        'flex flex-col gap-xs rounded-lg border p-md text-left transition-colors',
+                        publicOwnership === choice
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
+                          : 'border-grey-200 hover:border-primary-300 dark:border-grey-700 dark:hover:border-primary-600'
+                      )}
+                    >
+                      <span className="text-sm font-medium text-foreground">
+                        {choice === 'owner'
+                          ? 'Ich besitze die Inhalte'
+                          : 'Inhalte sind öffentlich verfügbar'}
+                      </span>
+                      <span className="text-xs text-grey-500">
+                        {choice === 'owner'
+                          ? '… oder habe die Rechte zur Veröffentlichung'
+                          : 'z.B. offizielle Inhalte, Pressematerial'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : null}
 
             <Separator />
