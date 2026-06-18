@@ -144,6 +144,23 @@ export class DateExtractor {
   }
 
   /**
+   * Parse a German short date (dd.mm.yyyy) — the format LV listing teasers print
+   * in their date label (e.g. the hessengruen theme's `.zeit`). `parseDate`
+   * (new Date(...)) can't read dd.mm.yyyy, so date-aware pagination needs this.
+   * Tolerates surrounding whitespace/text; returns null on miss so callers fall back.
+   */
+  static parseGermanDate(text: string): Date | null {
+    const match = text.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (!match) return null;
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    const date = new Date(year, month - 1, day);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  /**
    * Format date to ISO string (YYYY-MM-DD)
    */
   static toISODateString(date: Date): string {

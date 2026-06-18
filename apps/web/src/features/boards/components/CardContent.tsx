@@ -40,7 +40,7 @@ export const CardContent = memo(function CardContent({
   const title = (row.cells[FIELD_IDS.TITLE] as string) || '';
   const description = (row.cells[FIELD_IDS.DESCRIPTION] as string) || '';
   const dueDate = row.cells[FIELD_IDS.DUE_DATE] as string | null;
-  const labelIds = (row.cells[FIELD_IDS.LABELS] ?? []) as string[];
+  const labelIds = useMemo(() => (row.cells[FIELD_IDS.LABELS] ?? []) as string[], [row.cells]);
   const assignees = useMemo(() => parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]), [row.cells]);
 
   const checklist = useMemo(
@@ -102,7 +102,7 @@ export const CardContent = memo(function CardContent({
       tabIndex={0}
       style={{
         borderLeft: activeUser ? `3px solid ${activeUser.user.color}` : undefined,
-        opacity: isBeingDragged ? 0.4 : undefined,
+        opacity: isBeingDragged ? 0.4 : row.archivedAt ? 0.6 : undefined,
       }}
     >
       {row.coverImageUrl ? (
@@ -151,6 +151,15 @@ export const CardContent = memo(function CardContent({
             </span>
           ))}
         </div>
+      )}
+
+      {row.archivedAt && (
+        <Badge
+          variant="outline"
+          className="mb-1 text-[10px] py-0.5 px-1.5 font-normal text-grey-500"
+        >
+          Archiviert
+        </Badge>
       )}
 
       <p className="text-sm text-foreground m-0 leading-snug font-medium">

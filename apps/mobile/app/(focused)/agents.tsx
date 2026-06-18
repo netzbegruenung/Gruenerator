@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AgentCardList } from '../../components/agents/AgentCardList';
+import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { colors, spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
@@ -26,7 +27,15 @@ export default function AgentsScreen() {
   const { locale } = useAuth();
 
   const { data: userAgents = [], isLoading } = useUserAgents();
+  const { data: publicAgents = [] } = usePublicUserAgents();
   const systemAgents = useMemo(() => getVisibleSystemAgentsForLocale(locale), [locale]);
+
+  // "Von der Basis": publicly-listed community agents, minus the ones the user
+  // already owns (those show under "Meine Agent*innen").
+  const communityAgents = useMemo(
+    () => publicAgents.filter((pa) => !userAgents.some((ua) => ua.identifier === pa.identifier)),
+    [publicAgents, userAgents]
+  );
 
   const handleSelect = useCallback(
     (agent: Agent) => {
@@ -66,6 +75,13 @@ export default function AgentsScreen() {
               <AgentCardList agents={userAgents} onSelect={handleSelect} />
             </View>
           )
+        )}
+
+        {communityAgents.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Von der Basis</Text>
+            <AgentCardList agents={communityAgents} onSelect={handleSelect} />
+          </View>
         )}
 
         <View style={styles.section}>

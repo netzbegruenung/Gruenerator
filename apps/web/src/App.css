@@ -10,3 +10,38 @@
   color: var(--font-color);
   font-size: var(--font-size-base);
 }
+
+/* Desktop app only — the `docs-editor-desktop` class is applied to the docs
+   editor scroll area solely when running in the Tauri shell (see
+   DocsEditorPage). It makes the editor backdrop match the top bar (no
+   white-bar-over-gray seam) and adds a subtle border so the A4 page still
+   reads as a page. Web never gets this class, so its design is unchanged. */
+.docs-editor-desktop .blocknote-wrapper {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] .docs-editor-desktop .blocknote-wrapper {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Loading-icon keyframes (GrueneratorHomeIconLoading). Defined in the bundled
+   stylesheet rather than an inline <style> element: in the desktop (Tauri)
+   shell, Tauri adds a nonce to the CSP, which makes 'unsafe-inline' ignored and
+   blocks runtime <style> blocks — so an inline @keyframes wouldn't apply and the
+   icon wouldn't spin. The elements still set `animation: ghi-cog-spin …` via
+   their (allowed) inline style attribute; only the @keyframes live here. */
+@keyframes ghi-cog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ghi-dot-pulse {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-20px);
+  }
+}

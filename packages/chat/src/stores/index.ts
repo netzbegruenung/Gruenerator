@@ -11,3 +11,4 @@
 // assistant-ui import.
 export { useUserProfileStore, type UserRole } from './userProfileStore';
 export { useAgentStore } from './chatStore';
+export { setThreadListSlot, useThreadListSlot } from './threadListSlotStore';

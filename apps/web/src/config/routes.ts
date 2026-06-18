@@ -576,7 +576,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
-  { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
+  { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
   { path: '/sites', component: SitesHomePage, layoutMode: 'sidebarOnly' },
   { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },

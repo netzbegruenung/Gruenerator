@@ -42,6 +42,7 @@ export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { userTemplatesContract } from './userTemplatesContract.js';
 export { templateInteractionsContract } from './templateInteractionsContract.js';
 export { userAgentsContract } from './userAgentsContract.js';
+export { userAgentsSharingContract } from './userAgentsSharingContract.js';
 export { canvasAiContract } from './canvasAi.js';
 export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';

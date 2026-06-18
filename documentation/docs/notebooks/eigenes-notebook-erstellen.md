@@ -9,7 +9,7 @@ Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grüner
 
 ## Was du benötigst
 
-Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **100 Dokumente** pro Notebook.
+Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **100 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
 
 ## Schritt-für-Schritt
 
@@ -31,7 +31,7 @@ Beim Hochladen werden die gewählten Dateien zunächst als Vorschau **„Bereit 
 
 Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit **„Weiter →"** gelangst du zu Schritt 2 (Details).
 
-:::tip Hochladen vs. Indexieren
+:::tip[Hochladen vs. Indexieren]
 Das **Hochladen** dauert nur Sekunden, das anschließende **Indexieren** (damit der Inhalt durchsuchbar wird) läuft im Hintergrund weiter. Du erkennst noch laufende Indexierung an einem kleinen Lade-Indikator („Wird verarbeitet…") auf der Dokumenten-Karte. Du kannst das Notebook trotzdem schon erstellen.
 :::
 
@@ -57,13 +57,15 @@ Im dritten Schritt („Überprüfen — Alles bereit zum Erstellen?") siehst du 
 
 Klicke unten rechts auf **„Notebook erstellen"**. Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern landest du wieder in der Notebook-Übersicht und siehst eine Erfolgsmeldung.
 
-:::note Veröffentlichen kommt später
+:::note[Veröffentlichen kommt später]
 Beim Erstellen ist dein Notebook **privat**. Ob und für wen es sichtbar wird, legst du danach im **„Teilen"**-Menü fest — siehe unten.
 :::
 
 ## Dein Notebook teilen und veröffentlichen
 
-Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst und liegen jetzt im **„Teilen"**-Dialog. Du erreichst ihn über das **Drei-Punkte-Menü** des Notebooks in der Übersicht (Untermenü **„Teilen"**) oder über den **„Teilen"**-Button auf der Bearbeiten-Seite.
+Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der **„Teilen"**-Button: Öffne dein Notebook über **Bearbeiten**, dann findest du oben rechts — neben **„Alle Quellen aktualisieren"** — den Button **„Teilen"**. Er ist nur für die Eigentümer\*in sichtbar und öffnet den Dialog **„Notebook teilen"**, in dem du die gesamte Sichtbarkeit steuerst.
+
+(Das **„Teilen"**-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur **„Link kopieren"** und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.)
 
 Im Dialog **„Notebook teilen"** stellst du die **Sichtbarkeit** ein:
 
@@ -80,7 +82,7 @@ Im Modus **„Mit Anmeldung"** kannst du zusätzlich den Schalter **„Auf ‚Vo
 
 Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden.
 
-:::caution Privat ist die sichere Voreinstellung
+:::warning[Privat ist die sichere Voreinstellung]
 Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern.
 :::
 
@@ -89,13 +91,13 @@ Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kanns
 Im Abschnitt **„Eigene"** erscheint jedes deiner Notebooks als Karte. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
 
 - **Bearbeiten** — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per **„Alle Quellen aktualisieren"** neu synchronisieren.
-- **Teilen** — Untermenü mit **„Link kopieren"** (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung steckt im **„Teilen"**-Dialog (siehe oben).
+- **Teilen** — Untermenü mit **„Link kopieren"** (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe [Notebook teilen](#dein-notebook-teilen-und-verffentlichen)).
 - **Löschen** — entfernt das Notebook unwiderruflich. **Wichtig:** Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden.
 
 ## Häufige Fragen
 
 **Wo schalte ich ein Notebook öffentlich?**
-Nicht mehr in der Erstellung, sondern im **„Teilen"**-Dialog. Wähle die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Von der Basis' listen"**, um es auf der Notebooks-Seite sichtbar zu machen.
+Nicht mehr in der Erstellung. Öffne das Notebook über **Bearbeiten** und klicke oben rechts auf **„Teilen"**. Wähle im Dialog die Sichtbarkeit **„Mit Anmeldung"** und aktiviere **„Auf ‚Von der Basis' listen"**, um es auf der Notebooks-Seite sichtbar zu machen.
 
 **Was passiert mit Dokumenten, wenn ich ein Notebook lösche?**
 Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht.
@@ -107,7 +109,7 @@ Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bib
 Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist.
 
 **Mein Dokument wird nicht akzeptiert.**
-Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF). Andere Formate musst du vorher konvertieren.
+Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF) und die Dateigröße (max. 50 MB). Andere Formate musst du vorher konvertieren.
 
 ## Verwandte Themen
 

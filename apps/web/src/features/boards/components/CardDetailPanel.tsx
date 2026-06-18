@@ -1,6 +1,5 @@
 import { useAgentStore } from '@gruenerator/chat';
 import {
-  Badge,
   Button,
   Calendar,
   DropdownMenu,
@@ -38,6 +37,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { PhosphorIcon } from '../../agents/icons/PhosphorIcon';
 import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardActivity } from '../hooks/useBoardActivity';
 import { useCardSubscription } from '../hooks/useCardSubscription';
@@ -262,21 +262,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     }
   }, [row, title, onUpdateCell]);
 
-  const toggleLabel = useCallback(
-    (labelId: string) => {
-      if (!row) return;
-      const updated = selectedLabelIds.includes(labelId)
-        ? selectedLabelIds.filter((id) => id !== labelId)
-        : [...selectedLabelIds, labelId];
-      setSelectedLabelIds(updated);
-      onUpdateCell(row.id, FIELD_IDS.LABELS, updated);
-    },
-    [row, selectedLabelIds, onUpdateCell]
-  );
-
   // Explicit removal — works even for labels whose board option no longer exists
-  // (e.g. the option was deleted but the card still references the id), which the
-  // toggle list below can't show.
+  // (e.g. the option was deleted but the card still references the id).
   const removeLabel = useCallback(
     (labelId: string) => {
       if (!row) return;
@@ -348,12 +335,26 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       if (!row) return;
       setAssignees(next);
       onUpdateCell(row.id, FIELD_IDS.ASSIGNEE, serializeAssignees(next));
+      // Diff against the previous assignees. Newly-added people get a notification;
+      // a newly-added bot/agent delegates the card's task to it (the worker gathers
+      // the full card context). Agent ids (slugs) must NOT enter addedAssigneeIds —
+      // it is cast to ::uuid[] server-side — so they ride in delegateAgentId.
+      const prevIds = new Set(assignees.map((a) => a.id).filter(Boolean));
+      const added = next.filter((a) => a.id && !prevIds.has(a.id) && a.id !== currentUserId);
+      const addedAssigneeIds = added.filter((a) => !a.agentId).map((a) => a.id);
+      const delegateAgentId = added.find((a) => a.agentId)?.agentId;
+      const delegates = addedAssigneeIds.length > 0 || Boolean(delegateAgentId);
       recordActivity.mutate({
         type: 'assignees_changed',
-        payload: { names: next.map((a) => a.name) },
+        payload: {
+          names: next.map((a) => a.name),
+          ...(addedAssigneeIds.length ? { addedAssigneeIds } : {}),
+          ...(delegates ? { cardTitle: title, cardDescription: description } : {}),
+          ...(delegateAgentId ? { delegateAgentId } : {}),
+        },
       });
     },
-    [row, onUpdateCell, recordActivity]
+    [row, onUpdateCell, recordActivity, assignees, currentUserId, title, description]
   );
 
   // Multi-select: picking a member toggles them in/out of the assignee list.
@@ -391,6 +392,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     if (!row) return;
     onUpdateRow(row.id, { archivedAt: new Date().toISOString() });
     recordActivity.mutate({ type: 'card_archived' });
+    onOpenChange(false);
+  }, [row, onUpdateRow, onOpenChange, recordActivity]);
+
+  const handleRestore = useCallback(() => {
+    if (!row) return;
+    onUpdateRow(row.id, { archivedAt: undefined });
+    recordActivity.mutate({ type: 'card_restored' });
     onOpenChange(false);
   }, [row, onUpdateRow, onOpenChange, recordActivity]);
 
@@ -512,19 +520,43 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         Duplizieren
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={handleArchive}>
-                      <FiArchive className="mr-2" size={13} />
-                      Archivieren
-                    </DropdownMenuItem>
+                    {row.archivedAt ? (
+                      <DropdownMenuItem onClick={handleRestore}>
+                        <FiArchive className="mr-2" size={13} />
+                        Wiederherstellen
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={handleArchive}>
+                        <FiArchive className="mr-2" size={13} />
+                        Archivieren
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
                       onClick={async () => {
-                        const ok = await confirm({
-                          title: 'Karte löschen?',
-                          description:
-                            'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
-                        });
+                        const docCount = linkedDocs.length;
+                        const ok = await confirm(
+                          docCount > 0
+                            ? {
+                                title: 'Aufgabe löschen?',
+                                description: `Diese Aufgabe hat ${docCount} verknüpfte${
+                                  docCount === 1 ? 's' : ''
+                                } Dokument${
+                                  docCount === 1 ? '' : 'e'
+                                }. Die Dokumente bleiben erhalten – du findest sie weiterhin unter „Dokumente". Nur die Verknüpfung zur Aufgabe geht verloren.`,
+                                confirmLabel: 'Trotzdem löschen',
+                                alternateAction: {
+                                  label: 'Archivieren',
+                                  onSelect: handleArchive,
+                                },
+                              }
+                            : {
+                                title: 'Karte löschen?',
+                                description:
+                                  'Diese Karte und ihr gesamter Inhalt werden unwiderruflich gelöscht.',
+                              }
+                        );
                         if (!ok) return;
                         onDelete(row.id);
                         onOpenChange(false);
@@ -581,7 +613,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             </div>
           </div>
 
-          <div className="px-4 pb-6 sm:px-6">
+          <div className="px-4 pb-4 sm:px-6">
             <CardDescription
               value={description}
               onSave={(md) => {
@@ -591,8 +623,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             />
           </div>
 
-          <div className="border-t border-grey-200 dark:border-grey-700 px-4 py-4 space-y-4 sm:px-6">
-            {/* Labels */}
+          {/* Labels — surfaced directly under the description, above the field list */}
+          <div className="px-4 pb-4 sm:px-6">
             <div className="flex flex-row">
               <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
                 <FiTag className="inline mr-1.5" size={13} />
@@ -619,29 +651,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         </button>
                       </span>
                     ))}
-                  </div>
-                )}
-                {/* Add labels — click an option to assign (already-assigned hidden). */}
-                {labelOptions.some((o) => !selectedLabelIds.includes(o.id)) && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {labelOptions
-                      .filter((opt) => !selectedLabelIds.includes(opt.id))
-                      .map((opt) => (
-                        <Badge
-                          key={opt.id}
-                          className="cursor-pointer text-xs"
-                          style={{ backgroundColor: 'transparent' }}
-                          variant="outline"
-                          onClick={() => toggleLabel(opt.id)}
-                          title="Label hinzufügen"
-                        >
-                          <span
-                            className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
-                            style={{ backgroundColor: opt.color }}
-                          />
-                          {opt.name}
-                        </Badge>
-                      ))}
                   </div>
                 )}
                 <div className="flex gap-1.5 items-center">
@@ -718,7 +727,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 </div>
               </div>
             </div>
+          </div>
 
+          <div className="border-t border-grey-200 dark:border-grey-700 px-4 py-4 space-y-4 sm:px-6">
             {/* Assignees — available whenever the card has a board context */}
             {boardId && (
               <div className="flex flex-row">
@@ -734,13 +745,19 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                           key={`${a.id}-${a.name}`}
                           className="inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 pl-1 pr-1.5 py-0.5 group/assignee"
                         >
-                          <RobotAvatar
-                            robotId={a.avatarRobotId ?? 1}
-                            displayName={a.name}
-                            sizePx={20}
-                            className="w-5 h-5 shrink-0"
-                            alt=""
-                          />
+                          {a.agentId ? (
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">
+                              <PhosphorIcon name="PiSparkle" className="h-4 w-4" />
+                            </span>
+                          ) : (
+                            <RobotAvatar
+                              robotId={a.avatarRobotId ?? 1}
+                              displayName={a.name}
+                              sizePx={20}
+                              className="w-5 h-5 shrink-0"
+                              alt=""
+                            />
+                          )}
                           <span className="text-xs text-foreground truncate max-w-[120px]">
                             {a.name}
                           </span>
@@ -770,11 +787,13 @@ export const CardDetailPanel = memo(function CardDetailPanel({
               </div>
             )}
 
-            {/* Due date */}
+            {/* Termin — due date + recurrence. Recurrence lives inside the date
+                popover because it's a property of the due date: completing the card
+                spawns the next occurrence relative to it. */}
             <div className="flex flex-row">
               <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
                 <FiCalendar className="inline mr-1.5" size={13} />
-                Fällig
+                Termin
               </p>
               <div className="flex-1">
                 <Popover>
@@ -784,13 +803,22 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       className="flex items-center gap-2 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 transition-colors cursor-pointer data-[empty=true]:text-grey-400 dark:data-[empty=true]:text-grey-300"
                     >
                       <FiCalendar size={13} />
-                      {dueDate
-                        ? new Date(dueDate).toLocaleDateString('de-DE', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : 'Datum wählen'}
+                      <span>
+                        {dueDate
+                          ? new Date(dueDate).toLocaleDateString('de-DE', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            })
+                          : 'Datum wählen'}
+                      </span>
+                      {recurrence && (
+                        <span className="flex items-center gap-1 text-grey-400 dark:text-grey-300">
+                          <span className="text-grey-300 dark:text-grey-600">·</span>
+                          <FiRepeat size={12} />
+                          {RECURRENCE_OPTIONS.find((o) => o.id === recurrence)?.name}
+                        </span>
+                      )}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -810,6 +838,36 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                         });
                       }}
                     />
+                    {/* Recurrence — when set, completing the card spawns the next occurrence */}
+                    <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2.5">
+                      <label className="flex items-center gap-1.5 text-xs font-medium text-grey-500 dark:text-grey-100 mb-1.5">
+                        <FiRepeat size={12} />
+                        Wiederholung
+                      </label>
+                      <select
+                        value={recurrence}
+                        onChange={(e) => {
+                          if (!row) return;
+                          const value = e.target.value;
+                          setRecurrence(value);
+                          onUpdateCell(row.id, FIELD_IDS.RECURRENCE, value || null);
+                        }}
+                        className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 focus:border-primary-500 transition-colors cursor-pointer"
+                      >
+                        <option value="">Nicht wiederkehrend</option>
+                        {RECURRENCE_OPTIONS.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.name}
+                          </option>
+                        ))}
+                      </select>
+                      {recurrence && (
+                        <p className="text-xs text-grey-400 dark:text-grey-300 mt-1.5 m-0">
+                          Beim Abschließen wird automatisch eine neue Karte mit nächstem
+                          Fälligkeitsdatum erstellt.
+                        </p>
+                      )}
+                    </div>
                     {dueDate && (
                       <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2">
                         <button
@@ -832,49 +890,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
               </div>
             </div>
 
-            {/* Recurrence — when set, completing the card spawns the next occurrence */}
-            <div className="flex flex-row">
-              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
-                <FiRepeat className="inline mr-1.5" size={13} />
-                Wiederholung
-              </p>
-              <div className="flex-1">
-                <select
-                  value={recurrence}
-                  onChange={(e) => {
-                    if (!row) return;
-                    const value = e.target.value;
-                    setRecurrence(value);
-                    onUpdateCell(row.id, FIELD_IDS.RECURRENCE, value || null);
-                  }}
-                  className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 focus:border-primary-500 transition-colors cursor-pointer"
-                >
-                  <option value="">Nicht wiederkehrend</option>
-                  {RECURRENCE_OPTIONS.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
-                {recurrence && (
-                  <p className="text-xs text-grey-400 dark:text-grey-300 mt-1 m-0">
-                    Beim Abschließen wird automatisch eine neue Karte mit nächstem Fälligkeitsdatum
-                    erstellt.
-                  </p>
-                )}
-              </div>
-            </div>
-
             {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
                 Expert-only; renders nothing unless the card's status column carries an aiTask. */}
-            {row && expertMode && (
-              <AgentRunButton
-                boardId={boardId}
-                row={row}
-                fields={fields}
-                onLinkDocument={addLinkedDoc}
-              />
-            )}
+            {expertMode && <AgentRunButton boardId={boardId} row={row} fields={fields} />}
 
             {/* Linked documents */}
             <div className="flex flex-row items-start">

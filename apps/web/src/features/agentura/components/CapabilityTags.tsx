@@ -21,7 +21,7 @@ function toolCount(agent: Agent): number {
 
 function hasKnowledge(agent: Agent): boolean {
   return Boolean(
-    agent.defaultNotebookId ||
+    (agent.defaultNotebookIds?.length ?? 0) > 0 ||
     agent.toolRestrictions?.defaultCollection ||
     (agent.toolRestrictions?.allowedCollections?.length ?? 0) > 0
   );

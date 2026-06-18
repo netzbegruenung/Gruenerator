@@ -14,7 +14,10 @@ import {
 } from '@gruenerator/shared/agents';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { getUserAgent as getUserAgentRow } from '../../../services/userAgents/userAgentsRepository.js';
+import {
+  getGroupSharedUserAgent,
+  getUserAgent as getUserAgentRow,
+} from '../../../services/userAgents/userAgentsRepository.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AgentConfig } from './types.js';
@@ -48,8 +51,9 @@ export function clearAgentsCache(): void {
 
 /**
  * Resolves an agent for a user: system registry → user-created agents
- * (`user_agents` table). Returns undefined if neither matches; legacy
- * `custom_prompts` fallback lives in `getAgentOrCustomPrompt` below.
+ * (`user_agents` table, owner-scoped) → agents shared into a group the user is
+ * an active member of. Returns undefined if none match; legacy `custom_prompts`
+ * fallback lives in `getAgentOrCustomPrompt` below.
  *
  * Converted custom generators are plain `user_agents` rows (identifier
  * `cg-<slug>`), so they resolve through the same path as any other user agent.
@@ -64,6 +68,11 @@ export async function getAgentForUser(
   try {
     const userAgent = await getUserAgentRow(userId, identifier);
     if (userAgent) return userAgent as AgentConfig;
+
+    // Not the owner — fall back to an agent shared into one of the user's
+    // groups (dedicated agent-share flow, keyed by the agent's UUID).
+    const sharedAgent = await getGroupSharedUserAgent(identifier, userId);
+    if (sharedAgent) return sharedAgent as AgentConfig;
   } catch (error) {
     log.error('[AgentLoader] Error looking up user agent:', error);
   }

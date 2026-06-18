@@ -91,15 +91,34 @@ const DEFAULT_CONFIG: NotificationTypeConfig = {
   icon: Bell,
 };
 
+// Several raw notification types are merged under one config key via `subtypes`
+// (e.g. board_user_mentioned → board_comment_added). Without resolving them, the
+// direct key lookup below would miss the subtype and fall back to DEFAULT_CONFIG
+// — meaning no icon, group, or action button. This reverse index maps each
+// subtype back to its parent key so subtypes inherit the parent's config.
+const SUBTYPE_TO_PARENT: Record<string, string> = Object.entries(NOTIFICATION_TYPES).reduce(
+  (acc, [key, cfg]) => {
+    cfg.subtypes?.forEach((sub) => {
+      acc[sub] = key;
+    });
+    return acc;
+  },
+  {} as Record<string, string>
+);
+
+function resolveKey(type: string): string {
+  return NOTIFICATION_TYPES[type] ? type : (SUBTYPE_TO_PARENT[type] ?? type);
+}
+
 export function getNotificationConfig(type: string): NotificationTypeConfig {
-  return NOTIFICATION_TYPES[type] ?? DEFAULT_CONFIG;
+  return NOTIFICATION_TYPES[resolveKey(type)] ?? DEFAULT_CONFIG;
 }
 
 export function getNotificationActions(
   type: string,
   ctx: NotificationActionContext
 ): NotificationAction[] {
-  const config = NOTIFICATION_TYPES[type];
+  const config = NOTIFICATION_TYPES[resolveKey(type)];
   return ((config?.actions?.(ctx) ?? []).filter(Boolean) as NotificationAction[]).slice(
     0,
     MAX_ACTIONS

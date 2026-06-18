@@ -123,13 +123,14 @@ export interface Agent {
    */
   hiddenFromInventory?: boolean;
   /**
-   * Notebook ID this agent auto-selects when the user opens its chat
-   * (`ChatPage` calls `setSelectedNotebook` with this on agent activation).
+   * Notebooks this agent binds as its combined default knowledge base. All of
+   * them scope the agent's search server-side (resolved from the agent record
+   * in ChatGraph), and the chat composer auto-selects the first for continuity.
    * Used by the per-LV PR agents so the regional notebook pairs with the
-   * regional agent without an extra click. Set by the LV-spec generator
-   * in `system.ts`; absent on hand-written entries.
+   * regional agent without an extra click. Set by the LV-spec generators;
+   * absent on hand-written entries.
    */
-  defaultNotebookId?: string;
+  defaultNotebookIds?: readonly string[];
   /**
    * Routing hint for the "Automatisch" model picker. Read by the frontend
    * resolver (`resolveAutoModel`) to map this agent to a context-appropriate

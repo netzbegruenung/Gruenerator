@@ -7,7 +7,7 @@ import { FiZap } from 'react-icons/fi';
 
 import { OUTPUT_UI, PRESET_UI, SOURCE_UI } from './catalog';
 import { buildCardContext, getCardAiTask } from './helpers';
-import { useAgentRun, type LinkedDocument } from './useAgentRun';
+import { useAgentRun } from './useAgentRun';
 
 import type { Field, Row } from '../types';
 
@@ -15,13 +15,11 @@ interface AgentRunButtonProps {
   boardId?: string;
   row: Row;
   fields: Field[];
-  /** Links the generated document into the card's "Dokumente" (live, client-side). */
-  onLinkDocument?: (doc: LinkedDocument) => void;
 }
 
-export function AgentRunButton({ boardId, row, fields, onLinkDocument }: AgentRunButtonProps) {
+export function AgentRunButton({ boardId, row, fields }: AgentRunButtonProps) {
   const aiTask = getCardAiTask(fields, row);
-  const { run, isRunning } = useAgentRun(boardId, onLinkDocument);
+  const { run, isRunning } = useAgentRun(boardId);
 
   if (!aiTask || !boardId) return null;
 
