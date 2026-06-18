@@ -31,17 +31,27 @@ export class WpApiExtractor {
   async extractArticleLinks(
     source: LandesverbandSource,
     contentPath: ContentPath,
-    log: (msg: string) => void
+    log: (msg: string) => void,
+    modifiedAfter?: Date | null
   ): Promise<string[]> {
     if (!contentPath.wpApi) return [];
 
     const { categoryId, maxPages = 50 } = contentPath.wpApi;
     const perPage = 100;
+    // Incremental window: restrict to posts changed since `modifiedAfter`, newest
+    // first, so an hourly run pulls the handful of recent edits instead of the
+    // whole category. Catches edits to existing posts, not just new ones.
+    const recentQuery = modifiedAfter
+      ? `&modified_after=${modifiedAfter.toISOString()}&orderby=modified&order=desc`
+      : '';
+    if (modifiedAfter) {
+      log(`[WP API] incremental: posts modified after ${modifiedAfter.toISOString()}`);
+    }
     const links = new Set<string>();
     let page = 1;
 
     while (page <= maxPages) {
-      const url = `${source.baseUrl}/wp-json/wp/v2/posts?categories=${categoryId}&per_page=${perPage}&page=${page}&_fields=link`;
+      const url = `${source.baseUrl}/wp-json/wp/v2/posts?categories=${categoryId}&per_page=${perPage}&page=${page}&_fields=link${recentQuery}`;
       let response: Response;
       try {
         response = await this.fetchUrl(url);
