@@ -120,7 +120,7 @@ function AgentDetailPage() {
 
   const tools = [...(agent.enabledTools ?? []), ...(agent.plugins ?? [])];
   const knowledge: string[] = [];
-  if (agent.defaultNotebookId) knowledge.push(agent.defaultNotebookId);
+  for (const id of agent.defaultNotebookIds ?? []) knowledge.push(id);
   if (agent.toolRestrictions?.defaultCollection)
     knowledge.push(agent.toolRestrictions.defaultCollection);
   for (const c of agent.toolRestrictions?.allowedCollections ?? []) knowledge.push(c);
