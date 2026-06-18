@@ -102,10 +102,36 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
 }
 
 /**
- * Delegate a card to an agent (or the generic bot) when it's assigned. The card's
- * title + description become the task; the worker adds the full card context. Uses
- * the same durable queue + legacy worker path as the comment @-mention.
+ * Delegate a card to an agent (or the generic bot) when it's assigned. Unlike the
+ * comment @-mention (which carries an explicit user instruction), an assignment has
+ * no written ask — so we build a board-anchored instruction from the card's title +
+ * description and tell the agent to stay strictly on the card's topic. Without this
+ * anchor a strong agent persona drifts and produces something unrelated to the board.
+ * The worker additionally injects the full card context (column, comments, documents).
+ * Uses the same durable queue + legacy worker path as the comment @-mention.
  */
+function buildAssignmentTask(cardTitle: string | null, cardDescription: string | null): string {
+  const title = cardTitle?.trim();
+  const description = cardDescription?.trim();
+  const cardBody = [
+    title ? `Titel: ${title}` : '',
+    description ? `Beschreibung:\n${description}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  return (
+    'Du wurdest einer Aufgabe auf einem Board zugewiesen. Bearbeite die in dieser Karte ' +
+    'beschriebene Aufgabe. Stütze dich ausschließlich auf den Karteninhalt sowie die Kommentare ' +
+    'und verknüpften Dokumente aus dem bereitgestellten Kontext. Bleibe strikt beim Thema der ' +
+    'Karte und erfinde keine fremden Themen.' +
+    (cardBody
+      ? `\n\n${cardBody}`
+      : '\n\n(Die Karte hat noch keinen Titel und keine Beschreibung — orientiere dich an den ' +
+        'Kommentaren und dem Kontext der Karte.)')
+  );
+}
+
 async function delegateCardToAgent(params: {
   boardId: string;
   cardId: string;
@@ -118,9 +144,7 @@ async function delegateCardToAgent(params: {
     `SELECT locale FROM profiles WHERE id = $1`,
     [params.requestedBy]
   );
-  const taskText =
-    `${params.cardTitle ?? ''}\n\n${params.cardDescription ?? ''}`.trim() ||
-    'Erledige die in dieser Karte beschriebene Aufgabe.';
+  const taskText = buildAssignmentTask(params.cardTitle, params.cardDescription);
 
   await enqueueAgentTask({
     boardId: params.boardId,
