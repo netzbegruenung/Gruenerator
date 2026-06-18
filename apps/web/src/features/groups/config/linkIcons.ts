@@ -11,7 +11,6 @@ import {
   HiVideoCamera,
 } from 'react-icons/hi';
 import {
-  SiCanva,
   SiDiscord,
   SiFigma,
   SiGithub,
@@ -35,6 +34,9 @@ import {
 
 import type { IconType } from 'react-icons';
 
+import { CanvaLogoIcon } from '@/features/canva/components/CanvaLogo';
+
+
 export interface LinkIconEntry {
   key: string;
   label: string;
@@ -50,7 +52,7 @@ export const LINK_ICONS: LinkIconEntry[] = [
   { key: 'discord', label: 'Discord', icon: SiDiscord },
   { key: 'slack', label: 'Slack', icon: SiSlack },
   { key: 'mattermost', label: 'Mattermost', icon: SiMattermost },
-  { key: 'canva', label: 'Canva', icon: SiCanva },
+  { key: 'canva', label: 'Canva', icon: CanvaLogoIcon },
   { key: 'figma', label: 'Figma', icon: SiFigma },
   { key: 'miro', label: 'Miro', icon: SiMiro },
   { key: 'drive', label: 'Drive', icon: SiGoogledrive },

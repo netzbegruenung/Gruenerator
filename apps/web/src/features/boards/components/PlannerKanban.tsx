@@ -4,7 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { memo, useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback, useEffect, useMemo } from 'react';
 import { FiPlus, FiZap } from 'react-icons/fi';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -230,6 +230,10 @@ interface PlannerKanbanProps {
   provider?: HocuspocusProvider | null;
   // Grünerator-Spalten (AI columns) are expert-only; gates creation + run buttons.
   expertMode?: boolean;
+  // When set (e.g. opened from a notification's `?card=` deep link), open the
+  // card detail panel for this row, then call onDeepLinkConsumed to clear it.
+  deepLinkRow?: Row | null;
+  onDeepLinkConsumed?: () => void;
 }
 
 export function PlannerKanban({
@@ -249,6 +253,8 @@ export function PlannerKanban({
   boardId,
   provider,
   expertMode = false,
+  deepLinkRow,
+  onDeepLinkConsumed,
 }: PlannerKanbanProps) {
   const { userName, userAvatarRobotId } = useAuthStore(
     useShallow((s) => ({
@@ -296,6 +302,17 @@ export function PlannerKanban({
     },
     [broadcastActivity]
   );
+
+  // Open the detail panel for a deep-linked card (?card=) once the parent has
+  // resolved it, then clear the link so closing the panel won't re-trigger.
+  useEffect(() => {
+    if (deepLinkRow) {
+      setSelectedRow(deepLinkRow);
+      setDetailOpen(true);
+      broadcastActivity({ selectedCardId: deepLinkRow.id });
+      onDeepLinkConsumed?.();
+    }
+  }, [deepLinkRow, broadcastActivity, onDeepLinkConsumed]);
 
   const handleRenameCard = useCallback(
     (rowId: string, title: string) => updateRowCell(rowId, FIELD_IDS.TITLE, title),
