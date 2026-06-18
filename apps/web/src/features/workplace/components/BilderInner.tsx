@@ -23,6 +23,7 @@ import {
   ResponsiveMenuItem,
   ResponsiveMenuSection,
   SettingsDropdown,
+  StatusBanner,
   pillBase,
   pillInactive,
   type SettingConfig,
@@ -33,6 +34,7 @@ import { Check, Download, Image as ImageIcon, ImagePlus, Settings, X } from 'luc
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
+import { AI_TRANSPARENCY } from '../../../config/aiTransparency';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import { useLightbox } from '../../image-studio/hooks/useLightbox';
 import {
@@ -1438,6 +1440,13 @@ const BilderInner: React.FC = memo(() => {
           isVergroessern
             ? !!sourceFile && !!sourceDims && (!isCustomAspect || customSizeValid)
             : undefined
+        }
+        footer={
+          kiLabel === 'none' ? (
+            <StatusBanner variant="warning" className="w-full text-center">
+              {AI_TRANSPARENCY.imageNoneWarning}
+            </StatusBanner>
+          ) : undefined
         }
       />
 

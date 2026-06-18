@@ -4,6 +4,7 @@ import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { AITransparencyHint } from '../../../components/common/AITransparencyHint';
 import useFormAttachments from '../../../components/common/Form/hooks/useFormAttachments';
 import useStreamingFormSubmission from '../../../components/common/Form/hooks/useStreamingFormSubmission';
 import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
@@ -143,6 +144,7 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
         error={error}
         placeholder={def.placeholder}
         toolbar={toolbar}
+        footer={<AITransparencyHint />}
       />
     </>
   );
