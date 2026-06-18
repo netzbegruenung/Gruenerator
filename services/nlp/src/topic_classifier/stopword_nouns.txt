@@ -50,11 +50,15 @@ bsw
 bündnis
 fraktion
 
-# --- Namen / Titel ---
+# --- Titel ---
 dr.
 prof.
 dr
 prof
+
+# --- Namen / Personen (ausgeschlossen) ---
+# Personennamen, die in den Statistiken nicht als Keyword auftauchen sollen.
+# Token-weise gematcht: mehrteilige Namen je Bestandteil in eine eigene Zeile.
 vincent
 willock
 
