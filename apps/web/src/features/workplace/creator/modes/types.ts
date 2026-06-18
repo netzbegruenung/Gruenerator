@@ -1,6 +1,13 @@
-import type { GeneratorSetupConfig } from '../../../hooks/useGeneratorSetup';
 import type { AIPromptInputExample, SettingConfig } from '@gruenerator/ui';
 import type { ReactNode } from 'react';
+
+/** Instruction profile used to seed the generator system prompt. */
+export type InstructionType =
+  | 'social'
+  | 'antrag'
+  | 'universal'
+  | 'gruenejugend'
+  | 'custom_generator';
 
 export type ModeState = Record<string, string | string[]>;
 
@@ -24,7 +31,7 @@ export interface TagInputConfig {
 export interface ModeDefinition {
   id: string;
   endpoint: string;
-  instructionType: GeneratorSetupConfig['instructionType'];
+  instructionType: InstructionType;
   componentName: string;
   defaultMode: 'balanced' | 'pro' | 'privacy';
   searchQueryFields: readonly string[];

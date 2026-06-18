@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import FeatureIcons from '../../../components/common/FeatureIcons';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useUserDefaults from '../../../hooks/useUserDefaults';
-import { MODE_MAP } from '../../texte/modes';
+import { MODE_MAP } from '../creator/modes';
 
 const BOARD_MODE_ID = 'boards';
 
