@@ -356,7 +356,7 @@ const DesktopDownloadSection = () => {
       </div>
       <p className="text-center text-sm text-grey-600 dark:text-grey-400">
         Der Grünerator als native Mac-App. Diese Beta-Version dient zum Testen — bitte melde uns
-        Fehler. {beta?.notes}
+        Fehler.
       </p>
 
       {beta && platforms.length > 0 ? (
