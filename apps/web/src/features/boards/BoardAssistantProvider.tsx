@@ -1,5 +1,9 @@
 'use client';
 
+/* eslint-disable react-hooks/refs --
+   Uses the "latest ref" pattern: live Yjs/board state is mirrored into refs (assigned
+   during render) so the long-lived chat context provider and board action handler read
+   fresh values without re-registering on every board update. */
 import {
   AssistantRuntimeProvider,
   AuiProvider,
