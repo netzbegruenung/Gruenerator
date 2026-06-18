@@ -268,7 +268,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
-  const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
@@ -383,7 +382,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
   app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
-  app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
