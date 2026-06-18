@@ -14,6 +14,9 @@
  *                             apps/api/config/landesverbaendeContacts.json and
  *                             only sent when stored/updated/errors > 0.
  *   --force                  Force re-process even if already stored
+ *   --recent                 Incremental: only discover the newest items (WP REST
+ *                             modified_after window; first pages of HTML listings).
+ *                             For hourly runs; the nightly run omits it for a full walk.
  *   --dry-run                Preview without storing (only supported by landesverbaende)
  *   --concurrency <n>        Max parallel source groups (default: 2)
  *
@@ -51,13 +54,21 @@ interface CliArgs {
   landesverband?: string;
   force: boolean;
   dryRun: boolean;
+  /** Incremental run: discover only the newest items (hourly). Off = full walk (nightly). */
+  recent: boolean;
   concurrency: number;
   noEmail: boolean;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const result: CliArgs = { force: false, dryRun: false, concurrency: 2, noEmail: false };
+  const result: CliArgs = {
+    force: false,
+    dryRun: false,
+    recent: false,
+    concurrency: 2,
+    noEmail: false,
+  };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -72,6 +83,9 @@ function parseArgs(): CliArgs {
         break;
       case '--dry-run':
         result.dryRun = true;
+        break;
+      case '--recent':
+        result.recent = true;
         break;
       case '--concurrency':
         result.concurrency = Math.max(1, parseInt(args[++i], 10) || 2);
@@ -117,6 +131,7 @@ const SOURCE_GROUPS: SourceGroup[] = [
       const result = await landesverbandScraperService.scrapeAllSources({
         forceUpdate: args.force,
         dryRun: args.dryRun,
+        recent: args.recent,
       });
       return {
         stored: result.stored,
@@ -389,6 +404,7 @@ async function main() {
           const result = await landesverbandScraperService.scrapeAllSources({
             forceUpdate: a.force,
             dryRun: a.dryRun,
+            recent: a.recent,
             landesverband: lvCode,
           });
           return {
