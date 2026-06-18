@@ -127,6 +127,12 @@ export interface LandesverbandScrapeOptions {
   maxDocuments?: number | null | undefined;
   /** Dry run: extract links and check Qdrant, but don't download/process */
   dryRun?: boolean | undefined;
+  /**
+   * Incremental discovery: only surface the newest items — WP REST modified_after
+   * window, and the first pages of HTML listings — instead of walking the full
+   * archive. For hourly runs; the nightly run leaves it off for a complete walk.
+   */
+  recent?: boolean | undefined;
 }
 
 /**

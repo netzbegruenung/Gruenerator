@@ -175,7 +175,15 @@ export class LandesverbandScraper extends BaseScraper {
     contentPath: ContentPath,
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
-    const { forceUpdate = false, maxDocuments = null, dryRun = false } = options;
+    const { forceUpdate = false, maxDocuments = null, dryRun = false, recent = false } = options;
+    // Incremental hourly window (see --recent): WP REST discovery gets a
+    // modified_after filter; HTML listings are capped to their first pages. The
+    // nightly run leaves `recent` off for a full walk. A 2-day lookback is
+    // stateless and gap-proof across the overnight pause, and re-seeing an
+    // already-indexed item is a cheap freshness-gated Qdrant skip.
+    const RECENT_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
+    const RECENT_MAX_PAGES = 2;
+    const modifiedAfter = recent ? new Date(Date.now() - RECENT_LOOKBACK_MS) : null;
     const targetCollection = source.qdrantCollection || this.config.collectionName;
     const result: ContentPathResult = {
       contentType: contentPath.type,
@@ -343,7 +351,8 @@ export class LandesverbandScraper extends BaseScraper {
         articleLinks = await this.wpApiExtractor.extractArticleLinks(
           source,
           contentPath,
-          this.log.bind(this)
+          this.log.bind(this),
+          modifiedAfter
         );
       } else if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
         this.log(`Using sitemap extraction for ${contentPath.type}`);
@@ -353,9 +362,20 @@ export class LandesverbandScraper extends BaseScraper {
           this.log.bind(this)
         );
       } else {
+        // Incremental: cap HTML-listing discovery to the first pages (newest items
+        // sit on page 1 of a reverse-chronological listing). The full walk runs nightly.
+        const discoveryPath =
+          recent && (contentPath.maxPages ?? RECENT_MAX_PAGES) > RECENT_MAX_PAGES
+            ? { ...contentPath, maxPages: RECENT_MAX_PAGES }
+            : contentPath;
+        if (recent) {
+          this.log(
+            `Incremental: first ${discoveryPath.maxPages ?? RECENT_MAX_PAGES} listing page(s) only`
+          );
+        }
         articleLinks = await this.linkExtractor.extractArticleLinks(
           source,
-          contentPath,
+          discoveryPath,
           this.log.bind(this)
         );
       }
