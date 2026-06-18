@@ -1,9 +1,9 @@
 /**
  * Mutation hook for "Grünerator-Agent starten". Enqueues the flow task, then polls
- * its status for completion feedback. The generated document is linked into the card
- * and shared with the board's members server-side (Hocuspocus internal API, see
- * apps/api boardLinkService / boardSharingService), so the link survives even if this
- * tab is closed. `isRunning` debounces the button and stays true through the poll.
+ * its status for completion feedback. The generated document is recorded in the card's
+ * Grünerator-Dokumente list and shared with the board's members server-side (see
+ * apps/api cardDocumentService / boardSharingService), so the link survives even if
+ * this tab is closed. `isRunning` debounces the button and stays true through the poll.
  */
 import { type BoardAiTask, type BoardFlowCardContext } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
