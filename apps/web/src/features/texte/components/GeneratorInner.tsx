@@ -4,6 +4,7 @@ import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { AITransparencyHint } from '../../../components/common/AITransparencyHint';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGenerator } from '../hooks/useGenerator';
 import { useModeState } from '../hooks/useModeState';
@@ -86,6 +87,7 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
         placeholder={def.placeholder}
         examples={def.examples}
         toolbar={toolbar}
+        footer={<AITransparencyHint />}
       />
     </>
   );
