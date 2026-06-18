@@ -14,6 +14,7 @@ export interface Template extends DocumentItem {
   external_url?: string;
   preview_image_url?: string;
   thumbnail_url?: string;
+  images?: Array<{ url: string; title?: string; display_order?: number }>;
   tags?: string[];
   content_data?: { originalUrl?: string } & Record<string, unknown>;
 }

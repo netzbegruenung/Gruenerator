@@ -1,3 +1,4 @@
+import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -5,6 +6,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
@@ -125,6 +127,16 @@ const GroupDetailSection = memo(
             return { ...nb, name: config?.title ?? nb.id };
           }),
         ] as SharedItem[],
+        // User agents carry their full Agent shape (incl. identifier/title);
+        // system agents arrive as { id: identifier } and get their title from
+        // the static registry, mirroring the system_notebooks hydration above.
+        agents: [
+          ...((groupContent?.user_agents ?? []) as SharedItem[]),
+          ...((groupContent?.system_agents ?? []) as SystemNotebook[]).map((sa) => {
+            const sys = SYSTEM_AGENTS.find((a) => a.identifier === sa.id);
+            return { ...sa, identifier: sa.id, title: sys?.title ?? sa.id };
+          }),
+        ] as SharedItem[],
         texts: (groupContent?.texts ?? []) as SharedItem[],
         canvasTemplates: (groupContent?.canvas_templates ?? []) as SharedItem[],
       };
@@ -141,7 +153,7 @@ const GroupDetailSection = memo(
 
     const getJoinUrl = useCallback(() => {
       if (!data?.joinToken) return '';
-      return `${window.location.origin}/join-group/${data.joinToken}`;
+      return `${getPublicAppOrigin()}/join-group/${data.joinToken}`;
     }, [data?.joinToken]);
 
     const copyJoinLink = useCallback(() => {

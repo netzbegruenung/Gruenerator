@@ -5,18 +5,21 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@gruenerator/ui';
-import { LogOut } from 'lucide-react';
-import { type MutableRefObject, type ReactNode, Fragment, memo, useEffect, useState } from 'react';
+import { Bell, LogOut } from 'lucide-react';
+import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import NotificationList from '../../../features/notifications/components/NotificationList';
-import { useUnreadCount } from '../../../features/notifications/hooks/useNotifications';
+import { useNotifications } from '../../../features/notifications/hooks/useNotifications';
 import { useAuthStore } from '../../../stores/authStore';
 import useDarkMode from '../../hooks/useDarkMode';
 import { NAV_ITEMS } from '../Header/menuData';
@@ -29,12 +32,12 @@ interface SidebarAccountProps {
   onNavigate: (path: string, title: string) => void;
 }
 
-// Bottom-of-sidebar account block. The avatar is the single trigger for one
-// unified account menu — identical whether the sidebar is expanded or collapsed.
-// The menu lists the nav targets, with notifications inline just above
-// Einstellungen, then the theme toggle and logout. Mirrors the ChatGPT/Gemini
-// account anchor; replaces the standalone footer theme-toggle and the removed
-// top-right ProfileButton.
+// Bottom-of-sidebar account block. Two distinct triggers, never one mixed
+// element: the avatar opens the account menu (nav targets + theme + logout),
+// and a separate bell opens a notifications Popover. Notifications live in a
+// Popover (not the DropdownMenu) so their action buttons, scrolling and
+// pagination behave natively instead of closing the menu. Mirrors the
+// ChatGPT/Gemini account anchor; replaces the removed top-right ProfileButton.
 const SidebarAccount = memo(function SidebarAccount({
   sidebarExpanded,
   openRef,
@@ -44,14 +47,21 @@ const SidebarAccount = memo(function SidebarAccount({
   const logout = useAuthStore((s) => s.logout);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
   const [, , themePreference, cycleTheme] = useDarkMode();
-  const { data: unreadCount = 0 } = useUnreadCount();
+  // Badge and popover both derive from this one unread-only query (shared
+  // cache), so the count can never disagree with the listed notifications.
+  // Page size (20) exceeds the "9+" cap, so page 1 always renders the badge
+  // exactly: an exact number ≤ 9, otherwise "9+".
+  const { data: notifData, hasNextPage } = useNotifications();
+  const unreadCount = notifData?.pages.flat().length ?? 0;
+  const unreadBadgeLabel = hasNextPage || unreadCount > 9 ? '9+' : String(unreadCount);
   const { data: profile } = useProfile(user?.id);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
 
-  // Keep the sidebar from collapsing (hover-leave) while the menu is open.
+  // Keep the sidebar from collapsing (hover-leave) while either surface is open.
   useEffect(() => {
-    openRef.current = menuOpen;
-  }, [menuOpen, openRef]);
+    openRef.current = menuOpen || notifOpen;
+  }, [menuOpen, notifOpen, openRef]);
 
   if (!user) return null;
 
@@ -78,7 +88,7 @@ const SidebarAccount = memo(function SidebarAccount({
           offset
         )}
       >
-        {unreadCount > 9 ? '9+' : unreadCount}
+        {unreadBadgeLabel}
       </Badge>
     ) : null;
 
@@ -90,16 +100,10 @@ const SidebarAccount = memo(function SidebarAccount({
       className="w-80"
     >
       {NAV_ITEMS.map((item) => (
-        <Fragment key={item.key}>
-          {/* Notifications render inline just above Einstellungen; NotificationList
-              returns null (and its bounding separators with it) when nothing is
-              pending, so the menu reads as a plain list when empty. */}
-          {item.key === 'einstellungen' && <NotificationList />}
-          <DropdownMenuItem onClick={() => onNavigate(item.path, item.label)}>
-            <item.icon className="size-4" />
-            <span>{item.label}</span>
-          </DropdownMenuItem>
-        </Fragment>
+        <DropdownMenuItem key={item.key} onClick={() => onNavigate(item.path, item.label)}>
+          <item.icon className="size-4" />
+          <span>{item.label}</span>
+        </DropdownMenuItem>
       ))}
       <DropdownMenuItem onClick={() => onNavigate('/support', 'Support')}>
         <PiQuestion className="size-4" />
@@ -145,49 +149,76 @@ const SidebarAccount = memo(function SidebarAccount({
     </DropdownMenuContent>
   );
 
-  const kebabActions = (trigger: ReactNode) => (
+  const accountMenu = (trigger: ReactNode) => (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       {actionsMenu}
     </DropdownMenu>
   );
 
+  // Separate bell trigger → notifications Popover. Tooltip and Popover triggers
+  // both attach to the one button via nested asChild (same idiom as the avatar).
+  const notificationsBell = (
+    <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
+              aria-label="Benachrichtigungen"
+            >
+              <Bell className="size-[18px]" />
+              {unreadBadge('-top-0.5 -right-0.5')}
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side={sidebarExpanded ? 'top' : 'right'}>Benachrichtigungen</TooltipContent>
+      </Tooltip>
+      <PopoverContent
+        side={sidebarExpanded ? 'top' : 'right'}
+        align="end"
+        sideOffset={8}
+        className="w-80 p-0"
+      >
+        <NotificationList />
+      </PopoverContent>
+    </Popover>
+  );
+
   return (
     <div className="mt-auto shrink-0 px-2 py-2">
       {sidebarExpanded ? (
-        /* Expanded: avatar + name is the single trigger for the unified menu. */
-        kebabActions(
-          <button
-            type="button"
-            className="flex w-full min-w-0 items-center gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
-            aria-label="Konto-Menü öffnen"
-          >
-            <span className="relative shrink-0">
-              {avatarEl}
-              {unreadBadge('-top-1 -right-1')}
-            </span>
-            <span className="truncate text-sm font-medium text-foreground-heading">
-              {displayName || 'Profil'}
-            </span>
-          </button>
-        )
+        /* Expanded: avatar + name opens the account menu; bell sits at the end. */
+        <div className="flex items-center gap-1">
+          {accountMenu(
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
+              aria-label="Konto-Menü öffnen"
+            >
+              <span className="shrink-0">{avatarEl}</span>
+              <span className="truncate text-sm font-medium text-foreground-heading">
+                {displayName || 'Profil'}
+              </span>
+            </button>
+          )}
+          {notificationsBell}
+        </div>
       ) : (
-        /* Collapsed: the avatar opens the exact same unified menu. Tooltip and
-           dropdown triggers both attach to the one button via nested asChild —
-           wrapping the Tooltip in DropdownMenuTrigger would swallow the click
-           (Tooltip Root has no DOM node to forward the handler to). */
-        <div className="flex justify-center">
+        /* Collapsed: bell stacked above the account avatar. */
+        <div className="flex flex-col items-center gap-1">
+          {notificationsBell}
           <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="relative flex size-9 items-center justify-center rounded-full transition-colors hover:bg-hover-alt"
+                    className="flex size-9 items-center justify-center rounded-full transition-colors hover:bg-hover-alt"
                     aria-label="Konto-Menü öffnen"
                   >
                     {avatarEl}
-                    {unreadBadge('-top-0.5 -right-0.5')}
                   </button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>

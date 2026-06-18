@@ -14,7 +14,12 @@
 import { resolveSkillMention } from '@gruenerator/shared/agents';
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
-import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
+import {
+  isKnownNotebook,
+  isUserNotebookId,
+  resolveNotebookCollections,
+  resolveUserNotebookDocumentIds,
+} from '../../../config/notebookCollectionMap.js';
 import {
   getAgent,
   getAgentForUser,
@@ -684,6 +689,35 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     }
   }
 
+  // [agent-trace] Prove what the backend actually resolved for this turn — the
+  // running shared package can be stale (dist vs source), so log the resolved
+  // identifier alongside the LV-relevant config that drives PM/example scoping.
+  log.info(
+    `[ChatGraph][agent-trace] requested="${input.agentId ?? '(none)'}" resolved="${agentConfig.identifier}" ` +
+      `systemRole=${agentConfig.systemRole ? `${agentConfig.systemRole.length}chars "${agentConfig.systemRole.slice(0, 60).replace(/\s+/g, ' ')}…"` : 'MISSING'} ` +
+      `defaultFilter=${JSON.stringify(agentConfig.defaultFilter ?? null)} ` +
+      `examplesLvScope=${JSON.stringify(agentConfig.toolRestrictions?.examplesLvScope ?? null)}`
+  );
+
+  // Default notebook scoping: the agent's bound notebooks (server-authoritative,
+  // read from the loaded agent record) UNIONed with the user's single composer
+  // pick (`input.defaultNotebookId`, always a system slug here — user-UUID picks
+  // arrive pre-resolved as `defaultNotebookDocumentIds` from streamContext).
+  // System slugs → collections; user-UUID notebooks → ownership-checked doc IDs.
+  // @notebook mentions (`notebookCollectionIds`) still hard-override these downstream.
+  const agentNotebookIds = agentConfig.defaultNotebookIds ?? [];
+  const defaultNotebookSlugs = [
+    ...agentNotebookIds.filter(isKnownNotebook),
+    ...(input.defaultNotebookId && isKnownNotebook(input.defaultNotebookId)
+      ? [input.defaultNotebookId]
+      : []),
+  ];
+  const agentUserNotebookUuids = agentNotebookIds.filter(isUserNotebookId);
+  const agentNotebookDocumentIds =
+    agentUserNotebookUuids.length > 0 && input.userId
+      ? (await resolveUserNotebookDocumentIds(input.userId, agentUserNotebookUuids)).documentIds
+      : [];
+
   return {
     // Input
     messages: input.messages,
@@ -710,11 +744,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     notebookCollectionIds: input.notebookIds ? resolveNotebookCollections(input.notebookIds) : [],
     notebookDocumentIds: input.notebookDocumentIds ?? [],
 
-    // Default notebook scoping (from persistent UI selection)
-    defaultNotebookCollectionIds: input.defaultNotebookId
-      ? resolveNotebookCollections([input.defaultNotebookId])
-      : [],
-    defaultNotebookDocumentIds: input.defaultNotebookDocumentIds ?? [],
+    // Default notebook scoping: agent's bound notebooks + composer pick (above).
+    defaultNotebookCollectionIds: resolveNotebookCollections(defaultNotebookSlugs),
+    defaultNotebookDocumentIds: [
+      ...new Set([...(input.defaultNotebookDocumentIds ?? []), ...agentNotebookDocumentIds]),
+    ],
 
     // Document scoping (from @datei mentions)
     documentIds: input.documentIds || [],

@@ -5,7 +5,7 @@ import type { Agent } from './types.js';
 // One specialized "Öffentlichkeitsarbeit" agent per German LV. Each filters
 // press examples to its own LV via `examplesLvScope` (Berlin and Thüringen
 // carry both Landesverband and Fraktion codes), auto-pairs with its notebook
-// via `defaultNotebookId`, and ships a heavy regional systemRole that bakes
+// via `defaultNotebookIds`, and ships a heavy regional systemRole that bakes
 // in LV-specific themes so the composer output reflects local framing.
 //
 // Austria is intentionally absent: gruene.at has no LV subdivision (uses a
@@ -133,7 +133,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
     'memory_save',
     'self_review',
   ],
-  defaultNotebookId: spec.notebook,
+  defaultNotebookIds: [spec.notebook],
   toolRestrictions: {
     examplesCountry: 'DE',
     examplesLvScope: spec.codes,

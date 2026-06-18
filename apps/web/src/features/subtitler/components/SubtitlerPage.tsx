@@ -10,6 +10,7 @@ import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
@@ -204,7 +205,7 @@ const SubtitlerPage = (): React.ReactElement => {
 
   // Dynamically set baseURL based on environment
   const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
-  const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
+  const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${getPublicAppOrigin()}/api`;
 
   // Cleanup effect for tab close detection
   useEffect(() => {

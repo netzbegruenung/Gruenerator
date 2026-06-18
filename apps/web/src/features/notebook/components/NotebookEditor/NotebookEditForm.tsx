@@ -4,11 +4,12 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
+  FileCard,
   SectionHeader,
   Separator,
 } from '@gruenerator/ui';
 import { motion } from 'motion/react';
-import { HiUpload } from 'react-icons/hi';
+import { HiOutlineDocument, HiUpload } from 'react-icons/hi';
 
 import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
@@ -25,6 +26,7 @@ interface NotebookEditFormProps {
 export default function NotebookEditForm({ state }: NotebookEditFormProps) {
   const {
     uploadedDocuments,
+    stagedFiles,
     wolkeDocuments,
     manualDocuments,
     wolkeFolders,
@@ -42,6 +44,8 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleUnstageFile,
+    handleCommitStagedUpload,
     handleWolkeDocsImported,
     handleDocsImported,
     handleSubmit,
@@ -140,6 +144,40 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
             style={{ display: 'none' }}
           />
           {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+
+          {stagedFiles.length > 0 && (
+            <div className="mt-md space-y-md">
+              <SectionHeader
+                title="Bereit zum Hochladen"
+                size="sm"
+                actions={
+                  <span className="text-sm text-grey-500">
+                    {stagedFiles.length} Datei{stagedFiles.length === 1 ? '' : 'en'}
+                  </span>
+                }
+              />
+              <div className="grid grid-cols-1 gap-sm sm:grid-cols-2 md:grid-cols-3">
+                {stagedFiles.map((file, idx) => (
+                  <FileCard
+                    key={`${file.name}-${file.size}-${idx}`}
+                    name={file.name}
+                    size={file.size}
+                    icon={<HiOutlineDocument size={20} />}
+                    onRemove={isUploading ? undefined : () => handleUnstageFile(idx)}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={() => void handleCommitStagedUpload()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? 'Wird hochgeladen…' : `Hochladen (${stagedFiles.length})`}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {isDragOver && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-sm rounded-xl border-2 border-dashed border-primary-500 bg-primary-500/10 backdrop-blur-[2px]">

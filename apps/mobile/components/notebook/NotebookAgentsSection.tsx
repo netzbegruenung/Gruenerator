@@ -14,7 +14,7 @@ import type { Theme } from '../../theme/colors';
 /**
  * Landesverband agents for a notebook — a minimal, collapsible list (toggle, like
  * "Mehr anzeigen") of icon · name rows. LV agents pin themselves to their notebook
- * via `defaultNotebookId`. Self-hides entirely when none match. Tapping an agent
+ * via `defaultNotebookIds`. Self-hides entirely when none match. Tapping an agent
  * opens a chat with it.
  */
 export function NotebookAgentsSection({
@@ -32,7 +32,10 @@ export function NotebookAgentsSection({
   const accent = onGreen ? colors.white : theme.textGreen;
 
   const agents = useMemo(
-    () => getVisibleSystemAgentsForLocale(locale).filter((a) => a.defaultNotebookId === notebookId),
+    () =>
+      getVisibleSystemAgentsForLocale(locale).filter((a) =>
+        a.defaultNotebookIds?.includes(notebookId)
+      ),
     [locale, notebookId]
   );
 
