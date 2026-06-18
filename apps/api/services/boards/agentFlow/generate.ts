@@ -15,9 +15,20 @@ import {
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { createSearchTools } from '../../../routes/chat/agents/searchTools.js';
 import { resolveModel } from '../../../routes/chat/services/responseStreamingService.js';
+import { createLogger } from '../../../utils/logger.js';
 import { getAIService } from '../../ai/aiService.js';
 
+const log = createLogger('boardAgentGenerate');
+
 export type UserLocale = 'de-DE' | 'de-AT';
+
+/** Selects which agent runs a board task and on whose behalf (for user/shared agents). */
+export interface AgentSelection {
+  /** Identifier of a specific agent; null/empty → the default universal agent. */
+  agentId?: string | null;
+  /** Requesting user — required so user-created and group-shared agents resolve. */
+  userId?: string;
+}
 
 // Hard ceiling on a single generation so one hung model call can't stall the
 // sequential drain loop.
@@ -39,22 +50,64 @@ Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze s
 const COMMENT_MODE = `
 
 ## KOMMENTAR-MODUS
-Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage (folge den ANTWORT-REGELN oben). Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.`;
+Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage. Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.
 
-/**
- * Run the classifier so we have the intent (for the caller's unsupported-artifact
- * guard) and an intent/locale-aware system prompt. Throws on classifier error.
- */
-export async function prepareAgentState(instruction: string, userLocale: UserLocale) {
-  const userMessage: ModelMessage = { role: 'user', content: instruction };
+REINER TEXT (überschreibt die Längen- und Formatierungsvorgaben der ANTWORT-REGELN): Der Kommentar-Thread stellt KEIN Markdown dar. Schreibe ausschließlich reinen Fließtext — keine Sternchen für Hervorhebungen (**fett**, *kursiv*), keine Überschriften (#), keine Aufzählungs- oder Nummernlisten (-, *, 1.), keine Code-Backticks (\`). Gliedere höchstens durch einzelne normale Absätze. Halte dich kurz (wenige kurze Absätze). Wenn die Antwort nur mit Überschriften, Listen oder längerer Struktur sinnvoll wäre, ist das ein Zeichen dafür, dass ein Dokument statt eines Kommentars gefragt ist — fasse dich dann trotzdem knapp.`;
 
-  const initialState = await initializeChatState({
+async function initializeBoardAgentState(
+  userMessage: ModelMessage,
+  userLocale: UserLocale,
+  agentId: string,
+  userId: string | undefined
+) {
+  return initializeChatState({
     messages: [userMessage],
-    agentId: '', // falsy → ChatGraph resolves the default universal agent
+    // Falsy agentId → ChatGraph resolves the default universal agent. A real id +
+    // userId resolves the chosen agent (system → own → group-shared) with its
+    // persona, default notebooks and tool restrictions.
+    agentId,
+    ...(userId != null && { userId }),
     enabledTools: { search: true, web: true, person: true, examples: true, research: true },
     aiWorkerPool: getAIService(),
     userLocale,
   });
+}
+
+/**
+ * Run the classifier so we have the intent (for the caller's unsupported-artifact
+ * guard) and an intent/locale-aware system prompt. Throws on classifier error.
+ *
+ * `selection` optionally pins a specific agent (own / group-shared / system) on the
+ * requester's behalf. A picked agent that can no longer be resolved (deleted, renamed,
+ * access lost) must not fail an already-queued task — it falls back to the default
+ * universal agent so the work still gets done.
+ */
+export async function prepareAgentState(
+  instruction: string,
+  userLocale: UserLocale,
+  selection?: AgentSelection
+) {
+  const userMessage: ModelMessage = { role: 'user', content: instruction };
+  const requestedAgentId = selection?.agentId || '';
+  const userId = selection?.userId;
+
+  let initialState;
+  try {
+    initialState = await initializeBoardAgentState(
+      userMessage,
+      userLocale,
+      requestedAgentId,
+      userId
+    );
+  } catch (err) {
+    if (!requestedAgentId) throw err;
+    log.warn(
+      `Agent "${requestedAgentId}" could not be resolved; falling back to the default agent: ` +
+        (err instanceof Error ? err.message : String(err))
+    );
+    initialState = await initializeBoardAgentState(userMessage, userLocale, '', userId);
+  }
+
   const classification = await classifierNode(initialState);
   const finalState = { ...initialState, ...classification };
   if (finalState.error) {
@@ -71,11 +124,23 @@ export type PreparedAgentState = Awaited<ReturnType<typeof prepareAgentState>>;
  */
 export async function generateFromState(
   prepared: PreparedAgentState,
-  opts: { longForm: boolean; slotLabel: string }
+  opts: { longForm: boolean; slotLabel: string; contextBlock?: string }
 ): Promise<string> {
   const { finalState, userMessage } = prepared;
   const baseSystemMessage = await buildSystemMessage(finalState);
   const systemMessage = `${baseSystemMessage}${opts.longForm ? DOCUMENT_MODE : COMMENT_MODE}`;
+
+  // The card context (column, comments, attached documents) belongs in the user
+  // message as material for this task — NOT in the system prompt (which is the agent's
+  // standing persona/instructions). The task itself stays at the top so the model has
+  // a clear instruction, with the context appended as background below it.
+  const baseContent = typeof userMessage.content === 'string' ? userMessage.content : '';
+  const taskMessage: ModelMessage = {
+    role: 'user',
+    content: opts.contextBlock
+      ? `${baseContent}\n\n---\n## Kontext der Karte (Hintergrundmaterial für genau diese Aufgabe)\n${opts.contextBlock}`
+      : baseContent,
+  };
 
   const { agentConfig } = finalState;
   // Resolve via the same path as the chat controller so overflow-lane slots and
@@ -95,7 +160,7 @@ export async function generateFromState(
     const generated = await generateText({
       model: resolution.model,
       system: systemMessage,
-      messages: [userMessage],
+      messages: [taskMessage],
       tools: createSearchTools(agentConfig),
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
       maxOutputTokens: opts.longForm

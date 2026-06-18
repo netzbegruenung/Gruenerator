@@ -11,9 +11,9 @@ interface NotebookAgentsSectionProps {
   title?: string;
 }
 
-// LV agents pin themselves to their Landesverband notebook via `defaultNotebookId`,
+// LV agents pin themselves to their Landesverband notebook via `defaultNotebookIds`,
 // so the notebook's own agents are exactly the system agents whose
-// `defaultNotebookId` matches. Matching on the notebook id (not the identifier)
+// `defaultNotebookIds` include it. Matching on the notebook id (not the identifier)
 // also covers the Austria suffix quirk (identifier `…-at`, notebook
 // `oesterreich-notebook`). Self-hides when nothing matches — user notebooks (UUID
 // id) and Bundes notebooks without agents simply render nothing.
@@ -25,7 +25,8 @@ export function NotebookAgentsSection({
   const locale = useAuthStore((s) => s.locale) ?? 'de-DE';
 
   const agents = useMemo(
-    () => getSystemAgentsForLocale(locale).filter((a) => a.defaultNotebookId === notebookId),
+    () =>
+      getSystemAgentsForLocale(locale).filter((a) => a.defaultNotebookIds?.includes(notebookId)),
     [locale, notebookId]
   );
 

@@ -1,9 +1,9 @@
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { Fab } from '@gruenerator/ui';
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -32,6 +32,7 @@ import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
+import { useBoardCommentSignal } from './hooks/useBoardCommentSignal';
 import { useBoardDetail } from './hooks/useBoardDetail';
 import { useBoardState } from './hooks/useBoardState';
 import { useDuplicateBoard } from './hooks/useDuplicateBoard';
@@ -127,6 +128,8 @@ function BoardContent() {
   }, [duplicateBoard, navigate]);
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
+  // Live comments: refetch a card's thread when the backend signals a change.
+  useBoardCommentSignal(ydoc, id);
 
   if (isLoading) {
     return (
@@ -275,6 +278,27 @@ function BoardViewContent({
   const [assistantMounted, setAssistantMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickFilters, setQuickFilters] = useState<QuickFilter[]>([]);
+  const [includeArchived, setIncludeArchived] = useState(false);
+
+  // Deep-link to a specific card via `?card=<rowId>` (e.g. from an assignment /
+  // comment notification). Resolve against ALL rows so quick-filters/archived
+  // don't hide the target, then open the detail panel for the matching layout.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkCardId = searchParams.get('card');
+  const deepLinkRow = useMemo(
+    () => (deepLinkCardId ? (boardState.rows.find((r) => r.id === deepLinkCardId) ?? null) : null),
+    [deepLinkCardId, boardState.rows]
+  );
+  const consumeDeepLink = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('card');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
 
   const toggleQuickFilter = useCallback((filter: QuickFilter) => {
     setQuickFilters((prev) =>
@@ -289,6 +313,7 @@ function BoardViewContent({
     activeViewId,
     searchQuery,
     quickFilters,
+    includeArchived,
     currentUserId: currentUserId || undefined,
     currentUserName: userName ?? undefined,
   });
@@ -358,6 +383,16 @@ function BoardViewContent({
 
   const layout = activeView?.layout ?? 'kanban';
 
+  // Non-kanban layouts own the detail panel here; kanban opens it inside
+  // PlannerKanban (via the deepLinkRow prop below).
+  useEffect(() => {
+    if (layout !== 'kanban' && deepLinkRow) {
+      setSelectedRow(deepLinkRow);
+      setDetailOpen(true);
+      consumeDeepLink();
+    }
+  }, [layout, deepLinkRow, consumeDeepLink]);
+
   return (
     <>
       <BoardQuickBar
@@ -366,6 +401,8 @@ function BoardViewContent({
         quickFilters={quickFilters}
         onToggleQuickFilter={toggleQuickFilter}
         hasUser={Boolean(currentUserId || userName)}
+        includeArchived={includeArchived}
+        onToggleArchived={() => setIncludeArchived((v) => !v)}
       />
 
       <BoardSettingsSheet
@@ -445,6 +482,8 @@ function BoardViewContent({
           boardId={boardId}
           provider={provider}
           expertMode={expertMode}
+          deepLinkRow={layout === 'kanban' ? deepLinkRow : null}
+          onDeepLinkConsumed={consumeDeepLink}
         />
       )}
 
@@ -559,7 +598,9 @@ function BoardPage() {
   return (
     <DocsProvider adapter={webAppDocsAdapter}>
       <ErrorBoundary>
-        <BoardContent />
+        <ConfirmDialogProvider>
+          <BoardContent />
+        </ConfirmDialogProvider>
       </ErrorBoundary>
     </DocsProvider>
   );

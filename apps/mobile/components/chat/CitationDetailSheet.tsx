@@ -1,6 +1,5 @@
-import BottomSheet, { BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +7,12 @@ import {
   StyleSheet,
   Linking,
   ActivityIndicator,
+  ScrollView,
   useColorScheme,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing, borderRadius } from '../../theme';
+import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
 import type { Citation } from '@gruenerator/chat';
@@ -26,14 +26,24 @@ interface Props {
 
 const MAX_DISPLAY_LENGTH = 50_000;
 
+/**
+ * Citation detail bottom sheet — built on the shared RN-Modal `BottomSheet` (the
+ * same one every other sheet uses), not `@expo/ui` whose native ModalBottomSheetView
+ * lacks a `partialExpand` handler in this build. Shows the cited passage and can
+ * load the full source text in place via `fetchFullText`.
+ */
 export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }: Props) {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === 'dark';
-  const snapPoints = useMemo(() => ['50%', '85%'], []);
   const [fullText, setFullText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset loaded text/error whenever a different citation opens the sheet.
+  useEffect(() => {
+    setFullText(null);
+    setError(null);
+    setIsLoading(false);
+  }, [citation?.documentId, citation?.url]);
 
   const handleLoadFullText = useCallback(async () => {
     if (!fetchFullText || !citation?.url || !citation?.collectionId) return;
@@ -45,7 +55,6 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
         setFullText(
           text.length > MAX_DISPLAY_LENGTH ? text.slice(0, MAX_DISPLAY_LENGTH) + '\n\n[...]' : text
         );
-        bottomSheetRef.current?.snapToIndex(1);
       } else {
         setError('Volltext nicht verfügbar');
       }
@@ -56,120 +65,114 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
     }
   }, [fetchFullText, citation?.url, citation?.collectionId]);
 
-  if (!citation) return null;
-
-  const canLoadFullText = fetchFullText && citation.url && citation.collectionId && !fullText;
+  const canLoadFullText = fetchFullText && citation?.url && citation?.collectionId && !fullText;
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onClose={onClose}
-      enablePanDownToClose
-      backgroundStyle={{ backgroundColor: theme.surface }}
-      handleIndicatorStyle={{ backgroundColor: theme.textSecondary }}
-    >
-      <BottomSheetScrollView
-        style={styles.content}
-        contentContainerStyle={[
-          styles.contentContainer,
-          { paddingBottom: insets.bottom + spacing.large },
-        ]}
-      >
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={3}>
-          {citation.title || citation.url}
-        </Text>
+    <BottomSheet visible={!!citation} onClose={onClose} padded maxHeight="85%">
+      {citation && (
+        <>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
+              {citation.title || citation.url}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <Ionicons name="close" size={24} color={theme.text} />
+            </Pressable>
+          </View>
 
-        <View style={styles.metaRow}>
-          {citation.collectionName && (
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: isDark ? colors.primary[950] : colors.primary[100] },
-              ]}
-            >
-              <Text
+          <View style={styles.metaRow}>
+            {citation.collectionName && (
+              <View
                 style={[
-                  styles.badgeText,
-                  { color: isDark ? theme.textGreen : colors.primary[700] },
+                  styles.badge,
+                  { backgroundColor: isDark ? colors.primary[950] : colors.primary[100] },
                 ]}
               >
-                {citation.collectionName}
+                <Text
+                  style={[
+                    styles.badgeText,
+                    { color: isDark ? theme.textGreen : colors.primary[700] },
+                  ]}
+                >
+                  {citation.collectionName}
+                </Text>
+              </View>
+            )}
+            {citation.contentType && (
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                {citation.contentType}
               </Text>
-            </View>
-          )}
-          {citation.contentType && (
-            <Text style={[styles.metaText, { color: theme.textSecondary }]}>
-              {citation.contentType}
+            )}
+            {citation.domain && (
+              <Text style={[styles.metaText, { color: theme.textSecondary }]}>
+                {citation.domain}
+              </Text>
+            )}
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <ScrollView style={styles.scroll}>
+            <Text style={[styles.body, { color: theme.text }]}>
+              {fullText || citation.citedText || citation.snippet}
             </Text>
-          )}
-          {citation.domain && (
-            <Text style={[styles.metaText, { color: theme.textSecondary }]}>{citation.domain}</Text>
-          )}
-        </View>
+            {error && <Text style={styles.errorText}>{error}</Text>}
+          </ScrollView>
 
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <View style={styles.actions}>
+            {canLoadFullText && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+                onPress={handleLoadFullText}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={theme.textGreen} />
+                ) : (
+                  <Ionicons name="document-text-outline" size={16} color={theme.textGreen} />
+                )}
+                <Text style={[styles.actionText, { color: theme.textGreen }]}>
+                  {isLoading ? 'Wird geladen...' : 'Volltext laden'}
+                </Text>
+              </Pressable>
+            )}
 
-        <Text style={[styles.body, { color: theme.text }]}>
-          {fullText || citation.citedText || citation.snippet}
-        </Text>
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-
-        <View style={styles.actions}>
-          {canLoadFullText && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.actionButton,
-                {
-                  backgroundColor: isDark ? colors.primary[950] : colors.primary[50],
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-              onPress={handleLoadFullText}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={theme.textGreen} />
-              ) : (
-                <Ionicons name="document-text-outline" size={16} color={theme.textGreen} />
-              )}
-              <Text style={[styles.actionText, { color: theme.textGreen }]}>
-                {isLoading ? 'Wird geladen...' : 'Volltext laden'}
-              </Text>
-            </Pressable>
-          )}
-
-          {citation.url && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.actionButton,
-                { backgroundColor: theme.background, opacity: pressed ? 0.7 : 1 },
-              ]}
-              onPress={() => Linking.openURL(citation.url)}
-            >
-              <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
-              <Text style={[styles.actionText, { color: theme.textSecondary }]}>
-                Im Browser öffnen
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      </BottomSheetScrollView>
+            {citation.url && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={() => Linking.openURL(citation.url)}
+              >
+                <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
+                <Text style={[styles.actionText, { color: theme.textSecondary }]}>
+                  Im Browser öffnen
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </>
+      )}
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: spacing.medium,
-    paddingBottom: spacing.xxlarge,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.small,
+    marginBottom: spacing.xsmall,
   },
   title: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 22,
@@ -178,7 +181,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xsmall,
-    marginTop: spacing.xsmall,
     flexWrap: 'wrap',
   },
   badge: {
@@ -196,6 +198,9 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginVertical: spacing.small,
+  },
+  scroll: {
+    maxHeight: 360,
   },
   body: {
     fontSize: 14,
@@ -215,7 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xsmall,
     paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xsmall,
+    paddingVertical: spacing.small,
     borderRadius: borderRadius.medium,
   },
   actionText: {

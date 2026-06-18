@@ -20,3 +20,31 @@ export async function fetchCanvaStatus(): Promise<CanvaStatus> {
 export async function disconnectCanva(): Promise<void> {
   await apiClient.delete('/canva');
 }
+
+export interface CanvaDesign {
+  id: string;
+  title: string;
+  viewUrl: string;
+  editUrl: string;
+  thumbnailUrl: string | null;
+  updatedAt: string | null;
+}
+
+export interface CanvaDesignsPage {
+  designs: CanvaDesign[];
+  continuation: string | null;
+}
+
+export async function fetchCanvaDesigns(params: {
+  continuation?: string;
+  query?: string;
+}): Promise<CanvaDesignsPage> {
+  const response = await apiClient.get<CanvaDesignsPage>('/canva/designs', {
+    params: {
+      ...(params.continuation ? { continuation: params.continuation } : {}),
+      ...(params.query ? { query: params.query } : {}),
+      limit: 24,
+    },
+  });
+  return response.data;
+}

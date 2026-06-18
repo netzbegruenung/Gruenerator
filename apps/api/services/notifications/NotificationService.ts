@@ -153,15 +153,17 @@ export async function createNotification(
     !EMAIL_HANDLED_ELSEWHERE.has(type) &&
     !IN_APP_ONLY.has(type) &&
     (await shouldDeliver(userId, type, 'email', profile));
+  const sendPush =
+    !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
 
-  if (!showInApp) {
-    const sendPush =
-      !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
-    if (sendPush) firePush(userId, title, body ?? null, type, actionUrl);
-    if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
+  // Nothing to deliver on any channel — skip entirely.
+  if (!showInApp && !sendEmailChannel && !sendPush) {
     return null;
   }
 
+  // The in-system notification is the durable record and the floor: it is always
+  // inserted whenever the notification is delivered on ANY channel, so email/push can
+  // never fire without a matching in-system entry ("nothing is lost").
   const db = getDrizzleInstance();
   const rows = await db
     .insert(notifications)
@@ -182,8 +184,6 @@ export async function createNotification(
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
-  const sendPush =
-    !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
   if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
   if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
 

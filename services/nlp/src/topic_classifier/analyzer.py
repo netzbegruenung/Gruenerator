@@ -10,6 +10,7 @@ Features:
 """
 
 from collections import Counter
+from pathlib import Path
 
 import spacy
 
@@ -17,49 +18,27 @@ from .constants import TITLE_WEIGHT
 from .emotion_analyzer import EmotionAnalyzer
 from .lexicons import TopicCategory, get_topic_labels
 
-STOPWORD_NOUNS = {
-    # From bundestag-analysis: procedural/parliamentary terms
-    "herr", "frau", "dame", "kollege", "kollegin",
-    "präsident", "präsidentin", "vizepräsident", "vizepräsidentin",
-    "abgeordnete", "abgeordneter", "abg",
-    "antrag", "drucksache", "nummer", "prozent",
-    "beifall", "zuruf", "zwischenfrage",
-    "verehrten", "geehrten", "verehrte",
-    # From bundestag-analysis: party names
-    "spd", "cdu", "csu", "cdu/csu", "fdp", "afd", "grüne", "grünen",
-    "linke", "bsw", "bündnis", "fraktion",
-    # From bundestag-analysis: names/titles
-    "dr.", "prof.", "dr", "prof",
-    # From bundestag-analysis: time words
-    "jahr", "jahre", "jahren", "monat", "tag", "zeit", "woche",
-    # From bundestag-analysis: generic terms (low semantic value)
-    "frage", "antwort", "rede", "debatte",
-    "punkt", "stelle", "bereich", "rahmen", "grund",
-    "art", "weise", "form", "teil", "seite",
-    "beispiel", "fall", "sache", "ding", "thema", "themen",
-    "ende", "endes", "anfang", "blick",
-    "dinge", "dingen", "sache", "sachen",
-    # From bundestag-analysis: quantitative terms
-    "prozent", "million", "millionen", "milliarde", "milliarden",
-    "euro", "viel",
-    # News-specific stopwords
-    "foto", "bild", "video", "nummer",
-    "mensch", "menschen", "land", "länder", "stadt",
-    "deutschland", "österreich", "berlin", "münchen", "wien",
-    "regierung", "partei", "politik", "politiker",
-    "angriff", "folge", "leben", "experte", "kritik",
-    "problem", "druck", "preis", "welt", "haus",
-    "league", "champions", "spiel", "gericht",
-    "bundesregierung", "us-präsident",
-    "januar", "februar", "märz", "april", "mai", "juni",
-    "juli", "august", "september", "oktober", "november", "dezember",
-    "uhr", "mittwoch", "donnerstag", "freitag", "montag",
-    "dienstag", "samstag", "sonntag",
-    "datum", "quelle", "artikel", "bericht", "nachricht",
-    "unternehmen", "firma", "mann", "kind", "frau",
-    "stunde", "minute", "woche", "heute", "morgen",
-    "information", "angabe", "sprecher", "sprecherin",
-}
+# External, maintainable stopword list. Edit stopword_nouns.txt to add/remove
+# words — one lowercase lemma per line; '#' lines and blanks are ignored.
+_STOPWORD_NOUNS_FILE = Path(__file__).parent / "stopword_nouns.txt"
+
+
+def _load_stopword_nouns(path: Path) -> set[str]:
+    """Load lemmatized noun stopwords from the external word list.
+
+    One word per line; blank lines and lines starting with '#' are ignored.
+    Words are lowercased to match spaCy's lemmatized, lowercased tokens.
+    """
+    words: set[str] = set()
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        words.add(line.lower())
+    return words
+
+
+STOPWORD_NOUNS = _load_stopword_nouns(_STOPWORD_NOUNS_FILE)
 
 
 class TopicClassifier:

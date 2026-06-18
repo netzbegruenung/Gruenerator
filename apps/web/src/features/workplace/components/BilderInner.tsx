@@ -41,8 +41,8 @@ import {
 } from '../../image-studio/services/imageEditingService';
 import MediaPickerModal from '../../media-library/components/MediaPickerModal';
 import { useImageModelPreference } from '../../models/hooks/useImageModelPreference';
-import { useModeState } from '../../texte/hooks/useModeState';
-import { MODE_MAP } from '../../texte/modes';
+import { useModeState } from '../creator/hooks/useModeState';
+import { MODE_MAP } from '../creator/modes';
 
 import { cn } from '@/utils/cn';
 

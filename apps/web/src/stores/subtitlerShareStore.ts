@@ -3,6 +3,7 @@ import axios from 'axios';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
+import { getPublicAppOrigin } from '../utils/platform';
 
 // ── API response shapes ────────────────────────────────────────────────
 
@@ -183,7 +184,7 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
 }));
 
 export const getShareUrl = (shareToken: string): string => {
-  return `${window.location.origin}/subtitler/share/${shareToken}`;
+  return `${getPublicAppOrigin()}/subtitler/share/${shareToken}`;
 };
 
 export default useSubtitlerShareStore;

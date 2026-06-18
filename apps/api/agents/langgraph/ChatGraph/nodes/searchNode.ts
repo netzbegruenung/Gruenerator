@@ -13,6 +13,7 @@ import {
   executeDirectWebSearch,
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
+import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
 import {
   searchExamples,
   type ExampleKind,
@@ -852,8 +853,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
         // Deduplicate in case of overlap
         const uniqueCollections = [...new Set(collectionsToSearch)];
-        // Deep-recall path also applies to agents bound to a notebook via
-        // `defaultNotebookId` (→ defaultNotebookCollectionIds), not just to
+        // Deep-recall path also applies to agents bound to notebooks via
+        // `defaultNotebookIds` (→ defaultNotebookCollectionIds), not just to
         // explicitly @mentioned notebooks — otherwise such agents search the
         // right collection but with the shallow 3/8 recall, collapsing to too
         // few distinct sources after per-article dedup.
@@ -1117,11 +1118,24 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
-        // LV scope feeds press-examples filtering. Prefer the explicit
-        // `toolRestrictions.examplesLvScope`; fall back to the per-agent
-        // `defaultFilter.landesverband` (used by per-LV PR agents).
-        const lvScope =
-          agentConfig.toolRestrictions?.examplesLvScope ?? agentConfig.defaultFilter?.landesverband;
+        // LV scope feeds press-examples filtering. Prefer the agent's explicit
+        // scope (`toolRestrictions.examplesLvScope` → `defaultFilter.landesverband`),
+        // then fall back to the LV implied by the active notebook/collection scope.
+        // The fallback keeps a generic/custom agent bound to an LV notebook from
+        // pulling cross-LV examples (the document path already scopes this way).
+        const lvScope = resolveExamplesLvScope(agentConfig, {
+          notebookCollectionIds: state.notebookCollectionIds,
+          defaultNotebookCollectionIds: state.defaultNotebookCollectionIds,
+        });
+        // [agent-trace] Confirm the LV scope the examples search will actually use,
+        // tied to the resolved agent — undefined here means cross-LV leak.
+        log.info(
+          `[Search][agent-trace] agent="${agentConfig.identifier}" intent=${intent} ` +
+            `lvScope=${JSON.stringify(lvScope ?? null)} ` +
+            `(agentDefaultFilter=${JSON.stringify(agentConfig.defaultFilter?.landesverband ?? null)}, ` +
+            `notebookCollections=${JSON.stringify(state.notebookCollectionIds ?? [])}, ` +
+            `defaultNotebookCollections=${JSON.stringify(state.defaultNotebookCollectionIds ?? [])})`
+        );
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.

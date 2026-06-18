@@ -11,6 +11,7 @@ import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { bumpCardComments } from './boardLiveSignalService.js';
 import { GRUENERATOR_BOT_USER_ID } from './grueneratorBot.js';
 
 const db = getPostgresInstance();
@@ -29,12 +30,17 @@ export interface EnqueueAgentTaskParams {
   locale: string;
   /** Set for AI-column ("KI-Spalte") tasks; null/undefined = legacy @-mention task. */
   flowConfig?: BoardFlowConfig | null;
+  /**
+   * Identifier of a specific agent (own / group-shared / system) to run this task.
+   * Null/undefined → the default universal agent. A TEXT slug, never a UUID.
+   */
+  agentId?: string | null;
 }
 
 export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<AgentTask> {
   const rows = await db.query<AgentTask>(
-    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config, agent_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       params.boardId,
@@ -44,6 +50,7 @@ export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<
       params.taskText,
       params.locale,
       params.flowConfig ? JSON.stringify(params.flowConfig) : null,
+      params.agentId ?? null,
     ]
   );
   log.info(`Enqueued agent task ${rows[0].id} for board ${params.boardId} card ${params.cardId}`);
@@ -156,6 +163,10 @@ export async function postBotComment(params: PostBotCommentParams): Promise<stri
       JSON.stringify(params.blocks),
     ]
   );
+
+  // Surface the bot's comment live to anyone viewing the card.
+  void bumpCardComments(params.boardId, params.cardId);
+
   return rows[0].id;
 }
 
@@ -166,10 +177,14 @@ export async function postBotComment(params: PostBotCommentParams): Promise<stri
  */
 export async function updateBotComment(commentId: string, blocks: CommentBlock[]): Promise<void> {
   const content = blocksToPlainText(blocks);
-  await db.query(
+  const rows = await db.query<{ board_id: string; card_id: string }>(
     `UPDATE board_comments
         SET blocks = $2, content = $3, is_edited = TRUE, edited_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND user_id = $4`,
+      WHERE id = $1 AND user_id = $4
+      RETURNING board_id, card_id`,
     [commentId, JSON.stringify(blocks), content, GRUENERATOR_BOT_USER_ID]
   );
+
+  // The "working…" comment becoming the answer is the most important live update.
+  if (rows[0]) void bumpCardComments(rows[0].board_id, rows[0].card_id);
 }

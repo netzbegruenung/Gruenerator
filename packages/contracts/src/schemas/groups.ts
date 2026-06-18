@@ -314,6 +314,7 @@ export const groupContentTypeSchema = z.enum([
   'collaborative_documents',
   'system_notebooks',
   'system_agents',
+  'user_agents',
   'canvas_template',
   'nextcloud_share_link',
 ]);
@@ -368,6 +369,7 @@ export const groupContentResponseSchema = z.object({
     collaborative_documents: groupContentBucketSchema,
     system_notebooks: groupContentBucketSchema,
     system_agents: groupContentBucketSchema,
+    user_agents: groupContentBucketSchema,
     canvas_templates: groupContentBucketSchema,
   }),
 });

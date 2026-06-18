@@ -79,6 +79,17 @@ export async function pressemitteilungComposerNode(
   const startTime = Date.now();
   const exampleCount = state.examplesResult?.press?.length ?? 0;
   log.info(`[Composer] Building PM-specific prompt (${exampleCount} press examples available)`);
+  // [agent-trace] Prove which agent voice + which LVs' examples drive this PM.
+  // A wrong-LV PM shows up here as a mismatch: the agent is the Brandenburg one
+  // but the example `lv`s (and hence the mimicked voice) are e.g. HE.
+  const exampleLvs = (state.examplesResult?.press ?? []).map((e) => e.lv || '?');
+  const role = state.agentConfig.systemRole ?? '';
+  log.info(
+    `[Composer][agent-trace] agent="${state.agentConfig.identifier}" ` +
+      `systemRole=${role ? `${role.length}chars "${role.slice(0, 60).replace(/\s+/g, ' ')}…"` : 'MISSING'} ` +
+      `defaultFilter=${JSON.stringify(state.agentConfig.defaultFilter ?? null)} ` +
+      `exampleLVs=${JSON.stringify(exampleLvs)}`
+  );
 
   try {
     const systemMessage = buildPressemitteilungSystemPrompt(state);

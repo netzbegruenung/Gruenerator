@@ -18,6 +18,64 @@ const KEY_ID = 'id';
 const KEY_CONFIG_ID = 'configId';
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
+const BOARD_TRANSACT_ORIGIN = 'gruenerator-internal-board-api';
+
+// Board Yjs layout. Duplicated from the frontend FIELD_IDS / apps/api BoardService
+// on purpose — the Hocuspocus service has zero cross-package deps (per CLAUDE.md).
+const BOARD_LINKED_DOCS_FIELD = 'field-linked-docs';
+
+interface LinkedDoc {
+  id: string;
+  title: string;
+}
+
+/**
+ * Append a {id, title} link to a board card's "Dokumente" (field-linked-docs) cell.
+ * The cell is a JSON string array (matches how the frontend writes it). Idempotent:
+ * a doc id already present is a no-op. Returns true when the card row was found.
+ */
+export function linkDocToBoardCard(doc: Y.Doc, cardId: string, linked: LinkedDoc): boolean {
+  let found = false;
+  doc.transact(() => {
+    // Rows are stored in one of two shapes: plain JSON objects (how the web
+    // client writes them — useBoardState.updateRowCell delete+re-inserts a plain
+    // object on every cell edit) or Y.Maps (how the API's addRowsToBoard builds
+    // them). Normalise each row to JSON, mutate, and re-insert the whole row —
+    // the same delete+insert the frontend uses — so the link applies regardless
+    // of the original representation. (Assuming a Y.Map here silently dropped the
+    // link for every user-created board, where rows are plain objects.)
+    const rows = doc.getArray<unknown>('rows');
+    for (let i = 0; i < rows.length; i++) {
+      const entry = rows.get(i);
+      const rowObj = (entry instanceof Y.Map ? entry.toJSON() : entry) as {
+        id?: unknown;
+        cells?: Record<string, unknown>;
+      } | null;
+      if (!rowObj || rowObj.id !== cardId) continue;
+      found = true;
+
+      const cells = { ...(rowObj.cells ?? {}) };
+      const raw = cells[BOARD_LINKED_DOCS_FIELD];
+      let current: LinkedDoc[] = [];
+      if (typeof raw === 'string' && raw.trim()) {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) current = parsed as LinkedDoc[];
+        } catch {
+          /* malformed cell → treat as empty */
+        }
+      }
+      if (current.some((d) => d.id === linked.id)) return; // idempotent: already linked
+      current.push({ id: linked.id, title: linked.title });
+      cells[BOARD_LINKED_DOCS_FIELD] = JSON.stringify(current);
+
+      rows.delete(i, 1);
+      rows.insert(i, [{ ...rowObj, cells }]);
+      return;
+    }
+  }, BOARD_TRANSACT_ORIGIN);
+  return found;
+}
 
 interface InternalApiDeps {
   server: Server;
@@ -335,6 +393,84 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Live-comment signal for boards. Board comments live in Postgres (not Yjs),
+  // so we bump a tiny per-card counter in the board doc's `commentSignals` map;
+  // connected clients observe it and refetch that card's comments. A dedicated
+  // top-level key keeps it clear of the board's fields/rows/views state.
+  router.post('/board/:boardId/comment-bump', async (req, res) => {
+    const { boardId } = req.params;
+    const cardId = (req.body as { cardId?: unknown })?.cardId;
+    if (typeof cardId !== 'string' || !cardId) {
+      res.status(400).json({ error: 'cardId (string) is required' });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(boardId);
+      try {
+        await connection.transact((doc) => {
+          const signals = doc.getMap<number>('commentSignals');
+          const prev = signals.get(cardId);
+          signals.set(cardId, (typeof prev === 'number' ? prev : 0) + 1);
+        });
+        res.json({ ok: true });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`comment-bump failed for board ${boardId} card ${cardId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // Link an agent-generated document into a board card's "Dokumente" list. Goes
+  // through the live doc so the link survives whether or not anyone has the board
+  // open, and never races a live editor. Called by the API's boardLinkService.
+  router.post('/board/:boardId/link-doc', async (req, res) => {
+    const { boardId } = req.params;
+    const body = (req.body ?? {}) as { cardId?: unknown; doc?: unknown };
+    const cardId = body.cardId;
+    const doc = body.doc as { id?: unknown; title?: unknown } | undefined;
+
+    if (typeof cardId !== 'string' || !cardId) {
+      res.status(400).json({ error: 'cardId (string) is required' });
+      return;
+    }
+    if (!doc || typeof doc.id !== 'string' || typeof doc.title !== 'string') {
+      res.status(400).json({ error: 'doc { id, title } is required' });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(boardId);
+      try {
+        let found = false;
+        await connection.transact((ydoc) => {
+          found = linkDocToBoardCard(ydoc, cardId, {
+            id: doc.id as string,
+            title: doc.title as string,
+          });
+        });
+        if (!found) {
+          log.warn(`link-doc: card ${cardId} not found on board ${boardId}`);
+          res.status(404).json({ error: 'card not found on board' });
+          return;
+        }
+        log.info(`Linked doc ${doc.id} to card ${cardId} on board ${boardId}`);
+        res.json({ ok: true });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`link-doc failed for board ${boardId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.use('/internal', router);
-  log.info('Internal canvas API registered at /internal/canvas/:documentId/state');
+  log.info(
+    'Internal API registered at /internal/canvas/* and /internal/board/*/{comment-bump,link-doc}'
+  );
 }

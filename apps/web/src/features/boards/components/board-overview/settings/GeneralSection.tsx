@@ -19,7 +19,7 @@ export const GeneralSection = memo(function GeneralSection({
   const [desc, setDesc] = useState(description);
 
   return (
-    <section className="flex max-w-2xl flex-col gap-lg">
+    <section className="flex w-full max-w-[42rem] flex-col gap-lg">
       <div>
         <h2 className="text-base font-semibold text-foreground">Allgemein</h2>
         <p className="mt-0.5 text-sm text-grey-500">Name und Beschreibung dieses Boards.</p>

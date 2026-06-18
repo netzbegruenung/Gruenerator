@@ -1,7 +1,14 @@
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@gruenerator/ui';
-import { useState } from 'react';
-import { HiClipboardCopy, HiCheck, HiExternalLink } from 'react-icons/hi';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+  Button,
+} from '@gruenerator/ui';
+import { useEffect, useState } from 'react';
+import { HiClipboardCopy, HiCheck, HiExternalLink, HiDownload } from 'react-icons/hi';
 
+import { useAuthStore } from '../../stores/authStore';
 import { getDocsUrl } from '../../utils/docsUrl';
 
 import { cn } from '@/utils/cn';
@@ -285,6 +292,133 @@ const ApiAccessSection = () => {
   );
 };
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
+
+interface ReleasePlatform {
+  label: string;
+  filename: string;
+}
+
+interface ReleaseManifest {
+  version: string;
+  name: string;
+  notes: string;
+  publishedAt: string;
+  platforms: Record<string, ReleasePlatform>;
+}
+
+type ReleaseChannel = 'stable' | 'beta';
+
+// Fetch a channel's download manifest from the API. Manifests are derived from
+// GitHub Releases server-side, so a new release appears here with no redeploy.
+const useReleaseManifest = (channel: ReleaseChannel, enabled: boolean) => {
+  const [manifest, setManifest] = useState<ReleaseManifest | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/releases/${channel}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as ReleaseManifest;
+        if (!cancelled) setManifest(data);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [channel, enabled]);
+
+  return { manifest, failed };
+};
+
+const ReleaseDownloadButtons = ({
+  channel,
+  manifest,
+}: {
+  channel: ReleaseChannel;
+  manifest: ReleaseManifest;
+}) => {
+  const platforms = Object.entries(manifest.platforms);
+  if (platforms.length === 0) return null;
+  return (
+    <div className="flex w-full flex-col items-center gap-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-grey-400">
+        Wähle die Version für deinen Mac
+      </p>
+      {platforms.map(([key, p]) => (
+        <Button key={key} asChild variant="brand" size="brand" className="w-full max-w-sm gap-2">
+          <a href={`${API_BASE}/releases/${channel}/download/${key}`}>
+            <HiDownload className="text-lg" />
+            {p.label}
+          </a>
+        </Button>
+      ))}
+      <p className="text-xs text-grey-500">Version {manifest.version}</p>
+    </div>
+  );
+};
+
+// Desktop download — gated to authenticated users. The stable channel is the
+// signed + notarized release; the beta channel (latest pre-release) is shown
+// below when one exists. Both manifests come from the API, so publishing a
+// GitHub release updates this page with no frontend redeploy.
+const DesktopDownloadSection = () => {
+  const user = useAuthStore((s) => s.user);
+  const { manifest: stable, failed: stableFailed } = useReleaseManifest('stable', Boolean(user));
+  const { manifest: beta } = useReleaseManifest('beta', Boolean(user));
+
+  // Public visitors (and logged-out) see only the "coming soon" note.
+  if (!user) {
+    return (
+      <section className="flex w-full flex-col items-center">
+        <h2 className="mb-2 text-lg font-bold text-foreground-heading">Desktop-App</h2>
+        <p className="text-sm text-grey-500">Bald verfügbar.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
+      <h2 className="text-xl font-bold text-foreground-heading">Desktop-App</h2>
+      <p className="text-center text-sm text-grey-600 dark:text-grey-400">
+        Der Grünerator als native Mac-App — signiert und von Apple notarisiert.
+        {stable?.notes ? ` ${stable.notes}` : ''}
+      </p>
+
+      {stable && Object.keys(stable.platforms).length > 0 ? (
+        <ReleaseDownloadButtons channel="stable" manifest={stable} />
+      ) : stableFailed ? (
+        <p className="text-sm text-grey-500">
+          Aktuell ist keine Version verfügbar. Schau bald wieder vorbei.
+        </p>
+      ) : (
+        <p className="text-sm text-grey-500">Lade Download-Informationen…</p>
+      )}
+
+      {beta && Object.keys(beta.platforms).length > 0 ? (
+        <div className="mt-2 flex w-full flex-col items-center gap-3 border-t border-grey-200 pt-6 dark:border-grey-700">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground-heading">Beta-Kanal</h3>
+            <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
+              Beta
+            </span>
+          </div>
+          <p className="text-center text-xs text-grey-500">
+            Vorabversion zum Testen — kann Fehler enthalten. Bitte melde uns Probleme.
+            {beta.notes ? ` ${beta.notes}` : ''}
+          </p>
+          <ReleaseDownloadButtons channel="beta" manifest={beta} />
+        </div>
+      ) : null}
+    </section>
+  );
+};
+
 const AppsPage = () => {
   return (
     <div className="flex min-h-[60vh] flex-col items-center px-4 py-12">
@@ -303,11 +437,7 @@ const AppsPage = () => {
 
       <hr className="my-12 w-full max-w-[40rem] border-grey-200 dark:border-grey-700" />
 
-      {/* Desktop App — coming soon */}
-      <section className="flex w-full flex-col items-center">
-        <h2 className="mb-2 text-lg font-bold text-foreground-heading">Desktop-App</h2>
-        <p className="text-sm text-grey-500">Bald verfügbar.</p>
-      </section>
+      <DesktopDownloadSection />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { Badge, Button } from '@gruenerator/ui';
 import { memo, useCallback, useState } from 'react';
 import { FiCheck, FiCopy, FiTrash2, FiUsers } from 'react-icons/fi';
 
+import { getPublicAppOrigin } from '../../../../../utils/platform';
 import { useBoardSharing } from '../../../hooks/useBoardSharing';
 
 const SHARE_MODE_OPTIONS = [
@@ -84,8 +85,8 @@ export const ShareSection = memo(function ShareSection({
 
   const isPublicOrAuth = shareSettings?.share_mode && shareSettings.share_mode !== 'private';
   const shareUrl = isPublicOrAuth
-    ? `${window.location.origin}/boards/public/${boardId}`
-    : `${window.location.origin}/boards/${boardId}`;
+    ? `${getPublicAppOrigin()}/boards/public/${boardId}`
+    : `${getPublicAppOrigin()}/boards/${boardId}`;
   const availableGroups = userGroups.filter((g) => !boardGroups.some((bg) => bg.group_id === g.id));
 
   const handleCopy = useCallback(() => {
@@ -104,7 +105,7 @@ export const ShareSection = memo(function ShareSection({
 
   if (isLoading || !shareSettings) {
     return (
-      <section className="max-w-2xl">
+      <section className="w-full max-w-[42rem]">
         {showHeading && <h2 className="text-base font-semibold text-foreground">Teilen</h2>}
         <p className="py-md text-sm text-grey-500">Laden…</p>
       </section>
@@ -112,7 +113,7 @@ export const ShareSection = memo(function ShareSection({
   }
 
   return (
-    <section className="flex max-w-2xl flex-col gap-md">
+    <section className="flex w-full max-w-[42rem] flex-col gap-md">
       {showHeading && (
         <div>
           <h2 className="text-base font-semibold text-foreground">Teilen &amp; Berechtigungen</h2>

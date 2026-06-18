@@ -7,7 +7,7 @@ import type { Agent } from './types.js';
 // Pressearbeit: Der Agent recherchiert (search_documents + web_search → die
 // Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine
 // versandfertige Antwort-E-Mail (Anrede → Dank → Antwort → weiterführende
-// Links). Wiederverwendet die bestehenden LV-Notebooks via defaultNotebookId.
+// Links). Wiederverwendet die bestehenden LV-Notebooks via defaultNotebookIds.
 //
 // Die Specs werden aus der LV-Registry (`landesverbaende.ts`) abgeleitet — der
 // einen Quelle der Wahrheit für notebookId, codes, homepage und themes pro LV.
@@ -101,7 +101,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     // (Quellen-Karten reisen nicht mit dem kopierten Text mit). Schaltet die
     // URL-Injektion in den Modell-Kontext frei (respondNode).
     inlineSourceLinks: true,
-    defaultNotebookId: spec.notebook,
+    defaultNotebookIds: [spec.notebook],
     // AT-Korpus liegt in einer eigenen Collection ohne `landesverband`-Feld —
     // ein defaultFilter darauf liefe ins Leere. Daher nur für DE-LVs pinnen.
     ...(isAT ? {} : { defaultFilter: { landesverband: spec.codes } }),

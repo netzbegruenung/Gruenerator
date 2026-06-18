@@ -61,6 +61,8 @@ import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { isDesktopApp } from '../../utils/platform';
+import { platformFetch } from '../../utils/platformFetch';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -176,7 +178,7 @@ function EditorContent() {
   const { data: docData, isLoading: docIsLoading } = useQuery<Document | null>({
     queryKey: ['document', id],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/docs/resolve/${id}`, {
+      const res = await platformFetch(`${API_BASE}/docs/resolve/${id}`, {
         credentials: 'include',
       });
       if (!res.ok) return null;
@@ -292,6 +294,13 @@ function EditorContent() {
       void import('sonner').then(({ toast }) => toast.error(message));
     }
   }, [authError]);
+
+  // A WebSocket auth failure (deleted / access denied) means we've lost live
+  // access even if the REST permissions in docData still say we can edit. Once
+  // that happens the collab session is torn down (cache deleted, socket gone),
+  // so any further edit would persist nowhere and silently vanish on reload —
+  // lock editing down.
+  const isEditable = canEdit && !authError;
 
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
@@ -541,7 +550,7 @@ function EditorContent() {
           title={docData.title}
           connectionStatus={connectionStatus}
           onBack={isGuest ? undefined : () => navigate('/docs')}
-          editable={canEdit}
+          editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
             <>
@@ -756,7 +765,17 @@ function EditorContent() {
       )}
 
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
-        <main className="flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 bg-grey-100 dark:bg-grey-900 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] max-sm:bg-background dark:max-sm:bg-background">
+        <main
+          className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] ${
+            isDesktopApp()
+              ? // Desktop app only: match the editor backdrop to the top bar so
+                // there's no white-bar-over-gray seam. The `docs-editor-desktop`
+                // class (App.css) adds a subtle border so the page still reads as
+                // a page on the matching backdrop. Web keeps its gray backdrop.
+                'docs-editor-desktop bg-background'
+              : 'bg-grey-100 dark:bg-grey-900 max-sm:bg-background dark:max-sm:bg-background'
+          }`}
+        >
           {editorReady ? (
             <MemoizedBlockNoteEditor
               documentId={id!}
@@ -765,7 +784,7 @@ function EditorContent() {
               ydoc={ydoc}
               provider={provider}
               isSynced={isSynced}
-              editable={canEdit}
+              editable={isEditable}
               commentsPortalTarget={commentsPortalTarget}
               onEditorReady={handleEditorReady}
             />

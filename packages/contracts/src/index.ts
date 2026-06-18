@@ -21,6 +21,7 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  itemUsageContract,
   searchContract,
   researchContract,
   chatGraphContract,
@@ -58,6 +59,7 @@ export {
   userTemplatesContract,
   templateInteractionsContract,
   userAgentsContract,
+  userAgentsSharingContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -70,6 +72,7 @@ export {
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
@@ -106,6 +109,7 @@ export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
+export * from './schemas/userAgentsSharing.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';

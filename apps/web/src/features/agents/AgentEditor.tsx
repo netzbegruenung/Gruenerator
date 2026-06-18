@@ -96,30 +96,43 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
   const currentModelId =
     MODEL_OPTIONS.find((m) => m.model === form.model && m.provider === form.provider)?.id ?? '';
 
-  const notebookSelect = (
-    <select
-      className={selectCls}
-      value={form.defaultNotebookId}
-      onChange={(e) => set('defaultNotebookId', e.target.value)}
+  const notebookCheckbox = (id: string, label: string) => (
+    <label
+      key={id}
+      className="flex cursor-pointer items-center gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700"
     >
-      <option value="">Kein Standard-Notebook</option>
-      <optgroup label="Grünerator-Notebooks">
-        {SYSTEM_NOTEBOOKS.map((nb) => (
-          <option key={nb.id} value={nb.id}>
-            {nb.title}
-          </option>
-        ))}
-      </optgroup>
+      <input
+        type="checkbox"
+        className="shrink-0"
+        checked={form.defaultNotebookIds.includes(id)}
+        onChange={() => set('defaultNotebookIds', toggle(form.defaultNotebookIds, id))}
+      />
+      <span className="min-w-0 truncate text-sm">{label}</span>
+    </label>
+  );
+
+  const notebookSelect = (
+    <fieldset className="flex flex-col gap-sm">
+      <legend className="text-sm font-medium">Wissen</legend>
+      <span className="text-xs font-normal text-foreground-muted">
+        Notebooks, die der Agent automatisch als Wissensquelle durchsucht. Mehrfachauswahl möglich –
+        alle ausgewählten Notebooks werden gemeinsam durchsucht.
+      </span>
+      <div className="flex flex-col gap-xs">
+        <span className="text-xs font-medium text-foreground-muted">Grünerator-Notebooks</span>
+        <div className="grid grid-cols-1 gap-xs sm:grid-cols-2">
+          {SYSTEM_NOTEBOOKS.map((nb) => notebookCheckbox(nb.id, nb.title))}
+        </div>
+      </div>
       {userNotebooks.length > 0 && (
-        <optgroup label="Meine Notebooks">
-          {userNotebooks.map((nb) => (
-            <option key={String(nb.id)} value={String(nb.id)}>
-              {nb.name}
-            </option>
-          ))}
-        </optgroup>
+        <div className="flex flex-col gap-xs">
+          <span className="text-xs font-medium text-foreground-muted">Meine Notebooks</span>
+          <div className="grid grid-cols-1 gap-xs sm:grid-cols-2">
+            {userNotebooks.map((nb) => notebookCheckbox(String(nb.id), nb.name))}
+          </div>
+        </div>
       )}
-    </select>
+    </fieldset>
   );
 
   return (
@@ -232,13 +245,23 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
             </div>
           </fieldset>
 
-          <label className={labelCls}>
-            Wissen
-            <span className="text-xs font-normal text-foreground-muted">
-              Standard-Notebook, das beim Öffnen automatisch als Wissensquelle ausgewählt wird.
+          <label className="flex cursor-pointer items-start gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.inlineSourceLinks}
+              onChange={(e) => set('inlineSourceLinks', e.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-medium">Quell-Links direkt im Antworttext</span>
+              <span className="block text-xs text-foreground-muted">
+                Für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche
+                erscheinen inline im Text statt nur als Quellen-Karten.
+              </span>
             </span>
-            {notebookSelect}
           </label>
+
+          {notebookSelect}
 
           {/* Tier 2 — conversation */}
           <details className="rounded-md border border-grey-200 p-md dark:border-grey-700">

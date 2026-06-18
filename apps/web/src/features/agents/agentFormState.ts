@@ -30,7 +30,7 @@ export interface FormState {
   skillMentions: string[];
   /** Inject source URLs into the model context so links appear inline (e.g. emails). */
   inlineSourceLinks: boolean;
-  defaultNotebookId: string; // '' = none
+  defaultNotebookIds: string[];
   tags: string;
   model: string;
   provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
@@ -52,7 +52,7 @@ export const EMPTY_FORM: FormState = {
   enabledTools: ['search', 'web'],
   skillMentions: [],
   inlineSourceLinks: false,
-  defaultNotebookId: '',
+  defaultNotebookIds: [],
   tags: '',
   model: DEFAULT_AGENT_MODEL.model,
   provider: DEFAULT_AGENT_MODEL.provider,
@@ -93,7 +93,7 @@ export function formToPayload(form: FormState) {
     enabledTools: form.enabledTools,
     skillMentions: form.skillMentions,
     inlineSourceLinks: form.inlineSourceLinks,
-    defaultNotebookId: form.defaultNotebookId || null,
+    defaultNotebookIds: form.defaultNotebookIds,
   };
 }
 
@@ -115,7 +115,7 @@ export function hydrateFormState(agent: Agent): FormState {
     enabledTools: [...(agent.enabledTools ?? DEFAULT_USER_AGENT_TOOLS)],
     skillMentions: [...(agent.skillMentions ?? [])],
     inlineSourceLinks: agent.inlineSourceLinks ?? false,
-    defaultNotebookId: agent.defaultNotebookId ?? '',
+    defaultNotebookIds: agent.defaultNotebookIds ? [...agent.defaultNotebookIds] : [],
     tags: agent.tags.join(', '),
     model: agent.model,
     provider: agent.provider,
