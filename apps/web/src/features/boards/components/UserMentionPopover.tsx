@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi';
 
 import { useAssignableMembers } from '../hooks/useAssignableMembers';
 import { useBoardAgentOptions } from '../hooks/useBoardAgentOptions';
@@ -28,8 +29,10 @@ interface UserMentionPopoverProps {
   selectedIndex: number;
 }
 
-const MAX_PEOPLE = 5;
-const MAX_AGENTS = 6;
+const MAX_PEOPLE = 6;
+
+// Typing "@agents" (or "@agent") jumps straight into the agent sub-view.
+const isAgentsTrigger = (q: string) => /^agents?$/i.test(q.trim());
 
 export const UserMentionPopover = memo(function UserMentionPopover({
   boardId,
@@ -40,9 +43,14 @@ export const UserMentionPopover = memo(function UserMentionPopover({
   selectedIndex,
 }: UserMentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const triggeredRef = useRef(false);
+
+  const [view, setView] = useState<'root' | 'agents'>('root');
+  const [agentSearch, setAgentSearch] = useState('');
 
   const { data: members = [] } = useAssignableMembers(visible ? boardId : undefined);
-  const agentOptions = useBoardAgentOptions(query);
+  const agents = useBoardAgentOptions(agentSearch);
 
   // Agent mentions are delegated to the always-assignable Grünerator bot member, so
   // the existing bot-detection enqueue fires; the chosen agentId rides alongside.
@@ -59,20 +67,48 @@ export const UserMentionPopover = memo(function UserMentionPopover({
       .slice(0, MAX_PEOPLE);
   }, [members, query]);
 
-  const agents = useMemo(
-    () => (botMember ? agentOptions.slice(0, MAX_AGENTS) : []),
-    [botMember, agentOptions]
-  );
-
-  const total = people.length + agents.length;
+  const showAgentsEntry = !!botMember;
+  const total = people.length + (showAgentsEntry ? 1 : 0);
   const activeIndex = total > 0 ? Math.min(selectedIndex, total - 1) : 0;
 
+  // Reset the sub-view whenever the popover closes.
   useEffect(() => {
-    const selected = listRef.current?.querySelector(`[data-mention-index="${activeIndex}"]`);
-    selected?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex]);
+    if (!visible) {
+      setView('root');
+      setAgentSearch('');
+    }
+  }, [visible]);
 
-  if (!visible || !anchorRect || total === 0) return null;
+  // Rising-edge "@agents" jumps into the agent sub-view (once), so pressing back
+  // doesn't immediately re-enter while the trigger text is still in the textarea.
+  useEffect(() => {
+    const trig = isAgentsTrigger(query);
+    if (trig && !triggeredRef.current && botMember) setView('agents');
+    if (botMember) triggeredRef.current = trig;
+  }, [query, botMember]);
+
+  // Autofocus the search field when entering the agent sub-view.
+  useEffect(() => {
+    if (visible && view === 'agents') searchRef.current?.focus();
+  }, [visible, view]);
+
+  // Keep the keyboard-highlighted root row in view.
+  useEffect(() => {
+    if (view !== 'root') return;
+    listRef.current
+      ?.querySelector(`[data-mention-index="${activeIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, view]);
+
+  if (!visible || !anchorRect) return null;
+
+  const containerClass =
+    'fixed z-50 w-64 rounded-lg border border-grey-200 dark:border-grey-700 bg-background-pure shadow-lg overflow-hidden';
+  const containerStyle = {
+    left: anchorRect.x,
+    top: anchorRect.y - 4,
+    transform: 'translateY(-100%)',
+  } as const;
 
   const rowClass = (isSelected: boolean) =>
     `flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors bg-transparent border-none cursor-pointer ${
@@ -81,19 +117,84 @@ export const UserMentionPopover = memo(function UserMentionPopover({
         : 'text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
     }`;
 
-  const sectionLabel = (text: string) => (
-    <div className="px-3 pt-1.5 pb-0.5">
-      <span className="text-[10px] font-medium text-grey-400 uppercase tracking-wide">{text}</span>
-    </div>
-  );
+  // ── Agent sub-view: a searchable list of agents ─────────────────────────
+  if (view === 'agents') {
+    return (
+      <div className={containerClass} style={containerStyle}>
+        <div className="flex items-center gap-1.5 border-b border-grey-200 dark:border-grey-700 px-2 py-1.5">
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setView('root');
+            }}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-grey-400 hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+            title="Zurück"
+          >
+            <FiChevronLeft size={16} />
+          </button>
+          <FiSearch size={13} className="shrink-0 text-grey-400" />
+          <input
+            ref={searchRef}
+            value={agentSearch}
+            onChange={(e) => setAgentSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                setView('root');
+              }
+            }}
+            placeholder="Agent suchen…"
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-grey-400 dark:placeholder:text-grey-300"
+          />
+        </div>
+        <div className="max-h-56 overflow-y-auto py-1">
+          {agents.length === 0 ? (
+            <p className="px-3 py-3 text-center text-xs text-grey-400">
+              Keine Agent*innen gefunden.
+            </p>
+          ) : (
+            agents.map((agent) => (
+              <button
+                key={agent.identifier}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (!botMember) return;
+                  onSelect({
+                    userId: botMember.user_id,
+                    displayName: agent.title,
+                    avatarRobotId: botMember.avatar_robot_id || 1,
+                    agentId: agent.identifier,
+                  });
+                }}
+                className={rowClass(false)}
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">
+                  <PhosphorIcon name={agent.iconKey} className="h-4 w-4" />
+                </span>
+                <span className="truncate">{agent.title}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Root view: people + an entry into the agent sub-view ────────────────
+  if (people.length === 0 && !showAgentsEntry) return null;
 
   return (
-    <div
-      className="fixed z-50 w-60 rounded-lg border border-grey-200 dark:border-grey-700 bg-background-pure shadow-lg overflow-hidden"
-      style={{ left: anchorRect.x, top: anchorRect.y - 4, transform: 'translateY(-100%)' }}
-    >
+    <div className={containerClass} style={containerStyle}>
       <div ref={listRef} className="max-h-60 overflow-y-auto py-1">
-        {people.length > 0 && sectionLabel('Personen')}
+        {people.length > 0 && (
+          <div className="px-3 pt-1.5 pb-0.5">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-grey-400">
+              Personen
+            </span>
+          </div>
+        )}
         {people.map((member, i) => {
           const name = member.display_name || member.first_name || 'Unbekannt';
           return (
@@ -122,32 +223,25 @@ export const UserMentionPopover = memo(function UserMentionPopover({
           );
         })}
 
-        {agents.length > 0 && sectionLabel('Agent*innen')}
-        {agents.map((agent, j) => {
-          const index = people.length + j;
-          return (
-            <button
-              key={agent.identifier}
-              data-mention-index={index}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (!botMember) return;
-                onSelect({
-                  userId: botMember.user_id,
-                  displayName: agent.title,
-                  avatarRobotId: botMember.avatar_robot_id || 1,
-                  agentId: agent.identifier,
-                });
-              }}
-              className={rowClass(index === activeIndex)}
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center text-foreground-muted">
-                <PhosphorIcon name={agent.iconKey} className="h-4 w-4" />
+        {showAgentsEntry && (
+          <button
+            data-mention-index={people.length}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setAgentSearch('');
+              setView('agents');
+            }}
+            className={`${rowClass(people.length === activeIndex)} justify-between`}
+          >
+            <span className="flex items-center gap-2.5 truncate">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">
+                <PhosphorIcon name="PiRobot" className="h-4 w-4" />
               </span>
-              <span className="truncate">{agent.title}</span>
-            </button>
-          );
-        })}
+              <span className="truncate">Agent*innen durchsuchen</span>
+            </span>
+            <FiChevronRight size={14} className="shrink-0 text-grey-400" />
+          </button>
+        )}
       </div>
     </div>
   );
