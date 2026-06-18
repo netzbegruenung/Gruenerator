@@ -40,7 +40,7 @@ export const CardContent = memo(function CardContent({
   const title = (row.cells[FIELD_IDS.TITLE] as string) || '';
   const description = (row.cells[FIELD_IDS.DESCRIPTION] as string) || '';
   const dueDate = row.cells[FIELD_IDS.DUE_DATE] as string | null;
-  const labelIds = (row.cells[FIELD_IDS.LABELS] ?? []) as string[];
+  const labelIds = useMemo(() => (row.cells[FIELD_IDS.LABELS] ?? []) as string[], [row.cells]);
   const assignees = useMemo(() => parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]), [row.cells]);
 
   const checklist = useMemo(

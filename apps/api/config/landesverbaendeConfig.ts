@@ -34,6 +34,7 @@ export interface ContentPath {
   processUndatedPdfs?: boolean; // When true, process PDFs without detectable dates instead of skipping them (default: false)
   paginationOffset?: number; // Offset for page number in pagination (default: 0). Use -1 for Drupal 0-indexed pagination.
   paginationLinkSelector?: string; // Optional: CSS selector for pagination links. When set, follows "next" links from HTML instead of constructing URLs (needed for Typo3 cHash).
+  paginateWithinAgeLimit?: boolean; // Optional: stop paginating once a listing page holds no item within source.maxAgeYears. Reverse-chronological listings only. Bounds discovery to the age window instead of maxPages (which mis-covers archives deeper/shallower than the window). Reads listing dates via contentSelectors.date; no-op if maxAgeYears is unset or no date parses.
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
@@ -296,11 +297,14 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       cms: 'wordpress',
       contentPaths: [
         {
+          // WP REST API, category 31 = Beschluss (279 posts). The API returns the
+          // same /YYYY/MM/DD/<slug>/ permalinks the homepage listing did, so the
+          // switch keeps source_urls — and thus the Qdrant dedup keys — stable
+          // (no re-index churn) while replacing the fragile ?paged HTML pagination.
           type: 'beschluss',
           path: '/',
           listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
-          paginationPattern: '?paged={page}',
-          maxPages: 50,
+          wpApi: { categoryId: 31 },
         },
       ],
       contentSelectors: {
@@ -868,7 +872,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           path: '/partei/presse/',
           listSelector: 'h2 a[href], h3 a[href], article a[href]',
           paginationPattern: 'page/{page}/',
+          // Archive runs back to ~2015 (10y); the .zeit date-stop bounds discovery
+          // to the 5y window (~page 13), so maxPages is just a safety ceiling.
           maxPages: 40,
+          paginateWithinAgeLimit: true,
         },
         {
           type: 'beschluss',
@@ -876,6 +883,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: 'h2 a[href], h3 a[href], article a[href]',
           paginationPattern: 'page/{page}/',
           maxPages: 30,
+          paginateWithinAgeLimit: true,
         },
       ],
       // hessengruen theme markup: title is <h1 class="eintrag-titel">, body is
@@ -919,7 +927,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: 'a[href*="/landtag/pressemitteilungen/"]',
           disableOffPathFilter: true,
           paginationPattern: 'page/{page}/',
-          maxPages: 120,
+          // ~500 PRs/year, so the 5y window is ~page 250. Ceiling raised from 120
+          // (which under-covered, stopping at ~2.5y) so the .zeit date-stop is the
+          // real bound and the full window is discovered.
+          maxPages: 300,
+          paginateWithinAgeLimit: true,
         },
       ],
       // Same hessengruen theme markup as the Partei site (eintrag-titel / daten / zeit).
