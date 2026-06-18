@@ -5,6 +5,7 @@
 export { threadsContract } from './threadsContract.js';
 export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
+export { itemUsageContract } from './itemUsageContract.js';
 export { searchContract } from './searchContract.js';
 export { researchContract } from './researchContract.js';
 export { chatGraphContract } from './chatGraphContract.js';
@@ -41,6 +42,7 @@ export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { userTemplatesContract } from './userTemplatesContract.js';
 export { templateInteractionsContract } from './templateInteractionsContract.js';
 export { userAgentsContract } from './userAgentsContract.js';
+export { userAgentsSharingContract } from './userAgentsSharingContract.js';
 export { canvasAiContract } from './canvasAi.js';
 export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';

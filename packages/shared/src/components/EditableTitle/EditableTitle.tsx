@@ -43,19 +43,11 @@ export const EditableTitle = forwardRef<EditableTitleHandle, EditableTitleProps>
   ) {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(title);
-    const inputRef = useRef<HTMLInputElement>(null);
     const committedRef = useRef(false);
 
     useEffect(() => {
       setEditValue(title);
     }, [title]);
-
-    useEffect(() => {
-      if (isEditing) {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }
-    }, [isEditing]);
 
     const commitEdit = useCallback(() => {
       if (committedRef.current) return;
@@ -99,7 +91,11 @@ export const EditableTitle = forwardRef<EditableTitleHandle, EditableTitleProps>
     if (isEditing) {
       return (
         <input
-          ref={inputRef}
+          // autoFocus + select-on-focus replaces a post-paint useEffect, which
+          // can be dropped under concurrent rendering — EditableTitle is rendered
+          // inside dnd-kit kanban cards where that bit it (see AddCardButton fix).
+          autoFocus
+          onFocus={(e) => e.currentTarget.select()}
           className={inputClassName}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}

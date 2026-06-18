@@ -291,6 +291,15 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
         };
       }
 
+      // checkNotebookAccess gates group reads on share_mode='groups'. The share
+      // modal sets it before reaching here, but enforce it server-side too so
+      // the invariant holds regardless of the caller (mirrors the generic
+      // groups.shareContent path). 'authenticated' is left alone — members
+      // already have read access and demoting would narrow visibility.
+      if (collection.share_mode !== 'groups' && collection.share_mode !== 'authenticated') {
+        await notebookHelper.updateNotebookCollection(notebookId, { share_mode: 'groups' });
+      }
+
       const postgres = getPostgresInstance();
       const membership = (await postgres.query(
         'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',

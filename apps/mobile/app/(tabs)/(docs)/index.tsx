@@ -11,9 +11,7 @@ import {
   Text,
   StyleSheet,
   RefreshControl,
-  ActivityIndicator,
   Alert,
-  Platform,
   TextInput,
   useColorScheme,
 } from 'react-native';
@@ -21,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../../../components/common/BottomSheet';
 import { DocPreview } from '../../../components/common/DocPreview';
+import { Fab } from '../../../components/common/Fab';
 import { AIDocumentCreatorSheet } from '../../../components/docs/AIDocumentCreatorSheet';
 import { NativeShareModal } from '../../../components/docs/NativeShareModal';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
@@ -397,19 +396,12 @@ export default function DocumentsScreen() {
         />
       )}
 
-      {/* FAB — rounded rectangle */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary[600] }]}
+      <Fab
+        icon="add"
         onPress={() => setShowTemplates(true)}
-        activeOpacity={0.8}
-        disabled={isCreating}
-      >
-        {isCreating ? (
-          <ActivityIndicator size="small" color="white" />
-        ) : (
-          <Ionicons name="add" size={28} color="white" />
-        )}
-      </TouchableOpacity>
+        loading={isCreating}
+        accessibilityLabel="Neues Dokument"
+      />
 
       {/* Template selection bottom sheet */}
       <BottomSheet visible={showTemplates} onClose={() => setShowTemplates(false)}>
@@ -674,29 +666,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-
-  // FAB — rounded rectangle
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    height: 56,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
 
   bottomSheetTitle: {

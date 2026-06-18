@@ -117,7 +117,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['BE', 'BE-F'] },
-    defaultNotebookId: 'berlin-notebook',
+    defaultNotebookIds: ['berlin-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
@@ -159,7 +159,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: 'HH' },
-    defaultNotebookId: 'hamburg-notebook',
+    defaultNotebookIds: ['hamburg-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
@@ -201,7 +201,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['MV', 'MV-F'] },
-    defaultNotebookId: 'mecklenburg-vorpommern-notebook',
+    defaultNotebookIds: ['mecklenburg-vorpommern-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
@@ -243,7 +243,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['TH', 'TH-F'] },
-    defaultNotebookId: 'thueringen-notebook',
+    defaultNotebookIds: ['thueringen-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
@@ -285,7 +285,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: 'BB' },
-    defaultNotebookId: 'brandenburg-notebook',
+    defaultNotebookIds: ['brandenburg-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
@@ -327,7 +327,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['BY', 'BY-F'] },
-    defaultNotebookId: 'bayern-notebook',
+    defaultNotebookIds: ['bayern-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
@@ -369,7 +369,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['LSA', 'LSA-F'] },
-    defaultNotebookId: 'sachsen-anhalt-notebook',
+    defaultNotebookIds: ['sachsen-anhalt-notebook'],
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hessen',
@@ -411,7 +411,7 @@ const PR_AGENT_DEFINITIONS = [
       'self_review',
     ],
     defaultFilter: { landesverband: ['HE', 'HE-F'] },
-    defaultNotebookId: 'hessen-notebook',
+    defaultNotebookIds: ['hessen-notebook'],
   },
   // ─── Dedicated Öffentlichkeitsarbeit-Agent für Österreich ───
   // Spiegelbild zu den hand-getunten DE-LV-Agents. Verwendet gruene.at-Stil,
@@ -516,12 +516,12 @@ Schritt 5: \`self_review\` prüft Stil, Vokabular (kein deutsches Vokabular!), S
 export type OeffentlichkeitsarbeitAgentId = (typeof PR_AGENT_DEFINITIONS)[number]['identifier'];
 
 /**
- * Public registry array. Each per-LV agent gets its `defaultNotebookId` from the
+ * Public registry array. Each per-LV agent gets its `defaultNotebookIds` from the
  * LV registry by identifier, so the notebook pin is impossible to omit — the
- * notebook page lists an agent only when `defaultNotebookId === notebookId`. The
- * general agent has no registry entry and is passed through unchanged.
+ * notebook page lists an agent only when its `defaultNotebookIds` include the
+ * notebookId. The general agent has no registry entry and is passed through unchanged.
  */
 export const OEFFENTLICHKEITSARBEIT_AGENTS: readonly Agent[] = PR_AGENT_DEFINITIONS.map((def) => {
   const notebookId = LV_NOTEBOOK_BY_PR_AGENT_ID.get(def.identifier);
-  return notebookId ? { ...def, defaultNotebookId: notebookId } : def;
+  return notebookId ? { ...def, defaultNotebookIds: [notebookId] } : def;
 });

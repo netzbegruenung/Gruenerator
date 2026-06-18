@@ -27,6 +27,7 @@ import {
   formatMemoriesByCategory,
 } from '../../../services/mem0/index.js';
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
+import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -221,6 +222,17 @@ export async function buildStreamContext({
     log.info(
       `[ChatGraph] User-notebook scoping: ${resolvedUserNotebookIds.length} notebook(s) → ${notebookDocumentIds.length} document(s)`
     );
+  }
+
+  // Record usage for "favourites first" ordering (fire-and-forget). Only the
+  // explicitly-selected agent is recorded — the default is coalesced later, so
+  // recording it here would rank `gruenerator-universal` to the top of every
+  // user's list. Both system (slug) and resolved user (UUID) notebooks count.
+  if (agentId) {
+    recordItemUsageSafe(userId, 'agent', agentId);
+  }
+  for (const notebookId of new Set([...systemNotebookIds, ...resolvedUserNotebookIds])) {
+    recordItemUsageSafe(userId, 'notebook', notebookId);
   }
 
   // === Convert messages ===

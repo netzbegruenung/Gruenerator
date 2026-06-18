@@ -13,7 +13,7 @@
  */
 
 import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
-import { extractSlugSuffix } from '@gruenerator/shared/utils';
+import { extractSlugSuffix, sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -26,6 +26,7 @@ import {
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
+import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -262,72 +263,38 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
   listCollections: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const postgres = getPostgresInstance();
 
+      // Personal list is strictly the caller's OWN notebooks. Notebooks shared
+      // with the user — whether via a group (share_mode='groups') or as
+      // link-readable authenticated notebooks (share_mode='authenticated') — are
+      // intentionally NOT listed here. They stay reachable by direct link and,
+      // when is_public, via the public "Von der Basis" listing
+      // (listPublicCollections). Merging shared buckets into this list let
+      // another user's authenticated-shared notebook surface in everyone's
+      // "Eigene" list — a privacy leak. Access on direct URL is still governed
+      // by checkNotebookAccess, so this only changes discovery/listing.
       const owned = (await notebookHelper.getUserNotebookCollections(
         userId
       )) as NotebookCollectionFromQdrantRaw[];
-      const ownedIds = new Set(owned.map((c) => c.id));
-
-      // Notebooks shared with any group the user belongs to.
-      const groupSharedIdRows = (await postgres.query(
-        `SELECT DISTINCT gcs.content_id
-           FROM group_content_shares gcs
-           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
-           WHERE gcs.content_type = 'notebook_collections' AND gm.user_id = $1`,
-        [userId]
-      )) as Array<{ content_id: string }>;
-      const groupSharedIds = groupSharedIdRows
-        .map((r) => r.content_id)
-        .filter((id) => !ownedIds.has(id));
-      const groupShared = (
-        groupSharedIds.length > 0
-          ? ((await notebookHelper.getNotebookCollectionsByIds(
-              groupSharedIds
-            )) as NotebookCollectionFromQdrantRaw[])
-          : []
-      ).filter((c) => c.share_mode === 'groups');
-      const groupSharedIdsSet = new Set(groupShared.map((c) => c.id));
-
-      // Notebooks visible to any authenticated user — excluding ones we
-      // already have AND respecting the audience filter so an AT viewer
-      // doesn't get a DE-targeted notebook (and vice versa). Legacy 'all'
-      // rows are rewritten to the owner's locale at boot via
-      // `backfillNotebookAudience`, so an exact match is all we need.
-      const viewerLocale = getUserLocale(args.req);
-      const authShared = (
-        (await notebookHelper.getNotebookCollectionsByShareMode(
-          'authenticated'
-        )) as NotebookCollectionFromQdrantRaw[]
-      ).filter(
-        (c) => !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id) && c.audience === viewerLocale
-      );
-
-      const tagged: Array<{
-        collection: NotebookCollectionFromQdrantRaw;
-        access_source: 'owned' | 'shared' | 'authenticated';
-      }> = [
-        ...owned.map((c) => ({ collection: c, access_source: 'owned' as const })),
-        ...groupShared.map((c) => ({ collection: c, access_source: 'shared' as const })),
-        ...authShared.map((c) => ({ collection: c, access_source: 'authenticated' as const })),
-      ];
 
       const transformedData = await Promise.all(
-        tagged.map(({ collection, access_source }) =>
-          enrichNotebookCollection(collection, access_source)
-        )
+        owned.map((collection) => enrichNotebookCollection(collection, 'owned'))
       );
 
-      const totalWolkeFolders = transformedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
+      // Favourites-first: float most-recently/most-used notebooks to the top,
+      // never-used keep their incoming order.
+      const usageMap = await getUsageMap(userId, 'notebook');
+      const sortedData = sortByUsage(transformedData, (c) => c.id, usageMap);
+
+      const totalWolkeFolders = sortedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
       log.debug(
-        `[listCollections] returning ${transformedData.length} collection(s) ` +
-          `(owned=${owned.length} shared=${groupShared.length} authenticated=${authShared.length}), ` +
+        `[listCollections] returning ${sortedData.length} owned collection(s), ` +
           `${totalWolkeFolders} wolke_folders total`
       );
 
       return {
         status: 200 as const,
-        body: { success: true, collections: transformedData },
+        body: { success: true, collections: sortedData },
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.listCollections] Error:', error);
@@ -450,7 +417,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         remove_missing_on_sync,
         labels,
         is_public,
-        public_ownership,
         wolke_folders: wolkeFoldersRaw,
         audience: audienceRaw,
       } = args.body;
@@ -478,11 +444,19 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         };
       }
 
-      if (is_public === true && !public_ownership) {
+      // New notebooks are always created private (share_mode defaults to
+      // 'private' in storeNotebookCollection). A notebook can only be public
+      // once it is share_mode='authenticated', which is set afterwards via the
+      // share modal (PUT /share). Creating straight to is_public=true would
+      // mint an orphan — listed in "Von der Basis" but access-denied for
+      // non-owners — the same invariant setShareMode enforces when stepping
+      // share_mode down. So reject is_public at create time.
+      if (is_public === true) {
         return {
           status: 400 as const,
           body: {
-            error: 'public_ownership is required when is_public is true (owner | public_data)',
+            error:
+              'A notebook cannot be created as public. Create it first, then publish it via the share settings.',
           },
         };
       }
@@ -556,8 +530,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
           wolke_folders,
         },
-        is_public: is_public === true,
-        public_ownership: is_public === true ? (public_ownership ?? null) : null,
+        // Always created private; publishing happens later via the share modal
+        // (rejected above if is_public was requested at create time).
+        is_public: false,
+        public_ownership: null,
         audience,
       };
 

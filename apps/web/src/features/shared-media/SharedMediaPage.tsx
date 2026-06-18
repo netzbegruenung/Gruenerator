@@ -11,6 +11,7 @@ import apiClient from '../../components/utils/apiClient';
 import { buildUrl } from '../../config/domains';
 import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils/cn';
+import { getPublicAppOrigin } from '../../utils/platform';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
 
 const TransferDownloadPage = lazy(() => import('../transfer/components/TransferDownloadPage'));
@@ -298,7 +299,11 @@ const SharedMediaPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCodeSVG value={window.location.href} size={64} level="M" />
+          <QRCodeSVG
+            value={`${getPublicAppOrigin()}${window.location.pathname}${window.location.search}`}
+            size={64}
+            level="M"
+          />
           {copied && (
             <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary-600 text-white px-sm py-xxs rounded-sm text-xs whitespace-nowrap">
               Kopiert!

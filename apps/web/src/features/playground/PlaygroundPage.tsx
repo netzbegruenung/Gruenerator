@@ -21,6 +21,7 @@ import { BrainCircuit, ImagePlus, Play, Square, Trash2, Type } from 'lucide-reac
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../../utils/cn';
+import { platformFetch } from '../../utils/platformFetch';
 
 type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
 
@@ -305,7 +306,7 @@ function PlaygroundPage() {
   const { data: models = [] } = useQuery<ModelConfig[]>({
     queryKey: ['playground', 'models'],
     queryFn: async () => {
-      const res = await fetch('/api/texte/playground/models', { credentials: 'include' });
+      const res = await platformFetch('/api/texte/playground/models', { credentials: 'include' });
       const json = (await res.json()) as { models?: ModelConfig[] };
       return json.models ?? [];
     },
@@ -315,7 +316,7 @@ function PlaygroundPage() {
   const { data: prompts = [] } = useQuery<PromptConfig[]>({
     queryKey: ['playground', 'prompts'],
     queryFn: async () => {
-      const res = await fetch('/api/texte/playground/prompts', { credentials: 'include' });
+      const res = await platformFetch('/api/texte/playground/prompts', { credentials: 'include' });
       const json = (await res.json()) as { prompts?: PromptConfig[] };
       return json.prompts ?? [];
     },
@@ -439,7 +440,7 @@ function PlaygroundPage() {
           Object.values(fieldsRef.current).filter(Boolean).join('\n') ||
           'Beschreibe dieses Bild detailliert. Was ist darauf zu sehen?';
 
-        const response = await fetch('/api/vision/analyze', {
+        const response = await platformFetch('/api/vision/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -498,7 +499,7 @@ function PlaygroundPage() {
       }, 500);
 
       try {
-        const response = await fetch('/api/texte/playground/generate', {
+        const response = await platformFetch('/api/texte/playground/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
           credentials: 'include',

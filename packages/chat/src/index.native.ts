@@ -132,6 +132,11 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
+// Full-text loader for citation detail views. RN-safe (only react +
+// useChatConfigStore.fetch, which mobile configures via configureMobileChat) —
+// the same hook web uses, so the source fetch stays shared, not duplicated.
+export { useFetchFullText, type FetchFullTextFn } from './context/CitationContext';
+
 // SSE Parsing
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 

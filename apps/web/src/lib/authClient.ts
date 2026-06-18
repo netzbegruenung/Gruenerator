@@ -1,5 +1,8 @@
 import { createAuthClient } from 'better-auth/react';
 
+import { getDesktopToken } from '../utils/desktopAuth';
+import { isDesktopApp } from '../utils/platform';
+
 /**
  * Better Auth React client. Mounted against the native handler at
  * `/api/auth/v2/*`. Replaces the previous `/api/auth/status` wrapper:
@@ -29,6 +32,29 @@ import { createAuthClient } from 'better-auth/react';
  */
 const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
+/**
+ * Desktop (Tauri) has no session cookie for the API origin — the webview runs at
+ * `tauri://localhost`, cross-origin to `gruenerator.eu` — so the Better Auth
+ * client must send the stored bearer token explicitly. Without it, every
+ * `getSession()` is unauthenticated, the server answers "guest", and the auth
+ * gate loops on the loading splash. Web is unaffected: cookies travel
+ * same-origin and `getDesktopToken()` only resolves inside the desktop shell.
+ */
+const desktopBearerFetch: typeof fetch = async (input, init) => {
+  if (isDesktopApp()) {
+    const token = await getDesktopToken();
+    if (token) {
+      const headers = new Headers(init?.headers);
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      init = { ...init, headers };
+    }
+  }
+  return fetch(input, init);
+};
+
 export const authClient = createAuthClient({
   baseURL: new URL(`${apiBase}/auth/v2`, window.location.origin).toString(),
+  fetchOptions: { customFetchImpl: desktopBearerFetch },
 });

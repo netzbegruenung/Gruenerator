@@ -44,6 +44,12 @@ export interface AgentConfig {
   locale: string;
   author: string;
   plugins?: string[] | undefined;
+  /**
+   * Notebooks bound to this agent as its combined default knowledge base.
+   * Resolved server-side from the loaded agent record (ChatGraph) and unioned
+   * into `defaultNotebookCollectionIds` / `defaultNotebookDocumentIds`.
+   */
+  defaultNotebookIds?: readonly string[] | undefined;
   /** Tool restrictions for per-agent collection/country filtering */
   toolRestrictions?: ToolRestrictions | undefined;
   /** Whitelist of tool registry keys this agent can use. undefined = all tools. */

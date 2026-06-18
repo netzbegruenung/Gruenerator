@@ -64,6 +64,7 @@ export const CONTENT_LABELS: Record<string, string> = {
   database: 'einen Datenbank-Eintrag',
   system_notebooks: 'ein Notizbuch',
   system_agents: 'einen Agenten',
+  user_agents: 'eine*n Agent*in',
   canvas_template: 'eine Sharepic-Vorlage',
   nextcloud_share_link: 'eine Wolke-Verbindung',
 };

@@ -15,6 +15,9 @@ export async function fetchNotificationsPage(limit: number, offset: number) {
     query: {
       limit: String(limit),
       offset: String(offset),
+      // Unread-only: the popover and the bell badge both derive from this one
+      // list, so the badge can never disagree with what the popover shows.
+      unread_only: 'true',
     },
   });
   if (result.status !== 200) {

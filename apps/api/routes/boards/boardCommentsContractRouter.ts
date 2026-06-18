@@ -17,6 +17,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
+import { bumpCardComments } from '../../services/boards/boardLiveSignalService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
 import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
@@ -48,6 +49,15 @@ function extractPlainText(blocks: CommentBlock[]): string {
 
 function extractMentionedUserIds(blocks: CommentBlock[]): string[] {
   return blocks.filter((b) => b.type === 'mention' && b.userId).map((b) => b.userId!);
+}
+
+/** The card a comment belongs to, for live-signalling reaction/delete changes. */
+async function cardIdForComment(commentId: string): Promise<string | null> {
+  const rows = await db.query<{ card_id: string }>(
+    `SELECT card_id FROM board_comments WHERE id = $1`,
+    [commentId]
+  );
+  return rows[0]?.card_id ?? null;
 }
 
 const s = initServer();
@@ -131,7 +141,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { boardId, cardId } = args.params;
-      const { blocks, parentId } = args.body;
+      const { blocks, parentId, agentId } = args.body;
 
       if (blocks.length === 0) {
         return { status: 400 as const, body: { error: 'Kommentar darf nicht leer sein' } };
@@ -173,6 +183,20 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
 
       const comment = rows[0];
 
+      // Mentioning the bot delegates an async task (below). Acknowledge it
+      // instantly with a 👍 from the bot on the triggering comment, so the user
+      // sees "I'm on it" right away — the actual answer follows from the worker.
+      let botReactions: CommentReaction[] = [];
+      if (mentionedUserIds.includes(GRUENERATOR_BOT_USER_ID)) {
+        botReactions = await db.query<CommentReaction>(
+          `INSERT INTO board_comment_reactions (comment_id, user_id, emoji)
+           VALUES ($1, $2, '👍')
+           ON CONFLICT (comment_id, user_id, emoji) DO NOTHING
+           RETURNING *`,
+          [comment.id, GRUENERATOR_BOT_USER_ID]
+        );
+      }
+
       // Commenter becomes a watcher; record the activity for the unified feed.
       void autoSubscribe(boardId, cardId, userId, 'comment');
       void recordCardActivity({
@@ -194,9 +218,12 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         author_name: authorName,
         author_avatar_robot_id: profile[0]?.avatar_robot_id ?? null,
         reply_count: 0,
-        reactions: [],
+        reactions: botReactions,
         replies: [],
       };
+
+      // Surface the new comment (and any bot 👍) live to other clients.
+      void bumpCardComments(boardId, cardId);
 
       fireCommentNotifications({
         boardId,
@@ -208,6 +235,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         content,
         parentId: parentId ?? null,
         mentionedUserIds,
+        agentId: agentId ?? null,
       }).catch((err: unknown) => {
         log.warn('Failed to send comment notifications', { error: errMsg(err) });
       });
@@ -272,8 +300,8 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       const userId = getAuthedUser(args.req).id;
       const { boardId, commentId } = args.params;
 
-      const existing = await db.query<{ user_id: string; board_owner: string }>(
-        `SELECT bc.user_id, cd.created_by AS board_owner
+      const existing = await db.query<{ user_id: string; board_owner: string; card_id: string }>(
+        `SELECT bc.user_id, bc.card_id, cd.created_by AS board_owner
          FROM board_comments bc
          JOIN collaborative_documents cd ON cd.id = bc.board_id
          WHERE bc.id = $1 AND bc.board_id = $2`,
@@ -291,6 +319,8 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       }
 
       await db.query(`DELETE FROM board_comments WHERE id = $1`, [commentId]);
+
+      void bumpCardComments(boardId, existing[0].card_id);
 
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
@@ -320,6 +350,9 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         return { status: 200 as const, body: { already_exists: true } };
       }
 
+      const cardId = await cardIdForComment(commentId);
+      if (cardId) void bumpCardComments(boardId, cardId);
+
       return { status: 201 as const, body: rows[0] };
     } catch (error) {
       log.error('Error adding reaction', { error: errMsg(error) });
@@ -339,6 +372,9 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         `DELETE FROM board_comment_reactions WHERE comment_id = $1 AND user_id = $2 AND emoji = $3`,
         [commentId, userId, decodeURIComponent(emoji)]
       );
+
+      const cardId = await cardIdForComment(commentId);
+      if (cardId) void bumpCardComments(boardId, cardId);
 
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
@@ -393,6 +429,8 @@ interface CommentNotificationParams {
   content: string;
   parentId: string | null;
   mentionedUserIds: string[];
+  /** Specific agent the comment delegated to (own / shared / system); null = default. */
+  agentId: string | null;
 }
 
 async function fireCommentNotifications(params: CommentNotificationParams): Promise<void> {
@@ -406,6 +444,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     content,
     parentId,
     mentionedUserIds,
+    agentId,
   } = params;
 
   const snippet = content.length > 80 ? content.slice(0, 80) + '…' : content;
@@ -430,6 +469,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
         requestedBy: authorId,
         taskText: content,
         locale: localeRows[0]?.locale ?? 'de-DE',
+        agentId,
       }).catch((err: unknown) => {
         log.warn('Failed to enqueue agent task', { error: errMsg(err) });
       });
