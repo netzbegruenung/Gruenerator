@@ -2,7 +2,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useCallback } from 'react';
 
 import { useAuthStore } from '../stores/authStore';
-import { useNotificationStore } from '../stores/notificationStore';
 import { isDesktopApp } from '../utils/platform';
 
 const RECONNECT_BASE_DELAY = 1000;
@@ -35,18 +34,16 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
       eventSourceRef.current.close();
     }
 
-    const { incrementUnreadCount, setSseConnected } = useNotificationStore.getState();
-
     const es = new EventSource('/api/notifications/stream', { withCredentials: true });
     eventSourceRef.current = es;
 
     es.addEventListener('connected', () => {
       reconnectAttemptRef.current = 0;
-      setSseConnected(true);
     });
 
     es.addEventListener('notification', (event: Event) => {
-      incrementUnreadCount();
+      // Refetch the unread-only list; the bell badge is derived from it, so it
+      // updates together with the popover — no separate counter to bump.
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
       try {
@@ -59,7 +56,6 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
 
     es.onerror = () => {
       es.close();
-      setSseConnected(false);
 
       const delay = Math.min(
         RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttemptRef.current),
@@ -83,7 +79,6 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
-      useNotificationStore.getState().setSseConnected(false);
     };
   }, [isEnabled, connect]);
 }

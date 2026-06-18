@@ -152,13 +152,17 @@ function AgenturaPage() {
     return sharedAgents.filter((e) => matchesQuery([e.agent.title, e.agent.description], q));
   }, [sharedAgents, q]);
 
-  // Publicly-listed community agents, minus the ones the user already owns or
-  // already sees via a group share (avoid showing the same agent twice).
+  // Publicly-listed community agents ("Von der Basis"). Like the notebooks
+  // gallery, owners DO see their own published agents here — so they get
+  // confirmation the listing took effect — even though those also appear under
+  // "Meine Agent*innen". We still drop an agent that's only reachable via a
+  // group share (and not owned), to avoid showing a non-owned card in both
+  // "Geteilt mit Gruppen" and "Von der Basis".
   const filteredPublicAgents = useMemo(() => {
     const ownIds = new Set(userAgents.map((a) => a.identifier));
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
     const pool = publicAgents.filter(
-      (a) => !ownIds.has(a.identifier) && !sharedIds.has(a.identifier)
+      (a) => ownIds.has(a.identifier) || !sharedIds.has(a.identifier)
     );
     if (!q) return pool;
     return pool.filter((a) => matchesQuery([a.title, a.description], q));
@@ -279,7 +283,10 @@ function AgenturaPage() {
 
   const showMeine = showAgents && (sortedUserAgents.length > 0 || (showCreateAgentCta && !q));
   const showGruppen = showAgents && sortedSharedAgents.length > 0;
-  const showCommunity = showAgents && sortedPublicAgents.length > 0;
+  // Always present when browsing agents (not only when populated), mirroring the
+  // notebooks "Von der Basis" gallery — an empty state keeps the section
+  // discoverable. Hidden only while a search yields no public matches.
+  const showCommunity = showAgents && (sortedPublicAgents.length > 0 || !q);
   const showGruenerator = showAgents && sortedGeneralAgents.length > 0;
   const showLv = lvEntries.length > 0;
   const showFavoriten = showSkills && favoriteSkills.length > 0;
@@ -427,17 +434,24 @@ function AgenturaPage() {
                   title={AGENT_SECTIONS.community.label}
                   description="Öffentlich geteilte Agent*innen von der Basis."
                 />
-                <CollapsibleGrid
-                  items={sortedPublicAgents.map((agent) => (
-                    <AgentCard
-                      key={`pub-${agent.identifier}`}
-                      agent={agent}
-                      onSelect={handleSelectAgent}
-                      isFavorite={isAgentFav(agent)}
-                      onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
-                    />
-                  ))}
-                />
+                {sortedPublicAgents.length > 0 ? (
+                  <CollapsibleGrid
+                    items={sortedPublicAgents.map((agent) => (
+                      <AgentCard
+                        key={`pub-${agent.identifier}`}
+                        agent={agent}
+                        onSelect={handleSelectAgent}
+                        isFavorite={isAgentFav(agent)}
+                        onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
+                      />
+                    ))}
+                  />
+                ) : (
+                  <div className="rounded-md border border-dashed border-grey-300 p-lg text-center text-sm text-foreground-muted dark:border-grey-700">
+                    Noch keine öffentlichen Agent*innen. Sei der oder die Erste — teile eine*n
+                    deiner Agent*innen über „Teilen“ und aktiviere „Von der Basis“.
+                  </div>
+                )}
               </section>
             )}
 
