@@ -6,6 +6,8 @@
 
 import * as cheerio from 'cheerio';
 
+import { DateExtractor } from './DateExtractor.js';
+
 import type {
   LandesverbandSource,
   ContentPath,
@@ -66,6 +68,33 @@ export class LinkExtractor {
         const response = await this.fetchUrl(pageUrl);
         const html = await response.text();
         const $ = cheerio.load(html);
+
+        // Date-aware early-stop ("5-year gap"): when paginateWithinAgeLimit is set,
+        // stop once a listing page holds no in-window item. Listings are reverse-
+        // chronological, so the first all-stale page means everything beyond it is
+        // stale too — bounding discovery to the source's age window instead of the
+        // crude maxPages, which otherwise over-crawls (HE partei: 10y of pages, most
+        // fetched-then-rejected at store) or under-crawls (HE fraktion: stops at 2.5y).
+        // The store-stage age filter still drops the few boundary stragglers on the
+        // last kept page. Safe fallback: if no date parses (selector absent/format
+        // unknown), sawInWindow never flips false so we never early-stop — maxPages /
+        // no-new-links keep bounding. Gated to currentPage > 1 so page 1 is always read.
+        const ageLimit = source.maxAgeYears;
+        if (contentPath.paginateWithinAgeLimit && ageLimit != null && currentPage > 1) {
+          const dateSelector = source.contentSelectors.date.join(', ');
+          let sawDate = false;
+          let sawInWindow = false;
+          $(dateSelector).each((_, el) => {
+            const parsed = DateExtractor.parseGermanDate($(el).text());
+            if (!parsed) return;
+            sawDate = true;
+            if (!DateExtractor.isDateTooOld(parsed, ageLimit)) sawInWindow = true;
+          });
+          if (sawDate && !sawInWindow) {
+            log(`Page ${currentPage}: all items older than ${ageLimit}y — stopping at age window`);
+            break;
+          }
+        }
 
         const beforeCount = links.size;
 
