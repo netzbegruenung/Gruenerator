@@ -296,11 +296,14 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       cms: 'wordpress',
       contentPaths: [
         {
+          // WP REST API, category 31 = Beschluss (279 posts). The API returns the
+          // same /YYYY/MM/DD/<slug>/ permalinks the homepage listing did, so the
+          // switch keeps source_urls — and thus the Qdrant dedup keys — stable
+          // (no re-index churn) while replacing the fragile ?paged HTML pagination.
           type: 'beschluss',
           path: '/',
           listSelector: 'article a[href], h2 a, h3 a, .entry-title a',
-          paginationPattern: '?paged={page}',
-          maxPages: 50,
+          wpApi: { categoryId: 31 },
         },
       ],
       contentSelectors: {
