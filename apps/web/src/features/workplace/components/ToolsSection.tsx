@@ -41,7 +41,7 @@ const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'gruen-veraendern',
     title: 'Bild mit KI begrünen',
-    description: 'Motive per KI gestalten',
+    description: 'Eigene Fotos grüner machen',
     path: '/studio/ki/green-edit',
     icon: getIcon('navigation', 'imagine')!,
   },
@@ -70,21 +70,21 @@ const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'scanner',
     title: 'Text digitalisieren',
-    description: 'Gescannte Texte erfassen',
+    description: 'Fotos & Scans in Text umwandeln',
     path: '/scanner',
     icon: getIcon('navigation', 'scanner')!,
   },
   {
     id: 'transkription',
     title: 'Audio mit KI transkribieren',
-    description: 'Sprache zu Text',
+    description: 'Meetings & Interviews verschriftlichen',
     path: '/transkription',
     icon: getIcon('navigation', 'transkription')!,
   },
   {
     id: 'apps',
     title: 'Mit ChatGPT & co verbinden',
-    description: 'Externe KI-Tools anbinden',
+    description: 'Grünerator in ChatGPT & Claude nutzen',
     path: '/apps',
     icon: getIcon('actions', 'link')!,
   },
