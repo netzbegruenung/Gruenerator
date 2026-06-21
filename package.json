@@ -20,7 +20,7 @@
       "langsmith": ">=0.4.6",
       "markdown-it": ">=14.2.0",
       "tar": ">=7.5.11",
-      "undici": ">=7.18.2",
+      "undici": ">=8.5.0",
       "@qdrant/js-client-rest>undici": "^6.24.1",
       "rollup": ">=4.59.0",
       "zod": "^3.24.1",
@@ -32,10 +32,10 @@
       "minimatch@>=9 <10": ">=9.0.6 <10",
       "ajv@<7": ">=6.14.0 <7",
       "serialize-javascript": ">=7.0.4",
-      "webpack-dev-server": ">=5.2.4",
+      "webpack-dev-server": ">=5.2.5",
       "@tootallnate/once": ">=2.0.0",
       "loader-utils": "^2.0.4",
-      "dompurify": ">=3.2.7",
+      "dompurify": ">=3.4.11",
       "mermaid": ">=11.15.0",
       "kysely": ">=0.28.17",
       "fast-uri": ">=3.1.2",
@@ -64,7 +64,8 @@
         "GHSA-g7r4-m6w7-qqqr",
         "GHSA-8988-4f7v-96qf",
         "GHSA-h67p-54hq-rp68",
-        "GHSA-rmmh-p597-ppvv"
+        "GHSA-rmmh-p597-ppvv",
+        "GHSA-64mm-vxmg-q3vj"
       ]
     }
   },
