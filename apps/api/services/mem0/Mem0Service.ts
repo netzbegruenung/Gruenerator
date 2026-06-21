@@ -141,7 +141,12 @@ export class Mem0Service {
       } catch (addError: unknown) {
         const errName = addError instanceof Error ? addError.name : '';
         if (errName === 'ZodError' || errName === 'SyntaxError') {
-          log.debug(`[Mem0] ${errName} in mem0ai SDK (non-fatal), skipping memory extraction`);
+          // Non-fatal, but a real silent-extraction failure: the SDK couldn't
+          // parse the LLM output, so 0 memories were saved. Surface at warn (not
+          // debug) so an unhealthy extraction model is visible in normal logs.
+          log.warn(
+            `[Mem0] ${errName} from mem0ai SDK — extraction parse failed, 0 memories saved for user ${userId}`
+          );
           return [];
         }
         throw addError;
@@ -166,7 +171,16 @@ export class Mem0Service {
         }
       }
 
-      log.info(`[Mem0] Added ${addedMemories.length} memories for user ${userId}`);
+      // Distinguish "nothing memorable" from a silent failure: a clean empty
+      // result and a dropped-extraction both used to log identically as
+      // "Added 0 memories", making it impossible to tell if extraction worked.
+      if (addedMemories.length === 0) {
+        log.info(
+          `[Mem0] Extraction returned 0 memories for user ${userId} (nothing memorable, or LLM output fell back to empty)`
+        );
+      } else {
+        log.info(`[Mem0] Added ${addedMemories.length} memories for user ${userId}`);
+      }
       return addedMemories;
     } catch (error) {
       log.warn(`[Mem0] Error adding memories for user ${userId}: ${getErrorMessage(error)}`);
