@@ -96,10 +96,25 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
 const parseDocPreview = (html: string): { heading: string | null; body: string } => {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
-  const headingEl = tmp.querySelector('h1, h2, h3, h4, h5, h6');
-  const heading = headingEl?.textContent?.trim() ?? '';
+  const norm = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
+
+  // Prefer a semantic heading (h1–h6). Many docs — notably AI-generated press
+  // releases — instead lead with a bold run (<strong>) used as a faux-heading,
+  // so fall back to that: a leading bold whose text the body starts with. Without
+  // it the faux-heading collapses into the grey body (textContent strips <strong>)
+  // and glues onto the next block with no separating space.
+  let headingEl = tmp.querySelector<HTMLElement>('h1, h2, h3, h4, h5, h6');
+  if (!headingEl) {
+    const boldEl = tmp.querySelector<HTMLElement>('strong, b');
+    const boldText = norm(boldEl?.textContent);
+    if (boldEl && boldText && norm(tmp.textContent).startsWith(boldText)) {
+      headingEl = boldEl;
+    }
+  }
+
+  const heading = norm(headingEl?.textContent);
   headingEl?.remove();
-  const body = (tmp.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const body = norm(tmp.textContent);
   return { heading: heading || null, body };
 };
 
@@ -125,23 +140,27 @@ PlaceholderBars.displayName = 'PlaceholderBars';
 // rows (those live in Yjs, loaded only via /boards/:id/state), so we render a
 // type-faithful schematic: a three-column Kanban (eucalyptus header bar over
 // solid card blocks) or a grid of whiteboard sticky notes.
-const KANBAN_COLUMNS = [2, 1, 2];
+const KANBAN_COLUMNS = [
+  { id: 'kanban-1', cards: 2 },
+  { id: 'kanban-2', cards: 1 },
+  { id: 'kanban-3', cards: 2 },
+];
 
 const WHITEBOARD_NOTES = [
-  'bg-secondary-100 dark:bg-secondary-900/40',
-  'bg-primary-100 dark:bg-primary-900/40',
-  'bg-grey-100 dark:bg-grey-700/50',
-  'bg-secondary-50 dark:bg-secondary-900/30',
-  'bg-grey-100 dark:bg-grey-700/50',
-  'bg-primary-50 dark:bg-primary-900/30',
+  { id: 'wb-a', tint: 'bg-secondary-100 dark:bg-secondary-900/40' },
+  { id: 'wb-b', tint: 'bg-primary-100 dark:bg-primary-900/40' },
+  { id: 'wb-c', tint: 'bg-grey-100 dark:bg-grey-700/50' },
+  { id: 'wb-d', tint: 'bg-secondary-50 dark:bg-secondary-900/30' },
+  { id: 'wb-e', tint: 'bg-grey-100 dark:bg-grey-700/50' },
+  { id: 'wb-f', tint: 'bg-primary-50 dark:bg-primary-900/30' },
 ];
 
 const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboard' }) => {
   if (boardType === 'whiteboard') {
     return (
       <div className="grid h-full grid-cols-3 grid-rows-2 gap-2" aria-hidden>
-        {WHITEBOARD_NOTES.map((tint, i) => (
-          <div key={i} className={cn('rounded-[5px]', tint)} />
+        {WHITEBOARD_NOTES.map((note) => (
+          <div key={note.id} className={cn('rounded-[5px]', note.tint)} />
         ))}
       </div>
     );
@@ -149,11 +168,14 @@ const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboa
 
   return (
     <div className="flex gap-2.5" aria-hidden>
-      {KANBAN_COLUMNS.map((cards, ci) => (
-        <div key={ci} className="flex flex-1 flex-col gap-1.5">
+      {KANBAN_COLUMNS.map((col) => (
+        <div key={col.id} className="flex flex-1 flex-col gap-1.5">
           <div className="h-2 rounded-[3px] bg-secondary-300 dark:bg-secondary-600" />
-          {Array.from({ length: cards }, (_, i) => (
-            <div key={i} className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50" />
+          {Array.from({ length: col.cards }, (_, i) => (
+            <div
+              key={`${col.id}-${i}`}
+              className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
+            />
           ))}
         </div>
       ))}
