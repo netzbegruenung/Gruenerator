@@ -25,6 +25,14 @@ import type { Mem0Message, Mem0Memory, Mem0MemoryMetadata, Mem0HistoryRecord } f
 const log = createLogger('Mem0Service');
 
 /**
+ * Minimum similarity score for a memory to be included in retrieval.
+ * Qdrant cosine scores for loosely-related queries commonly sit in the
+ * 0.3–0.5 range; the previous 0.4 cutoff silently dropped relevant memories
+ * on many turns. Lowered to 0.3 — tune against real score distributions.
+ */
+const MEMORY_SCORE_THRESHOLD = 0.3;
+
+/**
  * Singleton instance of the Mem0 service.
  */
 let mem0Instance: Mem0Service | null = null;
@@ -191,17 +199,14 @@ export class Mem0Service {
 
       const allMemories = (response?.results || []).map(toMem0Memory);
 
-      // Apply confidence-weighted scoring
-      const weighted = allMemories.map((m) => {
-        const confidence = m.metadata?.confidence;
-        let multiplier = 1.0;
-        if (confidence === 'high') multiplier = 1.2;
-        else if (confidence === 'low') multiplier = 0.8;
-        return { ...m, score: (m.score ?? 1) * multiplier };
-      });
-
-      const memories = weighted
-        .filter((m) => (m.score ?? 1) >= 0.4)
+      // Filter by raw similarity score and sort by relevance.
+      // Note: the previous confidence-weighted multiplier was dead code —
+      // `metadata.confidence` is never persisted (mem0 OSS stores only the
+      // metadata passed to add(), and the write path passes none), so the
+      // multiplier was always 1.0. Removed to avoid the false impression that
+      // high-confidence facts are boosted.
+      const memories = allMemories
+        .filter((m) => (m.score ?? 1) >= MEMORY_SCORE_THRESHOLD)
         .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
       log.info(
