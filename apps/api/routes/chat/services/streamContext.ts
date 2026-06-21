@@ -82,6 +82,7 @@ export interface StreamContext {
   initialState: Awaited<ReturnType<typeof initializeChatState>>;
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
+  memoryEnabled: boolean;
   contextWindowTokens: number;
 }
 
@@ -354,7 +355,8 @@ export async function buildStreamContext({
   let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
   const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage) {
+  const memoryEnabled = user.memory_enabled === true;
+  if (mem0 && lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
 
@@ -375,15 +377,17 @@ export async function buildStreamContext({
           'mem0 memory search'
         );
         if (memories.length > 0) {
+          // Category lives in the `categories[]` array written by the gatekeeper;
+          // fall back to the legacy `memoryType` field for older rows.
           memoriesUsed = memories.map((m) => ({
             content: m.memory,
-            category: normalizeCategory(m.metadata?.memoryType) ?? null,
+            category: normalizeCategory(m.metadata?.memoryType ?? m.metadata?.categories?.[0]),
           }));
 
           memoryContext = formatMemoriesByCategory(
             memories.map((m) => ({
               memory: m.memory,
-              category: normalizeCategory(m.metadata?.memoryType),
+              category: normalizeCategory(m.metadata?.memoryType ?? m.metadata?.categories?.[0]),
             }))
           );
           log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
@@ -506,6 +510,7 @@ export async function buildStreamContext({
       initialState,
       memoryContext,
       memoryRetrieveTimeMs,
+      memoryEnabled,
       contextWindowTokens,
     },
   };
