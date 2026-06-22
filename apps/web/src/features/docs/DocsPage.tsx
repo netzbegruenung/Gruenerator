@@ -448,7 +448,7 @@ function DocumentsContent() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="h-[140px] animate-pulse rounded-xl border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800"
+                className="h-[240px] animate-pulse rounded-xl border border-grey-200 bg-grey-100 dark:border-grey-700 dark:bg-grey-800"
               />
             ))}
           </CardGrid>
@@ -473,7 +473,7 @@ function DocumentsContent() {
               <>
                 <div
                   ref={personalGridRef}
-                  className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]"
+                  className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]"
                 >
                   {visiblePersonalItems.map((item) => {
                     if (item.kind === 'document')
@@ -523,7 +523,7 @@ function DocumentsContent() {
                   <FiUsers size={14} />
                   {groupName}
                 </h2>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
                   {docs.map((item) => {
                     if (item.kind !== 'document') return null;
                     return (
