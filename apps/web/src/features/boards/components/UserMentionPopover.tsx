@@ -67,8 +67,17 @@ export const UserMentionPopover = memo(function UserMentionPopover({
       .slice(0, MAX_PEOPLE);
   }, [members, query]);
 
+  // A direct "@Grünerator" tag for the general assistant (bot mention with no
+  // agentId) — sits next to the searchable agent sub-view. Surfaces when the
+  // query is empty or matches the bot's name, so typing "@grü" still finds it.
+  const botName = botMember?.display_name || botMember?.first_name || 'Grünerator';
+  const botQuery = query.trim().toLowerCase();
+  const showBotEntry = !!botMember && (!botQuery || botName.toLowerCase().includes(botQuery));
   const showAgentsEntry = !!botMember;
-  const total = people.length + (showAgentsEntry ? 1 : 0);
+
+  const botIndex = people.length;
+  const agentsIndex = people.length + (showBotEntry ? 1 : 0);
+  const total = people.length + (showBotEntry ? 1 : 0) + (showAgentsEntry ? 1 : 0);
   const activeIndex = total > 0 ? Math.min(selectedIndex, total - 1) : 0;
 
   // Reset the sub-view whenever the popover closes.
@@ -183,7 +192,7 @@ export const UserMentionPopover = memo(function UserMentionPopover({
   }
 
   // ── Root view: people + an entry into the agent sub-view ────────────────
-  if (people.length === 0 && !showAgentsEntry) return null;
+  if (people.length === 0 && !showBotEntry && !showAgentsEntry) return null;
 
   return (
     <div className={containerClass} style={containerStyle}>
@@ -223,15 +232,39 @@ export const UserMentionPopover = memo(function UserMentionPopover({
           );
         })}
 
+        {showBotEntry && botMember && (
+          <button
+            data-mention-index={botIndex}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onSelect({
+                userId: botMember.user_id,
+                displayName: botName,
+                avatarRobotId: botMember.avatar_robot_id || 1,
+              });
+            }}
+            className={rowClass(botIndex === activeIndex)}
+          >
+            <RobotAvatar
+              robotId={botMember.avatar_robot_id || 1}
+              displayName={botName}
+              sizePx={20}
+              className="w-5 h-5 shrink-0"
+              alt=""
+            />
+            <span className="truncate">{botName}</span>
+          </button>
+        )}
+
         {showAgentsEntry && (
           <button
-            data-mention-index={people.length}
+            data-mention-index={agentsIndex}
             onMouseDown={(e) => {
               e.preventDefault();
               setAgentSearch('');
               setView('agents');
             }}
-            className={`${rowClass(people.length === activeIndex)} justify-between`}
+            className={`${rowClass(agentsIndex === activeIndex)} justify-between`}
           >
             <span className="flex items-center gap-2.5 truncate">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">

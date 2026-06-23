@@ -79,6 +79,18 @@ const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
 const LANDESVERBAENDE_ARCHIVE_COLLECTION = 'landesverbaende_archive';
 
 /**
+ * Per-content-path article processing concurrency. The article loop is purely
+ * I/O-bound per item (Qdrant skip-check → HTTP fetch → embed → store), so a
+ * worker pool collapses the wall-clock of multi-thousand-link archives that
+ * previously ran serially and pushed big LVs (HE) past the 50-minute sync
+ * timeout. Kept modest so that, combined with up to LV_CONCURRENCY sources in
+ * flight (and HE serving two of them off one host), request pressure on any
+ * single site stays polite — replacing the old per-item crawlDelay, which a
+ * worker pool makes meaningless.
+ */
+const ARTICLE_CONCURRENCY = 6;
+
+/**
  * Main scraper class - orchestrates all modules
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
@@ -163,7 +175,15 @@ export class LandesverbandScraper extends BaseScraper {
     contentPath: ContentPath,
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
-    const { forceUpdate = false, maxDocuments = null, dryRun = false } = options;
+    const { forceUpdate = false, maxDocuments = null, dryRun = false, recent = false } = options;
+    // Incremental hourly window (see --recent): WP REST discovery gets a
+    // modified_after filter; HTML listings are capped to their first pages. The
+    // nightly run leaves `recent` off for a full walk. A 2-day lookback is
+    // stateless and gap-proof across the overnight pause, and re-seeing an
+    // already-indexed item is a cheap freshness-gated Qdrant skip.
+    const RECENT_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000;
+    const RECENT_MAX_PAGES = 2;
+    const modifiedAfter = recent ? new Date(Date.now() - RECENT_LOOKBACK_MS) : null;
     const targetCollection = source.qdrantCollection || this.config.collectionName;
     const result: ContentPathResult = {
       contentType: contentPath.type,
@@ -331,7 +351,8 @@ export class LandesverbandScraper extends BaseScraper {
         articleLinks = await this.wpApiExtractor.extractArticleLinks(
           source,
           contentPath,
-          this.log.bind(this)
+          this.log.bind(this),
+          modifiedAfter
         );
       } else if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
         this.log(`Using sitemap extraction for ${contentPath.type}`);
@@ -341,9 +362,20 @@ export class LandesverbandScraper extends BaseScraper {
           this.log.bind(this)
         );
       } else {
+        // Incremental: cap HTML-listing discovery to the first pages (newest items
+        // sit on page 1 of a reverse-chronological listing). The full walk runs nightly.
+        const discoveryPath =
+          recent && (contentPath.maxPages ?? RECENT_MAX_PAGES) > RECENT_MAX_PAGES
+            ? { ...contentPath, maxPages: RECENT_MAX_PAGES }
+            : contentPath;
+        if (recent) {
+          this.log(
+            `Incremental: first ${discoveryPath.maxPages ?? RECENT_MAX_PAGES} listing page(s) only`
+          );
+        }
         articleLinks = await this.linkExtractor.extractArticleLinks(
           source,
-          contentPath,
+          discoveryPath,
           this.log.bind(this)
         );
       }
@@ -406,12 +438,17 @@ export class LandesverbandScraper extends BaseScraper {
         return result;
       }
 
-      for (let i = 0; i < toProcess.length; i++) {
-        const url = toProcess[i];
+      // Process discovered articles with bounded concurrency (see ARTICLE_CONCURRENCY).
+      // Counters mutate from each task — safe under Node's single thread, where the
+      // synchronous increments between awaits never interleave. `processed` is the
+      // dispatch counter used only for progress logging.
+      let processed = 0;
+      const tasks = toProcess.map((url) => async (): Promise<void> => {
+        const n = ++processed;
         try {
           if (!forceUpdate && (await this.#isFreshlyIndexed(url, targetCollection))) {
             result.skipped++;
-            continue;
+            return;
           }
 
           const content = await ContentExtractor.extractPageContent(
@@ -435,20 +472,19 @@ export class LandesverbandScraper extends BaseScraper {
               result.newArticles.push({ title: content.title || url, url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
-            this.log(`✓ [${i + 1}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
+            this.log(`✓ [${n}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
           } else {
             result.skipped++;
             result.skipReasons[storeResult.reason || 'unknown'] =
               (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
           }
-
-          await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
           result.errors++;
         }
-      }
+      });
+      await parallelLimit(tasks, ARTICLE_CONCURRENCY);
     }
 
     return result;

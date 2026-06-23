@@ -204,6 +204,8 @@ export interface PersistParams {
   processedMeta: ProcessedAttachmentMeta[];
   aiWorkerPool: AIWorkerPool;
   requestId: string;
+  /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
+  memoryEnabled: boolean;
 }
 
 /**
@@ -223,6 +225,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     processedMeta,
     aiWorkerPool,
     requestId,
+    memoryEnabled,
   } = params;
 
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
@@ -298,7 +301,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     }
 
     const mem0 = getMem0Instance();
-    if (mem0 && lastUserMessage && fullText) {
+    if (mem0 && lastUserMessage && fullText && memoryEnabled) {
       const userText = extractTextContent(lastUserMessage.content);
 
       // Gatekeeper: check if this conversation contains memorizable info
