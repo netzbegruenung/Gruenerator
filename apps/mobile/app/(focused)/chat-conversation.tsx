@@ -84,10 +84,16 @@ export default function ChatConversationScreen() {
         store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
       }
     } else if (notebookId) {
+      // Entering from a notebook → run the specialized notebook RAG (citations +
+      // sources), not the general agent chat. Switch to notebook mode so the
+      // runtime hits /notebook/stream scoped to this notebook's collections.
       store.setSelectedNotebook(notebookId);
+      store.setThreadMode('notebook');
     }
     return () => {
-      useAgentStore.getState().setSelectedNotebook('gruenerator-notebook');
+      const store = useAgentStore.getState();
+      store.setSelectedNotebook('gruenerator-notebook');
+      store.setThreadMode('chat');
     };
   }, [notebookId, agentId, locale]);
 
