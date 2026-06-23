@@ -25,6 +25,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
+import { ChatProgressIndicator } from './ChatProgressIndicator';
 import { CitationDetailSheet } from './CitationDetailSheet';
 import { CitationsFooter } from './CitationsFooter';
 import { ConfirmActionCard } from './ConfirmActionCard';
@@ -32,12 +33,12 @@ import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
+import { makeCitationMarkdownRules } from './tool-ui/citationMarkdownRules';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
 import { ImageResultCard } from './tool-ui/ImageResultCard';
 import { KeyValueCard } from './tool-ui/KeyValueCard';
 import { PersonResultCard } from './tool-ui/PersonResultCard';
 import { PressemitteilungExamplesCard } from './tool-ui/PressemitteilungExamplesCard';
-import { makeCitationMarkdownRules } from './tool-ui/citationMarkdownRules';
 import { ResearchArtifactCard } from './tool-ui/ResearchArtifactCard';
 import { ScrapeUrlCard } from './tool-ui/ScrapeUrlCard';
 import { ToolResultCard } from './tool-ui/ToolResultCard';
@@ -321,6 +322,16 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const confirmAction = metadata.confirmAction;
   const createdDocument = metadata.createdDocument;
 
+  // While this (last) message is still streaming, surface the cycling stage word
+  // + spinning cog the same way web does — the label rides on metadata.progress,
+  // written by the shared SSE adapter. Once a tool-call part exists, the tool UI
+  // owns the progress affordance, so we step aside (mirrors web's !hasToolCall).
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const isLast = useAuiState((s) => s.message.isLast);
+  const isStreaming = isRunning && isLast;
+  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+  const progress = metadata.progress;
+
   const fetchFullText = useFetchFullText();
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
 
@@ -354,6 +365,9 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   return (
     <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
       <View style={styles.assistantContent}>
+        {isStreaming && !hasToolCall && progress && (
+          <ChatProgressIndicator progress={progress} theme={theme} />
+        )}
         <MessageCitationsContext.Provider value={citationCtx}>
           <MessagePrimitive.Parts components={partsComponents} />
         </MessageCitationsContext.Provider>
