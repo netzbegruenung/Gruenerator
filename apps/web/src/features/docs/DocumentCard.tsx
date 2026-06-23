@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 
 import { formatRelativeDate } from '../../utils/dateFormatter';
+import { parseDocPreview } from '../../utils/parseDocPreview';
 
 import { CardActionMenu } from './CardActionMenu';
 
@@ -95,6 +96,7 @@ export const DocumentCard = memo(function DocumentCard({
   const TypeIcon = style.icon;
   const hasContent = !!doc.content?.trim();
   const isSelectMode = mode === 'select';
+  const preview = hasContent ? parseDocPreview(doc.content!) : null;
 
   const handleClick = () => {
     if (isDisabled) return;
@@ -108,12 +110,10 @@ export const DocumentCard = memo(function DocumentCard({
   return (
     <div
       className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200 bg-background',
-        'aspect-[4/4.5] transition-[box-shadow,border-color,transform] duration-150',
-        'hover:shadow-md hover:border-grey-300',
-        'dark:border-grey-700 dark:hover:border-grey-500',
-        'md:hover:-translate-y-0.5',
-        'max-sm:aspect-[4/3]',
+        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
+        'transition-[box-shadow,border-color,transform] duration-150',
+        'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
+        'dark:border-grey-700/60 dark:hover:border-secondary-700',
         isSelected && 'border-primary-500 ring-2 ring-primary-400 dark:border-primary-400',
         isDisabled && 'pointer-events-none opacity-60'
       )}
@@ -130,58 +130,52 @@ export const DocumentCard = memo(function DocumentCard({
           <FiCheck size={14} />
         </div>
       ) : null}
-      {hasContent ? (
-        <div className="relative flex-1 overflow-hidden bg-grey-50 dark:bg-grey-800/50">
-          <div
-            className={cn(
-              'pointer-events-none w-[800px] origin-top-left scale-[0.3] select-none px-12 py-8',
-              'font-[PT_Sans,Arial,sans-serif] leading-relaxed text-foreground',
-              '[&_h1]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:mb-3 [&_h1]:mt-0',
-              '[&_h2]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h2]:text-[1.1rem] [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:mt-3.5 [&_h2]:mb-1.5',
-              '[&_h3]:font-[Raleway,PT_Sans,Arial,sans-serif] [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_h3]:mt-2.5 [&_h3]:mb-1',
-              '[&_p]:text-[0.8rem] [&_p]:mb-2 [&_p]:mt-0 [&_p]:leading-relaxed',
-              '[&_ul]:text-[0.8rem] [&_ul]:mb-2 [&_ul]:pl-5 [&_ol]:text-[0.8rem] [&_ol]:mb-2 [&_ol]:pl-5',
-              '[&_li]:mb-0.5',
-              '[&_strong]:font-semibold',
-              '[&_em]:italic'
-            )}
-            dangerouslySetInnerHTML={{ __html: doc.content! }}
-          />
-        </div>
-      ) : (
-        <div className={`flex flex-1 items-center justify-center pb-10 ${style.bg}`}>
-          <TypeIcon size={32} className={style.text} />
-        </div>
-      )}
 
-      <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-white/70 dark:bg-grey-900/70 px-2.5 py-2 border-t border-white/50 dark:border-grey-700/50">
-        <div className="flex items-start justify-between gap-1.5">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-xs font-semibold text-foreground">{doc.title}</h3>
-            <div className="mt-0.5 flex items-center gap-1 text-[10px] text-grey-500 dark:text-grey-400">
-              <span>{formatRelativeDate(doc.updated_at)}</span>
-              {doc.access_type && doc.access_type !== 'owner' && (
-                <>
-                  <span>·</span>
-                  <span className="text-primary-600 dark:text-primary-400">
-                    {doc.creator_name ? `Von ${doc.creator_name}` : 'Geteilt'}
-                  </span>
-                </>
-              )}
-            </div>
+      <div className="relative h-48 overflow-hidden border-b border-grey-100 bg-grey-50 dark:border-grey-700/60 dark:bg-grey-800/40">
+        {preview ? (
+          <div className="flex flex-col gap-1.5 px-3.5 pt-4 text-left">
+            {preview.heading && (
+              <p className="m-0 line-clamp-2 text-[13px] font-bold leading-snug text-grey-800 dark:text-grey-100">
+                {preview.heading}
+              </p>
+            )}
+            {preview.body && (
+              <p className="m-0 line-clamp-6 text-[11px] leading-relaxed text-grey-500 dark:text-grey-400">
+                {preview.body}
+              </p>
+            )}
           </div>
-          {!isSelectMode && onRename && onDelete && onShare ? (
-            <CardActionMenu
-              ariaLabel="Dokumentoptionen"
-              onRename={(e) => onRename(doc, e)}
-              onDelete={(e) => onDelete(doc.id, e)}
-              onShare={(e) => {
-                e.stopPropagation();
-                onShare({ id: doc.id, title: doc.title });
-              }}
-            />
-          ) : null}
+        ) : (
+          <div className={`flex h-full items-center justify-center ${style.bg}`}>
+            <TypeIcon size={32} className={style.text} />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-start gap-2 px-3 py-2.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h3 className="m-0 flex items-center gap-1.5 min-w-0 truncate text-sm font-medium text-foreground-heading">
+            <TypeIcon size={14} className={cn('shrink-0', style.text)} />
+            <span className="truncate">{doc.title}</span>
+          </h3>
+          <p className="m-0 truncate text-xs text-grey-500 dark:text-grey-400">
+            {formatRelativeDate(doc.updated_at)}
+            {doc.access_type &&
+              doc.access_type !== 'owner' &&
+              (doc.creator_name ? ` · Von ${doc.creator_name}` : ' · Geteilt')}
+          </p>
         </div>
+        {!isSelectMode && onRename && onDelete && onShare ? (
+          <CardActionMenu
+            ariaLabel="Dokumentoptionen"
+            onRename={(e) => onRename(doc, e)}
+            onDelete={(e) => onDelete(doc.id, e)}
+            onShare={(e) => {
+              e.stopPropagation();
+              onShare({ id: doc.id, title: doc.title });
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );
