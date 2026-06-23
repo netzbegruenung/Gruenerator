@@ -165,6 +165,11 @@ const Nutzungsbedingungen = () => {
         weitergeleitet. Deine Daten werden dort nicht zum Training der KI verwendet. Einzelheiten
         findest Du in unserer <a href="/datenschutz">Datenschutzerklärung</a>.
       </p>
+      <p>
+        (5) Wie wir KI-generierte Inhalte kennzeichnen (insbesondere die sichtbare Kennzeichnung von
+        Bildern) und welche Pflichten nach Art. 50 KI-VO bestehen, erläutern wir auf der Seite{' '}
+        <a href="/ki-transparenz">KI-Transparenz</a>.
+      </p>
 
       <h2>§ 6 Geistiges Eigentum</h2>
       <p>
