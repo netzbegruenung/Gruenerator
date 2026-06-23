@@ -23,6 +23,7 @@ Regeln:
 - Wähle den passenden subtype basierend auf der Beschreibung
 - content muss valides HTML sein, geeignet für einen Texteditor
 - Erlaubte HTML-Tags: h1, h2, h3, p, ul, ol, li, blockquote, strong, em, hr, br, input
+- Beginne das Dokument IMMER mit einer Überschrift als <h1> (z. B. die Schlagzeile einer Pressemitteilung). Verwende NIEMALS fettgedruckten Text (<strong>) als Ersatz für eine Überschrift
 - Für Checklisten/Todo-Listen verwende IMMER: <ul><li><input type="checkbox">Aufgabe</li></ul>
 - Erstelle realistische, vollständige Platzhalterinhalte (Musterstadt, Maxi Mustermensch, etc.)
 - Schreibe auf Deutsch mit geschlechtergerechter Sprache (Genderstern *)
