@@ -268,7 +268,11 @@ export const toolMentionables: Mentionable[] = [
     backgroundColor: '#059669',
     mention: 'bildbearbeiten',
   },
-  ...(typeof document !== 'undefined' && process.env.NODE_ENV !== 'production'
+  // Sharepic is web-only: the canvas editor that renders/edits it has no
+  // React-Native runtime, so the mention is gated on a browser environment
+  // (`document` exists) — but NOT on NODE_ENV. The chat sharepic pipeline is
+  // production-ready on web, so it shows in prod-web typeahead too.
+  ...(typeof document !== 'undefined'
     ? [
         {
           type: 'tool' as const,

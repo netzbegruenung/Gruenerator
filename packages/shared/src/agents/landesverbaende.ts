@@ -5,7 +5,7 @@ import { type NotebookId } from '../notebooks/index.js';
  * SINGLE SOURCE OF TRUTH for the LV↔notebook↔agents relationship — the hub
  * (`landesverbandHubs.ts`), the generated Bürger*innenanfragen agents
  * (`lvBuergerAgents.ts`) and the notebook pin on the hand-tuned PR agents
- * (`oeffentlichkeitsarbeitAgents.ts`) all DERIVE from it.
+ * (`definitions/gruenerator-oeffentlichkeitsarbeit-*.md`) all DERIVE from it.
  *
  * Why this exists: each LV's two specialist agents must appear on the LV
  * notebook page, which lists an agent only when its `defaultNotebookIds` include the notebookId
