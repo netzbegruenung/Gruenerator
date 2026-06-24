@@ -82,7 +82,6 @@ export interface StreamContext {
   initialState: Awaited<ReturnType<typeof initializeChatState>>;
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
-  memoryEnabled: boolean;
   contextWindowTokens: number;
 }
 
@@ -285,9 +284,20 @@ export async function buildStreamContext({
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
       if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        sse.send('error', { error: 'Thread not found' });
-        sse.end();
-        return { done: true };
+        // The client-supplied threadId is gone or not accessible — most often a
+        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+        // mid-send, or a stale client id. Recover gracefully by minting a new
+        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+        // id is never reused, we always create a fresh user-owned thread.
+        const userText = extractTextContent(lastUserMessage.content);
+        const thread = await createThread(
+          userId,
+          agentId ?? 'gruenerator-universal',
+          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+        );
+        actualThreadId = thread.id;
+        isNewThread = true;
+        sse.send('thread_created', { threadId: actualThreadId });
       }
     }
 
@@ -355,8 +365,7 @@ export async function buildStreamContext({
   let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
   const mem0 = getMem0Instance();
-  const memoryEnabled = user.memory_enabled === true;
-  if (mem0 && lastUserMessage && memoryEnabled) {
+  if (mem0 && lastUserMessage) {
     try {
       const memoryStartTime = Date.now();
 
@@ -377,17 +386,15 @@ export async function buildStreamContext({
           'mem0 memory search'
         );
         if (memories.length > 0) {
-          // Category lives in the `categories[]` array written by the gatekeeper;
-          // fall back to the legacy `memoryType` field for older rows.
           memoriesUsed = memories.map((m) => ({
             content: m.memory,
-            category: normalizeCategory(m.metadata?.memoryType ?? m.metadata?.categories?.[0]),
+            category: normalizeCategory(m.metadata?.memoryType) ?? null,
           }));
 
           memoryContext = formatMemoriesByCategory(
             memories.map((m) => ({
               memory: m.memory,
-              category: normalizeCategory(m.metadata?.memoryType ?? m.metadata?.categories?.[0]),
+              category: normalizeCategory(m.metadata?.memoryType),
             }))
           );
           log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
@@ -510,7 +517,6 @@ export async function buildStreamContext({
       initialState,
       memoryContext,
       memoryRetrieveTimeMs,
-      memoryEnabled,
       contextWindowTokens,
     },
   };

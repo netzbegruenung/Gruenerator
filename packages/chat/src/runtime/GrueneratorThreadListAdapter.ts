@@ -65,14 +65,27 @@ export function createGrueneratorThreadListAdapter(
         const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
         cachedThreads = threads;
 
-        // Auto-cleanup: delete stale empty threads (keep newest one)
+        // Auto-cleanup: delete stale empty threads (keep newest one).
+        // Never reap the active or a just-created thread: a brand-new thread is
+        // legitimately empty (no lastMessage) while its first message is still
+        // streaming. Deleting it mid-send makes the backend's canAccessThread()
+        // fail → SSE `error: 'Thread not found'`. Protect the current thread and
+        // anything touched within a short window (the live stream may still
+        // reference an id even after currentThreadId advanced to a newer draft).
+        const currentThreadId = useAgentStore.getState().currentThreadId;
+        const RECENT_THREAD_MS = 60_000;
+        const isProtected = (t: ApiThread) =>
+          t.id === currentThreadId ||
+          Date.now() - new Date(t.updatedAt).getTime() < RECENT_THREAD_MS;
+
         const emptyThreads = threads.filter(
           (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
         );
         if (emptyThreads.length > 1) {
-          const [_keep, ...stale] = emptyThreads.sort(
+          const [_keep, ...rest] = emptyThreads.sort(
             (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
+          const stale = rest.filter((t) => !isProtected(t));
           for (const t of stale) {
             apiClient.delete(`/api/chat-service/threads?threadId=${t.id}`).catch(() => {});
           }
