@@ -34,6 +34,22 @@ export function isAgentVisibleForLocale(agent: Agent, userLocale: string): boole
 }
 
 /**
+ * Should this agent be offered on the given platform?
+ *
+ * - `webOnly: true` → hidden on `'mobile'`, visible on `'web'`.
+ * - `webOnly` falsy/undefined → visible on both (default).
+ *
+ * Like `isAgentVisibleForLocale`, this only governs UI discovery; the backend
+ * still resolves the agent by identifier regardless of platform. Mobile
+ * consumers compose this with `getVisibleSystemAgentsForLocale`, and the chat
+ * deep-link route guards on it so a shared link can't select a web-only agent.
+ */
+export function isAgentVisibleForPlatform(agent: Agent, platform: 'web' | 'mobile'): boolean {
+  if (platform === 'mobile' && agent.webOnly === true) return false;
+  return true;
+}
+
+/**
  * Apply `agent.localized[userLocale]` overrides on top of the agent's
  * defaults, then substitute `{{partyName}}` placeholders in user-visible
  * fields with the locale-appropriate party brand. The second pass fixes

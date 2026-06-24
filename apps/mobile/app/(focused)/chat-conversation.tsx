@@ -1,6 +1,6 @@
 import { useAui } from '@assistant-ui/react-native';
 import { useAgentStore } from '@gruenerator/chat';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { getSystemAgent, isAgentVisibleForPlatform } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect } from 'react';
@@ -76,8 +76,16 @@ export default function ChatConversationScreen() {
   useEffect(() => {
     const store = useAgentStore.getState();
     if (agentId) {
-      store.setSelectedAgent(agentId);
-      const defaultNotebookId = getSystemAgent(agentId)?.defaultNotebookIds?.[0];
+      // Web-only agents (e.g. the canvas-editor-backed sharepic agent) have no
+      // mobile renderer — a shared deep link must not select one. Fall back to
+      // the universal assistant so the chat still works.
+      const linkedAgent = getSystemAgent(agentId);
+      const resolvedAgentId =
+        linkedAgent && !isAgentVisibleForPlatform(linkedAgent, 'mobile')
+          ? 'gruenerator-universal'
+          : agentId;
+      store.setSelectedAgent(resolvedAgentId);
+      const defaultNotebookId = getSystemAgent(resolvedAgentId)?.defaultNotebookIds?.[0];
       if (defaultNotebookId) {
         store.setSelectedNotebook(defaultNotebookId);
       } else if (locale === 'de-AT') {

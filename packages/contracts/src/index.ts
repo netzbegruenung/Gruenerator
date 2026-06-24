@@ -116,6 +116,7 @@ export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/sliderDeck.js';
 export * from './schemas/skill.js';
+export * from './schemas/agent.js';
 export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';

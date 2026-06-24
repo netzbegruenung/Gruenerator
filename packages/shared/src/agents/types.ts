@@ -123,6 +123,16 @@ export interface Agent {
    */
   hiddenFromInventory?: boolean;
   /**
+   * Restrict this agent to web. When true it is hidden from the mobile agent
+   * picker / notebook lists, and a mobile deep-link to it falls back to the
+   * default agent. Web is unaffected. The identifier stays live in the registry
+   * so the backend keeps resolving it (legacy threads, direct links). Used for
+   * features whose UI can't run on React Native — e.g. the canvas-editor-backed
+   * sharepic flow, which has no Hermes-compatible renderer. See
+   * `isAgentVisibleForPlatform`.
+   */
+  webOnly?: boolean;
+  /**
    * Notebooks this agent binds as its combined default knowledge base. All of
    * them scope the agent's search server-side (resolved from the agent record
    * in ChatGraph), and the chat composer auto-selects the first for continuity.
