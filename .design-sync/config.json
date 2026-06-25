@@ -8,8 +8,31 @@
   "tsconfig": "tsconfig.json",
   "cssEntry": "dist/ds-styles.css",
   "extraFonts": ["../../apps/web/src/assets/styles/common/typography.css"],
+  "extraEntries": ["../../.design-sync/screens/index.ts"],
+  "componentSrcMap": {
+    "WorkplacePage": "../../.design-sync/screens/WorkplacePage.tsx",
+    "WorkplaceCreator": "../../.design-sync/screens/WorkplaceCreator.tsx",
+    "WorkplaceRecent": "../../.design-sync/screens/WorkplaceRecent.tsx",
+    "WorkplaceNotebooks": "../../.design-sync/screens/WorkplaceNotebooks.tsx",
+    "WorkplaceTools": "../../.design-sync/screens/WorkplaceTools.tsx",
+    "WorkplaceFavorites": "../../.design-sync/screens/WorkplaceFavorites.tsx"
+  },
+  "docsMap": {
+    "WorkplacePage": "../../.design-sync/screens/docs/WorkplacePage.md",
+    "WorkplaceCreator": "../../.design-sync/screens/docs/WorkplaceCreator.md",
+    "WorkplaceRecent": "../../.design-sync/screens/docs/WorkplaceRecent.md",
+    "WorkplaceNotebooks": "../../.design-sync/screens/docs/WorkplaceNotebooks.md",
+    "WorkplaceTools": "../../.design-sync/screens/docs/WorkplaceTools.md",
+    "WorkplaceFavorites": "../../.design-sync/screens/docs/WorkplaceFavorites.md"
+  },
   "readmeHeader": ".design-sync/conventions.md",
   "overrides": {
+    "WorkplacePage": { "cardMode": "single", "viewport": "1040x1560" },
+    "WorkplaceCreator": { "cardMode": "single", "viewport": "820x340" },
+    "WorkplaceRecent": { "cardMode": "single", "viewport": "1040x520" },
+    "WorkplaceNotebooks": { "cardMode": "single", "viewport": "1060x440" },
+    "WorkplaceTools": { "cardMode": "single", "viewport": "880x380" },
+    "WorkplaceFavorites": { "cardMode": "single", "viewport": "880x360" },
     "Dialog": { "cardMode": "single", "viewport": "560x440" },
     "AlertDialog": { "cardMode": "single", "viewport": "560x440" },
     "Sheet": { "cardMode": "single", "viewport": "640x460" },
