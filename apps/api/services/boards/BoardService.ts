@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { createLogger } from '../../utils/logger.js';
+import { markdownToPlainText } from '../markdown/MarkdownService.js';
 
 const gunzipAsync = promisify(gunzip);
 const gzipAsync = promisify(gzip);
@@ -244,13 +245,8 @@ interface SelectOption {
 
 /** Collapse markdown/whitespace and truncate to a single-line preview snippet. */
 function toSnippet(raw: unknown, max = 160): string | null {
-  if (typeof raw !== 'string') return null;
-  const clean = raw
-    .replace(/```[\s\S]*?```/g, ' ') // code fences
-    .replace(/[#>*_~`]+/g, ' ') // markdown markers
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images → label
-    .replace(/\s+/g, ' ')
-    .trim();
+  if (typeof raw !== 'string' || !raw) return null;
+  const clean = markdownToPlainText(raw).replace(/\s+/g, ' ').trim();
   if (!clean) return null;
   return clean.length > max ? `${clean.slice(0, max).trimEnd()}…` : clean;
 }
@@ -304,10 +300,16 @@ export async function getCardSnapshot(
   const row = rows.find((r) => r.id === cardId);
   if (!row) return null;
 
+  // typeOptions/options may be absent or non-array on legacy/whiteboard-converted
+  // fields — guard so a malformed field degrades gracefully instead of throwing.
   const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
-  const statusOptions = (statusField?.typeOptions.options ?? []) as SelectOption[];
+  const statusOptions: SelectOption[] = Array.isArray(statusField?.typeOptions?.options)
+    ? (statusField?.typeOptions?.options as SelectOption[])
+    : [];
   const labelField = fields.find((f) => f.id === FIELD_IDS.LABELS);
-  const labelOptions = (labelField?.typeOptions.options ?? []) as SelectOption[];
+  const labelOptions: SelectOption[] = Array.isArray(labelField?.typeOptions?.options)
+    ? (labelField?.typeOptions?.options as SelectOption[])
+    : [];
 
   const statusOption = statusOptions.find((o) => o.id === row.cells[FIELD_IDS.STATUS]);
   const due = row.cells[FIELD_IDS.DUE_DATE];

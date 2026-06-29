@@ -230,7 +230,6 @@ router.post(
         const senderName = senderProfile[0]?.display_name || 'Jemand';
 
         const docTitle = (document.title as string) || 'Unbenanntes Dokument';
-        const docPreview = await getDocPreview(id);
 
         // Fire-and-forget: in-app notification
         import('../../services/notifications/index.js')
@@ -258,6 +257,8 @@ router.post(
               recipientProfile
             );
             if (!shouldSend) return;
+            // Fetch the preview off the response path (only the email needs it).
+            const docPreview = await getDocPreview(id);
             return sendDocumentShareEmail({
               recipientEmail: recipient.email!,
               recipientName: recipient.display_name || 'Kolleg*in',
@@ -349,10 +350,12 @@ router.put(
       };
       const permissionLabel = LEVEL_LABELS[permission_level] || permission_level;
       const docTitle = document.title || 'Dokument';
-      const docPreview = await getDocPreview(id);
+      // Fetch the preview inside the fire-and-forget block so the HTTP response
+      // isn't blocked on a full content-column read it never uses.
       import('../../services/notifications/index.js')
-        .then(({ createNotification }) =>
-          createNotification({
+        .then(async ({ createNotification }) => {
+          const docPreview = await getDocPreview(id);
+          return createNotification({
             userId: targetUserId,
             type: 'document_permission_changed',
             title: 'Berechtigung geändert',
@@ -365,8 +368,8 @@ router.put(
               permissionLabel,
               ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
             },
-          })
-        )
+          });
+        })
         .catch(() => {});
 
       return res.json({

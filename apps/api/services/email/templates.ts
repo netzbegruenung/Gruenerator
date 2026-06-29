@@ -80,9 +80,19 @@ function renderCtaBlock(url: string, label: string): string {
     </p>`;
 }
 
+// Status/label colours are user-editable and land in a CSS `style` value, where
+// escapeHtml does NOT neutralize CSS metacharacters (; : ( ) }). Allow only a
+// hex or rgb(a) literal; anything else drops the colour dot rather than inject CSS.
+function safeCssColor(color: string | undefined): string | null {
+  if (!color) return null;
+  const trimmed = color.trim();
+  return /^#[0-9a-fA-F]{3,8}$|^rgba?\([\d.,\s%]+\)$/.test(trimmed) ? trimmed : null;
+}
+
 function renderChip(label: string, color?: string): string {
-  const dot = color
-    ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${escapeHtml(color)};margin-right:6px;vertical-align:middle;"></span>`
+  const safeColor = safeCssColor(color);
+  const dot = safeColor
+    ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${safeColor};margin-right:6px;vertical-align:middle;"></span>`
     : '';
   return `<span style="display:inline-block;background-color:#eef2ee;color:#316049;font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;margin:0 6px 6px 0;">${dot}${escapeHtml(label)}</span>`;
 }
@@ -359,6 +369,8 @@ ${PRIMARY_URL}`;
 export interface DocumentNotificationTemplateParams {
   recipientName?: string;
   title: string;
+  /** The explanatory sentence (e.g. "Dein Zugriff auf X wurde entfernt"). */
+  body?: string | null;
   actionUrl?: string | null;
   actionLabel?: string;
   docTitle?: string | null;
@@ -374,6 +386,7 @@ export function renderDocumentNotificationTemplate(params: DocumentNotificationT
   const {
     recipientName,
     title,
+    body,
     actionUrl,
     actionLabel = 'Dokument öffnen',
     docTitle,
@@ -396,16 +409,21 @@ export function renderDocumentNotificationTemplate(params: DocumentNotificationT
     ? `<p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">Hallo ${escapeHtml(recipientName)},</p>`
     : '';
 
+  const bodyBlock = body
+    ? `<p style="margin:0 0 20px 0;font-size:15px;color:#555555;line-height:1.6;">${escapeHtml(body)}</p>`
+    : '';
+
   const content = `
     <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">${escapeHtml(title)}</h1>
     ${greeting}
+    ${bodyBlock}
     ${previewCard}
     ${actionUrl ? renderCtaBlock(actionUrl, actionLabel) : ''}`;
 
   const textChips = chips.length ? `${chips.join(' · ')}\n` : '';
   const text = `${title}
 
-${recipientName ? `Hallo ${recipientName},\n\n` : ''}${docTitle || 'Dokument'}
+${recipientName ? `Hallo ${recipientName},\n\n` : ''}${body ? `${body}\n\n` : ''}${docTitle || 'Dokument'}
 ${textChips}${previewSnippet ? `${previewSnippet}\n` : ''}${
     actionUrl ? `\n${actionLabel}: ${actionUrl}\n` : ''
   }

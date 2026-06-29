@@ -199,10 +199,12 @@ router.post(
       // Notify group members
       const sharerName = req.user?.display_name || 'Jemand';
       const docTitle = doc[0].title || 'ein Dokument';
-      const docPreview = await getDocPreview(id);
+      // Preview fetched inside the fire-and-forget block so the 201 isn't blocked
+      // on a full content-column read it never uses.
       import('../../services/notifications/index.js')
-        .then(({ notifyGroupMembers }) =>
-          notifyGroupMembers({
+        .then(async ({ notifyGroupMembers }) => {
+          const docPreview = await getDocPreview(id);
+          return notifyGroupMembers({
             groupId: group_id,
             excludeUserId: userId,
             type: 'group_content_shared',
@@ -216,8 +218,8 @@ router.post(
               actorName: sharerName,
               ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
             },
-          })
-        )
+          });
+        })
         .catch(() => {});
 
       return res.status(201).json({ message: 'Document shared with group successfully' });
