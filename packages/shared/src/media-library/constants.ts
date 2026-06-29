@@ -36,6 +36,24 @@ export const MEDIA_LIMITS = {
   maxAltTextLength: 500,
 } as const;
 
+/**
+ * Canonical provenance values accepted by the media upload endpoint. Single
+ * source of truth: the `UploadSource` type derives from this, and the backend's
+ * `mediaUploadSchema` Zod enum imports it. Every caller's `uploadSource` string
+ * must appear here or the upload 400s (which silently drops e.g. a minted
+ * canvas's chosen background image).
+ */
+export const UPLOAD_SOURCES = [
+  'upload',
+  'ai_generated',
+  'stock',
+  'camera',
+  'canvas-mint',
+  'canvas-editor',
+  'chat-sharepic-thumbnail',
+  'template-upload',
+] as const;
+
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {
   upload: 'Hochgeladen',
   ai_generated: 'KI-generiert',
