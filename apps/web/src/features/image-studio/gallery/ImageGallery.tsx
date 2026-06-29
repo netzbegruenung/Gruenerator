@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
-import { SHOW_CANVAS_EDITOR } from '../../../config/featureFlags';
+import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { cn } from '../../../utils/cn';
 import { useTemplateClone } from '../hooks/useTemplateClone';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
@@ -220,9 +220,9 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
       </div>
 
       <div className="absolute right-sm top-sm z-[3] flex gap-xs">
-        {/* Edit / "use template" route into the dev-only canvas flow — gated so
-            they don't become dead links in the prod-visible gallery. */}
-        {SHOW_CANVAS_EDITOR && isTemplate && (
+        {/* Edit / "use template" route into the canvas flow — gated on the
+            sharepic studio research preview so they aren't dead links when off. */}
+        {SHOW_SHAREPIC_STUDIO && isTemplate && (
           <button
             className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
             onClick={handleUseTemplate}
@@ -231,7 +231,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
             <FaSave />
           </button>
         )}
-        {SHOW_CANVAS_EDITOR && isEditable && (
+        {SHOW_SHAREPIC_STUDIO && isEditable && (
           <button
             className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
             onClick={handleEdit}

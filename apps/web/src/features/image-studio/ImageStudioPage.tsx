@@ -31,7 +31,7 @@ interface ImagineHandoffLocationState {
 import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { SHOW_CANVAS_EDITOR } from '../../config/featureFlags';
+import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../stores/imageStudioStore';
 
@@ -649,11 +649,11 @@ const ImageStudioPageContent: React.FC = () => {
     );
   }
 
-  // Prod safety: the canvas-based template flow is dev-only (SHOW_CANVAS_EDITOR).
-  // The KI flow (category 'ki', reached via /imagine) stays available. If a stale
-  // persisted `category` would otherwise render the type selector / canvas editor
-  // on the prod-visible /studio route, fall back to the landing instead.
-  if (!SHOW_CANVAS_EDITOR && category && category !== IMAGE_STUDIO_CATEGORIES.KI) {
+  // Kill-switch: when the sharepic studio research preview is off, the canvas
+  // template flow is unavailable. The KI flow (category 'ki', reached via
+  // /imagine) stays available. If a stale persisted `category` would otherwise
+  // render the type selector / canvas editor, fall back to the landing instead.
+  if (!SHOW_SHAREPIC_STUDIO && category && category !== IMAGE_STUDIO_CATEGORIES.KI) {
     return <ImageStudioCategorySelector />;
   }
 
