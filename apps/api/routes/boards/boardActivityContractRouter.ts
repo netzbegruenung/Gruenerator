@@ -17,6 +17,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
+import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { getBoardSubscribers } from '../../services/boards/boardSubscriptionService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
@@ -83,6 +84,9 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
   const actionUrl = `/boards/${boardId}?card=${cardId}`;
   const knownIds = new Set(knownRows.map((r) => r.id));
 
+  // Read the card snapshot once per event for the rich email (cells live in Yjs).
+  const cardMeta = await buildCardEmailMetadata(boardId, cardId, boardTitle);
+
   await Promise.allSettled(
     recipients
       .filter((id) => knownIds.has(id))
@@ -94,7 +98,7 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
           title: `${actorName} hat dir eine Aufgabe zugewiesen`,
           body,
           actionUrl,
-          metadata: { boardId, cardId },
+          metadata: cardMeta,
           groupKey: `board-assign-${boardId}-${cardId}`,
         });
       })

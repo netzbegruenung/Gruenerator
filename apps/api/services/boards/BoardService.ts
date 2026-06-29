@@ -236,6 +236,118 @@ export function formatBoardAsContext(board: BoardState): string {
   return text;
 }
 
+interface SelectOption {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+/** Collapse markdown/whitespace and truncate to a single-line preview snippet. */
+function toSnippet(raw: unknown, max = 160): string | null {
+  if (typeof raw !== 'string') return null;
+  const clean = raw
+    .replace(/```[\s\S]*?```/g, ' ') // code fences
+    .replace(/[#>*_~`]+/g, ' ') // markdown markers
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images → label
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!clean) return null;
+  return clean.length > max ? `${clean.slice(0, max).trimEnd()}…` : clean;
+}
+
+/** Resolve assignee names from the assignee cell (a JSON-encoded array, mirrors frontend parseAssignees). */
+function parseAssigneeNames(raw: unknown): string[] {
+  if (typeof raw !== 'string' || raw === '') return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [raw]; // bare display name
+  }
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  return items
+    .filter((a): a is { name: string } => !!a && typeof a === 'object' && 'name' in a)
+    .map((a) => String(a.name))
+    .filter(Boolean);
+}
+
+/** Resolve multiSelect option IDs (labels cell) to their display names. */
+function resolveOptionNames(raw: unknown, options: SelectOption[]): string[] {
+  const ids = Array.isArray(raw) ? raw : typeof raw === 'string' && raw ? [raw] : [];
+  return ids.map((id) => options.find((o) => o.id === id)?.name).filter((n): n is string => !!n);
+}
+
+export interface CardSnapshot {
+  cardTitle: string | null;
+  descriptionSnippet: string | null;
+  statusLabel: string | null;
+  statusColor: string | null;
+  dueDate: string | null;
+  assigneeNames: string[];
+  labelNames: string[];
+}
+
+/**
+ * Read a single card's display-ready content straight from the board's Yjs doc,
+ * for enriching notification emails. Resolves select-option IDs (status/labels)
+ * to their names via the field schema. Returns null if the board or card is gone.
+ */
+export async function getCardSnapshot(
+  boardId: string,
+  cardId: string
+): Promise<CardSnapshot | null> {
+  const ydoc = await loadBoardYjsDoc(boardId);
+  if (!ydoc) return null;
+
+  const fields = ydoc.getArray('fields').toJSON() as FieldDef[];
+  const rows = ydoc.getArray('rows').toJSON() as RowDef[];
+  const row = rows.find((r) => r.id === cardId);
+  if (!row) return null;
+
+  const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
+  const statusOptions = (statusField?.typeOptions.options ?? []) as SelectOption[];
+  const labelField = fields.find((f) => f.id === FIELD_IDS.LABELS);
+  const labelOptions = (labelField?.typeOptions.options ?? []) as SelectOption[];
+
+  const statusOption = statusOptions.find((o) => o.id === row.cells[FIELD_IDS.STATUS]);
+  const due = row.cells[FIELD_IDS.DUE_DATE];
+
+  return {
+    cardTitle: (row.cells[FIELD_IDS.TITLE] as string) || null,
+    descriptionSnippet: toSnippet(row.cells[FIELD_IDS.DESCRIPTION]),
+    statusLabel: statusOption?.name ?? null,
+    statusColor: statusOption?.color ?? null,
+    dueDate: typeof due === 'string' && due ? due : null,
+    assigneeNames: parseAssigneeNames(row.cells[FIELD_IDS.ASSIGNEE]),
+    labelNames: resolveOptionNames(row.cells[FIELD_IDS.LABELS], labelOptions),
+  };
+}
+
+/**
+ * Build the notification `metadata` payload that the rich board email template reads.
+ * Fetches the card snapshot once per event; omits empty fields so an unavailable
+ * snapshot (deleted card, whiteboard) degrades to the generic email cleanly.
+ */
+export async function buildCardEmailMetadata(
+  boardId: string,
+  cardId: string,
+  boardTitle: string | null
+): Promise<Record<string, unknown>> {
+  const snap = await getCardSnapshot(boardId, cardId).catch(() => null);
+  return {
+    boardId,
+    cardId,
+    ...(boardTitle ? { boardTitle } : {}),
+    ...(snap?.cardTitle ? { cardTitle: snap.cardTitle } : {}),
+    ...(snap?.descriptionSnippet ? { descriptionSnippet: snap.descriptionSnippet } : {}),
+    ...(snap?.statusLabel ? { statusLabel: snap.statusLabel } : {}),
+    ...(snap?.statusColor ? { statusColor: snap.statusColor } : {}),
+    ...(snap?.dueDate ? { dueDate: snap.dueDate } : {}),
+    ...(snap && snap.assigneeNames.length ? { assigneeNames: snap.assigneeNames } : {}),
+    ...(snap && snap.labelNames.length ? { labelNames: snap.labelNames } : {}),
+  };
+}
+
 /**
  * Parse AI-generated board structure from JSON response.
  */
