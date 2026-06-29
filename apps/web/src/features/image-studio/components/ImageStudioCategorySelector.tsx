@@ -7,12 +7,13 @@ import { useNavigate } from 'react-router-dom';
 import PageContainer from '../../../components/common/PageContainer';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
-import { SHOW_CANVAS_EDITOR } from '../../../config/featureFlags';
+import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 // import { useFeaturedVorlagen, type FeaturedVorlage } from '../hooks/useFeaturedVorlagen';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
+import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
 import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
 
@@ -198,6 +199,7 @@ const ImageStudioCategorySelector: React.FC = () => {
 
   return (
     <PageContainer maxWidth="lg">
+      {SHOW_SHAREPIC_STUDIO && <SharepicResearchPreviewBanner className="mb-lg" />}
       <div className="text-center mb-lg pt-md">
         <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading mb-xs">
           {firstName ? `Hallo, ${firstName}!` : 'Studio'}
@@ -207,7 +209,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         </p>
       </div>
 
-      {SHOW_CANVAS_EDITOR && !isAustrianUser && (
+      {SHOW_SHAREPIC_STUDIO && !isAustrianUser && (
         <div className="mb-xl">
           <AIPromptInput
             useDictation={useVoxtralDictation}
@@ -222,21 +224,21 @@ const ImageStudioCategorySelector: React.FC = () => {
         </div>
       )}
 
-      {/* Hidden entirely when there's nothing to show: no create entry (canvas
-          gated off for DE, AT keeps the external link) and no gallery. */}
-      {(SHOW_CANVAS_EDITOR || isAustrianUser || showGallerySection) && (
+      {/* Hidden entirely when there's nothing to show: no create entry (sharepic
+          studio off for DE, AT keeps the external link) and no gallery. */}
+      {(SHOW_SHAREPIC_STUDIO || isAustrianUser || showGallerySection) && (
         <section className="mb-xl">
           <SectionHeader
             title="Sharepics"
             // The title doubles as the entry point to the full Mediathek.
             onTitleClick={() => navigate('/media-library')}
-            // AT keeps its external bildgenerator link in prod; DE creation goes
-            // through the canvas editor, which is dev-only (SHOW_CANVAS_EDITOR).
+            // AT keeps its external bildgenerator link; DE creation goes through
+            // the canvas editor, a research preview gated by SHOW_SHAREPIC_STUDIO.
             onCreate={
               isAustrianUser
                 ? () =>
                     window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer')
-                : SHOW_CANVAS_EDITOR
+                : SHOW_SHAREPIC_STUDIO
                   ? () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null)
                   : undefined
             }
@@ -253,10 +255,10 @@ const ImageStudioCategorySelector: React.FC = () => {
                       ? `${API_BASE_URL}/share/${item.shareToken}/thumbnail`
                       : `${API_BASE_URL}/share/${item.shareToken}/preview?w=400`
                   }
-                  // Editing routes into the dev-only canvas flow; in prod open a
-                  // read-only preview instead.
+                  // With the studio on, editing opens the canvas flow; otherwise
+                  // (kill-switch off) it opens a read-only preview.
                   onClick={() =>
-                    SHOW_CANVAS_EDITOR ? handleGalleryItemEdit(item) : setPreviewItem(item)
+                    SHOW_SHAREPIC_STUDIO ? handleGalleryItemEdit(item) : setPreviewItem(item)
                   }
                 />
               ))}
@@ -344,7 +346,7 @@ const ImageStudioCategorySelector: React.FC = () => {
       />
       {shareItem && (
         <ShareMediaModal
-          isOpen={shareItem !== null}
+          isOpen
           onClose={() => setShareItem(null)}
           mediaType="image"
           existingShare={{
