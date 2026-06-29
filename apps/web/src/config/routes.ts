@@ -554,9 +554,9 @@ const standardRoutes: RouteConfig[] = [
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  // Studio landing + gallery are a prod-visible "preview": browse sharepics,
-  // Imagine and Reel. The canvas-based sharepic CREATION flow (the `:category`
-  // routes below) stays dev-only via `devOnly` + the SHOW_CANVAS_EDITOR gate.
+  // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
+  // `:category` routes below) are all prod-visible. Creation is a public research
+  // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
   { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
@@ -569,13 +569,11 @@ const standardRoutes: RouteConfig[] = [
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,
     withForm: true,
-    devOnly: true,
   },
   {
     path: '/studio/:category/:type',
     component: GrueneratorenBundle.ImageStudio,
     withForm: true,
-    devOnly: true,
   },
   // Pages Feature Routes
   // Docs: overview and editor

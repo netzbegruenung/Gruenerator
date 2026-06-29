@@ -10,6 +10,7 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
+import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
 import { mintCanvasFromStudioStore } from '../services/canvasMintService';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
@@ -211,6 +212,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
         <LayoutGroup>
           <div className="w-full flex justify-center p-8 max-[768px]:p-4">
             <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
+              <SharepicResearchPreviewBanner className="mb-lg text-left" />
               {flowTitle && (
                 <div className="flex flex-col mb-lg">
                   <h1 className="flex items-center justify-center gap-sm flex-wrap">

@@ -98,8 +98,8 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     };
   }
 
-  // Studio is prod-visible as a preview (gallery + Imagine + Reel); the
-  // canvas-based sharepic creation behind it stays dev-only (SHOW_CANVAS_EDITOR).
+  // Studio is prod-visible (gallery + Imagine + Reel). The canvas-based sharepic
+  // creation behind it is a public research preview gated by SHOW_SHAREPIC_STUDIO.
   items.studio = {
     id: 'studio',
     path: '/studio',
