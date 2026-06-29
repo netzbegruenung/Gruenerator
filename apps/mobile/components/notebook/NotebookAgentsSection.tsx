@@ -1,4 +1,8 @@
-import { getVisibleSystemAgentsForLocale, type Agent } from '@gruenerator/shared/agents';
+import {
+  getVisibleSystemAgentsForLocale,
+  isAgentVisibleForPlatform,
+  type Agent,
+} from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
@@ -33,9 +37,9 @@ export function NotebookAgentsSection({
 
   const agents = useMemo(
     () =>
-      getVisibleSystemAgentsForLocale(locale).filter((a) =>
-        a.defaultNotebookIds?.includes(notebookId)
-      ),
+      getVisibleSystemAgentsForLocale(locale)
+        .filter((a) => isAgentVisibleForPlatform(a, 'mobile'))
+        .filter((a) => a.defaultNotebookIds?.includes(notebookId)),
     [locale, notebookId]
   );
 

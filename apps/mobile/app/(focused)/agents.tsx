@@ -1,4 +1,8 @@
-import { getVisibleSystemAgentsForLocale, type Agent } from '@gruenerator/shared/agents';
+import {
+  getVisibleSystemAgentsForLocale,
+  isAgentVisibleForPlatform,
+  type Agent,
+} from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
@@ -28,7 +32,11 @@ export default function AgentsScreen() {
 
   const { data: userAgents = [], isLoading } = useUserAgents();
   const { data: publicAgents = [] } = usePublicUserAgents();
-  const systemAgents = useMemo(() => getVisibleSystemAgentsForLocale(locale), [locale]);
+  const systemAgents = useMemo(
+    () =>
+      getVisibleSystemAgentsForLocale(locale).filter((a) => isAgentVisibleForPlatform(a, 'mobile')),
+    [locale]
+  );
 
   // "Von der Basis": publicly-listed community agents, minus the ones the user
   // already owns (those show under "Meine Agent*innen").
