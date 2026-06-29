@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { getDocPreview } from '../../services/docs/docPreview.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -196,18 +197,29 @@ router.post(
       );
 
       // Notify group members
+      const sharerName = req.user?.display_name || 'Jemand';
+      const docTitle = doc[0].title || 'ein Dokument';
+      // Preview fetched inside the fire-and-forget block so the 201 isn't blocked
+      // on a full content-column read it never uses.
       import('../../services/notifications/index.js')
-        .then(({ notifyGroupMembers }) =>
-          notifyGroupMembers({
+        .then(async ({ notifyGroupMembers }) => {
+          const docPreview = await getDocPreview(id);
+          return notifyGroupMembers({
             groupId: group_id,
             excludeUserId: userId,
             type: 'group_content_shared',
             title: 'Dokument geteilt',
-            body: `${req.user?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
+            body: `${sharerName} hat „${docTitle}" geteilt`,
             actionUrl: `/docs/${id}`,
-            metadata: { documentId: id, groupId: group_id },
-          })
-        )
+            metadata: {
+              documentId: id,
+              groupId: group_id,
+              docTitle,
+              actorName: sharerName,
+              ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
+            },
+          });
+        })
         .catch(() => {});
 
       return res.status(201).json({ message: 'Document shared with group successfully' });

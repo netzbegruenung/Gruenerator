@@ -82,6 +82,7 @@ export interface StreamContext {
   initialState: Awaited<ReturnType<typeof initializeChatState>>;
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
+  memoryEnabled: boolean;
   contextWindowTokens: number;
 }
 
@@ -360,12 +361,15 @@ export async function buildStreamContext({
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
   // === Memory retrieval (mem0) ===
+  // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
+  // retrieval here and the write-back in postResponseService.
+  const memoryEnabled = user.memory_enabled ?? false;
   let memoryContext: string | null = null;
   let memoryRetrieveTimeMs = 0;
   let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
   const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage) {
+  if (mem0 && lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
 
@@ -517,6 +521,7 @@ export async function buildStreamContext({
       initialState,
       memoryContext,
       memoryRetrieveTimeMs,
+      memoryEnabled,
       contextWindowTokens,
     },
   };
