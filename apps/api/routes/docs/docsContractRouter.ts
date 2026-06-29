@@ -26,6 +26,7 @@ import {
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
+import { getDocPreview } from '../../services/docs/docPreview.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -326,6 +327,9 @@ export const docsContractRouter = s.router(docsContract, {
       );
 
       // Fire-and-forget: notify group members
+      const sharerName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
+      const docTitle = doc[0].title || 'ein Dokument';
+      const docPreview = await getDocPreview(id);
       import('../../services/notifications/index.js')
         .then(({ notifyGroupMembers }) =>
           notifyGroupMembers({
@@ -333,9 +337,15 @@ export const docsContractRouter = s.router(docsContract, {
             excludeUserId: userId,
             type: 'group_content_shared',
             title: 'Dokument geteilt',
-            body: `${(args.req.user as UserProfile | undefined)?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
+            body: `${sharerName} hat „${docTitle}" geteilt`,
             actionUrl: `/docs/${id}`,
-            metadata: { documentId: id, groupId: group_id },
+            metadata: {
+              documentId: id,
+              groupId: group_id,
+              docTitle,
+              actorName: sharerName,
+              ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
+            },
           })
         )
         .catch(() => {});

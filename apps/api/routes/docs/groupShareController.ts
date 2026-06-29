@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { getDocPreview } from '../../services/docs/docPreview.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -196,6 +197,9 @@ router.post(
       );
 
       // Notify group members
+      const sharerName = req.user?.display_name || 'Jemand';
+      const docTitle = doc[0].title || 'ein Dokument';
+      const docPreview = await getDocPreview(id);
       import('../../services/notifications/index.js')
         .then(({ notifyGroupMembers }) =>
           notifyGroupMembers({
@@ -203,9 +207,15 @@ router.post(
             excludeUserId: userId,
             type: 'group_content_shared',
             title: 'Dokument geteilt',
-            body: `${req.user?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
+            body: `${sharerName} hat „${docTitle}" geteilt`,
             actionUrl: `/docs/${id}`,
-            metadata: { documentId: id, groupId: group_id },
+            metadata: {
+              documentId: id,
+              groupId: group_id,
+              docTitle,
+              actorName: sharerName,
+              ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
+            },
           })
         )
         .catch(() => {});
