@@ -554,11 +554,14 @@ const standardRoutes: RouteConfig[] = [
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true, devOnly: true },
+  // Studio landing + gallery are a prod-visible "preview": browse sharepics,
+  // Imagine and Reel. The canvas-based sharepic CREATION flow (the `:category`
+  // routes below) stays dev-only via `devOnly` + the SHOW_CANVAS_EDITOR gate.
+  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
-  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery, devOnly: true },
+  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
   { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'noChrome' },
