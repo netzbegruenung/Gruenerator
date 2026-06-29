@@ -98,16 +98,16 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     };
   }
 
-  if (import.meta.env.DEV) {
-    items.studio = {
-      id: 'studio',
-      path: '/studio',
-      title: 'Studio',
-      description: 'Sharepics erstellen und gemeinsam bearbeiten',
-      icon: getIcon('navigation', 'sharepic'),
-      activePaths: ['/studio'],
-    };
-  }
+  // Studio is prod-visible as a preview (gallery + Imagine + Reel); the
+  // canvas-based sharepic creation behind it stays dev-only (SHOW_CANVAS_EDITOR).
+  items.studio = {
+    id: 'studio',
+    path: '/studio',
+    title: 'Studio',
+    description: 'Sharepics, KI-Bilder und Videos',
+    icon: getIcon('navigation', 'sharepic'),
+    activePaths: ['/studio'],
+  };
 
   return items;
 };

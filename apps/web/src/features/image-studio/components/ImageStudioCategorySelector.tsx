@@ -1,9 +1,13 @@
 import { AIPromptInput, CardGrid, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
+import { Download, Share2 } from 'lucide-react';
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
+import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import apiClient from '../../../components/utils/apiClient';
+import { SHOW_CANVAS_EDITOR } from '../../../config/featureFlags';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -11,6 +15,8 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
 import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
+
+import { Lightbox } from './Lightbox';
 
 const EXAMPLE_PROMPTS = [
   { label: 'Zitat', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
@@ -70,6 +76,10 @@ const ImageStudioCategorySelector: React.FC = () => {
   const [promptInput, setPromptInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  // In prod the canvas editor is gated off, so gallery items open a read-only
+  // preview (Lightbox) instead of the edit flow.
+  const [previewItem, setPreviewItem] = useState<RecentGalleryItem | null>(null);
+  const [shareItem, setShareItem] = useState<RecentGalleryItem | null>(null);
 
   const firstName = useMemo(() => {
     const displayName = user?.display_name || '';
@@ -124,6 +134,26 @@ const ImageStudioCategorySelector: React.FC = () => {
     [navigate]
   );
 
+  // Read-only download of a gallery item — mirrors the ImageOwnerCard flow in
+  // RecentlyCreatedSection (blob fetch → object URL → anchor click).
+  const handlePreviewDownload = useCallback(async (item: RecentGalleryItem) => {
+    try {
+      const res = await apiClient.get<Blob>(`/share/${item.shareToken}/download`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(res.data as Blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(item.title || 'sharepic').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('[ImageStudioCategorySelector] download failed', err);
+    }
+  }, []);
+
   const handlePromptSubmit = useCallback(
     async (e?: FormEvent) => {
       if (e) e.preventDefault();
@@ -177,7 +207,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         </p>
       </div>
 
-      {!isAustrianUser && (
+      {SHOW_CANVAS_EDITOR && !isAustrianUser && (
         <div className="mb-xl">
           <AIPromptInput
             useDictation={useVoxtralDictation}
@@ -192,35 +222,48 @@ const ImageStudioCategorySelector: React.FC = () => {
         </div>
       )}
 
-      <section className="mb-xl">
-        <SectionHeader
-          title="Sharepics"
-          onCreate={() => {
-            if (isAustrianUser) {
-              window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
-            } else {
-              handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null);
+      {/* Hidden entirely when there's nothing to show: no create entry (canvas
+          gated off for DE, AT keeps the external link) and no gallery. */}
+      {(SHOW_CANVAS_EDITOR || isAustrianUser || showGallerySection) && (
+        <section className="mb-xl">
+          <SectionHeader
+            title="Sharepics"
+            // The title doubles as the entry point to the full Mediathek.
+            onTitleClick={() => navigate('/media-library')}
+            // AT keeps its external bildgenerator link in prod; DE creation goes
+            // through the canvas editor, which is dev-only (SHOW_CANVAS_EDITOR).
+            onCreate={
+              isAustrianUser
+                ? () =>
+                    window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer')
+                : SHOW_CANVAS_EDITOR
+                  ? () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null)
+                  : undefined
             }
-          }}
-          createLabel="Neues Sharepic erstellen"
-        />
-        {showGallerySection && (
-          <CardGrid columns="5">
-            {recentGalleryItems.map((item) => (
-              <PreviewCard
-                key={item.shareToken}
-                title={item.title || 'Sharepic'}
-                thumbnailUrl={
-                  item.thumbnailPath
-                    ? `${API_BASE_URL}/share/${item.shareToken}/thumbnail`
-                    : `${API_BASE_URL}/share/${item.shareToken}/preview?w=400`
-                }
-                onClick={() => handleGalleryItemEdit(item)}
-              />
-            ))}
-          </CardGrid>
-        )}
-      </section>
+            createLabel="Neues Sharepic erstellen"
+          />
+          {showGallerySection && (
+            <CardGrid columns="5">
+              {recentGalleryItems.map((item) => (
+                <PreviewCard
+                  key={item.shareToken}
+                  title={item.title || 'Sharepic'}
+                  thumbnailUrl={
+                    item.thumbnailPath
+                      ? `${API_BASE_URL}/share/${item.shareToken}/thumbnail`
+                      : `${API_BASE_URL}/share/${item.shareToken}/preview?w=400`
+                  }
+                  // Editing routes into the dev-only canvas flow; in prod open a
+                  // read-only preview instead.
+                  onClick={() =>
+                    SHOW_CANVAS_EDITOR ? handleGalleryItemEdit(item) : setPreviewItem(item)
+                  }
+                />
+              ))}
+            </CardGrid>
+          )}
+        </section>
+      )}
 
       {/*
       <section className="mb-xl">
@@ -268,6 +311,52 @@ const ImageStudioCategorySelector: React.FC = () => {
           createLabel="Neues Reel erstellen"
         />
       </section>
+
+      {/* Read-only preview for gallery items when the canvas editor is gated off. */}
+      <Lightbox
+        isOpen={previewItem !== null}
+        onClose={() => setPreviewItem(null)}
+        imageSrc={previewItem ? `${API_BASE_URL}/share/${previewItem.shareToken}/preview` : ''}
+        altText={previewItem?.title || 'Sharepic'}
+        actions={
+          previewItem ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void handlePreviewDownload(previewItem)}
+                className="inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white px-sm py-xs rounded-full hover:bg-white/10 transition-colors"
+              >
+                <Download className="size-4" /> Download
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShareItem(previewItem);
+                  setPreviewItem(null);
+                }}
+                className="inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white px-sm py-xs rounded-full hover:bg-white/10 transition-colors"
+              >
+                <Share2 className="size-4" /> Teilen
+              </button>
+            </>
+          ) : null
+        }
+      />
+      {shareItem && (
+        <ShareMediaModal
+          isOpen={shareItem !== null}
+          onClose={() => setShareItem(null)}
+          mediaType="image"
+          existingShare={{
+            shareToken: shareItem.shareToken,
+            mediaType: 'image',
+            title: shareItem.title,
+            status: 'ready',
+            createdAt: shareItem.createdAt,
+            thumbnailUrl: shareItem.thumbnailPath,
+          }}
+        />
+      )}
     </PageContainer>
   );
 };
