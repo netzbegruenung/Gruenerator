@@ -5,13 +5,17 @@ import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import {
+  renderBoardNotificationTemplate,
   renderContentDeliveryTemplate,
   renderContentSyncTemplate,
+  renderDocumentNotificationTemplate,
   renderDocumentShareTemplate,
   renderGenericNotificationTemplate,
   renderLvSyncNotificationTemplate,
+  type BoardNotificationTemplateParams,
   type ContentDeliveryTemplateParams,
   type ContentSyncTemplateParams,
+  type DocumentNotificationTemplateParams,
   type DocumentShareTemplateParams,
   type GenericNotificationTemplateParams,
   type LvSyncNotificationTemplateParams,
@@ -95,6 +99,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   }
 }
 
+/** Resolve a possibly-relative actionUrl to an absolute URL for use in an email link. */
+function resolveActionUrl(actionUrl: string | null | undefined): string | null {
+  if (!actionUrl) return null;
+  if (actionUrl.startsWith('http')) return actionUrl;
+  return `${PRIMARY_URL}${actionUrl.startsWith('/') ? '' : '/'}${actionUrl}`;
+}
+
 export interface DocumentShareEmailParams {
   recipientEmail: string;
   recipientName: string;
@@ -102,6 +113,7 @@ export interface DocumentShareEmailParams {
   documentId: string;
   documentTitle: string;
   permissionLevel: string;
+  documentPreview?: string | null;
 }
 
 export async function sendDocumentShareEmail(params: DocumentShareEmailParams): Promise<boolean> {
@@ -115,6 +127,7 @@ export async function sendDocumentShareEmail(params: DocumentShareEmailParams): 
     documentTitle: params.documentTitle,
     documentUrl,
     permissionLevel: params.permissionLevel,
+    ...(params.documentPreview != null && { documentPreview: params.documentPreview }),
   };
 
   const { html, text } = renderDocumentShareTemplate(templateParams);
@@ -125,6 +138,52 @@ export async function sendDocumentShareEmail(params: DocumentShareEmailParams): 
     html,
     text,
   });
+}
+
+export interface BoardNotificationEmailParams {
+  recipientEmail: string;
+  recipientName?: string;
+  title: string;
+  actionUrl?: string | null;
+  fields: Omit<BoardNotificationTemplateParams, 'recipientName' | 'title' | 'actionUrl'>;
+}
+
+export async function sendBoardNotificationEmail(
+  params: BoardNotificationEmailParams
+): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  const { html, text } = renderBoardNotificationTemplate({
+    ...params.fields,
+    title: params.title,
+    actionUrl: resolveActionUrl(params.actionUrl),
+    ...(params.recipientName != null && { recipientName: params.recipientName }),
+  });
+
+  return sendEmail({ to: params.recipientEmail, subject: params.title, html, text });
+}
+
+export interface DocumentNotificationEmailParams {
+  recipientEmail: string;
+  recipientName?: string;
+  title: string;
+  actionUrl?: string | null;
+  fields: Omit<DocumentNotificationTemplateParams, 'recipientName' | 'title' | 'actionUrl'>;
+}
+
+export async function sendDocumentNotificationEmail(
+  params: DocumentNotificationEmailParams
+): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  const { html, text } = renderDocumentNotificationTemplate({
+    ...params.fields,
+    title: params.title,
+    actionUrl: resolveActionUrl(params.actionUrl),
+    ...(params.recipientName != null && { recipientName: params.recipientName }),
+  });
+
+  return sendEmail({ to: params.recipientEmail, subject: params.title, html, text });
 }
 
 export interface NotificationEmailParams {
@@ -139,11 +198,7 @@ export interface NotificationEmailParams {
 export async function sendNotificationEmail(params: NotificationEmailParams): Promise<boolean> {
   if (!isConfigured()) return false;
 
-  const resolvedActionUrl = params.actionUrl
-    ? params.actionUrl.startsWith('http')
-      ? params.actionUrl
-      : `${PRIMARY_URL}${params.actionUrl.startsWith('/') ? '' : '/'}${params.actionUrl}`
-    : null;
+  const resolvedActionUrl = resolveActionUrl(params.actionUrl);
 
   const templateParams: GenericNotificationTemplateParams = {
     title: params.title,
