@@ -14,6 +14,7 @@ import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import {
   autoSubscribe,
@@ -172,20 +173,22 @@ async function fanOutAttachmentNotification(
 ): Promise<void> {
   try {
     const subscribers = await getCardSubscribers(boardId, cardId);
+    const recipients = subscribers.filter((uid) => uid !== actorId);
+    if (recipients.length === 0) return;
+
+    const cardMeta = await buildCardEmailMetadata(boardId, cardId, boardTitle);
     await Promise.all(
-      subscribers
-        .filter((uid) => uid !== actorId)
-        .map((uid) =>
-          createNotification({
-            userId: uid,
-            type: 'board_attachment_added',
-            title: `Neuer Anhang${boardTitle ? ` in „${boardTitle}"` : ''}`,
-            body: fileName,
-            actionUrl: `/boards/${boardId}?card=${cardId}`,
-            metadata: { boardId, cardId },
-            groupKey: `board-attachment-${boardId}-${cardId}`,
-          }).catch(() => null)
-        )
+      recipients.map((uid) =>
+        createNotification({
+          userId: uid,
+          type: 'board_attachment_added',
+          title: `Neuer Anhang${boardTitle ? ` in „${boardTitle}"` : ''}`,
+          body: fileName,
+          actionUrl: `/boards/${boardId}?card=${cardId}`,
+          metadata: { ...cardMeta, eventText: `📎 ${fileName}` },
+          groupKey: `board-attachment-${boardId}-${cardId}`,
+        }).catch(() => null)
+      )
     );
   } catch (error) {
     log.warn('Attachment notification fan-out failed', {

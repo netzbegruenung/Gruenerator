@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { getDocPreview } from '../../services/docs/docPreview.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -256,6 +257,8 @@ router.post(
               recipientProfile
             );
             if (!shouldSend) return;
+            // Fetch the preview off the response path (only the email needs it).
+            const docPreview = await getDocPreview(id);
             return sendDocumentShareEmail({
               recipientEmail: recipient.email!,
               recipientName: recipient.display_name || 'Kolleg*in',
@@ -263,6 +266,7 @@ router.post(
               documentId: id,
               documentTitle: docTitle,
               permissionLevel: permission_level,
+              documentPreview: docPreview?.snippet ?? null,
             });
           })
           .catch(() => {});
@@ -344,17 +348,28 @@ router.put(
         viewer: 'Leser*in',
         comment: 'Kommentator*in',
       };
+      const permissionLabel = LEVEL_LABELS[permission_level] || permission_level;
+      const docTitle = document.title || 'Dokument';
+      // Fetch the preview inside the fire-and-forget block so the HTTP response
+      // isn't blocked on a full content-column read it never uses.
       import('../../services/notifications/index.js')
-        .then(({ createNotification }) =>
-          createNotification({
+        .then(async ({ createNotification }) => {
+          const docPreview = await getDocPreview(id);
+          return createNotification({
             userId: targetUserId,
             type: 'document_permission_changed',
             title: 'Berechtigung geändert',
-            body: `Deine Berechtigung für „${document.title || 'Dokument'}" ist jetzt ${LEVEL_LABELS[permission_level] || permission_level}`,
+            body: `Deine Berechtigung für „${docTitle}" ist jetzt ${permissionLabel}`,
             actionUrl: `/docs/${id}`,
-            metadata: { documentId: id, permissionLevel: permission_level },
-          })
-        )
+            metadata: {
+              documentId: id,
+              permissionLevel: permission_level,
+              docTitle,
+              permissionLabel,
+              ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
+            },
+          });
+        })
         .catch(() => {});
 
       return res.json({
@@ -430,7 +445,8 @@ router.delete(
             type: 'document_access_revoked',
             title: 'Zugriff entfernt',
             body: `Dein Zugriff auf „${document.title || 'Dokument'}" wurde entfernt`,
-            metadata: { documentId: id },
+            // No actionUrl/preview: the link would 403 now that access is gone.
+            metadata: { documentId: id, docTitle: document.title || 'Dokument' },
           })
         )
         .catch(() => {});
