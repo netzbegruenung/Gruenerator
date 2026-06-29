@@ -18,6 +18,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
 import { bumpCardComments } from '../../services/boards/boardLiveSignalService.js';
+import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
 import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
@@ -451,6 +452,10 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
   const actionUrl = `/boards/${boardId}?card=${cardId}&comment=${commentId}`;
   const notifiedUserIds = new Set<string>();
 
+  // Card snapshot (once per comment) + the full comment text for the rich email.
+  const cardMeta = await buildCardEmailMetadata(boardId, cardId, boardTitle);
+  const eventText = content.length > 400 ? `${content.slice(0, 400).trimEnd()}…` : content;
+
   for (const mentionedId of mentionedUserIds) {
     if (mentionedId === authorId) continue;
 
@@ -484,7 +489,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
       title: `${authorName} hat dich erwähnt`,
       body: snippet,
       actionUrl,
-      metadata: { boardId, cardId, commentId },
+      metadata: { ...cardMeta, commentId, eventText },
       groupKey: `board-comment-${boardId}-${cardId}`,
     });
   }
@@ -510,7 +515,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
         title: `${authorName} hat auf deinen Kommentar geantwortet`,
         body: snippet,
         actionUrl,
-        metadata: { boardId, cardId, commentId, parentId },
+        metadata: { ...cardMeta, commentId, parentId, eventText },
         groupKey: `board-comment-${boardId}-${cardId}`,
       });
     }
@@ -535,7 +540,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
       title: `${authorName} hat in "${boardTitle}" kommentiert`,
       body: snippet,
       actionUrl,
-      metadata: { boardId, cardId, commentId },
+      metadata: { ...cardMeta, commentId, eventText },
       groupKey: `board-comment-${boardId}-${cardId}`,
     });
   }
