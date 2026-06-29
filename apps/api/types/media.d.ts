@@ -41,7 +41,7 @@ export interface SharedMediaRow {
   view_count: number;
   is_library_item: boolean;
   alt_text: string | null;
-  upload_source: 'upload' | 'ai_generated' | 'stock' | 'camera';
+  upload_source: UploadSource;
   original_filename: string | null;
   created_at: Date;
   updated_at: Date;
@@ -128,7 +128,7 @@ export interface UploadMediaFileParams {
   mimeType: string;
   title?: string | null | undefined;
   altText?: string | null | undefined;
-  uploadSource?: 'upload' | 'ai_generated' | 'stock' | 'camera' | undefined;
+  uploadSource?: UploadSource | undefined;
 }
 
 /**
