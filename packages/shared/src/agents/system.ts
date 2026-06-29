@@ -1,28 +1,25 @@
 import { getDisabledNotebookIds } from '../notebooks/index.js';
 
-import { CORE_AGENTS } from './coreAgents.js';
+import { SYSTEM_AGENT_DEFINITIONS } from './definitions/index.generated.js';
 import { LV_HUBS } from './landesverbandHubs.js';
 import { LV_BUERGER_AGENTS, type LV_BUERGER_SPECS } from './lvBuergerAgents.js';
 import { LV_PR_AGENTS, type LV_PR_SPECS } from './lvPrAgents.js';
-import {
-  OEFFENTLICHKEITSARBEIT_AGENTS,
-  type OeffentlichkeitsarbeitAgentId,
-} from './oeffentlichkeitsarbeitAgents.js';
-import { PERSONA_AGENTS } from './personaAgents.js';
 
 import type { Agent } from './types.js';
 
-// The agent definitions are grouped by purpose into sibling files:
-//   coreAgents.ts                   — universal, antrag, suche
-//   oeffentlichkeitsarbeitAgents.ts — general PR agent + hand-tuned per-LV PR agents
-//   personaAgents.ts                — personas & specialized writers
-//   lvPrAgents.ts                   — generated per-LV "Öffentlichkeitsarbeit" agents
-//   lvBuergerAgents.ts              — generated per-LV "Bürger*innenanfragen" agents
+// The agent definitions live in two shapes:
+//   definitions/*.md  — hand-written agents (universal, antrag, suche, the PR
+//                       agents, personas & specialized writers). One markdown
+//                       file per agent: frontmatter metadata + systemRole body,
+//                       compiled to definitions/index.generated.ts by
+//                       scripts/build-agents.ts. Edit the *.md, re-run
+//                       `pnpm --filter @gruenerator/shared build:agents`.
+//   lvPrAgents.ts     — generated per-LV "Öffentlichkeitsarbeit" agents (one
+//                       template fans out to N LVs, so they stay builders).
+//   lvBuergerAgents.ts — generated per-LV "Bürger*innenanfragen" agents.
 // This file only assembles them into the registry and resolves identifiers.
 const RAW_SYSTEM_AGENTS: readonly Agent[] = [
-  ...CORE_AGENTS,
-  ...OEFFENTLICHKEITSARBEIT_AGENTS,
-  ...PERSONA_AGENTS,
+  ...SYSTEM_AGENT_DEFINITIONS,
   ...LV_PR_AGENTS,
   ...LV_BUERGER_AGENTS,
 ];
@@ -51,10 +48,7 @@ export const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
   (a) => !a.hiddenFromInventory
 );
 
-type BaseSystemAgentId =
-  | (typeof CORE_AGENTS)[number]['identifier']
-  | OeffentlichkeitsarbeitAgentId
-  | (typeof PERSONA_AGENTS)[number]['identifier'];
+type BaseSystemAgentId = (typeof SYSTEM_AGENT_DEFINITIONS)[number]['identifier'];
 type LvPrAgentId = `gruenerator-oeffentlichkeitsarbeit-${(typeof LV_PR_SPECS)[number]['lv']}`;
 type LvBuergerAgentId = `gruenerator-buergeranfragen-${(typeof LV_BUERGER_SPECS)[number]['lv']}`;
 export type SystemAgentId = BaseSystemAgentId | LvPrAgentId | LvBuergerAgentId;
