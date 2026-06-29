@@ -1,5 +1,6 @@
 import {
   CardActionsMenu,
+  CardGrid,
   cn,
   DropdownMenuItem,
   SectionHeader,
@@ -73,12 +74,19 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
+// Fetch the backend maximum (capped at 30 server-side) so the "Mehr anzeigen"
+// expansion has more than the collapsed row to reveal without a refetch.
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
   const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 12 },
+    params: { limit: 30 },
   });
   return res.data?.items ?? [];
 };
+
+// Collapsed, the section shows a horizontally-scrollable row sliced to this
+// count; "Mehr anzeigen" expands the rest into a wrapping grid (mirrors the
+// TextsSection expand pattern).
+const RECENT_COLLAPSE_THRESHOLD = 10;
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
   doc: 'Unbenanntes Dokument',
@@ -500,6 +508,8 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     return true;
   });
 
+  const [expanded, setExpanded] = useState(false);
+
   const { deleteBoard } = useBoardsTyped({ enabled: true });
 
   const handleConvertText = useCallback(
@@ -577,6 +587,26 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
+  // Shared between the collapsed row and the expanded grid so both layouts stay
+  // in sync — videos use the reel card, everything else the generic card.
+  const renderCard = (item: RecentItem) =>
+    item.type === 'video' ? (
+      <RecentReelCard
+        key={`${item.type}-${item.id}`}
+        item={item}
+        onDelete={handleDelete}
+        onShare={handleShare}
+      />
+    ) : (
+      <RecentItemCard
+        key={`${item.type}-${item.id}`}
+        item={item}
+        onDelete={handleDelete}
+        onShare={handleShare}
+        onConvertText={handleConvertText}
+      />
+    );
+
   return (
     <section className="mb-xl">
       <SectionHeader title="Zuletzt" />
@@ -602,26 +632,30 @@ const RecentlyCreatedSection: React.FC = memo(() => {
           Noch keine Inhalte vorhanden.
         </p>
       ) : (
-        <div className={RECENT_ROW_CLASS}>
-          {items.map((item) =>
-            item.type === 'video' ? (
-              <RecentReelCard
-                key={`${item.type}-${item.id}`}
-                item={item}
-                onDelete={handleDelete}
-                onShare={handleShare}
-              />
-            ) : (
-              <RecentItemCard
-                key={`${item.type}-${item.id}`}
-                item={item}
-                onDelete={handleDelete}
-                onShare={handleShare}
-                onConvertText={handleConvertText}
-              />
-            )
+        <>
+          {/* Collapsed: scrollable row sliced to the threshold. Expanded: every
+              item in a wrapping grid (same card density as the row's ≈5/desktop). */}
+          {expanded ? (
+            <CardGrid columns="5" gap="md">
+              {items.map(renderCard)}
+            </CardGrid>
+          ) : (
+            <div className={RECENT_ROW_CLASS}>
+              {items.slice(0, RECENT_COLLAPSE_THRESHOLD).map(renderCard)}
+            </div>
           )}
-        </div>
+          {items.length > RECENT_COLLAPSE_THRESHOLD && (
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+            >
+              {expanded
+                ? 'Weniger anzeigen'
+                : `+${items.length - RECENT_COLLAPSE_THRESHOLD} weitere anzeigen`}
+            </button>
+          )}
+        </>
       )}
     </section>
   );
