@@ -5,28 +5,14 @@
  * title-only when the content column is empty/stale — the email must never fail on a
  * missing preview.
  */
+import { stripHtmlTags } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 
 const db = getPostgresInstance();
 
-const ENTITIES: Record<string, string> = {
-  '&amp;': '&',
-  '&lt;': '<',
-  '&gt;': '>',
-  '&quot;': '"',
-  '&#39;': "'",
-  '&nbsp;': ' ',
-  '&bdquo;': '„',
-  '&ldquo;': '“',
-};
-
 function htmlToSnippet(html: string, max = 200): string | null {
-  const text = html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&[a-z#0-9]+;/gi, (e) => ENTITIES[e] ?? ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const text = stripHtmlTags(html);
   if (!text) return null;
   return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
 }

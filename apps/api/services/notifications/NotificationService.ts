@@ -147,6 +147,7 @@ function fireEmail(
       title,
       actionUrl: actionUrl ?? null,
       fields: {
+        body,
         docTitle,
         actorName: metaStr(metadata, 'actorName'),
         permissionLabel: metaStr(metadata, 'permissionLabel'),
