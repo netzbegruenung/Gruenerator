@@ -31,6 +31,7 @@ interface ImagineHandoffLocationState {
 import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { SHOW_CANVAS_EDITOR } from '../../config/featureFlags';
 import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../stores/imageStudioStore';
 
@@ -45,6 +46,7 @@ import { useImageGeneration } from './hooks/useImageGeneration';
 import { useTemplateClone } from './hooks/useTemplateClone';
 import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
 import {
+  IMAGE_STUDIO_CATEGORIES,
   IMAGE_STUDIO_TYPES,
   KI_SUBCATEGORIES,
   FORM_STEPS,
@@ -645,6 +647,14 @@ const ImageStudioPageContent: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // Prod safety: the canvas-based template flow is dev-only (SHOW_CANVAS_EDITOR).
+  // The KI flow (category 'ki', reached via /imagine) stays available. If a stale
+  // persisted `category` would otherwise render the type selector / canvas editor
+  // on the prod-visible /studio route, fall back to the landing instead.
+  if (!SHOW_CANVAS_EDITOR && category && category !== IMAGE_STUDIO_CATEGORIES.KI) {
+    return <ImageStudioCategorySelector />;
   }
 
   if (currentStep === FORM_STEPS.CATEGORY_SELECT || !category) {
