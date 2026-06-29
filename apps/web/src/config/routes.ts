@@ -151,6 +151,9 @@ const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Ter
 const Nutzungsbedingungen = lazy(
   () => import('../components/pages/Impressum_Datenschutz_Terms/Nutzungsbedingungen')
 );
+const KITransparenz = lazy(
+  () => import('../components/pages/Impressum_Datenschutz_Terms/KITransparenz')
+);
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
@@ -516,6 +519,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/impressum', component: Impressum, public: true },
   { path: '/support', component: Support, public: true },
   { path: '/nutzungsbedingungen', component: Nutzungsbedingungen, public: true },
+  { path: '/ki-transparenz', component: KITransparenz, public: true },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage, public: true },
   { path: '/register', component: RegistrationPage, public: true },

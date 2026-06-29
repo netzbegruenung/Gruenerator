@@ -117,10 +117,17 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
   }
 
   if (effectiveMode === 'notebook') {
-    // Notebook mode: query + collection scoping from selectedNotebookId
+    // Notebook RAG: the /notebook/stream endpoint reads the question from
+    // `messages` and scopes retrieval by collection id(s). The host resolves the
+    // notebook→collection map into `selectedNotebookCollectionIds`; fall back to
+    // the raw notebook id as a single collection (covers user-notebook UUIDs).
+    const collectionIds = config.selectedNotebookCollectionIds;
     return {
-      query: lastUserText(formattedMessages),
-      notebookId: config.selectedNotebookId || 'gruenerator-notebook',
+      messages: formattedMessages,
+      ...(collectionIds && collectionIds.length > 0
+        ? { collectionIds }
+        : { collectionId: config.selectedNotebookId || 'gruenerator-notebook' }),
+      mode: config.notebookMode || 'fast',
       threadId: config.threadId,
     };
   }

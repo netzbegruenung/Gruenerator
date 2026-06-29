@@ -10,6 +10,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 
+import { getResearchCollectionIds } from '../config/notebooksConfig';
+
 interface MobileChatRuntimeOptions {
   adapters?: LocalRuntimeOptions['adapters'];
 }
@@ -52,6 +54,14 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       enabledTools: { ...enabledTools, web: false },
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
+      // Notebook mode scopes RAG by collection id. System notebooks resolve to
+      // their `*-system` ids via the research map; user notebooks (UUIDs) return
+      // [] there, so pass the UUID itself as the single collection.
+      selectedNotebookCollectionIds: selectedNotebookId
+        ? getResearchCollectionIds(selectedNotebookId).length > 0
+          ? getResearchCollectionIds(selectedNotebookId)
+          : [selectedNotebookId]
+        : undefined,
       threadMode,
       searchMode,
       customSystemPrompt,

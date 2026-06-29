@@ -106,13 +106,16 @@ export async function shouldExtractMemories(
     };
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    log.warn(`[Gatekeeper] Failed (${durationMs}ms), defaulting to extract:`, error);
+    log.warn(`[Gatekeeper] Failed (${durationMs}ms), failing closed (skip extraction):`, error);
 
-    // Graceful degradation: if gatekeeper fails, fall through to extraction
+    // Fail closed: if the gatekeeper errors (e.g. structured-output failure on
+    // the intermediate model), skip extraction rather than dumping the whole
+    // turn — including one-off task instructions — into memory. This matches
+    // the gatekeeper's own "Im Zweifel ÜBERSPRINGE" rule.
     return {
-      shouldExtract: true,
-      categories: [...MEMORY_CATEGORIES],
-      reasoning: 'Gatekeeper failed, defaulting to extract all',
+      shouldExtract: false,
+      categories: [],
+      reasoning: 'Gatekeeper failed, skipping extraction',
       durationMs,
     };
   }
