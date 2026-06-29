@@ -49,7 +49,8 @@ const Footer = () => {
               <a href="https://netzbegruenung.de/" target="_blank" rel="noopener noreferrer">
                 netzbegrünung
               </a>
-              . <Link to="/impressum">Impressum</Link> · <Link to="/datenschutz">Datenschutz</Link>
+              . <Link to="/impressum">Impressum</Link> · <Link to="/datenschutz">Datenschutz</Link>{' '}
+              · <Link to="/ki-transparenz">KI-Transparenz</Link>
             </p>
           </div>
         </div>

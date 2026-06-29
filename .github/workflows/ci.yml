@@ -42,6 +42,28 @@ jobs:
       - name: Prettier format check
         run: pnpm format:check
 
+  security-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      # Reads pnpm-lock.yaml directly (no install needed). Consciously-accepted
+      # advisories are allowlisted in package.json -> pnpm.auditConfig.ignoreGhsas,
+      # so this only goes red when a NEW moderate+ advisory appears — catching
+      # stale `overrides` floors and newly-disclosed transitive CVEs.
+      - name: pnpm audit
+        run: pnpm audit --audit-level moderate
+
   test:
     name: Tests
     runs-on: ubuntu-latest

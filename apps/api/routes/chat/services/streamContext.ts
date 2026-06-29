@@ -284,9 +284,20 @@ export async function buildStreamContext({
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
       if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        sse.send('error', { error: 'Thread not found' });
-        sse.end();
-        return { done: true };
+        // The client-supplied threadId is gone or not accessible — most often a
+        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+        // mid-send, or a stale client id. Recover gracefully by minting a new
+        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+        // id is never reused, we always create a fresh user-owned thread.
+        const userText = extractTextContent(lastUserMessage.content);
+        const thread = await createThread(
+          userId,
+          agentId ?? 'gruenerator-universal',
+          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+        );
+        actualThreadId = thread.id;
+        isNewThread = true;
+        sse.send('thread_created', { threadId: actualThreadId });
       }
     }
 
