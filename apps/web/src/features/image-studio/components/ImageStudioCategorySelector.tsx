@@ -199,7 +199,11 @@ const ImageStudioCategorySelector: React.FC = () => {
 
   return (
     <PageContainer maxWidth="lg">
-      {SHOW_SHAREPIC_STUDIO && <SharepicResearchPreviewBanner className="mb-lg" />}
+      {/* AT users are routed to the external bildgenerator and never reach the
+          canvas creator, so the research-preview notice doesn't apply to them. */}
+      {SHOW_SHAREPIC_STUDIO && !isAustrianUser && (
+        <SharepicResearchPreviewBanner className="mb-lg" />
+      )}
       <div className="text-center mb-lg pt-md">
         <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading mb-xs">
           {firstName ? `Hallo, ${firstName}!` : 'Studio'}
