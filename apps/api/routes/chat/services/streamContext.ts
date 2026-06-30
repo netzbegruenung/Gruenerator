@@ -82,6 +82,7 @@ export interface StreamContext {
   initialState: Awaited<ReturnType<typeof initializeChatState>>;
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
+  memoryEnabled: boolean;
   contextWindowTokens: number;
 }
 
@@ -284,9 +285,20 @@ export async function buildStreamContext({
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
       if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        sse.send('error', { error: 'Thread not found' });
-        sse.end();
-        return { done: true };
+        // The client-supplied threadId is gone or not accessible — most often a
+        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+        // mid-send, or a stale client id. Recover gracefully by minting a new
+        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+        // id is never reused, we always create a fresh user-owned thread.
+        const userText = extractTextContent(lastUserMessage.content);
+        const thread = await createThread(
+          userId,
+          agentId ?? 'gruenerator-universal',
+          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+        );
+        actualThreadId = thread.id;
+        isNewThread = true;
+        sse.send('thread_created', { threadId: actualThreadId });
       }
     }
 
@@ -349,12 +361,15 @@ export async function buildStreamContext({
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
   // === Memory retrieval (mem0) ===
+  // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
+  // retrieval here and the write-back in postResponseService.
+  const memoryEnabled = user.memory_enabled ?? false;
   let memoryContext: string | null = null;
   let memoryRetrieveTimeMs = 0;
   let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
   const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage) {
+  if (mem0 && lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
 
@@ -506,6 +521,7 @@ export async function buildStreamContext({
       initialState,
       memoryContext,
       memoryRetrieveTimeMs,
+      memoryEnabled,
       contextWindowTokens,
     },
   };

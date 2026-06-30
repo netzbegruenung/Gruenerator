@@ -50,19 +50,112 @@ export function baseLayout(content: string): string {
 </html>`;
 }
 
+// ----- Shared rich-notification building blocks -----
+
+/** Format an ISO date (or yyyy-mm-dd) as dd.MM.yyyy; pass through unparseable input. */
+export function formatDueDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Berlin',
+  });
+}
+
+function renderCtaBlock(url: string, label: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px auto;">
+      <tr>
+        <td style="background-color:${PRIMARY_COLOR};border-radius:6px;">
+          <a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+            ${escapeHtml(label)}
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#888888;line-height:1.5;">
+      Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>
+      <a href="${escapeHtml(url)}" style="color:${PRIMARY_COLOR};word-break:break-all;">${escapeHtml(url)}</a>
+    </p>`;
+}
+
+// Status/label colours are user-editable and land in a CSS `style` value, where
+// escapeHtml does NOT neutralize CSS metacharacters (; : ( ) }). Allow only a
+// hex or rgb(a) literal; anything else drops the colour dot rather than inject CSS.
+function safeCssColor(color: string | undefined): string | null {
+  if (!color) return null;
+  const trimmed = color.trim();
+  return /^#[0-9a-fA-F]{3,8}$|^rgba?\([\d.,\s%]+\)$/.test(trimmed) ? trimmed : null;
+}
+
+function renderChip(label: string, color?: string): string {
+  const safeColor = safeCssColor(color);
+  const dot = safeColor
+    ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${safeColor};margin-right:6px;vertical-align:middle;"></span>`
+    : '';
+  return `<span style="display:inline-block;background-color:#eef2ee;color:#316049;font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;margin:0 6px 6px 0;">${dot}${escapeHtml(label)}</span>`;
+}
+
+export interface ResourcePreviewCardParams {
+  title: string;
+  chips?: string[];
+  /** Per-chip color dots, index-aligned with `chips` (e.g. status color). */
+  chipColors?: (string | undefined)[];
+  snippet?: string | null;
+  /** A quoted line \u2014 e.g. a comment's full text or an attachment filename. */
+  eventLine?: string | null;
+}
+
+/** A bordered, card-styled preview block reused by board and document emails. */
+function renderResourcePreviewCard(params: ResourcePreviewCardParams): string {
+  const { title, chips = [], chipColors = [], snippet, eventLine } = params;
+
+  const chipsBlock = chips.length
+    ? `<div style="margin:0 0 4px 0;">${chips.map((c, i) => renderChip(c, chipColors[i])).join('')}</div>`
+    : '';
+
+  const snippetBlock = snippet
+    ? `<p style="margin:8px 0 0 0;font-size:14px;color:#666666;line-height:1.5;">${escapeHtml(snippet)}</p>`
+    : '';
+
+  const eventBlock = eventLine
+    ? `<p style="margin:10px 0 0 0;padding:10px 12px;background-color:#ffffff;border-left:3px solid ${PRIMARY_COLOR};font-size:14px;color:#444444;line-height:1.5;">${escapeHtml(eventLine)}</p>`
+    : '';
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px 0;">
+      <tr>
+        <td style="padding:16px 18px;background-color:#fafafa;border:1px solid #e8e2d0;border-radius:8px;">
+          <p style="margin:0 0 8px 0;font-size:16px;font-weight:700;color:#333333;line-height:1.4;">${escapeHtml(title)}</p>
+          ${chipsBlock}
+          ${snippetBlock}
+          ${eventBlock}
+        </td>
+      </tr>
+    </table>`;
+}
+
 export interface DocumentShareTemplateParams {
   recipientName: string;
   senderName: string;
   documentTitle: string;
   documentUrl: string;
   permissionLevel: string;
+  documentPreview?: string | null;
 }
 
 export function renderDocumentShareTemplate(params: DocumentShareTemplateParams): {
   html: string;
   text: string;
 } {
-  const { recipientName, senderName, documentTitle, documentUrl, permissionLevel } = params;
+  const {
+    recipientName,
+    senderName,
+    documentTitle,
+    documentUrl,
+    permissionLevel,
+    documentPreview,
+  } = params;
 
   const levelLabel =
     permissionLevel === 'editor'
@@ -71,16 +164,21 @@ export function renderDocumentShareTemplate(params: DocumentShareTemplateParams)
         ? 'Eigent\u00fcmer*in'
         : 'Lesen';
 
+  const previewCard = renderResourcePreviewCard({
+    title: documentTitle,
+    chips: [`Berechtigung: ${levelLabel}`],
+    snippet: documentPreview ?? null,
+  });
+
   const content = `
     <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">Dokument geteilt</h1>
     <p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">
       Hallo ${escapeHtml(recipientName)},
     </p>
-    <p style="margin:0 0 24px 0;font-size:15px;color:#555555;line-height:1.6;">
-      <strong>${escapeHtml(senderName)}</strong> hat das Dokument
-      <strong>&bdquo;${escapeHtml(documentTitle)}&ldquo;</strong> mit dir geteilt
-      (Berechtigung: ${escapeHtml(levelLabel)}).
+    <p style="margin:0 0 20px 0;font-size:15px;color:#555555;line-height:1.6;">
+      <strong>${escapeHtml(senderName)}</strong> hat ein Dokument mit dir geteilt:
     </p>
+    ${previewCard}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px auto;">
       <tr>
         <td style="background-color:${PRIMARY_COLOR};border-radius:6px;">
@@ -99,7 +197,9 @@ export function renderDocumentShareTemplate(params: DocumentShareTemplateParams)
 
 Hallo ${recipientName},
 
-${senderName} hat das Dokument "${documentTitle}" mit dir geteilt (Berechtigung: ${levelLabel}).
+${senderName} hat das Dokument "${documentTitle}" mit dir geteilt (Berechtigung: ${levelLabel}).${
+    documentPreview ? `\n\n${documentPreview}` : ''
+  }
 
 Dokument öffnen: ${documentUrl}
 
@@ -161,6 +261,173 @@ export function renderGenericNotificationTemplate(params: GenericNotificationTem
   const text = `${title}
 
 ${greetingText}${bodyText}${ctaText}--
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
+// ----- Rich board notification template -----
+
+export interface BoardNotificationTemplateParams {
+  recipientName?: string;
+  /** The notification headline, e.g. "Moritz hat dir eine Aufgabe zugewiesen". */
+  title: string;
+  actionUrl?: string | null;
+  actionLabel?: string;
+  cardTitle?: string | null;
+  boardTitle?: string | null;
+  descriptionSnippet?: string | null;
+  statusLabel?: string | null;
+  statusColor?: string | null;
+  dueDate?: string | null;
+  assigneeNames?: string[];
+  labelNames?: string[];
+  /** Full comment text / attachment filename — the "what happened" line. */
+  eventText?: string | null;
+}
+
+export function renderBoardNotificationTemplate(params: BoardNotificationTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const {
+    recipientName,
+    title,
+    actionUrl,
+    actionLabel = 'Aufgabe öffnen',
+    cardTitle,
+    boardTitle,
+    descriptionSnippet,
+    statusLabel,
+    statusColor,
+    dueDate,
+    assigneeNames = [],
+    labelNames = [],
+    eventText,
+  } = params;
+
+  const chips: string[] = [];
+  const chipColors: (string | undefined)[] = [];
+  if (boardTitle) {
+    chips.push(boardTitle);
+    chipColors.push(undefined);
+  }
+  if (dueDate) {
+    chips.push(`Fällig ${formatDueDate(dueDate)}`);
+    chipColors.push(undefined);
+  }
+  if (statusLabel) {
+    chips.push(statusLabel);
+    chipColors.push(statusColor ?? undefined);
+  }
+  if (assigneeNames.length) {
+    chips.push(
+      assigneeNames.length <= 2 ? assigneeNames.join(', ') : `${assigneeNames.length} Personen`
+    );
+    chipColors.push(undefined);
+  }
+  for (const label of labelNames) {
+    chips.push(label);
+    chipColors.push(undefined);
+  }
+
+  const previewCard = renderResourcePreviewCard({
+    title: cardTitle || boardTitle || 'Aufgabe',
+    chips,
+    chipColors,
+    snippet: descriptionSnippet ?? null,
+    eventLine: eventText ?? null,
+  });
+
+  const greeting = recipientName
+    ? `<p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">Hallo ${escapeHtml(recipientName)},</p>`
+    : '';
+
+  const content = `
+    <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">${escapeHtml(title)}</h1>
+    ${greeting}
+    ${previewCard}
+    ${actionUrl ? renderCtaBlock(actionUrl, actionLabel) : ''}`;
+
+  const textChips = chips.length ? `${chips.join(' · ')}\n` : '';
+  const text = `${title}
+
+${recipientName ? `Hallo ${recipientName},\n\n` : ''}${cardTitle || boardTitle || 'Aufgabe'}
+${textChips}${descriptionSnippet ? `${descriptionSnippet}\n` : ''}${eventText ? `\n${eventText}\n` : ''}${
+    actionUrl ? `\n${actionLabel}: ${actionUrl}\n` : ''
+  }
+--
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
+// ----- Rich document notification template (permission changed / revoked / group share) -----
+
+export interface DocumentNotificationTemplateParams {
+  recipientName?: string;
+  title: string;
+  /** The explanatory sentence (e.g. "Dein Zugriff auf X wurde entfernt"). */
+  body?: string | null;
+  actionUrl?: string | null;
+  actionLabel?: string;
+  docTitle?: string | null;
+  actorName?: string | null;
+  permissionLabel?: string | null;
+  previewSnippet?: string | null;
+}
+
+export function renderDocumentNotificationTemplate(params: DocumentNotificationTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const {
+    recipientName,
+    title,
+    body,
+    actionUrl,
+    actionLabel = 'Dokument öffnen',
+    docTitle,
+    actorName,
+    permissionLabel,
+    previewSnippet,
+  } = params;
+
+  const chips: string[] = [];
+  if (actorName) chips.push(`von ${actorName}`);
+  if (permissionLabel) chips.push(permissionLabel);
+
+  const previewCard = renderResourcePreviewCard({
+    title: docTitle || 'Dokument',
+    chips,
+    snippet: previewSnippet ?? null,
+  });
+
+  const greeting = recipientName
+    ? `<p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">Hallo ${escapeHtml(recipientName)},</p>`
+    : '';
+
+  const bodyBlock = body
+    ? `<p style="margin:0 0 20px 0;font-size:15px;color:#555555;line-height:1.6;">${escapeHtml(body)}</p>`
+    : '';
+
+  const content = `
+    <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">${escapeHtml(title)}</h1>
+    ${greeting}
+    ${bodyBlock}
+    ${previewCard}
+    ${actionUrl ? renderCtaBlock(actionUrl, actionLabel) : ''}`;
+
+  const textChips = chips.length ? `${chips.join(' · ')}\n` : '';
+  const text = `${title}
+
+${recipientName ? `Hallo ${recipientName},\n\n` : ''}${body ? `${body}\n\n` : ''}${docTitle || 'Dokument'}
+${textChips}${previewSnippet ? `${previewSnippet}\n` : ''}${
+    actionUrl ? `\n${actionLabel}: ${actionUrl}\n` : ''
+  }
+--
 ${BRAND.name} — KI-Werkzeuge für Grüne
 ${PRIMARY_URL}`;
 

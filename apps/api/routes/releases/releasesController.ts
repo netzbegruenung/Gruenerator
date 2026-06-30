@@ -1,329 +1,304 @@
 import express, { type Request, type Response, type Router } from 'express';
+import { z } from 'zod';
 
 import { PRIMARY_URL } from '../../config/domains.js';
+import { createLogger } from '../../utils/logger.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
-// GitHub configuration for release downloads
+const log = createLogger('releases');
+
+// Desktop releases are published as GitHub Releases (tag `desktop-v<version>`).
+// This router derives everything — the download page, the per-channel download
+// manifests, and the Tauri updater feed — from the GitHub Releases API at
+// runtime, cached in Redis. Publishing a new release (stable or pre-release)
+// updates the website and the auto-updater automatically; no code edit/redeploy.
 const GITHUB_REPO = 'netzbegruenung/Gruenerator';
-const getGitHubReleaseTag = (version: string) => `desktop-v${version}`;
-const getGitHubDownloadUrl = (version: string, filename: string) =>
-  `https://github.com/${GITHUB_REPO}/releases/download/${getGitHubReleaseTag(version)}/${encodeURIComponent(filename)}`;
+const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`;
 
+const FRESH_TTL_SECONDS = 600; // serve cached release data for 10 min
+const STALE_TTL_SECONDS = 21_600; // fall back to 6h-old data if GitHub is unreachable
+
+const FRESH_CACHE_KEY = 'releases:gh:fresh';
+const STALE_CACHE_KEY = 'releases:gh:stale';
+const UPDATER_CACHE_KEY = 'releases:updater:latest';
+
+// --- GitHub API shapes (validated at the boundary) -------------------------
+const GithubAssetSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  browser_download_url: z.string().url(),
+  size: z.number(),
+});
+const GithubReleaseSchema = z.object({
+  tag_name: z.string(),
+  name: z.string().nullable(),
+  body: z.string().nullable(),
+  published_at: z.string().nullable(),
+  draft: z.boolean(),
+  prerelease: z.boolean(),
+  assets: z.array(GithubAssetSchema),
+});
+const GithubReleasesSchema = z.array(GithubReleaseSchema);
+type GithubRelease = z.infer<typeof GithubReleaseSchema>;
+
+// --- Response shapes -------------------------------------------------------
+const PlatformConfigSchema = z.object({ signature: z.string(), url: z.string() });
+const UpdaterConfigSchema = z.object({
+  version: z.string(),
+  notes: z.string(),
+  pub_date: z.string(),
+  platforms: z.record(z.string(), PlatformConfigSchema),
+});
+type UpdaterConfig = z.infer<typeof UpdaterConfigSchema>;
+
+const versionFromTag = (tag: string): string => tag.replace(/^desktop-v/, '');
+
+// First non-empty line of the release body — a short blurb for the UI, not the
+// full markdown changelog.
+const shortNotes = (body: string | null): string => {
+  if (!body) return '';
+  const firstLine = body
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+  if (!firstLine) return '';
+  return firstLine.length > 280 ? `${firstLine.slice(0, 277)}…` : firstLine;
+};
+
+// --- GitHub fetch + cache --------------------------------------------------
+async function fetchReleases(): Promise<GithubRelease[]> {
+  const cached = await getCachedJson(FRESH_CACHE_KEY, GithubReleasesSchema);
+  if (cached) return cached;
+
+  try {
+    const res = await fetch(RELEASES_API, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'gruenerator-releases',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+    if (!res.ok) throw new Error(`GitHub API responded ${res.status}`);
+    const parsed = GithubReleasesSchema.parse(await res.json());
+    await setCachedJson(FRESH_CACHE_KEY, parsed, FRESH_TTL_SECONDS);
+    await setCachedJson(STALE_CACHE_KEY, parsed, STALE_TTL_SECONDS);
+    return parsed;
+  } catch (error) {
+    log.warn(
+      `GitHub releases fetch failed (${(error as Error).message}); falling back to stale cache`
+    );
+    const stale = await getCachedJson(STALE_CACHE_KEY, GithubReleasesSchema);
+    if (stale) return stale;
+    throw error;
+  }
+}
+
+const latestStable = (releases: GithubRelease[]): GithubRelease | null =>
+  releases.find((r) => !r.draft && !r.prerelease) ?? null;
+const latestBeta = (releases: GithubRelease[]): GithubRelease | null =>
+  releases.find((r) => !r.draft && r.prerelease) ?? null;
+
+// --- Per-channel download manifest (macOS DMGs) ----------------------------
+// The website's download UI is macOS-only; map the two DMG assets to stable
+// platform keys the frontend renders. Discovered from the release's assets.
+const MAC_PLATFORMS: ReadonlyArray<{
+  key: string;
+  label: string;
+  matches: (name: string) => boolean;
+}> = [
+  { key: 'mac-aarch64', label: 'Apple Silicon (M1–M4)', matches: (n) => /aarch64\.dmg$/i.test(n) },
+  { key: 'mac-intel', label: 'Intel', matches: (n) => /(x64|x86_64)\.dmg$/i.test(n) },
+];
+
+interface ReleaseManifest {
+  version: string;
+  name: string;
+  notes: string;
+  publishedAt: string;
+  platforms: Record<string, { label: string; filename: string }>;
+}
+
+function buildManifest(release: GithubRelease): ReleaseManifest {
+  const platforms: ReleaseManifest['platforms'] = {};
+  for (const platform of MAC_PLATFORMS) {
+    const asset = release.assets.find((a) => platform.matches(a.name));
+    if (asset) platforms[platform.key] = { label: platform.label, filename: asset.name };
+  }
+  return {
+    version: versionFromTag(release.tag_name),
+    name: release.name ?? release.tag_name,
+    notes: shortNotes(release.body),
+    publishedAt: release.published_at ?? '',
+    platforms,
+  };
+}
+
+// --- Tauri updater manifest (built from the latest stable release) ---------
+// Each updater target maps to its bundle asset + a sibling `<asset>.sig` whose
+// contents are the minisign signature. Tauri v2 omits the version from the
+// macOS `.app.tar.gz` name.
+const UPDATER_TARGETS: ReadonlyArray<{ key: string; matches: (name: string) => boolean }> = [
+  { key: 'darwin-aarch64', matches: (n) => /_aarch64\.app\.tar\.gz$/i.test(n) },
+  { key: 'darwin-x86_64', matches: (n) => /_x64\.app\.tar\.gz$/i.test(n) },
+  {
+    key: 'linux-x86_64',
+    matches: (n) => /\.AppImage\.tar\.gz$/i.test(n) || /amd64\.AppImage$/i.test(n),
+  },
+  { key: 'windows-x86_64', matches: (n) => /-setup\.nsis\.zip$/i.test(n) },
+];
+
+async function fetchSignature(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'gruenerator-releases' } });
+    if (!res.ok) return null;
+    return (await res.text()).trim();
+  } catch {
+    return null;
+  }
+}
+
+async function buildUpdaterConfig(release: GithubRelease): Promise<UpdaterConfig | null> {
+  const platforms: UpdaterConfig['platforms'] = {};
+  for (const target of UPDATER_TARGETS) {
+    const artifact = release.assets.find((a) => !a.name.endsWith('.sig') && target.matches(a.name));
+    if (!artifact) continue;
+    const sigAsset = release.assets.find((a) => a.name === `${artifact.name}.sig`);
+    if (!sigAsset) continue;
+    const signature = await fetchSignature(sigAsset.browser_download_url);
+    if (!signature) {
+      log.warn(`Updater signature missing/empty for ${artifact.name}; skipping ${target.key}`);
+      continue;
+    }
+    platforms[target.key] = { signature, url: artifact.browser_download_url };
+  }
+  if (Object.keys(platforms).length === 0) return null;
+  return {
+    version: versionFromTag(release.tag_name),
+    notes: `See release notes at ${PRIMARY_URL}/apps`,
+    pub_date: release.published_at ?? '',
+    platforms,
+  };
+}
+
+async function getUpdaterConfig(): Promise<UpdaterConfig | null> {
+  const cached = await getCachedJson(UPDATER_CACHE_KEY, UpdaterConfigSchema);
+  if (cached) return cached;
+  const stable = latestStable(await fetchReleases());
+  if (!stable) return null;
+  const config = await buildUpdaterConfig(stable);
+  if (config) await setCachedJson(UPDATER_CACHE_KEY, config, FRESH_TTL_SECONDS);
+  return config;
+}
+
+// --- Router ----------------------------------------------------------------
 const router: Router = express.Router();
 
-console.log('[Releases] Router initialized');
+const asyncRoute =
+  (handler: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response) => {
+    handler(req, res).catch((error: unknown) => {
+      log.error(`Releases route failed: ${(error as Error).message}`);
+      if (!res.headersSent) res.status(503).json({ error: 'Release data temporarily unavailable' });
+    });
+  };
 
-// Debug middleware to log all requests to this router - MUST be first
-router.use((req: Request, _res: Response, next) => {
-  console.log(
-    `[Releases] Incoming request: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`
-  );
-  next();
-});
-
-interface PlatformConfig {
-  signature: string;
-  url: string;
-}
-
-interface UpdaterConfig {
-  version: string;
-  notes: string;
-  pub_date: string;
-  platforms: Record<string, PlatformConfig>;
-}
-
-interface ReleaseAsset {
-  id: number;
-  name: string;
-  browser_download_url: string;
-  size: number;
-}
-
-interface ReleaseInfo {
-  tag_name: string;
-  name: string;
-  published_at: string;
-  body: string;
-  assets: ReleaseAsset[];
-}
-
-// Tauri Updater configuration - update these values when publishing new desktop releases
-// This serves the latest.json format required by @tauri-apps/plugin-updater
-const UPDATER_CONFIG: UpdaterConfig = {
-  version: '1.0.1',
-  notes: `See release notes at ${PRIMARY_URL}/releases`,
-  pub_date: '2026-01-28T00:00:00Z',
-  platforms: {
-    'linux-x86_64': {
-      signature: '',
-      url: `${PRIMARY_URL}/api/releases/download/linux-x86_64`,
-    },
-    'darwin-x86_64': {
-      signature: '',
-      url: `${PRIMARY_URL}/api/releases/download/darwin-x86_64`,
-    },
-    'darwin-aarch64': {
-      signature: '',
-      url: `${PRIMARY_URL}/api/releases/download/darwin-aarch64`,
-    },
-    'windows-x86_64': {
-      signature: '',
-      url: `${PRIMARY_URL}/api/releases/download/windows-x86_64`,
-    },
-  },
-};
-
-// Platform to filename mapping for Tauri updater bundles
-// Note: macOS tar.gz bundles don't include version number in Tauri v2
-const PLATFORM_FILES: Record<string, (v: string) => string> = {
-  'linux-x86_64': (v) => `Grunerator_${v}_amd64.AppImage`,
-  'darwin-x86_64': () => `Grunerator_x64.app.tar.gz`,
-  'darwin-aarch64': () => `Grunerator_aarch64.app.tar.gz`,
-  'windows-x86_64': (v) => `Grunerator_${v}_x64-setup.exe`,
-};
-
-// Helper to generate file download URL (relative path — browser resolves against current origin)
-const getFileDownloadUrl = (filename: string) =>
-  `/api/releases/download/file/${encodeURIComponent(filename)}`;
-
-// Release configuration - update this when publishing new releases
-const CURRENT_RELEASE: ReleaseInfo = {
-  tag_name: 'desktop-v1.0.1',
-  name: 'Grünerator Desktop v1.0.1',
-  published_at: '2026-01-28T00:00:00Z',
-  body: `## Desktop v1.0.1
-
-### Neue Funktionen
-- Sichere Desktop-Authentifizierung mit PKCE
-- Verbesserte Token-Verwaltung
-- Scanner und Protokollizer Features
-
-### Installation
-1. Lade die passende Datei für dein Betriebssystem herunter
-2. Führe die Installation aus
-3. Starte den Grünerator über das Desktop-Symbol
-`,
-  assets: [
-    {
-      id: 1,
-      name: 'Grunerator_1.0.1_x64-setup.exe',
-      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_x64-setup.exe'),
-      size: 45000000,
-    },
-    {
-      id: 2,
-      name: 'Grunerator_1.0.1_x64_en-US.msi',
-      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_x64_en-US.msi'),
-      size: 42000000,
-    },
-    {
-      id: 3,
-      name: 'Grunerator_1.0.1_x64.dmg',
-      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_x64.dmg'),
-      size: 48000000,
-    },
-    {
-      id: 4,
-      name: 'Grunerator_1.0.1_aarch64.dmg',
-      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_aarch64.dmg'),
-      size: 48000000,
-    },
-    {
-      id: 5,
-      name: 'Grunerator_1.0.1_amd64.AppImage',
-      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_amd64.AppImage'),
-      size: 85000000,
-    },
-    {
-      id: 6,
-      name: 'Grunerator_1.0.1_amd64.deb',
-      browser_download_url: getFileDownloadUrl('Grunerator_1.0.1_amd64.deb'),
-      size: 44000000,
-    },
-  ],
-};
-
-// GET /api/releases/latest - Get latest release info (for frontend download page)
-router.get('/latest', (_req: Request, res: Response) => {
-  res.json(CURRENT_RELEASE);
-});
-
-// GET /api/releases - Get all releases (currently just latest)
-router.get('/', (_req: Request, res: Response) => {
-  res.json([CURRENT_RELEASE]);
-});
-
-// --- Beta (pre-release) desktop builds -------------------------------------
-// A beta is a SEPARATE GitHub pre-release (its own `desktop-v<version>` tag),
-// exposed as a DOWNLOAD ONLY. It is intentionally NOT wired into UPDATER_CONFIG,
-// so publishing a beta never auto-updates existing stable installs. To publish a
-// new beta: create the GitHub pre-release, upload the assets, then update the
-// fields below (set to `null` to hide the beta download entirely).
-interface BetaPlatform {
-  // Human label shown on the download page.
-  label: string;
-  // Asset filename on the GitHub pre-release.
-  filename: string;
-}
-
-interface BetaRelease {
-  version: string;
-  tag: string;
-  name: string;
-  notes: string;
-  published_at: string;
-  platforms: Record<string, BetaPlatform>;
-}
-
-const BETA_RELEASE: BetaRelease | null = {
-  version: '1.2.0-beta.1',
-  tag: 'desktop-v1.2.0-beta.1',
-  name: 'Grünerator Desktop 1.2.0 (Beta)',
-  notes:
-    'Desktop-Beta mit den neuen Webview-Fixes: Bilder & Profilname, Dokumente, Vollbild-Layout, Chat inkl. Thread-Liste und behobenes Sidebar-Flackern.',
-  published_at: '2026-06-17T00:00:00Z',
-  platforms: {
-    // Per-architecture macOS DMGs (smaller than a universal build).
-    'mac-aarch64': {
-      label: 'Apple Silicon (M1–M4)',
-      filename: 'Gruenerator_1.2.0_aarch64.dmg',
-    },
-    'mac-intel': {
-      label: 'Intel',
-      filename: 'Gruenerator_1.2.0_x64.dmg',
-    },
-  },
-};
-
-const getBetaDownloadUrl = (tag: string, filename: string) =>
-  `https://github.com/${GITHUB_REPO}/releases/download/${tag}/${encodeURIComponent(filename)}`;
-
-// GET /api/releases/beta - latest beta manifest (download-only; never the updater)
-router.get('/beta', (_req: Request, res: Response) => {
-  if (!BETA_RELEASE) {
-    res.status(404).json({ error: 'No beta release available' });
-    return;
-  }
-  res.json({
-    version: BETA_RELEASE.version,
-    name: BETA_RELEASE.name,
-    notes: BETA_RELEASE.notes,
-    publishedAt: BETA_RELEASE.published_at,
-    // The download URL is built client-side from the platform key against the
-    // current API origin (GET /api/releases/beta/download/:platform), so it
-    // stays correct on both the web app and the desktop webview.
-    platforms: Object.fromEntries(
-      Object.entries(BETA_RELEASE.platforms).map(([key, p]) => [
-        key,
-        { label: p.label, filename: p.filename },
-      ])
-    ),
+// 302-redirect to the GitHub asset for a channel + platform key.
+const channelDownload = (pick: (releases: GithubRelease[]) => GithubRelease | null) =>
+  asyncRoute(async (req, res) => {
+    const release = pick(await fetchReleases());
+    if (!release) {
+      res.status(404).json({ error: 'No release available' });
+      return;
+    }
+    const entry = buildManifest(release).platforms[req.params.platform as string];
+    const asset = entry && release.assets.find((a) => a.name === entry.filename);
+    if (!asset) {
+      res.status(404).json({ error: 'Platform not found' });
+      return;
+    }
+    res.redirect(302, asset.browser_download_url);
   });
-});
 
-// GET /api/releases/beta/download/:platform - 302 redirect to the GitHub pre-release asset
-router.get('/beta/download/:platform', (req: Request<{ platform: string }>, res: Response) => {
-  if (!BETA_RELEASE) {
-    res.status(404).json({ error: 'No beta release available' });
-    return;
-  }
-  const platform = BETA_RELEASE.platforms[req.params.platform];
-  if (!platform) {
-    res.status(404).json({ error: 'Platform not found' });
-    return;
-  }
-  const githubUrl = getBetaDownloadUrl(BETA_RELEASE.tag, platform.filename);
-  console.log(`[Releases] Redirecting beta download to GitHub: ${githubUrl}`);
-  res.redirect(302, githubUrl);
-});
+// Channel manifest (download-only) for the stable / beta UI sections.
+const channelManifest = (pick: (releases: GithubRelease[]) => GithubRelease | null) =>
+  asyncRoute(async (_req, res) => {
+    const release = pick(await fetchReleases());
+    if (!release) {
+      res.status(404).json({ error: 'No release available' });
+      return;
+    }
+    res.json(buildManifest(release));
+  });
 
-// GET /api/releases/updater/latest.json - Tauri updater manifest
-router.get('/updater/latest.json', (_req: Request, res: Response) => {
-  res.json(UPDATER_CONFIG);
-});
+// GET /api/releases/latest — latest stable release (download page shape)
+router.get(
+  '/latest',
+  asyncRoute(async (_req, res) => {
+    const release = latestStable(await fetchReleases());
+    if (!release) {
+      res.status(404).json({ error: 'No release available' });
+      return;
+    }
+    res.json({
+      tag_name: release.tag_name,
+      name: release.name ?? release.tag_name,
+      published_at: release.published_at ?? '',
+      body: release.body ?? '',
+      assets: release.assets.map((a) => ({
+        id: a.id,
+        name: a.name,
+        browser_download_url: a.browser_download_url,
+        size: a.size,
+      })),
+    });
+  })
+);
 
-// GET /api/releases/download/file/:filename - Redirect to GitHub release file (for direct downloads)
-// IMPORTANT: This route must come BEFORE /download/:platform to avoid :platform matching "file"
-router.get('/download/file/:filename', (req: Request<{ filename: string }>, res: Response) => {
-  const { filename } = req.params;
-  const version = UPDATER_CONFIG.version;
+// GET /api/releases — all (currently just the latest stable)
+router.get(
+  '/',
+  asyncRoute(async (_req, res) => {
+    const release = latestStable(await fetchReleases());
+    res.json(release ? [release] : []);
+  })
+);
 
-  // Security: only allow alphanumeric, dots, underscores, and hyphens in filename
-  if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
-    res.status(400).json({ error: 'Invalid filename' });
-    return;
-  }
+// GET /api/releases/stable — latest stable channel manifest
+router.get('/stable', channelManifest(latestStable));
+// GET /api/releases/stable/download/:platform — redirect to the stable asset
+router.get('/stable/download/:platform', channelDownload(latestStable));
 
-  const githubUrl = getGitHubDownloadUrl(version, filename);
-  console.log(`[Releases] Redirecting file download to GitHub: ${githubUrl}`);
-  res.redirect(302, githubUrl);
-});
+// GET /api/releases/beta — latest pre-release channel manifest
+router.get('/beta', channelManifest(latestBeta));
+// GET /api/releases/beta/download/:platform — redirect to the pre-release asset
+router.get('/beta/download/:platform', channelDownload(latestBeta));
 
-// GET /api/releases/download/:platform - Redirect to GitHub release for platform (Tauri updater)
-router.get('/download/:platform', (req: Request<{ platform: string }>, res: Response) => {
-  const { platform } = req.params;
-  const version = UPDATER_CONFIG.version;
+// GET /api/releases/updater/latest.json — Tauri updater feed (latest stable).
+// 204 = "no update available" (Tauri's signal) when nothing can be served.
+router.get(
+  '/updater/latest.json',
+  asyncRoute(async (_req, res) => {
+    const config = await getUpdaterConfig();
+    if (!config) {
+      res.status(204).end();
+      return;
+    }
+    res.json(config);
+  })
+);
 
-  if (!Object.hasOwn(PLATFORM_FILES, platform)) {
-    console.log(`[Releases] Platform not found: ${platform}`);
-    res.status(404).json({ error: 'Platform not found' });
-    return;
-  }
-  const fileNameFn = PLATFORM_FILES[platform];
-
-  const fileName = fileNameFn(version);
-  const githubUrl = getGitHubDownloadUrl(version, fileName);
-  console.log(`[Releases] Redirecting ${platform} to GitHub: ${githubUrl}`);
-  res.redirect(302, githubUrl);
-});
-
-// GET /api/releases/download/:platform/signature - Get signature for platform (from config)
-router.get('/download/:platform/signature', (req: Request<{ platform: string }>, res: Response) => {
-  const { platform } = req.params;
-
-  const platformConfig = UPDATER_CONFIG.platforms[platform];
-  if (!platformConfig) {
-    return res.status(404).json({ error: 'Platform not found' });
-  }
-
-  // Return signature from config (must be populated when creating releases)
-  return res.type('text/plain').send(platformConfig.signature || '');
-});
-
-// GET /api/releases/info - Get release configuration info (for debugging)
-router.get('/info', (_req: Request, res: Response) => {
-  const version = UPDATER_CONFIG.version;
-  const releaseTag = getGitHubReleaseTag(version);
-
-  res.json({
-    version,
-    github: {
+// GET /api/releases/info — debug snapshot
+router.get(
+  '/info',
+  asyncRoute(async (_req, res) => {
+    const releases = await fetchReleases();
+    const stable = latestStable(releases);
+    const beta = latestBeta(releases);
+    res.json({
       repo: GITHUB_REPO,
-      releaseTag,
-      releaseUrl: `https://github.com/${GITHUB_REPO}/releases/tag/${releaseTag}`,
-    },
-    platformFiles: Object.entries(PLATFORM_FILES).map(([platform, fn]) => {
-      const fileName = fn(version);
-      return {
-        platform,
-        fileName,
-        downloadUrl: getGitHubDownloadUrl(version, fileName),
-      };
-    }),
-    frontendAssets: CURRENT_RELEASE.assets.map((asset) => ({
-      name: asset.name,
-      downloadUrl: getGitHubDownloadUrl(version, asset.name),
-    })),
-  });
-});
-
-// Debug: List all registered routes
-console.log('[Releases] Registered routes:');
-router.stack.forEach((r) => {
-  if (r.route) {
-    const methods = (r.route as unknown as { methods: Record<string, boolean> }).methods;
-    console.log(`[Releases]   ${Object.keys(methods).join(',')} ${r.route.path}`);
-  }
-});
+      stable: stable ? { tag: stable.tag_name, assets: stable.assets.map((a) => a.name) } : null,
+      beta: beta ? { tag: beta.tag_name, assets: beta.assets.map((a) => a.name) } : null,
+    });
+  })
+);
 
 export default router;

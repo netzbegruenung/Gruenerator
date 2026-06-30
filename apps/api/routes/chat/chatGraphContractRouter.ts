@@ -102,6 +102,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         initialState,
         memoryContext,
         memoryRetrieveTimeMs,
+        memoryEnabled,
         contextWindowTokens,
       } = ctxResult.ctx;
 
@@ -846,6 +847,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         processedMeta,
         aiWorkerPool,
         requestId,
+        memoryEnabled,
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===

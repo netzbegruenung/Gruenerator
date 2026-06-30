@@ -18,6 +18,9 @@ export const useBoardCollaboration = (boardId: string) => {
             avatar_robot_id: user.avatar_robot_id ? Number(user.avatar_robot_id) : null,
           }
         : null,
+    // Depend on individual user fields, not the object identity, so unrelated
+    // auth-store updates don't recompute the collaboration user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [user?.id, user?.display_name, user?.email, user?.avatar_robot_id]
   );
 
