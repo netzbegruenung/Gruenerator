@@ -15,7 +15,7 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
-import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
+import { IMAGE_STUDIO_CATEGORIES, getTypeConfig, getTypeFromLegacy } from '../utils/typeConfig';
 
 import { Lightbox } from './Lightbox';
 
@@ -27,7 +27,21 @@ const EXAMPLE_PROMPTS = [
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
-const RECENT_GALLERY_OPTIONS = { limit: 5 } as const;
+const RECENT_GALLERY_OPTIONS = { limit: 20 } as const;
+
+/**
+ * Classifies a stored `image_type` value as a KI ("Imagine") image.
+ * KI type ids (e.g. `pure-create`) resolve directly; template legacy types
+ * (e.g. `Dreizeilen`) resolve via `getTypeFromLegacy`. Unknown/empty defaults to false
+ * so legacy images fall back into the Sharepics bucket.
+ */
+const isKiImage = (imageType?: string): boolean => {
+  if (!imageType) return false;
+  const direct = getTypeConfig(imageType);
+  const legacyId = direct ? null : getTypeFromLegacy(imageType);
+  const config = direct ?? (legacyId ? getTypeConfig(legacyId) : null);
+  return config?.category === IMAGE_STUDIO_CATEGORIES.KI;
+};
 
 const PreviewCard = ({
   title,
@@ -89,7 +103,19 @@ const ImageStudioCategorySelector: React.FC = () => {
 
   const { items: recentGalleryItems, lastFetch: galleryLastFetch } =
     useRecentGalleryItems(RECENT_GALLERY_OPTIONS);
-  const showGallerySection = galleryLastFetch !== null && recentGalleryItems.length > 0;
+
+  const { sharepicItems, imagineItems } = useMemo(() => {
+    const sharepics: RecentGalleryItem[] = [];
+    const imagine: RecentGalleryItem[] = [];
+    for (const item of recentGalleryItems) {
+      (isKiImage(item.imageType) ? imagine : sharepics).push(item);
+    }
+    return { sharepicItems: sharepics.slice(0, 5), imagineItems: imagine.slice(0, 5) };
+  }, [recentGalleryItems]);
+
+  const hasFetched = galleryLastFetch !== null;
+  const showSharepics = hasFetched && sharepicItems.length > 0;
+  const showImagine = hasFetched && imagineItems.length > 0;
 
   // const { data: featuredVorlagen = [] } = useFeaturedVorlagen(5);
 
@@ -230,7 +256,7 @@ const ImageStudioCategorySelector: React.FC = () => {
 
       {/* Hidden entirely when there's nothing to show: no create entry (sharepic
           studio off for DE, AT keeps the external link) and no gallery. */}
-      {(SHOW_SHAREPIC_STUDIO || isAustrianUser || showGallerySection) && (
+      {(SHOW_SHAREPIC_STUDIO || isAustrianUser || showSharepics) && (
         <section className="mb-xl">
           <SectionHeader
             title="Sharepics"
@@ -248,9 +274,9 @@ const ImageStudioCategorySelector: React.FC = () => {
             }
             createLabel="Neues Sharepic erstellen"
           />
-          {showGallerySection && (
+          {showSharepics && (
             <CardGrid columns="5">
-              {recentGalleryItems.map((item) => (
+              {sharepicItems.map((item) => (
                 <PreviewCard
                   key={item.shareToken}
                   title={item.title || 'Sharepic'}
@@ -308,6 +334,23 @@ const ImageStudioCategorySelector: React.FC = () => {
           }}
           createLabel="Neues KI-Bild erstellen"
         />
+        {showImagine && (
+          <CardGrid columns="5">
+            {imagineItems.map((item) => (
+              <PreviewCard
+                key={item.shareToken}
+                title={item.title || 'KI-Bild'}
+                thumbnailUrl={
+                  item.thumbnailPath
+                    ? `${API_BASE_URL}/share/${item.shareToken}/thumbnail`
+                    : `${API_BASE_URL}/share/${item.shareToken}/preview?w=400`
+                }
+                // KI images have no canvas editor; always open the read-only preview.
+                onClick={() => setPreviewItem(item)}
+              />
+            ))}
+          </CardGrid>
+        )}
       </section>
 
       <section className="mb-xl">

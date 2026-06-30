@@ -15,7 +15,7 @@ import {
   rerankNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isRegoloReasoningModel } from '../../../services/ai/regoloReasoningStream.js';
+import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -257,7 +257,7 @@ export async function runChatGraphResume({
         sse,
         logPrefix: '[ChatGraph:Resume]',
         buildStream: async (r) => {
-          const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+          const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
           return streamForResolution({
             resolution: r,
             messages: messagesForAI,
