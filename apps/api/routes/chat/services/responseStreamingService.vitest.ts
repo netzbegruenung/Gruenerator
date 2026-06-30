@@ -19,11 +19,12 @@ vi.mock('../../../services/ai/modelDiscovery.js', () => ({
   isReasoningCapable: () => false,
 }));
 
-const mockStreamRegoloWithReasoning = vi.fn();
+const mockStreamWithReasoning = vi.fn();
 vi.mock('../../../services/ai/regoloReasoningStream.js', () => ({
-  isRegoloReasoningModel: (provider: string, model: string) =>
-    provider === 'regolo' && model.startsWith('qwen'),
-  streamRegoloWithReasoning: (...args: unknown[]) => mockStreamRegoloWithReasoning(...args),
+  isReasoningStreamModel: (provider: string, model: string) =>
+    (provider === 'regolo' && (model.startsWith('qwen') || model === 'gemma4-31b')) ||
+    (provider === 'litellm' && model === 'verdigado-think'),
+  streamWithReasoning: (...args: unknown[]) => mockStreamWithReasoning(...args),
 }));
 
 vi.mock('./messageHelpers.js', () => ({
@@ -120,7 +121,7 @@ function textDeltas(sse: SseWriterArg): string[] {
 beforeEach(() => {
   mockStreamText.mockReset();
   mockResolveModelTuple.mockReset();
-  mockStreamRegoloWithReasoning.mockReset();
+  mockStreamWithReasoning.mockReset();
 });
 
 afterEach(() => {
@@ -130,17 +131,20 @@ afterEach(() => {
 // ─── getFirstTokenDeadlineMs ────────────────────────────────────────────────
 
 describe('getFirstTokenDeadlineMs', () => {
-  it('gives reasoning models the longest deadline', () => {
+  it('gives reasoning-stream models the longest deadline', () => {
     expect(getFirstTokenDeadlineMs('regolo', 'qwen3.5-122b')).toBe(45_000);
+    // Gemma 4 reasoning lanes hold back text until thinking completes.
+    expect(getFirstTokenDeadlineMs('regolo', 'gemma4-31b')).toBe(45_000);
+    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-think')).toBe(45_000);
   });
 
-  it('gives the litellm overflow lane queue headroom', () => {
+  it('gives the non-reasoning litellm overflow lane queue headroom', () => {
     expect(getFirstTokenDeadlineMs('litellm', 'gemma')).toBe(30_000);
+    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(30_000);
   });
 
   it('defaults to 20s', () => {
     expect(getFirstTokenDeadlineMs('mistral', 'mistral-medium-2604')).toBe(20_000);
-    expect(getFirstTokenDeadlineMs('regolo', 'gemma4-31b')).toBe(20_000);
   });
 });
 
@@ -191,7 +195,7 @@ describe('streamWithFallback', () => {
       .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'vom Sibling' }]));
     const sse = makeSse();
     const resultPromise = runStream(
-      makeResolution({ sibling: { provider: 'regolo', model: 'gemma4-31b' } }),
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
       sse
     );
     await vi.advanceTimersByTimeAsync(20_000);
@@ -212,7 +216,7 @@ describe('streamWithFallback', () => {
       makeResolution({
         provider: 'litellm',
         modelName: 'gemma',
-        sibling: { provider: 'regolo', model: 'gemma4-31b' },
+        sibling: { provider: 'mistral', model: 'mistral-medium-2604' },
       }),
       sse
     );
@@ -229,7 +233,7 @@ describe('streamWithFallback', () => {
       .mockReturnValueOnce(streamOf([{ type: 'text-delta', text: 'Antwort' }]));
     const sse = makeSse();
     const result = await runStream(
-      makeResolution({ sibling: { provider: 'regolo', model: 'gemma4-31b' } }),
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
       sse
     );
     expect(result).toBe('Antwort');
@@ -250,7 +254,7 @@ describe('streamWithFallback', () => {
     mockStreamText.mockReturnValueOnce(streamOf([])).mockReturnValueOnce(streamOf([]));
     const sse = makeSse();
     const result = await runStream(
-      makeResolution({ sibling: { provider: 'regolo', model: 'gemma4-31b' } }),
+      makeResolution({ sibling: { provider: 'mistral', model: 'mistral-medium-2604' } }),
       sse
     );
     expect(result).toBeNull();
