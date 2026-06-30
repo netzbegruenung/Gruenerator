@@ -4,13 +4,14 @@
  * the answer begins. Setting Ollama's top-level `think: false` makes gemma4
  * emit directly into `content`.
  *
- * This wrapper applies only on the **AI SDK path** — i.e. non-reasoning
- * Verdigado aliases (e.g. `verdigado-pro`/gpt-oss). The reasoning-surfacing
- * lane (`verdigado-think`) does NOT use this fetch: `@ai-sdk/openai`'s Chat
- * Completions schema has no reasoning field and would silently drop the
- * model's thinking, so that lane bypasses the SDK entirely and parses the raw
- * SSE `reasoning` field itself (see `regoloReasoningStream.ts`). For the lanes
- * that DO go through the SDK, thinking is invisible, so we strip it here.
+ * This wrapper applies only on the **AI SDK path** — i.e. Verdigado aliases
+ * whose thinking we do NOT surface (e.g. the legacy bare `gemma` alias). The
+ * reasoning-surfacing lanes (`verdigado-think` = Gemma 4, `verdigado-pro` =
+ * gpt-oss) do NOT use this fetch: `@ai-sdk/openai`'s Chat Completions schema
+ * has no reasoning field and would silently drop the model's thinking, so they
+ * bypass the SDK entirely and parse the raw SSE `reasoning` field themselves
+ * (see `regoloReasoningStream.ts`). For the lanes that DO go through the SDK,
+ * thinking is invisible, so we strip it here.
  *
  * The proxy ignores `think: false` on think-enabled aliases, so this stays a
  * harmless no-op for those; it only bites on aliases that still honor the flag.
