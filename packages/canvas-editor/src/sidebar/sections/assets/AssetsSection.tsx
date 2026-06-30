@@ -5,7 +5,7 @@ import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { LOGO_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
-import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
+import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { ALL_SHAPES, type ShapeInstance, type ShapeType } from '../../../utils/shapes';
@@ -15,7 +15,7 @@ import {
   SELECTABLE_CARD,
   SIDEBAR_SECTION,
   SECTION_LABEL,
-} from '../../primitives';
+} from '../../sidebarStyles';
 import { useMobileSubsectionBridge } from '../../MobileSubsectionBridgeContext';
 import { SubsectionTabBar, type Subsection } from '../../SubsectionTabBar';
 import { BadgeSection } from '../BadgeSection';

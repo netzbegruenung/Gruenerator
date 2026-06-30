@@ -1,5 +1,5 @@
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { SIDEBAR_HINT } from '../primitives';
+import { SIDEBAR_HINT } from '../sidebarStyles';
 
 import type { CanvasAiEditBridge } from '../../CanvasEditorProvider';
 
