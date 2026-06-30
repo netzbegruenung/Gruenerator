@@ -175,6 +175,7 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
 
     try {
       await fsPromises.access(thumbnailPath);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       return res.sendFile(thumbnailPath);
     } catch {
       return res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
@@ -303,39 +304,48 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
           return fs.createReadStream(mediaPath).pipe(res);
         }
       } else {
-        // Support resized thumbnails via ?w= query parameter
+        // Responsive thumbnails via ?w=<width>&fmt=<webp|avif>. These files are
+        // normally pre-generated at upload (sharedMediaService.generateMediaVariants);
+        // when a variant is missing we generate + cache it on demand. Explicit
+        // `fmt` (rather than Accept negotiation) keeps every URL independently
+        // cacheable. Filenames must match the generator: `<base>_w<width>.<fmt>`.
         const requestedWidth = parseInt(req.query.w as string, 10);
+        const fmt = req.query.fmt === 'avif' ? 'avif' : 'webp';
         if (requestedWidth && requestedWidth > 0 && requestedWidth < 2000) {
           try {
             const thumbDir = path.join(path.dirname(mediaPath), 'thumbs');
-            const thumbFilename = `${path.basename(mediaPath, path.extname(mediaPath))}_w${requestedWidth}.webp`;
+            const thumbFilename = `${path.basename(mediaPath, path.extname(mediaPath))}_w${requestedWidth}.${fmt}`;
             const thumbPath = path.join(thumbDir, thumbFilename);
+            const contentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
 
-            // Check if cached thumbnail exists
+            // Serve the pre-generated/cached variant if present.
             try {
               const thumbStat = await fsPromises.stat(thumbPath);
-              res.setHeader('Content-Type', 'image/webp');
+              res.setHeader('Content-Type', contentType);
               res.setHeader('Content-Length', thumbStat.size);
-              res.setHeader('Cache-Control', 'public, max-age=31536000');
+              res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
               return fs.createReadStream(thumbPath).pipe(res);
             } catch {
-              // Thumbnail doesn't exist yet, generate it
+              // Not generated yet — fall through to on-demand generation.
             }
 
             await fsPromises.mkdir(thumbDir, { recursive: true });
-            const thumbBuffer = await sharp(mediaPath)
-              .resize({ width: requestedWidth })
-              .webp({ quality: 80 })
-              .toBuffer();
+            const resized = sharp(mediaPath, { failOn: 'none' }).resize({
+              width: requestedWidth,
+              withoutEnlargement: true,
+            });
+            const thumbBuffer = await (
+              fmt === 'avif' ? resized.avif({ quality: 60 }) : resized.webp({ quality: 78 })
+            ).toBuffer();
 
             // Cache to disk asynchronously (don't await)
             fsPromises.writeFile(thumbPath, thumbBuffer).catch((err) => {
               log.error('Failed to cache thumbnail:', err);
             });
 
-            res.setHeader('Content-Type', 'image/webp');
+            res.setHeader('Content-Type', contentType);
             res.setHeader('Content-Length', thumbBuffer.length);
-            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
             return res.send(thumbBuffer);
           } catch (resizeErr) {
             log.error('Thumbnail generation failed, serving original:', resizeErr);
@@ -345,7 +355,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
 
         res.setHeader('Content-Type', share.mime_type || 'image/png');
         res.setHeader('Content-Length', fileSize);
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         return fs.createReadStream(mediaPath).pipe(res);
       }
     } catch {

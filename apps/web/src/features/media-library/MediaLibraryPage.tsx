@@ -13,12 +13,24 @@ import {
 } from 'react-icons/fa';
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
+import { SharedMediaImage } from '../../components/common/SharedMediaImage';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
+
+// Shimmer placeholder tile, shown on initial load and while paginating.
+const SkeletonTile: React.FC = () => (
+  <div
+    className="aspect-video bg-[length:200%_100%] rounded-lg animate-[skeleton-loading_1.5s_infinite]"
+    style={{
+      backgroundImage:
+        'linear-gradient(90deg, var(--grey-100) 25%, var(--background-color) 50%, var(--grey-100) 75%)',
+    }}
+  />
+);
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -45,7 +57,13 @@ interface MediaCardProps {
   isSelected?: boolean;
   onSelect?: (item: MediaItem) => void;
   selectionMode?: boolean;
+  /** Grid index; the first row loads eagerly (better LCP). */
+  index?: number;
 }
+
+// Grid tiles render ~200px wide (150px on mobile); advertise that so the
+// browser picks the right responsive variant.
+const GRID_SIZES = '(max-width: 768px) 150px, 200px';
 
 const MediaCard: React.FC<MediaCardProps> = ({
   item,
@@ -54,6 +72,7 @@ const MediaCard: React.FC<MediaCardProps> = ({
   isSelected,
   onSelect,
   selectionMode,
+  index = 0,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -64,8 +83,6 @@ const MediaCard: React.FC<MediaCardProps> = ({
     setIsDeleting(false);
     setShowDeleteConfirm(false);
   };
-
-  const thumbnailUrl = item.thumbnailUrl || `${baseURL}/share/${item.shareToken}/preview`;
 
   return (
     <div
@@ -79,12 +96,20 @@ const MediaCard: React.FC<MediaCardProps> = ({
     >
       <div className="relative aspect-video bg-grey-100 dark:bg-grey-800 overflow-hidden">
         {item.mediaType === 'video' ? (
-          <video src={thumbnailUrl} muted playsInline className="w-full h-full object-cover" />
+          <video
+            src={`${baseURL}/share/${item.shareToken}/preview`}
+            muted
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <img
-            src={thumbnailUrl}
+          <SharedMediaImage
+            shareToken={item.shareToken}
             alt={item.title || 'Media'}
-            loading="lazy"
+            blurhash={item.imageMetadata?.blurhash}
+            priority={index < 5}
+            sizes={GRID_SIZES}
             className="w-full h-full object-cover"
           />
         )}
@@ -227,6 +252,7 @@ const MediaLibraryPage: React.FC = () => {
     pagination,
     filters,
     isLoading,
+    isFetchingNextPage,
     error,
     setFilters,
     loadMore,
@@ -397,16 +423,7 @@ const MediaLibraryPage: React.FC = () => {
         onDragLeave={handleDragLeave}
       >
         {isLoading && items.length === 0 ? (
-          Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={i}
-              className="aspect-video bg-[length:200%_100%] rounded-lg animate-[skeleton-loading_1.5s_infinite]"
-              style={{
-                backgroundImage:
-                  'linear-gradient(90deg, var(--grey-100) 25%, var(--background-color) 50%, var(--grey-100) 75%)',
-              }}
-            />
-          ))
+          Array.from({ length: 8 }).map((_, i) => <SkeletonTile key={i} />)
         ) : items.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center p-2xl text-grey-400 text-center">
             <FaImage className="text-5xl mb-md opacity-50" />
@@ -414,9 +431,19 @@ const MediaLibraryPage: React.FC = () => {
             <p>Lade Bilder oder Videos hoch oder erstelle sie mit dem Image Studio.</p>
           </div>
         ) : (
-          items.map((item) => (
-            <MediaCard key={item.id} item={item} onDelete={deleteItem} onEdit={setEditingItem} />
-          ))
+          <>
+            {items.map((item, i) => (
+              <MediaCard
+                key={item.id}
+                item={item}
+                index={i}
+                onDelete={deleteItem}
+                onEdit={setEditingItem}
+              />
+            ))}
+            {isFetchingNextPage &&
+              Array.from({ length: 4 }).map((_, i) => <SkeletonTile key={`next-${i}`} />)}
+          </>
         )}
 
         {isDragging && (
@@ -433,9 +460,9 @@ const MediaLibraryPage: React.FC = () => {
           size="brand"
           className="block w-full max-w-[300px] mx-auto mt-lg"
           onClick={loadMore}
-          disabled={isLoading}
+          disabled={isFetchingNextPage}
         >
-          {isLoading ? 'Laden...' : 'Mehr laden'}
+          {isFetchingNextPage ? 'Laden...' : 'Mehr laden'}
         </Button>
       )}
 

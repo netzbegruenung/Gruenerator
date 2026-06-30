@@ -42,6 +42,10 @@ export interface MediaImageMetadata {
   hasOriginalImage?: boolean;
   originalImageFilename?: string;
   generatedAt?: string;
+  /** Compact BlurHash for an instant placeholder; set once variants are generated. */
+  blurhash?: string;
+  /** Widths (px) of the pre-generated responsive WebP/AVIF variants. */
+  variants?: number[];
 }
 
 /**
