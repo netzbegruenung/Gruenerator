@@ -17,6 +17,7 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 import { getDesktopToken } from '../utils/desktopAuth';
@@ -147,6 +148,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       wolkeConnectUrl: '/profile/wolke',
       renderSharepic: renderSharepicToImage,
+      runPython,
       onEditSharepic: (variant: SharepicVariant) => {
         // Minted variants live in a real canvas document — open it directly
         // (fully bidirectional with chat edits). Unminted ones use the legacy
