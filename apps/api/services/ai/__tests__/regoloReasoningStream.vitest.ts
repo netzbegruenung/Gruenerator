@@ -19,8 +19,12 @@ describe('isReasoningStreamModel', () => {
     expect(isReasoningStreamModel('litellm', 'verdigado-think')).toBe(true);
   });
 
+  it('returns true for verdigado-pro on litellm (primary gpt-oss reasoning lane)', () => {
+    expect(isReasoningStreamModel('litellm', 'verdigado-pro')).toBe(true);
+  });
+
   it('returns false for non-reasoning litellm aliases', () => {
-    expect(isReasoningStreamModel('litellm', 'verdigado-pro')).toBe(false);
+    expect(isReasoningStreamModel('litellm', 'gemma')).toBe(false);
   });
 
   it('returns false for qwen on litellm (different provider)', () => {
@@ -76,31 +80,36 @@ describe.skipIf(!process.env.REGOLO_API_KEY)('streamWithReasoning — live integ
 });
 
 describe.skipIf(!process.env.LITELLM_API_KEY || !process.env.LITELLM_BASE_URL)(
-  'streamWithReasoning — Verdigado/LiteLLM Gemma live integration',
+  'streamWithReasoning — Verdigado/LiteLLM live integration',
   () => {
-    it('surfaces the `reasoning` field from verdigado-think', async () => {
-      // Gemma 4 on Ollama streams its thinking in the `reasoning` field before
-      // any `content`. The bug this guards against is the AI SDK dropping that
-      // field entirely (zero reasoning surfaced). We only need to prove a few
-      // reasoning deltas arrive — waiting for the full (slow, slot-queued)
-      // generation to reach the answer text would make the test flaky.
-      const reasoning: string[] = [];
+    // Both Ollama-backed aliases stream thinking in the `reasoning` field before
+    // any `content`: verdigado-think = Gemma 4, verdigado-pro = gpt-oss. The bug
+    // this guards against is the AI SDK dropping that field entirely (zero
+    // reasoning surfaced). We only need to prove a few reasoning deltas arrive —
+    // waiting for the full (slow, slot-queued) generation to reach the answer
+    // text would make the test flaky.
+    it.each(['verdigado-think', 'verdigado-pro'])(
+      'surfaces the `reasoning` field from %s',
+      async (model) => {
+        const reasoning: string[] = [];
 
-      for await (const chunk of streamWithReasoning({
-        provider: 'litellm',
-        model: 'verdigado-think',
-        messages: [
-          { role: 'system', content: 'Answer in at most 3 words.' },
-          { role: 'user', content: 'What is 17*23? Reason briefly, then give the number.' },
-        ],
-        maxTokens: 2000,
-        temperature: 0,
-      })) {
-        if (chunk.type === 'reasoning') reasoning.push(chunk.delta);
-        if (reasoning.length >= 3) break;
-      }
+        for await (const chunk of streamWithReasoning({
+          provider: 'litellm',
+          model,
+          messages: [
+            { role: 'system', content: 'Answer in at most 3 words.' },
+            { role: 'user', content: 'What is 17*23? Reason briefly, then give the number.' },
+          ],
+          maxTokens: 2000,
+          temperature: 0,
+        })) {
+          if (chunk.type === 'reasoning') reasoning.push(chunk.delta);
+          if (reasoning.length >= 3) break;
+        }
 
-      expect(reasoning.length).toBeGreaterThanOrEqual(3);
-    }, 45_000);
+        expect(reasoning.length).toBeGreaterThanOrEqual(3);
+      },
+      45_000
+    );
   }
 );

@@ -23,7 +23,7 @@ const mockStreamWithReasoning = vi.fn();
 vi.mock('../../../services/ai/regoloReasoningStream.js', () => ({
   isReasoningStreamModel: (provider: string, model: string) =>
     (provider === 'regolo' && (model.startsWith('qwen') || model === 'gemma4-31b')) ||
-    (provider === 'litellm' && model === 'verdigado-think'),
+    (provider === 'litellm' && (model === 'verdigado-think' || model === 'verdigado-pro')),
   streamWithReasoning: (...args: unknown[]) => mockStreamWithReasoning(...args),
 }));
 
@@ -133,14 +133,14 @@ afterEach(() => {
 describe('getFirstTokenDeadlineMs', () => {
   it('gives reasoning-stream models the longest deadline', () => {
     expect(getFirstTokenDeadlineMs('regolo', 'qwen3.5-122b')).toBe(45_000);
-    // Gemma 4 reasoning lanes hold back text until thinking completes.
+    // Gemma 4 / gpt-oss reasoning lanes hold back text until thinking completes.
     expect(getFirstTokenDeadlineMs('regolo', 'gemma4-31b')).toBe(45_000);
     expect(getFirstTokenDeadlineMs('litellm', 'verdigado-think')).toBe(45_000);
+    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(45_000);
   });
 
   it('gives the non-reasoning litellm overflow lane queue headroom', () => {
     expect(getFirstTokenDeadlineMs('litellm', 'gemma')).toBe(30_000);
-    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(30_000);
   });
 
   it('defaults to 20s', () => {

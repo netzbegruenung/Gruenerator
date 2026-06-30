@@ -49,8 +49,9 @@ const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
 /**
  * Models that stream reasoning to us, keyed by provider. Regolo's vLLM family
  * needs `enable_thinking: true` (the inverse of the `regoloFetchWithThinkingDisabled`
- * default we apply on the SDK path); LiteLLM's Ollama-backed `verdigado-think`
- * alias emits `reasoning` by default and needs no flag.
+ * default we apply on the SDK path); LiteLLM's Ollama-backed aliases
+ * (`verdigado-think` = Gemma 4, `verdigado-pro` = gpt-oss) emit `reasoning` by
+ * default and need no flag.
  */
 const REGOLO_REASONING_MODELS = new Set([
   'qwen3.5-122b',
@@ -58,7 +59,7 @@ const REGOLO_REASONING_MODELS = new Set([
   'gpt-oss-120b',
   'gemma4-31b',
 ]);
-const LITELLM_REASONING_MODELS = new Set(['verdigado-think']);
+const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
 
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
