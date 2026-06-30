@@ -26,6 +26,7 @@ import {
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
+import { getDocPreview } from '../../services/docs/docPreview.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -326,18 +327,29 @@ export const docsContractRouter = s.router(docsContract, {
       );
 
       // Fire-and-forget: notify group members
+      const sharerName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
+      const docTitle = doc[0].title || 'ein Dokument';
+      // Preview fetched inside the fire-and-forget block so the 201 isn't blocked
+      // on a full content-column read it never uses.
       import('../../services/notifications/index.js')
-        .then(({ notifyGroupMembers }) =>
-          notifyGroupMembers({
+        .then(async ({ notifyGroupMembers }) => {
+          const docPreview = await getDocPreview(id);
+          return notifyGroupMembers({
             groupId: group_id,
             excludeUserId: userId,
             type: 'group_content_shared',
             title: 'Dokument geteilt',
-            body: `${(args.req.user as UserProfile | undefined)?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
+            body: `${sharerName} hat „${docTitle}" geteilt`,
             actionUrl: `/docs/${id}`,
-            metadata: { documentId: id, groupId: group_id },
-          })
-        )
+            metadata: {
+              documentId: id,
+              groupId: group_id,
+              docTitle,
+              actorName: sharerName,
+              ...(docPreview?.snippet ? { docPreview: docPreview.snippet } : {}),
+            },
+          });
+        })
         .catch(() => {});
 
       return { status: 201 as const, body: { message: 'Document shared with group successfully' } };

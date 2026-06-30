@@ -19,7 +19,7 @@ import { chatGraphContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { classifierNode, buildSystemMessage } from '../../agents/langgraph/ChatGraph/index.js';
-import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
+import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -728,7 +728,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             sse,
             logPrefix: '[ChatGraph]',
             buildStream: async (r) => {
-              const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+              const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
               return streamForResolution({
                 resolution: r,
                 messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],

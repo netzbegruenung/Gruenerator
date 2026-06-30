@@ -295,7 +295,7 @@ export function useViewData({
       laneColor: lane.groupColor,
       groups: applyGroups(lane.rows, groupByFieldId, fields),
     }));
-  }, [filteredRows, activeView, fields]);
+  }, [filteredRows, activeView, fields, SWIMLANES_ENABLED]);
 
   return { activeView, fields, filteredRows, groups, swimlanes };
 }

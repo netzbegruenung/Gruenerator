@@ -1,3 +1,4 @@
+import { UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
@@ -24,7 +25,11 @@ interface MediaSearchQuery {
 const mediaUploadSchema = z.object({
   title: z.string().nullish(),
   altText: z.string().nullish(),
-  uploadSource: z.enum(['upload', 'ai_generated', 'stock', 'camera']).nullish(),
+  // Allowed provenance values are the single source of truth in
+  // @gruenerator/shared/media-library/constants (UPLOAD_SOURCES). Omitting an
+  // in-app source here 400s the upload, which silently drops e.g. a minted
+  // canvas's chosen background image.
+  uploadSource: z.enum(UPLOAD_SOURCES).nullish(),
 });
 
 const mediaUpdateSchema = z.object({

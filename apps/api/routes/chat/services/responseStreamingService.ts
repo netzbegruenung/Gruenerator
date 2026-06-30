@@ -11,8 +11,8 @@ import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import {
-  isRegoloReasoningModel,
-  streamRegoloWithReasoning,
+  isReasoningStreamModel,
+  streamWithReasoning,
 } from '../../../services/ai/regoloReasoningStream.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
@@ -38,14 +38,15 @@ const FIRST_TOKEN_DEADLINE_MS = 20_000;
 /** LiteLLM overflow lane can queue behind its single Verdigado slot. */
 const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
 /**
- * Regolo reasoning models hold back answer text until thinking completes —
- * reasoning deltas don't satisfy the deadline (see the reasoning streamer),
- * so the wait for the first TEXT token is legitimately much longer.
+ * Reasoning models (Regolo vLLM, Verdigado/LiteLLM Gemma) hold back answer text
+ * until thinking completes — reasoning deltas don't satisfy the deadline (see
+ * the reasoning streamer), so the wait for the first TEXT token is legitimately
+ * much longer.
  */
 const REASONING_FIRST_TOKEN_DEADLINE_MS = 45_000;
 
 export function getFirstTokenDeadlineMs(provider: string, modelName: string): number {
-  if (isRegoloReasoningModel(provider, modelName)) return REASONING_FIRST_TOKEN_DEADLINE_MS;
+  if (isReasoningStreamModel(provider, modelName)) return REASONING_FIRST_TOKEN_DEADLINE_MS;
   if (provider === 'litellm') return LITELLM_FIRST_TOKEN_DEADLINE_MS;
   return FIRST_TOKEN_DEADLINE_MS;
 }
@@ -413,6 +414,7 @@ async function streamAndAccumulateOrThrow(params: {
  * reasoning-aware path. Throws StreamFailure on first-token failure.
  */
 async function streamAndAccumulateWithReasoningOrThrow(params: {
+  provider: string;
   modelName: string;
   messages: Array<{ role: string; content: string | unknown[] }>;
   maxTokens: number;
@@ -423,6 +425,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   firstTokenDeadlineMs?: number;
 }): Promise<string | null> {
   const {
+    provider,
     modelName,
     messages,
     maxTokens,
@@ -440,7 +443,8 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
   const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
 
-  const streamParams: Parameters<typeof streamRegoloWithReasoning>[0] = {
+  const streamParams: Parameters<typeof streamWithReasoning>[0] = {
+    provider,
     model: modelName,
     messages: messages as ModelMessage[],
     maxTokens,
@@ -448,7 +452,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     signal: composed,
   };
 
-  const iterator = streamRegoloWithReasoning(streamParams)[Symbol.asyncIterator]();
+  const iterator = streamWithReasoning(streamParams)[Symbol.asyncIterator]();
   let fullText = '';
   const stopHeartbeat = startResponseHeartbeat(sse);
 
@@ -609,8 +613,9 @@ export async function streamForResolution(params: {
 
   const firstTokenDeadlineMs = getFirstTokenDeadlineMs(resolution.provider, resolution.modelName);
 
-  if (isRegoloReasoningModel(resolution.provider, resolution.modelName)) {
+  if (isReasoningStreamModel(resolution.provider, resolution.modelName)) {
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
+      provider: resolution.provider,
       modelName: resolution.modelName,
       messages,
       maxTokens,
