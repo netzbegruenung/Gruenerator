@@ -1,3 +1,4 @@
+import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments } from 'react-icons/hi';
@@ -216,16 +217,16 @@ function SearchContent({
           <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
             Deine Bilder
           </h3>
-          <div className="grid grid-cols-3 gap-2">
+          <MasonryGrid columns="2" gap="sm">
             {hasActive && currentImageSrc && (
-              <div
-                className="group relative aspect-square overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
+              <MasonryItem
+                className="group relative overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
                 title="Aktuelles Hintergrundbild"
               >
                 <img
                   src={currentImageSrc}
                   alt="Aktuelles Hintergrundbild"
-                  className="size-full object-cover"
+                  className="w-full h-auto"
                   draggable={false}
                 />
                 <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
@@ -239,34 +240,35 @@ function SearchContent({
                 >
                   <HiXMark size={10} />
                 </button>
-              </div>
+              </MasonryItem>
             )}
             {dedupedUploads.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => void handlePickUpload(item)}
-                className={cn(
-                  'group relative aspect-square overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
-                  'border-[var(--card-border)] hover:border-primary-500'
-                )}
-                title={item.title ?? item.originalFilename ?? ''}
-              >
-                {item.thumbnailUrl ? (
-                  <img
-                    src={item.thumbnailUrl}
-                    alt={item.altText ?? item.title ?? ''}
-                    className="size-full object-cover"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="size-full flex items-center justify-center text-foreground-muted">
-                    <HiPhoto size={20} />
-                  </div>
-                )}
-              </button>
+              <MasonryItem key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => void handlePickUpload(item)}
+                  className={cn(
+                    'group relative block w-full overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
+                    'border-[var(--card-border)] hover:border-primary-500'
+                  )}
+                  title={item.title ?? item.originalFilename ?? ''}
+                >
+                  {item.thumbnailUrl ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.altText ?? item.title ?? ''}
+                      className="w-full h-auto"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="aspect-square flex items-center justify-center text-foreground-muted">
+                      <HiPhoto size={20} />
+                    </div>
+                  )}
+                </button>
+              </MasonryItem>
             ))}
-          </div>
+          </MasonryGrid>
           {uploadsHasMore && !isUploadsLoading && (
             <button
               type="button"
