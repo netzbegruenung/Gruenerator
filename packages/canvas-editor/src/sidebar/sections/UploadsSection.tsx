@@ -1,3 +1,4 @@
+import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
@@ -130,32 +131,32 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
       ) : null}
 
       {(items.length > 0 || isUploading) && (
-        <div className="grid grid-cols-3 gap-2">
+        <MasonryGrid columns="2" gap="sm">
           {isUploading ? (
-            <div className="relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] flex items-center justify-center">
+            <MasonryItem className="relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] flex items-center justify-center">
               <div
                 className="absolute inset-x-0 bottom-0 h-1 bg-primary-500 transition-all"
                 style={{ width: `${uploadProgress}%` }}
               />
               <span className="text-[10px] text-foreground/60">{uploadProgress}%</span>
-            </div>
+            </MasonryItem>
           ) : null}
           {items.map((item) => (
-            <div
+            <MasonryItem
               key={item.id}
-              className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] transition-colors duration-150 hover:border-primary-500"
+              className="group relative overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] transition-colors duration-150 hover:border-primary-500"
             >
               <button
                 type="button"
                 onClick={() => handlePlace(item)}
-                className="absolute inset-0 p-0 bg-transparent border-none cursor-pointer"
+                className="relative block w-full p-0 bg-transparent border-none cursor-pointer"
                 title={item.title ?? item.originalFilename ?? ''}
               >
                 {item.thumbnailUrl ? (
                   <img
                     src={item.thumbnailUrl}
                     alt={item.altText ?? item.title ?? ''}
-                    className="size-full object-cover"
+                    className="w-full h-auto"
                     draggable={false}
                   />
                 ) : null}
@@ -168,9 +169,9 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
               >
                 <FaTrash size={10} />
               </button>
-            </div>
+            </MasonryItem>
           ))}
-        </div>
+        </MasonryGrid>
       )}
 
       {hasMore && !isLoading ? (

@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import PageContainer from '../../../components/common/PageContainer';
+import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
@@ -46,11 +47,19 @@ const isKiImage = (imageType?: string): boolean => {
 const PreviewCard = ({
   title,
   thumbnailUrl,
+  shareToken,
+  blurhash,
+  priority,
   fallbackEmoji,
   onClick,
 }: {
   title: string;
-  thumbnailUrl: string | null;
+  /** External/non-shared-media thumbnail URL (e.g. template previews). */
+  thumbnailUrl?: string | null;
+  /** Shared-media share token → responsive variants + BlurHash (preferred). */
+  shareToken?: string;
+  blurhash?: string;
+  priority?: boolean;
   fallbackEmoji?: string;
   onClick: () => void;
 }) => (
@@ -62,7 +71,16 @@ const PreviewCard = ({
     onKeyDown={(e) => e.key === 'Enter' && onClick()}
   >
     <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-square">
-      {thumbnailUrl ? (
+      {shareToken ? (
+        <SharedMediaImage
+          shareToken={shareToken}
+          alt={title}
+          blurhash={blurhash}
+          priority={priority}
+          sizes="(max-width: 768px) 33vw, 200px"
+          className="w-full h-full object-cover"
+        />
+      ) : thumbnailUrl ? (
         <img src={thumbnailUrl} alt={title} loading="lazy" className="w-full h-full object-cover" />
       ) : (
         <span className="text-4xl select-none">{fallbackEmoji || '🖼'}</span>
@@ -276,15 +294,13 @@ const ImageStudioCategorySelector: React.FC = () => {
           />
           {showSharepics && (
             <CardGrid columns="5">
-              {sharepicItems.map((item) => (
+              {sharepicItems.map((item, i) => (
                 <PreviewCard
                   key={item.shareToken}
                   title={item.title || 'Sharepic'}
-                  thumbnailUrl={
-                    item.thumbnailPath
-                      ? `${API_BASE_URL}/share/${item.shareToken}/thumbnail`
-                      : `${API_BASE_URL}/share/${item.shareToken}/preview?w=400`
-                  }
+                  shareToken={item.shareToken}
+                  blurhash={item.imageMetadata?.blurhash as string | undefined}
+                  priority={i < 5}
                   // With the studio on, editing opens the canvas flow; otherwise
                   // (kill-switch off) it opens a read-only preview.
                   onClick={() =>

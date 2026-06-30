@@ -31,6 +31,7 @@ import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -290,6 +291,16 @@ export async function buildStreamContext({
         // mid-send, or a stale client id. Recover gracefully by minting a new
         // thread for this user instead of hard-erroring. Safe: a foreign/deleted
         // id is never reused, we always create a fresh user-owned thread.
+        //
+        // The recovery is invisible to the user, so leave a breadcrumb: without
+        // it we lose all signal on how often the reap race still fires (e.g. if
+        // the client's 60s protection window proves too short).
+        captureSseError({
+          code: 'thread-reaped-recovered',
+          message: 'Thread not found mid-send; minted a fresh thread to recover',
+          level: 'warning',
+          extras: { staleThreadId: actualThreadId, userId, agentId },
+        });
         const userText = extractTextContent(lastUserMessage.content);
         const thread = await createThread(
           userId,

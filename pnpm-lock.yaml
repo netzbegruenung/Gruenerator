@@ -205,6 +205,9 @@ importers:
       better-auth:
         specifier: ^1.6.16
         version: 1.6.16(@cloudflare/workers-types@4.20260207.0)(@opentelemetry/api@1.9.1)(better-sqlite3@12.6.2)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260207.0)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.6.2)(kysely@0.29.2)(pg@8.21.0))(mongodb@7.2.0(socks@2.8.9))(pg@8.21.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(jsdom@26.1.0(canvas@3.2.0))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(sass-embedded@1.99.0)(sass@1.101.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))
+      blurhash:
+        specifier: ^2.0.5
+        version: 2.0.5
       cheerio:
         specifier: ^1.2.0
         version: 1.2.0
@@ -1663,6 +1666,9 @@ importers:
       ai:
         specifier: ^6.0.202
         version: 6.0.202(zod@3.25.76)
+      blurhash:
+        specifier: ^2.0.5
+        version: 2.0.5
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -11792,6 +11798,9 @@ packages:
 
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
+
+  blurhash@2.0.5:
+    resolution: {integrity: sha512-cRygWd7kGBQO3VEhPiTgq4Wc43ctsM+o46urrmPOiuAe+07fzlSB9OJVdpgDL0jPqXUVQ9ht7aq7kxOeJHRK+w==}
 
   body-parser@1.20.5:
     resolution: {integrity: sha512-3grm+/2tUOvu2cjJkvsIxrv/wVpfXQW4PsQHYm7yk4vfpu7Ekl6nEsYBoJUL6qDwZUx8wUhQ8tR2qz+ad9c9OA==}
@@ -36627,6 +36636,8 @@ snapshots:
       buffer: 5.7.1
       inherits: 2.0.4
       readable-stream: 3.6.2
+
+  blurhash@2.0.5: {}
 
   body-parser@1.20.5:
     dependencies:
