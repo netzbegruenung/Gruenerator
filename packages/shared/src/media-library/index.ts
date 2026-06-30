@@ -52,6 +52,14 @@ export {
   mediaApi,
 } from './api/index.js';
 
+// Responsive thumbnail URL builder
+export {
+  buildSharedMediaSrcSet,
+  DEFAULT_THUMBNAIL_WIDTHS,
+  type SharedMediaSrcSet,
+  type SharedMediaSrcSetOptions,
+} from './srcset.js';
+
 // Hooks
 export { useMediaLibrary } from './hooks/useMediaLibrary.js';
 export { useMediaUpload } from './hooks/useMediaUpload.js';

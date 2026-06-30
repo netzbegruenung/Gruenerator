@@ -27,6 +27,10 @@ export const agent_tasks = pgTable('agent_tasks', {
   // AI-column flow config (source + AI step + output nodes + card context). Null for
   // legacy @-mention tasks. See database/postgres/migrations/add_agent_task_flow_config.sql.
   flow_config: jsonb('flow_config').$type<BoardFlowConfig | null>(),
+  // Identifier of the agent to run this task (own / group-shared / system), picked in
+  // a comment @-mention or a card assignment. A TEXT slug, never a UUID. Null = the
+  // default universal agent. See migrations/add_agent_task_agent_id.sql.
+  agent_id: text('agent_id'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   started_at: timestamp('started_at', { withTimezone: true }),

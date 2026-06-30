@@ -7,13 +7,17 @@
  */
 
 import {
+  assigneesChangedPayloadSchema,
   boardActivityContract,
   type ActivityType,
+  type AssigneesChangedPayload,
   type BoardActivityEntry,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
+import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { getBoardSubscribers } from '../../services/boards/boardSubscriptionService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
@@ -80,6 +84,9 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
   const actionUrl = `/boards/${boardId}?card=${cardId}`;
   const knownIds = new Set(knownRows.map((r) => r.id));
 
+  // Read the card snapshot once per event for the rich email (cells live in Yjs).
+  const cardMeta = await buildCardEmailMetadata(boardId, cardId, boardTitle);
+
   await Promise.allSettled(
     recipients
       .filter((id) => knownIds.has(id))
@@ -91,11 +98,67 @@ async function fireAssignmentNotifications(params: AssignmentNotificationParams)
           title: `${actorName} hat dir eine Aufgabe zugewiesen`,
           body,
           actionUrl,
-          metadata: { boardId, cardId },
+          metadata: cardMeta,
           groupKey: `board-assign-${boardId}-${cardId}`,
         });
       })
   );
+}
+
+/**
+ * Delegate a card to an agent (or the generic bot) when it's assigned. Unlike the
+ * comment @-mention (which carries an explicit user instruction), an assignment has
+ * no written ask — so we build a board-anchored instruction from the card's title +
+ * description and tell the agent to stay strictly on the card's topic. Without this
+ * anchor a strong agent persona drifts and produces something unrelated to the board.
+ * The worker additionally injects the full card context (column, comments, documents).
+ * Uses the same durable queue + legacy worker path as the comment @-mention.
+ */
+function buildAssignmentTask(cardTitle: string | null, cardDescription: string | null): string {
+  const title = cardTitle?.trim();
+  const description = cardDescription?.trim();
+  const cardBody = [
+    title ? `Titel: ${title}` : '',
+    description ? `Beschreibung:\n${description}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  return (
+    'Du wurdest einer Aufgabe auf einem Board zugewiesen. Bearbeite die in dieser Karte ' +
+    'beschriebene Aufgabe. Stütze dich ausschließlich auf den Karteninhalt sowie die Kommentare ' +
+    'und verknüpften Dokumente aus dem bereitgestellten Kontext. Bleibe strikt beim Thema der ' +
+    'Karte und erfinde keine fremden Themen.' +
+    (cardBody
+      ? `\n\n${cardBody}`
+      : '\n\n(Die Karte hat noch keinen Titel und keine Beschreibung — orientiere dich an den ' +
+        'Kommentaren und dem Kontext der Karte.)')
+  );
+}
+
+async function delegateCardToAgent(params: {
+  boardId: string;
+  cardId: string;
+  requestedBy: string;
+  cardTitle: string | null;
+  cardDescription: string | null;
+  agentId: string | null;
+}): Promise<void> {
+  const localeRows = await db.query<{ locale: string }>(
+    `SELECT locale FROM profiles WHERE id = $1`,
+    [params.requestedBy]
+  );
+  const taskText = buildAssignmentTask(params.cardTitle, params.cardDescription);
+
+  await enqueueAgentTask({
+    boardId: params.boardId,
+    cardId: params.cardId,
+    triggerCommentId: null,
+    requestedBy: params.requestedBy,
+    taskText,
+    locale: localeRows[0]?.locale ?? 'de-DE',
+    agentId: params.agentId,
+  });
 }
 
 const s = initServer();
@@ -265,22 +328,40 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
         }
       }
 
-      // Notify users who were just added as assignees (board_card_assigned).
+      // Notify newly-added assignees, and delegate the card to the bot / a specific
+      // agent when one was just assigned.
       if (type === 'assignees_changed' && cardId) {
-        const rawAdded = (payload as Record<string, unknown> | undefined)?.addedAssigneeIds;
-        const addedAssigneeIds = Array.isArray(rawAdded)
-          ? rawAdded.filter((id): id is string => typeof id === 'string')
-          : [];
-        const rawTitle = (payload as Record<string, unknown> | undefined)?.cardTitle;
+        const parsed = assigneesChangedPayloadSchema.safeParse(payload ?? {});
+        const assignPayload: AssigneesChangedPayload = parsed.success ? parsed.data : {};
+        const addedAssigneeIds = assignPayload.addedAssigneeIds ?? [];
+
         if (addedAssigneeIds.length > 0) {
           void fireAssignmentNotifications({
             boardId,
             cardId,
             actorId: userId,
             addedAssigneeIds,
-            cardTitle: typeof rawTitle === 'string' ? rawTitle : null,
+            cardTitle: assignPayload.cardTitle ?? null,
           }).catch((err) =>
             log.warn('Failed to send assignment notifications', { error: errMsg(err) })
+          );
+        }
+
+        // Assigning the bot (generic) or a specific agent makes it do the task
+        // described by the card. The legacy worker path gathers full card context,
+        // posts a "working…" comment and replies. Agent slugs never enter
+        // addedAssigneeIds (which is cast to ::uuid[]) — they ride in delegateAgentId.
+        const delegateAgentId = assignPayload.delegateAgentId ?? null;
+        if (delegateAgentId || addedAssigneeIds.includes(GRUENERATOR_BOT_USER_ID)) {
+          void delegateCardToAgent({
+            boardId,
+            cardId,
+            requestedBy: userId,
+            cardTitle: assignPayload.cardTitle ?? null,
+            cardDescription: assignPayload.cardDescription ?? null,
+            agentId: delegateAgentId,
+          }).catch((err) =>
+            log.warn('Failed to enqueue assignment delegation', { error: errMsg(err) })
           );
         }
       }

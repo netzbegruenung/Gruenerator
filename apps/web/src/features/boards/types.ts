@@ -97,6 +97,12 @@ export interface CardAssignee {
   id: string;
   name: string;
   avatarRobotId: number;
+  /**
+   * Set when this assignee is an agent (not a person). Its `id` is the agent
+   * identifier slug; assigning it delegates the card's task to that agent. Agent
+   * ids must never be sent as `addedAssigneeIds` (those are cast to ::uuid[]).
+   */
+  agentId?: string;
 }
 
 export interface CardLabel {

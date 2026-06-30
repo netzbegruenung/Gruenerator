@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* KaTeX math rendering styles (consumed by rehype-katex in CitationMarkdownText) */
+@import "katex/dist/katex.min.css";
+
 /*
  * Source paths for Tailwind class detection
  */
@@ -638,4 +641,17 @@
    Keep in sync with chat-embedded.css. */
 [data-radix-popper-content-wrapper] {
   z-index: 1100 !important;
+}
+
+/* Shiki dual-theme code highlighting (ChatCodeBlock).
+   `defaultColor: false` emits --shiki-light/--shiki-dark vars; swap on dark.
+   Keep in sync with chat-embedded.css. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: transparent !important;
+}
+[data-theme='dark'] .shiki,
+[data-theme='dark'] .shiki span {
+  color: var(--shiki-dark);
 }

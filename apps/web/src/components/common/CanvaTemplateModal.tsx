@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@gruenerator/ui';
 import { type JSX } from 'react';
-import { SiCanva } from 'react-icons/si';
 
 import CopyButton from './CopyButton';
+
+import { CanvaLogo } from '@/features/canva/components/CanvaLogo';
 
 /**
  * CanvaTemplateModal - Rich modal for opening Canva templates
@@ -64,7 +65,7 @@ const CanvaTemplateModal = ({
           <div className="flex flex-col justify-center gap-md flex-1 max-[560px]:text-center max-[560px]:items-center">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-sm">
-                <SiCanva className="w-6 h-6 text-primary-600" />
+                <CanvaLogo size={24} />
                 {title}
               </DialogTitle>
             </DialogHeader>
@@ -81,7 +82,6 @@ const CanvaTemplateModal = ({
                 className="flex items-center justify-center gap-sm bg-gradient-to-br from-[#7d2ae8] to-[#00c4cc] text-white border-none px-lg py-sm rounded-sm text-[0.95rem] font-semibold cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg max-[560px]:w-full"
                 onClick={handleOpenCanva}
               >
-                <SiCanva className="w-[18px] h-[18px]" />
                 In Canva öffnen
               </button>
             </div>
