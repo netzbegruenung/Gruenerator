@@ -1,7 +1,7 @@
 import { type ReactNode, isValidElement, useCallback, useEffect, useState } from 'react';
 import { Check, Copy, Loader2, Play } from 'lucide-react';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
-import { runPython, type PyodideRunResult } from '../../lib/pyodide/pyodideRunner';
+import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 
 /** Recursively collect the text content of react-markdown's nested children. */
 function toText(node: ReactNode): string {
@@ -28,12 +28,15 @@ function extractCodeInfo(children: ReactNode): { language: string; code: string 
 
 export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   const { language, code } = extractCodeInfo(children);
+  const runPython = useChatConfigStore((s) => s.runPython);
   const [html, setHtml] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [running, setRunning] = useState(false);
-  const [output, setOutput] = useState<PyodideRunResult | null>(null);
+  const [progress, setProgress] = useState('');
+  const [output, setOutput] = useState<CodeExecutionResult | null>(null);
 
-  const canRun = language === 'python';
+  // Only Python runs, and only where a host injected runPython (web, not native).
+  const canRun = language === 'python' && !!runPython;
 
   useEffect(() => {
     let active = true;
@@ -57,21 +60,24 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   }, [code]);
 
   const handleRun = useCallback(async () => {
+    if (!runPython) return;
     setRunning(true);
+    setProgress('Wird ausgeführt …');
     try {
-      setOutput(await runPython(code));
+      setOutput(await runPython(code, [], { onProgress: setProgress }));
     } catch (error) {
       setOutput({
         ok: false,
         stdout: '',
-        stderr: error instanceof Error ? error.message : String(error),
-        result: null,
-        images: [],
+        figures: [],
+        error: error instanceof Error ? error.message : String(error),
+        traceback: null,
+        durationMs: 0,
       });
     } finally {
       setRunning(false);
     }
-  }, [code]);
+  }, [code, runPython]);
 
   return (
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-code-block-bg">
@@ -107,7 +113,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
 
       {html ? (
         <div
-          className="overflow-x-auto p-4 text-sm [&_pre]:!bg-transparent [&_pre]:!m-0"
+          className="overflow-x-auto p-4 text-sm [&_pre]:!m-0 [&_pre]:!bg-transparent"
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: html }}
         />
@@ -117,36 +123,42 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
         </pre>
       )}
 
+      {running && !output && (
+        <div className="border-t border-border/60 px-4 py-2 text-xs text-foreground-muted">
+          {progress}
+        </div>
+      )}
+
       {output && <CodeOutput output={output} />}
     </div>
   );
 }
 
-function CodeOutput({ output }: { output: PyodideRunResult }) {
-  const { stdout, stderr, result, images } = output;
-  const hasText = stdout || stderr || result;
+function CodeOutput({ output }: { output: CodeExecutionResult }) {
+  const { stdout, error, figures } = output;
+  const hasContent = stdout || error || figures.length > 0;
   return (
     <div className="border-t border-border/60 px-4 py-3 text-sm">
       <div className="mb-1 font-mono text-xs uppercase tracking-wide text-foreground-muted">
         Ergebnis
       </div>
+      {figures.map((fig, i) => (
+        <img
+          key={fig.slice(0, 24)}
+          src={`data:image/png;base64,${fig}`}
+          alt={`Diagramm ${i + 1}`}
+          className="mb-2 max-w-full rounded border border-border"
+        />
+      ))}
       {stdout && (
         <pre className="overflow-x-auto whitespace-pre-wrap text-code-block-fg">{stdout}</pre>
       )}
-      {result && (
-        <pre className="overflow-x-auto whitespace-pre-wrap text-code-block-fg">{result}</pre>
-      )}
-      {stderr && (
+      {error && (
         <pre className="overflow-x-auto whitespace-pre-wrap text-red-600 dark:text-red-400">
-          {stderr}
+          {error}
         </pre>
       )}
-      {!hasText && images.length === 0 && (
-        <span className="text-foreground-muted">Keine Ausgabe.</span>
-      )}
-      {images.map((src, i) => (
-        <img key={i} src={src} alt="Python-Ausgabe" className="mt-2 max-w-full rounded" />
-      ))}
+      {!hasContent && <span className="text-foreground-muted">Keine Ausgabe.</span>}
     </div>
   );
 }
