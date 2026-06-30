@@ -7,6 +7,8 @@ import express from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
+import { requireApiKey } from './middleware/apiKeyMiddleware.js';
+import { apiKeyRateLimit } from './middleware/apiKeyRateLimitMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
@@ -118,6 +120,7 @@ import { mountRecentValuesContractRouter } from './routes/user/recentValuesContr
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
+import { mountPushIngestContractRouter } from './routes/v1/pushIngestContractRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -354,6 +357,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
   // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
   app.use('/api/v1/notebooks', v1NotebooksRouter);
+  // External push-ingest API (WordPress gruenerator-sync plugin). ts-rest contract
+  // router, so the API-key + rate-limit middleware must be applied at the prefix
+  // before createExpressEndpoints registers the absolute paths on `app`.
+  app.use('/api/v1/push', requireApiKey, apiKeyRateLimit('push'));
+  mountPushIngestContractRouter(app);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.

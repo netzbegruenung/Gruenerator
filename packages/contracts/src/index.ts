@@ -67,6 +67,7 @@ export {
   contentSyncContract,
   monitorContract,
   sitesContract,
+  pushIngestContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -124,3 +125,4 @@ export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
 export * from './schemas/richtext.js';
+export * from './schemas/pushIngest.js';

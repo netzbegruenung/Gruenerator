@@ -31,6 +31,7 @@ import { parallelLimit } from '../../../../utils/parallelLimit.js';
 import { sendLvSyncNotificationEmail } from '../../../email/emailService.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
+import { getPushActiveSourceIds } from '../../../pushIngestion/pushHeartbeat.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
 
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -579,6 +580,19 @@ export class LandesverbandScraper extends BaseScraper {
     const disabledLvSources = sources.filter((s) => !s.dormant && disabledLvCodes.has(s.shortName));
     sources = sources.filter((s) => !s.dormant && !disabledLvCodes.has(s.shortName));
 
+    // "Plugin is default, code decides": skip sources whose WordPress plugin has
+    // pushed within the freshness window — the push path is live, the scraper is
+    // the backstop. `forceUpdate` and direct `scrapeSource(id)` bypass this, and
+    // if pushes go silent the heartbeat lapses so the scraper auto-resumes.
+    let pushActiveSources: typeof sources = [];
+    if (!options.forceUpdate) {
+      const pushActive = await getPushActiveSourceIds();
+      if (pushActive.size > 0) {
+        pushActiveSources = sources.filter((s) => pushActive.has(s.id));
+        sources = sources.filter((s) => !pushActive.has(s.id));
+      }
+    }
+
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
     console.log('║       Landesverbaende Scraper - Full Crawl                ║');
     console.log('╚═══════════════════════════════════════════════════════════╝\n');
@@ -588,6 +602,9 @@ export class LandesverbandScraper extends BaseScraper {
     }
     if (disabledLvSources.length > 0) {
       this.log(`Disabled-LV sources skipped: ${disabledLvSources.map((s) => s.id).join(', ')}`);
+    }
+    if (pushActiveSources.length > 0) {
+      this.log(`Push-active sources skipped: ${pushActiveSources.map((s) => s.id).join(', ')}`);
     }
     if (sourceType) this.log(`Filter by type: ${sourceType}`);
     if (landesverband) this.log(`Filter by LV: ${landesverband}`);
