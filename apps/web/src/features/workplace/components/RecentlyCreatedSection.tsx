@@ -1,5 +1,6 @@
 import {
   CardActionsMenu,
+  CardGrid,
   cn,
   DropdownMenuItem,
   SectionHeader,
@@ -9,7 +10,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
-import { FaImage, FaVideo } from 'react-icons/fa';
+import { FaVideo } from 'react-icons/fa';
 import { FiClock, FiFileText, FiImage, FiMonitor } from 'react-icons/fi';
 import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
+import { parseDocPreview } from '../../../utils/parseDocPreview';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
@@ -72,12 +74,19 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
+// Fetch the backend maximum (capped at 30 server-side) so the "Mehr anzeigen"
+// expansion has more than the collapsed row to reveal without a refetch.
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
   const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 12 },
+    params: { limit: 30 },
   });
   return res.data?.items ?? [];
 };
+
+// Collapsed, the section shows a horizontally-scrollable row sliced to this
+// count; "Mehr anzeigen" expands the rest into a wrapping grid (mirrors the
+// TextsSection expand pattern).
+const RECENT_COLLAPSE_THRESHOLD = 10;
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
   doc: 'Unbenanntes Dokument',
@@ -88,94 +97,64 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   presentation: 'Neue Präsentation',
 };
 
-// Recover lightweight structure from document HTML for the preview: the first
-// heading (h1–h6) becomes the title, the remaining text the body — mirroring the
-// mobile DocPreview so both platforms show the same legible excerpt instead of a
-// shrunken raw render. We have a real DOM here, so removing the heading node
-// before reading textContent keeps the body from repeating the title.
-const parseDocPreview = (html: string): { heading: string | null; body: string } => {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  const headingEl = tmp.querySelector('h1, h2, h3, h4, h5, h6');
-  const heading = headingEl?.textContent?.trim() ?? '';
-  headingEl?.remove();
-  const body = (tmp.textContent ?? '').replace(/\s+/g, ' ').trim();
-  return { heading: heading || null, body };
-};
+// Faint, fixed-height plate every preview sits on (matches the workspace
+// mockup): content lives directly on a tinted surface — no floating paper sheet.
+const PREVIEW_PLATE = 'h-[172px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
 
-// Stylised placeholder for content-less cards (boards, empty docs): one
-// eucalyptus "title" bar over greyed body bars — reads as a document outline
-// instead of an empty icon plate. Widths are deliberately uneven so it looks
-// like real prose.
+// Stylised placeholder for content-less documents: one eucalyptus "title" bar
+// over greyed body bars — reads as a document outline instead of an empty plate.
+// Widths are deliberately uneven so it looks like real prose.
 const PlaceholderBars = memo(() => (
-  <div className="flex flex-col gap-1.5 px-3 pt-3.5" aria-hidden>
-    <div className="h-1.5 w-3/5 rounded-full bg-secondary-300 dark:bg-secondary-500" />
-    <div className="h-1 w-[90%] rounded-full bg-grey-200 dark:bg-grey-300" />
-    <div className="h-1 w-[85%] rounded-full bg-grey-200 dark:bg-grey-300" />
-    <div className="h-1 w-[92%] rounded-full bg-grey-200 dark:bg-grey-300" />
-    <div className="h-1 w-[68%] rounded-full bg-grey-200 dark:bg-grey-300" />
+  <div className="flex flex-col gap-2" aria-hidden>
+    <div className="h-2 w-3/5 rounded-full bg-secondary-300 dark:bg-secondary-600" />
+    <div className="h-1.5 w-[92%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
+    <div className="h-1.5 w-[85%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
+    <div className="h-1.5 w-[94%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
+    <div className="h-1.5 w-[70%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
   </div>
 ));
 PlaceholderBars.displayName = 'PlaceholderBars';
 
-// A single Kanban "card": a rounded tile with one or two short prose bars, so a
-// column reads as a stack of real tasks rather than empty boxes.
-const MiniCard = memo(({ lines = 1 }: { lines?: number }) => (
-  <div className="flex flex-col gap-1 rounded-[3px] border border-grey-200/70 bg-grey-50 px-1.5 py-1 dark:border-grey-600/50 dark:bg-grey-700/40">
-    <div className="h-1 w-4/5 rounded-full bg-grey-300 dark:bg-grey-500" />
-    {lines > 1 && <div className="h-1 w-1/2 rounded-full bg-grey-200 dark:bg-grey-600" />}
-  </div>
-));
-MiniCard.displayName = 'MiniCard';
-
-// Board overview for the preview sheet. The card list doesn't carry real board
+// Board overview for the preview plate. The card list doesn't carry real board
 // rows (those live in Yjs, loaded only via /boards/:id/state), so we render a
-// type-faithful schematic instead of the generic doc outline: a three-column
-// Kanban (eucalyptus-tinted column headers over stacked cards) or a grid of
-// whiteboard sticky notes. Same paper sheet as a document — it reads as a
-// snapshot of the board, not an empty plate.
+// type-faithful schematic: a three-column Kanban (eucalyptus header bar over
+// solid card blocks) or a grid of whiteboard sticky notes.
 const KANBAN_COLUMNS = [
-  { tint: 'bg-secondary-400 dark:bg-secondary-500', cards: [2, 1] },
-  { tint: 'bg-primary-400 dark:bg-primary-500', cards: [1, 1, 2] },
-  { tint: 'bg-grey-300 dark:bg-grey-500', cards: [1] },
+  { id: 'kanban-1', cards: 2 },
+  { id: 'kanban-2', cards: 1 },
+  { id: 'kanban-3', cards: 2 },
 ];
 
 const WHITEBOARD_NOTES = [
-  'bg-secondary-100 dark:bg-secondary-900/40',
-  'bg-primary-100 dark:bg-primary-900/40',
-  'bg-grey-100 dark:bg-grey-700/40',
-  'bg-secondary-50 dark:bg-secondary-900/30',
-  'bg-grey-100 dark:bg-grey-700/40',
-  'bg-primary-50 dark:bg-primary-900/30',
+  { id: 'wb-a', tint: 'bg-secondary-100 dark:bg-secondary-900/40' },
+  { id: 'wb-b', tint: 'bg-primary-100 dark:bg-primary-900/40' },
+  { id: 'wb-c', tint: 'bg-grey-100 dark:bg-grey-700/50' },
+  { id: 'wb-d', tint: 'bg-secondary-50 dark:bg-secondary-900/30' },
+  { id: 'wb-e', tint: 'bg-grey-100 dark:bg-grey-700/50' },
+  { id: 'wb-f', tint: 'bg-primary-50 dark:bg-primary-900/30' },
 ];
 
 const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboard' }) => {
   if (boardType === 'whiteboard') {
     return (
-      <div className="grid h-full grid-cols-3 grid-rows-2 gap-1.5 p-3" aria-hidden>
-        {WHITEBOARD_NOTES.map((tint, i) => (
-          <div
-            key={i}
-            className={cn(
-              'flex flex-col justify-center gap-1 rounded-[3px] p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]',
-              tint
-            )}
-          >
-            <div className="h-1 w-4/5 rounded-full bg-black/10 dark:bg-white/15" />
-            <div className="h-1 w-1/2 rounded-full bg-black/10 dark:bg-white/15" />
-          </div>
+      <div className="grid h-full grid-cols-3 grid-rows-2 gap-2" aria-hidden>
+        {WHITEBOARD_NOTES.map((note) => (
+          <div key={note.id} className={cn('rounded-[5px]', note.tint)} />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="flex gap-2 px-3 pt-3.5" aria-hidden>
-      {KANBAN_COLUMNS.map((col, ci) => (
-        <div key={ci} className="flex flex-1 flex-col gap-1.5">
-          <div className={cn('h-1.5 w-3/4 rounded-full', col.tint)} />
-          {col.cards.map((lines, i) => (
-            <MiniCard key={i} lines={lines} />
+    <div className="flex gap-2.5" aria-hidden>
+      {KANBAN_COLUMNS.map((col) => (
+        <div key={col.id} className="flex flex-1 flex-col gap-1.5">
+          <div className="h-2 rounded-[3px] bg-secondary-300 dark:bg-secondary-600" />
+          {Array.from({ length: col.cards }, (_, i) => (
+            <div
+              key={`${col.id}-${i}`}
+              className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
+            />
           ))}
         </div>
       ))}
@@ -184,40 +163,55 @@ const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboa
 });
 BoardPreviewBody.displayName = 'BoardPreviewBody';
 
-// The "sheet": a white page anchored to the top of the preview zone that bleeds
-// past the bottom edge (height taller than its clipped parent, top-only radius,
-// no bottom border) so it always reads as a document. Stays pure white in dark
-// mode — a paper sheet, like Google Docs — so its text uses an explicit dark
-// colour rather than the theme foreground.
-const PreviewSheet = memo(({ item }: { item: RecentItem }) => {
-  let body: React.ReactNode;
-
+// Flat preview surface: media fills the plate (object-cover), documents show
+// their heading + excerpt directly on the tinted plate, boards a schematic, and
+// content-less items the prose outline — no floating paper sheet.
+const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   if (item.type === 'image' || item.type === 'video') {
-    body = item.thumbnailUrl ? (
-      <img
-        src={resolveApiAssetUrl(item.thumbnailUrl)}
-        alt={item.title || FALLBACK_TITLES[item.type]}
-        className="h-full w-full object-cover"
-        loading="lazy"
-      />
-    ) : (
-      <div className="flex h-full items-center justify-center text-3xl text-grey-300">
-        {item.type === 'video' ? <FaVideo /> : <FaImage />}
+    if (item.thumbnailUrl) {
+      return (
+        <div className={PREVIEW_PLATE}>
+          <img
+            src={resolveApiAssetUrl(item.thumbnailUrl)}
+            alt={item.title || FALLBACK_TITLES[item.type]}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      );
+    }
+    return (
+      <div
+        className="flex h-[172px] items-center justify-center"
+        style={{
+          background:
+            'repeating-linear-gradient(135deg, var(--color-grey-100) 0 10px, var(--color-grey-200) 10px 20px)',
+        }}
+        aria-hidden
+      >
+        <span className="rounded-md bg-white/80 px-2 py-1 text-[11px] text-grey-500 dark:bg-grey-900/70 dark:text-grey-300">
+          Bild-Vorschau
+        </span>
       </div>
     );
-  } else if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
+  }
+
+  let body: React.ReactNode;
+  if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
-      <div className="flex flex-col gap-1.5 px-3.5 pt-4 text-left">
+      <>
         {heading && (
-          <p className="m-0 line-clamp-2 text-[13px] font-bold leading-snug text-grey-800">
+          <p className="m-0 mb-2 line-clamp-2 text-[13px] font-bold leading-snug text-foreground-heading">
             {heading}
           </p>
         )}
         {excerpt && (
-          <p className="m-0 line-clamp-6 text-[11px] leading-relaxed text-grey-500">{excerpt}</p>
+          <p className="m-0 line-clamp-6 text-[11.5px] leading-relaxed text-grey-500 dark:text-grey-400">
+            {excerpt}
+          </p>
         )}
-      </div>
+      </>
     );
   } else if (item.type === 'board') {
     body = <BoardPreviewBody boardType={item.boardType} />;
@@ -225,15 +219,9 @@ const PreviewSheet = memo(({ item }: { item: RecentItem }) => {
     body = <PlaceholderBars />;
   }
 
-  return (
-    <div className="relative aspect-[5/4] overflow-hidden bg-grey-50 dark:bg-grey-800/40">
-      <div className="absolute inset-x-0 top-3.5 mx-auto flex h-[130%] w-[78%] flex-col overflow-hidden rounded-t-[5px] border border-b-0 border-grey-200/80 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
-        {body}
-      </div>
-    </div>
-  );
+  return <div className={cn(PREVIEW_PLATE, 'p-4 text-left')}>{body}</div>;
 });
-PreviewSheet.displayName = 'PreviewSheet';
+PreviewArea.displayName = 'PreviewArea';
 
 const FavouriteMenuItem = memo(({ id }: { id: string }) => {
   const starred = useIsFavourite(id);
@@ -370,7 +358,7 @@ const RecentItemCard = memo(
       item.type === 'video' && item.duration ? formatDuration(item.duration) : null;
 
     const cardClass = cn(
-      'group relative flex flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background no-underline',
+      'group relative flex flex-col overflow-hidden rounded-[14px] border border-grey-200/80 bg-background no-underline',
       'cursor-pointer transition-all duration-200 ease-out',
       'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
       'dark:border-grey-700/60 dark:hover:border-secondary-700'
@@ -379,7 +367,7 @@ const RecentItemCard = memo(
     const cardContent = (
       <>
         <div className="relative">
-          <PreviewSheet item={item} />
+          <PreviewArea item={item} />
           {durationLabel && (
             <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
               {durationLabel}
@@ -387,16 +375,16 @@ const RecentItemCard = memo(
           )}
         </div>
 
-        <div className="flex items-start gap-2 border-t border-grey-100 px-3 py-2.5 dark:border-grey-700/60">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="inline-flex w-fit items-center gap-1 rounded-md bg-secondary-50 px-1.5 py-0.5 text-[11px] font-medium text-secondary-700 dark:bg-secondary-900/40 dark:text-secondary-300">
+        <div className="flex items-start gap-2 border-t border-grey-100 px-4 pb-4 pt-3.5 dark:border-grey-700/60">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-md bg-grey-100 px-2 py-0.5 text-[11.5px] font-medium text-grey-600 dark:bg-grey-700/50 dark:text-grey-300">
               <TypeIcon className="size-3 shrink-0" />
               {typeLabel}
             </span>
-            <h3 className="m-0 min-w-0 truncate text-sm font-medium text-foreground-heading">
+            <h3 className="m-0 mb-1.5 mt-2.5 min-w-0 truncate text-[15px] font-semibold text-foreground-heading">
               {item.title || FALLBACK_TITLES[item.type]}
             </h3>
-            <p className="m-0 flex min-w-0 items-center gap-1 truncate text-xs text-grey-500 dark:text-grey-400">
+            <p className="m-0 flex min-w-0 items-center gap-1.5 truncate text-[12.5px] text-grey-500 dark:text-grey-400">
               <FiClock className="size-3 shrink-0" />
               <span className="truncate">
                 {formatRelativeDate(item.date)}
@@ -520,6 +508,8 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     return true;
   });
 
+  const [expanded, setExpanded] = useState(false);
+
   const { deleteBoard } = useBoardsTyped({ enabled: true });
 
   const handleConvertText = useCallback(
@@ -597,6 +587,26 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
+  // Shared between the collapsed row and the expanded grid so both layouts stay
+  // in sync — videos use the reel card, everything else the generic card.
+  const renderCard = (item: RecentItem) =>
+    item.type === 'video' ? (
+      <RecentReelCard
+        key={`${item.type}-${item.id}`}
+        item={item}
+        onDelete={handleDelete}
+        onShare={handleShare}
+      />
+    ) : (
+      <RecentItemCard
+        key={`${item.type}-${item.id}`}
+        item={item}
+        onDelete={handleDelete}
+        onShare={handleShare}
+        onConvertText={handleConvertText}
+      />
+    );
+
   return (
     <section className="mb-xl">
       <SectionHeader title="Zuletzt" />
@@ -606,10 +616,10 @@ const RecentlyCreatedSection: React.FC = memo(() => {
           {Array.from({ length: 5 }, (_, i) => (
             <div
               key={i}
-              className="rounded-xl border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
+              className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
             >
-              <Skeleton className="aspect-[5/4] rounded-none" />
-              <div className="px-3 py-2.5">
+              <Skeleton className="h-[172px] rounded-none" />
+              <div className="px-4 py-3.5">
                 <Skeleton className="h-4 w-2/5" />
                 <Skeleton className="h-4 w-3/4 mt-1.5" />
                 <Skeleton className="h-3 w-1/2 mt-1.5" />
@@ -622,26 +632,30 @@ const RecentlyCreatedSection: React.FC = memo(() => {
           Noch keine Inhalte vorhanden.
         </p>
       ) : (
-        <div className={RECENT_ROW_CLASS}>
-          {items.map((item) =>
-            item.type === 'video' ? (
-              <RecentReelCard
-                key={`${item.type}-${item.id}`}
-                item={item}
-                onDelete={handleDelete}
-                onShare={handleShare}
-              />
-            ) : (
-              <RecentItemCard
-                key={`${item.type}-${item.id}`}
-                item={item}
-                onDelete={handleDelete}
-                onShare={handleShare}
-                onConvertText={handleConvertText}
-              />
-            )
+        <>
+          {/* Collapsed: scrollable row sliced to the threshold. Expanded: every
+              item in a wrapping grid (same card density as the row's ≈5/desktop). */}
+          {expanded ? (
+            <CardGrid columns="5" gap="md">
+              {items.map(renderCard)}
+            </CardGrid>
+          ) : (
+            <div className={RECENT_ROW_CLASS}>
+              {items.slice(0, RECENT_COLLAPSE_THRESHOLD).map(renderCard)}
+            </div>
           )}
-        </div>
+          {items.length > RECENT_COLLAPSE_THRESHOLD && (
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+            >
+              {expanded
+                ? 'Weniger anzeigen'
+                : `+${items.length - RECENT_COLLAPSE_THRESHOLD} weitere anzeigen`}
+            </button>
+          )}
+        </>
       )}
     </section>
   );

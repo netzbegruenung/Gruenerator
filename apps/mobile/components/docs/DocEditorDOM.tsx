@@ -1,7 +1,12 @@
 'use dom';
 
 import '@gruenerator/docs/styles';
-import { useCollaboration, useCollaborators, type CollaborationConfig } from '@gruenerator/collab';
+import {
+  useCollaboration,
+  useCollaborators,
+  useSyncGate,
+  type CollaborationConfig,
+} from '@gruenerator/collab';
 import {
   DocsProvider,
   BlockNoteEditor,
@@ -309,6 +314,9 @@ function EditorContent({
   });
   // Remote collaborators from Yjs awareness — bridged to native for presence avatars.
   const collaborators = useCollaborators(provider);
+  // Gate the editor mount until the initial Yjs sync completes (or times out) —
+  // binding y-prosemirror to a not-yet-synced doc crashes with "nodeSize undefined".
+  const editorReady = useSyncGate(provider, isSynced);
 
   // Editor instance ref for formatting operations
   const editorRef = useRef<unknown>(null);
@@ -594,18 +602,33 @@ function EditorContent({
           paddingInline: 8,
         }}
       >
-        <BlockNoteEditor
-          documentId={documentId}
-          ydoc={ydoc}
-          provider={provider}
-          isSynced={isSynced}
-          editable={isSynced}
-          showComments={false}
-          useStaticFormattingToolbar={false}
-          hideFormattingToolbar={true}
-          showDictationButton={false}
-          onEditorReady={handleEditorReady}
-        />
+        {editorReady ? (
+          <BlockNoteEditor
+            documentId={documentId}
+            ydoc={ydoc}
+            provider={provider}
+            isSynced={isSynced}
+            editable={isSynced}
+            showComments={false}
+            useStaticFormattingToolbar={false}
+            hideFormattingToolbar={true}
+            showDictationButton={false}
+            onEditorReady={handleEditorReady}
+          />
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 200,
+              color: '#6b7280',
+              fontSize: 14,
+            }}
+          >
+            Verbinde mit Server...
+          </div>
+        )}
       </div>
     </div>
   );

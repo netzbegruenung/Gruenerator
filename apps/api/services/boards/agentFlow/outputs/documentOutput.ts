@@ -2,12 +2,13 @@
  * Output: create a standalone document from the AI result and return its url/id so
  * the comment/email nodes can reference it. Reuses the same document-creation path
  * as the legacy agent worker. The document inherits the board's sharing (so the whole
- * group can open it) and is linked into the card's "Dokumente" list server-side via
- * the Hocuspocus internal API — works whether or not anyone has the board open.
+ * group can open it) and is recorded in the card's "Grünerator-Dokumente" list via a
+ * reliable Postgres write (board_card_documents) — works whether or not anyone has
+ * the board open.
  */
 import { createDocumentWithContent } from '../../../docs/DocGenerationService.js';
-import { linkDocumentToCard } from '../../boardLinkService.js';
 import { inheritBoardSharingToDocument } from '../../boardSharingService.js';
+import { linkAgentDocumentToCard } from '../../cardDocumentService.js';
 
 import { type OutputExecutor } from './types.js';
 
@@ -20,9 +21,15 @@ export const documentOutput: OutputExecutor = async (ctx) => {
   );
 
   // Best-effort (both log and swallow): share with the board's members and link the
-  // doc into the originating card.
+  // doc into the originating card's Grünerator-Dokumente list.
   await inheritBoardSharingToDocument(doc.id, ctx.task.board_id);
-  await linkDocumentToCard(ctx.task.board_id, ctx.task.card_id, { id: doc.id, title: ctx.title });
+  await linkAgentDocumentToCard(
+    ctx.task.board_id,
+    ctx.task.card_id,
+    doc.id,
+    ctx.title,
+    ctx.task.requested_by
+  );
 
   return { documentUrl: `/docs/${doc.id}`, documentId: doc.id };
 };

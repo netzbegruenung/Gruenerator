@@ -18,6 +18,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
 import { bumpCardComments } from '../../services/boards/boardLiveSignalService.js';
+import { buildCardEmailMetadata } from '../../services/boards/BoardService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
 import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
 import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
@@ -141,7 +142,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { boardId, cardId } = args.params;
-      const { blocks, parentId } = args.body;
+      const { blocks, parentId, agentId } = args.body;
 
       if (blocks.length === 0) {
         return { status: 400 as const, body: { error: 'Kommentar darf nicht leer sein' } };
@@ -235,6 +236,7 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
         content,
         parentId: parentId ?? null,
         mentionedUserIds,
+        agentId: agentId ?? null,
       }).catch((err: unknown) => {
         log.warn('Failed to send comment notifications', { error: errMsg(err) });
       });
@@ -428,6 +430,8 @@ interface CommentNotificationParams {
   content: string;
   parentId: string | null;
   mentionedUserIds: string[];
+  /** Specific agent the comment delegated to (own / shared / system); null = default. */
+  agentId: string | null;
 }
 
 async function fireCommentNotifications(params: CommentNotificationParams): Promise<void> {
@@ -441,11 +445,20 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     content,
     parentId,
     mentionedUserIds,
+    agentId,
   } = params;
 
   const snippet = content.length > 80 ? content.slice(0, 80) + '…' : content;
   const actionUrl = `/boards/${boardId}?card=${cardId}&comment=${commentId}`;
   const notifiedUserIds = new Set<string>();
+
+  // Card snapshot (once per comment) + the full comment text for the rich email.
+  const cardMeta = await buildCardEmailMetadata(boardId, cardId, boardTitle);
+  const eventText = content.length > 400 ? `${content.slice(0, 400).trimEnd()}…` : content;
+
+  // Recipient resolution stays sequential (dedup + bot handling), but the
+  // notification dispatches run concurrently — matching the attachment fan-out.
+  const tasks: Promise<unknown>[] = [];
 
   for (const mentionedId of mentionedUserIds) {
     if (mentionedId === authorId) continue;
@@ -465,6 +478,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
         requestedBy: authorId,
         taskText: content,
         locale: localeRows[0]?.locale ?? 'de-DE',
+        agentId,
       }).catch((err: unknown) => {
         log.warn('Failed to enqueue agent task', { error: errMsg(err) });
       });
@@ -473,15 +487,17 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
 
     notifiedUserIds.add(mentionedId);
 
-    await createNotification({
-      userId: mentionedId,
-      type: 'board_user_mentioned',
-      title: `${authorName} hat dich erwähnt`,
-      body: snippet,
-      actionUrl,
-      metadata: { boardId, cardId, commentId },
-      groupKey: `board-comment-${boardId}-${cardId}`,
-    });
+    tasks.push(
+      createNotification({
+        userId: mentionedId,
+        type: 'board_user_mentioned',
+        title: `${authorName} hat dich erwähnt`,
+        body: snippet,
+        actionUrl,
+        metadata: { ...cardMeta, commentId, eventText },
+        groupKey: `board-comment-${boardId}-${cardId}`,
+      }).catch(() => null)
+    );
   }
 
   if (parentId) {
@@ -499,15 +515,17 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     ) {
       notifiedUserIds.add(parentAuthorId);
 
-      await createNotification({
-        userId: parentAuthorId,
-        type: 'board_comment_reply',
-        title: `${authorName} hat auf deinen Kommentar geantwortet`,
-        body: snippet,
-        actionUrl,
-        metadata: { boardId, cardId, commentId, parentId },
-        groupKey: `board-comment-${boardId}-${cardId}`,
-      });
+      tasks.push(
+        createNotification({
+          userId: parentAuthorId,
+          type: 'board_comment_reply',
+          title: `${authorName} hat auf deinen Kommentar geantwortet`,
+          body: snippet,
+          actionUrl,
+          metadata: { ...cardMeta, commentId, parentId, eventText },
+          groupKey: `board-comment-${boardId}-${cardId}`,
+        }).catch(() => null)
+      );
     }
   }
 
@@ -524,14 +542,18 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     if (notifiedUserIds.has(row.user_id)) continue;
     notifiedUserIds.add(row.user_id);
 
-    await createNotification({
-      userId: row.user_id,
-      type: 'board_comment_added',
-      title: `${authorName} hat in "${boardTitle}" kommentiert`,
-      body: snippet,
-      actionUrl,
-      metadata: { boardId, cardId, commentId },
-      groupKey: `board-comment-${boardId}-${cardId}`,
-    });
+    tasks.push(
+      createNotification({
+        userId: row.user_id,
+        type: 'board_comment_added',
+        title: `${authorName} hat in "${boardTitle}" kommentiert`,
+        body: snippet,
+        actionUrl,
+        metadata: { ...cardMeta, commentId, eventText },
+        groupKey: `board-comment-${boardId}-${cardId}`,
+      }).catch(() => null)
+    );
   }
+
+  await Promise.all(tasks);
 }

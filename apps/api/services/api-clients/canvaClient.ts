@@ -19,8 +19,23 @@ const CANVA_PROFILE_URL = 'https://api.canva.com/rest/v1/users/me/profile';
 const CANVA_DESIGNS_URL = 'https://api.canva.com/rest/v1/designs';
 
 /**
- * Scopes requested for the integration. Mirrors the Connect quickstart's
- * recommended set: read/write designs + assets, read brand templates + profile.
+ * Scopes requested for the integration.
+ *
+ * Canva's security guidelines require the *minimum* scopes needed
+ * (https://www.canva.dev/docs/connect/guidelines/security/). The submission
+ * questionnaire/demo video must justify each scope below. Currently *exercised*
+ * scopes are marked [LIVE]; the rest are [PLANNED] and gate features that are
+ * being built — re-confirm before submitting (unused scopes are a common review
+ * blocker; trim any that slip).
+ *
+ *   design:meta:read         [LIVE]    list the user's designs (listDesigns)
+ *   profile:read             [LIVE]    show connected account name (getProfileDisplayName)
+ *   design:content:read      [PLANNED] read design content for import/preview
+ *   design:content:write     [PLANNED] write generated content back into a design
+ *   asset:read               [PLANNED] read uploaded assets
+ *   asset:write              [PLANNED] upload Grünerator images as Canva assets
+ *   brandtemplate:meta:read  [PLANNED] list Grüne brand templates
+ *   brandtemplate:content:read [PLANNED] autofill brand templates
  */
 export const CANVA_SCOPES = [
   'design:content:read',

@@ -3,11 +3,13 @@
  * Platform-agnostic types for unified media gallery
  */
 
+import { type UPLOAD_SOURCES } from './constants.js';
+
 export type MediaType = 'image' | 'video';
 
 export type MediaStatus = 'processing' | 'ready' | 'failed';
 
-export type UploadSource = 'upload' | 'ai_generated' | 'stock' | 'camera';
+export type UploadSource = (typeof UPLOAD_SOURCES)[number];
 
 export type SortOrder = 'newest' | 'oldest';
 

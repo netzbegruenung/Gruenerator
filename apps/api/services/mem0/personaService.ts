@@ -96,7 +96,8 @@ export async function compilePersona(
     const formattedInput = formatMemoriesByCategory(
       memories.map((m) => ({
         memory: m.memory,
-        category: normalizeCategory(m.metadata?.memoryType),
+        // Category lives in `categories[]` (gatekeeper); fall back to legacy `memoryType`.
+        category: normalizeCategory(m.metadata?.memoryType ?? m.metadata?.categories?.[0]),
       }))
     );
 
