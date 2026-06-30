@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { normalizeMathDelimiters } from './normalizeMathDelimiters';
+import { normalizeMathDelimiters, normalizeUnicodeMath } from './normalizeMathDelimiters';
 import { escapeCitationMarkers } from './citationProcessing';
 
 describe('normalizeMathDelimiters', () => {
@@ -22,7 +22,9 @@ describe('normalizeMathDelimiters', () => {
   });
 
   it('leaves existing dollar math untouched', () => {
-    expect(normalizeMathDelimiters('inline $x$ and block $$y$$')).toBe('inline $x$ and block $$y$$');
+    expect(normalizeMathDelimiters('inline $x$ and block $$y$$')).toBe(
+      'inline $x$ and block $$y$$'
+    );
   });
 
   it('leaves bare citation markers untouched', () => {
@@ -34,5 +36,30 @@ describe('normalizeMathDelimiters', () => {
     const input = 'Formel \\(E=mc^2\\) laut Quelle [1]';
     const output = escapeCitationMarkers(normalizeMathDelimiters(input));
     expect(output).toBe('Formel $E=mc^2$ laut Quelle \\[1\\]');
+  });
+});
+
+describe('normalizeUnicodeMath', () => {
+  it('maps raw ≠ inside inline math to \\neq', () => {
+    expect(normalizeUnicodeMath('Bedingung $a ≠ 0$ gilt')).toBe('Bedingung $a \\neq  0$ gilt');
+  });
+
+  it('maps operators inside display math', () => {
+    expect(normalizeUnicodeMath('$$x ≤ y ≥ z$$')).toBe('$$x \\leq  y \\geq  z$$');
+  });
+
+  it('does NOT touch Unicode operators outside math spans', () => {
+    expect(normalizeUnicodeMath('Vorzeichen ± und ≠ im Fließtext')).toBe(
+      'Vorzeichen ± und ≠ im Fließtext'
+    );
+  });
+
+  it('fuse-guards a command before a digit (≠0 → \\neq 0)', () => {
+    expect(normalizeUnicodeMath('$a≠0$')).toBe('$a\\neq 0$');
+  });
+
+  it('composes after delimiter normalization: \\( a ≠ b \\) → $a \\neq b$', () => {
+    const out = normalizeUnicodeMath(normalizeMathDelimiters('Es gilt \\(a ≠ b\\) hier'));
+    expect(out).toBe('Es gilt $a \\neq  b$ hier');
   });
 });
