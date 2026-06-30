@@ -19,3 +19,49 @@ export function normalizeMathDelimiters(text: string): string {
       .replace(/\\\(([\s\S]+?)\\\)/g, (_match, inner: string) => `$${inner}$`)
   );
 }
+
+/**
+ * Common raw Unicode math operators LLMs emit instead of LaTeX commands. KaTeX
+ * has no glyph for several of these (they render as tofu boxes, e.g. `≠`), so we
+ * map them to the equivalent command. The trailing space prevents commands from
+ * fusing with a following token (`≠0` → `\neq 0`).
+ */
+const UNICODE_MATH_REPLACEMENTS: ReadonlyArray<readonly [string, string]> = [
+  ['≠', '\\neq '],
+  ['≤', '\\leq '],
+  ['≥', '\\geq '],
+  ['×', '\\times '],
+  ['÷', '\\div '],
+  ['·', '\\cdot '],
+  ['⋅', '\\cdot '],
+  ['∓', '\\mp '],
+  ['≈', '\\approx '],
+  ['≡', '\\equiv '],
+  ['∞', '\\infty '],
+  ['∈', '\\in '],
+  ['∉', '\\notin '],
+  ['⇒', '\\Rightarrow '],
+  ['⇔', '\\Leftrightarrow '],
+  ['→', '\\to '],
+];
+
+function replaceUnicodeOperators(mathContent: string): string {
+  let out = mathContent;
+  for (const [unicode, command] of UNICODE_MATH_REPLACEMENTS) {
+    if (out.includes(unicode)) out = out.split(unicode).join(command);
+  }
+  return out;
+}
+
+/**
+ * Replace raw Unicode math operators with LaTeX commands, but ONLY inside math
+ * spans (`$$ … $$` and `$ … $`) so prose like "Vorzeichen ±" is left alone.
+ * Run AFTER {@link normalizeMathDelimiters} (so `\( \)` are already `$`) and
+ * BEFORE citation escaping.
+ */
+export function normalizeUnicodeMath(text: string): string {
+  // Display first ($$ … $$), then inline ($ … $, no newline, non-empty).
+  return text
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_m, inner: string) => `$$${replaceUnicodeOperators(inner)}$$`)
+    .replace(/\$([^$\n]+?)\$/g, (_m, inner: string) => `$${replaceUnicodeOperators(inner)}$`);
+}
