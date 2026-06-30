@@ -10,12 +10,16 @@ import {
   FaClock,
   FaEdit,
   FaSave,
+  FaMagic,
+  FaVideo,
+  FaArrowRight,
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
+import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
 import { useTemplateClone } from '../hooks/useTemplateClone';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
@@ -300,6 +304,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
 
 const ImageGallery = () => {
   const navigate = useNavigate();
+  const locale = useAuthStore((s) => s.locale);
   const {
     shares,
     isLoading,
@@ -399,6 +404,40 @@ const ImageGallery = () => {
     void navigate('/studio');
   };
 
+  // Quick-start tiles for the empty gallery. Routes mirror handleCategorySelect
+  // in ImageStudioCategorySelector so behaviour stays consistent. AT is a
+  // first-class audience: Austrian users get the external Sharepic generator.
+  const isAustrianUser = locale === 'de-AT';
+  const quickStarts = [
+    {
+      key: 'sharepic',
+      icon: FaImage,
+      title: 'Sharepic',
+      description: 'Zitate, Headlines & Infos aus Vorlagen.',
+      onClick: () => {
+        if (isAustrianUser) {
+          window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
+        } else {
+          void navigate('/studio/templates');
+        }
+      },
+    },
+    {
+      key: 'ki',
+      icon: FaMagic,
+      title: 'KI-Bild',
+      description: 'Bilder per Prompt generieren.',
+      onClick: () => void navigate('/imagine'),
+    },
+    {
+      key: 'reel',
+      icon: FaVideo,
+      title: 'Reel',
+      description: 'Kurze Videos für Social Media.',
+      onClick: () => void navigate('/studio/video'),
+    },
+  ] as const;
+
   const imageShares = shares.filter((s) => s.mediaType === 'image') as GalleryImage[];
 
   if (isLoading && imageShares.length === 0) {
@@ -453,22 +492,49 @@ const ImageGallery = () => {
             Meine Bilder
           </h1>
         </div>
-        <div className="flex min-h-[300px] grow items-center justify-center px-lg py-2xl">
-          <div className="mx-auto max-w-[480px] rounded-lg border border-dashed border-grey-200 px-6 py-12 text-center dark:border-grey-700">
-            <div className="mb-4 flex justify-center">
-              <div className="flex size-12 items-center justify-center rounded-lg bg-background-alt text-foreground">
-                <FaImage className="size-6" />
+        <div className="flex grow flex-col items-center justify-center px-lg py-2xl max-[768px]:px-0 max-[768px]:py-xl">
+          <div className="w-full max-w-[760px] text-center">
+            <div className="mb-5 flex justify-center">
+              <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-lg shadow-primary-600/20">
+                <FaImage className="size-7" />
               </div>
             </div>
-            <h2 className="text-lg font-medium text-foreground-heading">Noch keine Bilder</h2>
-            <p className="mx-auto mt-2 text-sm leading-relaxed text-foreground opacity-70">
-              Erstelle dein erstes Bild mit dem Image Studio.
+            <h2 className="text-2xl font-semibold text-foreground-heading max-[768px]:text-xl">
+              Noch keine Bilder
+            </h2>
+            <p className="mx-auto mt-2 max-w-[440px] text-base leading-relaxed text-foreground opacity-70">
+              Leg los — wähle, was du erstellen möchtest.
             </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <Button variant="brand" size="brand" onClick={handleNewImage}>
-                <FaPlus />
-                Bild erstellen
-              </Button>
+
+            <div className="mt-8 grid grid-cols-3 gap-4 text-left max-[768px]:grid-cols-1 max-[768px]:gap-3">
+              {quickStarts.map(({ key, icon: Icon, title, description, onClick }) => (
+                <div
+                  key={key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={onClick}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onClick();
+                    }
+                  }}
+                  className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-grey-200 bg-background p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-grey-700 dark:hover:border-grey-600"
+                >
+                  <div className="flex size-11 items-center justify-center rounded-lg bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:text-primary-200">
+                    <Icon className="size-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 text-base font-semibold text-foreground-heading">
+                      {title}
+                      <FaArrowRight className="size-3 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 motion-reduce:transition-none" />
+                    </div>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground opacity-70">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
