@@ -26,7 +26,7 @@ const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'agents',
     title: 'Agentura',
-    description: 'Recherche-Agent für grüne Themen',
+    description: 'KI-Agent*innen & Skills entdecken',
     path: '/agentura',
     icon: RiSpyLine,
   },
