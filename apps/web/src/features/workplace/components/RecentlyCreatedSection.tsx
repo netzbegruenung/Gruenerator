@@ -15,6 +15,7 @@ import { FiClock, FiFileText, FiImage, FiMonitor } from 'react-icons/fi';
 import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
@@ -168,6 +169,20 @@ BoardPreviewBody.displayName = 'BoardPreviewBody';
 // content-less items the prose outline — no floating paper sheet.
 const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   if (item.type === 'image' || item.type === 'video') {
+    // Images are shared-media backed (item.id is the share token) → responsive
+    // variants + BlurHash. Videos have no image variants, so keep the poster img.
+    if (item.type === 'image') {
+      return (
+        <div className={PREVIEW_PLATE}>
+          <SharedMediaImage
+            shareToken={item.id}
+            alt={item.title || FALLBACK_TITLES[item.type]}
+            sizes="(max-width: 768px) 50vw, 280px"
+            className="h-full w-full object-cover"
+          />
+        </div>
+      );
+    }
     if (item.thumbnailUrl) {
       return (
         <div className={PREVIEW_PLATE}>
