@@ -493,11 +493,12 @@ async function main(): Promise<void> {
   const args = parseArgs();
 
   if (!process.env.CLAUDE_CODE_OAUTH_TOKEN && !process.env.ANTHROPIC_API_KEY) {
-    console.error(
-      'Missing Claude credentials: set CLAUDE_CODE_OAUTH_TOKEN (Max subscription, from ' +
-        '`claude setup-token`) or ANTHROPIC_API_KEY.'
+    // Local dev: fall back to the Claude CLI's stored login. CI MUST set
+    // CLAUDE_CODE_OAUTH_TOKEN (the agent has no stored login there).
+    console.warn(
+      'No CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY in env — relying on the Claude CLI stored ' +
+        'login (local dev). In CI, set CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`).'
     );
-    process.exit(1);
   }
 
   if (args.apply && !process.env.GH_TOKEN && !process.env.GITHUB_TOKEN) {
