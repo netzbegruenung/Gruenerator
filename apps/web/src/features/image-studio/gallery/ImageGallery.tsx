@@ -13,6 +13,7 @@ import {
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
+import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
@@ -35,6 +36,7 @@ interface GalleryImageMetadata {
   originalImageFilename?: string;
   generatedAt?: string;
   updatedAt?: string;
+  blurhash?: string;
   sharepicType?: SharepicTypeKey;
   content?: Record<string, unknown>;
   styling?: Record<string, unknown>;
@@ -109,7 +111,6 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Allow editing if we have sharepicType and either original image OR content data
   const isEditable =
@@ -164,10 +165,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
     }
   };
 
-  const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
-  const thumbnailUrl = image.thumbnailPath
-    ? `${baseURL}/share/${image.shareToken}/preview?w=400`
-    : null;
+  const hasThumbnail = Boolean(image.thumbnailPath && image.shareToken);
 
   return (
     <div
@@ -181,18 +179,13 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
       onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && onClick(image)}
     >
       <div className="gallery-thumbnail relative aspect-square w-full overflow-hidden bg-background-alt after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[60px] after:bg-gradient-to-t after:from-overlay-sm after:to-transparent after:opacity-0 after:transition-opacity after:duration-[250ms] after:ease-linear after:content-[''] group-hover:after:opacity-100">
-        {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
+        {hasThumbnail && image.shareToken ? (
+          <SharedMediaImage
+            shareToken={image.shareToken}
             alt={image.title || 'Gespeichertes Bild'}
-            className={cn(
-              'h-full w-full object-cover transition-[transform,opacity] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            )}
-            loading="lazy"
-            width={400}
-            height={500}
-            onLoad={() => setImageLoaded(true)}
+            blurhash={image.imageMetadata?.blurhash}
+            sizes="(max-width: 768px) 50vw, 300px"
+            className="h-full w-full object-cover transition-transform duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--background-color-alt)_0%,var(--background-color)_100%)] text-disabled [&_svg]:text-[2.5rem] [&_svg]:opacity-50">
