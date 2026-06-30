@@ -1,3 +1,5 @@
+import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
+
 import { type DocumentItem } from '@/components/common/DocumentOverview';
 
 /**
@@ -16,7 +18,7 @@ export interface Template extends DocumentItem {
   thumbnail_url?: string;
   images?: Array<{ url: string; title?: string; display_order?: number }>;
   tags?: string[];
-  content_data?: { originalUrl?: string } & Record<string, unknown>;
+  content_data?: { originalUrl?: string; canvasId?: string } & Record<string, unknown>;
 }
 
 // Templates created inside the app's canvas/board editor are stored as
@@ -26,3 +28,9 @@ const CANVAS_EDITOR_TYPES = ['board', 'doc', 'canvas'];
 
 export const isCanvasEditorType = (t: Template): boolean =>
   !!t.template_type && CANVAS_EDITOR_TYPES.includes(t.template_type);
+
+// Native Grünerator sharepic templates (published from the canvas editor). They
+// open by cloning a frozen snapshot canvas into the studio — see
+// useGrueneratorVorlage.
+export const isGrueneratorType = (t: Template): boolean =>
+  t.template_type === GRUENERATOR_TEMPLATE_TYPE;

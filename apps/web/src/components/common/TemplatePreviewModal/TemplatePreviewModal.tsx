@@ -1,3 +1,4 @@
+import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
 import {
   Badge,
   Button,
@@ -9,7 +10,7 @@ import {
 } from '@gruenerator/ui';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import { HiOutlineArrowDownTray } from 'react-icons/hi2';
+import { HiOutlineArrowDownTray, HiOutlinePencilSquare } from 'react-icons/hi2';
 
 import FavoriteButton from '../FavoriteButton';
 import LikeButton from '../LikeButton';
@@ -76,7 +77,16 @@ interface TemplatePreviewModalProps {
   onToggleFavorite?: () => void;
   favoriteToggling?: boolean;
   canFavorite?: boolean;
+  // "Use" action for native Grünerator-Vorlagen (clone snapshot → open editor).
+  onUseTemplate?: () => void;
+  isUsing?: boolean;
 }
+
+/** Pretty labels for known template_type values; falls back to capitalized. */
+const TEMPLATE_TYPE_LABELS: Record<string, string> = {
+  canva: 'Canva',
+  [GRUENERATOR_TEMPLATE_TYPE]: 'Grünerator',
+};
 
 const TemplatePreviewModal = ({
   isOpen,
@@ -92,6 +102,8 @@ const TemplatePreviewModal = ({
   onToggleFavorite,
   favoriteToggling = false,
   canFavorite = false,
+  onUseTemplate,
+  isUsing = false,
 }: TemplatePreviewModalProps): React.ReactNode => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -164,9 +176,11 @@ const TemplatePreviewModal = ({
   if (!template) return null;
 
   const templateType = template.template_type
-    ? template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)
+    ? (TEMPLATE_TYPE_LABELS[template.template_type] ??
+      template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1))
     : '';
   const isCanva = template.template_type === 'canva';
+  const isGruenerator = template.template_type === GRUENERATOR_TEMPLATE_TYPE;
   const dimensions = template.content_data?.dimensions || template.metadata?.dimensions;
   const tags = Array.isArray(template.tags) ? template.tags : [];
   // The single openable target, in priority order. When none exists (e.g. a
@@ -345,7 +359,14 @@ const TemplatePreviewModal = ({
           </div>
         </div>
 
-        {openUrl && (
+        {isGruenerator && onUseTemplate ? (
+          <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
+            <Button onClick={onUseTemplate} disabled={isUsing} className="max-sm:w-full">
+              <HiOutlinePencilSquare />
+              <span>{isUsing ? 'Wird geöffnet...' : 'Vorlage verwenden'}</span>
+            </Button>
+          </DialogFooter>
+        ) : openUrl ? (
           <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
             <Button onClick={handleOpenExternal} className="max-sm:w-full">
               {isCanva ? (
@@ -366,7 +387,7 @@ const TemplatePreviewModal = ({
               )}
             </Button>
           </DialogFooter>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );
