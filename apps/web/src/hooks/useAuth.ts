@@ -519,6 +519,13 @@ export const useAuth = (options: AuthOptions = {}) => {
     refetch: refetchAuth,
   } = useQuery<AuthData>({
     queryKey: ['authStatus'],
+    // Background auth-bootstrap probe with its own complete fallbacks (retry
+    // with backoff, keep last-good session, redirect-on-dead-session via the
+    // apiClient interceptor). A transient probe failure is NOT user-actionable,
+    // so opt out of the global error toast (App.tsx QueryCache.onError) —
+    // otherwise it surfaces the generic "Ein unerwarteter Fehler …" toast on
+    // every logged-out page load, same noise `toastApiError` already skips 401 for.
+    meta: { silent: true },
     queryFn: async (): Promise<AuthData> => {
       if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
         const data = buildE2EBypassAuthData();
