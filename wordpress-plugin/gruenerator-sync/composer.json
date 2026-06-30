@@ -1,0 +1,32 @@
+{
+  "name": "netzbegruenung/gruenerator-sync",
+  "description": "Push published WordPress articles to Grünerator the moment they go live.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.1",
+    "woocommerce/action-scheduler": "^3.8",
+    "yahnis-elsts/plugin-update-checker": "^5.5"
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^3.10",
+    "wp-coding-standards/wpcs": "^3.1",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpstan/phpstan": "^1.12",
+    "szepeviktor/phpstan-wordpress": "^1.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "Gruenerator\\Sync\\": "src/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "scripts": {
+    "lint": "phpcs --standard=phpcs.xml.dist",
+    "analyse": "phpstan analyse"
+  }
+}
