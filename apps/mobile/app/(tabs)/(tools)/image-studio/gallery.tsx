@@ -5,7 +5,6 @@
 
 import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -21,6 +20,7 @@ import {
   Alert,
 } from 'react-native';
 
+import { SharedMediaImage } from '../../../../components/common/SharedMediaImage';
 import { shareImage } from '../../../../services/imageStudio';
 import {
   colors,
@@ -115,19 +115,19 @@ export default function GalleryScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Share }) => {
-      const imageUrl =
-        item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
-
       return (
         <View style={[styles.itemContainer, { width: itemSize }]}>
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => void handleShare(item)}
           >
-            <Image
-              source={{ uri: imageUrl }}
+            <SharedMediaImage
+              shareToken={item.shareToken}
+              blurhash={item.imageMetadata?.blurhash}
+              width={400}
               style={[styles.itemImage, { width: itemSize, height: itemSize }]}
               contentFit="cover"
+              accessibilityLabel={item.title || 'Sharepic'}
             />
             <View style={styles.itemOverlay}>
               <Text style={styles.itemTitle} numberOfLines={1}>
