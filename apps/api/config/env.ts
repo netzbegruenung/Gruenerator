@@ -155,6 +155,12 @@ const envSchema = z.object({
   DOCLING_MAX_WAIT_MS: numStr(600_000),
   REMBG_URL: z.string().optional(),
 
+  // How long a single WordPress-plugin push keeps a Landesverband source
+  // "push-active" so the scheduled scraper backs off (see pushIngestion). 26h
+  // means one push/day comfortably covers the daily scrape; if pushes stop, the
+  // scraper auto-resumes within this window.
+  LV_PUSH_FRESHNESS_HOURS: numStr(26),
+
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────
   HOCUSPOCUS_ENABLED: boolFlag(false),
   YJS_ENABLED: boolFlag(false),

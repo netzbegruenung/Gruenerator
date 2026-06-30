@@ -50,3 +50,4 @@ export { groupsContract } from './groupsContract.js';
 export { contentSyncContract } from './contentSyncContract.js';
 export { monitorContract } from './monitorContract.js';
 export { sitesContract } from './sitesContract.js';
+export { pushIngestContract } from './pushIngestContract.js';
