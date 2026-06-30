@@ -45,7 +45,7 @@ import {
   getIllustrationThumbPath,
 } from '../../../utils/illustrations/registry';
 import { assertNever } from '../../../utils/shapes';
-import { CARD_GRID, SELECTABLE_CARD } from '../../primitives';
+import { CARD_GRID, SELECTABLE_CARD } from '../../sidebarStyles';
 
 import { PREVIEW_COMPONENTS } from './constants';
 
