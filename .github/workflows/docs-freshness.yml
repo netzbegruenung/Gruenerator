@@ -32,7 +32,9 @@ jobs:
   check:
     name: Check documentation freshness
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # A thorough single-doc audit can take ~15 min; ~20 docs at concurrency 2
+    # comfortably fits here. The runner mostly idles waiting on the agent.
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v6
