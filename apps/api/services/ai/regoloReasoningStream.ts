@@ -1,17 +1,22 @@
 /**
- * Custom Regolo streamer that parses both `content` and `reasoning_content`
- * SSE deltas from the OpenAI-compatible chat completions endpoint.
+ * Provider-agnostic reasoning streamer for OpenAI-compatible chat-completions
+ * endpoints that emit a model's thinking in a non-standard delta field.
  *
- * Why this exists: `@ai-sdk/openai@3.0.53` only bridges reasoning for the
- * OpenAI *Responses* API (`response.reasoning_summary_text.delta`). Regolo's
- * Qwen3 family uses Chat Completions with a vLLM-specific `reasoning_content`
- * field, which the SDK silently drops. To surface the model's thinking to
- * our UI (Reasoning/ReasoningGroup components), we bypass the AI SDK for
- * reasoning-capable Regolo models and parse the raw SSE stream ourselves.
+ * Why this exists: `@ai-sdk/openai` only bridges reasoning for the OpenAI
+ * *Responses* API (`response.reasoning_summary_text.delta`). Its Chat
+ * Completions delta schema has NO reasoning field at all, so any thinking that
+ * an OpenAI-compat upstream streams alongside the answer is silently dropped.
+ * Two of our upstreams do exactly that:
+ *   - Regolo / vLLM (Qwen3, gpt-oss, Gemma 4): `delta.reasoning_content`,
+ *     gated behind the chat-template flag `enable_thinking`.
+ *   - Verdigado / LiteLLM / Ollama (Gemma 4 `verdigado-think`):
+ *     `delta.reasoning`, on by default.
+ * To surface either to our UI (Reasoning/ReasoningGroup components), we bypass
+ * the AI SDK for these reasoning-capable models and parse the raw SSE stream
+ * ourselves, reading whichever reasoning field the upstream uses.
  *
- * The wrapper disables the chat-template `enable_thinking: false` workaround
- * that we apply globally for non-reasoning consumers; here we explicitly want
- * thinking ON.
+ * The module name is historical — it began as Regolo-only; it now covers any
+ * configured OpenAI-compat reasoning lane.
  */
 
 import { env } from '../../config/env.js';
@@ -23,7 +28,8 @@ export interface ReasoningStreamChunk {
   delta: string;
 }
 
-export interface RegoloReasoningStreamParams {
+export interface ReasoningStreamParams {
+  provider: string;
   model: string;
   messages: ModelMessage[];
   maxTokens: number;
@@ -31,35 +37,77 @@ export interface RegoloReasoningStreamParams {
   signal?: AbortSignal;
 }
 
+interface ReasoningStreamConfig {
+  endpoint: string;
+  apiKey: string | undefined;
+  /** Extra request-body fields that switch the upstream into thinking mode. */
+  bodyExtras: Record<string, unknown>;
+}
+
 const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
 
 /**
- * Models on Regolo that emit `reasoning_content` by default (or when thinking
- * is enabled). These are the cases where we want to surface reasoning to the
- * frontend.
+ * Models that stream reasoning to us, keyed by provider. Regolo's vLLM family
+ * needs `enable_thinking: true` (the inverse of the `regoloFetchWithThinkingDisabled`
+ * default we apply on the SDK path); LiteLLM's Ollama-backed `verdigado-think`
+ * alias emits `reasoning` by default and needs no flag.
  */
-const REGOLO_REASONING_MODELS = new Set(['qwen3.5-122b', 'qwen3.6-27b', 'gpt-oss-120b']);
+const REGOLO_REASONING_MODELS = new Set([
+  'qwen3.5-122b',
+  'qwen3.6-27b',
+  'gpt-oss-120b',
+  'gemma4-31b',
+]);
+const LITELLM_REASONING_MODELS = new Set(['verdigado-think']);
 
-export function isRegoloReasoningModel(provider: string, model: string): boolean {
-  return provider === 'regolo' && REGOLO_REASONING_MODELS.has(model);
+export function isReasoningStreamModel(provider: string, model: string): boolean {
+  if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
+  if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
+  return false;
+}
+
+function resolveConfig(provider: string): ReasoningStreamConfig | null {
+  if (provider === 'regolo') {
+    return {
+      endpoint: REGOLO_ENDPOINT,
+      apiKey: env.REGOLO_API_KEY,
+      bodyExtras: { chat_template_kwargs: { enable_thinking: true } },
+    };
+  }
+  if (provider === 'litellm') {
+    const base = env.LITELLM_BASE_URL;
+    return {
+      endpoint: base ? `${base}/v1/chat/completions` : '',
+      apiKey: env.LITELLM_API_KEY,
+      bodyExtras: {},
+    };
+  }
+  return null;
 }
 
 /**
- * Stream a chat completion from Regolo, yielding both text and reasoning
- * deltas as they arrive. Throws on non-2xx or aborted streams.
+ * Stream a chat completion from a reasoning-capable OpenAI-compat upstream,
+ * yielding both text and reasoning deltas as they arrive. Throws on non-2xx,
+ * misconfiguration, or aborted streams.
  */
-export async function* streamRegoloWithReasoning(
-  params: RegoloReasoningStreamParams
+export async function* streamWithReasoning(
+  params: ReasoningStreamParams
 ): AsyncGenerator<ReasoningStreamChunk, void, unknown> {
-  const apiKey = env.REGOLO_API_KEY;
-  if (!apiKey) {
-    throw new Error('REGOLO_API_KEY is not configured');
+  const config = resolveConfig(params.provider);
+  if (!config) {
+    throw new Error(`No reasoning-stream config for provider '${params.provider}'`);
+  }
+  if (!config.apiKey) {
+    throw new Error(`API key for '${params.provider}' reasoning stream is not configured`);
+  }
+  if (!config.endpoint) {
+    throw new Error(`Endpoint for '${params.provider}' reasoning stream is not configured`);
   }
 
-  const response = await fetch(REGOLO_ENDPOINT, {
+  const response = await fetch(config.endpoint, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -68,14 +116,16 @@ export async function* streamRegoloWithReasoning(
       max_tokens: params.maxTokens,
       temperature: params.temperature,
       stream: true,
-      chat_template_kwargs: { enable_thinking: true },
+      ...config.bodyExtras,
     }),
     ...(params.signal && { signal: params.signal }),
   });
 
   if (!response.ok || !response.body) {
     const body = await response.text().catch(() => '');
-    throw new Error(`Regolo stream failed: ${response.status} ${body.slice(0, 200)}`);
+    throw new Error(
+      `${params.provider} reasoning stream failed: ${response.status} ${body.slice(0, 200)}`
+    );
   }
 
   const reader = response.body.getReader();
@@ -118,6 +168,12 @@ function extractDelta(chunk: unknown): { text: string; reasoning: string } {
   const choices = (chunk as { choices?: Array<{ delta?: Record<string, unknown> }> }).choices;
   const delta = choices?.[0]?.delta ?? {};
   const text = typeof delta.content === 'string' ? delta.content : '';
-  const reasoning = typeof delta.reasoning_content === 'string' ? delta.reasoning_content : '';
+  // vLLM/Regolo use `reasoning_content`; Ollama/LiteLLM use `reasoning`.
+  const reasoning =
+    typeof delta.reasoning_content === 'string'
+      ? delta.reasoning_content
+      : typeof delta.reasoning === 'string'
+        ? delta.reasoning
+        : '';
   return { text, reasoning };
 }

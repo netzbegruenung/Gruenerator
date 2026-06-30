@@ -1,15 +1,19 @@
 /**
  * LiteLLM (Ollama-backed) at Verdigado serves gemma4 models which default to
- * thinking mode. Historically the OpenAI-compat layer streamed long
- * `reasoning` deltas with empty `content` until the budget ran out, and
- * setting Ollama's top-level `think: false` made gemma4 emit directly into
- * `content`.
+ * thinking mode, streaming long `reasoning` deltas with empty `content` until
+ * the answer begins. Setting Ollama's top-level `think: false` makes gemma4
+ * emit directly into `content`.
  *
- * The proxy now ignores `think: false` on think-enabled aliases (e.g.
- * `verdigado-think`) and returns reasoning in a separate `reasoning` field
- * that no longer blocks `content` — the streaming layer surfaces it via
- * fullStream as reasoning deltas. The wrapper stays as a harmless no-op
- * safeguard for models/aliases that still honor the flag.
+ * This wrapper applies only on the **AI SDK path** — i.e. non-reasoning
+ * Verdigado aliases (e.g. `verdigado-pro`/gpt-oss). The reasoning-surfacing
+ * lane (`verdigado-think`) does NOT use this fetch: `@ai-sdk/openai`'s Chat
+ * Completions schema has no reasoning field and would silently drop the
+ * model's thinking, so that lane bypasses the SDK entirely and parses the raw
+ * SSE `reasoning` field itself (see `regoloReasoningStream.ts`). For the lanes
+ * that DO go through the SDK, thinking is invisible, so we strip it here.
+ *
+ * The proxy ignores `think: false` on think-enabled aliases, so this stays a
+ * harmless no-op for those; it only bites on aliases that still honor the flag.
  */
 export const litellmFetchWithThinkingDisabled: typeof fetch = async (input, init) => {
   if (init?.body && typeof init.body === 'string') {
