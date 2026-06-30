@@ -1,0 +1,66 @@
+name: Docs Freshness Check
+
+# Weekly AI audit of feature/tutorial docs against the current app UI.
+# A Claude agent (read-only) verifies that documented buttons, slash-commands,
+# modal titles and menu labels still match the source code, then files a
+# deduplicated GitHub issue per stale article. Auth uses a Claude Max
+# subscription token (CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`).
+
+on:
+  schedule:
+    - cron: '0 5 * * 5' # Friday 05:00 UTC (~07:00 CEST)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview findings without creating/updating issues'
+        type: boolean
+        default: false
+      doc:
+        description: 'Single doc to check, relative to documentation/docs/ (e.g. gruenerieren/ki-chat.md)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: docs-freshness
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check documentation freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Run docs freshness check
+        id: check
+        continue-on-error: true
+        run: |
+          ARGS=""
+          # Scheduled runs apply issue changes; manual runs apply unless dry_run=true.
+          if [ "${{ inputs.dry_run }}" != "true" ]; then ARGS="$ARGS --apply"; fi
+          if [ -n "${{ inputs.doc }}" ]; then ARGS="$ARGS --doc ${{ inputs.doc }}"; fi
+          echo "Running: pnpm --filter @gruenerator/api run docs:check -- $ARGS"
+          pnpm --filter @gruenerator/api run docs:check -- $ARGS
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCS_CHECK_SUMMARY_PATH: ${{ github.workspace }}/docs-freshness-summary.json
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-freshness-summary
+          path: docs-freshness-summary.json
+          if-no-files-found: ignore
