@@ -14,6 +14,7 @@ export interface RecentGalleryItem {
   shareToken: string;
   title: string;
   thumbnailPath?: string;
+  imageType?: string;
   createdAt: string;
   imageMetadata?: RecentGalleryItemMetadata;
 }
@@ -32,7 +33,7 @@ interface UseRecentGalleryItemsReturn {
   lastFetch: number | null;
 }
 
-const CACHE_KEY = 'recentGalleryItems';
+const CACHE_KEY = 'recentGalleryItems_v2';
 
 export const useRecentGalleryItems = (
   options: UseRecentGalleryItemsOptions = {}
@@ -88,6 +89,7 @@ export const useRecentGalleryItems = (
             shareToken: share.shareToken as string,
             title: share.title as string,
             thumbnailPath: share.thumbnailPath as string | undefined,
+            imageType: share.imageType as string | undefined,
             createdAt: share.createdAt as string,
             imageMetadata: share.imageMetadata as RecentGalleryItemMetadata | undefined,
           })
