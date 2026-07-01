@@ -245,6 +245,8 @@ async function testExpandedContextWindow() {
     summaryContext: null,
     summaryTimeMs: 0,
     chartData: null,
+    computedResult: null,
+    computedResultTimeMs: 0,
     responseText: '',
     streamingStarted: false,
     startTime: Date.now(),
