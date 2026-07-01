@@ -45,7 +45,13 @@ const BASE_URL = 'https://www.abgeordnetenwatch.de/api/v2';
 const COLLECTION = 'abgeordnetenwatch_documents';
 const PAGE = 1000; // API max range_end
 const EMBED_BATCH = 50;
-const FAIR_USE_DELAY_MS = 2100; // ≈28 req/min, under the 30/min fair-use limit
+const USER_AGENT = 'Gruenerator/1.0 (+https://gruenerator.eu)';
+// Fair use: the API limit is 30 req/min per IP. 2200ms between requests ≈ 27/min,
+// leaving headroom for the chat connector (shared server IP) during off-peak runs.
+const FAIR_USE_DELAY_MS = 2200;
+const RATE_LIMIT_COOLDOWN_S = 60; // API asks to wait ~60s after a 429
+const REQUEST_TIMEOUT_MS = 20000;
+const MAX_ATTEMPTS = 5;
 const RECENT_POLL_WINDOW_DAYS = 60;
 const RECENT_SIDEJOB_PAGES = 2;
 
@@ -124,7 +130,13 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     return summary;
   }
 
-  // ── HTTP ────────────────────────────────────────────────────────────────
+  // ── HTTP (fair-use compliant) ─────────────────────────────────────────────
+  // The Abgeordnetenwatch API allows 30 req/min per IP and asks callers to pause
+  // ~60 s on a 429. We deliberately DON'T use BaseScraper.fetchWithRetry here:
+  // its retry cadence (1s/2s/3s, any error) would hammer the API on a 429. This
+  // loop instead (a) paces ≥ delayMs BEFORE every request (incl. retries), so
+  // two requests can never be closer than the fair-use interval, (b) honours
+  // Retry-After / waits ~60 s on 429, and (c) backs off exponentially on 5xx.
   private async apiGet<T>(
     path: string,
     params: Record<string, string | number>
@@ -133,15 +145,42 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
       .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
       .join('&');
     const url = `${BASE_URL}/${path}${query ? `?${query}` : ''}`;
-    const res = await this.fetchWithRetry(url, {
-      timeout: 20000,
-      maxRetries: 3,
-      userAgent: 'Gruenerator/1.0 (+https://gruenerator.eu)',
-      headers: { Accept: 'application/json' },
-    });
-    const json = (await res.json()) as AwEnvelope<T>;
-    await this.delay(); // fair-use pacing
-    return json;
+
+    for (let attempt = 1; ; attempt++) {
+      await this.delay(); // fair-use pacing: applied before EVERY request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+          signal: controller.signal,
+        });
+      } catch (error: unknown) {
+        clearTimeout(timeoutId);
+        if (attempt >= MAX_ATTEMPTS) throw error;
+        await this.delay(2000 * attempt); // network error: exponential backoff
+        continue;
+      }
+      clearTimeout(timeoutId);
+
+      if (res.status === 429) {
+        const retryAfter = Number(res.headers.get('retry-after')) || RATE_LIMIT_COOLDOWN_S;
+        const waitMs = Math.min(retryAfter, 90) * 1000;
+        log.warn(`[abgeordnetenwatch] 429 on ${path} — cooling down ${waitMs}ms (fair use)`);
+        if (attempt >= MAX_ATTEMPTS)
+          throw new Error(`Abgeordnetenwatch rate limit persists on ${path}`);
+        await this.delay(waitMs);
+        continue;
+      }
+      if (res.status >= 500) {
+        if (attempt >= MAX_ATTEMPTS) throw new Error(`Abgeordnetenwatch ${res.status} on ${path}`);
+        await this.delay(2000 * attempt);
+        continue;
+      }
+      if (!res.ok) throw new Error(`Abgeordnetenwatch ${res.status} on ${path}`);
+      return (await res.json()) as AwEnvelope<T>;
+    }
   }
 
   /** Page an endpoint via range_start/range_end. `stop` ends paging early (recent mode). */
