@@ -1,3 +1,4 @@
+/// <reference path="../css.d.ts" />
 // Lazy KaTeX asset loader. A dynamic import is a code-split boundary, so the
 // KaTeX stylesheet + the mhchem extension land in their own async chunk instead
 // of the eager app-boot bundle — fetched once, when the first math expression
