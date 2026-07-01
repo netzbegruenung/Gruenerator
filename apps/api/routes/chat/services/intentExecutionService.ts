@@ -245,7 +245,18 @@ export async function generateAndCreateDocument(opts: {
       });
 
       if (actualThreadId) {
-        await createMessage(actualThreadId, 'assistant', responseText);
+        // Persist the created-document descriptor so the DocumentCreatedCard
+        // rehydrates on thread reload. Without this the card is streamed live
+        // via `document_created` but the reloaded message is bare text.
+        await createMessage(actualThreadId, 'assistant', responseText, {
+          intent,
+          createdDocument: {
+            documentId: newDocId,
+            title: docTitle,
+            subtype: docSubtype,
+            url: `/docs/${newDocId}`,
+          },
+        });
         await touchThread(actualThreadId);
       }
 
