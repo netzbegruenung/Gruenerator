@@ -34,8 +34,13 @@ describe('parseTags', () => {
     expect(parseTags('["ok","x","ja"]')).toEqual(['ok', 'ja']);
   });
 
-  it('falls back to comma/newline splitting when not valid JSON', () => {
-    expect(parseTags('klimaschutz, verkehr\nantrag')).toEqual(['klimaschutz', 'verkehr', 'antrag']);
+  it('returns [] for non-array prose instead of splitting it into garbage tags', () => {
+    expect(parseTags('klimaschutz, verkehr\nantrag')).toEqual([]);
+    expect(parseTags('Hier ein Beispiel ohne Array.')).toEqual([]);
+  });
+
+  it('takes the first valid array when prose also contains an example array', () => {
+    expect(parseTags('z. B. ["beispiel"] — die Tags: ["klima","verkehr"]')).toEqual(['beispiel']);
   });
 
   it('returns an empty array for unparseable garbage', () => {

@@ -16,25 +16,37 @@ export interface UndoableEditor {
   undo: () => void;
   redo: () => void;
   prosemirrorState?: unknown;
-  onChange?: (cb: () => void) => (() => void) | undefined;
+  // BlockNote's onChange returns an Unsubscribe (`() => void`); typed here as a
+  // required return so callers can null-check via optional chaining on onChange.
+  onChange?: (cb: () => void) => () => void;
 }
 
 /**
- * Read the local user's undo/redo availability from y-prosemirror's plugin
- * state — the same per-user stack `Cmd+Z` drives. Pure; safe to call from
- * non-React code (e.g. the mobile DOM bridge) as well as the hook below.
+ * Single access point for the yUndo plugin state — the one place that reaches
+ * into y-prosemirror internals. Returns null when the plugin isn't registered
+ * (non-collaborative editor, or the transient window inside the fork/merge
+ * cycle). Reused by {@link getDocUndoFlags} (reads the stack) and by the
+ * AI-accept flow in reviewDocumentAI (calls addTrackedOrigin on it).
+ */
+export function getDocUndoManager(editor: UndoableEditor | null) {
+  if (!editor) return null;
+  // Boundary cast: y-prosemirror's PluginKey.getState wants a ProseMirror
+  // EditorState we don't re-type across BlockNote's generic editor here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return yUndoPluginKey.getState(editor.prosemirrorState as any)?.undoManager ?? null;
+}
+
+/**
+ * Read the local user's undo/redo availability from y-prosemirror's per-user
+ * undo stack — the same stack `Cmd+Z` drives. Pure; safe to call from non-React
+ * code (e.g. the mobile DOM bridge) as well as the hook below.
  */
 export function getDocUndoFlags(editor: UndoableEditor | null): {
   canUndo: boolean;
   canRedo: boolean;
 } {
-  if (!editor) return { canUndo: false, canRedo: false };
-  // Boundary cast: y-prosemirror's PluginKey.getState wants a ProseMirror
-  // EditorState we don't re-type here. In collab docs the yUndo plugin is
-  // always present; hasUndoOps/hasRedoOps track the local user's own stack.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const state = yUndoPluginKey.getState(editor.prosemirrorState as any);
-  if (!state) {
+  const undoManager = getDocUndoManager(editor);
+  if (!undoManager) {
     // No yUndo plugin state — either a non-collaborative editor (ProseMirror
     // history, whose availability we can't cheaply read) or the brief window
     // where the fork/merge cycle has the plugin unregistered. Treat "unknown"
@@ -44,7 +56,10 @@ export function getDocUndoFlags(editor: UndoableEditor | null): {
     // safe default rather than the common path.
     return { canUndo: false, canRedo: false };
   }
-  return { canUndo: state.hasUndoOps, canRedo: state.hasRedoOps };
+  return {
+    canUndo: undoManager.undoStack.length > 0,
+    canRedo: undoManager.redoStack.length > 0,
+  };
 }
 
 /**

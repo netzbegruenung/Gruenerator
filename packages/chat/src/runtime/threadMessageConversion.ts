@@ -7,6 +7,7 @@
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
+import { coerceSharepicVariants } from '../hooks/useChatGraphStream';
 import type { GeneratedImage, Citation, SearchResult } from '../hooks/useChatGraphStream';
 
 interface PersistedToolCall {
@@ -110,8 +111,11 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
     // vanish when the thread is reloaded (AssistantMessage renders custom.sharepicData).
     const sharepicCall = m.metadata?.toolCalls?.find((tc) => tc.toolName === 'sharepic');
     const sharepicVariants = (sharepicCall?.result as { variants?: unknown } | undefined)?.variants;
-    if (Array.isArray(sharepicVariants) && sharepicVariants.length > 0) {
-      custom.sharepicData = { variants: sharepicVariants };
+    // Validate on reload the same way the live stream does — drop any persisted
+    // variant with a non-canonical canvasType so the studio handoff stays safe.
+    const validSharepicVariants = coerceSharepicVariants(sharepicVariants);
+    if (validSharepicVariants) {
+      custom.sharepicData = { variants: validSharepicVariants };
     }
 
     // Reconstruct reel cards on reload (same mechanism as sharepicData): the

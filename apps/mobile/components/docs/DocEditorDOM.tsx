@@ -261,6 +261,36 @@ interface DocEditorDOMProps {
   dom?: DOMProps;
 }
 
+/**
+ * Subscribe `fn` to editor content changes (and, if `selection`, selection
+ * moves) with a trailing debounce, priming once immediately. Returns a cleanup
+ * that clears the timer and unsubscribes. Shared by the doc-snapshot and
+ * undo/redo effects so the debounce/subscribe boilerplate lives in one place.
+ */
+function subscribeDebouncedEditorChange(
+  editor: {
+    onChange?: (cb: () => void) => (() => void) | void;
+    onSelectionChange?: (cb: () => void) => () => void;
+  },
+  fn: () => void,
+  delayMs: number,
+  options?: { selection?: boolean }
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const emit = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(fn, delayMs);
+  };
+  const unsubChange = editor.onChange?.(emit);
+  const unsubSelection = options?.selection ? editor.onSelectionChange?.(emit) : undefined;
+  emit();
+  return () => {
+    if (timer) clearTimeout(timer);
+    if (typeof unsubChange === 'function') unsubChange();
+    if (unsubSelection) unsubSelection();
+  };
+}
+
 function EditorContent({
   documentId,
   userId,
@@ -410,16 +440,12 @@ function EditorContent({
     const editor = editorRef.current as {
       onChange?: (cb: () => void) => (() => void) | void;
       onSelectionChange?: (cb: () => void) => () => void;
-      document: unknown;
-      blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
-      getSelectedText?: () => string;
     } | null;
     if (!editor || !onDocSnapshotChangeRef.current) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const emit = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+    return subscribeDebouncedEditorChange(
+      editor,
+      () => {
         const ed = editorRef.current as {
           document: unknown;
           blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
@@ -436,18 +462,10 @@ function EditorContent({
           .catch(() => {
             // editor not ready
           });
-      }, 600);
-    };
-
-    const unsubChange = editor.onChange?.(emit);
-    const unsubSelection = editor.onSelectionChange?.(emit);
-    emit();
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      if (typeof unsubChange === 'function') unsubChange();
-      if (unsubSelection) unsubSelection();
-    };
+      },
+      600,
+      { selection: true }
+    );
   }, [isSynced]);
 
   // Push undo/redo availability (BlockNote's per-user collab stack) to native so
@@ -459,22 +477,14 @@ function EditorContent({
     } | null;
     if (!editor || !onUndoRedoStateChangeRef.current) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const emit = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+    return subscribeDebouncedEditorChange(
+      editor,
+      () => {
         const { canUndo, canRedo } = getDocUndoFlags(editorRef.current as UndoableEditor | null);
         onUndoRedoStateChangeRef.current?.(canUndo, canRedo);
-      }, 200);
-    };
-
-    const unsubChange = editor.onChange?.(emit);
-    emit();
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      if (typeof unsubChange === 'function') unsubChange();
-    };
+      },
+      200
+    );
   }, [isSynced]);
 
   // Listen for formatting actions from native

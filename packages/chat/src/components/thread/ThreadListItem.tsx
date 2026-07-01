@@ -1,6 +1,6 @@
 'use client';
 
-import { type MouseEvent, useCallback, useState } from 'react';
+import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
@@ -16,6 +16,7 @@ import {
   getThreadType,
   getNotebookCollectionId,
   getThreadTags,
+  subscribeThreadTags,
 } from '../../runtime/GrueneratorThreadListAdapter';
 import { EditTagsDialog } from './EditTagsDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
@@ -71,7 +72,13 @@ export function GrueneratorThreadListItem() {
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
-  const [tags, setTags] = useState<string[]>(() => getThreadTags(remoteId ?? ''));
+  // Live read from the tags cache: fresh per remoteId (no stale value on item
+  // recycle) and re-renders when list()/edits change the cache.
+  const tags = useSyncExternalStore(
+    subscribeThreadTags,
+    () => getThreadTags(remoteId ?? ''),
+    () => getThreadTags(remoteId ?? '')
+  );
   const ctx = useExternalThread();
   const isPinned = useIsChatPinned(remoteId);
   const togglePin = useCallback(() => {
@@ -205,7 +212,6 @@ export function GrueneratorThreadListItem() {
           initialTags={tags}
           open={tagsOpen}
           onOpenChange={setTagsOpen}
-          onSaved={setTags}
         />
       )}
     </>
