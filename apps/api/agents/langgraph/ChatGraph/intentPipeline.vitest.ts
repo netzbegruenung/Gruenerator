@@ -47,6 +47,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'scrape_url',
   'examples',
   'pressemitteilung_examples',
+  'abgeordnetenwatch',
   'image',
   'image_edit',
   'sharepic',
@@ -303,6 +304,8 @@ describe('every SearchIntent has a handler path', () => {
     examples: 'handled via search branch (intent !== direct)',
     pressemitteilung_examples:
       'handled via search branch — landesverbaende press release templates, same path as examples',
+    abgeordnetenwatch:
+      'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
     summary: 'handled via summary branch in controller',
     chart: 'routes to respond, chart data handled by controller post-response',
     artifact: 'routes to respond, controller extracts HTML/SVG block into an artifact SSE event',
