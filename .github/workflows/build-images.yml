@@ -94,14 +94,32 @@ jobs:
         with:
           fetch-depth: 2
 
+      # Resolve the paths-filter base to a REAL commit SHA. Push builds are
+      # unchanged — they keep using the pre-push SHA (github.event.before). Only
+      # the workflow_dispatch case (the beta rebuild kicked off by
+      # sync-test-branch.yml, where `before` is empty) changes: instead of the
+      # literal `<sha>^` — which paths-filter can't `git fetch` (fatal: invalid
+      # refspec, breaking every dispatch build) — resolve the first parent to a
+      # full SHA locally (present at fetch-depth: 2).
+      - id: diffbase
+        run: |
+          before='${{ github.event.before }}'
+          if [ -n "$before" ]; then
+            # push: identical to before — diff against the pre-push SHA.
+            echo "sha=$before" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_dispatch (beta rebuild): resolve the first parent to a full
+            # SHA instead of the un-fetchable `<sha>^`.
+            echo "sha=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: dorny/paths-filter@v4
         id: filter
         with:
-          # push: diff against the pre-push SHA. workflow_dispatch (e.g. the beta
-          # rebuild kicked off by sync-test-branch.yml): `before` is empty, so diff
-          # against the commit's first parent — for a sync merge that's the whole
-          # incoming master delta, so the right images get built.
-          base: ${{ github.event.before || format('{0}^', github.sha) }}
+          # Real pre-push SHA (push) or first-parent SHA (dispatch) — see diffbase.
+          # For a sync merge the first parent is the previous tip, so the whole
+          # incoming master delta is diffed and the right images get built.
+          base: ${{ steps.diffbase.outputs.sha }}
           filters: |
             shared:
               - 'packages/shared/**'
