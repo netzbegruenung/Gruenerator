@@ -18,7 +18,10 @@ import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 
-import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
+import {
+  deleteThreadAttachmentVectors,
+  getThreadTabularFiles,
+} from './services/attachmentPersistenceService.js';
 import { getThreadSettings, updateThreadSettings } from './services/threadPersistenceService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
@@ -268,6 +271,10 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (existingThreads[0].user_id !== userId) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
+
+      // Drop orphaned Qdrant vectors of embedded attachments BEFORE the CASCADE
+      // removes the rows we read document_ids from. Best-effort (won't throw).
+      await deleteThreadAttachmentVectors(threadId, userId);
 
       await postgres.query(`DELETE FROM chat_threads WHERE id = $1`, [threadId]);
 
