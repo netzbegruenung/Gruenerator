@@ -1,5 +1,12 @@
+import { yUndoPluginKey } from 'y-prosemirror';
+
 import { useEditorStore } from '../stores/editorStore';
 import { getDocAIExtension, isDocAIForked } from './aiExtension';
+
+// BlockNote's editor exposes the live ProseMirror state; y-prosemirror's undo
+// plugin state hangs off it. Loosely typed because BlockNote's editor type is
+// not exported through our AI trust boundary (see aiExtension.ts).
+type EditorWithPmState = { prosemirrorState?: unknown };
 
 /**
  * - 'merged': accepted and (as far as detectable) broadcast to collaborators
@@ -29,6 +36,7 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   const ext = getDocAIExtension(documentId);
   if (!ext) return 'no-extension';
 
+  const editor = useEditorStore.getState().getEditor(documentId);
   const { provider, ydoc } = useEditorStore.getState().getDocContext(documentId) ?? {
     provider: null,
     ydoc: null,
@@ -46,10 +54,32 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   };
   ydoc?.on('update', onUpdate);
 
+  // Make the accepted AI change undoable. ForkYDoc.merge() applies it via
+  // `Y.applyUpdate(doc, update, editor)` — origin = the editor instance — but
+  // BlockNote's yUndo UndoManager only tracks the ySync origin, so AI merges
+  // never enter the undo stack (BlockNote's own comment there is wrong for the
+  // collab case). Yjs fires `beforeTransaction` *before* the UndoManager's
+  // capture decision on `afterTransaction`, so this hook adds the editor as a
+  // tracked origin on the current (post-merge-recreated) UndoManager just in
+  // time for that same transaction to be captured — as one undo step, on this
+  // user's stack only. Scoped to the accept flow; removed in finally.
+  const onBeforeTransaction = (tx: { origin: unknown }) => {
+    if (editor && tx.origin === editor) {
+      const pmState = (editor as EditorWithPmState).prosemirrorState;
+      // Boundary cast: BlockNote does not export its ProseMirror EditorState
+      // type across our AI trust boundary, and `editor` is the loosely-typed
+      // store editor. addTrackedOrigin accepts any origin.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      yUndoPluginKey.getState(pmState as any)?.undoManager?.addTrackedOrigin(editor);
+    }
+  };
+  ydoc?.on('beforeTransaction', onBeforeTransaction);
+
   try {
     ext.acceptChanges();
   } finally {
     ydoc?.off('update', onUpdate);
+    ydoc?.off('beforeTransaction', onBeforeTransaction);
   }
 
   const stillForked = isDocAIForked(documentId);
