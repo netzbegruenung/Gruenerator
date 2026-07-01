@@ -12,6 +12,7 @@ import { useAuiState } from '@assistant-ui/store';
 import { QuoteIcon } from 'lucide-react';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
 import { WelcomeScreen } from './WelcomeScreen';
+import { CompactionIndicator } from './CompactionIndicator';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { GrueneratorComposer } from './GrueneratorComposer';
@@ -124,6 +125,8 @@ export function GrueneratorThread({
                   : {})}
               />
             </ThreadPrimitive.Empty>
+
+            <CompactionIndicator />
 
             <ThreadPrimitive.Messages components={messageComponents} />
 

@@ -13,6 +13,7 @@ interface ApiThread {
   status?: string;
   threadType?: string;
   notebookCollectionId?: string | null;
+  tags?: string[];
   accessType?: 'owner' | 'shared' | 'group';
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ const EXTERNAL_PREFIX = 'notebook:';
 // Module-level thread type cache — populated by list() and accessible by ThreadListItem
 const threadTypeCache = new Map<string, string>();
 const notebookCollectionCache = new Map<string, string>();
+const threadTagsCache = new Map<string, string[]>();
 
 export function getThreadType(remoteId: string): string {
   return threadTypeCache.get(remoteId) || 'chat';
@@ -42,6 +44,16 @@ export function getThreadType(remoteId: string): string {
 
 export function getNotebookCollectionId(remoteId: string): string | null {
   return notebookCollectionCache.get(remoteId) || null;
+}
+
+export function getThreadTags(remoteId: string): string[] {
+  return threadTagsCache.get(remoteId) ?? [];
+}
+
+/** Update the local tags cache after an edit so the sidebar reflects it
+ *  without waiting for the next list() refresh. */
+export function setThreadTagsCache(remoteId: string, tags: string[]): void {
+  threadTagsCache.set(remoteId, tags);
 }
 
 function isExternal(remoteId: string) {
@@ -101,6 +113,7 @@ export function createGrueneratorThreadListAdapter(
           if (t.notebookCollectionId) {
             notebookCollectionCache.set(t.id, t.notebookCollectionId);
           }
+          threadTagsCache.set(t.id, t.tags ?? []);
         }
 
         const apiEntries = cachedThreads.map((t) => {
