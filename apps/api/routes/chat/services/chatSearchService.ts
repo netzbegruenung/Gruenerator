@@ -20,6 +20,8 @@ export interface ChatSearchOptions {
   excludeThreadId?: string;
   startDate?: Date;
   endDate?: Date;
+  /** Filter to threads carrying at least one of these tags. */
+  tags?: string[];
 }
 
 /**
@@ -58,7 +60,7 @@ export async function searchChatHistory(
   query: string,
   options: ChatSearchOptions = {}
 ): Promise<ChatSearchResult[]> {
-  const { threadType, limit = 5, excludeThreadId, startDate, endDate } = options;
+  const { threadType, limit = 5, excludeThreadId, startDate, endDate, tags } = options;
   const db = getPostgresInstance();
 
   const searchPattern = `%${query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
@@ -94,6 +96,14 @@ export async function searchChatHistory(
     paramIdx++;
   }
 
+  let tagsClause = '';
+  if (tags && tags.length > 0) {
+    // jsonb ?| text[] — thread's tags array overlaps any of the requested tags.
+    tagsClause = `AND t.tags ?| $${paramIdx}::text[]`;
+    params.push(tags);
+    paramIdx++;
+  }
+
   params.push(limit * 3); // Fetch extra for dedup (multiple messages per thread)
   const limitParam = `$${paramIdx}`;
 
@@ -120,6 +130,7 @@ export async function searchChatHistory(
     ${excludeClause}
     ${dateFromClause}
     ${dateToClause}
+    ${tagsClause}
     ORDER BY m.created_at DESC
     LIMIT ${limitParam}
   `;
