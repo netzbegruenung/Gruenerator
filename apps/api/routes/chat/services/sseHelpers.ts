@@ -5,6 +5,8 @@
  * Used by chat controllers to provide real-time feedback during AI processing.
  */
 
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
+
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   SearchIntent,
@@ -13,6 +15,8 @@ import type {
   GeneratedImageResult,
   ConfirmActionType,
   ChartData,
+  ArtifactData,
+  ComputeData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   CanvasAiSuggestion,
@@ -66,6 +70,8 @@ export type SSEEventType =
   | 'trigger_board_action'
   | 'confirm_action'
   | 'chart_data'
+  | 'artifact'
+  | 'compute'
   | 'memory_context'
   | 'completion'
   | 'canvas_operations_start'
@@ -208,6 +214,12 @@ export interface SSEEventPayloads {
   chart_data: {
     chart: ChartData;
   };
+  artifact: {
+    artifact: ArtifactData;
+  };
+  compute: {
+    compute: ComputeData;
+  };
   completion: {
     type?: 'completion';
     // Notebook flow emits `answer`; SearchGraph reuses this event with `text`.
@@ -272,6 +284,8 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
+  artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],
+  compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
@@ -339,6 +353,13 @@ export class SSEWriter {
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
     if (this.ended || this.res.writableEnded || this.res.destroyed) return;
+    // Mirror every in-band `error` event to Sentry/GlitchTip. These are written
+    // onto an already-200 stream, so they never throw and are otherwise
+    // invisible to monitoring. Capture only on actual emit (past the writable
+    // guard) so client disconnects don't generate noise.
+    if (event === 'error') {
+      captureSseError({ message: (data as SSEEventPayloads['error']).error });
+    }
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }

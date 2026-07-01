@@ -90,3 +90,49 @@ export const documentCreatedEventSchema = z.object({
   url: z.string(),
 });
 export type DocumentCreatedEvent = z.infer<typeof documentCreatedEventSchema>;
+
+/**
+ * `chart_data` SSE payload — a data visualization the backend `chart` intent
+ * extracts from the response and the frontend renders with Recharts.
+ */
+export const chartPayloadSchema = z.object({
+  type: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
+  title: z.string(),
+  data: z.array(z.record(z.union([z.string(), z.number()]))),
+  xKey: z.string(),
+  yKeys: z.array(z.string()),
+  colors: z.array(z.string()).optional(),
+});
+export type ChartPayload = z.infer<typeof chartPayloadSchema>;
+
+/**
+ * `artifact` SSE payload — a generic renderable HTML/SVG artifact the backend
+ * extracts from the response; the frontend renders it in a sandboxed side panel.
+ * Deliberately limited to HTML/CSS and SVG (no executable React).
+ */
+export const artifactPayloadSchema = z.object({
+  type: z.enum(['html', 'svg']),
+  title: z.string(),
+  content: z.string(),
+});
+export type ArtifactPayload = z.infer<typeof artifactPayloadSchema>;
+
+/**
+ * `compute` SSE payload — the deterministic result of the `compute` intent.
+ * The backend runs the calculation in plain JS (never the LLM), then streams
+ * the verified numbers so the frontend can render a transparent "Berechnung"
+ * card. `entries` is the label/value list shown in the card; `summary` is a
+ * one-line plain-text recap the model is instructed to echo verbatim.
+ */
+export const computeEntrySchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+export const computePayloadSchema = z.object({
+  /** Human-readable operation label, e.g. "Zeichen zählen" or "Berechnung". */
+  operation: z.string(),
+  entries: z.array(computeEntrySchema),
+  summary: z.string(),
+});
+export type ComputeEntry = z.infer<typeof computeEntrySchema>;
+export type ComputePayload = z.infer<typeof computePayloadSchema>;

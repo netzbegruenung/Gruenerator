@@ -1,14 +1,11 @@
 /**
  * ts-rest contract router for /api/chat-service/threads
  *
- * Wraps the same service calls as threadsController.ts using a
- * contract-driven router from @ts-rest/express.
- *
- * Mount this BEFORE the legacy router in routes.ts so ts-rest matches
- * its own routes first; unmatched paths fall through to the legacy router.
- *
- * To activate: in routes.ts, call mountThreadsContractRouter(app) before
- * mounting the legacy threadsController router.
+ * Sole handler for the thread CRUD surface (list/create/update/delete,
+ * per-thread settings, generate-title). Mounted in routes.ts via
+ * mountThreadsContractRouter(app) ahead of the /api/chat-service router.
+ * The former plain-Express threadsController was fully shadowed by this and
+ * has been removed.
  */
 
 import { threadsContract } from '@gruenerator/contracts';
@@ -64,7 +61,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id,
+                t.notebook_collection_id, COALESCE(t.tags, '[]'::jsonb) as tags,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -101,6 +98,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: (row.status as string) || 'regular',
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
+        tags: (row.tags as string[]) ?? [],
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -125,6 +123,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: t.status,
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
+        tags: t.tags,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
@@ -177,7 +176,7 @@ export const threadsContractRouter = s.router(threadsContract, {
   update: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { threadId, title, status } = args.body;
+      const { threadId, title, status, tags } = args.body;
 
       const postgres = getPostgresInstance();
 
@@ -207,6 +206,12 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (status !== undefined) {
         setClauses.push(`status = $${paramIdx}`);
         params.push(status);
+        paramIdx++;
+      }
+
+      if (tags !== undefined) {
+        setClauses.push(`tags = $${paramIdx}::jsonb`);
+        params.push(JSON.stringify(tags));
         paramIdx++;
       }
 
@@ -386,7 +391,9 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       log.info(`[generate-title] Calling generateThreadTitle for ${threadId}`);
 
-      // Fire-and-forget: generates fallback + async AI title
+      // Fire-and-forget: generates fallback + async AI title.
+      // (Auto-tagging is triggered backend-side in persistAssistantResponse so
+      // it covers every flow, not just this client-driven endpoint.)
       generateThreadTitle(
         threadId,
         String(userMsg.content),
@@ -406,7 +413,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
 /**
  * Mount the ts-rest contract router onto an Express app instance.
- * Call this from routes.ts BEFORE mounting the legacy threadsController.
+ * Call this from routes.ts ahead of the /api/chat-service router.
  */
 export function mountThreadsContractRouter(app: Application): void {
   createExpressEndpoints(threadsContract, threadsContractRouter, app, {

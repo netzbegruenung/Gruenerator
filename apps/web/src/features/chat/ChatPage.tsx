@@ -1,4 +1,5 @@
 import {
+  ArtifactPanel,
   ChatOverview,
   type NotebookLink,
   GrueneratorThread,
@@ -215,6 +216,12 @@ function ChatPage() {
         // the user edits subtitle text via chat. Renders null unless a reel
         // is active, so it coexists with the sharepic panel.
         <ReelArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+      )}
+      {!hub && effectiveViewMode === 'thread' && (
+        // Artefakt-Modus: pins a generated HTML/SVG artifact (sandboxed iframe)
+        // while the user iterates via chat. Renders null unless an artifact is
+        // active; opening one closes the sharepic/reel panel (single docked rail).
+        <ArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
       )}
     </div>
   );

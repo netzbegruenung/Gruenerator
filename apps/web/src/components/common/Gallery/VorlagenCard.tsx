@@ -8,10 +8,10 @@ import {
   HiOutlinePhotograph,
 } from 'react-icons/hi';
 import { HiOutlineArrowDownTray } from 'react-icons/hi2';
-import { SiCanva } from 'react-icons/si';
 
 import { getTemplateFormat } from './templateFormat';
 
+import { CanvaLogo } from '@/features/canva/components/CanvaLogo';
 import { cn } from '@/utils/cn';
 
 interface VorlagenCardItem {
@@ -46,7 +46,9 @@ export interface VorlagenCardProps {
 }
 
 const ToolIcon = ({ tool }: { tool: ReturnType<typeof getTemplateFormat>['tool'] }) => {
-  if (tool === 'Canva') return <SiCanva className="size-3.5 shrink-0" aria-hidden="true" />;
+  if (tool === 'Canva') return <CanvaLogo size={14} className="shrink-0" />;
+  if (tool === 'Grünerator')
+    return <HiOutlinePhotograph className="size-3.5 shrink-0" aria-hidden="true" />;
   if (tool === 'Download')
     return <HiOutlineArrowDownTray className="size-3.5 shrink-0" aria-hidden="true" />;
   return <HiOutlineLink className="size-3.5 shrink-0" aria-hidden="true" />;

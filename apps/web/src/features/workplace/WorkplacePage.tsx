@@ -1,4 +1,3 @@
-import { SectionHeader } from '@gruenerator/ui';
 import { Suspense, lazy, memo } from 'react';
 
 import PageContainer from '../../components/common/PageContainer';
@@ -278,13 +277,11 @@ const WorkplacePage = () => {
         </Suspense>
 
         <section className="mb-xl">
-          <SectionHeader title="Weitere Tools" />
           <ToolsSection />
         </section>
 
         {!isAustrian && (
           <section className="mb-xl">
-            <SectionHeader title="Grünerators Favoriten" />
             <FavoritesSection />
           </section>
         )}

@@ -9,6 +9,7 @@
  * - Save conversation to mem0 memory
  */
 
+import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
@@ -204,6 +205,12 @@ export interface PersistParams {
   processedMeta: ProcessedAttachmentMeta[];
   aiWorkerPool: AIWorkerPool;
   requestId: string;
+  /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
+  memoryEnabled: boolean;
+  /** Effective agent that produced this response; persisted so the agent
+   *  avatar/badge rehydrates on thread reload. Null/omitted for the default
+   *  universal chat (no badge). */
+  agentId?: string | null;
 }
 
 /**
@@ -223,6 +230,8 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     processedMeta,
     aiWorkerPool,
     requestId,
+    memoryEnabled,
+    agentId,
   } = params;
 
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
@@ -232,6 +241,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
+      // Only stamp a real agent — the universal default carries no badge, so
+      // reload matches the live stream (which sets agentInfo only for agents).
+      ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       generatedImage: generatedImage
@@ -269,6 +281,12 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
       generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
+      // Auto-tag from the same first exchange. Triggered here (not only via the
+      // client generate-title endpoint) so every flow — web, mobile, resumed —
+      // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
+      generateThreadTags(threadId, userText, fullText).catch((err) =>
+        log.warn('[ChatGraph] Thread tag generation failed:', err)
+      );
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {
@@ -289,6 +307,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             sizeBytes: meta.sizeBytes,
             isImage: meta.isImage,
             extractedText: meta.extractedText,
+            ...(meta.imageData != null && { imageData: meta.imageData }),
           });
         } catch (attachError) {
           log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
@@ -298,7 +317,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     }
 
     const mem0 = getMem0Instance();
-    if (mem0 && lastUserMessage && fullText) {
+    if (mem0 && lastUserMessage && fullText && memoryEnabled) {
       const userText = extractTextContent(lastUserMessage.content);
 
       // Gatekeeper: check if this conversation contains memorizable info

@@ -1,10 +1,16 @@
-import { useCollaboration, useCollaborators, getAuthErrorMessage } from '@gruenerator/collab';
+import {
+  useCollaboration,
+  useCollaborators,
+  useSyncGate,
+  getAuthErrorMessage,
+} from '@gruenerator/collab';
 import {
   DocsProvider,
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
   usePendingDocAI,
+  useDocUndoState,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -40,6 +46,8 @@ import {
   FiChevronDown,
   FiClock,
   FiCloud,
+  FiCornerUpLeft,
+  FiCornerUpRight,
   FiDownload,
   FiMessageCircle,
   FiMessageSquare,
@@ -257,6 +265,10 @@ function EditorContent() {
     guestName: guestIdentity?.guestName,
   });
   const collaborators = useCollaborators(provider);
+  // Gate the editor mount until the initial Yjs sync completes (or times out).
+  // Binding the y-prosemirror view to a not-yet-synced doc crashes with
+  // "nodeSize undefined" when the first server state restructures the doc.
+  const editorReady = useSyncGate(provider, isSynced);
 
   const commentCount = useSyncExternalStore(
     useCallback(
@@ -302,6 +314,10 @@ function EditorContent() {
   // browser back) so they aren't silently lost. In-app route changes are not
   // blocked here — that needs a react-router data router (tracked separately).
   const hasPendingAIChanges = usePendingDocAI(editor);
+  // Discoverable undo/redo over BlockNote's existing per-user collab undo stack
+  // (the same one Cmd+Z drives). Also covers accepted AI changes (see
+  // reviewDocumentAI.ts) and works when no keyboard is present.
+  const { canUndo, canRedo, undo, redo } = useDocUndoState(editor);
   useBeforeUnload(
     useCallback(
       (event: BeforeUnloadEvent) => {
@@ -599,6 +615,29 @@ function EditorContent() {
                 </>
               )}
 
+              {isEditable && (
+                <>
+                  <button
+                    className="glass-btn"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    aria-label="Rückgängig"
+                    title="Rückgängig (Strg+Z)"
+                  >
+                    <FiCornerUpLeft />
+                  </button>
+                  <button
+                    className="glass-btn"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    aria-label="Wiederholen"
+                    title="Wiederholen (Strg+Umschalt+Z)"
+                  >
+                    <FiCornerUpRight />
+                  </button>
+                </>
+              )}
+
               <button
                 className={`glass-btn ${effectivePanel === 'chat' || effectivePanel === 'legacy-chat' ? 'active' : ''}`}
                 onClick={() => togglePanel('chat')}
@@ -767,17 +806,23 @@ function EditorContent() {
               : 'bg-grey-100 dark:bg-grey-900 max-sm:bg-background dark:max-sm:bg-background'
           }`}
         >
-          <MemoizedBlockNoteEditor
-            documentId={id!}
-            initialContent={initialContent}
-            documentSubtype={docData.document_subtype}
-            ydoc={ydoc}
-            provider={provider}
-            isSynced={isSynced}
-            editable={isEditable}
-            commentsPortalTarget={commentsPortalTarget}
-            onEditorReady={handleEditorReady}
-          />
+          {editorReady ? (
+            <MemoizedBlockNoteEditor
+              documentId={id!}
+              initialContent={initialContent}
+              documentSubtype={docData.document_subtype}
+              ydoc={ydoc}
+              provider={provider}
+              isSynced={isSynced}
+              editable={isEditable}
+              commentsPortalTarget={commentsPortalTarget}
+              onEditorReady={handleEditorReady}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
+              Verbinde mit Server...
+            </div>
+          )}
           <div className="sticky bottom-4 z-[150] flex justify-center pointer-events-none [&>*]:pointer-events-auto">
             <DocAiReviewBar documentId={id!} editor={editor} />
           </div>

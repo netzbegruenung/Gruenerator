@@ -41,7 +41,11 @@ export interface SharedMediaRow {
   view_count: number;
   is_library_item: boolean;
   alt_text: string | null;
-  upload_source: 'upload' | 'ai_generated' | 'stock' | 'camera';
+  // Free-text provenance (TEXT column). Allowed values are validated at the HTTP
+  // boundary by mediaUploadSchema (z.enum(UPLOAD_SOURCES)); kept as string here so
+  // the api type doesn't depend on the cross-package literal-union, which resolves
+  // as an `error` type under apps/api's type-aware ESLint (no-unsafe-assignment).
+  upload_source: string;
   original_filename: string | null;
   created_at: Date;
   updated_at: Date;
@@ -128,7 +132,8 @@ export interface UploadMediaFileParams {
   mimeType: string;
   title?: string | null | undefined;
   altText?: string | null | undefined;
-  uploadSource?: 'upload' | 'ai_generated' | 'stock' | 'camera' | undefined;
+  // See SharedMediaRow.upload_source — validated at the HTTP boundary.
+  uploadSource?: string | undefined;
 }
 
 /**
