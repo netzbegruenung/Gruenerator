@@ -1,11 +1,3 @@
-import type { ReactNode } from 'react';
-
-// =============================================================================
-// Error Types
-// =============================================================================
-
-export type ErrorValue = string | Error | { message?: string } | null;
-
 // =============================================================================
 // Content Types
 // =============================================================================
@@ -28,16 +20,8 @@ export interface GeneratedContentObject {
 
 export type GeneratedContent = string | GeneratedContentObject;
 
-export interface ContentMetadata {
-  title?: string;
-  titleSource?: 'extracted' | 'smart' | 'ai';
-  contentType?: string;
-  citations?: unknown[];
-  enrichmentSummary?: Record<string, unknown>;
-}
-
 // =============================================================================
-// Help & Export Types
+// Help Types
 // =============================================================================
 
 export interface HelpContent {
@@ -48,15 +32,6 @@ export interface HelpContent {
   fallbackContent?: string;
   fallbackTips?: string[];
   features?: unknown;
-}
-
-export interface CustomExportOption {
-  id: string;
-  label: string;
-  subtitle?: string;
-  icon?: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
 }
 
 // =============================================================================
