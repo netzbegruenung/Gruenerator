@@ -1,14 +1,6 @@
 import { AIPromptInput, CardGrid, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
-import {
-  ArrowRight,
-  Download,
-  Image as ImageIcon,
-  Share2,
-  Sparkles,
-  Video,
-  type LucideIcon,
-} from 'lucide-react';
+import { Download, Share2 } from 'lucide-react';
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,6 +19,7 @@ import { getSharepicRoute } from '../utils/sharepicRoutes';
 import { IMAGE_STUDIO_CATEGORIES, getTypeConfig, getTypeFromLegacy } from '../utils/typeConfig';
 
 import { Lightbox } from './Lightbox';
+import { buildStudioQuickStarts, QuickStartTiles } from './QuickStartTiles';
 
 const EXAMPLE_PROMPTS = [
   { label: 'Zitat', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
@@ -106,14 +99,6 @@ const PreviewCard = ({
 //     ? thumbnailUrl
 //     : `${API_BASE_URL}/template-previews/${thumbnailUrl}`;
 // }
-
-type QuickStart = {
-  key: string;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  onClick: () => void;
-};
 
 const ImageStudioCategorySelector: React.FC = () => {
   const navigate = useNavigate();
@@ -260,50 +245,18 @@ const ImageStudioCategorySelector: React.FC = () => {
     [promptInput, isGenerating, loadFromAIGeneration, navigate]
   );
 
-  // Quick-start tiles shown when the studio is empty. Routes mirror the section
-  // create handlers below so behaviour stays consistent. AT is a first-class
-  // audience: Austrian users get the external Sharepic generator. The Sharepic
-  // tile is omitted for DE when the canvas creator is gated off, matching the
-  // Sharepics section (which then exposes no create entry either).
-  const sharepicQuickStart: QuickStart | null = isAustrianUser
-    ? {
-        key: 'sharepic',
-        icon: ImageIcon,
-        title: 'Sharepic',
-        description: 'Zitate, Headlines & Infos aus Vorlagen.',
-        onClick: () =>
-          window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer'),
-      }
-    : SHOW_SHAREPIC_STUDIO
-      ? {
-          key: 'sharepic',
-          icon: ImageIcon,
-          title: 'Sharepic',
-          description: 'Zitate, Headlines & Infos aus Vorlagen.',
-          onClick: () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null),
-        }
-      : null;
-
-  const quickStarts: QuickStart[] = [
-    ...(sharepicQuickStart ? [sharepicQuickStart] : []),
-    {
-      key: 'ki',
-      icon: Sparkles,
-      title: 'KI-Bild',
-      description: 'Bilder per Prompt generieren.',
-      onClick: () => {
-        setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-        void navigate('/imagine');
-      },
+  // Quick-start tiles shown when the studio is empty. The builder centralises the
+  // AT/SHOW_SHAREPIC_STUDIO handling; the DE handlers here mirror the section
+  // create handlers below so behaviour stays consistent.
+  const quickStarts = buildStudioQuickStarts({
+    isAustrianUser,
+    onSharepic: () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null),
+    onKiBild: () => {
+      setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
+      void navigate('/imagine');
     },
-    {
-      key: 'reel',
-      icon: Video,
-      title: 'Reel',
-      description: 'Kurze Videos für Social Media.',
-      onClick: () => void navigate('/studio/video'),
-    },
-  ];
+    onReel: () => void navigate('/studio/video'),
+  });
 
   return (
     <PageContainer maxWidth="lg">
@@ -340,40 +293,7 @@ const ImageStudioCategorySelector: React.FC = () => {
           route straight into each creation flow. */}
       {isStudioEmpty && (
         <div className="mx-auto max-w-[760px] pb-2xl pt-md">
-          <div
-            className={`grid gap-4 text-left sm:grid-cols-2 ${
-              quickStarts.length > 2 ? 'md:grid-cols-3' : ''
-            }`}
-          >
-            {quickStarts.map(({ key, icon: Icon, title, description, onClick }) => (
-              <div
-                key={key}
-                role="button"
-                tabIndex={0}
-                onClick={onClick}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onClick();
-                  }
-                }}
-                className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-grey-200 bg-background p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-grey-700 dark:hover:border-grey-600"
-              >
-                <div className="flex size-11 items-center justify-center rounded-lg bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:text-primary-200">
-                  <Icon className="size-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5 text-base font-semibold text-foreground-heading">
-                    {title}
-                    <ArrowRight className="size-3 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 motion-reduce:transition-none" />
-                  </div>
-                  <p className="mt-1 text-sm leading-relaxed text-foreground opacity-70">
-                    {description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <QuickStartTiles items={quickStarts} />
         </div>
       )}
 
