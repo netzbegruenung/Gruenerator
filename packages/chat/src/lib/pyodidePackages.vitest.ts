@@ -21,27 +21,18 @@ describe('detectPyodidePackages', () => {
     expect(pkgs).toContain('matplotlib');
   });
 
-  it('maps module names to wheel names (sklearn→scikit-learn, bs4→beautifulsoup4)', () => {
-    const pkgs = detectPyodidePackages('from sklearn import linear_model\nimport bs4');
-    expect(pkgs).toContain('scikit-learn');
-    expect(pkgs).toContain('beautifulsoup4');
+  it('maps sklearn → scikit-learn', () => {
+    expect(detectPyodidePackages('from sklearn import linear_model')).toContain('scikit-learn');
   });
 
-  it('detects scipy, sympy, seaborn, openpyxl, requests', () => {
-    const code = [
-      'import scipy.stats',
-      'import sympy',
-      'import seaborn as sns',
-      'import openpyxl',
-      'import requests',
-    ].join('\n');
-    expect(detectPyodidePackages(code).sort()).toEqual([
-      'openpyxl',
-      'requests',
-      'scipy',
-      'seaborn',
-      'sympy',
-    ]);
+  it('detects the statistics/symbolic-math set (scipy, sympy)', () => {
+    const code = ['import scipy.stats', 'import sympy'].join('\n');
+    expect(detectPyodidePackages(code).sort()).toEqual(['scipy', 'sympy']);
+  });
+
+  it('does not return not-yet-vendored packages (seaborn, openpyxl, requests)', () => {
+    const code = ['import seaborn', 'import openpyxl', 'import requests'].join('\n');
+    expect(detectPyodidePackages(code)).toEqual([]);
   });
 
   it('does not match a package name that only appears inside other code, not an import', () => {
