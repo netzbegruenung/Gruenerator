@@ -18,7 +18,12 @@ import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
-import { saveThreadAttachment } from './attachmentPersistenceService.js';
+import {
+  embedThreadAttachmentForRag,
+  RAG_ATTACHMENT_THRESHOLD_CHARS,
+  saveThreadAttachment,
+} from './attachmentPersistenceService.js';
+import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
@@ -298,7 +303,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     if (processedMeta.length > 0) {
       for (const meta of processedMeta) {
         try {
-          await saveThreadAttachment({
+          const attachmentId = await saveThreadAttachment({
             threadId,
             messageId: null,
             userId,
@@ -308,7 +313,28 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             isImage: meta.isImage,
             extractedText: meta.extractedText,
             ...(meta.imageData != null && { imageData: meta.imageData }),
+            ...(meta.fileData != null && { fileData: meta.fileData }),
           });
+
+          // Large prose documents (not images, not tabular) get chunked+embedded
+          // in the background so follow-up turns retrieve them via RAG instead of
+          // re-injecting truncated full text. Small docs stay full-context.
+          const isTabular = isTabularAttachment(meta.name, meta.mimeType);
+          if (
+            !meta.isImage &&
+            !isTabular &&
+            meta.extractedText &&
+            meta.extractedText.length > RAG_ATTACHMENT_THRESHOLD_CHARS
+          ) {
+            embedThreadAttachmentForRag({
+              attachmentId,
+              userId,
+              name: meta.name,
+              extractedText: meta.extractedText,
+            }).catch((err) => {
+              reportBackgroundError(err, { job: 'attachment-rag-embed', attachmentId });
+            });
+          }
         } catch (attachError) {
           log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
         }
