@@ -762,11 +762,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 3b': Extract generic artifact (HTML/SVG) from response ===
-      // Runs for every intent (auto-detect) as well as the explicit `artifact`
-      // intent — the model emits a ```html/```svg block either way. Skip when a
-      // chart was the point (charts use their own ```chart fence).
+      // Explicit `artifact` intent → surface any valid block. Any other intent
+      // → auto-detect, but only a *complete* HTML/SVG document (not an
+      // illustrative snippet), so a normal answer with an example ```html block
+      // doesn't spuriously dock a panel. Skip `chart` (own ```chart fence).
       if (finalState.intent !== 'chart') {
-        const artifact = extractArtifactFromResponse(fullText);
+        const artifact = extractArtifactFromResponse(fullText, {
+          isArtifactIntent: finalState.intent === 'artifact',
+        });
         if (artifact) {
           sse.send('artifact', { artifact });
           log.info(
