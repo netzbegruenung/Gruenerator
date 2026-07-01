@@ -8,7 +8,7 @@ import {
   SELECTABLE_CARD_ACTIVE,
   SELECTABLE_CARD_WITH_LABEL,
   SIDEBAR_SECTION,
-} from '../../primitives';
+} from '../../sidebarStyles';
 
 import type { ColorScheme } from '../../../utils/dreizeilenLayout';
 
