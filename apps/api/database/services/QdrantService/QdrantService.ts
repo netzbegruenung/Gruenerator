@@ -115,6 +115,7 @@ export class QdrantService {
     gruene_de_documents: 'gruene_de_documents',
     gruene_at_documents: 'gruene_at_documents',
     landesverbaende_documents: 'landesverbaende_documents',
+    abgeordnetenwatch_documents: 'abgeordnetenwatch_documents',
   };
 
   constructor() {

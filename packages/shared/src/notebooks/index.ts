@@ -43,6 +43,7 @@ export type NotebookId =
   | 'oesterreich-notebook'
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
+  | 'abgeordnetenwatch-notebook'
   | 'boell-stiftung-notebook';
 
 export interface NotebookDefinition {
@@ -371,6 +372,24 @@ export const NOTEBOOK_REGISTRY = [
       description: 'Onlinemagazin der Grünen',
       avatar: '📰',
       backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'abgeordnetenwatch-notebook',
+    title: 'Abgeordnetenwatch',
+    description:
+      'Durchsuchbar sind namentliche Abstimmungen (mit dem Votum der Grünen-Fraktion) und Nebentätigkeiten von Abgeordneten – auf Basis der offenen Daten von Abgeordnetenwatch.',
+    meta: 'Transparenz',
+    tags: ['Abstimmungen', 'Nebentätigkeiten', 'Transparenz', 'Bundestag'],
+    order: 7,
+    category: 'weitere',
+    audience: 'de-DE',
+    mention: {
+      alias: 'transparenz',
+      title: 'Abgeordnetenwatch',
+      description: 'Abstimmungen & Nebentätigkeiten von Abgeordneten',
+      avatar: '🗳️',
+      backgroundColor: '#4B5563',
     },
   },
   {
