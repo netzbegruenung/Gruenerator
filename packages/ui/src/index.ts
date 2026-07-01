@@ -203,6 +203,7 @@ export {
   ChartStyle,
   type ChartConfig,
 } from './components/chart';
+export { ChatChart, type ChatChartData } from './components/ChatChart';
 export { LoadingSection } from './components/loading-section';
 export { ArticleCard, type ArticleCardProps } from './components/article-card';
 export { CollapsibleSection, type CollapsibleSectionProps } from './components/collapsible-section';
