@@ -10,6 +10,7 @@ import {
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
   usePendingDocAI,
+  useDocUndoState,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -45,6 +46,8 @@ import {
   FiChevronDown,
   FiClock,
   FiCloud,
+  FiCornerUpLeft,
+  FiCornerUpRight,
   FiDownload,
   FiMessageCircle,
   FiMessageSquare,
@@ -311,6 +314,10 @@ function EditorContent() {
   // browser back) so they aren't silently lost. In-app route changes are not
   // blocked here — that needs a react-router data router (tracked separately).
   const hasPendingAIChanges = usePendingDocAI(editor);
+  // Discoverable undo/redo over BlockNote's existing per-user collab undo stack
+  // (the same one Cmd+Z drives). Also covers accepted AI changes (see
+  // reviewDocumentAI.ts) and works when no keyboard is present.
+  const { canUndo, canRedo, undo, redo } = useDocUndoState(editor);
   useBeforeUnload(
     useCallback(
       (event: BeforeUnloadEvent) => {
@@ -605,6 +612,29 @@ function EditorContent() {
                       <AvatarGroupCount>+{collaborators.length - 5}</AvatarGroupCount>
                     )}
                   </AvatarGroup>
+                </>
+              )}
+
+              {isEditable && (
+                <>
+                  <button
+                    className="glass-btn"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    aria-label="Rückgängig"
+                    title="Rückgängig (Strg+Z)"
+                  >
+                    <FiCornerUpLeft />
+                  </button>
+                  <button
+                    className="glass-btn"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    aria-label="Wiederholen"
+                    title="Wiederholen (Strg+Umschalt+Z)"
+                  >
+                    <FiCornerUpRight />
+                  </button>
                 </>
               )}
 
