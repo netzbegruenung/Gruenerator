@@ -58,7 +58,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.16",
