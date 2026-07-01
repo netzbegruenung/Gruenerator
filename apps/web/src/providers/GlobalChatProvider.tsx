@@ -175,7 +175,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           console.error('[GlobalChatProvider] Failed to persist sharepic handoff:', err);
         }
         window.open(
-          `/studio/vorlagen/${variant.canvasType}?handoff=${handoffId}`,
+          `/studio/templates/${variant.canvasType}?handoff=${handoffId}`,
           '_blank',
           'noopener,noreferrer'
         );

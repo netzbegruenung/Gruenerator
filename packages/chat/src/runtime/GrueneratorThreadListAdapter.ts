@@ -13,6 +13,7 @@ interface ApiThread {
   status?: string;
   threadType?: string;
   notebookCollectionId?: string | null;
+  tags?: string[];
   accessType?: 'owner' | 'shared' | 'group';
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ const EXTERNAL_PREFIX = 'notebook:';
 // Module-level thread type cache — populated by list() and accessible by ThreadListItem
 const threadTypeCache = new Map<string, string>();
 const notebookCollectionCache = new Map<string, string>();
+const threadTagsCache = new Map<string, string[]>();
 
 export function getThreadType(remoteId: string): string {
   return threadTypeCache.get(remoteId) || 'chat';
@@ -42,6 +44,43 @@ export function getThreadType(remoteId: string): string {
 
 export function getNotebookCollectionId(remoteId: string): string | null {
   return notebookCollectionCache.get(remoteId) || null;
+}
+
+const EMPTY_TAGS: readonly string[] = [];
+
+export function getThreadTags(remoteId: string): string[] {
+  return (threadTagsCache.get(remoteId) ?? EMPTY_TAGS) as string[];
+}
+
+// Subscribers (ThreadListItem via useSyncExternalStore) re-render when a
+// thread's tags change — either from a list() refresh or an inline edit. This
+// keeps pills fresh without a per-item useState that would freeze the value at
+// mount and show a recycled item's stale tags.
+const tagListeners = new Set<() => void>();
+
+export function subscribeThreadTags(cb: () => void): () => void {
+  tagListeners.add(cb);
+  return () => tagListeners.delete(cb);
+}
+
+function sameTags(a: readonly string[] | undefined, b: readonly string[]): boolean {
+  if (!a || a.length !== b.length) return false;
+  return a.every((t, i) => t === b[i]);
+}
+
+/** Write tags into the cache and notify subscribers only when they changed,
+ *  so a no-op list() refresh doesn't churn re-renders. Preserves the array
+ *  reference on equality so useSyncExternalStore snapshots stay stable. */
+function updateThreadTagsCache(remoteId: string, tags: string[]): void {
+  if (sameTags(threadTagsCache.get(remoteId), tags)) return;
+  threadTagsCache.set(remoteId, tags);
+  tagListeners.forEach((l) => l());
+}
+
+/** Update the local tags cache after an edit so the sidebar reflects it
+ *  without waiting for the next list() refresh. */
+export function setThreadTagsCache(remoteId: string, tags: string[]): void {
+  updateThreadTagsCache(remoteId, tags);
 }
 
 function isExternal(remoteId: string) {
@@ -101,6 +140,7 @@ export function createGrueneratorThreadListAdapter(
           if (t.notebookCollectionId) {
             notebookCollectionCache.set(t.id, t.notebookCollectionId);
           }
+          updateThreadTagsCache(t.id, t.tags ?? []);
         }
 
         const apiEntries = cachedThreads.map((t) => {
