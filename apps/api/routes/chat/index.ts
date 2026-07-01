@@ -19,11 +19,12 @@ import notebookStreamRouter from './notebookStreamController.js';
 import promptGeneratorRouter from './promptGeneratorController.js';
 import searchRouter from './searchController.js';
 import summarizeRouter from './summarizeController.js';
-import threadsRouter from './threadsController.js';
 
 const router = express.Router();
 
-router.use('/threads', threadsRouter);
+// NOTE: /threads is served by the ts-rest threadsContractRouter, mounted ahead
+// of this router in routes.ts. The former legacy threadsController was fully
+// shadowed by it and has been removed.
 router.use('/messages', messagesRouter);
 router.use('/notebook/stream', notebookStreamRouter);
 router.use('/summarize', summarizeRouter);

@@ -7,12 +7,17 @@ import {
   useThreadListItem,
   useAui,
 } from '@assistant-ui/react';
-import { MoreVertical, Pencil, Archive, Trash2, Share2, Pin, PinOff } from 'lucide-react';
+import { MoreVertical, Pencil, Archive, Trash2, Share2, Pin, PinOff, Tag } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
-import { getThreadType, getNotebookCollectionId } from '../../runtime/GrueneratorThreadListAdapter';
+import {
+  getThreadType,
+  getNotebookCollectionId,
+  getThreadTags,
+} from '../../runtime/GrueneratorThreadListAdapter';
+import { EditTagsDialog } from './EditTagsDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
@@ -65,6 +70,8 @@ export function GrueneratorThreadListItem() {
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tags, setTags] = useState<string[]>(() => getThreadTags(remoteId ?? ''));
   const ctx = useExternalThread();
   const isPinned = useIsChatPinned(remoteId);
   const togglePin = useCallback(() => {
@@ -117,6 +124,18 @@ export function GrueneratorThreadListItem() {
             <p className="truncate text-sm">
               <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
             </p>
+            {tags.length > 0 && (
+              <div className="mt-0.5 flex flex-wrap gap-1 overflow-hidden">
+                {tags.slice(0, 3).map((tag) => (
+                  <span
+                    key={tag}
+                    className="max-w-full truncate rounded bg-secondary-100 px-1.5 py-0.5 text-[10px] leading-tight text-foreground-muted dark:bg-secondary-800/60"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </ThreadListItemPrimitive.Trigger>
 
@@ -138,6 +157,13 @@ export function GrueneratorThreadListItem() {
             <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
               <Pencil className="h-3.5 w-3.5" />
               Umbenennen
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemMorePrimitive.Item
+              onClick={() => setTagsOpen(true)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <Tag className="h-3.5 w-3.5" />
+              Tags bearbeiten
             </ThreadListItemMorePrimitive.Item>
             <ThreadListItemMorePrimitive.Item
               onClick={() => setShareOpen(true)}
@@ -170,6 +196,16 @@ export function GrueneratorThreadListItem() {
           threadId={remoteId ?? null}
           open={shareOpen}
           onOpenChange={setShareOpen}
+        />
+      )}
+
+      {tagsOpen && (
+        <EditTagsDialog
+          threadId={remoteId ?? null}
+          initialTags={tags}
+          open={tagsOpen}
+          onOpenChange={setTagsOpen}
+          onSaved={setTags}
         />
       )}
     </>
