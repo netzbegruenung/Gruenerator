@@ -20,11 +20,12 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, copyFile, writeFile, access } from 'node:fs/promises';
 
 // Packages the in-browser code interpreter is allowed to use. Their transitive
-// deps are resolved automatically from the lockfile — keep this list minimal.
+// deps are resolved automatically from the lockfile — keep in sync with the
+// detection map in packages/chat/src/lib/pyodidePackages.ts.
 // NOTE: only packages bundled in pyodide-lock.json can be vendored offline.
-// openpyxl (Excel) is NOT bundled in this Pyodide version — would need micropip
-// + network, so Excel is deferred; CSV is the supported format for now.
-const PACKAGES = ['pandas', 'matplotlib'];
+// seaborn + openpyxl (Excel) are NOT in this Pyodide version's lock — they need
+// micropip/PyPI-wheel injection, deferred to a dedicated change.
+const PACKAGES = ['pandas', 'matplotlib', 'scipy', 'sympy', 'scikit-learn'];
 
 // Core files loadPyodide() fetches from indexURL at runtime (the JS loader
 // itself is bundled into the worker from the npm package, so it's not copied).
