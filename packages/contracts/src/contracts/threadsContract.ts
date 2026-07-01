@@ -1,7 +1,7 @@
 /**
  * ts-rest contract for /api/chat-service/threads
  *
- * Covers the full CRUD surface of threadsController.ts.
+ * Covers the full CRUD surface served by threadsContractRouter.ts.
  * All authenticated — the backend enforces auth; the contract just models shape.
  */
 import { initContract } from '@ts-rest/core';
