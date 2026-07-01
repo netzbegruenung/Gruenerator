@@ -22,6 +22,28 @@ const ocrService = new OCRService();
 
 export const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+/** Max raw bytes of a tabular file we persist for reload-rehydration (~2 MB).
+ *  Larger sheets keep full-text context but no reload-compute (avoids row bloat). */
+const MAX_TABULAR_BYTES_PERSISTED = 2 * 1024 * 1024;
+
+/**
+ * Detect a tabular attachment (CSV/Excel/ODS) by name or MIME type. Mirrors the
+ * frontend `isTabularFile` in `@gruenerator/chat` spreadsheetSetup — kept in sync
+ * so the backend can steer the model toward the in-browser pandas interpreter
+ * whenever the composer has bridged a spreadsheet into the `df` session store.
+ */
+export function isTabularAttachment(name: string, mimeType: string): boolean {
+  const lower = name.toLowerCase();
+  return (
+    mimeType === 'text/csv' ||
+    lower.endsWith('.csv') ||
+    lower.endsWith('.xlsx') ||
+    lower.endsWith('.xls') ||
+    mimeType.includes('spreadsheetml.sheet') ||
+    mimeType.includes('ms-excel')
+  );
+}
+
 export interface ProcessedAttachmentMeta {
   name: string;
   mimeType: string;
@@ -31,6 +53,9 @@ export interface ProcessedAttachmentMeta {
   /** Base64 image bytes, set for images only — used to generate a persistent
    *  vision description (summary) for multi-turn image memory. */
   imageData?: string;
+  /** Base64 raw bytes, set for tabular files (CSV/Excel/ODS) only — persisted so
+   *  the in-browser pandas interpreter can be rehydrated after a thread reload. */
+  fileData?: string;
 }
 
 /**
@@ -69,6 +94,16 @@ export async function processAttachments(
       });
       log.info(`[${requestId}] Added image attachment: ${attachment.name}`);
     } else {
+      // Keep the raw bytes of tabular files so the pandas interpreter survives a
+      // reload (rehydrated server-side). Non-tabular docs only need their text.
+      // Cap the stored bytes so a huge sheet can't bloat the row — larger files
+      // still get full-text context, just no reload-compute.
+      const rawBytes = Math.floor((attachment.data.length * 3) / 4);
+      const tabularData =
+        isTabularAttachment(attachment.name, attachment.type) &&
+        rawBytes <= MAX_TABULAR_BYTES_PERSISTED
+          ? attachment.data
+          : undefined;
       try {
         const result = await ocrService.extractTextFromBase64(
           attachment.data,
@@ -84,6 +119,7 @@ export async function processAttachments(
             sizeBytes: attachment.size,
             isImage: false,
             extractedText: result.text,
+            ...(tabularData != null && { fileData: tabularData }),
           });
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
         }
@@ -96,6 +132,7 @@ export async function processAttachments(
           sizeBytes: attachment.size,
           isImage: false,
           extractedText: null,
+          ...(tabularData != null && { fileData: tabularData }),
         });
       }
     }

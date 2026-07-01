@@ -87,3 +87,15 @@ export const errorResponseSchema = z.object({
 export const successResponseSchema = z.object({
   success: z.literal(true),
 });
+
+/** Raw bytes (base64) of a thread's tabular attachments, used to rehydrate the
+ *  in-browser pandas interpreter after a reload. */
+export const tabularFileSchema = z.object({
+  name: z.string(),
+  mimeType: z.string(),
+  data: z.string(),
+});
+
+export const tabularFilesResponseSchema = z.object({
+  files: z.array(tabularFileSchema),
+});

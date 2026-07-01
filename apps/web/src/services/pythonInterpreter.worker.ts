@@ -7,7 +7,7 @@
  * Protocol: main thread posts { id, code, files }; worker replies
  * { id, progress } (zero or more) then exactly one { id, result }.
  */
-import { buildFileSetup, detectPyodidePackages, isXlsx } from '@gruenerator/chat/pyodide';
+import { buildFileSetup, detectPyodidePackages, isXls, isXlsx } from '@gruenerator/chat/pyodide';
 import { loadPyodide } from 'pyodide';
 
 import type { CodeExecutionResult, PythonFile } from '@gruenerator/chat/stores';
@@ -43,21 +43,32 @@ function getPyodide(onProgress: (msg: string) => void): Promise<PyRuntime> {
   return pyodidePromise;
 }
 
-// openpyxl + et_xmlfile aren't in pyodide-lock.json, so they can't be
+// The spreadsheet engines aren't in pyodide-lock.json, so they can't be
 // loadPackage()-ed. They are vendored as pure-Python wheels under /pyodide/
 // (see setup-pyodide.mjs) and installed once per worker via micropip, deps
 // disabled so nothing is fetched from PyPI — the offline guarantee holds.
-let excelInstalled = false;
-async function ensureExcelSupport(py: PyRuntime, onProgress: (msg: string) => void): Promise<void> {
-  if (excelInstalled) return;
-  onProgress('Excel-Unterstützung wird geladen …');
+// Each engine is installed only when a file of its format is present:
+//   .xlsx → openpyxl (+ et_xmlfile) · .xls → xlrd
+const WHEELS_BY_ENGINE = {
+  xlsx: [
+    '/pyodide/et_xmlfile-2.0.0-py3-none-any.whl',
+    '/pyodide/openpyxl-3.1.5-py2.py3-none-any.whl',
+  ],
+  xls: ['/pyodide/xlrd-2.0.2-py2.py3-none-any.whl'],
+} as const;
+const installedEngines = new Set<keyof typeof WHEELS_BY_ENGINE>();
+
+async function ensureSpreadsheetEngine(
+  py: PyRuntime,
+  engine: keyof typeof WHEELS_BY_ENGINE,
+  onProgress: (msg: string) => void
+): Promise<void> {
+  if (installedEngines.has(engine)) return;
+  onProgress('Tabellen-Unterstützung wird geladen …');
   await py.loadPackage(['micropip']);
-  await py.runPythonAsync(
-    "import micropip\n" +
-      "await micropip.install(['/pyodide/et_xmlfile-2.0.0-py3-none-any.whl'," +
-      "'/pyodide/openpyxl-3.1.5-py2.py3-none-any.whl'], deps=False)"
-  );
-  excelInstalled = true;
+  const wheels = WHEELS_BY_ENGINE[engine].map((w) => `'${w}'`).join(',');
+  await py.runPythonAsync(`import micropip\nawait micropip.install([${wheels}], deps=False)`);
+  installedEngines.add(engine);
 }
 
 // Runs setup + user code in a shared namespace, then serialises every open
@@ -109,10 +120,14 @@ self.onmessage = async (event: MessageEvent<RunMessage>) => {
       await py.loadPackage(packages);
     }
 
-    // openpyxl is loadPackage-incompatible → install via micropip only when an
-    // .xlsx is present, before the harness runs `pd.read_excel`.
+    // Spreadsheet engines are loadPackage-incompatible → install via micropip
+    // only for the formats actually present, before the harness runs read_excel.
+    const onProg = (message: string) => post({ progress: message });
     if (files?.some((f) => isXlsx(f.name, f.mimeType))) {
-      await ensureExcelSupport(py, (message) => post({ progress: message }));
+      await ensureSpreadsheetEngine(py, 'xlsx', onProg);
+    }
+    if (files?.some((f) => isXls(f.name, f.mimeType))) {
+      await ensureSpreadsheetEngine(py, 'xls', onProg);
     }
 
     stdout = '';

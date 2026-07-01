@@ -3,4 +3,4 @@
 // Lives at `src/pyodide/` so both the Vite source alias (@gruenerator/chat/* →
 // src/*) and the package `exports` map resolve it.
 export { detectPyodidePackages } from '../lib/pyodidePackages';
-export { buildFileSetup, isXlsx } from '../lib/spreadsheetSetup';
+export { buildFileSetup, isXlsx, isXls } from '../lib/spreadsheetSetup';
