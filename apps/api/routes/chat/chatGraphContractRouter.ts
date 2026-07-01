@@ -866,6 +866,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         aiWorkerPool,
         requestId,
         memoryEnabled,
+        ...(agentId != null && { agentId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===
