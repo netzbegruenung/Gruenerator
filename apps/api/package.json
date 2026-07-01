@@ -52,6 +52,7 @@
   "dependencies": {
     "@ai-sdk/mistral": "^3.0.38",
     "@ai-sdk/openai": "^3.0.70",
+    "@anthropic-ai/sdk": "^0.109.0",
     "@better-auth/drizzle-adapter": "^1.6.16",
     "@blocknote/xl-ai": "^0.51.4",
     "@gruenerator/contracts": "workspace:*",
@@ -81,7 +82,6 @@
     "blurhash": "^2.0.5",
     "cheerio": "^1.2.0",
     "compression": "^1.8.1",
-    "cookie": "^1.1.1",
     "cors": "^2.8.6",
     "crawlee": "^3.17.0",
     "docx": "9.6.1",
