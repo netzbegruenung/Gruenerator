@@ -574,10 +574,10 @@ Zusammenfassung: ${computedResult.summary}
 /**
  * Steer the model to compute over an attached spreadsheet with the in-browser
  * pandas interpreter instead of doing arithmetic in its head. When the composer
- * bridges a CSV/Excel/ODS file it is pre-loaded as a pandas DataFrame `df`, and
- * a ```python block gets a one-click "Ausführen" button (ChatCodeBlock). Without
- * this nudge the model answers aggregation questions with prose ("erstelle eine
- * Pivot-Tabelle") or unreliable mental math — the exact failure this fixes.
+ * bridges a CSV/Excel/ODS file it is pre-loaded as a pandas DataFrame `df`. The
+ * client auto-runs the emitted block and shows the result — so the model must
+ * emit a properly language-tagged ```python block and must NOT tell the user to
+ * click "Run" or apologise that it can't execute (both were happening).
  */
 function formatTabularComputeGuidance(state: ChatGraphState): string {
   if (!state.hasTabularAttachment) return '';
@@ -585,13 +585,14 @@ function formatTabularComputeGuidance(state: ChatGraphState): string {
 
 ## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
 
-Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext).
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
 
 Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
-- Gib einen ausführbaren \`\`\`python-Block aus, der auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt.
+- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
 - Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
 - Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
-- Schreibe 1–2 Sätze Kontext vor den Block; die*der Nutzer*in führt ihn mit einem Klick aus und sieht das Ergebnis.`;
+- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
 }
 
 /**
