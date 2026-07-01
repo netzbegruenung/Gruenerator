@@ -1,4 +1,5 @@
 import Markdown from '../../../components/common/Markdown/Markdown';
+import { getSpeakerLabel } from '../utils/formatTranscript';
 
 import type { TranscriptionSegment } from '../hooks/useTranscription';
 
@@ -21,13 +22,6 @@ const SPEAKER_COLORS = [
 
 function getSpeakerColor(index: number): string {
   return SPEAKER_COLORS[index % SPEAKER_COLORS.length];
-}
-
-function getSpeakerLabel(id: string, speakerMap?: Record<string, string>): string {
-  if (speakerMap?.[id]) return speakerMap[id];
-  const match = id.match(/speaker_(\d+)/);
-  if (!match) return id;
-  return `Sprecher*in ${parseInt(match[1]) + 1}`;
 }
 
 interface TranscriptionResultProps {

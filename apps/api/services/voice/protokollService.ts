@@ -39,6 +39,14 @@ function getProtokollModel() {
   throw new Error('Kein AI-Provider konfiguriert');
 }
 
+// Speaker identification runs on long, diarized transcripts — Mistral Medium (long
+// context) handles the full text without truncation. Falls back to the generic
+// protokoll model only if Mistral is unconfigured (diarization itself requires it).
+function getSpeakerModel() {
+  if (isProviderConfigured('mistral')) return getModel('mistral');
+  return getProtokollModel();
+}
+
 export async function identifySpeakers(diarizedText: string): Promise<Record<string, string>> {
   const speakerIds = [...new Set(diarizedText.match(/\[speaker_\d+\]/g) || [])].map((s) =>
     s.slice(1, -1)
@@ -48,14 +56,14 @@ export async function identifySpeakers(diarizedText: string): Promise<Record<str
   log.debug('[Protokoll] Identifying speakers:', speakerIds);
 
   const result = await generateText({
-    model: getProtokollModel(),
+    model: getSpeakerModel(),
     system: `Du analysierst Transkriptionen mit Sprecher*innen-Markierungen und identifizierst die Namen der Sprecher*innen anhand von Kontexthinweisen im Text (z.B. "Herr X", "Frau Y", direkte Ansprachen, Namensnennung).
 
 Antworte NUR mit einem JSON-Objekt, das Speaker-IDs auf Namen abbildet. Wenn du einen Namen nicht sicher zuordnen kannst, verwende eine beschreibende Rolle (z.B. "Moderator*in", "Interviewer*in").
 
 Beispiel-Antwort:
 {"speaker_0": "Markus Lanz", "speaker_1": "Eva Dunz", "speaker_2": "Roderich Kiesewetter"}`,
-    prompt: `Identifiziere die Sprecher*innen in dieser Transkription:\n\n${diarizedText.slice(0, 6000)}\n\nSpeaker-IDs: ${speakerIds.join(', ')}\n\nAntwort als JSON:`,
+    prompt: `Identifiziere die Sprecher*innen in dieser Transkription:\n\n${diarizedText}\n\nSpeaker-IDs: ${speakerIds.join(', ')}\n\nAntwort als JSON:`,
     temperature: 0.1,
     maxOutputTokens: 500,
   });
