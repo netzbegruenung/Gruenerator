@@ -51,6 +51,7 @@ export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
   'sachsen-anhalt-notebook': ['sachsen-anhalt'],
   'hessen-notebook': ['hessen'],
   'kommunalwiki-notebook': ['kommunalwiki'],
+  'abgeordnetenwatch-notebook': ['abgeordnetenwatch'],
   'boell-stiftung-notebook': ['boell-stiftung'],
   'gruenblog-notebook': ['gruenblog'],
   'ricarda-lang-notebook': ['ricarda-lang-tweets'],
