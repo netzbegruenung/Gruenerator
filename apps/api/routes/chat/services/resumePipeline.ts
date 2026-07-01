@@ -30,6 +30,7 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './responseStreamingService.js';
+import { resolveResumeInput } from './resumeInput.js';
 import {
   type createSSEStream,
   getIntentMessage,
@@ -60,7 +61,17 @@ export async function runChatGraphResume({
   log.info('[chatGraphContract] resume handler entered, request_id=%s', _requestId);
 
   try {
-    const { threadId, resume: userAnswer } = body;
+    const { threadId } = body;
+    const resumeInput = resolveResumeInput(body);
+    if (!resumeInput) {
+      return sseFail(sse, 'Ungültige Resume-Anfrage.');
+    }
+    // Client-tool resume (e.g. run_python) is wired in a follow-up step; until
+    // then only the ask_human clarification path is handled here.
+    if (resumeInput.kind !== 'ask_human') {
+      return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.');
+    }
+    const userAnswer = resumeInput.answer;
 
     const user = getUser(req);
     if (!user?.id) {
