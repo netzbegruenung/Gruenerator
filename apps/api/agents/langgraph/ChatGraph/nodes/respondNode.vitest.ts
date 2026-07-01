@@ -100,10 +100,12 @@ function makeComputeResult(overrides: Partial<ComputeData> = {}): ComputeData {
 }
 
 describe('getModeGuidance for compute intent', () => {
-  it('when a result exists: tells the model to present it and NEVER ask the user for it', () => {
+  it('when a result exists: tells the model to answer conversationally and NEVER ask the user for it', () => {
     const out = getModeGuidance(
       makeState({ intent: 'compute', computedResult: makeComputeResult() })
     );
+    // The prose is the real answer, not a stub next to the card.
+    expect(out).toContain('Beantworte die konkrete Frage');
     expect(out).toContain('Verneine NICHT');
     expect(out).toContain('bitte NIEMALS um das Ergebnis');
     // Regression guard: the fallback "ask for precision" wording must NOT leak
