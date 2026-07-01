@@ -272,6 +272,13 @@ export interface ThreadAttachment {
   name: string;
   mimeType: string;
   isImage: boolean;
+  /** Full extracted document text — re-injected on follow-up turns (small docs)
+   *  so the file stays chattable. Kept in sync with the DB-layer ThreadAttachment
+   *  in routes/chat/services/attachmentPersistenceService.ts. */
+  extractedText: string | null;
+  /** Qdrant document id when a large prose doc was embedded — follow-up turns
+   *  retrieve it via RAG instead of re-injecting truncated full text. */
+  documentId: string | null;
   summary: string | null;
   createdAt: Date;
 }
@@ -311,6 +318,12 @@ export interface ChatGraphInput {
   attachmentContext?: string | undefined;
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
+  /**
+   * True when a tabular file (CSV/Excel/ODS) is attached this turn or earlier in
+   * the thread. Steers respondNode to have the model compute via the in-browser
+   * pandas interpreter (`df`) instead of doing arithmetic in its head.
+   */
+  hasTabularAttachment?: boolean | undefined;
   notebookIds?: string[] | undefined;
   /**
    * Document IDs already resolved from user-owned notebook UUIDs. The controller
@@ -372,6 +385,7 @@ export interface ChatGraphState {
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
+  hasTabularAttachment: boolean;
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
