@@ -24,6 +24,7 @@ import { mountBoardAttachmentsContractRouter } from './routes/boards/boardAttach
 import { boardAttachmentUploadRouter } from './routes/boards/boardAttachmentUpload.js';
 import { mountBoardCardDocumentsContractRouter } from './routes/boards/boardCardDocumentsContractRouter.js';
 import { mountBoardCommentsContractRouter } from './routes/boards/boardCommentsContractRouter.js';
+import { mountBoardSchedulesContractRouter } from './routes/boards/boardSchedulesContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
@@ -626,6 +627,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/board-comments', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-activity', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-subscriptions', requireAuth, authenticatedReadLimiter);
+  app.use('/api/board-schedules', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-attachments', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-card-documents', requireAuth, authenticatedReadLimiter);
   mountBoardsContractRouter(app);
@@ -633,6 +635,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountBoardAgentContractRouter(app);
   mountBoardActivityContractRouter(app);
   mountBoardSubscriptionsContractRouter(app);
+  mountBoardSchedulesContractRouter(app);
   // Plain Express upload/download routes BEFORE the ts-rest contract router so the
   // multipart/binary handlers aren't shadowed by the JSON contract's validation.
   app.use('/api/board-attachments', boardAttachmentUploadRouter);
