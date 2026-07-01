@@ -9,6 +9,7 @@
  * - Save conversation to mem0 memory
  */
 
+import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
@@ -272,6 +273,12 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
       generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
+      // Auto-tag from the same first exchange. Triggered here (not only via the
+      // client generate-title endpoint) so every flow — web, mobile, resumed —
+      // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
+      generateThreadTags(threadId, userText, fullText).catch((err) =>
+        log.warn('[ChatGraph] Thread tag generation failed:', err)
+      );
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {
