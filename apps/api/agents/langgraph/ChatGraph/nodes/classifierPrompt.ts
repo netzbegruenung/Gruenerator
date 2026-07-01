@@ -22,6 +22,7 @@ VERFÜGBARE TOOLS:
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
+- artifact: Darstellbares HTML/SVG-Artefakt - "baue eine HTML-Tabelle", "erstelle eine SVG-Grafik", "mach ein HTML-Mockup", "eine Landingpage als HTML" (NICHT für Diagramme aus Daten → das ist chart)
 - save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
@@ -155,7 +156,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "artifact" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -200,6 +201,7 @@ export const NON_SEARCH_INTENTS = new Set([
   'image',
   'image_edit',
   'chart',
+  'artifact',
   'save_as_doc',
   'modify_doc',
   'modify_board',

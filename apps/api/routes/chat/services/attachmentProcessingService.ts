@@ -28,6 +28,9 @@ export interface ProcessedAttachmentMeta {
   sizeBytes: number;
   isImage: boolean;
   extractedText: string | null;
+  /** Base64 image bytes, set for images only — used to generate a persistent
+   *  vision description (summary) for multi-turn image memory. */
+  imageData?: string;
 }
 
 /**
@@ -62,6 +65,7 @@ export async function processAttachments(
         sizeBytes: attachment.size,
         isImage: true,
         extractedText: null,
+        imageData: attachment.data,
       });
       log.info(`[${requestId}] Added image attachment: ${attachment.name}`);
     } else {

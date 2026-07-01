@@ -207,6 +207,10 @@ export interface PersistParams {
   requestId: string;
   /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
   memoryEnabled: boolean;
+  /** Effective agent that produced this response; persisted so the agent
+   *  avatar/badge rehydrates on thread reload. Null/omitted for the default
+   *  universal chat (no badge). */
+  agentId?: string | null;
 }
 
 /**
@@ -227,6 +231,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     aiWorkerPool,
     requestId,
     memoryEnabled,
+    agentId,
   } = params;
 
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
@@ -236,6 +241,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
+      // Only stamp a real agent — the universal default carries no badge, so
+      // reload matches the live stream (which sets agentInfo only for agents).
+      ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       generatedImage: generatedImage
@@ -299,6 +307,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             sizeBytes: meta.sizeBytes,
             isImage: meta.isImage,
             extractedText: meta.extractedText,
+            ...(meta.imageData != null && { imageData: meta.imageData }),
           });
         } catch (attachError) {
           log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);

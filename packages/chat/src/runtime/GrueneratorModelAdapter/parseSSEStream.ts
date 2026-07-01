@@ -10,6 +10,7 @@ import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
+import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 
@@ -31,6 +32,7 @@ import type {
   SearchResult,
   StreamMetadata,
   ProgressStep,
+  ChartData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -113,6 +115,8 @@ export async function* parseSSEStream(
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
+  let receivedChartData: ChartData | null = null;
+  let receivedArtifactData: ActiveArtifact | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -175,6 +179,8 @@ export async function* parseSSEStream(
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
+    if (receivedChartData) custom.chartData = receivedChartData;
+    if (receivedArtifactData) custom.artifactData = receivedArtifactData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -244,7 +250,7 @@ export async function* parseSSEStream(
             searchSources?: string[] | null;
           };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct') stage = 'generating';
+          if (intent === 'direct' || intent === 'artifact') stage = 'generating';
           else if (intent === 'image' || intent === 'sharepic') stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
           transitionStep(stage);
@@ -404,6 +410,27 @@ export async function* parseSSEStream(
             stage: imageError ? 'error' : 'generating',
             message,
           };
+          yield buildResult();
+          break;
+        }
+
+        case 'chart_data': {
+          const { chart } = data as { chart?: ChartData };
+          if (chart) receivedChartData = chart;
+          yield buildResult();
+          break;
+        }
+
+        case 'artifact': {
+          const { artifact } = data as {
+            artifact?: { type: 'html' | 'svg'; title: string; content: string };
+          };
+          if (artifact) {
+            const active: ActiveArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+            receivedArtifactData = active;
+            // Open the docked panel immediately.
+            useArtifactLiveStore.getState().setActiveArtifact(active);
+          }
           yield buildResult();
           break;
         }
