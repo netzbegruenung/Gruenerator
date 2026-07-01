@@ -2,10 +2,10 @@
  * Chat Embedded Styles — component CSS only.
  * Theme tokens are registered by the host app's @theme block.
  * This file provides: dark mode overrides, keyframes, and component classes.
+ *
+ * NOTE: KaTeX CSS is no longer @imported here (it loaded eagerly at app boot).
+ * It now rides with the lazy chat chunk via a JS import in CitationMarkdownText.
  */
-
-/* KaTeX math rendering styles (consumed by rehype-katex in CitationMarkdownText) */
-@import "katex/dist/katex.min.css";
 
 :root {
   --radius: 0.5rem;

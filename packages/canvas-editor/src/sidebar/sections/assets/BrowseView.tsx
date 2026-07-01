@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
-import useDebounce from '../../../hooks/useDebounce';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { ALL_ASSETS, LOGO_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
-import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
+import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import {
   getIllustrationThumbPath,
   getIllustrationPath,
 } from '../../../utils/illustrations/registry';
-import { SIDEBAR_SECTION, SECTION_LABEL } from '../../primitives';
+import { SIDEBAR_SECTION, SECTION_LABEL } from '../../sidebarStyles';
 import { BadgeSection } from '../BadgeSection';
 import { FormenSection } from '../FormenSection';
 import { IconsSection } from '../IconsSection';

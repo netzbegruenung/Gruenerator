@@ -24,7 +24,7 @@ import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
-import { createBaseActions } from './commonActions';
+import { createBaseActions } from './actionFactories';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';

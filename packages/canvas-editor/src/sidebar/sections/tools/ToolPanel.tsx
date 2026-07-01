@@ -3,7 +3,7 @@ import { HiCheckCircle, HiXCircle } from 'react-icons/hi2';
 
 import { Lightbox } from '../../../common/Lightbox';
 import { cn } from '../../../utils/cn';
-import { SIDEBAR_SECTION } from '../../primitives';
+import { SIDEBAR_SECTION } from '../../sidebarStyles';
 
 import type { ComponentType, ReactNode } from 'react';
 import type { IconType } from 'react-icons';
