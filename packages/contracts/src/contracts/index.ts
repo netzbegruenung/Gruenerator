@@ -14,6 +14,7 @@ export { boardCommentsContract } from './boardCommentsContract.js';
 export { boardAgentContract } from './boardAgentContract.js';
 export { boardActivityContract } from './boardActivityContract.js';
 export { boardSubscriptionsContract } from './boardSubscriptionsContract.js';
+export { boardSchedulesContract } from './boardSchedulesContract.js';
 export { boardAttachmentsContract } from './boardAttachmentsContract.js';
 export { boardCardDocumentsContract } from './boardCardDocumentsContract.js';
 export { publicBoardsContract } from './publicBoardsContract.js';

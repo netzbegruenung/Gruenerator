@@ -511,6 +511,7 @@ function BoardViewContent({
           rows={filteredRows}
           activeView={activeView}
           onRowClick={handleRowClick}
+          boardId={boardId}
         />
       )}
 
