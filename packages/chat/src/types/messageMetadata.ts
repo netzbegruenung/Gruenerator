@@ -5,6 +5,7 @@ import type {
   GeneratedImage,
   SharepicData,
   ChartData,
+  ComputeData,
   SearchResult,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
@@ -61,6 +62,7 @@ export type ChatMessageMetadata = {
   sharepicData?: SharepicData;
   chartData?: ChartData;
   artifactData?: ActiveArtifact;
+  computeData?: ComputeData;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

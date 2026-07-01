@@ -37,6 +37,8 @@ export const INTENT_KEYWORDS: Record<
     | 'scrape_url'
     // artifact is detected by a dedicated pattern (noun + create imperative), not keywords.
     | 'artifact'
+    // compute is detected by dedicated count/math/unit/date patterns, not keywords.
+    | 'compute'
   >,
   string[]
 > = {
@@ -396,6 +398,33 @@ export function heuristicClassify(userContent: string): HeuristicResult {
       searchQuery: userContent,
       reasoning: 'Generic HTML/SVG artifact request detected',
       confidence: 0.85,
+    };
+  }
+
+  // High confidence (0.90): Deterministic calculation / counting. Narrow on
+  // purpose — each sub-pattern names a concrete compute operation so ordinary
+  // prose ("erklär mir Prozentrechnung") and factual questions don't misfire.
+  // Placed after chart/artifact so "Diagramm mit Zahlen" stays a chart.
+  const countPattern =
+    /\b(z(?:ä|ae)hl\w*|anzahl|wie\s+viele?|wie\s+lang)\b[\s\S]*\b(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|absätze|abs(?:ä|ae)tze)\b/i;
+  const pureExpr = /^(?=[\s\S]*[+\-*/%^×÷])[\s\d().,+\-*/%^×÷]+[=?]?$/;
+  const mathPattern =
+    /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne|wie\s?viel\s+(ist|sind|macht)|was\s+(ist|sind|ergibt)\s+\d)/i;
+  const unitConvert =
+    /\b\d+([.,]\d+)?\s*(mm|cm|m|km|in|ft|yd|mi|meilen|mg|g|kg|t|lb|pfund|oz|s|min|h|std|tage?|kb|mb|gb|tb|°?[cf]|celsius|fahrenheit|kelvin)\b[\s\S]*\b(in|to|nach|als)\b/i;
+  const dateMath = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
+  if (
+    countPattern.test(userContent) ||
+    pureExpr.test(userContent.trim()) ||
+    mathPattern.test(q) ||
+    unitConvert.test(q) ||
+    dateMath.test(q)
+  ) {
+    return {
+      intent: 'compute',
+      searchQuery: userContent,
+      reasoning: 'Deterministic computation/counting request detected',
+      confidence: 0.9,
     };
   }
 

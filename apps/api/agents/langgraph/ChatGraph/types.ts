@@ -20,6 +20,7 @@ import type {
   ConfirmActionType,
   ChartPayload,
   ArtifactPayload,
+  ComputePayload,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -56,6 +57,7 @@ export type SearchIntent =
   | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
   | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
   | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
+  | 'compute' // Deterministic calculation ("zähl die Zeichen", "20% von 340", "Tage bis Weihnachten")
   | 'artifact' // Generic HTML/SVG artifact rendered in the side panel ("baue eine HTML-Tabelle", "erstelle eine SVG-Grafik")
   | 'save_as_doc' // Save response as document ("speichere als Dokument")
   | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
@@ -523,6 +525,10 @@ export interface ChatGraphState {
   summaryContext: string | null;
   summaryTimeMs: number;
 
+  // Deterministic computation (set by computeNode; null when nothing computable)
+  computedResult: ComputeData | null;
+  computedResultTimeMs: number;
+
   // Chart generation
   chartData: ChartData | null;
 
@@ -608,6 +614,13 @@ export type ChartData = ChartPayload;
  * side panel. Derived from the canonical contracts schema — no hand-duplication.
  */
 export type ArtifactData = ArtifactPayload;
+
+/**
+ * Deterministic calculation result (SSE `compute`). Produced by computeEngine in
+ * plain JS — never by the LLM — and rendered as a transparent "Berechnung" card.
+ * Derived from the canonical contracts schema — no hand-duplication.
+ */
+export type ComputeData = ComputePayload;
 
 /**
  * Confirm action types for HITL (Human-In-The-Loop) confirmation.

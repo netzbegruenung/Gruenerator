@@ -542,6 +542,28 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 }
 
 /**
+ * Format the deterministic computation result (compute intent). These numbers
+ * were produced by computeEngine in plain JS, so the model must echo them
+ * verbatim and is explicitly told NOT to recompute — the whole point is that it
+ * cannot count/calculate reliably itself.
+ */
+function formatComputedResultContext(computedResult: ChatGraphState['computedResult']): string {
+  if (!computedResult) return '';
+  const lines = computedResult.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
+  return `
+
+## BERECHNUNGSERGEBNIS (deterministisch per Programm berechnet — NICHT selbst nachrechnen)
+
+Operation: ${computedResult.operation}
+${lines}
+
+Zusammenfassung: ${computedResult.summary}
+
+---
+Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.`;
+}
+
+/**
  * Format board context (from @board mentions).
  * Injects the board's columns and cards as structured text.
  */
@@ -650,6 +672,9 @@ Regeln:
 - Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
+const COMPUTE_GUIDANCE =
+  '\nDer*die Nutzer*in hat eine Berechnung oder Zählung angefordert. Wenn unten ein BERECHNUNGSERGEBNIS steht, präsentiere GENAU diese Zahlen — übernimm sie unverändert und rechne/zähle NICHT selbst nach. Wenn KEIN Berechnungsergebnis vorliegt, erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung. Erfinde niemals eine Zahl.';
+
 const IMAGE_FAILED_GUIDANCE =
   '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
 
@@ -710,6 +735,8 @@ function getModeGuidance(state: ChatGraphState): string {
       return CHART_GUIDANCE;
     case 'artifact':
       return ARTIFACT_GUIDANCE;
+    case 'compute':
+      return COMPUTE_GUIDANCE;
     case 'image':
       return state.generatedImage
         ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
@@ -791,6 +818,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     threadAttachments,
     memoryContext,
     summaryContext,
+    computedResult,
     boardContext,
     documentMentionContext,
   } = state;
@@ -800,6 +828,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const attachmentContext = formatAttachmentContext(state);
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
+  const computedResultFormatted = formatComputedResultContext(computedResult);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
@@ -846,7 +875,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -878,7 +907,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
