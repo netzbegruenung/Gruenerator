@@ -9,7 +9,12 @@ import { useState, useCallback, useRef } from 'react';
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { isCanvasTemplateType, type CanvasTemplateType } from '@gruenerator/contracts';
-import type { GeneratedImagePayload, SearchResultPayload } from '@gruenerator/contracts';
+import type {
+  GeneratedImagePayload,
+  SearchResultPayload,
+  ChartPayload,
+  ArtifactPayload,
+} from '@gruenerator/contracts';
 import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
@@ -71,31 +76,12 @@ export function coerceSharepicVariants(raw: unknown): SharepicVariant[] | null {
 }
 
 /**
- * Chart payload emitted by the backend `chart` intent (SSE event `chart_data`,
- * payload `{ chart }`). Mirrors the server-side `ChartData` in
- * apps/api/agents/langgraph/ChatGraph/types.ts — kept in sync by hand since the
- * chart node predates a shared contracts schema.
+ * Wire shapes for the `chart_data` and `artifact` SSE events, derived from the
+ * canonical Zod schemas in @gruenerator/contracts (chatStreamEvents) — the same
+ * single source of truth the server uses. Re-exported under the chat-local names
+ * `ChartData`/`ArtifactData` that the rest of the package already imports.
  */
-export interface ChartData {
-  type: 'bar' | 'line' | 'area' | 'pie' | 'donut';
-  title: string;
-  data: Array<Record<string, string | number>>;
-  xKey: string;
-  yKeys: string[];
-  colors?: string[];
-}
-
-/**
- * Generic renderable artifact (HTML/SVG) emitted by the backend (SSE event
- * `artifact`, payload `{ artifact }`). Rendered live in a sandboxed side panel.
- * Mirrors the server-side `ArtifactData` in
- * apps/api/agents/langgraph/ChatGraph/types.ts.
- */
-export interface ArtifactData {
-  type: 'html' | 'svg';
-  title: string;
-  content: string;
-}
+export type { ChartPayload as ChartData, ArtifactPayload as ArtifactData };
 
 // Wire shape from @gruenerator/contracts (chatStreamEvents) plus the
 // client-side sharepic attachment stamped on after parsing. The style union
