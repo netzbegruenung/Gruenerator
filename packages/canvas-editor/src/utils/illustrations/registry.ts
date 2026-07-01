@@ -5,7 +5,7 @@
  * statically; the full ~1600-entry undraw catalog (~280 KB of metadata) is
  * pulled in via dynamic import only when an async lookup first needs it, so
  * it stays out of the editor-core chunk. Sync access to the full catalog
- * lives in fullCatalog.ts (used only inside the lazy assets chunk).
+ * lives in illustrationCatalog.ts (used only inside the lazy assets chunk).
  */
 
 import type {
@@ -165,5 +165,5 @@ export const searchSvgIllustrations = searchIllustrations;
 
 // Re-export the small static source arrays for direct access if needed.
 // The full undraw catalog is intentionally NOT re-exported here — sync
-// consumers use fullCatalog.ts so the data stays in a lazy chunk.
+// consumers use illustrationCatalog.ts so the data stays in a lazy chunk.
 export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED };

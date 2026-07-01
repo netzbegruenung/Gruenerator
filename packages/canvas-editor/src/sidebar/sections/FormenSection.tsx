@@ -43,7 +43,7 @@ import {
   type ShapeCategory,
   type ShapeType,
 } from '../../utils/shapes';
-import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
+import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import { cn } from '../../utils/cn';
 
