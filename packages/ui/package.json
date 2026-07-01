@@ -21,18 +21,18 @@
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "0.14.2",
-    "@base-ui/react": "^1.5.0",
+    "@base-ui/react": "^1.6.0",
     "ai": "^6.0.202",
     "blurhash": "^2.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.17.0",
-    "motion": "^12.40.0",
+    "lucide-react": "^1.22.0",
+    "motion": "^12.42.2",
     "nanoid": "^5.1.11",
     "next-themes": "^0.4.6",
-    "radix-ui": "^1.5.0",
+    "radix-ui": "^1.6.1",
     "react-day-picker": "^10.0.1",
     "react-dropzone": "^15.0.0",
     "recharts": "3.8.1",
@@ -48,7 +48,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.0"
+    "typescript-eslint": "^8.62.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",

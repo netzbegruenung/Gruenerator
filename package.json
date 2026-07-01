@@ -86,8 +86,8 @@
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.0.2",
-    "@commitlint/config-conventional": "^21.0.2",
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.8",
@@ -96,11 +96,11 @@
     "cross-env": "^10.1.0",
     "eslint": "^9.39.4",
     "husky": "^9.1.7",
-    "knip": "^6.16.1",
+    "knip": "^6.23.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.8.4",
     "semantic-release": "^25.0.5",
-    "turbo": "^2.9.18",
+    "turbo": "^2.10.2",
     "typescript": "^6.0.3",
     "wait-on": "^9.0.10"
   },
