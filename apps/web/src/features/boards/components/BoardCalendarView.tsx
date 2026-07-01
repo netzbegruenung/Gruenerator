@@ -1,9 +1,19 @@
 import { memo, useMemo } from 'react';
 
+import { useScheduledAgentRuns } from '../hooks/useScheduledAgentRuns';
 import { FIELD_IDS } from '../types';
 
 import type { Field, Row, BoardView, SelectOption } from '../types';
 import type { Feature, Status } from '@/components/kibo-ui/calendar';
+
+// Read-only overlay statuses for scheduled/past agent runs (OpenWebUI-style virtual
+// "Scheduled Tasks" calendar). Distinct colours so they don't read as card due dates.
+const RUN_STATUS: Record<'scheduled' | 'completed' | 'failed' | 'awaiting_review', Status> = {
+  scheduled: { id: '_run_scheduled', name: 'Geplanter Lauf', color: '#d97706' },
+  completed: { id: '_run_completed', name: 'Lauf fertig', color: '#16a34a' },
+  failed: { id: '_run_failed', name: 'Lauf fehlgeschlagen', color: '#dc2626' },
+  awaiting_review: { id: '_run_review', name: 'Lauf zur Prüfung', color: '#d97706' },
+};
 
 import {
   CalendarProvider,
@@ -22,6 +32,8 @@ interface BoardCalendarViewProps {
   rows: Row[];
   activeView: BoardView | null;
   onRowClick: (row: Row) => void;
+  /** When set, upcoming scheduled runs + past runs are overlaid as virtual events. */
+  boardId?: string;
 }
 
 export const BoardCalendarView = memo(function BoardCalendarView({
@@ -29,6 +41,7 @@ export const BoardCalendarView = memo(function BoardCalendarView({
   rows,
   activeView,
   onRowClick,
+  boardId,
 }: BoardCalendarViewProps) {
   const dateFieldId = activeView?.dateFieldId ?? FIELD_IDS.DUE_DATE;
   const statusField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.STATUS), [fields]);
@@ -68,6 +81,39 @@ export const BoardCalendarView = memo(function BoardCalendarView({
     return rowMap.map((r) => r.feature);
   }, [rows, dateFieldId, statusOptions]);
 
+  // Virtual overlay: upcoming scheduled runs (schedule.nextRunAt) + past runs
+  // (agent_tasks.completedAt). Read-only; clicking one opens its card if present.
+  const { schedulesQuery, runsQuery } = useScheduledAgentRuns(boardId);
+  const runFeatures: Feature[] = useMemo(() => {
+    if (!boardId) return [];
+    const out: Feature[] = [];
+    for (const s of schedulesQuery.data ?? []) {
+      if (!s.enabled) continue;
+      const date = new Date(s.nextRunAt);
+      out.push({
+        id: `sched-${s.id}`,
+        name: 'Geplanter Lauf',
+        startAt: date,
+        endAt: date,
+        status: RUN_STATUS.scheduled,
+      });
+    }
+    for (const r of runsQuery.data ?? []) {
+      if (!r.completedAt) continue;
+      const date = new Date(r.completedAt);
+      const status =
+        r.status === 'failed'
+          ? RUN_STATUS.failed
+          : r.status === 'awaiting_review'
+            ? RUN_STATUS.awaiting_review
+            : RUN_STATUS.completed;
+      out.push({ id: `run-${r.id}`, name: status.name, startAt: date, endAt: date, status });
+    }
+    return out;
+  }, [boardId, schedulesQuery.data, runsQuery.data]);
+
+  const allFeatures = useMemo(() => [...features, ...runFeatures], [features, runFeatures]);
+
   // Keep a lookup for row click
   const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
@@ -84,7 +130,7 @@ export const BoardCalendarView = memo(function BoardCalendarView({
           <CalendarDatePagination />
         </CalendarDate>
         <CalendarHeader className="border-b border-grey-200 dark:border-grey-700" />
-        <CalendarBody features={features}>
+        <CalendarBody features={allFeatures}>
           {({ feature }) => {
             const row = rowById.get(feature.id);
             return (

@@ -30,6 +30,7 @@ export {
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
+  boardSchedulesContract,
   boardAttachmentsContract,
   boardCardDocumentsContract,
   publicBoardsContract,
@@ -83,6 +84,7 @@ export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
+export * from './schemas/boardSchedules.js';
 export * from './schemas/boardAttachments.js';
 export * from './schemas/boardCardDocuments.js';
 export * from './schemas/shares.js';
