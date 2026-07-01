@@ -8,7 +8,8 @@ import rehypeKatex from 'rehype-katex';
 import { useCitations } from '../../context/CitationContext';
 import { useMarkdownSmooth } from '../../context/MarkdownStreamingContext';
 import { escapeCitationMarkers } from '../../lib/citationProcessing';
-import { normalizeMathDelimiters } from '../../lib/normalizeMathDelimiters';
+import { maybeLoadKatexCss } from '../../lib/katexCss';
+import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
 import { makeCitationComponents } from '../../lib/citationMarkdownComponents';
 
 const remarkPlugins = [remarkGfm, remarkMath];
@@ -18,9 +19,13 @@ const rehypePlugins: [typeof rehypeKatex, { throwOnError: boolean }][] = [
   [rehypeKatex, { throwOnError: false }],
 ];
 
-// Normalize \( \) / \[ \] math delimiters BEFORE escaping citation markers
+// Normalize \( \) / \[ \] math delimiters, then map raw Unicode operators to
+// LaTeX commands inside math spans, BEFORE escaping citation markers
 // (escapeCitationMarkers emits `\[1\]`, which must not be seen as math).
-const preprocess = (text: string) => escapeCitationMarkers(normalizeMathDelimiters(text));
+const preprocess = (text: string) => {
+  maybeLoadKatexCss(text); // lazy-load the KaTeX stylesheet on first math
+  return escapeCitationMarkers(normalizeUnicodeMath(normalizeMathDelimiters(text)));
+};
 
 function CitationMarkdownTextImpl() {
   const citations = useCitations();

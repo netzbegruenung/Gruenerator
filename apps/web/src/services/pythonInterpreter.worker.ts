@@ -9,6 +9,7 @@
  */
 import { loadPyodide } from 'pyodide';
 
+import { detectPyodidePackages } from '@gruenerator/chat/pyodide';
 import type { CodeExecutionResult, PythonFile } from '@gruenerator/chat/stores';
 
 interface RunMessage {
@@ -31,14 +32,12 @@ interface PyRuntime {
 
 let pyodidePromise: Promise<PyRuntime> | null = null;
 
+// Loads only the Pyodide core (no packages) — packages are loaded per run.
 function getPyodide(onProgress: (msg: string) => void): Promise<PyRuntime> {
   if (!pyodidePromise) {
     pyodidePromise = (async () => {
       onProgress('Python-Laufzeit wird geladen …');
-      const py = (await loadPyodide({ indexURL: '/pyodide/' })) as unknown as PyRuntime;
-      onProgress('Datenpakete werden geladen (pandas, matplotlib) …');
-      await py.loadPackage(['pandas', 'matplotlib']);
-      return py;
+      return (await loadPyodide({ indexURL: '/pyodide/' })) as unknown as PyRuntime;
     })();
   }
   return pyodidePromise;
@@ -62,13 +61,14 @@ function buildSetup(file: PythonFile): string {
 }
 
 // Runs setup + user code in a shared namespace, then serialises every open
-// matplotlib figure to a base64 PNG. The trailing json.dumps is the value
-// runPythonAsync returns.
+// matplotlib figure to a base64 PNG. matplotlib is collected only if it was
+// loaded (per-need): MPLBACKEND=AGG is set before any import so a user's
+// `import matplotlib.pyplot` picks the headless backend; the figure pass is
+// guarded so snippets that never touch matplotlib don't require the wheel.
+// The trailing json.dumps is the value runPythonAsync returns.
 const HARNESS = `
-import io, base64, json
-import matplotlib
-matplotlib.use('AGG')
-import matplotlib.pyplot as plt
+import os, json
+os.environ.setdefault('MPLBACKEND', 'AGG')
 
 _ns = {}
 if __setup_code:
@@ -76,12 +76,17 @@ if __setup_code:
 exec(__user_code, _ns)
 
 _figures = []
-for _num in plt.get_fignums():
-    _fig = plt.figure(_num)
-    _buf = io.BytesIO()
-    _fig.savefig(_buf, format='png', bbox_inches='tight', dpi=100)
-    _figures.append(base64.b64encode(_buf.getvalue()).decode('ascii'))
-plt.close('all')
+try:
+    import io, base64
+    import matplotlib.pyplot as plt
+    for _num in plt.get_fignums():
+        _fig = plt.figure(_num)
+        _buf = io.BytesIO()
+        _fig.savefig(_buf, format='png', bbox_inches='tight', dpi=100)
+        _figures.append(base64.b64encode(_buf.getvalue()).decode('ascii'))
+    plt.close('all')
+except ImportError:
+    pass
 json.dumps(_figures)
 `;
 
@@ -94,6 +99,15 @@ self.onmessage = async (event: MessageEvent<RunMessage>) => {
 
   try {
     const py = await getPyodide((message) => post({ progress: message }));
+
+    // Load only the packages this snippet imports (per-need). A CSV upload uses
+    // pandas in the setup harness even if the user code doesn't import it.
+    const packages = detectPyodidePackages(code);
+    if (files?.length && !packages.includes('pandas')) packages.push('pandas');
+    if (packages.length) {
+      post({ progress: 'Pakete werden geladen …' });
+      await py.loadPackage(packages);
+    }
 
     stdout = '';
     py.setStdout({ batched: (s) => (stdout += s + '\n') });
