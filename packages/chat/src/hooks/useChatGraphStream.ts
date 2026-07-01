@@ -9,7 +9,12 @@ import { useState, useCallback, useRef } from 'react';
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { isCanvasTemplateType, type CanvasTemplateType } from '@gruenerator/contracts';
-import type { GeneratedImagePayload, SearchResultPayload } from '@gruenerator/contracts';
+import type {
+  GeneratedImagePayload,
+  SearchResultPayload,
+  ChartPayload,
+  ArtifactPayload,
+} from '@gruenerator/contracts';
 import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
@@ -31,6 +36,7 @@ export type SearchIntent =
   | 'image_edit'
   | 'sharepic'
   | 'summary'
+  | 'artifact'
   | 'direct';
 
 export interface SharepicVariant {
@@ -68,6 +74,14 @@ export function coerceSharepicVariants(raw: unknown): SharepicVariant[] | null {
   }
   return valid.length > 0 ? valid : null;
 }
+
+/**
+ * Wire shapes for the `chart_data` and `artifact` SSE events, derived from the
+ * canonical Zod schemas in @gruenerator/contracts (chatStreamEvents) — the same
+ * single source of truth the server uses. Re-exported under the chat-local names
+ * `ChartData`/`ArtifactData` that the rest of the package already imports.
+ */
+export type { ChartPayload as ChartData, ArtifactPayload as ArtifactData };
 
 // Wire shape from @gruenerator/contracts (chatStreamEvents) plus the
 // client-side sharepic attachment stamped on after parsing. The style union
