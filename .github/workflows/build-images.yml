@@ -97,7 +97,11 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
-          base: ${{ github.event.before }}
+          # push: diff against the pre-push SHA. workflow_dispatch (e.g. the beta
+          # rebuild kicked off by sync-test-branch.yml): `before` is empty, so diff
+          # against the commit's first parent — for a sync merge that's the whole
+          # incoming master delta, so the right images get built.
+          base: ${{ github.event.before || format('{0}^', github.sha) }}
           filters: |
             shared:
               - 'packages/shared/**'
