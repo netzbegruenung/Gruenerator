@@ -9,7 +9,7 @@ import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { persistImageSelection } from '../persistImageSelection';
 import { SidebarSlider } from '../components/SidebarSlider';
-import { SIDEBAR_SECTION } from '../primitives';
+import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUserUploads } from '../UserUploadsProvider';
 

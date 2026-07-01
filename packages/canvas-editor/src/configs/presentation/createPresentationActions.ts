@@ -6,7 +6,7 @@
  * Only image background actions differ between configs.
  */
 
-import { createBaseActions } from '../factory/commonActions';
+import { createBaseActions } from '../factory/actionFactories';
 
 import { getPresColors } from './presentationTheme';
 

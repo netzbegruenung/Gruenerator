@@ -14,7 +14,7 @@ import {
   SELECTABLE_CARD,
   SELECTABLE_CARD_DISABLED,
   SIDEBAR_SECTION,
-} from '../primitives';
+} from '../sidebarStyles';
 
 import { cn } from '../../utils/cn';
 
