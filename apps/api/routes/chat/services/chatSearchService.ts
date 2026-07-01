@@ -63,10 +63,19 @@ export async function searchChatHistory(
   const { threadType, limit = 5, excludeThreadId, startDate, endDate, tags } = options;
   const db = getPostgresInstance();
 
-  const searchPattern = `%${query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+  const params: unknown[] = [userId];
+  let paramIdx = 2;
 
-  const params: unknown[] = [userId, searchPattern];
-  let paramIdx = 3;
+  // Text match is optional: a tag-only search (empty query) must NOT be gated by
+  // a content/title predicate, or threads whose only messages have NULL content
+  // and no title would be silently excluded despite matching the tag.
+  let textClause = '';
+  if (query.trim().length > 0) {
+    const searchPattern = `%${query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+    textClause = `AND (m.content ILIKE $${paramIdx} OR t.title ILIKE $${paramIdx})`;
+    params.push(searchPattern);
+    paramIdx++;
+  }
 
   let threadTypeClause = '';
   if (threadType) {
@@ -124,7 +133,7 @@ export async function searchChatHistory(
       OR t.is_public = true
     )
     AND m.role IN ('user', 'assistant')
-    AND (m.content ILIKE $2 OR t.title ILIKE $2)
+    ${textClause}
     AND COALESCE(t.status, 'regular') = 'regular'
     ${threadTypeClause}
     ${excludeClause}
