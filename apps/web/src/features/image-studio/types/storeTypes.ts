@@ -2,6 +2,7 @@ import { type DEFAULT_COLORS } from '../../../components/utils/constants';
 import {
   type IMAGE_STUDIO_CATEGORIES,
   type IMAGE_STUDIO_TYPES,
+  type ImageStudioType,
   type KI_SUBCATEGORIES,
   type FORM_STEPS,
 } from '../utils/typeConfig';
@@ -112,7 +113,9 @@ export interface ImageStudioState {
   // Category and type selection
   category: string | null;
   subcategory: string | null;
-  type: string | null;
+  // Validated on write by `setType` — readers (incl. the canvas mint) can rely
+  // on this being a known ImageStudioType or null, never an arbitrary string.
+  type: ImageStudioType | null;
 
   // Sharepic form data
   thema: string;
