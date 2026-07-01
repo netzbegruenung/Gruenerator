@@ -41,6 +41,8 @@ export function NativeDocTopBar() {
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
   const toggleFullscreen = useDocsEditorBridgeStore((s) => s.toggleFullscreen);
   const setVersionsOpen = useDocsEditorBridgeStore((s) => s.setVersionsOpen);
+  const canUndo = useDocsEditorBridgeStore((s) => s.canUndo);
+  const canRedo = useDocsEditorBridgeStore((s) => s.canRedo);
 
   // Native dictation: the OS recognizer (final transcript) feeds the editor via
   // the insert-text bridge — the in-editor web mic can't run in the WebView.
@@ -121,6 +123,35 @@ export function NativeDocTopBar() {
             </View>
           )}
         </View>
+      )}
+
+      {canEdit && (
+        <>
+          <TouchableOpacity
+            onPress={() => dispatchAction({ type: 'undo' })}
+            disabled={!canUndo}
+            style={styles.iconButton}
+            accessibilityLabel="Rückgängig"
+          >
+            <Ionicons
+              name="arrow-undo-outline"
+              size={22}
+              color={canUndo ? theme.text : theme.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => dispatchAction({ type: 'redo' })}
+            disabled={!canRedo}
+            style={styles.iconButton}
+            accessibilityLabel="Wiederholen"
+          >
+            <Ionicons
+              name="arrow-redo-outline"
+              size={22}
+              color={canRedo ? theme.text : theme.textSecondary}
+            />
+          </TouchableOpacity>
+        </>
       )}
 
       {canEdit && (

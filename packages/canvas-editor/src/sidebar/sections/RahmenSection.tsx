@@ -8,7 +8,7 @@ import {
   getFramePreset,
 } from '../../utils/frameUtils';
 import { cn } from '../../utils/cn';
-import { SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
+import { SELECTABLE_CARD, SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type {
   FrameCategory,

@@ -52,6 +52,12 @@ export {
 } from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
 export { usePendingDocAI } from './hooks/usePendingDocAI';
+export {
+  useDocUndoState,
+  getDocUndoFlags,
+  type DocUndoState,
+  type UndoableEditor,
+} from './hooks/useDocUndoState';
 export { useDocAIReviewState, type DocAIReviewState } from './hooks/useDocAIReviewState';
 export { useIsTouchDevice } from '@gruenerator/shared/hooks';
 export { useVersionHistoryShortcut } from './hooks/useVersionHistoryShortcut';

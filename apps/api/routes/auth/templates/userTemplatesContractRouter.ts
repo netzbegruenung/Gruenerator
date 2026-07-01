@@ -14,15 +14,30 @@
  * requireAuth is applied at the /api/auth/user-templates prefix in routes.ts.
  */
 
-import { userTemplatesContract, type UserTemplate } from '@gruenerator/contracts';
+import {
+  userTemplatesContract,
+  type UserTemplate,
+  type GrueneratorBlueprint,
+  GRUENERATOR_TEMPLATE_TYPE,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import {
+  createCanvas,
+  getCanvas,
+  markCanvasAsGalleryTemplate,
+} from '../../../services/canvas/canvasRepository.js';
+import {
+  getCurrentCanvasState,
+  getCurrentDeckState,
+} from '../../../services/canvas/canvasStateService.js';
 import {
   urlCrawlerService,
   UrlValidator,
 } from '../../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createDocFromTemplate } from '../../../services/templates/collaborativeTemplateService.js';
+import { cleanupGrueneratorSnapshot } from '../../../services/templates/grueneratorVorlage.js';
 import {
   enrichTemplate,
   deleteTemplateVector,
@@ -215,6 +230,117 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
     }
   },
 
+  fromCanvas: async (args) => {
+    try {
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
+      const { canvasId, title, description, tags, preview_image_url } = args.body;
+
+      // The caller must be able to read the source canvas they're publishing.
+      const access = await getCanvas(canvasId, userId);
+      if (access.kind === 'not_found') {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Canvas nicht gefunden.' },
+        };
+      }
+      if (access.kind === 'forbidden') {
+        return {
+          status: 403 as const,
+          body: { success: false, message: 'Keine Berechtigung für diesen Canvas.' },
+        };
+      }
+
+      const sourceCanvas = access.canvas;
+      const canvasType = sourceCanvas.template_type;
+      const format = sourceCanvas.format;
+      const baseTitle = (title || sourceCanvas.title || 'Vorlage').trim();
+
+      // Capture the live state (incl. unsaved manual studio edits) as the
+      // snapshot seed. Decks keep their full per-slide `pages` array; flat cover
+      // keys ride alongside so gallery/thumbnail readers still render.
+      let initialState: Record<string, unknown>;
+      let pageCount: number;
+      if (canvasType === 'slider') {
+        const deck = await getCurrentDeckState(canvasId);
+        const pages = deck.pages;
+        initialState = { ...((pages[0]?.state as Record<string, unknown>) ?? {}), pages };
+        pageCount = pages.length || sourceCanvas.page_count;
+      } else {
+        const current = await getCurrentCanvasState(canvasId);
+        initialState = current.state;
+        pageCount = sourceCanvas.page_count;
+      }
+
+      // Freeze an immutable snapshot canvas, decoupled from the working copy, so
+      // later edits to the original don't mutate the published vorlage. Marked
+      // read-only/public so any authenticated user can clone it on "use".
+      const snapshot = await createCanvas(userId, {
+        title: `${baseTitle} (Vorlage)`,
+        template_type: canvasType,
+        base_template_id: canvasId,
+        initial_state: initialState,
+        page_count: pageCount,
+        format,
+      });
+      await markCanvasAsGalleryTemplate(snapshot.id);
+
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const mergedTags = [
+        ...new Set([
+          ...extractTagsFromDescription(description),
+          ...(Array.isArray(tags) ? tags.map((t) => String(t).toLowerCase()) : []),
+        ]),
+      ];
+
+      const blueprint: GrueneratorBlueprint = { canvasId: snapshot.id, canvasType, format };
+
+      const templateData = {
+        user_id: userId,
+        type: 'template',
+        title: baseTitle,
+        description: description ? description.trim() || null : null,
+        template_type: GRUENERATOR_TEMPLATE_TYPE,
+        external_url: null,
+        thumbnail_url: preview_image_url,
+        images: JSON.stringify([]),
+        categories: JSON.stringify([]),
+        tags: JSON.stringify(mergedTags),
+        content_data: JSON.stringify(blueprint),
+        metadata: JSON.stringify({ source_canvas_id: canvasId }),
+        is_private: false,
+        is_example: false,
+        status: 'pending_review',
+        // Target the creator's locale so the gallery can scope by audience.
+        audience: user.locale ?? 'all',
+      };
+
+      const newTemplate = await postgres.insert('user_templates', templateData);
+
+      // Fire-and-forget: vision description (from the thumbnail) + vector index.
+      void enrichTemplate(String(newTemplate.id)).catch((e) =>
+        log.warn('[userTemplatesContract.fromCanvas] enrichTemplate failed', e)
+      );
+
+      return {
+        status: 201 as const,
+        body: {
+          success: true,
+          data: { id: String(newTemplate.id) },
+          message: 'Vorlage wurde eingereicht und wird geprüft.',
+        },
+      };
+    } catch (error) {
+      log.error('[userTemplatesContract.fromCanvas] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Veröffentlichen der Vorlage.' },
+      };
+    }
+  },
+
   list: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
@@ -340,8 +466,12 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
-      const verifyTemplates = await postgres.query<{ id: string }>(
-        `SELECT id FROM user_templates
+      const verifyTemplates = await postgres.query<{
+        id: string;
+        template_type: string;
+        content_data: unknown;
+      }>(
+        `SELECT id, template_type, content_data FROM user_templates
          WHERE user_id = $1 AND type = $2 AND id = ANY($3)`,
         [userId, 'template', ids],
         TABLE
@@ -372,7 +502,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const deletedIds = deletedData.map((t) => t.id);
       const failedIds = ids.filter((id) => !deletedIds.includes(id));
 
+      const deletedSet = new Set(deletedIds);
       for (const deletedId of deletedIds) void deleteTemplateVector(deletedId);
+      // Clean up snapshot canvases for any deleted Grünerator-Vorlagen.
+      for (const t of verifyTemplates) {
+        if (deletedSet.has(t.id)) {
+          void cleanupGrueneratorSnapshot(t.template_type, t.content_data, userId);
+        }
+      }
 
       return {
         status: 200 as const,
@@ -505,6 +642,15 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
+      // Read the bridge fields before deleting so we can clean up the snapshot
+      // canvas a Grünerator-Vorlage points at.
+      const existing = await postgres.queryOne(
+        `SELECT template_type, content_data FROM user_templates
+         WHERE id = $1 AND user_id = $2 AND type = 'template'`,
+        [id, userId],
+        TABLE
+      );
+
       const result = await postgres.delete('user_templates', {
         id,
         user_id: userId,
@@ -522,6 +668,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       void deleteTemplateVector(id);
+      void cleanupGrueneratorSnapshot(existing?.template_type, existing?.content_data, userId);
 
       return {
         status: 200 as const,
