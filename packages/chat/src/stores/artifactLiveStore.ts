@@ -39,3 +39,29 @@ export const useArtifactLiveStore = create<ArtifactLiveStore>((set) => ({
     set({ activeArtifact: artifact });
   },
 }));
+
+// Reverse direction of the one-docked-panel rule: activating a sharepic or reel
+// clears an active artifact. Those stores can't import this one (cycle), so the
+// coupling lives here as subscriptions — mirroring the reel<->sharepic pattern
+// in reelLiveStore.ts. setState (not setActiveArtifact) avoids re-triggering the
+// forward clear. Without this, opening a sharepic/reel while an artifact is
+// docked would render two panels side by side.
+useSharepicLiveStore.subscribe((state, prevState) => {
+  if (
+    state.activeVariant &&
+    state.activeVariant !== prevState.activeVariant &&
+    useArtifactLiveStore.getState().activeArtifact
+  ) {
+    useArtifactLiveStore.setState({ activeArtifact: null });
+  }
+});
+
+useReelLiveStore.subscribe((state, prevState) => {
+  if (
+    state.activeReel &&
+    state.activeReel !== prevState.activeReel &&
+    useArtifactLiveStore.getState().activeArtifact
+  ) {
+    useArtifactLiveStore.setState({ activeArtifact: null });
+  }
+});
