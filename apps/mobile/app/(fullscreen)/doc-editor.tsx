@@ -472,6 +472,9 @@ export default function DocumentScreen() {
               // ignore malformed payload
             }
           }}
+          onUndoRedoStateChange={(canUndo, canRedo) =>
+            store.getState().setUndoRedoState(canUndo, canRedo)
+          }
           onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           onAiAcceptFailed={() =>
             Alert.alert(
