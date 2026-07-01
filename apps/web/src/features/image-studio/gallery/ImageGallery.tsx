@@ -10,9 +10,6 @@ import {
   FaClock,
   FaEdit,
   FaSave,
-  FaMagic,
-  FaVideo,
-  FaArrowRight,
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,6 +19,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
+import { buildStudioQuickStarts, QuickStartTiles } from '../components/QuickStartTiles';
 import { useTemplateClone } from '../hooks/useTemplateClone';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
 
@@ -397,39 +395,14 @@ const ImageGallery = () => {
     void navigate('/studio');
   };
 
-  // Quick-start tiles for the empty gallery. Routes mirror handleCategorySelect
-  // in ImageStudioCategorySelector so behaviour stays consistent. AT is a
-  // first-class audience: Austrian users get the external Sharepic generator.
-  const isAustrianUser = locale === 'de-AT';
-  const quickStarts = [
-    {
-      key: 'sharepic',
-      icon: FaImage,
-      title: 'Sharepic',
-      description: 'Zitate, Headlines & Infos aus Vorlagen.',
-      onClick: () => {
-        if (isAustrianUser) {
-          window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer');
-        } else {
-          void navigate('/studio/templates');
-        }
-      },
-    },
-    {
-      key: 'ki',
-      icon: FaMagic,
-      title: 'KI-Bild',
-      description: 'Bilder per Prompt generieren.',
-      onClick: () => void navigate('/imagine'),
-    },
-    {
-      key: 'reel',
-      icon: FaVideo,
-      title: 'Reel',
-      description: 'Kurze Videos für Social Media.',
-      onClick: () => void navigate('/studio/video'),
-    },
-  ] as const;
+  // Quick-start tiles for the empty gallery. The builder centralises the
+  // AT/SHOW_SHAREPIC_STUDIO handling shared with the Studio landing empty state.
+  const quickStarts = buildStudioQuickStarts({
+    isAustrianUser: locale === 'de-AT',
+    onSharepic: () => void navigate('/studio/templates'),
+    onKiBild: () => void navigate('/imagine'),
+    onReel: () => void navigate('/studio/video'),
+  });
 
   const imageShares = shares.filter((s) => s.mediaType === 'image') as GalleryImage[];
 
@@ -499,36 +472,7 @@ const ImageGallery = () => {
               Leg los — wähle, was du erstellen möchtest.
             </p>
 
-            <div className="mt-8 grid grid-cols-3 gap-4 text-left max-[768px]:grid-cols-1 max-[768px]:gap-3">
-              {quickStarts.map(({ key, icon: Icon, title, description, onClick }) => (
-                <div
-                  key={key}
-                  role="button"
-                  tabIndex={0}
-                  onClick={onClick}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onClick();
-                    }
-                  }}
-                  className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-grey-200 bg-background p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-grey-700 dark:hover:border-grey-600"
-                >
-                  <div className="flex size-11 items-center justify-center rounded-lg bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200 dark:bg-primary-900/40 dark:text-primary-200">
-                    <Icon className="size-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 text-base font-semibold text-foreground-heading">
-                      {title}
-                      <FaArrowRight className="size-3 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 motion-reduce:transition-none" />
-                    </div>
-                    <p className="mt-1 text-sm leading-relaxed text-foreground opacity-70">
-                      {description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <QuickStartTiles items={quickStarts} className="mt-8" />
           </div>
         </div>
       </div>
