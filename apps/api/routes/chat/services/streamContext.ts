@@ -31,6 +31,7 @@ import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -82,6 +83,7 @@ export interface StreamContext {
   initialState: Awaited<ReturnType<typeof initializeChatState>>;
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
+  memoryEnabled: boolean;
   contextWindowTokens: number;
 }
 
@@ -284,9 +286,30 @@ export async function buildStreamContext({
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
       if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        sse.send('error', { error: 'Thread not found' });
-        sse.end();
-        return { done: true };
+        // The client-supplied threadId is gone or not accessible — most often a
+        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+        // mid-send, or a stale client id. Recover gracefully by minting a new
+        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+        // id is never reused, we always create a fresh user-owned thread.
+        //
+        // The recovery is invisible to the user, so leave a breadcrumb: without
+        // it we lose all signal on how often the reap race still fires (e.g. if
+        // the client's 60s protection window proves too short).
+        captureSseError({
+          code: 'thread-reaped-recovered',
+          message: 'Thread not found mid-send; minted a fresh thread to recover',
+          level: 'warning',
+          extras: { staleThreadId: actualThreadId, userId, agentId },
+        });
+        const userText = extractTextContent(lastUserMessage.content);
+        const thread = await createThread(
+          userId,
+          agentId ?? 'gruenerator-universal',
+          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+        );
+        actualThreadId = thread.id;
+        isNewThread = true;
+        sse.send('thread_created', { threadId: actualThreadId });
       }
     }
 
@@ -349,12 +372,15 @@ export async function buildStreamContext({
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
   // === Memory retrieval (mem0) ===
+  // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
+  // retrieval here and the write-back in postResponseService.
+  const memoryEnabled = user.memory_enabled ?? false;
   let memoryContext: string | null = null;
   let memoryRetrieveTimeMs = 0;
   let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
   const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage) {
+  if (mem0 && lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
 
@@ -506,6 +532,7 @@ export async function buildStreamContext({
       initialState,
       memoryContext,
       memoryRetrieveTimeMs,
+      memoryEnabled,
       contextWindowTokens,
     },
   };
