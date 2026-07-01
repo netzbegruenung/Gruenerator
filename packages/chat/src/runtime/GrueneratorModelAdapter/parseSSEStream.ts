@@ -1,5 +1,10 @@
-import { triggerDocEditSchema, triggerBoardActionSchema } from '@gruenerator/contracts';
+import {
+  triggerDocEditSchema,
+  triggerBoardActionSchema,
+  isCanvasTemplateType,
+} from '@gruenerator/contracts';
 
+import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
@@ -406,16 +411,20 @@ export async function* parseSSEStream(
         case 'sharepic_complete': {
           const payload = data as {
             message: string;
-            variants?: import('../../hooks/useChatGraphStream').SharepicVariant[];
+            variants?: unknown;
             canvasType?: string;
             initialProps?: Record<string, unknown>;
             alternatives?: unknown[];
             error?: string;
           };
           if (!payload.error) {
-            if (payload.variants && payload.variants.length > 0) {
-              receivedSharepicData = { variants: payload.variants };
-            } else if (payload.canvasType && payload.initialProps) {
+            // Validate at the boundary: only variants with a canonical
+            // canvasType are kept, so a malformed type can never reach the
+            // studio handoff / canvas mint.
+            const validated = coerceSharepicVariants(payload.variants);
+            if (validated) {
+              receivedSharepicData = { variants: validated };
+            } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
               const legacyId =
                 typeof crypto !== 'undefined' && 'randomUUID' in crypto
                   ? crypto.randomUUID()
