@@ -672,8 +672,22 @@ Regeln:
 - Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
-const COMPUTE_GUIDANCE =
-  '\nDer*die Nutzer*in hat eine Berechnung oder Zählung angefordert. Wenn unten ein BERECHNUNGSERGEBNIS steht, präsentiere GENAU diese Zahlen — übernimm sie unverändert und rechne/zähle NICHT selbst nach. Wenn KEIN Berechnungsergebnis vorliegt, erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung. Erfinde niemals eine Zahl.';
+// Compute guidance is state-aware (mirrors image/image_edit): when a
+// deterministic result exists it is ALSO rendered as a card, so the model must
+// answer from it and never deny the capability. The static version bundled both
+// branches into one string, and the model latched onto the "if no result, ask
+// the user for it" clause even when a result was present — producing a denial
+// ("könnten Sie mir bitte das Berechnungsergebnis mitteilen?") next to a correct
+// card. Splitting on `computedResult` keeps the fallback wording out of the
+// prompt entirely when a number is available. The prose is the real answer (a
+// conversational reply to the user's concrete question); the card is a
+// supplementary breakdown, not a substitute for answering.
+function getComputeGuidance(state: ChatGraphState): string {
+  if (state.computedResult) {
+    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.';
+  }
+  return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert, aber es konnte kein sicheres Ergebnis ermittelt werden. Erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung (z.B. den genauen Text oder Ausdruck). Erfinde niemals eine Zahl.';
+}
 
 const IMAGE_FAILED_GUIDANCE =
   '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
@@ -725,7 +739,7 @@ function getSynthesisGuidance(state: ChatGraphState): string {
   return `\n\n## MEHR-DOKUMENT-KONTEXT\n\nDer*die Nutzer*in hat ${sources.length} Dokumente referenziert:\n${docList}\n\nAntworte als zusammenhängende Prosa, aber:\n1. Stütze jede Kernaussage durch eine Inline-Quellenreferenz [N].\n2. Wenn ein Dokument zur Frage relevant ist, muss es mindestens einmal zitiert werden — sonst kennzeichne explizit, dass es im jeweiligen Punkt schweigt.\n3. Mische nicht stillschweigend Quellen — der*die Leser*in soll erkennen können, welches Dokument welche Aussage stützt.\n4. Genderstern verwenden.`;
 }
 
-function getModeGuidance(state: ChatGraphState): string {
+export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
       return EDIT_CURRENT_DOC_GUIDANCE;
@@ -736,7 +750,7 @@ function getModeGuidance(state: ChatGraphState): string {
     case 'artifact':
       return ARTIFACT_GUIDANCE;
     case 'compute':
-      return COMPUTE_GUIDANCE;
+      return getComputeGuidance(state);
     case 'image':
       return state.generatedImage
         ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
