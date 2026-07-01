@@ -12,8 +12,39 @@ import { type ChatChartData } from '@gruenerator/ui';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';
+import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { MermaidDiagram } from './MermaidDiagram';
 import { LazyChatChart } from './LazyChatChart';
+import { useIsMessageStreaming } from './messageStreamingContext';
+
+/** Heuristic: does this code operate on the pre-loaded pandas `df`? Used to (a)
+ *  treat a mis-tagged fence (``` instead of ```python) as runnable when a table
+ *  is loaded, and (b) decide whether to auto-run it. */
+function looksLikePandas(code: string): boolean {
+  return /(^|[^.\w])df[^\w]/.test(code) || /\bimport\s+pandas\b/.test(code) || /\bpd\./.test(code);
+}
+
+/** Code blocks auto-run at most once per unique source across re-mounts. */
+const autoRunSeen = new Set<string>();
+
+/** Parse a single labelled `print("Label:", value)` line into a compute entry so
+ *  the result can be surfaced to the model on later turns. Falls back to the raw
+ *  stdout as one entry. */
+function parseComputeResult(operation: string, stdout: string) {
+  const lines = stdout.trim().split('\n').filter(Boolean);
+  const entries = lines.map((line) => {
+    const idx = line.indexOf(':');
+    if (idx > 0 && idx < line.length - 1) {
+      return { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() };
+    }
+    return { label: 'Ergebnis', value: line.trim() };
+  });
+  return {
+    operation,
+    entries: entries.length > 0 ? entries : [{ label: 'Ergebnis', value: stdout.trim() }],
+    summary: stdout.trim(),
+  };
+}
 
 /** Parse a ```chart fenced block's JSON into a renderable chart, or null if the
  *  payload is malformed / not chart-shaped (then we fall back to a code view). */
@@ -62,14 +93,23 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   const { language, code } = extractCodeInfo(children);
   const runPython = useChatConfigStore((s) => s.runPython);
   const pythonFiles = usePythonFileStore((s) => s.files);
+  const setLastCompute = useLastComputeStore((s) => s.setResult);
+  const isStreaming = useIsMessageStreaming();
   const [html, setHtml] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
   const [output, setOutput] = useState<CodeExecutionResult | null>(null);
 
-  // Only Python runs, and only where a host injected runPython (web, not native).
-  const canRun = language === 'python' && !!runPython;
+  const hasTable = pythonFiles.length > 0;
+  // Runnable when the host injected runPython (web) AND it's Python — either
+  // tagged ```python, OR a mis-tagged fence that clearly operates on the
+  // pre-loaded `df` (models sometimes drop the language tag). The latter also
+  // gates auto-run below.
+  const isTabularCompute = hasTable && looksLikePandas(code);
+  const canRun = !!runPython && (language === 'python' || isTabularCompute);
+  // Treat a mis-tagged compute fence as python for highlighting + the label.
+  const effectiveLanguage = language === 'text' && isTabularCompute ? 'python' : language;
   const isMermaid = language === 'mermaid';
   // Charts render from the same ```chart block whether streaming live or reloaded
   // from history — the block is persisted in the message text, so there is one
@@ -79,7 +119,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   useEffect(() => {
     if (isMermaid || chart) return;
     let active = true;
-    highlightCode(code, language)
+    highlightCode(code, effectiveLanguage)
       .then((result) => {
         if (active) setHtml(result);
       })
@@ -89,7 +129,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [code, language, isMermaid, chart]);
+  }, [code, effectiveLanguage, isMermaid, chart]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(code).then(() => {
@@ -98,12 +138,18 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     });
   }, [code]);
 
-  const handleRun = useCallback(async () => {
+  const runCode = useCallback(async () => {
     if (!runPython) return;
     setRunning(true);
     setProgress('Wird ausgeführt …');
     try {
-      setOutput(await runPython(code, pythonFiles, { onProgress: setProgress }));
+      const result = await runPython(code, pythonFiles, { onProgress: setProgress });
+      setOutput(result);
+      // Remember a successful spreadsheet result so the next turn can forward it
+      // to the model (it can't see the browser-computed number otherwise).
+      if (result.ok && result.stdout.trim() && isTabularCompute) {
+        setLastCompute(parseComputeResult('Tabellen-Berechnung', result.stdout));
+      }
     } catch (error) {
       setOutput({
         ok: false,
@@ -116,7 +162,17 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     } finally {
       setRunning(false);
     }
-  }, [code, runPython, pythonFiles]);
+  }, [code, runPython, pythonFiles, isTabularCompute, setLastCompute]);
+
+  // Auto-run a spreadsheet-compute block exactly once, after it has finished
+  // streaming — so the answer appears without the user hunting for a Run button.
+  // Non-tabular code and half-streamed blocks are never auto-run.
+  useEffect(() => {
+    if (isStreaming || !canRun || !isTabularCompute) return;
+    if (output || running || autoRunSeen.has(code)) return;
+    autoRunSeen.add(code);
+    void runCode();
+  }, [isStreaming, canRun, isTabularCompute, code, output, running, runCode]);
 
   if (chart) {
     return (
@@ -136,12 +192,12 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-code-block-bg">
       <div className="flex items-center justify-between border-b border-border/60 px-3 py-1.5">
         <span className="font-mono text-xs text-foreground-muted">
-          {language === 'text' ? 'Code' : language}
+          {effectiveLanguage === 'text' ? 'Code' : effectiveLanguage}
         </span>
         <div className="flex items-center gap-1">
           {canRun && (
             <button
-              onClick={handleRun}
+              onClick={runCode}
               disabled={running}
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
               aria-label="Code ausführen"
