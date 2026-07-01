@@ -3,6 +3,7 @@ import { Badge, Button } from '@gruenerator/ui';
 import { memo, useCallback, useState } from 'react';
 import { FiCheck, FiCopy, FiTrash2, FiUsers } from 'react-icons/fi';
 
+import { getPublicAppOrigin } from '../../../../../utils/platform';
 import { useBoardSharing } from '../../../hooks/useBoardSharing';
 
 const SHARE_MODE_OPTIONS = [
@@ -84,8 +85,8 @@ export const ShareSection = memo(function ShareSection({
 
   const isPublicOrAuth = shareSettings?.share_mode && shareSettings.share_mode !== 'private';
   const shareUrl = isPublicOrAuth
-    ? `${window.location.origin}/boards/public/${boardId}`
-    : `${window.location.origin}/boards/${boardId}`;
+    ? `${getPublicAppOrigin()}/boards/public/${boardId}`
+    : `${getPublicAppOrigin()}/boards/${boardId}`;
   const availableGroups = userGroups.filter((g) => !boardGroups.some((bg) => bg.group_id === g.id));
 
   const handleCopy = useCallback(() => {

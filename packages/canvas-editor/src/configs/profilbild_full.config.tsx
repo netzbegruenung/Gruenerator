@@ -17,7 +17,7 @@ import {
 } from '@gruenerator/shared/canvas-editor';
 import { HiPaintBrush } from 'react-icons/hi2';
 
-import { createBaseActions } from './factory/commonActions';
+import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';

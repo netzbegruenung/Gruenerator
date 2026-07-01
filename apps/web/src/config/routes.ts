@@ -151,6 +151,9 @@ const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Ter
 const Nutzungsbedingungen = lazy(
   () => import('../components/pages/Impressum_Datenschutz_Terms/Nutzungsbedingungen')
 );
+const KITransparenz = lazy(
+  () => import('../components/pages/Impressum_Datenschutz_Terms/KITransparenz')
+);
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
@@ -516,6 +519,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/impressum', component: Impressum, public: true },
   { path: '/support', component: Support, public: true },
   { path: '/nutzungsbedingungen', component: Nutzungsbedingungen, public: true },
+  { path: '/ki-transparenz', component: KITransparenz, public: true },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage, public: true },
   { path: '/register', component: RegistrationPage, public: true },
@@ -550,11 +554,14 @@ const standardRoutes: RouteConfig[] = [
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true, devOnly: true },
+  // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
+  // `:category` routes below) are all prod-visible. Creation is a public research
+  // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
+  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
-  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery, devOnly: true },
+  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
   { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'noChrome' },
@@ -562,13 +569,11 @@ const standardRoutes: RouteConfig[] = [
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,
     withForm: true,
-    devOnly: true,
   },
   {
     path: '/studio/:category/:type',
     component: GrueneratorenBundle.ImageStudio,
     withForm: true,
-    devOnly: true,
   },
   // Pages Feature Routes
   // Docs: overview and editor
@@ -576,7 +581,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
-  { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
+  { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
   { path: '/sites', component: SitesHomePage, layoutMode: 'sidebarOnly' },
   { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },

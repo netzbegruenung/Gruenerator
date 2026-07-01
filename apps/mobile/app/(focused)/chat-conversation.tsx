@@ -1,6 +1,6 @@
 import { useAui } from '@assistant-ui/react-native';
 import { useAgentStore } from '@gruenerator/chat';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { getSystemAgent, isAgentVisibleForPlatform } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect } from 'react';
@@ -68,25 +68,40 @@ export default function ChatConversationScreen() {
 
   // Mirror web's ChatPage: the route param is the source of truth, this screen
   // writes the global agent store (which `useMobileChatRuntime` reads to build
-  // the request). When an agent is selected, auto-pair its notebook the same
-  // way web does — the agent's own `defaultNotebookId`, else the Österreich
-  // notebook for AT users. An explicit `notebookId` param (notebook picker)
-  // takes the simple path.
+  // the request). When an agent is selected, auto-pair its FIRST bound notebook
+  // into the composer chip the same way web does — the agent's own
+  // `defaultNotebookIds[0]`, else the Österreich notebook for AT users. The
+  // agent's full notebook set scopes search server-side regardless. An explicit
+  // `notebookId` param (notebook picker) takes the simple path.
   useEffect(() => {
     const store = useAgentStore.getState();
     if (agentId) {
-      store.setSelectedAgent(agentId);
-      const defaultNotebookId = getSystemAgent(agentId)?.defaultNotebookId;
+      // Web-only agents (e.g. the canvas-editor-backed sharepic agent) have no
+      // mobile renderer — a shared deep link must not select one. Fall back to
+      // the universal assistant so the chat still works.
+      const linkedAgent = getSystemAgent(agentId);
+      const resolvedAgentId =
+        linkedAgent && !isAgentVisibleForPlatform(linkedAgent, 'mobile')
+          ? 'gruenerator-universal'
+          : agentId;
+      store.setSelectedAgent(resolvedAgentId);
+      const defaultNotebookId = getSystemAgent(resolvedAgentId)?.defaultNotebookIds?.[0];
       if (defaultNotebookId) {
         store.setSelectedNotebook(defaultNotebookId);
       } else if (locale === 'de-AT') {
         store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
       }
     } else if (notebookId) {
+      // Entering from a notebook → run the specialized notebook RAG (citations +
+      // sources), not the general agent chat. Switch to notebook mode so the
+      // runtime hits /notebook/stream scoped to this notebook's collections.
       store.setSelectedNotebook(notebookId);
+      store.setThreadMode('notebook');
     }
     return () => {
-      useAgentStore.getState().setSelectedNotebook('gruenerator-notebook');
+      const store = useAgentStore.getState();
+      store.setSelectedNotebook('gruenerator-notebook');
+      store.setThreadMode('chat');
     };
   }, [notebookId, agentId, locale]);
 

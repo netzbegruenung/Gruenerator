@@ -20,6 +20,7 @@ import {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  itemUsageContract,
   searchContract,
   researchContract,
   boardsContract,
@@ -28,6 +29,7 @@ import {
   boardActivityContract,
   boardSubscriptionsContract,
   boardAttachmentsContract,
+  boardCardDocumentsContract,
   publicBoardsContract,
   notebookContract,
   notebookCollectionsContract,
@@ -44,6 +46,7 @@ import {
   userTemplatesContract,
   templateInteractionsContract,
   userAgentsContract,
+  userAgentsSharingContract,
   docsContract,
   documentsContract,
   groupsContract,
@@ -149,6 +152,7 @@ const CLIENT_OPTS = {
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
+const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
@@ -157,6 +161,7 @@ const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
 const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
 const _boardAttachmentsClient = () => initClient(boardAttachmentsContract, CLIENT_OPTS);
+const _boardCardDocumentsClient = () => initClient(boardCardDocumentsContract, CLIENT_OPTS);
 const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
@@ -173,6 +178,7 @@ const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
+const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
@@ -186,6 +192,7 @@ export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
+  itemUsage: ReturnType<typeof _itemUsageClient>;
   search: ReturnType<typeof _searchClient>;
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
@@ -194,6 +201,7 @@ export interface ContractsClient {
   boardActivity: ReturnType<typeof _boardActivityClient>;
   boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
   boardAttachments: ReturnType<typeof _boardAttachmentsClient>;
+  boardCardDocuments: ReturnType<typeof _boardCardDocumentsClient>;
   publicBoards: ReturnType<typeof _publicBoardsClient>;
   notebook: ReturnType<typeof _notebookClient>;
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
@@ -210,6 +218,7 @@ export interface ContractsClient {
   userTemplates: ReturnType<typeof _userTemplatesClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
+  userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
@@ -240,6 +249,7 @@ export function getContractsClient(): ContractsClient {
     threads: _threadsClient(),
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
+    itemUsage: _itemUsageClient(),
     search: _searchClient(),
     research: _researchClient(),
     boards: _boardsClient(),
@@ -248,6 +258,7 @@ export function getContractsClient(): ContractsClient {
     boardActivity: _boardActivityClient(),
     boardSubscriptions: _boardSubscriptionsClient(),
     boardAttachments: _boardAttachmentsClient(),
+    boardCardDocuments: _boardCardDocumentsClient(),
     publicBoards: _publicBoardsClient(),
     notebook: _notebookClient(),
     notebookCollections: _notebookCollectionsClient(),
@@ -264,6 +275,7 @@ export function getContractsClient(): ContractsClient {
     userTemplates: _userTemplatesClient(),
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
+    userAgentsSharing: _userAgentsSharingClient(),
     docs: _docsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),

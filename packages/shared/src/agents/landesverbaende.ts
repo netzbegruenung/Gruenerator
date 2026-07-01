@@ -5,10 +5,10 @@ import { type NotebookId } from '../notebooks/index.js';
  * SINGLE SOURCE OF TRUTH for the LV↔notebook↔agents relationship — the hub
  * (`landesverbandHubs.ts`), the generated Bürger*innenanfragen agents
  * (`lvBuergerAgents.ts`) and the notebook pin on the hand-tuned PR agents
- * (`oeffentlichkeitsarbeitAgents.ts`) all DERIVE from it.
+ * (`definitions/gruenerator-oeffentlichkeitsarbeit-*.md`) all DERIVE from it.
  *
  * Why this exists: each LV's two specialist agents must appear on the LV
- * notebook page, which lists an agent only when `defaultNotebookId === notebookId`
+ * notebook page, which lists an agent only when its `defaultNotebookIds` include the notebookId
  * (`NotebookAgentsSection`). The Bürger agents always derived that pin from their
  * spec, but the hand-tuned PR agents typed it by hand — and 8 of them silently
  * omitted it, so only the Bürger agent showed. Deriving every pin from this one
@@ -175,7 +175,7 @@ export const LANDESVERBAENDE = [
   },
 ] as const satisfies readonly LandesverbandEntry[];
 
-/** notebookId for a given PR agent id — drives the derived `defaultNotebookId`
+/** notebookId for a given PR agent id — drives the derived `defaultNotebookIds`
  *  pin on the hand-tuned Öffentlichkeitsarbeit agents. */
 export const LV_NOTEBOOK_BY_PR_AGENT_ID: ReadonlyMap<string, NotebookId> = new Map(
   LANDESVERBAENDE.map((lv) => [lv.prAgentId, lv.notebookId])

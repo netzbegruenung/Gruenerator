@@ -1,15 +1,14 @@
 import { ThreadPrimitive, useAui } from '@assistant-ui/react-native';
-import { chatSuggestions } from '@gruenerator/chat';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, borderRadius } from '../../theme';
+import { spacing } from '../../theme';
 
-import { AssistantComposer } from './AssistantComposer';
+import { AssistantComposer, type ComposerAccessory } from './AssistantComposer';
 import { DocumentBrowserSheet } from './DocumentBrowserSheet';
 import { MessageBubble } from './MessageBubble';
 
@@ -24,12 +23,27 @@ import type { Theme } from '../../theme/colors';
 export interface ThreadWelcome {
   title: string;
   subtitle?: string;
+  /** Icon shown above the greeting — e.g. the notebook's own icon. */
+  icon?: IoniconsIconName;
   suggestions: readonly string[];
 }
 
 interface Props {
   theme?: Theme;
   welcome?: ThreadWelcome;
+  /**
+   * Distance from the top of the screen to the top of this thread — the height of
+   * any chrome above it (header, tabs, filter bar). KeyboardAvoidingView measures
+   * its frame relative to its parent, not the screen, so when the thread is nested
+   * below extra chrome (e.g. the notebook chat tab) this offset is needed to keep
+   * the keyboard from overlapping the composer. 0 for the full-screen main chat.
+   */
+  keyboardVerticalOffset?: number;
+  /** Optional composer toolbar button (e.g. the notebook chat's filter/mode sheet). */
+  composerAccessory?: ComposerAccessory;
+  /** Make the thread + composer backgrounds transparent so a screen-level
+   *  background (e.g. the notebook gradient) shows through for full immersion. */
+  transparent?: boolean;
 }
 
 const EmptyState = memo(function EmptyState({
@@ -39,59 +53,32 @@ const EmptyState = memo(function EmptyState({
   theme: Theme;
   welcome?: ThreadWelcome;
 }) {
-  if (welcome) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="sparkles" size={44} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>{welcome.title}</Text>
-        {welcome.subtitle ? (
-          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-            {welcome.subtitle}
-          </Text>
-        ) : null}
-        <View style={styles.suggestionsGrid}>
-          {welcome.suggestions.map((prompt, i) => (
-            <ThreadPrimitive.Suggestion
-              key={i}
-              prompt={prompt}
-              send
-              style={[styles.suggestionChip, { borderColor: theme.border }]}
-            >
-              <Text style={[styles.suggestionTitle, { color: theme.text }]}>{prompt}</Text>
-            </ThreadPrimitive.Suggestion>
-          ))}
-        </View>
-      </View>
-    );
-  }
+  // One calm, centered greeting — no suggestion chips. The notebook passes its own
+  // icon; the main chat falls back to the brand spark.
+  const icon: IoniconsIconName = welcome?.icon ?? 'sparkles';
+  const title = welcome?.title ?? 'Was möchtest du wissen?';
+  const subtitle = welcome?.subtitle;
 
   return (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="chatbubble-ellipses-outline" size={48} color={theme.textSecondary} />
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>Neue Unterhaltung</Text>
-      <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-        Stelle eine Frage oder wähle einen Vorschlag
-      </Text>
-      <View style={styles.suggestionsGrid}>
-        {chatSuggestions.map((s, i) => (
-          <ThreadPrimitive.Suggestion
-            key={i}
-            prompt={s.prompt}
-            send={false}
-            style={[styles.suggestionChip, { borderColor: theme.border }]}
-          >
-            <Text style={[styles.suggestionTitle, { color: theme.text }]}>{s.title}</Text>
-            <Text style={[styles.suggestionLabel, { color: theme.textSecondary }]}>{s.label}</Text>
-          </ThreadPrimitive.Suggestion>
-        ))}
-      </View>
+    <View style={styles.emptyContainer} pointerEvents="none">
+      <Ionicons name={icon} size={48} color={theme.textGreen} />
+      <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
+      {subtitle ? (
+        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
+      ) : null}
     </View>
   );
 });
 
 const messagesContentStyle = { paddingTop: spacing.small };
 
-export const AssistantThread = memo(function AssistantThread({ theme: themeProp, welcome }: Props) {
+export const AssistantThread = memo(function AssistantThread({
+  theme: themeProp,
+  welcome,
+  keyboardVerticalOffset = 0,
+  composerAccessory,
+  transparent,
+}: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
@@ -117,8 +104,17 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp,
   );
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.container}>
-      <ThreadPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
+    <KeyboardAvoidingView
+      behavior="padding"
+      keyboardVerticalOffset={keyboardVerticalOffset}
+      style={styles.container}
+    >
+      <ThreadPrimitive.Root
+        style={[
+          styles.container,
+          { backgroundColor: transparent ? 'transparent' : theme.background },
+        ]}
+      >
         <ThreadPrimitive.Empty>
           <EmptyState theme={theme} welcome={welcome} />
         </ThreadPrimitive.Empty>
@@ -132,6 +128,8 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp,
           bottomInset={insets.bottom}
           onOpenDocBrowser={handleOpenDocBrowser}
           inputRef={composerInputRef}
+          accessory={composerAccessory}
+          transparent={transparent}
         />
         <DocumentBrowserSheet
           visible={docBrowserVisible}
@@ -149,40 +147,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'flex-start',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.xlarge,
-    paddingTop: spacing.xlarge,
+    gap: spacing.medium,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: spacing.medium,
+    fontFamily: 'Raleway_700Bold',
+    fontSize: 26,
+    textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
-    marginTop: spacing.xsmall,
-    lineHeight: 20,
-  },
-  suggestionsGrid: {
-    width: '100%',
-    marginTop: spacing.large,
-    gap: spacing.small,
-  },
-  suggestionChip: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: borderRadius.large,
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-  },
-  suggestionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  suggestionLabel: {
-    fontSize: 12,
-    marginTop: 2,
+    lineHeight: 22,
   },
 });

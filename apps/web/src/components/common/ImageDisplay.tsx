@@ -3,6 +3,7 @@ import { HiDownload } from 'react-icons/hi';
 
 import { useAltTextStore } from '../../features/image-studio/hooks/useAltText';
 import { cn } from '../../utils/cn';
+import { getPublicAppOrigin } from '../../utils/platform';
 import useAltTextGeneration from '../hooks/useAltTextGeneration';
 import { ProfileIconButton, ProfileActionButton } from '../profile/actions/ProfileActionButton';
 import apiClient from '../utils/apiClient';
@@ -292,7 +293,7 @@ const ImageDisplay = ({
     }
 
     // Open Image Studio in new tab with editing session
-    const url = new URL(window.location.origin + '/studio/templates');
+    const url = new URL(getPublicAppOrigin() + '/studio/templates');
     url.searchParams.append('editSession', editingSessionId);
     window.open(url.toString(), '_blank');
   };

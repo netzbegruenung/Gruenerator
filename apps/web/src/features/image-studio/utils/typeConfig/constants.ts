@@ -2,6 +2,8 @@
  * Image Studio constants and enums
  */
 
+import { type CanvasTemplateType } from '@gruenerator/contracts';
+
 export const IMAGE_STUDIO_CATEGORIES = {
   TEMPLATES: 'templates',
   KI: 'ki',
@@ -40,6 +42,21 @@ export const IMAGE_STUDIO_TYPES = {
 } as const;
 
 export type ImageStudioType = (typeof IMAGE_STUDIO_TYPES)[keyof typeof IMAGE_STUDIO_TYPES];
+
+// Compile-time alignment with the canonical canvas-template set in
+// @gruenerator/contracts (the single source of truth). Every canonical
+// CanvasTemplateType must be a valid ImageStudioType, so any value arriving
+// from the chat/handoff boundary is handled by the studio store. If this
+// fails, add the missing member to IMAGE_STUDIO_TYPES above.
+type _AssertCanvasTypesCovered = CanvasTemplateType extends ImageStudioType ? true : never;
+const _assertCanvasTypesCovered: _AssertCanvasTypesCovered = true;
+void _assertCanvasTypesCovered;
+
+const IMAGE_STUDIO_TYPE_VALUES = new Set<string>(Object.values(IMAGE_STUDIO_TYPES));
+
+/** Runtime guard: is `value` a known image-studio type? */
+export const isImageStudioType = (value: unknown): value is ImageStudioType =>
+  typeof value === 'string' && IMAGE_STUDIO_TYPE_VALUES.has(value);
 
 export const FORM_STEPS = {
   CATEGORY_SELECT: 'CATEGORY_SELECT',

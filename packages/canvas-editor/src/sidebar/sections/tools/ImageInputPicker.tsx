@@ -1,3 +1,4 @@
+import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
 import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
@@ -115,27 +116,28 @@ export function ImageInputPicker({
           <span className="text-[10px] font-semibold uppercase tracking-wide text-foreground-muted mt-1 flex items-center gap-1">
             <HiPhoto size={11} /> Aus Uploads wählen
           </span>
-          <div className="grid grid-cols-3 gap-1.5">
+          <MasonryGrid columns="2" gap="sm">
             {recentItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => void handlePickFromUploads(item)}
-                disabled={disabled}
-                className="relative aspect-square overflow-hidden rounded-md border border-[var(--card-border)] bg-[var(--card-background)] cursor-pointer hover:border-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-0"
-                title={item.title ?? item.originalFilename ?? ''}
-              >
-                {item.thumbnailUrl ? (
-                  <img
-                    src={item.thumbnailUrl}
-                    alt={item.altText ?? item.title ?? ''}
-                    className="size-full object-cover"
-                    draggable={false}
-                  />
-                ) : null}
-              </button>
+              <MasonryItem key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => void handlePickFromUploads(item)}
+                  disabled={disabled}
+                  className="relative block w-full overflow-hidden rounded-md border border-[var(--card-border)] bg-[var(--card-background)] cursor-pointer hover:border-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-0"
+                  title={item.title ?? item.originalFilename ?? ''}
+                >
+                  {item.thumbnailUrl ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.altText ?? item.title ?? ''}
+                      className="w-full h-auto"
+                      draggable={false}
+                    />
+                  ) : null}
+                </button>
+              </MasonryItem>
             ))}
-          </div>
+          </MasonryGrid>
         </>
       ) : null}
 

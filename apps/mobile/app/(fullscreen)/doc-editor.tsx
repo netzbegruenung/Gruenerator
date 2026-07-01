@@ -1,11 +1,6 @@
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import {
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-  type ErrorBoundaryProps,
-} from 'expo-router';
+import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -19,12 +14,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DocAiEditSheet } from '../../components/docs/DocAiEditSheet';
-import { DocAiReviewBar } from '../../components/docs/DocAiReviewBar';
+// AI features disabled (buggy) — DocAiEditSheet / DocAiReviewBar / NativeChatSidebar commented out
+// import { DocAiEditSheet } from '../../components/docs/DocAiEditSheet';
+// import { DocAiReviewBar } from '../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../components/docs/DocEditorDOM';
 import { DocEditorSkeleton } from '../../components/docs/DocEditorSkeleton';
 import { GuestBanner } from '../../components/docs/GuestBanner';
-import { NativeChatSidebar } from '../../components/docs/NativeChatSidebar';
+// import { NativeChatSidebar } from '../../components/docs/NativeChatSidebar';
 import { NativeDocTopBar } from '../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../components/docs/NativeShareModal';
@@ -87,11 +83,12 @@ export default function DocumentScreen() {
   const connectionStatus = store((s) => s.connectionStatus);
   const pendingAction = store((s) => s.pendingAction);
   const actionCounter = store((s) => s.actionCounter);
-  const aiReviewPending = store((s) => s.aiReviewPending);
+  // AI features disabled (buggy): aiReviewPending / toggleSidebar / aiEditOpen unused
+  // const aiReviewPending = store((s) => s.aiReviewPending);
   const fullscreen = store((s) => s.fullscreen);
   const setFullscreen = store((s) => s.setFullscreen);
-  const toggleSidebar = store((s) => s.toggleSidebar);
-  const aiEditOpen = store((s) => s.aiEditOpen);
+  // const toggleSidebar = store((s) => s.toggleSidebar);
+  // const aiEditOpen = store((s) => s.aiEditOpen);
   const versionsOpen = store((s) => s.versionsOpen);
   const canEdit = store((s) => s.canEdit);
   const editorEpoch = store((s) => s.editorEpoch);
@@ -100,25 +97,26 @@ export default function DocumentScreen() {
   // While AI suggestions are pending review, the edits live in a detached,
   // un-synced Y.Doc fork — leaving the screen drops them silently. Block back /
   // swipe-to-dismiss and steer the user to the review bar (Übernehmen/Verwerfen).
-  const navigation = useNavigation();
-  useEffect(() => {
-    if (!aiReviewPending) return;
-    const nav = navigation as unknown as {
-      addListener: (
-        type: 'beforeRemove',
-        cb: (e: { preventDefault: () => void }) => void
-      ) => () => void;
-    };
-    const unsubscribe = nav.addListener('beforeRemove', (e) => {
-      e.preventDefault();
-      Alert.alert(
-        'KI-Vorschläge prüfen',
-        'Übernimm oder verwirf die KI-Änderungen, bevor du das Dokument verlässt.',
-        [{ text: 'Zurück zum Dokument', style: 'cancel' }]
-      );
-    });
-    return unsubscribe;
-  }, [navigation, aiReviewPending]);
+  // AI features disabled (buggy): no AI review state to guard navigation against.
+  // const navigation = useNavigation();
+  // useEffect(() => {
+  //   if (!aiReviewPending) return;
+  //   const nav = navigation as unknown as {
+  //     addListener: (
+  //       type: 'beforeRemove',
+  //       cb: (e: { preventDefault: () => void }) => void
+  //     ) => () => void;
+  //   };
+  //   const unsubscribe = nav.addListener('beforeRemove', (e) => {
+  //     e.preventDefault();
+  //     Alert.alert(
+  //       'KI-Vorschläge prüfen',
+  //       'Übernimm oder verwirf die KI-Änderungen, bevor du das Dokument verlässt.',
+  //       [{ text: 'Zurück zum Dokument', style: 'cancel' }]
+  //     );
+  //   });
+  //   return unsubscribe;
+  // }, [navigation, aiReviewPending]);
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
@@ -436,7 +434,7 @@ export default function DocumentScreen() {
         <>
           <NativeDocTopBar />
           <NativeFormattingToolbar />
-          {aiReviewPending && <DocAiReviewBar />}
+          {/* AI features disabled (buggy): {aiReviewPending && <DocAiReviewBar />} */}
           <GuestBanner />
         </>
       )}
@@ -474,6 +472,9 @@ export default function DocumentScreen() {
               // ignore malformed payload
             }
           }}
+          onUndoRedoStateChange={(canUndo, canRedo) =>
+            store.getState().setUndoRedoState(canUndo, canRedo)
+          }
           onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           onAiAcceptFailed={() =>
             Alert.alert(
@@ -496,6 +497,7 @@ export default function DocumentScreen() {
       </View>
 
       {!fullscreen && <NativeSlashMenu />}
+      {/* AI features disabled (buggy): DocAiEditSheet + NativeChatSidebar commented out
       <DocAiEditSheet
         visible={aiEditOpen}
         onClose={() => store.getState().setAiEditOpen(false)}
@@ -508,6 +510,7 @@ export default function DocumentScreen() {
         }
       />
       <NativeChatSidebar documentId={id!} />
+      */}
       <NativeShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
@@ -557,9 +560,9 @@ export default function DocumentScreen() {
           </View>
         )}
 
-      {/* Bottom-right action: AI assistant normally, exit-fullscreen while in
-          fullscreen (the top bar — and its menu — are hidden then). */}
-      {fullscreen ? (
+      {/* Bottom-right action: exit-fullscreen while in fullscreen (the top bar — and
+          its menu — are hidden then). The AI-assistant FAB is disabled (buggy AI). */}
+      {fullscreen && (
         <Pressable
           onPress={() => setFullscreen(false)}
           style={[styles.fab, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -567,7 +570,8 @@ export default function DocumentScreen() {
         >
           <Ionicons name="contract-outline" size={20} color={theme.textSecondary} />
         </Pressable>
-      ) : (
+      )}
+      {/* AI features disabled (buggy): KI-Assistent FAB commented out
         <Pressable
           onPress={toggleSidebar}
           style={[styles.fabPrimary, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -575,7 +579,7 @@ export default function DocumentScreen() {
         >
           <Ionicons name="sparkles" size={20} color={colors.primary[600]} />
         </Pressable>
-      )}
+      */}
     </View>
   );
 }

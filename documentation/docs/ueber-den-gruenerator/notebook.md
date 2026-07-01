@@ -34,7 +34,7 @@ Zur Einführung in Funktionen, Datenschutz und Open‑Source‑Grundlagen siehe 
 
 - Hamburg, Rheinland‑Pfalz, Schleswig‑Holstein
 
-**Sehr klein (< 5.000): 1.000 €**
+**Sehr klein (< 5.000): 750 €**
 
 - Bremen, Saarland
 

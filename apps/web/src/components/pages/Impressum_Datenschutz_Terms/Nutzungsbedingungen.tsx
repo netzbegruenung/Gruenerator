@@ -4,7 +4,7 @@ const Nutzungsbedingungen = () => {
   return (
     <div className="page-container">
       <h1>Nutzungsbedingungen</h1>
-      <p>Stand: 12. Mai 2026</p>
+      <p>Stand: 16. Juni 2026</p>
 
       <h2>§ 1 Geltungsbereich</h2>
       <p>
@@ -63,6 +63,10 @@ const Nutzungsbedingungen = () => {
         (2) Der Betreiber ist berechtigt, den Funktionsumfang der Plattform jederzeit zu erweitern,
         einzuschränken oder zu verändern, sofern dies für Dich zumutbar ist.
       </p>
+      <p>
+        (3) Die Nutzung der Plattform ist derzeit unentgeltlich. Ein Anspruch auf dauerhafte
+        kostenlose Bereitstellung besteht nicht.
+      </p>
 
       <h2>§ 3 Registrierung und Benutzerkonto</h2>
       <p>
@@ -81,6 +85,11 @@ const Nutzungsbedingungen = () => {
         (4) Du kannst Dein Benutzerkonto jederzeit löschen. Nach der Löschung werden Deine
         personenbezogenen Daten gemäß unserer <a href="/datenschutz">Datenschutzerklärung</a>{' '}
         behandelt.
+      </p>
+      <p>
+        (5) Die Registrierung setzt voraus, dass Du das nach dem Recht Deines Aufenthaltsstaates für
+        die Einwilligung erforderliche Mindestalter erreicht hast (in Deutschland 16, in Österreich
+        14 Jahre) oder die Einwilligung der Erziehungsberechtigten vorliegt.
       </p>
 
       <h2>§ 4 Nutzungsregeln</h2>
@@ -129,21 +138,14 @@ const Nutzungsbedingungen = () => {
 
       <h2>§ 5 KI-generierte Inhalte</h2>
       <p>
-        (1) Die Plattform nutzt verschiedene KI-Modelle zur Inhaltserstellung. Du hast die Wahl
-        zwischen folgenden Modi:
+        (1) Die Plattform nutzt verschiedene KI-Modelle zur Inhaltserstellung. Du kannst pro Anfrage
+        selbst wählen, welches Modell und damit welcher Anbieter Deine Eingaben verarbeitet. Es
+        kommen ausschließlich Anbieter mit Verarbeitung in der EU zum Einsatz:
       </p>
       <ul>
-        <li>
-          <strong>Kreativ-Modus:</strong> Mistral AI (EU-Server, Frankreich)
-        </li>
-        <li>
-          <strong>Reasoning-Modus:</strong> Mistral AI Magistral (EU-Server, Frankreich) –
-          erweitertes Modell mit mehrstufigem Nachdenken
-        </li>
-        <li>
-          <strong>Grünerator-GPT:</strong> netzbegrünung e.V. (eigene Server, Deutschland/Finnland)
-          – maximaler Datenschutz
-        </li>
+        <li>Mistral AI (EU-Server, Frankreich)</li>
+        <li>KI-Modelle der netzbegrünung e.V. (eigene Server, EU)</li>
+        <li>Seeweb/Regolo AI (EU-Server, Italien)</li>
       </ul>
       <p>
         (2){' '}
@@ -162,6 +164,11 @@ const Nutzungsbedingungen = () => {
         (4) Deine Eingaben werden zur Verarbeitung an die jeweiligen KI-Dienstleister
         weitergeleitet. Deine Daten werden dort nicht zum Training der KI verwendet. Einzelheiten
         findest Du in unserer <a href="/datenschutz">Datenschutzerklärung</a>.
+      </p>
+      <p>
+        (5) Wie wir KI-generierte Inhalte kennzeichnen (insbesondere die sichtbare Kennzeichnung von
+        Bildern) und welche Pflichten nach Art. 50 KI-VO bestehen, erläutern wir auf der Seite{' '}
+        <a href="/ki-transparenz">KI-Transparenz</a>.
       </p>
 
       <h2>§ 6 Geistiges Eigentum</h2>
@@ -233,14 +240,21 @@ const Nutzungsbedingungen = () => {
         oder durch einen Hinweis auf der Plattform).
       </p>
       <p>
-        (3) Widersprichst Du den geänderten Nutzungsbedingungen nicht innerhalb von vier Wochen nach
-        Zugang der Änderungsmitteilung, gelten die geänderten Bedingungen als angenommen. Auf diese
-        Rechtsfolge wirst Du in der Änderungsmitteilung gesondert hingewiesen.
+        (3) Über Änderungen informieren wir Dich mindestens sechs Wochen vor ihrem Inkrafttreten in
+        Textform (z. B. per E-Mail oder durch einen Hinweis auf der Plattform). Wesentliche
+        Änderungen – insbesondere solche, die Kernfunktionen, die Haftung oder die Rechte und
+        Pflichten der Parteien betreffen – werden nur mit Deiner ausdrücklichen Zustimmung wirksam.
+        Stimmst Du nicht zu, kannst Du die Nutzung jederzeit beenden und Dein Konto löschen; bis
+        dahin gelten die bisherigen Bedingungen fort. Bei unwesentlichen Änderungen genügt die
+        fortgesetzte Nutzung der Plattform nach Inkrafttreten, worauf wir Dich in der
+        Änderungsmitteilung gesondert hinweisen.
       </p>
 
       <h2>§ 11 Schlussbestimmungen</h2>
       <p>
-        (1) Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts.
+        (1) Es gilt das Recht der Bundesrepublik Deutschland. Zwingende verbraucherschützende
+        Vorschriften des Staates, in dem Du als Verbraucher Deinen gewöhnlichen Aufenthalt hast (z.
+        B. Österreich), bleiben hiervon unberührt (Art. 6 Rom-I-VO).
       </p>
       <p>(2) Gerichtsstand ist, soweit gesetzlich zulässig, Bonn.</p>
       <p>

@@ -34,7 +34,7 @@ import {
   createCircleBadgeActions,
   createBalkenActions,
   createFrameActions,
-} from './factory/commonActions';
+} from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';

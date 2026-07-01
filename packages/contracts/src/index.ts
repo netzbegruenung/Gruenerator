@@ -21,6 +21,7 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  itemUsageContract,
   searchContract,
   researchContract,
   chatGraphContract,
@@ -30,6 +31,7 @@ export {
   boardActivityContract,
   boardSubscriptionsContract,
   boardAttachmentsContract,
+  boardCardDocumentsContract,
   publicBoardsContract,
   sharesContract,
   sharesReadContract,
@@ -58,6 +60,7 @@ export {
   userTemplatesContract,
   templateInteractionsContract,
   userAgentsContract,
+  userAgentsSharingContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -70,6 +73,7 @@ export {
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
@@ -80,6 +84,7 @@ export * from './schemas/boardComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
 export * from './schemas/boardAttachments.js';
+export * from './schemas/boardCardDocuments.js';
 export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
@@ -106,12 +111,14 @@ export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
+export * from './schemas/userAgentsSharing.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
 export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/sliderDeck.js';
 export * from './schemas/skill.js';
+export * from './schemas/agent.js';
 export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';

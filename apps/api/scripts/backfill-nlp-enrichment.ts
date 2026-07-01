@@ -17,7 +17,11 @@ import {
   type EnrichmentStats,
 } from '../services/notebook/notebookEnrichmentService.js';
 
-function parseArgs(argv: string[]): { collection: string | null; dryRun: boolean; mode: EnrichmentMode } {
+function parseArgs(argv: string[]): {
+  collection: string | null;
+  dryRun: boolean;
+  mode: EnrichmentMode;
+} {
   let collection: string | null = null;
   let dryRun = false;
   // Backfill re-tags everything by default; --missing limits to untagged/changed docs.

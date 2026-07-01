@@ -15,11 +15,14 @@ import { z } from 'zod';
 
 import {
   fromUrlBodySchema,
+  fromCanvasBodySchema,
   createTemplateBodySchema,
   updateTemplateBodySchema,
   metadataUpdateBodySchema,
   bulkDeleteTemplatesBodySchema,
   instantiateBodySchema,
+  describeImageBodySchema,
+  describeImageResponseSchema,
   userTemplatesListResponseSchema,
   userTemplatePreviewResponseSchema,
   userTemplateCreatedFromUrlResponseSchema,
@@ -46,6 +49,24 @@ export const userTemplatesContract = c.router(
         500: userTemplatesErrorResponseSchema,
       },
       summary: 'Create or preview a template from a URL',
+    },
+
+    /**
+     * POST /api/auth/user-templates/from-canvas — publish one of the caller's
+     * canvas sharepics as a public Grünerator-Vorlage (snapshot + review row).
+     */
+    fromCanvas: {
+      method: 'POST',
+      path: '/api/auth/user-templates/from-canvas',
+      body: fromCanvasBodySchema,
+      responses: {
+        201: userTemplateCreatedFromUrlResponseSchema,
+        400: userTemplatesErrorResponseSchema,
+        403: userTemplatesErrorResponseSchema,
+        404: userTemplatesErrorResponseSchema,
+        500: userTemplatesErrorResponseSchema,
+      },
+      summary: 'Publish a canvas as a Grünerator-Vorlage',
     },
 
     /** GET /api/auth/user-templates — the caller's own templates. */
@@ -126,6 +147,19 @@ export const userTemplatesContract = c.router(
         500: userTemplatesErrorResponseSchema,
       },
       summary: 'Update user template metadata',
+    },
+
+    /** POST /api/auth/user-templates/describe-image — on-demand AI description from an image. */
+    describeImage: {
+      method: 'POST',
+      path: '/api/auth/user-templates/describe-image',
+      body: describeImageBodySchema,
+      responses: {
+        200: describeImageResponseSchema,
+        400: userTemplatesErrorResponseSchema,
+        500: userTemplatesErrorResponseSchema,
+      },
+      summary: 'Generate an AI description for a template image',
     },
 
     /** POST /api/auth/user-templates/:id/instantiate — new collaborative doc from a template. */

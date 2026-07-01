@@ -1,13 +1,15 @@
+import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
 import { Button, Popover, PopoverContent, PopoverTrigger, Switch } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
-import { HiOutlineAdjustmentsHorizontal, HiMagnifyingGlass } from 'react-icons/hi2';
+import { HiOutlineAdjustmentsHorizontal, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
 import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
+import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 import TemplatePreviewModal from '../TemplatePreviewModal';
@@ -40,6 +42,7 @@ interface VorlageItem {
   download_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
+  likes_count?: number;
   [key: string]: unknown;
 }
 
@@ -65,6 +68,26 @@ const addTagToSearch = (currentSearch: string, tag: string): string => {
   if (currentSearch.includes(hashtag)) return currentSearch;
   return currentSearch ? `${currentSearch} ${hashtag}` : hashtag;
 };
+
+const removeTagFromSearch = (currentSearch: string, tag: string): string =>
+  currentSearch
+    .split(/\s+/)
+    .filter((token) => token.toLowerCase() !== `#${tag}`.toLowerCase())
+    .join(' ')
+    .trim();
+
+/** Removable pill summarizing one applied filter (category, tag, or region). */
+const FilterChip = ({ label, onRemove }: { label: string; onRemove: () => void }): JSX.Element => (
+  <button
+    type="button"
+    onClick={onRemove}
+    className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 py-1 pl-3 pr-2 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-500/20 dark:text-primary-400"
+    aria-label={`Filter „${label}“ entfernen`}
+  >
+    {label}
+    <HiXMark className="size-3.5" aria-hidden="true" />
+  </button>
+);
 
 interface VorlagenResponse {
   vorlagen: VorlageItem[];
@@ -109,11 +132,18 @@ const fetchVorlagen = async ({
   return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
 };
 
+/** Pretty labels for known template_type categories; server sends raw ids. */
+const CATEGORY_LABELS: Record<string, string> = {
+  canva: 'Canva',
+  [GRUENERATOR_TEMPLATE_TYPE]: 'Grünerator',
+};
+
 const fetchCategories = async (): Promise<CategoryItem[]> => {
   const response = await apiClient.get<CategoriesResponse>('/auth/vorlagen-categories');
   const data = response.data;
   const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
-  return [{ id: 'all', label: 'Alle Typen' }, ...categories];
+  const labeled = categories.map((c) => ({ ...c, label: CATEGORY_LABELS[c.id] ?? c.label }));
+  return [{ id: 'all', label: 'Alle Typen' }, ...labeled];
 };
 
 const VorlagenGallery = memo((): JSX.Element => {
@@ -170,15 +200,22 @@ const VorlagenGallery = memo((): JSX.Element => {
     canFavorite,
   } = useEntityFavorites('template');
 
+  const { openVorlage, usingId } = useGrueneratorVorlage();
+
   const previewId = previewTemplate ? String(previewTemplate.id) : '';
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
   }, []);
 
-  const openExternal = useCallback((item: VorlageItem) => {
-    const url = resolveTemplateUrl(item);
-    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  const removeTag = useCallback((tag: string) => {
+    setInputValue((prev) => removeTagFromSearch(prev, tag));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setInputValue('');
+    setSelectedCategory('all');
+    setLocaleFilter(true);
   }, []);
 
   const copyLink = useCallback((item: VorlageItem) => {
@@ -198,6 +235,13 @@ const VorlagenGallery = memo((): JSX.Element => {
   }, [categories, selectedCategory]);
 
   const showCategoryFilter = categories.length > 0;
+
+  // Active filters shown as removable chips below the search bar. Derived from
+  // the live input (not the debounced term) so chips track typing immediately.
+  const activeTags = useMemo(() => parseSearchQuery(inputValue).tags, [inputValue]);
+  const activeCategory =
+    selectedCategory !== 'all' ? categories.find((c) => c.id === selectedCategory) : undefined;
+  const hasActiveFilters = activeTags.length > 0 || Boolean(activeCategory) || !localeFilter;
 
   return (
     <div className="mx-auto mt-[60px] max-w-[1200px] flex-col px-lg box-border max-md:mt-0 max-md:px-md max-md:py-lg">
@@ -304,10 +348,36 @@ const VorlagenGallery = memo((): JSX.Element => {
         </div>
       </div>
 
+      {!dataQuery.isLoading && !dataQuery.error && (
+        <div className="mb-md flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-foreground/60">
+            {items.length} {items.length === 1 ? 'Vorlage' : 'Vorlagen'}
+          </span>
+          {activeCategory && (
+            <FilterChip label={activeCategory.label} onRemove={() => setSelectedCategory('all')} />
+          )}
+          {activeTags.map((tag) => (
+            <FilterChip key={tag} label={`#${tag}`} onRemove={() => removeTag(tag)} />
+          ))}
+          {!localeFilter && (
+            <FilterChip label="Alle Regionen" onRemove={() => setLocaleFilter(true)} />
+          )}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-foreground/60 underline-offset-2 transition-colors hover:text-primary-500 hover:underline"
+            >
+              Zurücksetzen
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-5 max-md:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] max-md:gap-3">
         {dataQuery.isLoading && items.length === 0 ? (
           Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-background-alt" />
+            <div key={i} className="aspect-[4/5] animate-pulse rounded-lg bg-background-alt" />
           ))
         ) : dataQuery.error ? (
           <p className="col-span-full text-center text-error">
@@ -327,13 +397,16 @@ const VorlagenGallery = memo((): JSX.Element => {
               <span className="text-sm font-medium">Neue Vorlage</span>
             </button>
             {items.map((item) => {
+              const itemId = String(item.id);
               const hasUrl = Boolean(resolveTemplateUrl(item));
               return (
                 <VorlagenCard
-                  key={String(item.id)}
+                  key={itemId}
                   item={item}
                   onOpen={() => setPreviewTemplate(item)}
-                  onOpenExternal={hasUrl ? () => openExternal(item) : undefined}
+                  liked={likedIds.has(itemId)}
+                  onToggleLike={canLike ? () => toggleLike(itemId) : undefined}
+                  likeToggling={isLikeToggling(itemId)}
                   onCopyLink={hasUrl ? () => copyLink(item) : undefined}
                 />
               );
@@ -357,6 +430,16 @@ const VorlagenGallery = memo((): JSX.Element => {
           onToggleFavorite={() => toggleFavorite(previewId)}
           favoriteToggling={isFavoriteToggling(previewId)}
           canFavorite={canFavorite}
+          onUseTemplate={
+            previewTemplate.template_type === GRUENERATOR_TEMPLATE_TYPE
+              ? () =>
+                  void openVorlage({
+                    id: String(previewTemplate.id),
+                    content_data: previewTemplate.content_data,
+                  })
+              : undefined
+          }
+          isUsing={usingId === String(previewTemplate.id)}
         />
       )}
     </div>

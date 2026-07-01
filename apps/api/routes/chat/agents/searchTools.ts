@@ -19,6 +19,7 @@ import {
   executeDirectWebSearch,
   executeResearch,
 } from './directSearch.js';
+import { resolveExamplesLvScope } from './lvScope.js';
 
 import type { AgentConfig } from './types.js';
 
@@ -64,6 +65,11 @@ export function createSearchTools(
 
   const defaultCollection = restrictions?.defaultCollection || allowedCollections[0];
   const examplesCountry = restrictions?.examplesCountry;
+  // Landesverband scope for example searches — derived from the agent so an LV
+  // agent only grounds in its own LV's social/press examples. Without this the
+  // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
+  // Brandenburg agent producing a Hessen press release).
+  const examplesLvScope = resolveExamplesLvScope(agentConfig);
 
   log.debug(
     `[Tools] Creating tools for ${agentConfig.identifier}: collections=${allowedCollections.join(',')}, default=${defaultCollection}, personSearch=disabled, examplesCountry=${examplesCountry || 'all'}`
@@ -129,6 +135,7 @@ NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
           query,
           ...(platform && { platform }),
           ...(examplesCountry && { country: examplesCountry }),
+          ...(examplesLvScope !== undefined && { lvScope: examplesLvScope }),
         });
         return results;
       } catch (error) {
@@ -152,7 +159,11 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
     }),
     execute: async ({ query }) => {
       try {
-        const results = await executeDirectPressemitteilungExamples({ query });
+        const results = await executeDirectPressemitteilungExamples({
+          query,
+          ...(examplesLvScope !== undefined && { lvScope: examplesLvScope }),
+          ...(examplesCountry && { country: examplesCountry }),
+        });
         return results;
       } catch (error) {
         log.error('Direct pressemitteilung examples error:', error);

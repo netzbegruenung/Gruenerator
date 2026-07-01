@@ -609,6 +609,33 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
+    // Sharepic agent is single-purpose: selecting it means the user wants a
+    // sharepic. Bare topic prompts ("zur Verkehrswende") carry no sharepic
+    // keyword, so the heuristic would route them to `direct` and never reach
+    // sharepicGenerationService. Force the `sharepic` intent here — except for
+    // obvious meta/help questions about the assistant itself, which should
+    // still get a normal answer. Image attachments already returned `direct`
+    // above (vision), so they never reach this branch.
+    const isSharepicAgent = state.agentConfig.identifier === 'gruenerator-sharepic';
+    const looksLikeMetaQuestion =
+      /^\s*(wie|was|wer|warum|wieso|hilfe|help)\b/i.test(userContent) &&
+      /\b(du|dich|dir|funktionier\w*|kannst|machst|bist)\b/i.test(userContent);
+    if (isSharepicAgent && userContent.length >= 10 && !looksLikeMetaQuestion) {
+      log.info(
+        `[Classifier] Sharepic agent (${state.agentConfig.identifier}) active → forcing sharepic intent`
+      );
+      return {
+        intent: 'sharepic',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Sharepic agent selected — routing to sharepic generation',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {

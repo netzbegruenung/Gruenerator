@@ -14,22 +14,40 @@
  * requireAuth is applied at the /api/auth/user-templates prefix in routes.ts.
  */
 
-import { userTemplatesContract, type UserTemplate } from '@gruenerator/contracts';
+import {
+  userTemplatesContract,
+  type UserTemplate,
+  type GrueneratorBlueprint,
+  GRUENERATOR_TEMPLATE_TYPE,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import {
+  createCanvas,
+  getCanvas,
+  markCanvasAsGalleryTemplate,
+} from '../../../services/canvas/canvasRepository.js';
+import {
+  getCurrentCanvasState,
+  getCurrentDeckState,
+} from '../../../services/canvas/canvasStateService.js';
 import {
   urlCrawlerService,
   UrlValidator,
 } from '../../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createDocFromTemplate } from '../../../services/templates/collaborativeTemplateService.js';
+import { cleanupGrueneratorSnapshot } from '../../../services/templates/grueneratorVorlage.js';
 import {
   enrichTemplate,
   deleteTemplateVector,
+  TEMPLATE_DESCRIPTION_INSTRUCTION,
 } from '../../../services/templates/templateEnrichment.js';
+import { visionService } from '../../../services/vision/index.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
 import { createLogger } from '../../../utils/logger.js';
+import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 
 import type { Application } from 'express';
 
@@ -103,7 +121,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
   fromUrl: async (args) => {
     try {
       getAuthedUser(args.req);
-      const { url, preview, title, description, metadata } = args.body;
+      const { url, preview, title, description, metadata, images, preview_image_url } = args.body;
 
       // The user explicitly pasted this single template link — skip robots.txt
       // (that's for bulk crawling; Canva disallows /design/ outright). Format
@@ -153,6 +171,17 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
       const mergedTags = [...new Set(extractTagsFromDescription(description))];
 
+      // Prefer the user-curated image list (multi-slide previews) over the
+      // single crawled og:image. The first image is the primary thumbnail.
+      const finalImages =
+        images && images.length > 0
+          ? images.map((img, i) => ({ ...img, display_order: img.display_order ?? i }))
+          : crawled?.previewImage
+            ? [{ url: crawled.previewImage, display_order: 0 }]
+            : [];
+      const finalThumbnail =
+        preview_image_url || finalImages[0]?.url || crawled?.previewImage || null;
+
       const templateData = {
         user_id: userId,
         type: 'template',
@@ -160,8 +189,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         description: (description || crawled?.description || '').trim() || null,
         template_type: 'canva',
         external_url: crawled?.canonical || url,
-        thumbnail_url: crawled?.previewImage || null,
-        images: JSON.stringify(crawled?.previewImage ? [{ url: crawled.previewImage }] : []),
+        thumbnail_url: finalThumbnail,
+        images: JSON.stringify(finalImages),
         categories: JSON.stringify([]),
         tags: JSON.stringify(mergedTags),
         content_data: JSON.stringify({}),
@@ -197,6 +226,117 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Verarbeiten der URL.' },
+      };
+    }
+  },
+
+  fromCanvas: async (args) => {
+    try {
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
+      const { canvasId, title, description, tags, preview_image_url } = args.body;
+
+      // The caller must be able to read the source canvas they're publishing.
+      const access = await getCanvas(canvasId, userId);
+      if (access.kind === 'not_found') {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Canvas nicht gefunden.' },
+        };
+      }
+      if (access.kind === 'forbidden') {
+        return {
+          status: 403 as const,
+          body: { success: false, message: 'Keine Berechtigung für diesen Canvas.' },
+        };
+      }
+
+      const sourceCanvas = access.canvas;
+      const canvasType = sourceCanvas.template_type;
+      const format = sourceCanvas.format;
+      const baseTitle = (title || sourceCanvas.title || 'Vorlage').trim();
+
+      // Capture the live state (incl. unsaved manual studio edits) as the
+      // snapshot seed. Decks keep their full per-slide `pages` array; flat cover
+      // keys ride alongside so gallery/thumbnail readers still render.
+      let initialState: Record<string, unknown>;
+      let pageCount: number;
+      if (canvasType === 'slider') {
+        const deck = await getCurrentDeckState(canvasId);
+        const pages = deck.pages;
+        initialState = { ...((pages[0]?.state as Record<string, unknown>) ?? {}), pages };
+        pageCount = pages.length || sourceCanvas.page_count;
+      } else {
+        const current = await getCurrentCanvasState(canvasId);
+        initialState = current.state;
+        pageCount = sourceCanvas.page_count;
+      }
+
+      // Freeze an immutable snapshot canvas, decoupled from the working copy, so
+      // later edits to the original don't mutate the published vorlage. Marked
+      // read-only/public so any authenticated user can clone it on "use".
+      const snapshot = await createCanvas(userId, {
+        title: `${baseTitle} (Vorlage)`,
+        template_type: canvasType,
+        base_template_id: canvasId,
+        initial_state: initialState,
+        page_count: pageCount,
+        format,
+      });
+      await markCanvasAsGalleryTemplate(snapshot.id);
+
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const mergedTags = [
+        ...new Set([
+          ...extractTagsFromDescription(description),
+          ...(Array.isArray(tags) ? tags.map((t) => String(t).toLowerCase()) : []),
+        ]),
+      ];
+
+      const blueprint: GrueneratorBlueprint = { canvasId: snapshot.id, canvasType, format };
+
+      const templateData = {
+        user_id: userId,
+        type: 'template',
+        title: baseTitle,
+        description: description ? description.trim() || null : null,
+        template_type: GRUENERATOR_TEMPLATE_TYPE,
+        external_url: null,
+        thumbnail_url: preview_image_url,
+        images: JSON.stringify([]),
+        categories: JSON.stringify([]),
+        tags: JSON.stringify(mergedTags),
+        content_data: JSON.stringify(blueprint),
+        metadata: JSON.stringify({ source_canvas_id: canvasId }),
+        is_private: false,
+        is_example: false,
+        status: 'pending_review',
+        // Target the creator's locale so the gallery can scope by audience.
+        audience: user.locale ?? 'all',
+      };
+
+      const newTemplate = await postgres.insert('user_templates', templateData);
+
+      // Fire-and-forget: vision description (from the thumbnail) + vector index.
+      void enrichTemplate(String(newTemplate.id)).catch((e) =>
+        log.warn('[userTemplatesContract.fromCanvas] enrichTemplate failed', e)
+      );
+
+      return {
+        status: 201 as const,
+        body: {
+          success: true,
+          data: { id: String(newTemplate.id) },
+          message: 'Vorlage wurde eingereicht und wird geprüft.',
+        },
+      };
+    } catch (error) {
+      log.error('[userTemplatesContract.fromCanvas] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Fehler beim Veröffentlichen der Vorlage.' },
       };
     }
   },
@@ -326,8 +466,12 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
-      const verifyTemplates = await postgres.query<{ id: string }>(
-        `SELECT id FROM user_templates
+      const verifyTemplates = await postgres.query<{
+        id: string;
+        template_type: string;
+        content_data: unknown;
+      }>(
+        `SELECT id, template_type, content_data FROM user_templates
          WHERE user_id = $1 AND type = $2 AND id = ANY($3)`,
         [userId, 'template', ids],
         TABLE
@@ -358,7 +502,14 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const deletedIds = deletedData.map((t) => t.id);
       const failedIds = ids.filter((id) => !deletedIds.includes(id));
 
+      const deletedSet = new Set(deletedIds);
       for (const deletedId of deletedIds) void deleteTemplateVector(deletedId);
+      // Clean up snapshot canvases for any deleted Grünerator-Vorlagen.
+      for (const t of verifyTemplates) {
+        if (deletedSet.has(t.id)) {
+          void cleanupGrueneratorSnapshot(t.template_type, t.content_data, userId);
+        }
+      }
 
       return {
         status: 200 as const,
@@ -429,7 +580,10 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       if (template_type !== undefined) updateData.template_type = template_type;
       if (externalUrl !== undefined) updateData.external_url = externalUrl;
       if (preview_image_url !== undefined) updateData.thumbnail_url = preview_image_url;
-      if (images !== undefined) updateData.images = Array.isArray(images) ? images : [];
+      // jsonb columns must be passed as JSON text — the pg driver encodes a raw
+      // JS array as a Postgres array literal, which a jsonb column rejects.
+      if (images !== undefined)
+        updateData.images = JSON.stringify(Array.isArray(images) ? images : []);
       if (categories !== undefined)
         updateData.categories = Array.isArray(categories) ? categories : [];
       if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];
@@ -488,6 +642,15 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
+      // Read the bridge fields before deleting so we can clean up the snapshot
+      // canvas a Grünerator-Vorlage points at.
+      const existing = await postgres.queryOne(
+        `SELECT template_type, content_data FROM user_templates
+         WHERE id = $1 AND user_id = $2 AND type = 'template'`,
+        [id, userId],
+        TABLE
+      );
+
       const result = await postgres.delete('user_templates', {
         id,
         user_id: userId,
@@ -505,6 +668,7 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       }
 
       void deleteTemplateVector(id);
+      void cleanupGrueneratorSnapshot(existing?.template_type, existing?.content_data, userId);
 
       return {
         status: 200 as const,
@@ -576,6 +740,42 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Aktualisieren der Vorlagen-Metadaten.' },
+      };
+    }
+  },
+
+  describeImage: async (args) => {
+    try {
+      getAuthedUser(args.req);
+      const { image_url } = args.body;
+
+      // Remote URLs are fetched server-side by the vision service — guard against
+      // SSRF. `data:` URLs (not-yet-uploaded local files) carry the bytes inline.
+      if (!image_url.startsWith('data:')) {
+        const validation = await validateUrlForFetch(image_url);
+        if (!validation.isValid) {
+          return {
+            status: 400 as const,
+            body: { success: false, message: validation.error || 'Ungültige Bild-URL.' },
+          };
+        }
+      }
+
+      const description = await visionService.analyzeImage(
+        image_url,
+        TEMPLATE_DESCRIPTION_INSTRUCTION,
+        { maxTokens: 600, temperature: 0.3 }
+      );
+
+      return {
+        status: 200 as const,
+        body: { success: true, description: description.trim() },
+      };
+    } catch (error) {
+      log.error('[userTemplatesContract.describeImage] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Beschreibung konnte nicht generiert werden.' },
       };
     }
   },

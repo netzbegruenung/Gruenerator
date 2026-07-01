@@ -117,6 +117,12 @@
       "import": "./dist/media-library/index.js",
       "default": "./dist/media-library/index.js"
     },
+    "./media-library/constants": {
+      "development": "./src/media-library/constants.ts",
+      "types": "./src/media-library/constants.ts",
+      "import": "./dist/media-library/constants.js",
+      "default": "./dist/media-library/constants.js"
+    },
     "./components/EditorTopBar": {
       "development": "./src/components/EditorTopBar/index.ts",
       "types": "./src/components/EditorTopBar/index.ts",
@@ -174,10 +180,12 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "prebuild": "pnpm build:skills",
-    "predev": "pnpm build:skills",
+    "prebuild": "pnpm build:skills && pnpm build:agents",
+    "predev": "pnpm build:skills && pnpm build:agents",
     "build:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts",
     "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
+    "build:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts",
+    "watch:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

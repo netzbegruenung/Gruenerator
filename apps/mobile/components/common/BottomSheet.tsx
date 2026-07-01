@@ -3,7 +3,7 @@ import { View, Modal, Pressable, StyleSheet, useColorScheme } from 'react-native
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing } from '../../theme';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -11,6 +11,12 @@ interface BottomSheetProps {
   children: ReactNode;
   maxHeight?: `${number}%` | number;
   keyboardAvoiding?: boolean;
+  /**
+   * Apply a standard horizontal content inset to the sheet. Opt-in because most
+   * sheets pad their own rows/sections; turn it on for sheets whose content (e.g.
+   * full-width buttons, chips) would otherwise sit flush against the edges.
+   */
+  padded?: boolean;
 }
 
 export function BottomSheet({
@@ -19,6 +25,7 @@ export function BottomSheet({
   children,
   maxHeight = '85%',
   keyboardAvoiding,
+  padded,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -32,7 +39,10 @@ export function BottomSheet({
         style={[
           styles.sheet,
           {
-            paddingBottom: insets.bottom || 16,
+            // Always keep a comfortable gap below the last element — the safe-area
+            // inset (often 0 inside a RN Modal) plus a fixed cushion.
+            paddingBottom: Math.max(insets.bottom, spacing.medium) + spacing.medium,
+            paddingHorizontal: padded ? spacing.medium : undefined,
             backgroundColor: theme.background,
             borderColor: theme.border,
             maxHeight,

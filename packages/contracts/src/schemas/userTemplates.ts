@@ -20,8 +20,45 @@ export const templateStatusSchema = z.enum(['draft', 'pending_review', 'publishe
 
 // NOTE: `template_type` is intentionally a free string, NOT an enum. It is an
 // open, server-extensible category (canva | sharepic | file | template | board
-// | docs | …) — board/docs templates are created server-side. ts-rest validates
-// request bodies at runtime, so an incomplete enum would 400 legitimate creates.
+// | docs | gruenerator | …) — board/docs/gruenerator templates are created
+// server-side. ts-rest validates request bodies at runtime, so an incomplete
+// enum would 400 legitimate creates.
+
+/**
+ * `template_type` value for a native Grünerator sharepic published into the
+ * gallery (as opposed to an external `canva` link). The bridge `user_templates`
+ * row points at a frozen snapshot canvas via `content_data` (see
+ * `grueneratorBlueprintSchema`); "using" it clones that canvas. Centralized so
+ * the handler, the type guard, and the gallery label map share one literal.
+ */
+export const GRUENERATOR_TEMPLATE_TYPE = 'gruenerator' as const;
+
+/**
+ * Shape stored in `content_data` for a Grünerator-Vorlage. `canvasId` is the
+ * immutable snapshot canvas cloned on use; `canvasType`/`format` are carried
+ * for display and (potential) filtering only — the snapshot canvas remains the
+ * source of truth.
+ */
+export const grueneratorBlueprintSchema = z.object({
+  canvasId: z.string(),
+  canvasType: z.string(),
+  format: z.string(),
+});
+
+export type GrueneratorBlueprint = z.infer<typeof grueneratorBlueprintSchema>;
+
+/**
+ * A single preview image for a template. Multi-slide Canva designs carry more
+ * than one. The first image (lowest display_order) is the primary and is
+ * mirrored into thumbnail_url/preview_image_url for the single-image gallery card.
+ */
+export const templateImageSchema = z.object({
+  url: z.string().min(1),
+  title: z.string().optional(),
+  display_order: z.number().optional(),
+});
+
+export type TemplateImage = z.infer<typeof templateImageSchema>;
 
 // ── Template row (response item) ─────────────────────────────────────────────
 
@@ -58,7 +95,24 @@ export const fromUrlBodySchema = z.object({
   preview: z.boolean().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
+  preview_image_url: z.string().nullish(),
+  images: z.array(templateImageSchema).optional(),
   metadata: z.record(z.unknown()).optional(),
+});
+
+/**
+ * POST /user-templates/from-canvas — publish one of the caller's canvas
+ * sharepics as a public Grünerator-Vorlage. The server snapshots the canvas
+ * (freezing it, shared read-only) and inserts a `pending_review` bridge row.
+ * The thumbnail is rendered client-side (canvas rendering is browser-only) and
+ * passed in.
+ */
+export const fromCanvasBodySchema = z.object({
+  canvasId: z.string().min(1),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  preview_image_url: z.string().min(1),
 });
 
 export const createTemplateBodySchema = z.object({
@@ -67,7 +121,7 @@ export const createTemplateBodySchema = z.object({
   template_type: z.string().optional(),
   external_url: z.string().nullish(),
   preview_image_url: z.string().nullish(),
-  images: z.array(z.unknown()).optional(),
+  images: z.array(templateImageSchema).optional(),
   categories: z.array(z.unknown()).optional(),
   tags: z.array(z.unknown()).optional(),
   content_data: z.unknown().optional(),
@@ -160,4 +214,16 @@ export const userTemplatesErrorResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
   unauthorized_ids: z.array(z.string()).optional(),
+});
+
+// ── Describe image (on-demand AI description) ─────────────────────────────────
+
+/** image_url may be a remote URL or a `data:` URL for a not-yet-uploaded file. */
+export const describeImageBodySchema = z.object({
+  image_url: z.string().min(1),
+});
+
+export const describeImageResponseSchema = z.object({
+  success: z.boolean(),
+  description: z.string(),
 });
