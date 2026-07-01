@@ -11,6 +11,7 @@ import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/reso
 import { useArtifactLiveStore } from './artifactLiveStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
+import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -239,6 +240,8 @@ export const useAgentStore = create<AgentState>()(
         // Tabular files attached for the in-browser interpreter are session-
         // scoped too — an old thread's Excel/CSV must not leak into the new one.
         usePythonFileStore.getState().clear();
+        // Same for the last spreadsheet computation forwarded to the model.
+        useLastComputeStore.getState().clear();
       },
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
