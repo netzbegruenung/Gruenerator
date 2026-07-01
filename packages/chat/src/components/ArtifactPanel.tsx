@@ -24,7 +24,9 @@ export function ArtifactPanel({ className }: { className?: string }) {
       active.type === 'svg'
         ? `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px;box-sizing:border-box">${active.content}</div>`
         : active.content;
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base target="_blank"><style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif;color:#1a1a1a}img,svg{max-width:100%;height:auto}</style></head><body>${body}</body></html>`;
+    // No <base target="_blank">: under sandbox="" link navigation/window.open
+    // is blocked anyway, so it would be a dead, misleading attribute.
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-family:system-ui,sans-serif;color:#1a1a1a}img,svg{max-width:100%;height:auto}</style></head><body>${body}</body></html>`;
   }, [active]);
 
   if (!active) return null;
