@@ -21,6 +21,11 @@
       "require": "./src/stores/index.ts",
       "types": "./src/stores/index.ts"
     },
+    "./pyodide": {
+      "import": "./src/pyodide/index.ts",
+      "require": "./src/pyodide/index.ts",
+      "types": "./src/pyodide/index.ts"
+    },
     "./styles": "./src/styles/chat.css",
     "./styles/embedded": "./src/styles/chat-embedded.css"
   },
