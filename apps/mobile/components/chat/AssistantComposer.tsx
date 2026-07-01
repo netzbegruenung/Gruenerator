@@ -133,11 +133,13 @@ export function AssistantComposer({
 
   const attachPicked = useCallback(
     async (pending: Promise<PickedDocument | null>) => {
-      const doc = await pending;
-      if (!doc) return;
-      if (!validatePickedDocument(doc)) return;
-
+      // `await pending` is inside the try so a native picker/manipulator
+      // rejection (camera unavailable, permission API throwing, HEIC→JPEG
+      // failure) surfaces as an Alert instead of an unhandled promise rejection.
       try {
+        const doc = await pending;
+        if (!doc) return;
+        if (!validatePickedDocument(doc)) return;
         const attachment = await pickedDocumentToAttachment(doc);
         await aui.composer().addAttachment(attachment);
       } catch (err) {
