@@ -12,7 +12,6 @@ import { threadsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { generateThreadTags } from '../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
@@ -392,7 +391,9 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       log.info(`[generate-title] Calling generateThreadTitle for ${threadId}`);
 
-      // Fire-and-forget: generates fallback + async AI title
+      // Fire-and-forget: generates fallback + async AI title.
+      // (Auto-tagging is triggered backend-side in persistAssistantResponse so
+      // it covers every flow, not just this client-driven endpoint.)
       generateThreadTitle(
         threadId,
         String(userMsg.content),
@@ -401,14 +402,6 @@ export const threadsContractRouter = s.router(threadsContract, {
       ).catch((err) => {
         log.warn(`[generate-title] Failed for thread ${threadId}:`, err);
       });
-
-      // Fire-and-forget: auto-tag the thread from the same first exchange.
-      // Won't overwrite tags a user has already set (see saveTagsIfEmpty).
-      generateThreadTags(threadId, String(userMsg.content), String(assistantMsg.content)).catch(
-        (err) => {
-          log.warn(`[generate-title] Tag generation failed for thread ${threadId}:`, err);
-        }
-      );
 
       return { status: 202 as const, body: { status: 'accepted' as const } };
     } catch (error) {
