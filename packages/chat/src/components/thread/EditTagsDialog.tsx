@@ -12,15 +12,22 @@ interface EditTagsDialogProps {
   initialTags: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the saved tags so the item can update its local pill state. */
-  onSaved?: (tags: string[]) => void;
 }
 
 const MAX_TAGS = 8;
 const MAX_TAG_LENGTH = 24;
 
+/** Normalize a hand-entered tag to match the server-side auto-tag rules
+ *  (threadTagService.parseTags): strip wrapping quotes/dashes/asterisks,
+ *  lowercase, trim, cap length. Keeps manual and auto tags in the same form
+ *  so the tag filter (jsonb `?|`) treats them as equal. */
 function normalizeTag(raw: string): string {
-  return raw.trim().toLowerCase().slice(0, MAX_TAG_LENGTH);
+  return raw
+    .trim()
+    .replace(/^["'\-*]+|["']+$/g, '')
+    .toLowerCase()
+    .slice(0, MAX_TAG_LENGTH)
+    .trim();
 }
 
 export const EditTagsDialog = memo(function EditTagsDialog({
@@ -28,7 +35,6 @@ export const EditTagsDialog = memo(function EditTagsDialog({
   initialTags,
   open,
   onOpenChange,
-  onSaved,
 }: EditTagsDialogProps) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const [tags, setTags] = useState<string[]>(initialTags);
@@ -62,13 +68,18 @@ export const EditTagsDialog = memo(function EditTagsDialog({
     if (!threadId) return;
     setSaving(true);
     try {
-      await fetchFn('/api/chat-service/threads', {
+      const res = await fetchFn('/api/chat-service/threads', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ threadId, tags }),
       });
+      // fetchFn resolves on 4xx/5xx too — only persist to the cache and close
+      // if the server actually accepted the update, else surface the failure.
+      if (!res.ok) {
+        console.error('[EditTags] PATCH rejected:', res.status);
+        return;
+      }
       setThreadTagsCache(threadId, tags);
-      onSaved?.(tags);
       onOpenChange(false);
     } catch (err) {
       console.error('[EditTags] PATCH failed:', err);
