@@ -9,6 +9,7 @@ import { type ThreadMessageLike } from '@assistant-ui/react';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { coerceSharepicVariants } from '../hooks/useChatGraphStream';
 import type { GeneratedImage, Citation, SearchResult } from '../hooks/useChatGraphStream';
+import type { DocumentCreatedData } from '../types/messageMetadata';
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -27,6 +28,8 @@ export interface LoadedMessage {
     citations?: Citation[];
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
+    createdDocument?: DocumentCreatedData;
+    agentId?: string;
     toolCalls?: PersistedToolCall[];
     senderId?: string;
     senderName?: string | null;
@@ -104,6 +107,11 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
     if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
+    // Rehydrate the created-document card and the producing agent's identity on
+    // reload — the live stream sets these from the `document_created` SSE event
+    // and the adapter's agentInfo; both are now persisted in message metadata.
+    if (m.metadata?.createdDocument) custom.createdDocument = m.metadata.createdDocument;
+    if (m.metadata?.agentId) custom.agentId = m.metadata.agentId;
 
     // Reconstruct the sharepic variant stack on reload. The live stream sets
     // custom.sharepicData from the 'sharepic_complete' SSE event; without this the
