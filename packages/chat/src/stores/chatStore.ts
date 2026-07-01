@@ -283,7 +283,10 @@ export const useAgentStore = create<AgentState>()(
       setCompactionState: (state) => set({ compactionState: state }),
 
       loadCompactionState: async (threadId: string, apiClient: ChatApiClient) => {
-        set({ compactionLoading: true });
+        // Clear any prior thread's summary up front: re-opening the
+        // already-current thread skips setCurrentThread's reset, so without this
+        // the CompactionIndicator would show a stale banner during the fetch.
+        set({ compactionLoading: true, compactionState: { ...DEFAULT_COMPACTION_STATE } });
         try {
           const response = await apiClient.get<CompactionResponse>(
             `/api/chat-service/summarize?threadId=${threadId}`

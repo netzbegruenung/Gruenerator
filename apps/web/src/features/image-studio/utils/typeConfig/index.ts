@@ -15,6 +15,7 @@ export {
   KI_SUBCATEGORIES,
   FORM_STEPS,
   URL_TYPE_MAP,
+  isImageStudioType,
 } from './constants';
 export type { ImageStudioCategory, ImageStudioType, KiSubcategory, FormStep } from './constants';
 

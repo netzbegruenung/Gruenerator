@@ -1,33 +1,9 @@
+import { isCanvasTemplateType } from '@gruenerator/contracts';
 import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-
-interface GalleryEditLocationState {
-  galleryEditMode?: boolean;
-  shareToken?: string;
-  content?: Record<string, unknown>;
-  styling?: Record<string, unknown>;
-  originalImageUrl?: string;
-  title?: string;
-}
-
-interface TemplateLocationState {
-  templateMode?: boolean;
-  shareToken?: string;
-  content?: Record<string, unknown> & { sharepicType?: string };
-  styling?: Record<string, unknown>;
-  sharepicType?: string;
-  templateCreator?: string;
-}
-
-interface ImagineHandoffLocationState {
-  imagineHandoff?: boolean;
-  generatedImage?: string | null;
-  prompt?: string;
-  variant?: string | null;
-}
 import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -55,7 +31,30 @@ import {
   URL_TYPE_MAP,
 } from './utils/typeConfig';
 
-// Import extracted components and types
+interface GalleryEditLocationState {
+  galleryEditMode?: boolean;
+  shareToken?: string;
+  content?: Record<string, unknown>;
+  styling?: Record<string, unknown>;
+  originalImageUrl?: string;
+  title?: string;
+}
+
+interface TemplateLocationState {
+  templateMode?: boolean;
+  shareToken?: string;
+  content?: Record<string, unknown> & { sharepicType?: string };
+  styling?: Record<string, unknown>;
+  sharepicType?: string;
+  templateCreator?: string;
+}
+
+interface ImagineHandoffLocationState {
+  imagineHandoff?: boolean;
+  generatedImage?: string | null;
+  prompt?: string;
+  variant?: string | null;
+}
 
 const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();
@@ -313,7 +312,9 @@ const ImageStudioPageContent: React.FC = () => {
         ts?: number;
       };
       const isFresh = parsed.ts && Date.now() - parsed.ts < 5 * 60 * 1000;
-      if (!isFresh || !parsed.canvasType || !parsed.initialProps) {
+      // Reject at the boundary: an unknown/empty canvasType must never advance
+      // to CANVAS_EDIT (which would crash the canvas mint). Bail cleanly instead.
+      if (!isFresh || !isCanvasTemplateType(parsed.canvasType) || !parsed.initialProps) {
         stripParam();
         return;
       }
