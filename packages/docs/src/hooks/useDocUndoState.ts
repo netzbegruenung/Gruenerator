@@ -35,10 +35,14 @@ export function getDocUndoFlags(editor: UndoableEditor | null): {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const state = yUndoPluginKey.getState(editor.prosemirrorState as any);
   if (!state) {
-    // Non-collaborative editors fall back to ProseMirror's history plugin,
-    // whose availability we can't cheaply read — keep the buttons enabled so
-    // undo/redo stays reachable (docs are always collaborative in practice).
-    return { canUndo: true, canRedo: true };
+    // No yUndo plugin state — either a non-collaborative editor (ProseMirror
+    // history, whose availability we can't cheaply read) or the brief window
+    // where the fork/merge cycle has the plugin unregistered. Treat "unknown"
+    // as "disabled": undo() would throw ("No undo plugin found") if the plugin
+    // is genuinely absent, and buttons enabled over an unreadable stack are
+    // misleading. Docs are always collaborative in practice, so this is the
+    // safe default rather than the common path.
+    return { canUndo: false, canRedo: false };
   }
   return { canUndo: state.hasUndoOps, canRedo: state.hasRedoOps };
 }
@@ -65,8 +69,24 @@ export function useDocUndoState(editor: UndoableEditor | null): DocUndoState {
     return () => unsub?.();
   }, [editor]);
 
-  const undo = useCallback(() => editor?.undo(), [editor]);
-  const redo = useCallback(() => editor?.redo(), [editor]);
+  // Guard the calls: BlockNote's undo()/redo() throw ("No undo plugin found")
+  // if invoked while no undo plugin is registered (e.g. mid fork/merge). The
+  // buttons are gated on canUndo/canRedo so this shouldn't fire, but match the
+  // mobile bridge's defensive wrapping rather than risk an uncaught throw.
+  const undo = useCallback(() => {
+    try {
+      editor?.undo();
+    } catch {
+      // no-op: nothing to undo / plugin momentarily absent
+    }
+  }, [editor]);
+  const redo = useCallback(() => {
+    try {
+      editor?.redo();
+    } catch {
+      // no-op: nothing to redo / plugin momentarily absent
+    }
+  }, [editor]);
 
   return { canUndo: flags.canUndo, canRedo: flags.canRedo, undo, redo };
 }
