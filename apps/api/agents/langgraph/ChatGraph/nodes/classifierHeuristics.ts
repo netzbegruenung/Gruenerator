@@ -50,6 +50,13 @@ export const INTENT_KEYWORDS: Record<
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
   search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
+  abgeordnetenwatch: [
+    'abstimmungsverhalten',
+    'nebentätigkeit',
+    'nebentätigkeiten',
+    'nebeneinkünfte',
+    'namentliche abstimmung',
+  ],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
 };

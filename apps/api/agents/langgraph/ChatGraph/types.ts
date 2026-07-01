@@ -52,6 +52,7 @@ export type SearchIntent =
   | 'scrape_url' // Crawl URL(s) pasted in the user message and use the page content as context
   | 'examples' // Social media examples/templates
   | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
+  | 'abgeordnetenwatch' // German MP transparency data (votes, Nebentätigkeiten, mandates, roll-calls) via the Abgeordnetenwatch API — DE-only
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
   | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
