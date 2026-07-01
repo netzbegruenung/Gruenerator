@@ -1,3 +1,5 @@
+import { useLastComputeStore } from '../../stores/lastComputeStore';
+
 import type { GrueneratorAdapterConfig } from './types';
 import type { ThreadMode } from '../../stores/chatStore';
 import type { parseAllMentions } from '../../lib/mentionParser';
@@ -156,6 +158,10 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     currentReel: currentReel ?? undefined,
     reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,
+    // Forward the last browser-computed spreadsheet result so the backend can
+    // give it to the model as ground truth (formatComputedResultContext) — the
+    // model can't see the client-side Pyodide output otherwise.
+    computedResult: useLastComputeStore.getState().result ?? undefined,
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
