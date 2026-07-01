@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
-/* KaTeX math rendering styles (consumed by rehype-katex in CitationMarkdownText) */
-@import "katex/dist/katex.min.css";
+/* KaTeX CSS is loaded lazily via CitationMarkdownText (not eager here). */
 
 /*
  * Source paths for Tailwind class detection
