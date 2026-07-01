@@ -1098,6 +1098,8 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     -- Extracted content
     extracted_text TEXT,          -- Full OCR text (for re-processing)
     summary TEXT,                 -- LLM summary (~200-400 tokens)
+    file_data TEXT,               -- Raw bytes (base64), tabular files only — rehydrates the pandas interpreter after reload
+    document_id UUID,             -- Qdrant doc id when a large prose doc was embedded — follow-up turns retrieve via RAG
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

@@ -478,9 +478,11 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
 
 /**
  * Format thread attachments (from previous messages) as context.
- * Only includes summaries, not full text (for token efficiency). Images carry a
- * vision-generated description as their summary, letting follow-up turns reason
- * about an earlier image without re-sending the pixels to a vision model.
+ * Documents re-inject their FULL extracted text (budget-capped) so a file stays
+ * chattable across every turn — not just on the message it was uploaded on. The
+ * short async summary is only a fallback for legacy rows without stored text.
+ * Images carry a vision-generated description as their summary, letting
+ * follow-up turns reason about an earlier image without re-sending the pixels.
  */
 function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
   if (!attachments || attachments.length === 0) {
@@ -489,12 +491,18 @@ function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string
 
   const sections: string[] = [];
 
-  const docs = attachments
-    .filter((a) => !a.isImage && a.summary)
-    .map((a, i) => `${i + 1}. **${a.name}**: ${a.summary}`)
-    .join('\n');
+  const docBlocks = attachments
+    // Docs with a documentId were embedded into Qdrant — they come back via
+    // per-query RAG retrieval (searchNode), so don't also dump their full text
+    // here (would duplicate and blow the budget). Small docs stay full-context.
+    .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
+    .map((a, i) => `### ${i + 1}. ${a.name}\n\n${a.extractedText ?? a.summary}`)
+    .join('\n\n');
 
-  if (docs) {
+  if (docBlocks) {
+    // Reuse the same per-document + total budget limiter as current-turn
+    // attachments so re-injected full text can't blow the context window.
+    const docs = limitAttachmentContext(docBlocks);
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -502,7 +510,7 @@ function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string
 ${docs}
 
 ---
-Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", etc.).`);
+Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", "die Tabelle", etc.).`);
   }
 
   const images = attachments
@@ -561,6 +569,29 @@ Zusammenfassung: ${computedResult.summary}
 
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.`;
+}
+
+/**
+ * Steer the model to compute over an attached spreadsheet with the in-browser
+ * pandas interpreter instead of doing arithmetic in its head. When the composer
+ * bridges a CSV/Excel/ODS file it is pre-loaded as a pandas DataFrame `df`, and
+ * a ```python block gets a one-click "Ausführen" button (ChatCodeBlock). Without
+ * this nudge the model answers aggregation questions with prose ("erstelle eine
+ * Pivot-Tabelle") or unreliable mental math — the exact failure this fixes.
+ */
+function formatTabularComputeGuidance(state: ChatGraphState): string {
+  if (!state.hasTabularAttachment) return '';
+  return `
+
+## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext).
+
+Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
+- Gib einen ausführbaren \`\`\`python-Block aus, der auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt.
+- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
+- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
+- Schreibe 1–2 Sätze Kontext vor den Block; die*der Nutzer*in führt ihn mit einem Klick aus und sieht das Ergebnis.`;
 }
 
 /**
@@ -843,6 +874,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
+  const tabularComputeGuidance = formatTabularComputeGuidance(state);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
@@ -889,7 +921,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -921,7 +953,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
