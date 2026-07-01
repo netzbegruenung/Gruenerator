@@ -28,6 +28,7 @@ import {
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
+  boardSchedulesContract,
   boardAttachmentsContract,
   boardCardDocumentsContract,
   publicBoardsContract,
@@ -160,6 +161,7 @@ const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS
 const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
 const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
+const _boardSchedulesClient = () => initClient(boardSchedulesContract, CLIENT_OPTS);
 const _boardAttachmentsClient = () => initClient(boardAttachmentsContract, CLIENT_OPTS);
 const _boardCardDocumentsClient = () => initClient(boardCardDocumentsContract, CLIENT_OPTS);
 const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
@@ -200,6 +202,7 @@ export interface ContractsClient {
   boardAgent: ReturnType<typeof _boardAgentClient>;
   boardActivity: ReturnType<typeof _boardActivityClient>;
   boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
+  boardSchedules: ReturnType<typeof _boardSchedulesClient>;
   boardAttachments: ReturnType<typeof _boardAttachmentsClient>;
   boardCardDocuments: ReturnType<typeof _boardCardDocumentsClient>;
   publicBoards: ReturnType<typeof _publicBoardsClient>;
@@ -257,6 +260,7 @@ export function getContractsClient(): ContractsClient {
     boardAgent: _boardAgentClient(),
     boardActivity: _boardActivityClient(),
     boardSubscriptions: _boardSubscriptionsClient(),
+    boardSchedules: _boardSchedulesClient(),
     boardAttachments: _boardAttachmentsClient(),
     boardCardDocuments: _boardCardDocumentsClient(),
     publicBoards: _publicBoardsClient(),

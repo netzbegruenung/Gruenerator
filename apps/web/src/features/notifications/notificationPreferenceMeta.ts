@@ -128,6 +128,12 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: Sparkles,
     group: 'board',
   },
+  agent_task_awaiting_review: {
+    label: 'Agent-Aufgabe zur Prüfung',
+    description: 'Wenn ein geplanter Lauf auf deine Freigabe wartet',
+    icon: Sparkles,
+    group: 'board',
+  },
 
   // Gruppen
   group_member_joined: {
