@@ -62,7 +62,10 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   // capture decision on `afterTransaction`, so this hook adds the editor as a
   // tracked origin on the current (post-merge-recreated) UndoManager just in
   // time for that same transaction to be captured — as one undo step, on this
-  // user's stack only. Scoped to the accept flow; removed in finally.
+  // user's stack only. The listener is removed in finally; the tracked origin
+  // it registers persists on that UndoManager for the editor's lifetime, which
+  // is harmless — normal edits use the ySync origin, so only editor-origin
+  // updates (i.e. future AI merges) stay undoable, which is exactly the goal.
   const onBeforeTransaction = (tx: { origin: unknown }) => {
     if (editor && tx.origin === editor) {
       const pmState = (editor as EditorWithPmState).prosemirrorState;
