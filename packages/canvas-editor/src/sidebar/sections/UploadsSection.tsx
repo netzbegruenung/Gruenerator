@@ -5,7 +5,7 @@ import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { cn } from '../../utils/cn';
 import { SidebarHint } from '../components/SidebarHint';
-import { SIDEBAR_SECTION } from '../primitives';
+import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
 
 import type { MediaItem } from '@gruenerator/shared/media-library';

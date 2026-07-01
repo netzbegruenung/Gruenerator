@@ -5,7 +5,7 @@
 
 import { useEffect, type RefObject } from 'react';
 
-import { canvasRefRegistry } from '../stores/canvasEditorRefs';
+import { canvasRefRegistry } from '../stores/canvasRefRegistry';
 import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import type { CanvasStageRef } from '../primitives/CanvasStage';
