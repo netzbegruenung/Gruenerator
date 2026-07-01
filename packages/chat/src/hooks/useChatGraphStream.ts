@@ -8,6 +8,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { isCanvasTemplateType, type CanvasTemplateType } from '@gruenerator/contracts';
 import type { GeneratedImagePayload, SearchResultPayload } from '@gruenerator/contracts';
 import type { ProcessedFile } from '../lib/fileUtils';
 
@@ -34,7 +35,7 @@ export type SearchIntent =
 
 export interface SharepicVariant {
   id: string;
-  canvasType: string;
+  canvasType: CanvasTemplateType;
   initialProps: Record<string, unknown>;
   label?: string;
   /** Set once the variant has been minted into a canvas document (chat editing). */
@@ -45,6 +46,27 @@ export interface SharepicVariant {
 
 export interface SharepicData {
   variants: SharepicVariant[];
+}
+
+/**
+ * Validate raw sharepic variants arriving from the SSE stream or persisted
+ * thread metadata. Drops any variant whose `canvasType` is not a canonical
+ * `CanvasTemplateType`, so a malformed/unknown type can never reach the studio
+ * handoff and crash the canvas mint. Returns `null` when nothing valid remains.
+ */
+export function coerceSharepicVariants(raw: unknown): SharepicVariant[] | null {
+  if (!Array.isArray(raw)) return null;
+  const valid: SharepicVariant[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const v = item as Record<string, unknown>;
+    if (!isCanvasTemplateType(v.canvasType) || typeof v.id !== 'string') {
+      console.warn('[sharepic] Dropping variant with invalid canvasType:', v.canvasType);
+      continue;
+    }
+    valid.push(v as unknown as SharepicVariant);
+  }
+  return valid.length > 0 ? valid : null;
 }
 
 // Wire shape from @gruenerator/contracts (chatStreamEvents) plus the
