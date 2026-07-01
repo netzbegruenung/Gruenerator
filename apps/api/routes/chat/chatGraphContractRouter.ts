@@ -170,6 +170,26 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "image_edit" via @bildbearbeiten mention');
       }
 
+      // @abgeordnetenwatch hard-pins the German MP transparency intent. It is not
+      // part of TOOL_PRIORITY (that list is search/image/sharepic tools), so it's
+      // resolved here. DE-only source: for de-AT users, ignore the force and keep
+      // the classifier's (already downgraded) intent so we never fetch empty data.
+      const abgeordnetenwatchForced = !!forcedTools?.includes('abgeordnetenwatch');
+      if (abgeordnetenwatchForced && initialState.userLocale !== 'de-AT') {
+        classifiedState.intent = 'abgeordnetenwatch';
+        forcedTool = true;
+        // The classifier may have returned a non-search intent (e.g. 'direct')
+        // and left searchQuery empty — pull the user's message in as the query.
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = extractTextContent(lastUserMessage.content).trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));

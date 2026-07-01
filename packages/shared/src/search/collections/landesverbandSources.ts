@@ -113,6 +113,12 @@ export const FILTERABLE_FIELD_NAMES = [
   // NLP-enriched per-document facets (themes = topic categories, persons = NER names)
   'themes',
   'persons',
+  // Abgeordnetenwatch notebook facets (parliament + Grünen-Votum for Abstimmungen,
+  // Partei + Einkommensstufe for Nebentätigkeiten)
+  'parliament',
+  'party',
+  'income_level',
+  'gruene_vote',
 ] as const satisfies readonly string[];
 
 export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];

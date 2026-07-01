@@ -98,6 +98,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'compare';
   }
 
+  // Abgeordnetenwatch covers German parliaments only (Bundestag/Landtage), not
+  // the Austrian Nationalrat. For de-AT users never route here — fall back to
+  // web so the question still gets answered instead of returning empty data.
+  if (intent === 'abgeordnetenwatch' && state.userLocale === 'de-AT') {
+    log.info('[Classifier] abgeordnetenwatch downgraded to web for de-AT locale (DE-only source)');
+    intent = 'web';
+  }
+
   // ── URL context: pasted link(s) → additive scrape_url step ──
   // When the active agent has scraping enabled and the message contains URL(s),
   // crawl them so the page content becomes context. Additive, not exclusive:
