@@ -7,10 +7,11 @@
  *   - Abstimmungen (polls): narrative description + result + Grünen-fraction stance
  *   - Nebentätigkeiten (sidejobs): one doc each, joined to the MP (name + party)
  *
- * Self-contained: bulk HTTP goes through BaseScraper.fetchWithRetry (with a
- * fair-use delay), NOT the precision chat connector client. Point ids are the
- * stable entity ids (namespaced so polls and sidejobs never collide); a
- * content-hash gate skips re-embedding unchanged records so re-runs are cheap.
+ * Self-contained: bulk HTTP uses a dedicated fair-use loop (see `apiGet` —
+ * paces under the 30 req/min limit and cools down ~60s on a 429), NOT the
+ * precision chat connector client. Point ids are the stable entity ids
+ * (namespaced so polls and sidejobs never collide); a content-hash gate skips
+ * re-embedding unchanged records so re-runs are cheap.
  */
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import {
