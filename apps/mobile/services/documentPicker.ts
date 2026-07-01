@@ -8,6 +8,7 @@
 import { FILE_LIMITS, isSupportedFileType, isImageMimeType } from '@gruenerator/chat';
 import * as DocumentPicker from 'expo-document-picker';
 import { File as ExpoFile } from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 
 import { getGlobalApiClient } from './api';
@@ -76,6 +77,58 @@ export async function pickDocument(
  */
 export async function pickDocumentForScanner(): Promise<PickedDocument | null> {
   return pickDocument(SCANNER_TYPES);
+}
+
+/** Map an expo-image-picker asset to our PickedDocument shape. */
+function imageAssetToPickedDocument(asset: ImagePicker.ImagePickerAsset): PickedDocument {
+  const ext = asset.uri.split('.').pop()?.toLowerCase();
+  const mimeFromExt =
+    ext === 'png'
+      ? 'image/png'
+      : ext === 'webp'
+        ? 'image/webp'
+        : ext === 'heic' || ext === 'heif'
+          ? 'image/heic'
+          : 'image/jpeg';
+  return {
+    uri: asset.uri,
+    name: asset.fileName || `foto-${Date.now()}.${ext || 'jpg'}`,
+    mimeType: asset.mimeType || mimeFromExt,
+    size: asset.fileSize || 0,
+  };
+}
+
+/**
+ * Pick an image from the photo library. Returns a PickedDocument (feed into
+ * validatePickedDocument + pickedDocumentToAttachment), or null if cancelled/denied.
+ */
+export async function pickImageFromLibrary(): Promise<PickedDocument | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Zugriff verweigert', 'Bitte erlaube den Zugriff auf deine Fotos.');
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.9,
+  });
+  if (result.canceled || !result.assets[0]) return null;
+  return imageAssetToPickedDocument(result.assets[0]);
+}
+
+/**
+ * Take a photo with the camera. Returns a PickedDocument, or null if
+ * cancelled/denied.
+ */
+export async function takePhoto(): Promise<PickedDocument | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Zugriff verweigert', 'Bitte erlaube den Zugriff auf die Kamera.');
+    return null;
+  }
+  const result = await ImagePicker.launchCameraAsync({ quality: 0.9 });
+  if (result.canceled || !result.assets[0]) return null;
+  return imageAssetToPickedDocument(result.assets[0]);
 }
 
 /**

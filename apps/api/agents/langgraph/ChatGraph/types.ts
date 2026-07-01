@@ -54,6 +54,7 @@ export type SearchIntent =
   | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
   | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
   | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
+  | 'artifact' // Generic HTML/SVG artifact rendered in the side panel ("baue eine HTML-Tabelle", "erstelle eine SVG-Grafik")
   | 'save_as_doc' // Save response as document ("speichere als Dokument")
   | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
   | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
@@ -604,6 +605,17 @@ export interface ChartData {
   xKey: string;
   yKeys: string[];
   colors?: string[] | undefined;
+}
+
+/**
+ * Generic renderable artifact extracted from the assistant response (a fenced
+ * ```html or ```svg block). Rendered live in a sandboxed side panel on the
+ * frontend. Deliberately limited to HTML/CSS and SVG — no executable React.
+ */
+export interface ArtifactData {
+  type: 'html' | 'svg';
+  title: string;
+  content: string;
 }
 
 /**

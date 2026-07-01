@@ -299,6 +299,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             sizeBytes: meta.sizeBytes,
             isImage: meta.isImage,
             extractedText: meta.extractedText,
+            ...(meta.imageData != null && { imageData: meta.imageData }),
           });
         } catch (attachError) {
           log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);

@@ -31,6 +31,7 @@ export type SearchIntent =
   | 'image_edit'
   | 'sharepic'
   | 'summary'
+  | 'artifact'
   | 'direct';
 
 export interface SharepicVariant {
@@ -67,6 +68,33 @@ export function coerceSharepicVariants(raw: unknown): SharepicVariant[] | null {
     valid.push(v as unknown as SharepicVariant);
   }
   return valid.length > 0 ? valid : null;
+}
+
+/**
+ * Chart payload emitted by the backend `chart` intent (SSE event `chart_data`,
+ * payload `{ chart }`). Mirrors the server-side `ChartData` in
+ * apps/api/agents/langgraph/ChatGraph/types.ts — kept in sync by hand since the
+ * chart node predates a shared contracts schema.
+ */
+export interface ChartData {
+  type: 'bar' | 'line' | 'area' | 'pie' | 'donut';
+  title: string;
+  data: Array<Record<string, string | number>>;
+  xKey: string;
+  yKeys: string[];
+  colors?: string[];
+}
+
+/**
+ * Generic renderable artifact (HTML/SVG) emitted by the backend (SSE event
+ * `artifact`, payload `{ artifact }`). Rendered live in a sandboxed side panel.
+ * Mirrors the server-side `ArtifactData` in
+ * apps/api/agents/langgraph/ChatGraph/types.ts.
+ */
+export interface ArtifactData {
+  type: 'html' | 'svg';
+  title: string;
+  content: string;
 }
 
 // Wire shape from @gruenerator/contracts (chatStreamEvents) plus the
