@@ -336,6 +336,51 @@ export async function getThreadTabularFiles(
 }
 
 /**
+ * Delete the Qdrant vectors of a thread's embedded (RAG) attachments before the
+ * thread row is removed. The DB rows are dropped by CASCADE, but Qdrant is a
+ * separate store and would otherwise leak orphaned vectors.
+ *
+ * Safe by construction: each delete is filtered by BOTH the attachment's
+ * document_id (a random per-attachment UUID) AND the owning user_id, so it can
+ * never touch another document's or another user's vectors. Best-effort — a
+ * Qdrant hiccup is logged but must not block thread deletion.
+ *
+ * Must be called BEFORE the thread row is deleted (the document_ids are read
+ * from chat_thread_attachments, which CASCADE-deletes with the thread).
+ */
+export async function deleteThreadAttachmentVectors(
+  threadId: string,
+  userId: string
+): Promise<void> {
+  try {
+    const postgres = getPostgresInstance();
+
+    const rows = await postgres.query(
+      `SELECT document_id FROM chat_thread_attachments
+       WHERE thread_id = $1 AND user_id = $2 AND document_id IS NOT NULL`,
+      [threadId, userId]
+    );
+    if (rows.length === 0) return;
+
+    const service = getQdrantDocumentService();
+    for (const row of rows) {
+      const documentId = row.document_id as string;
+      try {
+        await service.deleteDocumentVectors(documentId, userId);
+      } catch (err) {
+        reportBackgroundError(err, { job: 'attachment-vector-cleanup', threadId, documentId });
+      }
+    }
+    log.info(
+      `[AttachmentPersistence] Cleaned up ${rows.length} embedded-attachment vector set(s) for thread ${threadId}`
+    );
+  } catch (err) {
+    // Never let vector cleanup block thread deletion — the DB rows still cascade.
+    reportBackgroundError(err, { job: 'attachment-vector-cleanup', threadId });
+  }
+}
+
+/**
  * Delete all attachments for a thread (used when thread is deleted).
  * Note: This is handled by CASCADE in the database, but provided for explicit cleanup.
  */
