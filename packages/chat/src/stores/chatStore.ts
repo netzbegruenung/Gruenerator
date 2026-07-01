@@ -8,6 +8,7 @@ import {
   type TextProvider,
 } from '@gruenerator/shared/models';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
+import { useArtifactLiveStore } from './artifactLiveStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 import { usePythonFileStore } from './pythonFileStore';
@@ -232,6 +233,9 @@ export const useAgentStore = create<AgentState>()(
         // subtitle edits of the old reel, and bind the wrong reel to the new
         // thread on the first successful edit.
         useReelLiveStore.getState().setActiveReel(null);
+        // Same for a docked HTML/SVG artifact: activeArtifact is module-global,
+        // so without this reset the old thread's artifact stays pinned in the new one.
+        useArtifactLiveStore.getState().setActiveArtifact(null);
         // Tabular files attached for the in-browser interpreter are session-
         // scoped too — an old thread's Excel/CSV must not leak into the new one.
         usePythonFileStore.getState().clear();
