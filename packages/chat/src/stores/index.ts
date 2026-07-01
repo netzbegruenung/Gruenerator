@@ -12,3 +12,11 @@
 export { useUserProfileStore, type UserRole } from './userProfileStore';
 export { useAgentStore } from './chatStore';
 export { setThreadListSlot, useThreadListSlot } from './threadListSlotStore';
+export {
+  useChatConfigStore,
+  type ChatConfig,
+  type CodeExecutionResult,
+  type PythonFile,
+  type RunPython,
+  type RunPythonOptions,
+} from './chatConfigStore';

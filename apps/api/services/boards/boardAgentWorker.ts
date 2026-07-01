@@ -18,6 +18,7 @@ import { INTERMEDIATE_MODEL } from '../ai/providers.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
+import { buildCardAgentContext } from './agentFlow/cardContext.js';
 import { deriveTitle, generateFromState, prepareAgentState } from './agentFlow/generate.js';
 import { runFlow } from './agentFlow/index.js';
 import {
@@ -27,8 +28,8 @@ import {
   postBotComment,
   updateBotComment,
 } from './agentTaskService.js';
-import { linkDocumentToCard } from './boardLinkService.js';
 import { inheritBoardSharingToDocument } from './boardSharingService.js';
+import { linkAgentDocumentToCard } from './cardDocumentService.js';
 
 import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
 
@@ -149,10 +150,18 @@ async function processTask(task: AgentTask): Promise<void> {
 
     const userLocale = task.locale === 'de-AT' ? 'de-AT' : 'de-DE';
 
+    // Gather the card's context (column + comments + linked-document contents) so the
+    // agent doesn't work half-blind. Best-effort: undefined on any failure.
+    const cardContext = await buildCardAgentContext(task.board_id, task.card_id, task.requested_by);
+
     // Classify only — the model does its own retrieval via the search/research
     // tools during authoring. The classifier gives us the intent (for the
-    // unsupported-artifact guard) and a locale/intent-aware system prompt.
-    const prepared = await prepareAgentState(task.task_text, userLocale);
+    // unsupported-artifact guard) and a locale/intent-aware system prompt. A picked
+    // agent (task.agent_id) runs with its own persona/notebooks/tools; null → default.
+    const prepared = await prepareAgentState(task.task_text, userLocale, {
+      agentId: task.agent_id,
+      userId: task.requested_by,
+    });
     const { finalState } = prepared;
 
     // The board agent only delivers text documents. For image/sharepic/chart
@@ -177,6 +186,7 @@ async function processTask(task: AgentTask): Promise<void> {
     const content = await generateFromState(prepared, {
       longForm: isDocument,
       slotLabel: `board-agent-${task.id}`,
+      ...(cardContext != null && { contextBlock: cardContext }),
     });
     if (!content) {
       throw new Error('Der Agent lieferte kein Ergebnis');
@@ -188,11 +198,12 @@ async function processTask(task: AgentTask): Promise<void> {
       const doc = await createDocumentWithContent(title, content, 'blank', task.requested_by);
       const relativeUrl = `/docs/${doc.id}`;
 
-      // Share the document with everyone who can access the board, and link it into
-      // the originating card's "Dokumente" list. Both are best-effort (they log and
-      // swallow) so the task still completes if one fails.
+      // Share the document with everyone who can access the board, and record it
+      // in the card's "Grünerator-Dokumente" list (a reliable Postgres write; the
+      // open card refetches live when the finish comment below bumps the card).
+      // Best-effort: both log and swallow so the task still completes if one fails.
       await inheritBoardSharingToDocument(doc.id, task.board_id);
-      const linked = await linkDocumentToCard(task.board_id, task.card_id, { id: doc.id, title });
+      await linkAgentDocumentToCard(task.board_id, task.card_id, doc.id, title, task.requested_by);
 
       await completeAgentTask(task.id, doc.id);
 
@@ -213,12 +224,7 @@ async function processTask(task: AgentTask): Promise<void> {
       });
 
       await finishComment([
-        {
-          type: 'text',
-          text: linked
-            ? '✅ Fertig! Dokument erstellt und mit der Karte verknüpft: '
-            : '✅ Fertig! Dokument erstellt: ',
-        },
+        { type: 'text', text: '✅ Fertig! Dokument erstellt und mit der Karte verknüpft: ' },
         { type: 'link', text: title, url: relativeUrl },
       ]);
 

@@ -10,11 +10,11 @@ import {
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import { HiOutlineArrowDownTray } from 'react-icons/hi2';
-import { SiCanva } from 'react-icons/si';
 
 import FavoriteButton from '../FavoriteButton';
 import LikeButton from '../LikeButton';
 
+import { CanvaLogo } from '@/features/canva/components/CanvaLogo';
 import { cn } from '@/utils/cn';
 
 const formatDate = (value: string | number | Date | null | undefined) => {
@@ -331,7 +331,7 @@ const TemplatePreviewModal = ({
             <div className="flex flex-wrap gap-sm items-center text-grey-600 dark:text-grey-400 text-xs mt-auto">
               {templateType && (
                 <Badge variant="outline" className="gap-1.5">
-                  {isCanva && <SiCanva className="w-3.5 h-3.5" />}
+                  {isCanva && <CanvaLogo size={14} />}
                   {templateType}
                 </Badge>
               )}
@@ -350,7 +350,7 @@ const TemplatePreviewModal = ({
             <Button onClick={handleOpenExternal} className="max-sm:w-full">
               {isCanva ? (
                 <>
-                  <SiCanva />
+                  <CanvaLogo size={16} />
                   <span>In Canva öffnen</span>
                 </>
               ) : isDownloadOnly ? (

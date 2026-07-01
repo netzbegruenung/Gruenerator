@@ -322,11 +322,25 @@ const SharedMediaPage = () => {
               Dein Browser unterstützt keine Video-Wiedergabe.
             </video>
           ) : (
-            <img
-              src={`${baseURL}/share/${shareToken}/preview`}
-              alt={shareData?.title || 'Geteiltes Bild'}
-              className="block max-h-[80vh] max-w-full object-contain max-md:max-h-[50vh] max-md:w-full"
-            />
+            <picture>
+              {/* Detail view: a large WebP/AVIF variant is plenty for an 80vh
+                  contain layout and a fraction of the original's weight. The
+                  original stays the download/Instagram source. */}
+              <source
+                srcSet={`${baseURL}/share/${shareToken}/preview?w=1200&fmt=avif`}
+                type="image/avif"
+              />
+              <source
+                srcSet={`${baseURL}/share/${shareToken}/preview?w=1200&fmt=webp`}
+                type="image/webp"
+              />
+              <img
+                src={`${baseURL}/share/${shareToken}/preview?w=1200&fmt=webp`}
+                alt={shareData?.title || 'Geteiltes Bild'}
+                decoding="async"
+                className="block max-h-[80vh] max-w-full object-contain max-md:max-h-[50vh] max-md:w-full"
+              />
+            </picture>
           )}
         </div>
 
