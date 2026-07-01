@@ -7,9 +7,9 @@
  * Protocol: main thread posts { id, code, files }; worker replies
  * { id, progress } (zero or more) then exactly one { id, result }.
  */
+import { buildFileSetup, detectPyodidePackages, isXlsx } from '@gruenerator/chat/pyodide';
 import { loadPyodide } from 'pyodide';
 
-import { detectPyodidePackages } from '@gruenerator/chat/pyodide';
 import type { CodeExecutionResult, PythonFile } from '@gruenerator/chat/stores';
 
 interface RunMessage {
@@ -43,21 +43,21 @@ function getPyodide(onProgress: (msg: string) => void): Promise<PyRuntime> {
   return pyodidePromise;
 }
 
-// Loads the first uploaded file into a pandas DataFrame `df` before user code
-// runs. CSVs vary wildly (German `;`-separated, odd encodings) — let pandas
-// sniff the separator. Excel (openpyxl) is not vendored yet → CSV only.
-function buildSetup(file: PythonFile): string {
-  const name = JSON.stringify(file.name);
-  const lower = file.name.toLowerCase();
-  const isExcel =
-    lower.endsWith('.xlsx') ||
-    lower.endsWith('.xls') ||
-    file.mimeType.includes('excel') ||
-    file.mimeType.includes('spreadsheet');
-  if (isExcel) {
-    return `raise RuntimeError('Excel-Dateien werden derzeit nicht unterstützt – bitte als CSV exportieren.')`;
-  }
-  return `import pandas as pd\ndf = pd.read_csv(${name}, sep=None, engine='python')`;
+// openpyxl + et_xmlfile aren't in pyodide-lock.json, so they can't be
+// loadPackage()-ed. They are vendored as pure-Python wheels under /pyodide/
+// (see setup-pyodide.mjs) and installed once per worker via micropip, deps
+// disabled so nothing is fetched from PyPI — the offline guarantee holds.
+let excelInstalled = false;
+async function ensureExcelSupport(py: PyRuntime, onProgress: (msg: string) => void): Promise<void> {
+  if (excelInstalled) return;
+  onProgress('Excel-Unterstützung wird geladen …');
+  await py.loadPackage(['micropip']);
+  await py.runPythonAsync(
+    "import micropip\n" +
+      "await micropip.install(['/pyodide/et_xmlfile-2.0.0-py3-none-any.whl'," +
+      "'/pyodide/openpyxl-3.1.5-py2.py3-none-any.whl'], deps=False)"
+  );
+  excelInstalled = true;
 }
 
 // Runs setup + user code in a shared namespace, then serialises every open
@@ -109,6 +109,12 @@ self.onmessage = async (event: MessageEvent<RunMessage>) => {
       await py.loadPackage(packages);
     }
 
+    // openpyxl is loadPackage-incompatible → install via micropip only when an
+    // .xlsx is present, before the harness runs `pd.read_excel`.
+    if (files?.some((f) => isXlsx(f.name, f.mimeType))) {
+      await ensureExcelSupport(py, (message) => post({ progress: message }));
+    }
+
     stdout = '';
     py.setStdout({ batched: (s) => (stdout += s + '\n') });
     py.setStderr({ batched: (s) => (stdout += s + '\n') });
@@ -118,7 +124,10 @@ self.onmessage = async (event: MessageEvent<RunMessage>) => {
     }
 
     py.globals.set('__user_code', code);
-    py.globals.set('__setup_code', files?.length ? buildSetup(files[0]) : '');
+    py.globals.set(
+      '__setup_code',
+      files?.length ? buildFileSetup(files[0].name, files[0].mimeType) : ''
+    );
 
     const figuresJson = (await py.runPythonAsync(HARNESS)) as string;
     const figures = JSON.parse(figuresJson) as string[];

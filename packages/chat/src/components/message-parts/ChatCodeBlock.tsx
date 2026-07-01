@@ -2,6 +2,7 @@ import { type ReactNode, isValidElement, useCallback, useEffect, useState } from
 import { Check, Copy, Loader2, Play } from 'lucide-react';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
+import { usePythonFileStore } from '../../stores/pythonFileStore';
 
 /** Recursively collect the text content of react-markdown's nested children. */
 function toText(node: ReactNode): string {
@@ -29,6 +30,7 @@ function extractCodeInfo(children: ReactNode): { language: string; code: string 
 export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   const { language, code } = extractCodeInfo(children);
   const runPython = useChatConfigStore((s) => s.runPython);
+  const pythonFiles = usePythonFileStore((s) => s.files);
   const [html, setHtml] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [running, setRunning] = useState(false);
@@ -64,7 +66,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     setRunning(true);
     setProgress('Wird ausgeführt …');
     try {
-      setOutput(await runPython(code, [], { onProgress: setProgress }));
+      setOutput(await runPython(code, pythonFiles, { onProgress: setProgress }));
     } catch (error) {
       setOutput({
         ok: false,
@@ -77,7 +79,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     } finally {
       setRunning(false);
     }
-  }, [code, runPython]);
+  }, [code, runPython, pythonFiles]);
 
   return (
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-code-block-bg">
