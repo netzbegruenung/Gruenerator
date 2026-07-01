@@ -22,10 +22,19 @@ import { mkdir, copyFile, writeFile, access } from 'node:fs/promises';
 // Packages the in-browser code interpreter is allowed to use. Their transitive
 // deps are resolved automatically from the lockfile — keep in sync with the
 // detection map in packages/chat/src/lib/pyodidePackages.ts.
-// NOTE: only packages bundled in pyodide-lock.json can be vendored offline.
-// seaborn + openpyxl (Excel) are NOT in this Pyodide version's lock — they need
-// micropip/PyPI-wheel injection, deferred to a dedicated change.
+// NOTE: only packages bundled in pyodide-lock.json can be vendored offline via
+// the BFS below. seaborn is still absent from this Pyodide version's lock.
 const PACKAGES = ['pandas', 'matplotlib', 'scipy', 'sympy', 'scikit-learn'];
+
+// Pure-Python packages NOT in pyodide-lock.json (so the BFS can't resolve them),
+// vendored as direct PyPI wheels instead. Installed at runtime via micropip from
+// our own /pyodide/ origin (deps disabled) — never fetched from PyPI in-browser,
+// so the offline/no-CDN guarantee holds. openpyxl (+ its only dep et_xmlfile)
+// gives pandas the .xlsx engine; the worker installs it lazily on Excel uploads.
+const PYPI_WHEELS = [
+  'https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl',
+  'https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl',
+];
 
 // Core files loadPyodide() fetches from indexURL at runtime (the JS loader
 // itself is bundled into the worker from the npm package, so it's not copied).
@@ -89,6 +98,18 @@ async function main() {
   console.log(
     `[pyodide] done — ${downloaded} downloaded, ${wheels.length - downloaded} cached, in public/pyodide/`
   );
+
+  // 3b. direct PyPI wheels not covered by the lock (openpyxl for Excel).
+  // Same idempotent download; the file name is the URL's basename.
+  for (const url of PYPI_WHEELS) {
+    const file = url.split('/').pop();
+    const dest = path.join(outDir, file);
+    if (await exists(dest)) continue;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`download failed (${res.status}): ${file}`);
+    await writeFile(dest, Buffer.from(await res.arrayBuffer()));
+    console.log(`[pyodide]   + ${file} (PyPI)`);
+  }
 
   // 4. version marker — drives the service-worker cache name so a Pyodide
   // version bump busts the cached runtime+wheels automatically (see

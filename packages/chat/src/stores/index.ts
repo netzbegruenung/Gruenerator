@@ -20,3 +20,4 @@ export {
   type RunPython,
   type RunPythonOptions,
 } from './chatConfigStore';
+export { usePythonFileStore } from './pythonFileStore';
