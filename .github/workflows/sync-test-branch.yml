@@ -1,15 +1,15 @@
-# Keeps the long-lived `test-branch` in sync with `master`.
+# Keeps the long-lived `test-branch` in sync with `master`, and rebuilds the
+# beta Docker images after each sync.
 #
-# Fires on every push to master (i.e. whenever a PR is merged) and fast-forwards
-# test-branch by merging master into it. `test-branch` is merge-based (never
-# squashed), so this is a regular merge — matching how we sync it by hand.
+# Fires on every push to master (i.e. whenever a PR is merged): merges master
+# into test-branch (regular merge — test-branch is never squashed), pushes, then
+# dispatches build-images.yml so the beta images rebuild.
 #
-# Build note: for the resulting push to `test-branch` to trigger
-# build-images.yml, the checkout/push must use a PAT — GitHub deliberately does
-# NOT re-trigger workflows for pushes made with the default GITHUB_TOKEN. Set a
-# `TEST_BRANCH_SYNC_TOKEN` repo secret (a fine-grained PAT with `contents: write`
-# on this repo) and the Docker build runs automatically after each sync. Without
-# it, the code still syncs but you must trigger build-images.yml manually.
+# Why the explicit dispatch: a push made with the default GITHUB_TOKEN does NOT
+# re-trigger other workflows, so the push alone won't rebuild. A workflow_dispatch
+# triggered with GITHUB_TOKEN DOES run — so we sync with GITHUB_TOKEN (no PAT
+# needed) and kick the build explicitly. build-images.yml detects which images
+# changed in the merge (see its detect-changes base fallback).
 name: Sync test-branch
 
 on:
@@ -27,6 +27,7 @@ concurrency:
 permissions:
   contents: write
   issues: write
+  actions: write # to dispatch build-images.yml after a sync
 
 jobs:
   sync:
@@ -40,9 +41,6 @@ jobs:
         with:
           ref: test-branch
           fetch-depth: 0
-          # PAT so the push re-triggers build-images.yml; GITHUB_TOKEN fallback
-          # keeps the code sync working even if the secret isn't set yet.
-          token: ${{ secrets.TEST_BRANCH_SYNC_TOKEN || github.token }}
 
       - name: Configure git identity
         run: |
@@ -71,6 +69,13 @@ jobs:
       - name: Push test-branch
         if: steps.merge.outputs.changed == 'true'
         run: git push origin test-branch
+
+      - name: Rebuild beta images
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          # workflow_dispatch (not push) so it runs under GITHUB_TOKEN.
+          # build-images.yml detects which images the merge touched.
+          gh workflow run build-images.yml --ref test-branch
 
       - name: Open issue on conflict
         if: failure() && steps.merge.outputs.conflict == 'true'
