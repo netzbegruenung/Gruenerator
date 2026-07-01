@@ -90,3 +90,29 @@ export const documentCreatedEventSchema = z.object({
   url: z.string(),
 });
 export type DocumentCreatedEvent = z.infer<typeof documentCreatedEventSchema>;
+
+/**
+ * `chart_data` SSE payload — a data visualization the backend `chart` intent
+ * extracts from the response and the frontend renders with Recharts.
+ */
+export const chartPayloadSchema = z.object({
+  type: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
+  title: z.string(),
+  data: z.array(z.record(z.union([z.string(), z.number()]))),
+  xKey: z.string(),
+  yKeys: z.array(z.string()),
+  colors: z.array(z.string()).optional(),
+});
+export type ChartPayload = z.infer<typeof chartPayloadSchema>;
+
+/**
+ * `artifact` SSE payload — a generic renderable HTML/SVG artifact the backend
+ * extracts from the response; the frontend renders it in a sandboxed side panel.
+ * Deliberately limited to HTML/CSS and SVG (no executable React).
+ */
+export const artifactPayloadSchema = z.object({
+  type: z.enum(['html', 'svg']),
+  title: z.string(),
+  content: z.string(),
+});
+export type ArtifactPayload = z.infer<typeof artifactPayloadSchema>;
