@@ -20,6 +20,7 @@ VERFÜGBARE TOOLS:
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
+- abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search).
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
 - compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ direct/search).
@@ -70,6 +71,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 4. Als Dokument speichern? → save_as_doc
 5. Dokument mit Gruppe teilen? → share_doc
 6. Social-Media-Vorlage/Beispiel suchen? → examples
+6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
@@ -158,7 +160,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,

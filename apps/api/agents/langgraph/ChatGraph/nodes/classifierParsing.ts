@@ -31,6 +31,7 @@ export function parseClassifierResponse(
     'search',
     'web',
     'examples',
+    'abgeordnetenwatch',
     'sharepic',
     'image',
     'image_edit',

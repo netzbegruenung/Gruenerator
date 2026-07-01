@@ -279,6 +279,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   scrape_url: ['Lese Webseite...', 'Öffne den Link...', 'Rufe die Seite ab...'],
   examples: ['Krame...', 'Hole Beispiele...', 'Suche Inspiration...'],
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
+  abgeordnetenwatch: ['Prüfe Abgeordnetenwatch...', 'Rufe Mandatsdaten ab...', 'Zähle Stimmen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],

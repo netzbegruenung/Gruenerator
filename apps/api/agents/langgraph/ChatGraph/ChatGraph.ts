@@ -517,6 +517,7 @@ function routeAfterClassification(
     scrape_url: 'scrape',
     examples: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
+    abgeordnetenwatch: 'abgeordnetenwatch',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
