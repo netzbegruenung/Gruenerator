@@ -171,7 +171,14 @@ function CollabCanvasStudioContent() {
             onInvitePeople={() => setShareOpen(true)}
           />
         </div>
-        <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
+        <ShareCanvasDialog
+          canvasId={canvas.id}
+          canvasType={canvas.template_type}
+          initialState={canvas.initial_state}
+          defaultTitle={canvas.title}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+        />
       </div>
     </WebCanvasEditorProvider>
   );

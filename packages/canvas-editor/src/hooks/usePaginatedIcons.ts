@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
 import { type IconDef } from '../utils/canvasIcons';
-import useDebounce from './useDebounce';
+import { useDebounce } from './useDebounce';
 import { useIconCatalog } from './useIconCatalog';
 import { useIconSearch } from './useIconSearch';
 
