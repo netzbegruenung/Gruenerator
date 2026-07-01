@@ -44,6 +44,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'compare',
   'search',
   'web',
+  'scrape_url',
   'examples',
   'pressemitteilung_examples',
   'image',
@@ -51,6 +52,8 @@ const ALL_INTENTS: SearchIntent[] = [
   'sharepic',
   'summary',
   'chart',
+  'artifact',
+  'compute',
   'save_as_doc',
   'modify_doc',
   'edit_current_doc',
@@ -302,6 +305,10 @@ describe('every SearchIntent has a handler path', () => {
       'handled via search branch — landesverbaende press release templates, same path as examples',
     summary: 'handled via summary branch in controller',
     chart: 'routes to respond, chart data handled by controller post-response',
+    artifact: 'routes to respond, controller extracts HTML/SVG block into an artifact SSE event',
+    compute:
+      'handled via compute branch in controller — computeNode runs plain-JS calc, emits compute SSE + injects verified result into respond',
+    scrape_url: 'handled via search branch — crawls pasted URL(s) as additional context',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     edit_current_doc:

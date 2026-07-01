@@ -33,6 +33,7 @@ import type {
   StreamMetadata,
   ProgressStep,
   ChartData,
+  ComputeData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -117,6 +118,7 @@ export async function* parseSSEStream(
   let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: ActiveArtifact | null = null;
+  let receivedComputeData: ComputeData | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -181,6 +183,7 @@ export async function* parseSSEStream(
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
     if (receivedChartData) custom.chartData = receivedChartData;
     if (receivedArtifactData) custom.artifactData = receivedArtifactData;
+    if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -431,6 +434,13 @@ export async function* parseSSEStream(
             // Open the docked panel immediately.
             useArtifactLiveStore.getState().setActiveArtifact(active);
           }
+          yield buildResult();
+          break;
+        }
+
+        case 'compute': {
+          const { compute } = data as { compute?: ComputeData };
+          if (compute) receivedComputeData = compute;
           yield buildResult();
           break;
         }

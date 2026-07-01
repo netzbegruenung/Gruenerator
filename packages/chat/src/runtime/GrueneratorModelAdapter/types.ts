@@ -22,6 +22,7 @@ export type GrueneratorMessageMetadata = {
   sharepicData?: import('../../hooks/useChatGraphStream').SharepicData;
   chartData?: import('../../hooks/useChatGraphStream').ChartData;
   artifactData?: import('../../stores/artifactLiveStore').ActiveArtifact;
+  computeData?: import('../../hooks/useChatGraphStream').ComputeData;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
