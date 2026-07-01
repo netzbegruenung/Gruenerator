@@ -14,6 +14,8 @@ import {
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
+import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
 import {
   searchExamples,
   type ExampleKind,
@@ -61,6 +63,126 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
+
+// ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
+const AW_VOTE_LABELS: Record<string, string> = {
+  yes: 'Ja',
+  no: 'Nein',
+  abstain: 'Enthaltung',
+  no_show: 'nicht abgestimmt',
+};
+
+function awVoteLabel(vote: string): string {
+  return AW_VOTE_LABELS[vote] ?? vote;
+}
+
+function awEuro(amount: number | null): string | null {
+  if (amount == null) return null;
+  return `${amount.toLocaleString('de-DE', { maximumFractionDigits: 0 })} €`;
+}
+
+/**
+ * Flatten the compact enrichment result into ranked SearchResult[] for the
+ * respond node. Everything here is already trimmed by the client — this only
+ * formats German prose and assigns relevance; no raw API shapes leak through.
+ */
+function buildAbgeordnetenwatchResults(enriched: AwEnrichedResult): SearchResult[] {
+  const results: SearchResult[] = [];
+
+  if (enriched.kind === 'person' && enriched.person) {
+    const { politician, mandate, topicVotes, recentVotes, sideJobs } = enriched.person;
+    results.push({
+      source: 'abgeordnetenwatch',
+      title: politician.party ? `${politician.name} (${politician.party})` : politician.name,
+      content: mandate
+        ? `Mandat: ${mandate.parliamentPeriod}${mandate.fraction ? ` · Fraktion: ${mandate.fraction}` : ''}`
+        : 'Kein aktuelles Mandat gefunden.',
+      url: politician.url,
+      relevance: 1,
+    });
+
+    const seenPolls = new Set<number>();
+    const pushVote = (v: (typeof recentVotes)[number], relevance: number) => {
+      if (seenPolls.has(v.pollId)) return;
+      seenPolls.add(v.pollId);
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Abstimmung: ${v.pollLabel}`,
+        content: `Stimme: ${awVoteLabel(v.vote)}${v.fraction ? ` · Fraktion: ${v.fraction}` : ''}`,
+        url: v.url || politician.url,
+        relevance,
+      });
+    };
+    topicVotes.forEach((v) => pushVote(v, 0.95));
+    recentVotes.forEach((v) => pushVote(v, 0.6));
+
+    sideJobs.forEach((s, i) => {
+      const parts = [
+        s.organization,
+        s.incomeLevel != null ? `Einkommensstufe ${s.incomeLevel}/10` : null,
+        awEuro(s.income),
+        s.interval,
+        s.year,
+      ].filter(Boolean);
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Nebentätigkeit: ${s.label}`,
+        content: parts.join(' · ') || 'Keine weiteren Angaben.',
+        url: politician.url,
+        relevance: 0.7 - i * 0.01,
+      });
+    });
+  } else if (enriched.kind === 'poll') {
+    const { tally, relatedPolls } = enriched;
+    if (tally) {
+      const fractionLine = tally.byFraction
+        .slice(0, 6)
+        .map((f) => `${f.fraction}: Ja ${f.yes}/Nein ${f.no}`)
+        .join('; ');
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Abstimmung: ${tally.label}`,
+        content:
+          `Ergebnis: ${tally.accepted == null ? 'unbekannt' : tally.accepted ? 'angenommen' : 'abgelehnt'}` +
+          ` · Ja ${tally.total.yes}, Nein ${tally.total.no}, Enthaltung ${tally.total.abstain}, nicht abgestimmt ${tally.total.no_show}.` +
+          (fractionLine ? ` Nach Fraktion: ${fractionLine}.` : ''),
+        url: tally.url,
+        relevance: 1,
+      });
+    }
+    (relatedPolls ?? []).forEach((p, i) => {
+      if (tally && p.pollId === tally.pollId) return;
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Abstimmung: ${p.label}`,
+        content: [p.date, p.intro].filter(Boolean).join(' · ') || 'Namentliche Abstimmung.',
+        url: p.url,
+        relevance: 0.6 - i * 0.02,
+      });
+    });
+  }
+
+  if (enriched.notes.length > 0) {
+    results.push({
+      source: 'abgeordnetenwatch',
+      title: 'Hinweis',
+      content: enriched.notes.join(' '),
+      relevance: 0.2,
+    });
+  }
+
+  if (results.length === 0) {
+    results.push({
+      source: 'abgeordnetenwatch',
+      title: 'Keine Daten gefunden',
+      content:
+        'Zu dieser Anfrage konnten bei Abgeordnetenwatch keine passenden Abgeordneten oder Abstimmungen gefunden werden.',
+      relevance: 0.2,
+    });
+  }
+
+  return results;
+}
 
 /**
  * Return default Qdrant collections based on user locale.
@@ -980,6 +1102,33 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       //   citations = buildCitations(results);
       //   break;
       // }
+
+      case 'abgeordnetenwatch': {
+        // German MP transparency data (votes, Nebentätigkeiten, roll-calls) via
+        // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
+        // here only via a forced @abgeordnetenwatch mention, since the classifier
+        // downgrades AT) return a graceful decline instead of empty data.
+        if (state.userLocale === 'de-AT') {
+          results = [
+            {
+              source: 'abgeordnetenwatch',
+              title: 'Nur für Deutschland verfügbar',
+              content:
+                'Abgeordnetenwatch erfasst nur deutsche Parlamente (Bundestag/Landtage). Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              relevance: 1,
+            },
+          ];
+          citations = buildCitations(results);
+          break;
+        }
+        const enriched = await getEnrichedPoliticianService().search(searchQuery || '');
+        results = buildAbgeordnetenwatchResults(enriched);
+        log.info(
+          `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+        );
+        citations = buildCitations(results);
+        break;
+      }
 
       case 'web': {
         // Web search with query expansion and content crawling
