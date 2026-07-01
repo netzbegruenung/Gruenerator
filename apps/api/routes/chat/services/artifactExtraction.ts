@@ -32,10 +32,29 @@ function deriveTitle(type: 'html' | 'svg', content: string): string {
 }
 
 /**
+ * A fenced HTML block counts as a full document (vs. an illustrative snippet)
+ * when it declares a doctype or a root html/body element. SVG always renders as
+ * a standalone document, so a valid <svg> block is inherently "complete".
+ */
+function isCompleteDocument(type: 'html' | 'svg', content: string): boolean {
+  if (type === 'svg') return true;
+  return /<!doctype html|<html[\s>]|<body[\s>]/i.test(content);
+}
+
+/**
  * Extract the first ```html or ```svg fenced block from the response, if any.
  * Returns null when no artifact block is present.
+ *
+ * `isArtifactIntent` distinguishes the two trigger paths (the user chose both):
+ * - Explicit `artifact` intent → surface any valid block (the user asked for it).
+ * - Auto-detect on any other intent → only surface a *complete* document, so an
+ *   illustrative ```html/```svg snippet inside a normal answer (e.g. a `direct`
+ *   "how do I write a <table>?") does NOT hijack the UI into a docked panel.
  */
-export function extractArtifactFromResponse(text: string): ArtifactData | null {
+export function extractArtifactFromResponse(
+  text: string,
+  { isArtifactIntent }: { isArtifactIntent: boolean }
+): ArtifactData | null {
   const match = text.match(/```(html|svg)\s*\n?([\s\S]*?)```/i);
   if (!match) return null;
 
@@ -48,6 +67,10 @@ export function extractArtifactFromResponse(text: string): ArtifactData | null {
   // fenced block mislabeled `svg` that is really prose.
   if (type === 'svg' && !/<svg[\s>]/i.test(content)) {
     log.warn('[ChatGraph] ```svg block without an <svg> element — skipping');
+    return null;
+  }
+
+  if (!isArtifactIntent && !isCompleteDocument(type, content)) {
     return null;
   }
 
