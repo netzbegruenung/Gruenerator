@@ -14,6 +14,7 @@
 import { generateText } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { visionService } from '../../../services/vision/VisionService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { getIntermediateModel } from '../agents/providers.js';
@@ -41,6 +42,9 @@ interface SaveAttachmentParams {
   sizeBytes: number;
   isImage: boolean;
   extractedText: string | null;
+  /** Base64 image bytes (images only) — used to generate a persistent vision
+   *  description so follow-up turns can reason about the image. */
+  imageData?: string;
 }
 
 /**
@@ -49,7 +53,17 @@ interface SaveAttachmentParams {
  * and summary generation is triggered asynchronously.
  */
 export async function saveThreadAttachment(params: SaveAttachmentParams): Promise<string> {
-  const { threadId, messageId, userId, name, mimeType, sizeBytes, isImage, extractedText } = params;
+  const {
+    threadId,
+    messageId,
+    userId,
+    name,
+    mimeType,
+    sizeBytes,
+    isImage,
+    extractedText,
+    imageData,
+  } = params;
 
   const postgres = getPostgresInstance();
 
@@ -64,7 +78,14 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
   const attachmentId = (result[0] as { id: string }).id;
   log.info(`[AttachmentPersistence] Saved attachment ${name} for thread ${threadId}`);
 
-  if (extractedText && extractedText.length > 100 && !isImage) {
+  if (isImage && imageData) {
+    // Vision-describe the image once, in the background, and store it as the
+    // attachment summary — this is what gives later text-only turns a memory of
+    // the image (formatThreadAttachmentsContext surfaces it as "FRÜHERE BILDER").
+    generateImageSummary(attachmentId, imageData, mimeType).catch((err) => {
+      reportBackgroundError(err, { job: 'attachment-image-summary', attachmentId });
+    });
+  } else if (extractedText && extractedText.length > 100 && !isImage) {
     generateAttachmentSummary(attachmentId, extractedText).catch((err) => {
       reportBackgroundError(err, { job: 'attachment-summary', attachmentId });
     });
@@ -157,6 +178,46 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
     return summary;
   } catch (error) {
     log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a persistent vision description of an image attachment and store it
+ * as the attachment summary. Runs asynchronously after the response is sent so
+ * follow-up turns can reference the image without re-sending the pixels.
+ */
+export async function generateImageSummary(
+  attachmentId: string,
+  imageData: string,
+  mimeType: string
+): Promise<string> {
+  log.info(`[AttachmentPersistence] Generating vision summary for image ${attachmentId}...`);
+
+  const imageSource = imageData.startsWith('data:')
+    ? imageData
+    : `data:${mimeType};base64,${imageData}`;
+
+  try {
+    const description = await visionService.describeImage(imageSource, {
+      maxTokens: SUMMARY_MAX_TOKENS,
+    });
+
+    const postgres = getPostgresInstance();
+    await postgres.query(`UPDATE chat_thread_attachments SET summary = $1 WHERE id = $2`, [
+      description,
+      attachmentId,
+    ]);
+
+    log.info(
+      `[AttachmentPersistence] Saved vision summary for image ${attachmentId}: ${description.length} chars`
+    );
+    return description;
+  } catch (error) {
+    log.error(
+      `[AttachmentPersistence] Failed to generate vision summary for ${attachmentId}:`,
+      error
+    );
     throw error;
   }
 }
