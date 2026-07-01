@@ -18,6 +18,7 @@ import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 
+import { getThreadTabularFiles } from './services/attachmentPersistenceService.js';
 import { getThreadSettings, updateThreadSettings } from './services/threadPersistenceService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
@@ -407,6 +408,31 @@ export const threadsContractRouter = s.router(threadsContract, {
     } catch (error) {
       log.error('Error generating thread title:', error);
       return { status: 500 as const, body: { error: 'Failed to generate title' } };
+    }
+  },
+
+  getTabularFiles: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { threadId } = args.params;
+
+      const postgres = getPostgresInstance();
+      const threads = await postgres.query(
+        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        [threadId]
+      );
+      if (threads.length === 0) {
+        return { status: 404 as const, body: { error: 'Thread not found' } };
+      }
+      if (threads[0].user_id !== userId) {
+        return { status: 403 as const, body: { error: 'Forbidden' } };
+      }
+
+      const files = await getThreadTabularFiles(threadId, userId);
+      return { status: 200 as const, body: { files } };
+    } catch (error) {
+      log.error('Error fetching tabular files:', error);
+      return { status: 500 as const, body: { error: 'Failed to fetch tabular files' } };
     }
   },
 });

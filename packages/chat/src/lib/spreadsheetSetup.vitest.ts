@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildFileSetup, isTabularFile, isXlsx, isLegacySpreadsheet } from './spreadsheetSetup';
+import { buildFileSetup, isTabularFile, isXlsx, isXls } from './spreadsheetSetup';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const XLS_MIME = 'application/vnd.ms-excel';
@@ -33,20 +33,14 @@ describe('buildFileSetup', () => {
 
   it('reads CSV with separator sniffing', () => {
     expect(buildFileSetup('data.csv', 'text/csv')).toBe(
-      "import pandas as pd\ndf = pd.read_csv(\"data.csv\", sep=None, engine='python')"
+      'import pandas as pd\ndf = pd.read_csv("data.csv", sep=None, engine=\'python\')'
     );
   });
 
-  it('rejects legacy .xls and .ods with a clear hint (no read call)', () => {
-    for (const [name, mime] of [
-      ['alt.xls', XLS_MIME],
-      ['tabelle.ods', ODS_MIME],
-    ] as const) {
-      const setup = buildFileSetup(name, mime);
-      expect(setup).toContain('RuntimeError');
-      expect(setup).not.toContain('read_excel');
-      expect(setup).not.toContain('read_csv');
-    }
+  it('reads legacy .xls via read_excel (xlrd engine)', () => {
+    expect(buildFileSetup('alt.xls', XLS_MIME)).toBe(
+      'import pandas as pd\ndf = pd.read_excel("alt.xls")'
+    );
   });
 
   it('escapes odd file names safely into the Python literal', () => {
@@ -61,16 +55,18 @@ describe('isTabularFile (composer capture gate)', () => {
     expect(isTabularFile('x.xls', XLS_MIME)).toBe(true);
   });
 
-  it('ignores unrelated attachments', () => {
+  it('ignores unrelated attachments and unsupported .ods', () => {
     expect(isTabularFile('foto.png', 'image/png')).toBe(false);
     expect(isTabularFile('brief.pdf', 'application/pdf')).toBe(false);
+    // .ods has no offline pandas engine (odfpy ships no wheel) — treated as a
+    // normal document, not captured for the interpreter.
+    expect(isTabularFile('tabelle.ods', ODS_MIME)).toBe(false);
   });
 });
 
-describe('isLegacySpreadsheet', () => {
-  it('flags .xls and .ods only', () => {
-    expect(isLegacySpreadsheet('a.xls', XLS_MIME)).toBe(true);
-    expect(isLegacySpreadsheet('a.ods', ODS_MIME)).toBe(true);
-    expect(isLegacySpreadsheet('a.xlsx', XLSX_MIME)).toBe(false);
+describe('isXls', () => {
+  it('flags .xls by extension and MIME, not .xlsx', () => {
+    expect(isXls('a.xls', XLS_MIME)).toBe(true);
+    expect(isXls('a.xlsx', XLSX_MIME)).toBe(false);
   });
 });

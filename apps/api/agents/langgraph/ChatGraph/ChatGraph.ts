@@ -104,6 +104,9 @@ const ChatStateAnnotation = Annotation.Root({
   threadAttachments: Annotation<ThreadAttachment[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  hasTabularAttachment: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: Annotation<string[]>({
@@ -763,6 +766,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     attachmentContext: input.attachmentContext || null,
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
+    hasTabularAttachment: input.hasTabularAttachment ?? false,
 
     // Notebook scoping
     notebookIds: input.notebookIds || [],
