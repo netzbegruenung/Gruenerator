@@ -25,7 +25,8 @@
       "@gruenerator/sites/*": ["../../packages/sites/src/*"],
       "@gruenerator/sites-design": ["../../packages/sites-design/src"],
       "@gruenerator/sites-design/*": ["../../packages/sites-design/src/*"],
-      "@gruenerator/contracts": ["../../packages/contracts/src/index.ts"]
+      "@gruenerator/contracts": ["../../packages/contracts/src/index.ts"],
+      "katex/contrib/mhchem": ["src/types/katex-mhchem.d.ts"]
     }
   },
   "include": [

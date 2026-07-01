@@ -25,6 +25,8 @@ import {
   KI_SUBCATEGORIES,
   FORM_STEPS,
   getTypeConfig,
+  isImageStudioType,
+  type ImageStudioType,
 } from '../features/image-studio/utils/typeConfig';
 
 import type {
@@ -182,10 +184,18 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
     },
 
     setType: (type: string | null) => {
-      const config = getTypeConfig(type || '');
+      // Validate at the boundary: an unknown string never becomes state.type.
+      // Callers pass raw strings (URL segments, selector ids); anything not in
+      // IMAGE_STUDIO_TYPES is rejected to null (→ TYPE_SELECT) rather than
+      // silently flowing through to the canvas mint.
+      const validType: ImageStudioType | null = isImageStudioType(type) ? type : null;
+      if (type && !validType) {
+        console.warn('[imageStudioStore] Ignoring unknown image-studio type:', type);
+      }
+      const config = getTypeConfig(validType || '');
       const firstStep = config?.steps?.[0] || FORM_STEPS.INPUT;
       set({
-        type,
+        type: validType,
         currentStep: firstStep,
         error: null,
         precisionMode: config?.alwaysPrecision || false,
@@ -193,11 +203,11 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
       });
 
       // Track usage for "last used" feature (fire-and-forget)
-      if (type) {
+      if (validType) {
         apiClient
           .post('/recent-values', {
             fieldType: 'image_studio_type',
-            fieldValue: type,
+            fieldValue: validType,
             formName: 'image-studio',
           })
           .catch(() => {});
