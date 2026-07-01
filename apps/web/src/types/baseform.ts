@@ -67,16 +67,3 @@ export interface ErrorDisplayProps {
   error?: string | null;
   onDismiss?: () => void;
 }
-
-// =============================================================================
-// Content Renderer Types
-// =============================================================================
-
-export interface ContentRendererProps {
-  value?: string | GeneratedContent | null;
-  generatedContent?: GeneratedContent;
-  useMarkdown?: boolean | null;
-  componentName?: string;
-  helpContent?: HelpContent | string | null;
-  onEditModeToggle?: () => void;
-}
