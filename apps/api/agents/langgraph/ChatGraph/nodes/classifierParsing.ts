@@ -37,6 +37,7 @@ export function parseClassifierResponse(
     'summary',
     'chart',
     'artifact',
+    'compute',
     'save_as_doc',
     'modify_doc',
     'modify_board',

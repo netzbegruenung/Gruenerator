@@ -116,3 +116,23 @@ export const artifactPayloadSchema = z.object({
   content: z.string(),
 });
 export type ArtifactPayload = z.infer<typeof artifactPayloadSchema>;
+
+/**
+ * `compute` SSE payload — the deterministic result of the `compute` intent.
+ * The backend runs the calculation in plain JS (never the LLM), then streams
+ * the verified numbers so the frontend can render a transparent "Berechnung"
+ * card. `entries` is the label/value list shown in the card; `summary` is a
+ * one-line plain-text recap the model is instructed to echo verbatim.
+ */
+export const computeEntrySchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+export const computePayloadSchema = z.object({
+  /** Human-readable operation label, e.g. "Zeichen zählen" or "Berechnung". */
+  operation: z.string(),
+  entries: z.array(computeEntrySchema),
+  summary: z.string(),
+});
+export type ComputeEntry = z.infer<typeof computeEntrySchema>;
+export type ComputePayload = z.infer<typeof computePayloadSchema>;

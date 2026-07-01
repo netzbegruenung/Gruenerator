@@ -14,6 +14,7 @@ import type {
   SearchResultPayload,
   ChartPayload,
   ArtifactPayload,
+  ComputePayload,
 } from '@gruenerator/contracts';
 import type { ProcessedFile } from '../lib/fileUtils';
 
@@ -82,6 +83,13 @@ export function coerceSharepicVariants(raw: unknown): SharepicVariant[] | null {
  * `ChartData`/`ArtifactData` that the rest of the package already imports.
  */
 export type { ChartPayload as ChartData, ArtifactPayload as ArtifactData };
+
+/**
+ * Wire shape for the `compute` SSE event — the deterministic calculation result
+ * rendered as an inline "Berechnung" card. Same single source of truth
+ * (@gruenerator/contracts) the server uses.
+ */
+export type { ComputePayload as ComputeData };
 
 // Wire shape from @gruenerator/contracts (chatStreamEvents) plus the
 // client-side sharepic attachment stamped on after parsing. The style union

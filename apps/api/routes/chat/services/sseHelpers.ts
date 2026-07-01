@@ -16,6 +16,7 @@ import type {
   ConfirmActionType,
   ChartData,
   ArtifactData,
+  ComputeData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   CanvasAiSuggestion,
@@ -70,6 +71,7 @@ export type SSEEventType =
   | 'confirm_action'
   | 'chart_data'
   | 'artifact'
+  | 'compute'
   | 'memory_context'
   | 'completion'
   | 'canvas_operations_start'
@@ -215,6 +217,9 @@ export interface SSEEventPayloads {
   artifact: {
     artifact: ArtifactData;
   };
+  compute: {
+    compute: ComputeData;
+  };
   completion: {
     type?: 'completion';
     // Notebook flow emits `answer`; SearchGraph reuses this event with `text`.
@@ -280,6 +285,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
   artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],
+  compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
