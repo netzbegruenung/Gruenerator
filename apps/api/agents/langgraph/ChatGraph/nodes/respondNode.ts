@@ -674,15 +674,17 @@ Regeln:
 
 // Compute guidance is state-aware (mirrors image/image_edit): when a
 // deterministic result exists it is ALSO rendered as a card, so the model must
-// present it and never deny the capability. The static version bundled both
+// answer from it and never deny the capability. The static version bundled both
 // branches into one string, and the model latched onto the "if no result, ask
 // the user for it" clause even when a result was present — producing a denial
 // ("könnten Sie mir bitte das Berechnungsergebnis mitteilen?") next to a correct
 // card. Splitting on `computedResult` keeps the fallback wording out of the
-// prompt entirely when a number is available.
+// prompt entirely when a number is available. The prose is the real answer (a
+// conversational reply to the user's concrete question); the card is a
+// supplementary breakdown, not a substitute for answering.
 function getComputeGuidance(state: ChatGraphState): string {
   if (state.computedResult) {
-    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten) und dem*der Nutzer*in als Karte angezeigt. Präsentiere GENAU diese Zahlen in einem kurzen, natürlichen Satz und übernimm sie unverändert. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor. Rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl.';
+    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.';
   }
   return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert, aber es konnte kein sicheres Ergebnis ermittelt werden. Erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung (z.B. den genauen Text oder Ausdruck). Erfinde niemals eine Zahl.';
 }
