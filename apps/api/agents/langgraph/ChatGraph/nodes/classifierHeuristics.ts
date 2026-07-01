@@ -35,6 +35,8 @@ export const INTENT_KEYWORDS: Record<
     | 'pressemitteilung_examples'
     // scrape_url is detected by URL presence in the message (extractUrls), not keywords.
     | 'scrape_url'
+    // artifact is detected by a dedicated pattern (noun + create imperative), not keywords.
+    | 'artifact'
   >,
   string[]
 > = {
@@ -378,6 +380,22 @@ export function heuristicClassify(userContent: string): HeuristicResult {
       searchQuery: userContent,
       reasoning: 'Chart/visualization request detected',
       confidence: 0.88,
+    };
+  }
+
+  // High confidence (0.85): Generic HTML/SVG artifact requests. Must pair an
+  // artifact noun with a creation imperative so prose ("erklär mir HTML")
+  // doesn't trigger. Placed after chart so diagram requests stay charts.
+  const artifactNoun =
+    /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
+  const artifactCreateImperative =
+    /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
+  if (artifactNoun.test(q) && artifactCreateImperative.test(q)) {
+    return {
+      intent: 'artifact',
+      searchQuery: userContent,
+      reasoning: 'Generic HTML/SVG artifact request detected',
+      confidence: 0.85,
     };
   }
 

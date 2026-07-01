@@ -478,30 +478,50 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
 
 /**
  * Format thread attachments (from previous messages) as context.
- * Only includes document summaries, not full text (for token efficiency).
+ * Only includes summaries, not full text (for token efficiency). Images carry a
+ * vision-generated description as their summary, letting follow-up turns reason
+ * about an earlier image without re-sending the pixels to a vision model.
  */
 function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
   if (!attachments || attachments.length === 0) {
     return '';
   }
 
+  const sections: string[] = [];
+
   const docs = attachments
     .filter((a) => !a.isImage && a.summary)
     .map((a, i) => `${i + 1}. **${a.name}**: ${a.summary}`)
     .join('\n');
 
-  if (!docs) {
-    return '';
-  }
-
-  return `
+  if (docs) {
+    sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
 
 ${docs}
 
 ---
-Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", etc.).`;
+Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", etc.).`);
+  }
+
+  const images = attachments
+    .filter((a) => a.isImage && a.summary)
+    .map((a, i) => `${i + 1}. **${a.name}**: ${a.summary}`)
+    .join('\n');
+
+  if (images) {
+    sections.push(`
+
+## FRÜHERE BILDER IN DIESEM GESPRÄCH (vom Vision-Modell beschrieben)
+
+${images}
+
+---
+Beziehe dich auf diese Bildbeschreibungen, wenn der Nutzer nach einem früher gesendeten Bild fragt (z.B. "das Bild", "das Foto", "was war darauf zu sehen").`);
+  }
+
+  return sections.join('');
 }
 
 /**
@@ -620,6 +640,16 @@ Regeln:
 - Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
 
+const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
+
+- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
+- Für Vektorgrafiken/Diagramme/Icons: ein \`\`\`svg-Block mit einem vollständigen \`<svg>\`-Element (mit \`viewBox\`, ohne \`<script>\`).
+
+Regeln:
+- Nur EIN Code-Block, vollständig und eigenständig lauffähig.
+- Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
+- Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
+
 const IMAGE_FAILED_GUIDANCE =
   '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
 
@@ -678,6 +708,8 @@ function getModeGuidance(state: ChatGraphState): string {
       return SUMMARY_GUIDANCE;
     case 'chart':
       return CHART_GUIDANCE;
+    case 'artifact':
+      return ARTIFACT_GUIDANCE;
     case 'image':
       return state.generatedImage
         ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
