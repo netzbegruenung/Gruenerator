@@ -16,7 +16,7 @@ export {
 } from './CanvasStoreProvider';
 
 // Ref registry
-export { canvasRefRegistry } from './canvasEditorRefs';
+export { canvasRefRegistry } from './canvasRefRegistry';
 
 // Auto-save store
 export {

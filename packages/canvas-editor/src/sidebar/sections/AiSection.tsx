@@ -6,7 +6,7 @@ import { applyOperation } from '../../ai/applyOperation';
 import { pickQuickPrompts } from '../../ai/quickPrompts';
 import { Skeleton } from '@gruenerator/ui';
 
-import { SIDEBAR_HINT, SIDEBAR_SECTION, SIDEBAR_SECTION_HINT } from '../primitives';
+import { SIDEBAR_HINT, SIDEBAR_SECTION, SIDEBAR_SECTION_HINT } from '../sidebarStyles';
 
 import type { CanvasAiOperation, CanvasAiSuggestion } from '@gruenerator/contracts';
 import type { ApplyResult, CanvasAiActionsBase } from '../../ai/applyOperation';

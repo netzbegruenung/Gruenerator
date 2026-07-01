@@ -23,7 +23,7 @@ import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/p
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/commonActions';
+import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';

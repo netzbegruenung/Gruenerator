@@ -31,7 +31,7 @@ import {
   SECTION_HEADER,
   SECTION_TITLE,
   SIDEBAR_SECTION,
-} from '../primitives';
+} from '../sidebarStyles';
 
 import type {
   IllustrationInstance,
