@@ -23,6 +23,7 @@ import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
 import { searchChatHistory } from './services/chatSearchService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
@@ -756,6 +757,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           sse.send('chart_data', { chart: chartData });
           log.info(
             `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
+          );
+        }
+      }
+
+      // === Stage 3b': Extract generic artifact (HTML/SVG) from response ===
+      // Runs for every intent (auto-detect) as well as the explicit `artifact`
+      // intent — the model emits a ```html/```svg block either way. Skip when a
+      // chart was the point (charts use their own ```chart fence).
+      if (finalState.intent !== 'chart') {
+        const artifact = extractArtifactFromResponse(fullText);
+        if (artifact) {
+          sse.send('artifact', { artifact });
+          log.info(
+            `[ChatGraph] Artifact extracted: ${artifact.type} (${artifact.content.length} chars)`
           );
         }
       }
