@@ -261,6 +261,7 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
     let finalText = '';
     let endedBadly: string | null = null;
 
+    // eslint-disable-next-line @typescript-eslint/await-thenable -- claude-agent-sdk query() returns a Query (AsyncGenerator); the rule mis-types it
     for await (const message of query({
       prompt: buildUserPrompt(docPath, content),
       options: {
