@@ -11,6 +11,9 @@
 
 // Python import module → Pyodide package name. Only modules NOT in the Python
 // stdlib need a wheel; `re`, `json`, `math`, `statistics`, etc. are stdlib.
+// Keep in sync with PACKAGES in apps/web/scripts/setup-pyodide.mjs — only
+// vendored packages can be loadPackage()-ed. seaborn/openpyxl are not vendored
+// yet (not in this Pyodide version's lock), so they are intentionally absent.
 const MODULE_TO_PACKAGE: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bnumpy\b/, 'numpy'],
   [/\bpandas\b/, 'pandas'],
@@ -18,11 +21,6 @@ const MODULE_TO_PACKAGE: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bscipy\b/, 'scipy'],
   [/\bsklearn\b/, 'scikit-learn'],
   [/\bsympy\b/, 'sympy'],
-  [/\bseaborn\b/, 'seaborn'],
-  [/\bopenpyxl\b/, 'openpyxl'],
-  [/\brequests\b/, 'requests'],
-  [/\bbs4\b/, 'beautifulsoup4'],
-  [/\bregex\b/, 'regex'],
 ];
 
 /**
