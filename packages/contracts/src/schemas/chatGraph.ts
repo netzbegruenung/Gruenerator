@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { currentBoardSchema } from './boards.js';
+import { computePayloadSchema } from './chatStreamEvents.js';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
@@ -97,6 +98,9 @@ export const chatStreamBodySchema = z.object({
   documentChatIds: z.array(z.string()).nullish(),
   documentChatMode: z.boolean().nullish(),
   attachmentContext: z.string().nullish(),
+  // A spreadsheet result the client computed in the browser (Pyodide/pandas) —
+  // forwarded so the backend can hand it to the model as ground truth.
+  computedResult: computePayloadSchema.nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
