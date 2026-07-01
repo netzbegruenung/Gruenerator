@@ -4,9 +4,12 @@ import type {
   Citation,
   GeneratedImage,
   SharepicData,
+  ChartData,
+  ComputeData,
   SearchResult,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
+import type { ActiveArtifact } from '../stores/artifactLiveStore';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
 import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
 
@@ -57,6 +60,9 @@ export type ChatMessageMetadata = {
   searchResults?: SearchResult[];
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
+  chartData?: ChartData;
+  artifactData?: ActiveArtifact;
+  computeData?: ComputeData;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

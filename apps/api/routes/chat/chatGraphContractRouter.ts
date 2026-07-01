@@ -19,10 +19,11 @@ import { chatGraphContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { classifierNode, buildSystemMessage } from '../../agents/langgraph/ChatGraph/index.js';
-import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
+import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
 import { searchChatHistory } from './services/chatSearchService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
@@ -102,6 +103,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         initialState,
         memoryContext,
         memoryRetrieveTimeMs,
+        memoryEnabled,
         contextWindowTokens,
       } = ctxResult.ctx;
 
@@ -728,7 +730,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             sse,
             logPrefix: '[ChatGraph]',
             buildStream: async (r) => {
-              const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+              const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
               return streamForResolution({
                 resolution: r,
                 messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
@@ -755,6 +757,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           sse.send('chart_data', { chart: chartData });
           log.info(
             `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
+          );
+        }
+      }
+
+      // === Stage 3b': Extract generic artifact (HTML/SVG) from response ===
+      // Explicit `artifact` intent → surface any valid block. Any other intent
+      // → auto-detect, but only a *complete* HTML/SVG document (not an
+      // illustrative snippet), so a normal answer with an example ```html block
+      // doesn't spuriously dock a panel. Skip `chart` (own ```chart fence).
+      if (finalState.intent !== 'chart') {
+        const artifact = extractArtifactFromResponse(fullText, {
+          isArtifactIntent: finalState.intent === 'artifact',
+        });
+        if (artifact) {
+          sse.send('artifact', { artifact });
+          log.info(
+            `[ChatGraph] Artifact extracted: ${artifact.type} (${artifact.content.length} chars)`
           );
         }
       }
@@ -846,6 +865,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         processedMeta,
         aiWorkerPool,
         requestId,
+        memoryEnabled,
+        ...(agentId != null && { agentId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===

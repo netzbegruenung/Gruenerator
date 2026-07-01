@@ -27,11 +27,23 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
   });
 
   const addComment = useMutation({
-    mutationFn: async ({ blocks, parentId }: { blocks: CommentBlock[]; parentId?: string }) => {
+    mutationFn: async ({
+      blocks,
+      parentId,
+      agentId,
+    }: {
+      blocks: CommentBlock[];
+      parentId?: string;
+      agentId?: string;
+    }) => {
       const client = getContractsClient();
       const result = await client.boardComments.createComment({
         params: { boardId: boardId!, cardId },
-        body: { blocks, ...(parentId !== undefined && { parentId }) },
+        body: {
+          blocks,
+          ...(parentId !== undefined && { parentId }),
+          ...(agentId !== undefined && { agentId }),
+        },
       });
       if (result.status !== 201) {
         throw new Error(`Failed to add comment (HTTP ${result.status})`);

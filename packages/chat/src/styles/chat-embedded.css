@@ -2,6 +2,9 @@
  * Chat Embedded Styles — component CSS only.
  * Theme tokens are registered by the host app's @theme block.
  * This file provides: dark mode overrides, keyframes, and component classes.
+ *
+ * NOTE: KaTeX CSS is no longer @imported here (it loaded eagerly at app boot).
+ * It now rides with the lazy chat chunk via a JS import in CitationMarkdownText.
  */
 
 :root {
@@ -502,4 +505,17 @@
    Keep in sync with chat.css. */
 [data-radix-popper-content-wrapper] {
   z-index: 1100 !important;
+}
+
+/* Shiki dual-theme code highlighting (ChatCodeBlock).
+   `defaultColor: false` emits --shiki-light/--shiki-dark vars; swap on dark.
+   Keep in sync with chat.css. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: transparent !important;
+}
+[data-theme='dark'] .shiki,
+[data-theme='dark'] .shiki span {
+  color: var(--shiki-dark);
 }

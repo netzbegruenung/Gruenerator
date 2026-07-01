@@ -14,6 +14,7 @@ import {
   imageNode,
   imageEditNode,
   summarizeNode,
+  computeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { env } from '../../../config/env.js';
@@ -244,7 +245,18 @@ export async function generateAndCreateDocument(opts: {
       });
 
       if (actualThreadId) {
-        await createMessage(actualThreadId, 'assistant', responseText);
+        // Persist the created-document descriptor so the DocumentCreatedCard
+        // rehydrates on thread reload. Without this the card is streamed live
+        // via `document_created` but the reloaded message is bare text.
+        await createMessage(actualThreadId, 'assistant', responseText, {
+          intent,
+          createdDocument: {
+            documentId: newDocId,
+            title: docTitle,
+            subtype: docSubtype,
+            url: `/docs/${newDocId}`,
+          },
+        });
         await touchThread(actualThreadId);
       }
 
@@ -603,6 +615,17 @@ export async function executeIntentPipeline(opts: {
         summaryLength,
         timeMs: finalState.summaryTimeMs || 0,
       });
+    } else if (currentIntent === 'compute') {
+      // Deterministic calculation. computeNode runs the math in plain JS and
+      // stores the verified result on finalState.computedResult; the respond
+      // node then injects it into the prompt so the model only phrases (never
+      // recomputes) the number. The `compute` SSE event drives the inline
+      // "Berechnung" card so the user sees a tool produced the figure.
+      const computeResult = await computeNode(finalState);
+      finalState = { ...finalState, ...computeResult } as ChatGraphState;
+      if (finalState.computedResult) {
+        sse.send('compute', { compute: finalState.computedResult });
+      }
     } else if (
       currentIntent !== 'direct' &&
       currentIntent !== 'save_as_doc' &&

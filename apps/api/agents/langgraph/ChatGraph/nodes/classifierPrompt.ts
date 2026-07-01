@@ -22,6 +22,8 @@ VERFÜGBARE TOOLS:
 - examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
+- compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ direct/search).
+- artifact: Darstellbares HTML/SVG-Artefakt - "baue eine HTML-Tabelle", "erstelle eine SVG-Grafik", "mach ein HTML-Mockup", "eine Landingpage als HTML" (NICHT für Diagramme aus Daten → das ist chart)
 - save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
@@ -64,6 +66,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 1b. Bildbearbeitung (Bearbeitungsverb + Bild/Foto-Bezug oder Bild-Anhang)? → image_edit
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
 3. Zusammenfassung eines angehängten/referenzierten Dokuments? → summary
+3b. Zeichen/Wörter zählen, rechnen, Einheiten umrechnen oder Datumsmathematik? → compute
 4. Als Dokument speichern? → save_as_doc
 5. Dokument mit Gruppe teilen? → share_doc
 6. Social-Media-Vorlage/Beispiel suchen? → examples
@@ -155,7 +158,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -200,6 +203,8 @@ export const NON_SEARCH_INTENTS = new Set([
   'image',
   'image_edit',
   'chart',
+  'artifact',
+  'compute',
   'save_as_doc',
   'modify_doc',
   'modify_board',

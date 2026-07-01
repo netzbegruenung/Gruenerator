@@ -1,9 +1,9 @@
-import { SiCanva } from 'react-icons/si';
-
 import { ICONS } from '../../../config/icons';
 
 import type { JSX, ComponentType } from 'react';
-import type { IconType, IconBaseProps } from 'react-icons';
+import type { IconBaseProps } from 'react-icons';
+
+import { CanvaLogoIcon } from '@/features/canva/components/CanvaLogo';
 
 export type ActionIconName =
   | 'edit'
@@ -61,7 +61,7 @@ const sizeToClass = (size: ButtonSize): string => (size === 'm' ? 'pabtn--m' : '
 
 const getIconForAction = (action: ActionIconName): IconComponent => {
   if (action === 'open') return ICONS.actions.arrowRight as IconComponent;
-  if (action === 'canva') return SiCanva as IconComponent;
+  if (action === 'canva') return CanvaLogoIcon as IconComponent;
   const actionIcons = ICONS.actions as Record<string, IconComponent>;
   return actionIcons[action] || null;
 };

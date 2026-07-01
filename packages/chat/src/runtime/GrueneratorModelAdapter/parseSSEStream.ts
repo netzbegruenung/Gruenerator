@@ -1,10 +1,16 @@
-import { triggerDocEditSchema, triggerBoardActionSchema } from '@gruenerator/contracts';
+import {
+  triggerDocEditSchema,
+  triggerBoardActionSchema,
+  isCanvasTemplateType,
+} from '@gruenerator/contracts';
 
+import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
+import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 
@@ -26,6 +32,8 @@ import type {
   SearchResult,
   StreamMetadata,
   ProgressStep,
+  ChartData,
+  ComputeData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -108,6 +116,9 @@ export async function* parseSSEStream(
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
+  let receivedChartData: ChartData | null = null;
+  let receivedArtifactData: ActiveArtifact | null = null;
+  let receivedComputeData: ComputeData | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -170,6 +181,9 @@ export async function* parseSSEStream(
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
+    if (receivedChartData) custom.chartData = receivedChartData;
+    if (receivedArtifactData) custom.artifactData = receivedArtifactData;
+    if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -239,7 +253,7 @@ export async function* parseSSEStream(
             searchSources?: string[] | null;
           };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct') stage = 'generating';
+          if (intent === 'direct' || intent === 'artifact') stage = 'generating';
           else if (intent === 'image' || intent === 'sharepic') stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
           transitionStep(stage);
@@ -403,19 +417,51 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'chart_data': {
+          const { chart } = data as { chart?: ChartData };
+          if (chart) receivedChartData = chart;
+          yield buildResult();
+          break;
+        }
+
+        case 'artifact': {
+          const { artifact } = data as {
+            artifact?: { type: 'html' | 'svg'; title: string; content: string };
+          };
+          if (artifact) {
+            const active: ActiveArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+            receivedArtifactData = active;
+            // Open the docked panel immediately.
+            useArtifactLiveStore.getState().setActiveArtifact(active);
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'compute': {
+          const { compute } = data as { compute?: ComputeData };
+          if (compute) receivedComputeData = compute;
+          yield buildResult();
+          break;
+        }
+
         case 'sharepic_complete': {
           const payload = data as {
             message: string;
-            variants?: import('../../hooks/useChatGraphStream').SharepicVariant[];
+            variants?: unknown;
             canvasType?: string;
             initialProps?: Record<string, unknown>;
             alternatives?: unknown[];
             error?: string;
           };
           if (!payload.error) {
-            if (payload.variants && payload.variants.length > 0) {
-              receivedSharepicData = { variants: payload.variants };
-            } else if (payload.canvasType && payload.initialProps) {
+            // Validate at the boundary: only variants with a canonical
+            // canvasType are kept, so a malformed type can never reach the
+            // studio handoff / canvas mint.
+            const validated = coerceSharepicVariants(payload.variants);
+            if (validated) {
+              receivedSharepicData = { variants: validated };
+            } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
               const legacyId =
                 typeof crypto !== 'undefined' && 'randomUUID' in crypto
                   ? crypto.randomUUID()

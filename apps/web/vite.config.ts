@@ -195,7 +195,12 @@ export default defineConfig(({ command }) => ({
     // own ESM and break esbuild's transformer (onnxruntime ships .wasm,
     // imgly ships ONNX models, browser-image-compression uses dynamic
     // workers).
-    exclude: ['browser-image-compression', '@imgly/background-removal', 'onnxruntime-web'],
+    exclude: [
+      'browser-image-compression',
+      '@imgly/background-removal',
+      'onnxruntime-web',
+      'pyodide',
+    ],
     rolldownOptions: {
       transform: {
         define: {},

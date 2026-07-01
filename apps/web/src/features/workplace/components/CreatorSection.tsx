@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, memo, useState } from 'react';
 
-import ModePillRow from '../../texte/components/ModePillRow';
-import { DEFAULT_MODE } from '../../texte/modes';
+import ModePillRow from '../creator/components/ModePillRow';
+import { DEFAULT_MODE } from '../creator/modes';
 
 import ChatInner from './ChatInner';
 

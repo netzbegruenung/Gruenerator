@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import FavoriteVorlagenSection from './components/FavoriteVorlagenSection';
 import VorlagenListSection from './components/VorlagenListSection';
 import { useTemplateActions } from './hooks/useTemplateActions';
-import { isCanvasEditorType, type Template } from './types';
+import { isCanvasEditorType, isGrueneratorType, type Template } from './types';
 
 import AddTemplateModal from '@/components/common/AddTemplateModal/AddTemplateModal';
 import EditTemplateModal from '@/components/common/EditTemplateModal';
@@ -24,18 +24,24 @@ const MeineVorlagenPage = () => {
     onEdit: setEditingTemplate,
   });
 
-  const { canvasEditor, canva } = useMemo(() => {
+  const { gruenerator, canvasEditor, canva } = useMemo(() => {
     const templates = (query.data ?? []) as Template[];
+    const gruenerator: Template[] = [];
     const canvasEditor: Template[] = [];
     const canva: Template[] = [];
     for (const t of templates) {
-      (isCanvasEditorType(t) ? canvasEditor : canva).push(t);
+      if (isGrueneratorType(t)) gruenerator.push(t);
+      else if (isCanvasEditorType(t)) canvasEditor.push(t);
+      else canva.push(t);
     }
-    return { canvasEditor, canva };
+    return { gruenerator, canvasEditor, canva };
   }, [query.data]);
 
   const isEmpty =
-    !query.isLoading && canva.length === 0 && (!SHOW_CANVAS_EDITOR || canvasEditor.length === 0);
+    !query.isLoading &&
+    canva.length === 0 &&
+    gruenerator.length === 0 &&
+    (!SHOW_CANVAS_EDITOR || canvasEditor.length === 0);
 
   const handleSave = useCallback(
     async (id: string, data: Partial<Template>): Promise<void> => {
@@ -107,6 +113,17 @@ const MeineVorlagenPage = () => {
           </div>
         ) : (
           <>
+            {gruenerator.length > 0 && (
+              <VorlagenListSection
+                title="Grünerator-Vorlagen"
+                items={gruenerator}
+                loading={query.isLoading}
+                emptyMessage="Du hast noch keine Grünerator-Vorlagen veröffentlicht."
+                getActions={getActions}
+                onOpen={(t) => void openTemplate(t)}
+              />
+            )}
+
             {SHOW_CANVAS_EDITOR && (
               <VorlagenListSection
                 title="Canvas-Editor Vorlagen"
