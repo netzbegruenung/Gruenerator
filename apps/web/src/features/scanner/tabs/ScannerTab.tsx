@@ -98,6 +98,8 @@ const ScannerTab = () => {
     if (files && files.length > 0) {
       handleFileSelect(Array.from(files));
     }
+    // Reset the input so selecting the same file again still fires onChange.
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -299,7 +301,7 @@ const ScannerTab = () => {
         )}
 
         {/* Ready State - Files Selected */}
-        {scannerState === 'ready' && selectedFiles.length > 0 && (
+        {selectedFiles.length > 0 && scannerState !== 'processing' && (
           <motion.div
             key="ready-state"
             initial={{ opacity: 0, y: 20 }}
@@ -409,7 +411,7 @@ const ScannerTab = () => {
               className="flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-xxs text-error opacity-70 transition-all hover:scale-105 hover:bg-error/10 hover:opacity-100 active:scale-95"
               onClick={() => {
                 setError(null);
-                if (selectedFiles.length === 0) setScannerState('upload');
+                setScannerState(selectedFiles.length === 0 ? 'upload' : 'ready');
               }}
               aria-label="Fehlermeldung schließen"
             >
