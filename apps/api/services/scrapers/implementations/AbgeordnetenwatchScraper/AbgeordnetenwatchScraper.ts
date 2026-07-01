@@ -45,7 +45,8 @@ const log = createLogger('AbgeordnetenwatchScraper');
 const BASE_URL = 'https://www.abgeordnetenwatch.de/api/v2';
 const COLLECTION = 'abgeordnetenwatch_documents';
 const PAGE = 1000; // API max range_end
-const EMBED_BATCH = 50;
+const EMBED_BATCH = 50; // texts per Mistral embedding call
+const UPSERT_BATCH = 10; // points per Qdrant upsert — small so bodies stay < proxy 413 limit
 const USER_AGENT = 'Gruenerator/1.0 (+https://gruenerator.eu)';
 // Fair use: the API limit is 30 req/min per IP. 2200ms between requests ≈ 27/min,
 // leaving headroom for the chat connector (shared server IP) during off-peak runs.
@@ -257,8 +258,11 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
 
     let batch: { id: number; doc: BuiltDocument; existed: boolean }[] = [];
     const flush = async () => {
-      await this.flushDocs(batch, options.dryRun, summary);
+      // Reset before awaiting so a flush error can't cascade into an
+      // ever-growing batch (which would then fail on every subsequent flush).
+      const current = batch;
       batch = [];
+      await this.flushDocs(current, options.dryRun, summary);
     };
 
     for (const poll of scoped) {
@@ -318,8 +322,11 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
 
     let batch: { id: number; doc: BuiltDocument; existed: boolean }[] = [];
     const flush = async () => {
-      await this.flushDocs(batch, options.dryRun, summary);
+      // Reset before awaiting so a flush error can't cascade into an
+      // ever-growing batch (which would then fail on every subsequent flush).
+      const current = batch;
       batch = [];
+      await this.flushDocs(current, options.dryRun, summary);
     };
 
     for (const sidejob of toProcess) {
@@ -376,27 +383,40 @@ export class AbgeordnetenwatchScraper extends BaseScraper {
     summary: AwScrapeSummary
   ): Promise<void> {
     if (batch.length === 0) return;
-    const countStored = () => {
+    if (dryRun) {
       for (const b of batch) {
         if (b.existed) summary.updated += 1;
         else summary.stored += 1;
       }
-    };
-    if (dryRun) {
-      countStored();
       return;
     }
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
       batch.map((b) => b.doc.text)
     );
-    const points = batch.map((b, i) => ({
-      id: b.id,
-      vector: embeddings[i],
-      payload: b.doc.payload,
-    }));
-    await batchUpsert(this.qdrantClient, COLLECTION, points);
-    countStored();
-    this.stats.vectorsStored += points.length;
+    // Upsert in small sub-batches: a 1024-dim vector serialises to ~15 KB, so a
+    // large batch blows past Qdrant's proxy body-size limit (HTTP 413). Contain
+    // failures per sub-batch so one oversized/failed request can't drop the rest.
+    for (let i = 0; i < batch.length; i += UPSERT_BATCH) {
+      const slice = batch.slice(i, i + UPSERT_BATCH);
+      const points = slice.map((b, j) => ({
+        id: b.id,
+        vector: embeddings[i + j],
+        payload: b.doc.payload,
+      }));
+      try {
+        await batchUpsert(this.qdrantClient, COLLECTION, points);
+        for (const b of slice) {
+          if (b.existed) summary.updated += 1;
+          else summary.stored += 1;
+        }
+        this.stats.vectorsStored += points.length;
+      } catch (error: unknown) {
+        summary.errors += slice.length;
+        log.warn(
+          `[abgeordnetenwatch] upsert sub-batch of ${slice.length} failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
   }
 }
 
