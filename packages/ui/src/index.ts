@@ -184,6 +184,7 @@ export {
   CardContent,
 } from './components/card';
 export { CardGrid, cardGridVariants } from './components/card-grid';
+export { MasonryGrid, MasonryItem, masonryGridVariants } from './components/masonry-grid';
 export {
   ListCard,
   ListCardIcon,

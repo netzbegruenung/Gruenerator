@@ -2,7 +2,11 @@ import { and, count, eq, lt, sql, type InferSelectModel } from 'drizzle-orm';
 
 import { group_memberships, notifications } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { sendNotificationEmail } from '../../services/email/index.js';
+import {
+  sendBoardNotificationEmail,
+  sendDocumentNotificationEmail,
+  sendNotificationEmail,
+} from '../../services/email/index.js';
 import { sendPushToUser } from '../../services/pushNotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -65,13 +69,26 @@ function firePush(
   });
 }
 
+/** Read a non-empty string field from notification metadata, else null. */
+function metaStr(metadata: Record<string, unknown>, key: string): string | null {
+  const v = metadata[key];
+  return typeof v === 'string' && v ? v : null;
+}
+
+/** Read a string-array field from notification metadata, else []. */
+function metaStrArray(metadata: Record<string, unknown>, key: string): string[] {
+  const v = metadata[key];
+  return Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : [];
+}
+
 function fireEmail(
   userId: string,
   profile: UserProfile | null,
   title: string,
   body: string | null,
   type: NotificationType,
-  actionUrl?: string | null
+  actionUrl: string | null | undefined,
+  metadata: Record<string, unknown>
 ) {
   const recipientEmail = profile?.email;
   if (!recipientEmail) {
@@ -82,19 +99,71 @@ function fireEmail(
     return;
   }
 
-  sendNotificationEmail({
-    recipientEmail,
-    ...(profile?.display_name != null && { recipientName: profile.display_name }),
-    title,
-    body,
-    actionUrl: actionUrl ?? null,
-  }).catch((err: unknown) => {
+  const recipientName = profile?.display_name ?? null;
+  const onError = (err: unknown) => {
     log.warn('Failed to send notification email', {
       userId,
       type,
       error: err instanceof Error ? err.message : String(err),
     });
-  });
+  };
+
+  // Board notifications: render the rich card-preview email when the firing site
+  // enriched metadata with a card snapshot; otherwise fall back to generic.
+  const cardTitle = metaStr(metadata, 'cardTitle');
+  const eventText = metaStr(metadata, 'eventText');
+  if (type.startsWith('board_') && (cardTitle || eventText)) {
+    sendBoardNotificationEmail({
+      recipientEmail,
+      ...(recipientName != null && { recipientName }),
+      title,
+      actionUrl: actionUrl ?? null,
+      fields: {
+        cardTitle,
+        boardTitle: metaStr(metadata, 'boardTitle'),
+        descriptionSnippet: metaStr(metadata, 'descriptionSnippet'),
+        statusLabel: metaStr(metadata, 'statusLabel'),
+        statusColor: metaStr(metadata, 'statusColor'),
+        dueDate: metaStr(metadata, 'dueDate'),
+        assigneeNames: metaStrArray(metadata, 'assigneeNames'),
+        labelNames: metaStrArray(metadata, 'labelNames'),
+        eventText,
+      },
+    }).catch(onError);
+    return;
+  }
+
+  // Document notifications (permission changed / revoked / group share): rich
+  // preview email when the firing site supplied a doc title/preview.
+  const docTitle = metaStr(metadata, 'docTitle');
+  const docPreview = metaStr(metadata, 'docPreview');
+  if (
+    (type.startsWith('document_') || type === 'group_content_shared') &&
+    (docTitle || docPreview)
+  ) {
+    sendDocumentNotificationEmail({
+      recipientEmail,
+      ...(recipientName != null && { recipientName }),
+      title,
+      actionUrl: actionUrl ?? null,
+      fields: {
+        body,
+        docTitle,
+        actorName: metaStr(metadata, 'actorName'),
+        permissionLabel: metaStr(metadata, 'permissionLabel'),
+        previewSnippet: docPreview,
+      },
+    }).catch(onError);
+    return;
+  }
+
+  sendNotificationEmail({
+    recipientEmail,
+    ...(recipientName != null && { recipientName }),
+    title,
+    body,
+    actionUrl: actionUrl ?? null,
+  }).catch(onError);
 }
 
 /**
@@ -153,15 +222,17 @@ export async function createNotification(
     !EMAIL_HANDLED_ELSEWHERE.has(type) &&
     !IN_APP_ONLY.has(type) &&
     (await shouldDeliver(userId, type, 'email', profile));
+  const sendPush =
+    !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
 
-  if (!showInApp) {
-    const sendPush =
-      !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
-    if (sendPush) firePush(userId, title, body ?? null, type, actionUrl);
-    if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
+  // Nothing to deliver on any channel — skip entirely.
+  if (!showInApp && !sendEmailChannel && !sendPush) {
     return null;
   }
 
+  // The in-system notification is the durable record and the floor: it is always
+  // inserted whenever the notification is delivered on ANY channel, so email/push can
+  // never fire without a matching in-system entry ("nothing is lost").
   const db = getDrizzleInstance();
   const rows = await db
     .insert(notifications)
@@ -182,10 +253,8 @@ export async function createNotification(
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
-  const sendPush =
-    !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
   if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
-  if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
+  if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl, metadata);
 
   return notification;
 }

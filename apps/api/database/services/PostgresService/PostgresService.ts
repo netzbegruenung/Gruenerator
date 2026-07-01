@@ -128,6 +128,17 @@ export class PostgresService {
         );
       }
 
+      try {
+        const { backfillNotebookGroupShareMode } =
+          await import('../../../services/migrations/backfillNotebookGroupShareMode.js');
+        await backfillNotebookGroupShareMode();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Notebook group share-mode backfill skipped:',
+          (error as Error).message
+        );
+      }
+
       // Auto-sync schema columns (non-critical — log internally)
       let schemaOk = true;
       try {

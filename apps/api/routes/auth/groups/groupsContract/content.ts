@@ -7,6 +7,7 @@
 import { groupsContract } from '@gruenerator/contracts';
 
 import { notifyGroupMembers } from '../../../../services/notifications/index.js';
+import { listUserAgentsByIds } from '../../../../services/userAgents/userAgentsRepository.js';
 import { NextcloudShareManager } from '../../../../utils/integrations/nextcloud/index.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
@@ -55,6 +56,18 @@ export const contentRoutes = {
             status: 403 as const,
             body: { success: false as const, message: 'Du bist nicht Besitzer*in dieses Inhalts.' },
           };
+        }
+        // checkNotebookAccess gates group reads on share_mode='groups' AND a
+        // group_content_shares row. This generic share path only writes the
+        // row, so a private notebook shared here stays unreadable to members
+        // ("Kein Zugriff"). Promote it to 'groups' here, mirroring the notebook
+        // share modal (setShareMode → addGroupShare). Leave 'authenticated'
+        // alone (members already have read access; demoting would narrow the
+        // owner's chosen visibility) and 'groups' alone (already correct).
+        // Runs before the existing-share guard below so it also heals notebooks
+        // that were shared via this path before the fix.
+        if (collection.share_mode !== 'groups' && collection.share_mode !== 'authenticated') {
+          await notebookHelper.updateNotebookCollection(contentId, { share_mode: 'groups' });
         }
       }
 
@@ -226,6 +239,7 @@ export const contentRoutes = {
         collaborative_documents: [],
         system_notebooks: [],
         system_agents: [],
+        user_agents: [],
         canvas_template: [],
       };
       sharedContent.forEach((share) => {
@@ -310,6 +324,19 @@ export const contentRoutes = {
             },
             shares: contentByType.system_agents,
           })
+        );
+      }
+      if (contentByType.user_agents.length > 0) {
+        const ids = contentByType.user_agents.map((s) => s.content_id);
+        fetchPromises.push(
+          listUserAgentsByIds(ids).then((agents) => ({
+            type: 'user_agents',
+            // Full Agent shape (+ UUID `id` for share-matching). Unlike system
+            // agents there is no static registry to resolve against, so the
+            // bucket carries the whole agent.
+            result: { data: agents as unknown as Array<Record<string, unknown>> },
+            shares: contentByType.user_agents,
+          }))
         );
       }
       if (contentByType.user_documents.length > 0) {
@@ -407,6 +434,7 @@ export const contentRoutes = {
         collaborative_documents: Record<string, unknown>[];
         system_notebooks: Record<string, unknown>[];
         system_agents: Record<string, unknown>[];
+        user_agents: Record<string, unknown>[];
         canvas_templates: Record<string, unknown>[];
       } = {
         documents: [],
@@ -417,6 +445,7 @@ export const contentRoutes = {
         collaborative_documents: [],
         system_notebooks: [],
         system_agents: [],
+        user_agents: [],
         canvas_templates: [],
       };
 
@@ -429,6 +458,7 @@ export const contentRoutes = {
         collaborative_documents: 'collaborative_documents',
         system_notebooks: 'system_notebooks',
         system_agents: 'system_agents',
+        user_agents: 'user_agents',
         canvas_template: 'canvas_templates',
       };
 

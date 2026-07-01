@@ -105,6 +105,43 @@ fn toggle_window_visibility(app: &tauri::AppHandle) {
     }
 }
 
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+/// Routes custom menu item ids to the frontend. Native/standard items
+/// (undo, copy, fullscreen, minimize, close, quit, …) are predefined menu
+/// items that macOS/Tauri handle automatically and never reach this function.
+fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
+    let window = app.get_webview_window("main");
+    let emit = |event: &str, payload: &str| {
+        if let Some(w) = &window {
+            if payload.is_empty() {
+                let _ = w.emit(event, ());
+            } else {
+                let _ = w.emit(event, payload);
+            }
+        }
+    };
+    match id {
+        "new" => emit("menu-new", ""),
+        "settings" => emit("menu-settings", ""),
+        "reload" => emit("menu-reload", ""),
+        "zoom_in" => emit("menu-zoom", "in"),
+        "zoom_out" => emit("menu-zoom", "out"),
+        "zoom_reset" => emit("menu-zoom", "reset"),
+        "docs" => emit("menu-open-url", "https://gruenerator.de/"),
+        "feedback" => emit("menu-open-url", "https://gitlab.com/Netzbegruenung/gruenerator/-/issues"),
+        "about" => emit("menu-about", ""),
+        "check_updates" => emit("menu-check-updates", ""),
+        _ => {}
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -125,7 +162,19 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            // Restore only geometry. Crucially NOT decorations (would clobber the
+            // native macOS title bar / traffic lights) and NOT visibility (the splash
+            // + tray manage when the main window is shown).
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED
+                        | tauri_plugin_window_state::StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -142,6 +191,42 @@ pub fn run() {
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
 
+                // macOS convention: first submenu is the app menu (About / Settings /
+                // Hide / Quit). On Windows/Linux those items live in the File menu.
+                #[cfg(target_os = "macos")]
+                let app_submenu = Submenu::with_items(
+                    app,
+                    "Grünerator",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "about", "Über Grünerator", true, None::<&str>)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &MenuItem::with_id(app, "settings", "Einstellungen...", true, Some("CmdOrCtrl+,"))?,
+                        &MenuItem::with_id(app, "check_updates", "Nach Updates suchen...", true, None::<&str>)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::services(app, Some("Dienste"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::hide(app, Some("Grünerator ausblenden"))?,
+                        &PredefinedMenuItem::hide_others(app, Some("Andere ausblenden"))?,
+                        &PredefinedMenuItem::show_all(app, Some("Alle einblenden"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::quit(app, Some("Grünerator beenden"))?,
+                    ],
+                )?;
+
+                #[cfg(target_os = "macos")]
+                let file_menu = Submenu::with_items(
+                    app,
+                    "Datei",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "new", "Neuer Text", true, Some("CmdOrCtrl+N"))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::close_window(app, Some("Fenster schließen"))?,
+                    ],
+                )?;
+
+                #[cfg(not(target_os = "macos"))]
                 let file_menu = Submenu::with_items(
                     app,
                     "Datei",
@@ -151,6 +236,7 @@ pub fn run() {
                         &PredefinedMenuItem::separator(app)?,
                         &MenuItem::with_id(app, "settings", "Einstellungen...", true, Some("CmdOrCtrl+,"))?,
                         &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::close_window(app, Some("Schließen"))?,
                         &PredefinedMenuItem::quit(app, Some("Beenden"))?,
                     ],
                 )?;
@@ -170,6 +256,7 @@ pub fn run() {
                     ],
                 )?;
 
+                // Native full screen item: ⌃⌘F on macOS, handled automatically.
                 let view_menu = Submenu::with_items(
                     app,
                     "Ansicht",
@@ -177,13 +264,38 @@ pub fn run() {
                     &[
                         &MenuItem::with_id(app, "reload", "Neu laden", true, Some("CmdOrCtrl+R"))?,
                         &PredefinedMenuItem::separator(app)?,
-                        &MenuItem::with_id(app, "fullscreen", "Vollbild", true, Some("F11"))?,
+                        &PredefinedMenuItem::fullscreen(app, Some("Vollbild"))?,
+                        &PredefinedMenuItem::separator(app)?,
                         &MenuItem::with_id(app, "zoom_in", "Vergrößern", true, Some("CmdOrCtrl+Plus"))?,
                         &MenuItem::with_id(app, "zoom_out", "Verkleinern", true, Some("CmdOrCtrl+Minus"))?,
                         &MenuItem::with_id(app, "zoom_reset", "Originalgröße", true, Some("CmdOrCtrl+0"))?,
                     ],
                 )?;
 
+                // macOS-conventional Window menu (Minimize ⌘M, Zoom).
+                #[cfg(target_os = "macos")]
+                let window_menu = Submenu::with_items(
+                    app,
+                    "Fenster",
+                    true,
+                    &[
+                        &PredefinedMenuItem::minimize(app, Some("Minimieren"))?,
+                        &PredefinedMenuItem::maximize(app, Some("Zoomen"))?,
+                    ],
+                )?;
+
+                #[cfg(target_os = "macos")]
+                let help_menu = Submenu::with_items(
+                    app,
+                    "Hilfe",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "docs", "Dokumentation", true, None::<&str>)?,
+                        &MenuItem::with_id(app, "feedback", "Feedback senden", true, None::<&str>)?,
+                    ],
+                )?;
+
+                #[cfg(not(target_os = "macos"))]
                 let help_menu = Submenu::with_items(
                     app,
                     "Hilfe",
@@ -198,49 +310,26 @@ pub fn run() {
                     ],
                 )?;
 
+                #[cfg(target_os = "macos")]
+                let app_menu = Menu::with_items(
+                    app,
+                    &[&app_submenu, &file_menu, &edit_menu, &view_menu, &window_menu, &help_menu],
+                )?;
+
+                #[cfg(not(target_os = "macos"))]
                 let app_menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &help_menu])?;
 
+                // On macOS the menu is global (app-level); elsewhere it attaches to the window.
+                #[cfg(target_os = "macos")]
+                {
+                    app.set_menu(app_menu)?;
+                    app.on_menu_event(|app, event| handle_menu_event(app, event.id.as_ref()));
+                }
+                #[cfg(not(target_os = "macos"))]
                 if let Some(main_window) = app.get_webview_window("main") {
                     let _ = main_window.set_menu(app_menu)?;
                     main_window.on_menu_event(|window, event| {
-                        match event.id.as_ref() {
-                            "new" => {
-                                let _ = window.emit("menu-new", ());
-                            }
-                            "settings" => {
-                                let _ = window.emit("menu-settings", ());
-                            }
-                            "reload" => {
-                                let _ = window.emit("menu-reload", ());
-                            }
-                            "fullscreen" => {
-                                if let Ok(is_fullscreen) = window.is_fullscreen() {
-                                    let _ = window.set_fullscreen(!is_fullscreen);
-                                }
-                            }
-                            "zoom_in" => {
-                                let _ = window.emit("menu-zoom", "in");
-                            }
-                            "zoom_out" => {
-                                let _ = window.emit("menu-zoom", "out");
-                            }
-                            "zoom_reset" => {
-                                let _ = window.emit("menu-zoom", "reset");
-                            }
-                            "docs" => {
-                                let _ = window.emit("menu-open-url", "https://gruenerator.de/");
-                            }
-                            "feedback" => {
-                                let _ = window.emit("menu-open-url", "https://gitlab.com/Netzbegruenung/gruenerator/-/issues");
-                            }
-                            "about" => {
-                                let _ = window.emit("menu-about", ());
-                            }
-                            "check_updates" => {
-                                let _ = window.emit("menu-check-updates", ());
-                            }
-                            _ => {}
-                        }
+                        handle_menu_event(window.app_handle(), event.id.as_ref())
                     });
                 }
 
@@ -291,9 +380,25 @@ pub fn run() {
                     #[cfg(debug_assertions)]
                     main_window.open_devtools();
 
+                    // The window keeps native decorations on macOS so the traffic
+                    // lights render via `titleBarStyle: "Overlay"`. On Windows/Linux
+                    // we go frameless and draw our own caption controls (DesktopTitlebar).
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        let _ = main_window.set_decorations(false);
+                    }
+
                     let window_clone = main_window.clone();
-                    main_window.on_window_event(move |event| {
-                        if let tauri::WindowEvent::ThemeChanged(theme) = event {
+                    main_window.on_window_event(move |event| match event {
+                        // The app lives in the tray: closing the window (red button /
+                        // ⌘W / custom close control) hides it instead of destroying it,
+                        // so it can be reopened from the tray or the Dock. Quit (⌘Q)
+                        // still terminates the app.
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            api.prevent_close();
+                            let _ = window_clone.hide();
+                        }
+                        tauri::WindowEvent::ThemeChanged(theme) => {
                             let theme_str = match theme {
                                 Theme::Dark => "dark",
                                 Theme::Light => "light",
@@ -301,8 +406,13 @@ pub fn run() {
                             };
                             let _ = window_clone.emit("system-theme-changed", theme_str);
                         }
+                        _ => {}
                     });
                 }
+
+                // Honour the `--minimized` flag passed by the autostart LaunchAgent:
+                // start quietly in the tray without surfacing the main window.
+                let start_minimized = std::env::args().any(|arg| arg == "--minimized");
 
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -310,13 +420,22 @@ pub fn run() {
                     if let Some(splashscreen) = app_handle.get_webview_window("splashscreen") {
                         let _ = splashscreen.close();
                     }
-                    if let Some(main_window) = app_handle.get_webview_window("main") {
-                        let _ = main_window.show();
+                    if !start_minimized {
+                        if let Some(main_window) = app_handle.get_webview_window("main") {
+                            let _ = main_window.show();
+                        }
                     }
                 });
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Reopen the window when the Dock icon is clicked (macOS) after it was
+            // hidden via close-to-tray.
+            if let tauri::RunEvent::Reopen { .. } = event {
+                show_main_window(app_handle);
+            }
+        });
 }

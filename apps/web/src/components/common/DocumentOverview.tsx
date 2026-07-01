@@ -46,7 +46,13 @@ import { getActionItems } from './ItemActionBuilder';
 import SelectAllCheckbox from './SelectAllCheckbox';
 import Spinner from './Spinner';
 
-// Define default values outside component to prevent re-creation on every render
+// Define default values outside component to prevent re-creation on every render.
+// Stable empty arrays matter for props used in effect dependency arrays (e.g.
+// `remoteResults`): a fresh `[]` default each render would retrigger effects and,
+// combined with a setState that returns a new reference, cause an infinite render
+// loop (React #185 "Maximum update depth exceeded").
+const EMPTY_DOCUMENT_ITEMS: DocumentItem[] = [];
+const EMPTY_WOLKE_SHARE_LINKS: WolkeShareLink[] = [];
 const DEFAULT_SEARCH_FIELDS = ['title', 'content_preview', 'full_content'];
 const DEFAULT_SORT_OPTIONS = [
   { value: 'updated_at', label: 'Zuletzt geändert' },
@@ -182,10 +188,10 @@ const DocumentOverview = ({
   remoteSearchEnabled = false,
   onRemoteSearch,
   isRemoteSearching = false,
-  remoteResults = [],
+  remoteResults = EMPTY_DOCUMENT_ITEMS,
   onClearRemoteSearch,
   remoteSearchDefaultMode = 'intelligent',
-  wolkeShareLinks = [],
+  wolkeShareLinks = EMPTY_WOLKE_SHARE_LINKS,
 }: DocumentOverviewProps) => {
   // Support both 'documents' (backward compatibility) and 'items' props
   const allItems = items || documents;
@@ -429,19 +435,26 @@ const DocumentOverview = ({
     setSelectedItemIds(new Set());
   };
 
-  // Reset selection when items change
+  // Reset selection when items change. Must be idempotent: returning a fresh Set
+  // on every run (even an unchanged one) would re-render → retrigger this effect →
+  // infinite loop (React #185). Bail out to the previous reference when nothing
+  // is selected or no selected id was actually pruned.
   useEffect(() => {
     setSelectedItemIds((prev) => {
-      const newSet = new Set<string>();
+      if (prev.size === 0) return prev;
       const activeItems =
         remoteSearchEnabled && searchState.hasQuery ? remoteResults || [] : allItems;
       const currentIds = new Set<string>((activeItems || []).map((item) => item.id));
+      let changed = false;
+      const newSet = new Set<string>();
       prev.forEach((id) => {
         if (currentIds.has(id)) {
           newSet.add(id);
+        } else {
+          changed = true;
         }
       });
-      return newSet;
+      return changed ? newSet : prev;
     });
   }, [allItems, remoteResults, remoteSearchEnabled, searchState.hasQuery]);
 

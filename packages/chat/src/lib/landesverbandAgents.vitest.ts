@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 /**
  * Guards the LV registry ↔ agents contract from the consumer side (chat already
  * runs vitest; @gruenerator/shared does not). The notebook page lists an agent
- * only when `agent.defaultNotebookId === notebookId` — so a hub agent that loses
- * its notebook pin silently vanishes from its Landesverband notebook. That is
+ * only when `agent.defaultNotebookIds` include the notebookId — so a hub agent that
+ * loses its notebook pin silently vanishes from its Landesverband notebook. That is
  * exactly the bug that hid the hand-tuned Öffentlichkeitsarbeit agents for 8 LVs.
  * These assertions fail the build the moment the pin is dropped again.
  */
@@ -15,13 +15,13 @@ describe('LV registry agents stay pinned to their notebook', () => {
       it(`PR agent (${lv.prAgentId}) resolves and pins ${lv.notebookId}`, () => {
         const agent = getSystemAgent(lv.prAgentId);
         expect(agent, `PR agent ${lv.prAgentId} must resolve`).toBeDefined();
-        expect(agent?.defaultNotebookId).toBe(lv.notebookId);
+        expect(agent?.defaultNotebookIds).toContain(lv.notebookId);
       });
 
       it(`Bürger agent (${lv.buergerAgentId}) resolves and pins ${lv.notebookId}`, () => {
         const agent = getSystemAgent(lv.buergerAgentId);
         expect(agent, `Bürger agent ${lv.buergerAgentId} must resolve`).toBeDefined();
-        expect(agent?.defaultNotebookId).toBe(lv.notebookId);
+        expect(agent?.defaultNotebookIds).toContain(lv.notebookId);
       });
     });
   }

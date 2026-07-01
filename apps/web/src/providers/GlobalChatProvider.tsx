@@ -17,8 +17,32 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
+import { getDesktopToken } from '../utils/desktopAuth';
+import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
+
+/**
+ * Platform-aware fetch for the chat runtime (streaming endpoints).
+ *
+ * Web: relative `/api/...` URLs resolve same-origin; auth rides on the session
+ * cookie (`credentials: 'include'`).
+ *
+ * Desktop (Tauri): the webview origin is `tauri://localhost`, so a relative
+ * `/api/...` URL hits the bundle (404 → SPA `index.html`, `text/html`) instead
+ * of the backend — chat streams never connect ("nothing happens"). Resolve to
+ * the absolute API origin and send the bearer token (no cookie cross-origin).
+ */
+const chatFetch = async (url: string, options?: RequestInit): Promise<Response> => {
+  if (isDesktopApp()) {
+    const headers = new Headers(options?.headers);
+    const token = await getDesktopToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return fetch(resolveApiAssetUrl(url), { ...options, headers });
+  }
+  return fetch(url, { ...options, credentials: 'include' });
+};
 
 // DOM id of the sidebar slot the global thread list renders into. The slot
 // element lives in the layout Sidebar; the chat runtime renders the thread list
@@ -112,6 +136,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   const chatConfig = useMemo(
     () => ({
+      // Platform-aware fetch so chat streaming works in the desktop shell
+      // (absolute API origin + bearer); on web it's the same relative+cookie
+      // behaviour as the store default.
+      fetch: chatFetch,
       onUnauthorized: () => {
         if (!isPublicPage() && window.location.pathname !== '/login') {
           const currentPath = window.location.pathname + window.location.search;
@@ -120,6 +148,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       wolkeConnectUrl: '/profile/wolke',
       renderSharepic: renderSharepicToImage,
+      runPython,
       onEditSharepic: (variant: SharepicVariant) => {
         // Minted variants live in a real canvas document — open it directly
         // (fully bidirectional with chat edits). Unminted ones use the legacy
@@ -146,7 +175,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           console.error('[GlobalChatProvider] Failed to persist sharepic handoff:', err);
         }
         window.open(
-          `/studio/vorlagen/${variant.canvasType}?handoff=${handoffId}`,
+          `/studio/templates/${variant.canvasType}?handoff=${handoffId}`,
           '_blank',
           'noopener,noreferrer'
         );
@@ -263,7 +292,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           return existingDocId;
         }
 
-        const response = await fetch('/api/docs/from-export', {
+        const response = await chatFetch('/api/docs/from-export', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

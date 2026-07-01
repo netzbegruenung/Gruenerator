@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
+import { platformFetch } from '../../../utils/platformFetch';
 import { DocumentCard } from '../../docs/DocumentCard';
 
 export interface ImportedLinkedDoc {
@@ -59,7 +60,7 @@ const ExperimentalBadge = (
 );
 
 async function fetchDocMarkdown(docId: string): Promise<string> {
-  const res = await fetch(`/api/docs/${docId}/export/markdown`, { credentials: 'include' });
+  const res = await platformFetch(`/api/docs/${docId}/export/markdown`, { credentials: 'include' });
   if (!res.ok) {
     throw new Error(`Markdown-Export fehlgeschlagen (${res.status})`);
   }

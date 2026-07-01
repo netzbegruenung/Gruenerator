@@ -24,13 +24,16 @@ import {
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import { createLogger } from '../../utils/logger.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
-import { visionService } from '../vision/index.js';
 
 const log = createLogger('templateEnrichment');
 
 const COLLECTION_NAME = 'user_templates';
 
-const TEMPLATE_DESCRIPTION_INSTRUCTION = `Du beschreibst eine grafische Vorlage (Sharepic/Grafik) für eine durchsuchbare Vorlagen-Galerie. Beschreibe in 2-4 Sätzen prägnant und sachlich, was auf dem Bild zu sehen ist: Motiv, Bildaufbau, dominante Farben, Stil und – falls vorhanden – den sichtbaren Text wörtlich. Nenne mögliche Einsatzzwecke (z. B. Ankündigung, Veranstaltung, Zitat). Keine Interpretation, keine Anrede, keine Aufzählungszeichen.`;
+/**
+ * Prompt for the on-demand vision description (triggered manually by the user
+ * via the ✨ button in the template modals, see the describeImage route).
+ */
+export const TEMPLATE_DESCRIPTION_INSTRUCTION = `Du beschreibst eine grafische Vorlage (Sharepic/Grafik) für eine durchsuchbare Vorlagen-Galerie. Beschreibe in 2-4 Sätzen prägnant und sachlich, was auf dem Bild zu sehen ist: Motiv, Bildaufbau, dominante Farben, Stil und – falls vorhanden – den sichtbaren Text wörtlich. Nenne mögliche Einsatzzwecke (z. B. Ankündigung, Veranstaltung, Zitat). Keine Interpretation, keine Anrede, keine Aufzählungszeichen.`;
 
 interface TemplateRow {
   id: string;
@@ -69,28 +72,14 @@ export async function enrichTemplate(templateId: string): Promise<void> {
       return;
     }
 
-    let description = row.description;
-
-    // 1. Vision description — only when the user left it empty and we have an image.
-    const needsDescription = !description || description.trim() === '';
-    if (needsDescription && row.thumbnail_url) {
-      try {
-        const aiDescription = await visionService.analyzeImage(
-          row.thumbnail_url,
-          TEMPLATE_DESCRIPTION_INSTRUCTION,
-          { maxTokens: 600, temperature: 0.3 }
-        );
-        const trimmed = aiDescription.trim();
-        if (trimmed) description = trimmed;
-      } catch (error) {
-        log.warn(`Vision description failed for template ${templateId}:`, error);
-      }
-    }
+    // Descriptions are now authored by the user (optionally via the on-demand
+    // ✨ vision button in the modals) — enrichment no longer generates them.
+    const description = row.description;
 
     const tags = toTags(row.tags);
     const title = row.title ?? '';
 
-    // 2. Embedding + Qdrant upsert (skipped gracefully if Qdrant is down).
+    // Embedding + Qdrant upsert (skipped gracefully if Qdrant is down).
     const qdrant = getQdrantInstance();
     let indexed = false;
     if (qdrant.isAvailableSync() && qdrant.client) {
@@ -113,18 +102,16 @@ export async function enrichTemplate(templateId: string): Promise<void> {
       log.warn(`Qdrant not available, skipping template ${templateId} indexing`);
     }
 
-    // 3. Persist the (possibly AI-filled) description + index marker.
-    const updateData: Record<string, unknown> = {};
-    if (description !== row.description) updateData.description = description;
-    if (indexed) updateData.vector_indexed_at = new Date().toISOString();
-
-    if (Object.keys(updateData).length > 0) {
-      await postgres.update('user_templates', updateData, { id: templateId });
+    // Persist the index marker.
+    if (indexed) {
+      await postgres.update(
+        'user_templates',
+        { vector_indexed_at: new Date().toISOString() },
+        { id: templateId }
+      );
     }
 
-    log.debug(
-      `Enriched template ${templateId} (description filled: ${needsDescription && description !== row.description}, indexed: ${indexed})`
-    );
+    log.debug(`Enriched template ${templateId} (indexed: ${indexed})`);
   } catch (error) {
     log.error(`Template enrichment failed for ${templateId}:`, error);
   }

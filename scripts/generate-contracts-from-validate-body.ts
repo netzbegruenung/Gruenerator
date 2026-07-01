@@ -617,7 +617,9 @@ function main(): void {
     console.log('| Method | Path | Schema | Contract key |');
     console.log('|--------|------|--------|--------------|');
     for (const e of entries) {
-      console.log(`| \`${e.method}\` | \`${e.routePath}\` | \`${e.schemaRef}\` | \`${e.contractName}\` |`);
+      console.log(
+        `| \`${e.method}\` | \`${e.routePath}\` | \`${e.schemaRef}\` | \`${e.contractName}\` |`
+      );
     }
 
     console.log('');

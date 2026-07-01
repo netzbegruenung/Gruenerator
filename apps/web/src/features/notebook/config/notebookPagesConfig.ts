@@ -347,7 +347,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Hamburg zum Klimaschutz?' },
       { icon: '🚲', tag: 'Mobilität', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
-      { icon: '🏙️', tag: 'Stadtentwicklung', text: 'Was sind die Beschlüsse zur Stadtentwicklung?' },
+      {
+        icon: '🏙️',
+        tag: 'Stadtentwicklung',
+        text: 'Was sind die Beschlüsse zur Stadtentwicklung?',
+      },
     ],
     documents: [
       { title: 'Beschlüsse', detail: 'Parteitagsbeschlüsse' },
@@ -446,7 +450,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Berlin zum Klimaschutz?' },
       { icon: '🚲', tag: 'Mobilität', text: 'Welche Positionen gibt es zur Mobilitätswende?' },
-      { icon: '📋', tag: 'Stadtentwicklung', text: 'Was steht im Wahlprogramm zur Stadtentwicklung?' },
+      {
+        icon: '📋',
+        tag: 'Stadtentwicklung',
+        text: 'Was steht im Wahlprogramm zur Stadtentwicklung?',
+      },
     ],
     documents: [
       { title: 'Wahlprogramm 2026', detail: '6 Kapitel' },
@@ -473,7 +481,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     exampleQuestions: [
       { icon: '🌊', tag: 'Küstenschutz', text: 'Was sagen die Grünen MV zum Küstenschutz?' },
       { icon: '🌍', tag: 'Klima', text: 'Welche Klimaziele haben die Grünen MV?' },
-      { icon: '🏗️', tag: 'Strukturwandel', text: 'Was steht zum Strukturwandel in Mecklenburg-Vorpommern?' },
+      {
+        icon: '🏗️',
+        tag: 'Strukturwandel',
+        text: 'Was steht zum Strukturwandel in Mecklenburg-Vorpommern?',
+      },
     ],
     documents: [
       { title: 'Pressemitteilungen', detail: 'Aktuelle Positionen' },
@@ -497,7 +509,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Brandenburg zum Klimaschutz?' },
-      { icon: '🏗️', tag: 'Lausitz', text: 'Welche Beschlüsse gibt es zur Strukturpolitik in der Lausitz?' },
+      {
+        icon: '🏗️',
+        tag: 'Lausitz',
+        text: 'Welche Beschlüsse gibt es zur Strukturpolitik in der Lausitz?',
+      },
       { icon: '🚆', tag: 'Verkehr', text: 'Was steht im Wahlprogramm zur Verkehrswende?' },
     ],
     documents: [
@@ -523,7 +539,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       'Stell deine Frage zum Wahlprogramm und zu Positionen der Grünen Sachsen-Anhalt...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
-      { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Sachsen-Anhalt zum Klimaschutz?' },
+      {
+        icon: '🌍',
+        tag: 'Klimaschutz',
+        text: 'Was sagen die Grünen Sachsen-Anhalt zum Klimaschutz?',
+      },
       { icon: '🗳️', tag: 'Wahlprogramm', text: 'Was steht im Wahlprogramm zur Landtagswahl 2026?' },
       { icon: '🚆', tag: 'Verkehr', text: 'Welche Positionen gibt es zur Verkehrswende?' },
     ],
@@ -554,7 +574,11 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
         tag: 'Verkehr',
         text: 'Welche Positionen gibt es zur Verkehrswende im Rhein-Main-Gebiet?',
       },
-      { icon: '🏙️', tag: 'Wohnen', text: 'Was fordern die Grünen zu bezahlbarem Wohnen in Frankfurt?' },
+      {
+        icon: '🏙️',
+        tag: 'Wohnen',
+        text: 'Was fordern die Grünen zu bezahlbarem Wohnen in Frankfurt?',
+      },
     ],
     documents: [
       { title: 'Pressemitteilungen', detail: 'Landesverband & Fraktion' },

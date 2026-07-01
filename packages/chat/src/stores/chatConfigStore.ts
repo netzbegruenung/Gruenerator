@@ -2,6 +2,42 @@ import { create } from 'zustand';
 
 import type { CurrentBoard } from '@gruenerator/contracts';
 
+/** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
+export interface PythonFile {
+  name: string;
+  mimeType: string;
+  bytes: ArrayBuffer;
+}
+
+/** Result of executing Python in the browser (Pyodide worker). */
+export interface CodeExecutionResult {
+  ok: boolean;
+  stdout: string;
+  /** base64-encoded PNGs (no `data:` prefix) of matplotlib figures. */
+  figures: string[];
+  /** Short error summary (e.g. "KeyError: 'x'"), null on success. */
+  error: string | null;
+  /** Full Python traceback, null on success. */
+  traceback: string | null;
+  durationMs: number;
+}
+
+export interface RunPythonOptions {
+  timeoutMs?: number;
+  onProgress?: (message: string) => void;
+}
+
+/**
+ * Runs Python in a browser Pyodide worker. The actual implementation lives in
+ * apps/web (worker + wheels); packages/chat only knows the signature and
+ * receives it via {@link ChatConfig.runPython}.
+ */
+export type RunPython = (
+  code: string,
+  files?: PythonFile[],
+  options?: RunPythonOptions
+) => Promise<CodeExecutionResult>;
+
 export interface ChatConfig {
   /** Custom fetch function. Default: fetch with credentials:'include' */
   fetch?: (url: string, options?: RequestInit) => Promise<Response>;
@@ -35,6 +71,8 @@ export interface ChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /** Runs Python in a browser Pyodide worker (in-chat code execution). */
+  runPython?: RunPython;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
   fetchSharepicState?: (canvasId: string) => Promise<{
     state: Record<string, unknown>;
@@ -199,6 +237,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
@@ -249,6 +288,11 @@ function resolveDocsUrl(configured?: string): string {
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return `${window.location.protocol}//localhost:3002`;
   }
+  // Desktop (Tauri) webview: hostname is `localhost` under origin
+  // `tauri://localhost`, so `docs.${hostname}` is wrong — use the public docs host.
+  if ('__TAURI__' in window) {
+    return 'https://docs.gruenerator.eu';
+  }
   return `${window.location.protocol}//docs.${hostname}`;
 }
 
@@ -295,6 +339,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditInDocs: config?.onEditInDocs,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      runPython: config?.runPython,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,
       fetchSharepicVersionState: config?.fetchSharepicVersionState,

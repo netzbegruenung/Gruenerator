@@ -15,7 +15,7 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
+import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
 import {
@@ -300,7 +300,7 @@ export async function handleNotebookStream(
         sse,
         logPrefix: '[Notebook]',
         buildStream: async (resolution) => {
-          const isReasoning = isRegoloReasoningModel(resolution.provider, resolution.modelName);
+          const isReasoning = isReasoningStreamModel(resolution.provider, resolution.modelName);
           return streamForResolution({
             resolution,
             messages: aiMessages,

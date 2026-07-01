@@ -22,6 +22,7 @@ import { mountBoardActivityContractRouter } from './routes/boards/boardActivityC
 import { mountBoardAgentContractRouter } from './routes/boards/boardAgentContractRouter.js';
 import { mountBoardAttachmentsContractRouter } from './routes/boards/boardAttachmentsContractRouter.js';
 import { boardAttachmentUploadRouter } from './routes/boards/boardAttachmentUpload.js';
+import { mountBoardCardDocumentsContractRouter } from './routes/boards/boardCardDocumentsContractRouter.js';
 import { mountBoardCommentsContractRouter } from './routes/boards/boardCommentsContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
@@ -111,9 +112,11 @@ import {
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
+import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
+import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -257,9 +260,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
-  const { internalAgentInsightRouter } = await import(
-    './routes/agents/internalAgentInsightController.js'
-  );
+  const { internalAgentInsightRouter } =
+    await import('./routes/agents/internalAgentInsightController.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
@@ -267,7 +269,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
-  const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
@@ -368,6 +369,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-values', requireAuth);
   mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
+  // ts-rest contract router for /api/item-usage (usage-based "favourites first"
+  // ordering). requireAuth at the prefix — returns user-specific data.
+  app.use('/api/item-usage', requireAuth, publicReadLimiter);
+  mountItemUsageContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
@@ -378,7 +383,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
   app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
-  app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
@@ -550,6 +554,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // createExpressEndpoints registers handlers directly on the app, bypassing
   // any later prefix middleware.
   app.use('/api/user-agents', requireAuth);
+  // Sharing router FIRST so the static `/api/user-agents/public` route resolves
+  // before the CRUD `/api/user-agents/:identifier` param route.
+  mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints
@@ -620,6 +627,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/board-activity', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-subscriptions', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-attachments', requireAuth, authenticatedReadLimiter);
+  app.use('/api/board-card-documents', requireAuth, authenticatedReadLimiter);
   mountBoardsContractRouter(app);
   mountBoardCommentsContractRouter(app);
   mountBoardAgentContractRouter(app);
@@ -629,6 +637,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // multipart/binary handlers aren't shadowed by the JSON contract's validation.
   app.use('/api/board-attachments', boardAttachmentUploadRouter);
   mountBoardAttachmentsContractRouter(app);
+  mountBoardCardDocumentsContractRouter(app);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);

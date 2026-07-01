@@ -37,7 +37,23 @@ export function getSubtitlerShareUrl(shareToken: string, baseUrl?: string): stri
 export function getBaseUrl(): string {
   // Check for browser environment
   if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
-    const win = globalThis as unknown as { window: { location?: { origin?: string } } };
+    const win = globalThis as unknown as {
+      window: { location?: { origin?: string } } & Record<string, unknown>;
+    };
+    // Desktop (Tauri) webview: page origin is `tauri://localhost`, useless in a
+    // shared link — use the configured public origin instead.
+    if (win.window && '__TAURI__' in win.window) {
+      const apiBase = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env
+        ?.VITE_API_BASE_URL;
+      if (apiBase && /^https?:/i.test(apiBase)) {
+        try {
+          return new URL(apiBase).origin;
+        } catch {
+          /* fall through */
+        }
+      }
+      return 'https://gruenerator.eu';
+    }
     if (win.window?.location?.origin) {
       return win.window.location.origin;
     }

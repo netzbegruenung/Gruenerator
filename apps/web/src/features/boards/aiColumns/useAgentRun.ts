@@ -1,29 +1,21 @@
 /**
  * Mutation hook for "Grünerator-Agent starten". Enqueues the flow task, then polls
- * its status; once the task completes with a document, it links that document into
- * the card client-side via `onLinkDocument` — so the link goes through the live Yjs
- * session (exactly like a manual "Verknüpfen"), which the server can't do.
- * `isRunning` debounces the button and stays true through the poll.
+ * its status for completion feedback. The generated document is recorded in the card's
+ * Grünerator-Dokumente list and shared with the board's members server-side (see
+ * apps/api cardDocumentService / boardSharingService), so the link survives even if
+ * this tab is closed. `isRunning` debounces the button and stays true through the poll.
  */
 import { type BoardAiTask, type BoardFlowCardContext } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 
-export interface LinkedDocument {
-  id: string;
-  title: string;
-}
-
 const POLL_INTERVAL_MS = 3000;
 const POLL_MAX_ATTEMPTS = 80; // ~4 min, covers source fetch + generation
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function useAgentRun(
-  boardId: string | undefined,
-  onLinkDocument?: (doc: LinkedDocument) => void
-) {
+export function useAgentRun(boardId: string | undefined) {
   const [isRunning, setIsRunning] = useState(false);
 
   const run = useCallback(
@@ -52,12 +44,11 @@ export function useAgentRun(
           if (statusRes.status !== 200) continue;
           const result = statusRes.body;
           if (result.status === 'completed') {
-            if (result.documentId && onLinkDocument) {
-              onLinkDocument({ id: result.documentId, title: result.documentTitle ?? 'Dokument' });
-              toast.success('Dokument erstellt und mit der Karte verknüpft.');
-            } else {
-              toast.success('Grünerator-Agent fertig — Ergebnis als Kommentar.');
-            }
+            toast.success(
+              result.documentId
+                ? 'Dokument erstellt und mit der Karte verknüpft.'
+                : 'Grünerator-Agent fertig — Ergebnis als Kommentar.'
+            );
             return;
           }
           if (result.status === 'failed') {
@@ -71,7 +62,7 @@ export function useAgentRun(
         setIsRunning(false);
       }
     },
-    [boardId, isRunning, onLinkDocument]
+    [boardId, isRunning]
   );
 
   return { run, isRunning };

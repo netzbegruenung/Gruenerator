@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 
+import { type CanvasTemplateType } from '@gruenerator/contracts';
+
 import {
   generateSharepicForChat,
   type ExpressRequest as SharepicExpressRequest,
@@ -147,7 +149,7 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
 
 export interface SharepicVariant {
   id: string;
-  canvasType: string;
+  canvasType: CanvasTemplateType;
   initialProps: Record<string, unknown>;
   label?: string;
   /** Accessibility description generated alongside the sharepic text (for screen readers / social posts). */
@@ -158,21 +160,23 @@ export interface SharepicVariant {
   pages?: Array<Record<string, unknown>>;
 }
 
-const CANVAS_TYPE_BY_SHAREPIC: Record<string, string> = {
+// Values are validated CanvasTemplateTypes, so a mapped canvasType is always a
+// canonical type the frontend canvas pipeline can mint.
+const CANVAS_TYPE_BY_SHAREPIC: Record<string, CanvasTemplateType> = {
   dreizeilen: 'dreizeilen',
   zitat: 'zitat-pure',
   zitat_pure: 'zitat-pure',
   info: 'info',
 };
 
-const VARIANT_LABEL_BY_CANVAS_TYPE: Record<string, string> = {
+const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> = {
   dreizeilen: 'Dreizeiler',
   'zitat-pure': 'Zitat',
   zitat: 'Zitat',
   info: 'Info',
 };
 
-function mapSharepicTypeToCanvasType(sharepicType: string): string {
+function mapSharepicTypeToCanvasType(sharepicType: string): CanvasTemplateType {
   return CANVAS_TYPE_BY_SHAREPIC[sharepicType] ?? 'dreizeilen';
 }
 

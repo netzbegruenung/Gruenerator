@@ -123,13 +123,24 @@ export interface Agent {
    */
   hiddenFromInventory?: boolean;
   /**
-   * Notebook ID this agent auto-selects when the user opens its chat
-   * (`ChatPage` calls `setSelectedNotebook` with this on agent activation).
-   * Used by the per-LV PR agents so the regional notebook pairs with the
-   * regional agent without an extra click. Set by the LV-spec generator
-   * in `system.ts`; absent on hand-written entries.
+   * Restrict this agent to web. When true it is hidden from the mobile agent
+   * picker / notebook lists, and a mobile deep-link to it falls back to the
+   * default agent. Web is unaffected. The identifier stays live in the registry
+   * so the backend keeps resolving it (legacy threads, direct links). Used for
+   * features whose UI can't run on React Native — e.g. the canvas-editor-backed
+   * sharepic flow, which has no Hermes-compatible renderer. See
+   * `isAgentVisibleForPlatform`.
    */
-  defaultNotebookId?: string;
+  webOnly?: boolean;
+  /**
+   * Notebooks this agent binds as its combined default knowledge base. All of
+   * them scope the agent's search server-side (resolved from the agent record
+   * in ChatGraph), and the chat composer auto-selects the first for continuity.
+   * Used by the per-LV PR agents so the regional notebook pairs with the
+   * regional agent without an extra click. Set by the LV-spec generators;
+   * absent on hand-written entries.
+   */
+  defaultNotebookIds?: readonly string[];
   /**
    * Routing hint for the "Automatisch" model picker. Read by the frontend
    * resolver (`resolveAutoModel`) to map this agent to a context-appropriate

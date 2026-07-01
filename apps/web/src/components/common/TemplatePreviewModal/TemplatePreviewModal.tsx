@@ -1,3 +1,4 @@
+import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
 import {
   Badge,
   Button,
@@ -9,11 +10,12 @@ import {
 } from '@gruenerator/ui';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
-import { SiCanva } from 'react-icons/si';
+import { HiOutlineArrowDownTray, HiOutlinePencilSquare } from 'react-icons/hi2';
 
 import FavoriteButton from '../FavoriteButton';
 import LikeButton from '../LikeButton';
 
+import { CanvaLogo } from '@/features/canva/components/CanvaLogo';
 import { cn } from '@/utils/cn';
 
 const formatDate = (value: string | number | Date | null | undefined) => {
@@ -47,6 +49,7 @@ interface Template {
   content_data?: TemplateContentData;
   metadata?: TemplateMetadata;
   external_url?: string;
+  download_url?: string;
   template_type?: string;
   tags?: string[];
   images?: Array<{ url: string; title?: string; display_order?: number }>;
@@ -74,7 +77,16 @@ interface TemplatePreviewModalProps {
   onToggleFavorite?: () => void;
   favoriteToggling?: boolean;
   canFavorite?: boolean;
+  // "Use" action for native Grünerator-Vorlagen (clone snapshot → open editor).
+  onUseTemplate?: () => void;
+  isUsing?: boolean;
 }
+
+/** Pretty labels for known template_type values; falls back to capitalized. */
+const TEMPLATE_TYPE_LABELS: Record<string, string> = {
+  canva: 'Canva',
+  [GRUENERATOR_TEMPLATE_TYPE]: 'Grünerator',
+};
 
 const TemplatePreviewModal = ({
   isOpen,
@@ -90,6 +102,8 @@ const TemplatePreviewModal = ({
   onToggleFavorite,
   favoriteToggling = false,
   canFavorite = false,
+  onUseTemplate,
+  isUsing = false,
 }: TemplatePreviewModalProps): React.ReactNode => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -142,7 +156,8 @@ const TemplatePreviewModal = ({
   }, [isOpen, hasMultipleImages, allImages.length]);
 
   const handleOpenExternal = useCallback(() => {
-    const url = template?.content_data?.originalUrl || template?.external_url;
+    const url =
+      template?.content_data?.originalUrl || template?.external_url || template?.download_url;
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -161,11 +176,20 @@ const TemplatePreviewModal = ({
   if (!template) return null;
 
   const templateType = template.template_type
-    ? template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)
+    ? (TEMPLATE_TYPE_LABELS[template.template_type] ??
+      template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1))
     : '';
   const isCanva = template.template_type === 'canva';
+  const isGruenerator = template.template_type === GRUENERATOR_TEMPLATE_TYPE;
   const dimensions = template.content_data?.dimensions || template.metadata?.dimensions;
   const tags = Array.isArray(template.tags) ? template.tags : [];
+  // The single openable target, in priority order. When none exists (e.g. a
+  // file template still being processed) the footer action is hidden entirely
+  // instead of rendering a button that does nothing.
+  const openUrl =
+    template.content_data?.originalUrl || template.external_url || template.download_url || '';
+  const isDownloadOnly =
+    !template.content_data?.originalUrl && !template.external_url && Boolean(template.download_url);
 
   const actionBar =
     onToggleLike || onToggleFavorite ? (
@@ -204,7 +228,10 @@ const TemplatePreviewModal = ({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
-          <div className="flex flex-shrink-0 flex-col bg-background-alt min-h-0">
+          {/* Cap the image column at 60% so wide/landscape previews can't crowd out the
+              sidebar. The column keeps an `auto` basis, so narrow/portrait images still
+              size snugly — the cap only bites when the image would otherwise overflow. */}
+          <div className="flex flex-col bg-background-alt min-h-0 min-w-0 md:max-w-[60%]">
             {currentImage?.url ? (
               <>
                 <div className="relative flex flex-1 items-center justify-center p-md min-h-0">
@@ -318,7 +345,7 @@ const TemplatePreviewModal = ({
             <div className="flex flex-wrap gap-sm items-center text-grey-600 dark:text-grey-400 text-xs mt-auto">
               {templateType && (
                 <Badge variant="outline" className="gap-1.5">
-                  {isCanva && <SiCanva className="w-3.5 h-3.5" />}
+                  {isCanva && <CanvaLogo size={14} />}
                   {templateType}
                 </Badge>
               )}
@@ -332,21 +359,35 @@ const TemplatePreviewModal = ({
           </div>
         </div>
 
-        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
-          <Button onClick={handleOpenExternal} className="max-sm:w-full">
-            {isCanva ? (
-              <>
-                <SiCanva />
-                <span>In Canva öffnen</span>
-              </>
-            ) : (
-              <>
-                <HiExternalLink />
-                <span>Öffnen</span>
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        {isGruenerator && onUseTemplate ? (
+          <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
+            <Button onClick={onUseTemplate} disabled={isUsing} className="max-sm:w-full">
+              <HiOutlinePencilSquare />
+              <span>{isUsing ? 'Wird geöffnet...' : 'Vorlage verwenden'}</span>
+            </Button>
+          </DialogFooter>
+        ) : openUrl ? (
+          <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-end shrink-0">
+            <Button onClick={handleOpenExternal} className="max-sm:w-full">
+              {isCanva ? (
+                <>
+                  <CanvaLogo size={16} />
+                  <span>In Canva öffnen</span>
+                </>
+              ) : isDownloadOnly ? (
+                <>
+                  <HiOutlineArrowDownTray />
+                  <span>Herunterladen</span>
+                </>
+              ) : (
+                <>
+                  <HiExternalLink />
+                  <span>Öffnen</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

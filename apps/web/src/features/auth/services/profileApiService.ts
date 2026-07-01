@@ -222,11 +222,6 @@ interface ApiErrorWithResponse extends Error {
 }
 
 // === API RESPONSE SHAPES ===
-interface ProfileResponse {
-  user?: Profile;
-  profile?: Profile;
-}
-
 interface BundleResponse {
   success: boolean;
   message?: string;
@@ -294,15 +289,18 @@ interface MemoriesResponse {
 export const profileApiService = {
   // === PROFILE DATA ===
   async getProfile(): Promise<Profile> {
-    const response = await apiClient.get<ProfileResponse>('/auth/profile', {
-      skipAuthRedirect: true,
-    });
-    const data = response.data;
-    const profile = data.user ?? data.profile ?? null;
+    // Typed ts-rest call against the `userProfileContract` (GET /api/auth/profile).
+    // Replaces the previous raw `apiClient.get('/auth/profile')`, which hit the
+    // same contracted handler but lost the response typing. The legacy
+    // `res.json({ user })` route in authCore.ts was a shadowed duplicate and
+    // has been removed.
+    const res = await getContractsClient().userProfile.getProfile();
 
-    if (!profile) {
+    if (res.status !== 200) {
       throw new Error('Profil nicht gefunden');
     }
+
+    const profile = res.body.user;
 
     const profileData: Profile = {
       display_name: profile.display_name,

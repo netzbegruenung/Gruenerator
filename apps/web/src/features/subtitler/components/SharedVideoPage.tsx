@@ -10,6 +10,7 @@ import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { buildUrl } from '../../../config/domains';
 import { useAuthStore } from '../../../stores/authStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
@@ -275,7 +276,11 @@ const SharedVideoPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCodeSVG value={window.location.href} size={64} level="M" />
+          <QRCodeSVG
+            value={`${getPublicAppOrigin()}${window.location.pathname}${window.location.search}`}
+            size={64}
+            level="M"
+          />
           {copied && (
             <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary-500/90 text-xs font-medium text-white">
               Kopiert!

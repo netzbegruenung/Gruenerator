@@ -17,6 +17,36 @@ const AGENT_ICONS: Record<string, IoniconsIconName> = {
   bird: 'leaf-outline',
 };
 
+// User-created agents store a react-icons Phosphor component name (e.g.
+// `PiMegaphone`) in `iconKey` — see SUGGESTED_AGENT_ICONS in
+// packages/shared/src/agents/agentIcons.ts. Map the curated suggestion set to
+// the closest Ionicon (mirroring AGENT_ICONS' choices for overlapping
+// concepts). The picker on web is unrestricted, so any name outside this set
+// falls back to the default sparkle — acceptable, the colored tile + title
+// still identify the agent.
+const PHOSPHOR_AGENT_ICONS: Record<string, IoniconsIconName> = {
+  PiSparkle: 'sparkles-outline',
+  PiMegaphone: 'megaphone-outline',
+  PiNewspaper: 'newspaper-outline',
+  PiMagnifyingGlass: 'search-outline',
+  PiChatsCircle: 'chatbubbles-outline',
+  PiBuildings: 'business-outline',
+  PiTree: 'leaf-outline',
+  PiLeaf: 'leaf-outline',
+  PiUsersThree: 'people-outline',
+  PiCalendarBlank: 'calendar-outline',
+  PiImage: 'image-outline',
+  PiGlobeSimple: 'globe-outline',
+  PiBookOpenText: 'book-outline',
+  PiMicrophone: 'mic-outline',
+  PiHandHeart: 'heart-outline',
+  PiBird: 'leaf-outline',
+  PiFileText: 'document-text-outline',
+  PiLightbulb: 'bulb-outline',
+  PiHeart: 'heart-outline',
+  PiRocketLaunch: 'rocket-outline',
+};
+
 const TOOL_ICONS: Record<string, IoniconsIconName> = {
   web: 'globe-outline',
   research: 'flask-outline',
@@ -32,7 +62,7 @@ const TOOL_ICONS: Record<string, IoniconsIconName> = {
 export const NOTEBOOK_ICON: IoniconsIconName = 'library-outline';
 
 export const agentIcon = (iconKey: string | undefined): IoniconsIconName =>
-  (iconKey && AGENT_ICONS[iconKey]) || 'sparkles-outline';
+  (iconKey && (AGENT_ICONS[iconKey] || PHOSPHOR_AGENT_ICONS[iconKey])) || 'sparkles-outline';
 
 export const toolIcon = (identifier: string): IoniconsIconName =>
   TOOL_ICONS[identifier] || 'construct-outline';

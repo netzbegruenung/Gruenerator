@@ -4,6 +4,7 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import NotebookCreationProgress from '../../notebook/components/NotebookCreationProgress';
 import NotebookEditor from '../../notebook/components/NotebookEditor';
@@ -86,7 +87,7 @@ const NotebooksSection: React.FC = memo(() => {
   const handleClose = useCallback(() => setPhase({ kind: 'closed' }), []);
 
   const handleShare = useCallback((id: string) => {
-    void navigator.clipboard.writeText(`${window.location.origin}/notebook/${id}`);
+    void navigator.clipboard.writeText(`${getPublicAppOrigin()}/notebook/${id}`);
   }, []);
 
   const handleDelete = useCallback(
@@ -132,12 +133,7 @@ const NotebooksSection: React.FC = memo(() => {
       />
       <div className={NOTEBOOK_ROW_CLASS}>
         {allCards.map((card) => (
-          <NotebookCard
-            key={card.id}
-            item={card}
-            onShare={handleShare}
-            onDelete={handleDelete}
-          />
+          <NotebookCard key={card.id} item={card} onShare={handleShare} onDelete={handleDelete} />
         ))}
       </div>
       <button

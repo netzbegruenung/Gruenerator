@@ -5,9 +5,9 @@ import {
   BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
-import { resolveToolEntry } from '@gruenerator/chat';
+import { resolveToolEntry, useFetchFullText } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import Animated, {
@@ -25,12 +25,15 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
+import { ChatProgressIndicator } from './ChatProgressIndicator';
+import { CitationDetailSheet } from './CitationDetailSheet';
 import { CitationsFooter } from './CitationsFooter';
 import { ConfirmActionCard } from './ConfirmActionCard';
 import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
+import { makeCitationMarkdownRules } from './tool-ui/citationMarkdownRules';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
 import { ImageResultCard } from './tool-ui/ImageResultCard';
 import { KeyValueCard } from './tool-ui/KeyValueCard';
@@ -42,7 +45,7 @@ import { ToolResultCard } from './tool-ui/ToolResultCard';
 import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
-import type { ChatMessageMetadata } from '@gruenerator/chat';
+import type { ChatMessageMetadata, Citation } from '@gruenerator/chat';
 
 export const UserMessageComponent = memo(function UserMessageComponent() {
   return (
@@ -225,10 +228,32 @@ const AssistantActionBar = memo(function AssistantActionBar({
   );
 });
 
+/**
+ * Per-message citation lookup + tap handler, provided by AssistantMessageComponent.
+ * Lets the streamed text part turn inline [N] markers into tappable chips that open
+ * the citation detail sheet — the native analog of web's CitationProvider → CitationBadge.
+ */
+const MessageCitationsContext = createContext<{
+  citationMap: Map<number, Citation>;
+  onCitationPress: (citation: Citation) => void;
+} | null>(null);
+
 function AssistantTextPart(props: { text: string }) {
   const theme = useTheme();
   const markdownStyles = useMemo(() => getMarkdownStyles(theme), [theme]);
-  return <Markdown style={markdownStyles}>{props.text}</Markdown>;
+  const citationCtx = useContext(MessageCitationsContext);
+  const rules = useMemo(
+    () =>
+      citationCtx
+        ? makeCitationMarkdownRules(citationCtx.citationMap, citationCtx.onCitationPress)
+        : undefined,
+    [citationCtx]
+  );
+  return (
+    <Markdown style={markdownStyles} rules={rules}>
+      {props.text}
+    </Markdown>
+  );
 }
 
 function AssistantToolCallPart(props: {
@@ -297,6 +322,29 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const confirmAction = metadata.confirmAction;
   const createdDocument = metadata.createdDocument;
 
+  // While this (last) message is still streaming, surface the cycling stage word
+  // + spinning cog the same way web does — the label rides on metadata.progress,
+  // written by the shared SSE adapter. Once a tool-call part exists, the tool UI
+  // owns the progress affordance, so we step aside (mirrors web's !hasToolCall).
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const isLast = useAuiState((s) => s.message.isLast);
+  const isStreaming = isRunning && isLast;
+  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+  const progress = metadata.progress;
+
+  const fetchFullText = useFetchFullText();
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+
+  // One lookup the streamed text part reads to turn inline [N] markers into chips
+  // that open the same detail sheet the "Quellen" footer uses.
+  const citationCtx = useMemo(() => {
+    if (!citations || citations.length === 0) return null;
+    return {
+      citationMap: new Map<number, Citation>(citations.map((c) => [c.id, c])),
+      onCitationPress: setSelectedCitation,
+    };
+  }, [citations]);
+
   const messageText = useMemo(() => {
     return message.content
       .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
@@ -317,16 +365,27 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   return (
     <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
       <View style={styles.assistantContent}>
-        <MessagePrimitive.Parts components={partsComponents} />
+        {isStreaming && !hasToolCall && progress && (
+          <ChatProgressIndicator progress={progress} theme={theme} />
+        )}
+        <MessageCitationsContext.Provider value={citationCtx}>
+          <MessagePrimitive.Parts components={partsComponents} />
+        </MessageCitationsContext.Provider>
         {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
         {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
         {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
         {citations && citations.length > 0 && (
-          <CitationsFooter citations={citations} theme={theme} />
+          <CitationsFooter citations={citations} theme={theme} onSelect={setSelectedCitation} />
         )}
       </View>
       <BranchPicker theme={theme} />
       <AssistantActionBar theme={theme} messageText={messageText} metadata={metadata} />
+      <CitationDetailSheet
+        citation={selectedCitation}
+        theme={theme}
+        onClose={() => setSelectedCitation(null)}
+        fetchFullText={fetchFullText}
+      />
     </MessagePrimitive.Root>
   );
 });

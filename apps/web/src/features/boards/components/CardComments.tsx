@@ -6,7 +6,7 @@ import {
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { FiSend, FiCornerDownRight, FiMessageSquare, FiX } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
@@ -25,6 +25,8 @@ interface TrackedMention {
   end: number;
   userId: string;
   displayName: string;
+  /** Set when the mention picked a specific agent — delegates the comment to it. */
+  agentId?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -61,10 +63,15 @@ function parseTextToBlocks(text: string, mentions: TrackedMention[]): CommentBlo
 }
 
 function renderBlocks(blocks: CommentBlock[]): ReactNode[] {
-  return blocks.map((block, i) => {
+  // Stable per-block key from a running character offset (unique, not the array
+  // index) so editing keeps element identity without index keys.
+  let offset = 0;
+  return blocks.map((block) => {
+    const key = `block-${offset}`;
+    offset += 1 + (block.text ?? block.url ?? block.displayName ?? '').length;
     if (block.type === 'mention') {
       return (
-        <span key={i} className="text-primary-600 dark:text-primary-400 font-medium">
+        <span key={key} className="text-primary-600 dark:text-primary-400 font-medium">
           @{block.displayName}
         </span>
       );
@@ -72,7 +79,7 @@ function renderBlocks(blocks: CommentBlock[]): ReactNode[] {
     if (block.type === 'link' && block.url) {
       return (
         <a
-          key={i}
+          key={key}
           href={block.url}
           target="_blank"
           rel="noopener noreferrer"
@@ -82,7 +89,7 @@ function renderBlocks(blocks: CommentBlock[]): ReactNode[] {
         </a>
       );
     }
-    return <span key={i}>{block.text}</span>;
+    return <span key={key}>{block.text}</span>;
   });
 }
 
@@ -260,7 +267,7 @@ export const CardComments = memo(function CardComments({
     boardId,
     cardId
   );
-  const comments = commentsQuery.data ?? [];
+  const comments = useMemo(() => commentsQuery.data ?? [], [commentsQuery.data]);
   const isLoading = commentsQuery.isLoading;
 
   // ── Mention handling ────────────────────────────────────────────────
@@ -302,6 +309,7 @@ export const CardComments = memo(function CardComments({
         end: mentionTriggerPos + insertText.trimEnd().length,
         userId: user.userId,
         displayName: user.displayName,
+        ...(user.agentId && { agentId: user.agentId }),
       };
 
       const offsetDiff = insertText.length - (textarea.selectionStart - mentionTriggerPos);
@@ -339,8 +347,10 @@ export const CardComments = memo(function CardComments({
     const trimmed = commentText.trim();
     if (!trimmed) return;
     const blocks = parseTextToBlocks(trimmed, trackedMentions);
+    // If a specific agent was @-mentioned, delegate the comment to it.
+    const agentId = trackedMentions.find((m) => m.agentId)?.agentId;
     addComment.mutate(
-      { blocks, parentId: replyToId ?? undefined },
+      { blocks, parentId: replyToId ?? undefined, agentId },
       {
         onSuccess: () => {
           setCommentText('');

@@ -15,6 +15,7 @@ export { AGENT_CATEGORY_LABELS, SKILL_CATEGORY_LABELS } from './types.js';
 
 export {
   isAgentVisibleForLocale,
+  isAgentVisibleForPlatform,
   localizeAgent,
   getSystemAgentsForLocale,
   getVisibleSystemAgentsForLocale,

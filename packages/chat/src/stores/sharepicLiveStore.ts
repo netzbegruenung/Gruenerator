@@ -1,3 +1,4 @@
+import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 /**
@@ -28,7 +29,7 @@ export interface SharepicLiveEntry {
 export interface ActiveSharepic {
   variantId: string;
   canvasId: string | null;
-  canvasType: string;
+  canvasType: CanvasTemplateType;
   /**
    * Render seed for surfaces that don't hold the original variant (the docked
    * artifact panel). Client-only — the request body maps the identifying
