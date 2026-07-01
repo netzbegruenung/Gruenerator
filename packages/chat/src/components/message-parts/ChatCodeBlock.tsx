@@ -3,6 +3,7 @@ import { Check, Copy, Loader2, Play } from 'lucide-react';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';
+import { MermaidDiagram } from './MermaidDiagram';
 
 /** Recursively collect the text content of react-markdown's nested children. */
 function toText(node: ReactNode): string {
@@ -39,8 +40,10 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
 
   // Only Python runs, and only where a host injected runPython (web, not native).
   const canRun = language === 'python' && !!runPython;
+  const isMermaid = language === 'mermaid';
 
   useEffect(() => {
+    if (isMermaid) return;
     let active = true;
     highlightCode(code, language)
       .then((result) => {
@@ -113,7 +116,9 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
         </div>
       </div>
 
-      {html ? (
+      {isMermaid ? (
+        <MermaidDiagram code={code} />
+      ) : html ? (
         <div
           className="overflow-x-auto p-4 text-sm [&_pre]:!m-0 [&_pre]:!bg-transparent"
           // eslint-disable-next-line react/no-danger

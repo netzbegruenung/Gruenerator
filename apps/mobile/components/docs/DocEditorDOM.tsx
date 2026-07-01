@@ -15,7 +15,9 @@ import {
   invokeDocumentAI,
   acceptDocumentAI,
   rejectDocumentAI,
+  getDocUndoFlags,
   type DocsAdapter,
+  type UndoableEditor,
 } from '@gruenerator/docs/mobile';
 import { type DOMProps } from 'expo/dom';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -246,6 +248,7 @@ interface DocEditorDOMProps {
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
+  onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
   onAiReviewPendingChange?: (pending: boolean) => void;
   onAiAcceptFailed?: () => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
@@ -273,6 +276,7 @@ function EditorContent({
   onActiveStylesChange,
   onDocSnapshotChange,
   onSlashChange,
+  onUndoRedoStateChange,
 }: {
   documentId: string;
   userId: string;
@@ -288,6 +292,7 @@ function EditorContent({
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
+  onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -344,6 +349,8 @@ function EditorContent({
   onDocSnapshotChangeRef.current = onDocSnapshotChange;
   const onSlashChangeRef = useRef(onSlashChange);
   onSlashChangeRef.current = onSlashChange;
+  const onUndoRedoStateChangeRef = useRef(onUndoRedoStateChange);
+  onUndoRedoStateChangeRef.current = onUndoRedoStateChange;
 
   // Subscribe to editor selection changes → send active styles to native
   useEffect(() => {
@@ -443,6 +450,33 @@ function EditorContent({
     };
   }, [isSynced]);
 
+  // Push undo/redo availability (BlockNote's per-user collab stack) to native so
+  // the toolbar buttons enable/disable. Debounced lightly to limit bridge chatter
+  // during fast typing; the native store dedupes redundant updates anyway.
+  useEffect(() => {
+    const editor = editorRef.current as {
+      onChange?: (cb: () => void) => (() => void) | void;
+    } | null;
+    if (!editor || !onUndoRedoStateChangeRef.current) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const emit = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const { canUndo, canRedo } = getDocUndoFlags(editorRef.current as UndoableEditor | null);
+        onUndoRedoStateChangeRef.current?.(canUndo, canRedo);
+      }, 200);
+    };
+
+    const unsubChange = editor.onChange?.(emit);
+    emit();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (typeof unsubChange === 'function') unsubChange();
+    };
+  }, [isSynced]);
+
   // Listen for formatting actions from native
   useEffect(() => {
     const handleSendChat = (e: Event) => {
@@ -519,17 +553,31 @@ function EditorContent({
       }
     };
 
+    const handleUndoRedo = (e: Event) => {
+      const direction = (e as CustomEvent<{ direction: 'undo' | 'redo' }>).detail?.direction;
+      const ed = editorRef.current as { undo: () => void; redo: () => void } | null;
+      if (!ed) return;
+      try {
+        if (direction === 'undo') ed.undo();
+        else if (direction === 'redo') ed.redo();
+      } catch {
+        // editor not ready
+      }
+    };
+
     window.addEventListener('send-chat', handleSendChat);
     window.addEventListener('set-typing', handleSetTyping);
     window.addEventListener('format-action', handleFormatAction);
     window.addEventListener('insert-text', handleInsertText);
     window.addEventListener('slash-select', handleSlashSelect);
+    window.addEventListener('undo-redo-action', handleUndoRedo);
     return () => {
       window.removeEventListener('send-chat', handleSendChat);
       window.removeEventListener('set-typing', handleSetTyping);
       window.removeEventListener('format-action', handleFormatAction);
       window.removeEventListener('insert-text', handleInsertText);
       window.removeEventListener('slash-select', handleSlashSelect);
+      window.removeEventListener('undo-redo-action', handleUndoRedo);
     };
   }, [sendMessage, setTyping]);
 
@@ -745,6 +793,10 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     } else if (props.pendingAction.type === 'reject-ai') {
       rejectDocumentAI(props.documentId);
       onAiReviewPendingChangeRef.current?.(false);
+    } else if (props.pendingAction.type === 'undo') {
+      window.dispatchEvent(new CustomEvent('undo-redo-action', { detail: { direction: 'undo' } }));
+    } else if (props.pendingAction.type === 'redo') {
+      window.dispatchEvent(new CustomEvent('undo-redo-action', { detail: { direction: 'redo' } }));
     } else if (props.pendingAction.type === 'slash-select') {
       const { blockType, props: blockProps } = props.pendingAction as {
         type: string;
@@ -807,6 +859,13 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     [props.onDocSnapshotChange]
   );
 
+  const handleUndoRedoStateChange = useCallback(
+    (canUndo: boolean, canRedo: boolean) => {
+      props.onUndoRedoStateChange?.(canUndo, canRedo);
+    },
+    [props.onUndoRedoStateChange]
+  );
+
   return (
     <DocsProvider adapter={adapter}>
       <EditorContent
@@ -824,6 +883,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onActiveStylesChange={handleActiveStylesChange}
         onDocSnapshotChange={handleDocSnapshotChange}
         onSlashChange={props.onSlashChange}
+        onUndoRedoStateChange={handleUndoRedoStateChange}
       />
     </DocsProvider>
   );

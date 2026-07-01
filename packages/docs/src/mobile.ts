@@ -13,3 +13,6 @@ export { BlockNoteEditor, type BlockNoteEditorProps } from './components/editor/
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { invokeDocumentAI } from './lib/invokeDocumentAI';
 export { acceptDocumentAI, rejectDocumentAI } from './lib/reviewDocumentAI';
+// Pure undo/redo flag reader (no react-icons) — used by the DOM bridge to push
+// undo/redo availability to the native toolbar.
+export { getDocUndoFlags, type UndoableEditor } from './hooks/useDocUndoState';

@@ -23,7 +23,7 @@ import {
   createCircleBadgeActions,
   createFrameActions,
   createUserImageActions,
-} from './factory/commonActions';
+} from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';

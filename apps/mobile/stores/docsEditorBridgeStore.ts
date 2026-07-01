@@ -43,6 +43,8 @@ export type DocEditorAction =
   | { type: 'invoke-ai'; prompt: string; useSelection: boolean }
   | { type: 'accept-ai' }
   | { type: 'reject-ai' }
+  | { type: 'undo' }
+  | { type: 'redo' }
   // Native slash menu picked a block type — clears the typed "/" and converts.
   | { type: 'slash-select'; blockType: string; props?: Record<string, unknown> };
 
@@ -75,6 +77,11 @@ interface DocsEditorBridgeState {
 
   // DOM → Native AI review state (true while an AI suggestion awaits accept/reject)
   aiReviewPending: boolean;
+
+  // DOM → Native undo/redo availability (BlockNote's per-user collab undo stack),
+  // driving the enabled state of the native undo/redo buttons.
+  canUndo: boolean;
+  canRedo: boolean;
 
   // Native-only UI state
   sidebarOpen: boolean;
@@ -115,6 +122,7 @@ interface DocsEditorBridgeState {
   setDocSnapshot: (markdown: string, selectionText: string | null) => void;
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
   setAiReviewPending: (v: boolean) => void;
+  setUndoRedoState: (canUndo: boolean, canRedo: boolean) => void;
   toggleSidebar: () => void;
   toggleFullscreen: () => void;
   setFullscreen: (v: boolean) => void;
@@ -143,6 +151,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   docSelectionText: null,
   activeFormatting: { hasSelection: false, blockType: 'paragraph', blockProps: {} },
   aiReviewPending: false,
+  canUndo: false,
+  canRedo: false,
   sidebarOpen: false,
   lastSeenMessageCount: 0,
   fullscreen: false,
@@ -197,6 +207,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
       return { activeFormatting: formatting };
     }),
   setAiReviewPending: (v) => set((s) => (s.aiReviewPending === v ? s : { aiReviewPending: v })),
+  setUndoRedoState: (canUndo, canRedo) =>
+    set((s) => (s.canUndo === canUndo && s.canRedo === canRedo ? s : { canUndo, canRedo })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
   setFullscreen: (v) => set((s) => (s.fullscreen === v ? s : { fullscreen: v })),
