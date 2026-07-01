@@ -1,0 +1,87 @@
+# Keeps the long-lived `test-branch` in sync with `master`.
+#
+# Fires on every push to master (i.e. whenever a PR is merged) and fast-forwards
+# test-branch by merging master into it. `test-branch` is merge-based (never
+# squashed), so this is a regular merge — matching how we sync it by hand.
+#
+# Build note: for the resulting push to `test-branch` to trigger
+# build-images.yml, the checkout/push must use a PAT — GitHub deliberately does
+# NOT re-trigger workflows for pushes made with the default GITHUB_TOKEN. Set a
+# `TEST_BRANCH_SYNC_TOKEN` repo secret (a fine-grained PAT with `contents: write`
+# on this repo) and the Docker build runs automatically after each sync. Without
+# it, the code still syncs but you must trigger build-images.yml manually.
+name: Sync test-branch
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: {}
+
+# Serialize runs so two rapid master merges can't race on the same push.
+# Don't cancel in-progress: every merge should be applied, not dropped.
+concurrency:
+  group: sync-test-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0 # never run local git hooks (commitlint) in CI
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout test-branch (full history)
+        uses: actions/checkout@v5
+        with:
+          ref: test-branch
+          fetch-depth: 0
+          # PAT so the push re-triggers build-images.yml; GITHUB_TOKEN fallback
+          # keeps the code sync working even if the secret isn't set yet.
+          token: ${{ secrets.TEST_BRANCH_SYNC_TOKEN || github.token }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge master into test-branch
+        id: merge
+        run: |
+          git fetch origin master
+          if git merge-base --is-ancestor origin/master HEAD; then
+            echo "test-branch already contains master — nothing to do."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git merge origin/master --no-verify --no-edit \
+              -m "chore: sync test-branch with master"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Merge conflict merging master into test-branch — manual resolution required."
+            exit 1
+          fi
+
+      - name: Push test-branch
+        if: steps.merge.outputs.changed == 'true'
+        run: git push origin test-branch
+
+      - name: Open issue on conflict
+        if: failure() && steps.merge.outputs.conflict == 'true'
+        run: |
+          title="Sync failed: merge conflict master → test-branch"
+          body=$(printf '`master` could not be auto-merged into `test-branch` (conflict).\n\nResolve manually:\n```\ngit fetch origin\ngit switch test-branch\ngit merge origin/master   # resolve conflicts\ngit push origin test-branch\n```\n\nTriggered by %s. [Workflow run](%s/%s/actions/runs/%s).' \
+            "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --label "ci" 2>/dev/null \
+              || gh issue create --title "$title" --body "$body"
+          fi
