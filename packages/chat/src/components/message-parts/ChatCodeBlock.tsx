@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react';
 import { Check, Copy, Loader2, Play } from 'lucide-react';
-import type { ChatChartData } from '@gruenerator/ui';
+import { type ChatChartData } from '@gruenerator/ui';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';

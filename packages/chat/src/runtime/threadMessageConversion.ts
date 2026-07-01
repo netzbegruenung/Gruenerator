@@ -7,9 +7,13 @@
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
-import { coerceSharepicVariants } from '../hooks/useChatGraphStream';
-import type { GeneratedImage, Citation, SearchResult } from '../hooks/useChatGraphStream';
-import type { DocumentCreatedData } from '../types/messageMetadata';
+import {
+  coerceSharepicVariants,
+  type GeneratedImage,
+  type Citation,
+  type SearchResult,
+} from '../hooks/useChatGraphStream';
+import { type DocumentCreatedData } from '../types/messageMetadata';
 
 interface PersistedToolCall {
   toolCallId: string;
