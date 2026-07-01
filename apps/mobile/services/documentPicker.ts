@@ -8,6 +8,8 @@
 import { FILE_LIMITS, isSupportedFileType, isImageMimeType } from '@gruenerator/chat';
 import * as DocumentPicker from 'expo-document-picker';
 import { File as ExpoFile } from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 
 import { getGlobalApiClient } from './api';
@@ -76,6 +78,64 @@ export async function pickDocument(
  */
 export async function pickDocumentForScanner(): Promise<PickedDocument | null> {
   return pickDocument(SCANNER_TYPES);
+}
+
+/**
+ * Normalize an expo-image-picker asset to a JPEG PickedDocument. iOS captures
+ * HEIC/HEIF by default, which the chat backend rejects (only jpeg/png/webp) and
+ * the vision path ignores — so we re-encode every picked image to JPEG via
+ * expo-image-manipulator. This keeps the whole image pipeline on a format both
+ * the frontend validator and the backend vision model accept.
+ */
+async function imageAssetToPickedDocument(
+  asset: ImagePicker.ImagePickerAsset
+): Promise<PickedDocument> {
+  const jpeg = await ImageManipulator.manipulateAsync(asset.uri, [], {
+    compress: 0.9,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  const baseName = (asset.fileName || `foto-${Date.now()}`).replace(/\.[^.]+$/, '');
+  return {
+    uri: jpeg.uri,
+    name: `${baseName}.jpg`,
+    mimeType: 'image/jpeg',
+    // manipulateAsync results don't carry a byte size; 0 skips the size check,
+    // which is acceptable (compressed JPEGs are well under MAX_FILE_SIZE).
+    size: asset.fileSize || 0,
+  };
+}
+
+/**
+ * Pick an image from the photo library. Returns a PickedDocument (feed into
+ * validatePickedDocument + pickedDocumentToAttachment), or null if cancelled/denied.
+ */
+export async function pickImageFromLibrary(): Promise<PickedDocument | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Zugriff verweigert', 'Bitte erlaube den Zugriff auf deine Fotos.');
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 0.9,
+  });
+  if (result.canceled || !result.assets[0]) return null;
+  return imageAssetToPickedDocument(result.assets[0]);
+}
+
+/**
+ * Take a photo with the camera. Returns a PickedDocument, or null if
+ * cancelled/denied.
+ */
+export async function takePhoto(): Promise<PickedDocument | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Zugriff verweigert', 'Bitte erlaube den Zugriff auf die Kamera.');
+    return null;
+  }
+  const result = await ImagePicker.launchCameraAsync({ quality: 0.9 });
+  if (result.canceled || !result.assets[0]) return null;
+  return imageAssetToPickedDocument(result.assets[0]);
 }
 
 /**

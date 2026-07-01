@@ -7,8 +7,11 @@ import { View, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from
 import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import {
   pickDocument,
+  pickImageFromLibrary,
+  takePhoto,
   validatePickedDocument,
   pickedDocumentToAttachment,
+  type PickedDocument,
 } from '../../services/documentPicker';
 import { colors, spacing, borderRadius } from '../../theme';
 
@@ -128,19 +131,28 @@ export function AssistantComposer({
     [aui, mention]
   );
 
-  const handlePickFile = useCallback(async () => {
-    const doc = await pickDocument();
-    if (!doc) return;
-    if (!validatePickedDocument(doc)) return;
+  const attachPicked = useCallback(
+    async (pending: Promise<PickedDocument | null>) => {
+      // `await pending` is inside the try so a native picker/manipulator
+      // rejection (camera unavailable, permission API throwing, HEIC→JPEG
+      // failure) surfaces as an Alert instead of an unhandled promise rejection.
+      try {
+        const doc = await pending;
+        if (!doc) return;
+        if (!validatePickedDocument(doc)) return;
+        const attachment = await pickedDocumentToAttachment(doc);
+        await aui.composer().addAttachment(attachment);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
+        Alert.alert('Anhang fehlgeschlagen', msg);
+      }
+    },
+    [aui]
+  );
 
-    try {
-      const attachment = await pickedDocumentToAttachment(doc);
-      await aui.composer().addAttachment(attachment);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
-      Alert.alert('Anhang fehlgeschlagen', msg);
-    }
-  }, [aui]);
+  const handlePickFile = useCallback(() => attachPicked(pickDocument()), [attachPicked]);
+  const handlePickImage = useCallback(() => attachPicked(pickImageFromLibrary()), [attachPicked]);
+  const handleTakePhoto = useCallback(() => attachPicked(takePhoto()), [attachPicked]);
 
   return (
     <ComposerPrimitive.Root
@@ -243,6 +255,8 @@ export function AssistantComposer({
         visible={actionSheetVisible}
         onClose={() => setActionSheetVisible(false)}
         onPickFile={handlePickFile}
+        onPickImage={handlePickImage}
+        onTakePhoto={handleTakePhoto}
         onOpenDocBrowser={onOpenDocBrowser}
       />
     </ComposerPrimitive.Root>
