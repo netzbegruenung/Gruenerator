@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 
-import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../primitives';
+import { ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 import { ImageInputPicker } from './tools/ImageInputPicker';
 
 import type { FrameInstance } from '../../utils/frameUtils';
