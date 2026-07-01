@@ -1,8 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { formatResearchWrapperContext, formatSearchContext } from './respondNode.js';
+import {
+  formatResearchWrapperContext,
+  formatSearchContext,
+  getModeGuidance,
+} from './respondNode.js';
 
-import type { ChatGraphState, ResearchToolResult, SearchResult } from '../types.js';
+import type { ChatGraphState, ComputeData, ResearchToolResult, SearchResult } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -80,6 +84,40 @@ describe('formatResearchWrapperContext', () => {
     expect(out).toContain('…');
     // Ensures we don't dump the entire synthesis (which the model would then echo)
     expect(out.length).toBeLessThan(2000);
+  });
+});
+
+function makeComputeResult(overrides: Partial<ComputeData> = {}): ComputeData {
+  return {
+    operation: 'Zeichen zählen',
+    entries: [
+      { label: 'Zeichen (inkl. Leerzeichen)', value: '591' },
+      { label: 'Wörter (durch Leerzeichen getrennt)', value: '100' },
+    ],
+    summary: '591 Zeichen (inkl. Leerzeichen), 100 Wörter, 1 Zeile.',
+    ...overrides,
+  };
+}
+
+describe('getModeGuidance for compute intent', () => {
+  it('when a result exists: tells the model to answer conversationally and NEVER ask the user for it', () => {
+    const out = getModeGuidance(
+      makeState({ intent: 'compute', computedResult: makeComputeResult() })
+    );
+    // The prose is the real answer, not a stub next to the card.
+    expect(out).toContain('Beantworte die konkrete Frage');
+    expect(out).toContain('Verneine NICHT');
+    expect(out).toContain('bitte NIEMALS um das Ergebnis');
+    // Regression guard: the fallback "ask for precision" wording must NOT leak
+    // into the prompt when a number is already available — that clause is what
+    // made the model deny "591 Zeichen" while the card showed it.
+    expect(out).not.toContain('bitte um eine Präzisierung');
+  });
+
+  it('when no result exists: uses the fallback that asks for precision, without an anti-denial line', () => {
+    const out = getModeGuidance(makeState({ intent: 'compute', computedResult: null }));
+    expect(out).toContain('bitte um eine Präzisierung');
+    expect(out).not.toContain('Verneine NICHT');
   });
 });
 
