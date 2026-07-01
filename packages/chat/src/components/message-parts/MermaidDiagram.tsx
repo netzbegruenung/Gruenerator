@@ -1,54 +1,66 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Mermaid is heavy (~500kb) and only needed when a diagram actually appears, so
-// it is lazy-imported and initialized once on first use.
+// the module is lazy-imported once. Theme is applied per render (not baked into
+// this cached import) so light/dark toggles re-theme diagrams.
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null;
 
-function loadMermaid(dark: boolean): Promise<typeof import('mermaid').default> {
+function loadMermaid(): Promise<typeof import('mermaid').default> {
   if (!mermaidPromise) {
-    mermaidPromise = import('mermaid').then(({ default: mermaid }) => {
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'strict',
-        theme: dark ? 'dark' : 'default',
-      });
-      return mermaid;
-    });
+    mermaidPromise = import('mermaid').then(({ default: mermaid }) => mermaid);
   }
   return mermaidPromise;
 }
 
-function isDarkMode(): boolean {
-  if (typeof document === 'undefined') return false;
-  return document.documentElement.classList.contains('dark');
+// Monotonic id for mermaid.render — must be unique per call and DOM-id-safe.
+let renderSeq = 0;
+
+/** Track the app's dark mode by observing the `dark` class / `data-theme`
+ *  attribute on <html>, so a theme toggle re-renders the diagram. */
+function useIsDark(): boolean {
+  const [dark, setDark] = useState(
+    () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const el = document.documentElement;
+    const update = () => setDark(el.classList.contains('dark'));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(el, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
 }
 
 /**
  * Renders a ```mermaid code block as an SVG diagram. While a message is still
  * streaming the code is often syntactically incomplete, so rendering is
- * debounced and any parse error silently falls back to the raw code — the
- * diagram appears once the block is valid.
+ * debounced and a parse error keeps the last good render (or the raw code until
+ * the first valid one) — nothing ever crashes or flickers to raw mid-stream.
  */
 export function MermaidDiagram({ code }: { code: string }) {
-  const reactId = useId();
-  const renderId = `mermaid-${reactId.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const dark = useIsDark();
   const [svg, setSvg] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
-      const dark = isDarkMode();
-      loadMermaid(dark)
-        .then((mermaid) => mermaid.render(`${renderId}-${Date.now()}`, code))
+      loadMermaid()
+        .then((mermaid) => {
+          // Re-initialize per render so the current theme is applied.
+          mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: 'strict',
+            theme: dark ? 'dark' : 'default',
+          });
+          return mermaid.render(`mermaid-${(renderSeq += 1)}`, code);
+        })
         .then(({ svg: rendered }) => {
-          if (!active) return;
-          setSvg(rendered);
-          setFailed(false);
+          if (active) setSvg(rendered);
         })
         .catch(() => {
-          if (!active) return;
-          setFailed(true);
+          /* keep the last good render; raw code shows until the first valid one */
         });
     }, 300);
 
@@ -56,11 +68,9 @@ export function MermaidDiagram({ code }: { code: string }) {
       active = false;
       clearTimeout(timer);
     };
-  }, [code, renderId]);
+  }, [code, dark]);
 
-  // Show the rendered diagram once available. Until then (or on parse error
-  // during streaming) fall back to the raw source so nothing ever crashes.
-  if (svg && !failed) {
+  if (svg) {
     return (
       <div
         className="flex justify-center overflow-x-auto p-4"
