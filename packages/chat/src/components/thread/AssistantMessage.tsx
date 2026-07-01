@@ -8,6 +8,7 @@ import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
+import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { useProgressDisplay } from '../message-parts/progressDisplayContext';
@@ -33,6 +34,9 @@ import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
   const isCompact = useChatDensity() === 'compact';
+  // Expose streaming state to descendants (ChatCodeBlock auto-runs a spreadsheet
+  // block only once the message has finished streaming).
+  const isStreaming = useMessage().status?.type === 'running';
   return (
     <div
       className={
@@ -41,7 +45,9 @@ function AssistantMessageTextPart() {
           : 'prose prose-sm max-w-none min-w-0 break-words'
       }
     >
-      <CitationMarkdownText />
+      <MessageStreamingProvider value={isStreaming}>
+        <CitationMarkdownText />
+      </MessageStreamingProvider>
     </div>
   );
 }

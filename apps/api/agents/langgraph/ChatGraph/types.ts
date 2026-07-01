@@ -324,6 +324,12 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /**
+   * A spreadsheet result the client already computed in the browser (Pyodide).
+   * Injected via formatComputedResultContext so the model treats it as ground
+   * truth on follow-up turns instead of re-deriving it.
+   */
+  computedResult?: ComputeData | undefined;
   notebookIds?: string[] | undefined;
   /**
    * Document IDs already resolved from user-owned notebook UUIDs. The controller

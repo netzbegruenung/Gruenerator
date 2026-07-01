@@ -886,8 +886,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Chart generation (will be set by chart node)
     chartData: null,
 
-    // Deterministic computation (will be set by computeNode)
-    computedResult: null,
+    // Deterministic computation: seeded from a client-side spreadsheet result
+    // when present (follow-up turns), otherwise set by computeNode.
+    computedResult: input.computedResult ?? null,
     computedResultTimeMs: 0,
 
     // Response (will be set by respond node)
