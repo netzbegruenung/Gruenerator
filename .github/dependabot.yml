@@ -646,6 +646,66 @@ updates:
           - '*'
 
   # =============================================================================
+  # CONTRACTS PACKAGE (packages/contracts)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/contracts'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '18:30'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'contracts'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # CORE PACKAGE (packages/core)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/core'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '19:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'core'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # SITES PACKAGE (packages/sites)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/sites'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '19:30'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'sites'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
   # GITHUB ACTIONS - CI/CD workflows (DAILY for security)
   # =============================================================================
   - package-ecosystem: 'github-actions'
