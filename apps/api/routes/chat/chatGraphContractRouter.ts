@@ -23,6 +23,7 @@ import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
 import { searchChatHistory } from './services/chatSearchService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
@@ -756,6 +757,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           sse.send('chart_data', { chart: chartData });
           log.info(
             `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
+          );
+        }
+      }
+
+      // === Stage 3b': Extract generic artifact (HTML/SVG) from response ===
+      // Explicit `artifact` intent → surface any valid block. Any other intent
+      // → auto-detect, but only a *complete* HTML/SVG document (not an
+      // illustrative snippet), so a normal answer with an example ```html block
+      // doesn't spuriously dock a panel. Skip `chart` (own ```chart fence).
+      if (finalState.intent !== 'chart') {
+        const artifact = extractArtifactFromResponse(fullText, {
+          isArtifactIntent: finalState.intent === 'artifact',
+        });
+        if (artifact) {
+          sse.send('artifact', { artifact });
+          log.info(
+            `[ChatGraph] Artifact extracted: ${artifact.type} (${artifact.content.length} chars)`
           );
         }
       }
