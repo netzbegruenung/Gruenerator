@@ -60,6 +60,7 @@ const NOTEBOOK_PATHS = {
   'oesterreich-notebook': '/notebooks/oesterreich',
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',
+  'abgeordnetenwatch-notebook': '/notebooks/abgeordnetenwatch',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
 } satisfies Record<NotebookId, string>;
 

@@ -199,6 +199,40 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     recallLimit: 60,
     filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
   },
+  'abgeordnetenwatch-system': {
+    id: 'abgeordnetenwatch-system',
+    qdrantCollection: 'abgeordnetenwatch_documents',
+    name: 'Abgeordnetenwatch',
+    description:
+      'Namentliche Abstimmungen (mit Grünen-Votum) und Nebentätigkeiten von Abgeordneten',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      {
+        field: 'content_type',
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: { abstimmung: 'Abstimmung', nebentaetigkeit: 'Nebentätigkeit' },
+      },
+      { field: 'primary_category', label: 'Thema / Branche', type: 'keyword' },
+      { field: 'parliament', label: 'Parlament', type: 'keyword' },
+      { field: 'party', label: 'Partei', type: 'keyword' },
+      {
+        field: 'gruene_vote',
+        label: 'Grüne-Votum',
+        type: 'keyword',
+        valueLabels: {
+          ja: 'Ja',
+          nein: 'Nein',
+          enthaltung: 'Enthaltung',
+          uneinheitlich: 'Uneinheitlich',
+          keine: 'Keine',
+        },
+      },
+      { field: 'income_level', label: 'Einkommensstufe', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+  },
   'gruene-de-system': {
     id: 'gruene-de-system',
     qdrantCollection: 'gruene_de_documents',
