@@ -54,6 +54,7 @@ import type {
   ThreadAttachment,
   UserLocale,
   ChartData,
+  ComputeData,
   ResearchToolResult,
   ExamplesToolResult,
   DocumentSource,
@@ -371,6 +372,14 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
+  // Deterministic computation (compute intent)
+  computedResult: Annotation<ComputeData | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+  computedResultTimeMs: Annotation<number>({
+    reducer: (x, y) => y ?? x ?? 0,
+  }),
+
   // Response generation
   responseText: Annotation<string>({
     reducer: (x, y) => y ?? x,
@@ -475,6 +484,13 @@ function routeAfterClassification(
     return 'respond';
   }
 
+  // Compute intent = route to respond; the controller runs computeNode (plain-JS
+  // calculation) in the pipeline and injects the verified result into the prompt.
+  if (intent === 'compute') {
+    log.info('[ChatGraph] Route: classifier → respond (compute handled by controller)');
+    return 'respond';
+  }
+
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
   // edit_current_doc also falls here: respondNode generates a brief confirmation
   // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
@@ -507,6 +523,7 @@ function routeAfterClassification(
     summary: 'summary',
     chart: 'chart',
     artifact: 'artifact',
+    compute: 'compute',
     save_as_doc: 'save_as_doc',
     modify_doc: 'modify_doc',
     edit_current_doc: 'edit_current_doc',
@@ -863,6 +880,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Chart generation (will be set by chart node)
     chartData: null,
+
+    // Deterministic computation (will be set by computeNode)
+    computedResult: null,
+    computedResultTimeMs: 0,
 
     // Response (will be set by respond node)
     responseText: '',

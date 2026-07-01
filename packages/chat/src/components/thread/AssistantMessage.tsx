@@ -15,6 +15,7 @@ import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
+import { ComputeCard } from '../message-parts/ComputeCard';
 import { ChatChart } from '../message-parts/ChatChart';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -233,6 +234,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
         {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
+        {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
 
         {!isStreaming && custom?.confirmAction && (
           <ConfirmActionCard action={custom.confirmAction} />
