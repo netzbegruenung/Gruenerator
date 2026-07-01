@@ -1,9 +1,39 @@
-import { type ReactNode, isValidElement, useCallback, useEffect, useState } from 'react';
+import {
+  type ReactNode,
+  Suspense,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Check, Copy, Loader2, Play } from 'lucide-react';
+import type { ChatChartData } from '@gruenerator/ui';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';
 import { MermaidDiagram } from './MermaidDiagram';
+import { LazyChatChart } from './LazyChatChart';
+
+/** Parse a ```chart fenced block's JSON into a renderable chart, or null if the
+ *  payload is malformed / not chart-shaped (then we fall back to a code view). */
+function parseChart(code: string): ChatChartData | null {
+  try {
+    const parsed = JSON.parse(code) as Partial<ChatChartData>;
+    if (
+      parsed &&
+      typeof parsed.type === 'string' &&
+      Array.isArray(parsed.data) &&
+      typeof parsed.xKey === 'string' &&
+      Array.isArray(parsed.yKeys)
+    ) {
+      return parsed as ChatChartData;
+    }
+  } catch {
+    /* malformed JSON — fall through to the plain code block */
+  }
+  return null;
+}
 
 /** Recursively collect the text content of react-markdown's nested children. */
 function toText(node: ReactNode): string {
@@ -41,9 +71,13 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   // Only Python runs, and only where a host injected runPython (web, not native).
   const canRun = language === 'python' && !!runPython;
   const isMermaid = language === 'mermaid';
+  // Charts render from the same ```chart block whether streaming live or reloaded
+  // from history — the block is persisted in the message text, so there is one
+  // render path. A malformed payload falls back to the normal code view.
+  const chart = useMemo(() => (language === 'chart' ? parseChart(code) : null), [language, code]);
 
   useEffect(() => {
-    if (isMermaid) return;
+    if (isMermaid || chart) return;
     let active = true;
     highlightCode(code, language)
       .then((result) => {
@@ -55,7 +89,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [code, language]);
+  }, [code, language, isMermaid, chart]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(code).then(() => {
@@ -83,6 +117,20 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
       setRunning(false);
     }
   }, [code, runPython, pythonFiles]);
+
+  if (chart) {
+    return (
+      <Suspense
+        fallback={
+          <div className="my-3 flex min-h-[240px] items-center justify-center rounded-lg border border-border bg-card">
+            <Loader2 className="h-5 w-5 animate-spin text-foreground-muted" />
+          </div>
+        }
+      >
+        <LazyChatChart data={chart} />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-code-block-bg">
