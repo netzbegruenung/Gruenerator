@@ -72,7 +72,6 @@ export class OffboardingService {
   async *processUserBatches(): AsyncGenerator<BatchUpdateEntry[]> {
     const upserts: BatchUpdateEntry[] = [];
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- fetchOffboardingUsers is an async generator (async-iterable)
     for await (const user of this.fetchOffboardingUsers()) {
       try {
         const result = await this.grueneratorOffboarding.processUser(user);
@@ -133,7 +132,6 @@ export class OffboardingService {
       success = false;
     }
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- processUserBatches is an async generator (async-iterable)
     for await (const batch of this.processUserBatches()) {
       for (const entry of batch) {
         counts[entry.status] = (counts[entry.status] || 0) + 1;
@@ -197,7 +195,6 @@ export class OffboardingService {
 
     log.info('Starting Grünerator offboarding DRY RUN (no changes will be made)');
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- fetchOffboardingUsers is an async generator (async-iterable)
     for await (const user of this.fetchOffboardingUsers()) {
       try {
         const grueneratorUser = await this.grueneratorOffboarding.findUserInGruenerator(user);
