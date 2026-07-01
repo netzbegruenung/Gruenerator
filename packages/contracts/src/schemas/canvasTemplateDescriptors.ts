@@ -11,14 +11,57 @@
  * Parity guards live in `packages/canvas-editor/src/ai/descriptorParity.vitest.ts`
  * (color schemes / background colors / state keys against the real configs).
  */
+import { z } from 'zod';
+
 import {
   type CanvasAiCapabilities,
   type CanvasAiOperation,
   type CanvasAiSnapshot,
 } from './canvasAi.js';
 
+/**
+ * Canonical, closed set of canvas template ("sharepic") types — the single
+ * source of truth shared across api / chat / web. These are the mintable
+ * template types (the keys of the web `CANVAS_TYPE_FIELDS` map). Anything that
+ * crosses a boundary as a "canvasType" / "template_type" should be validated
+ * against this enum so an unknown/empty value is rejected where it enters,
+ * rather than silently flowing through to the canvas mint.
+ *
+ * NOT included: KI types (`green-edit`, …) which are FLUX-image flows, and
+ * `presentation`, which is not minted through the sharepic handoff.
+ */
+export const CANVAS_TEMPLATE_TYPES = [
+  'dreizeilen',
+  'zitat',
+  'zitat-pure',
+  'info',
+  'veranstaltung',
+  'veranstaltung-plakat',
+  'simple',
+  'slider',
+  'profilbild',
+  'freeform',
+] as const;
+export const canvasTemplateTypeSchema = z.enum(CANVAS_TEMPLATE_TYPES);
+export type CanvasTemplateType = z.infer<typeof canvasTemplateTypeSchema>;
+
+const CANVAS_TEMPLATE_TYPE_SET: ReadonlySet<string> = new Set(CANVAS_TEMPLATE_TYPES);
+/**
+ * Runtime guard. Uses a module-level Set lookup (not `schema.safeParse`, which
+ * allocates a result object per call) since this runs per-variant in SSE/thread
+ * hot paths — see `coerceSharepicVariants`.
+ */
+export const isCanvasTemplateType = (value: unknown): value is CanvasTemplateType =>
+  typeof value === 'string' && CANVAS_TEMPLATE_TYPE_SET.has(value);
+
 export const SHAREPIC_EDITABLE_TEMPLATES = ['dreizeilen', 'zitat-pure', 'info', 'slider'] as const;
 export type SharepicEditableTemplate = (typeof SHAREPIC_EDITABLE_TEMPLATES)[number];
+
+// Compile-time guard: every chat-editable template must be a canonical canvas
+// template type. If this fails, reconcile the two lists above.
+type _AssertEditableSubset = SharepicEditableTemplate extends CanvasTemplateType ? true : never;
+const _assertEditableSubset: _AssertEditableSubset = true;
+void _assertEditableSubset;
 
 export interface SharepicTextFieldDescriptor {
   /** Field identifier the LLM targets (`set-text` / `set-font-size`). */
