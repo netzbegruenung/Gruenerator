@@ -468,6 +468,13 @@ function routeAfterClassification(
     return 'respond';
   }
 
+  // Artifact intent = route to respond; the controller extracts the HTML/SVG
+  // block from the response and emits it as an `artifact` SSE event.
+  if (intent === 'artifact') {
+    log.info('[ChatGraph] Route: classifier → respond (artifact handled by controller)');
+    return 'respond';
+  }
+
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
   // edit_current_doc also falls here: respondNode generates a brief confirmation
   // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
@@ -499,6 +506,7 @@ function routeAfterClassification(
     sharepic: 'sharepic',
     summary: 'summary',
     chart: 'chart',
+    artifact: 'artifact',
     save_as_doc: 'save_as_doc',
     modify_doc: 'modify_doc',
     edit_current_doc: 'edit_current_doc',
