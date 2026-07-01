@@ -160,7 +160,13 @@ export const chatStreamBodySchema = z.object({
 
 export const chatResumeBodySchema = z.object({
   threadId: z.string(),
-  resume: z.string(),
+  // ask_human path (legacy, still used): the human's answer string.
+  resume: z.string().optional(),
+  // Generic client-tool path: the tool that was executed client-side and its
+  // result (e.g. run_python → stdout). Kept separate from `resume` so the
+  // ask_human flow is untouched.
+  toolName: z.string().optional(),
+  result: z.unknown().optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
