@@ -1,6 +1,6 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 
-import { getCanvasTypeFields } from '../utils/canvasTypeFields';
+import { getCanvasTypeFields, isMintableCanvasType } from '../utils/canvasTypeFields';
 
 import { uploadBlobToMediaLibrary } from './mediaUploadService';
 
@@ -82,8 +82,14 @@ async function buildInitialState(
 }
 
 export async function mintCanvasFromStudioStore(state: ImageStudioState): Promise<{ id: string }> {
-  if (!state.type) {
-    throw new Error('Cannot mint canvas: no template type selected');
+  // Last-resort assertion. The upstream boundaries (chat SSE validation, the
+  // handoff guard, and the validating `setType`) should already guarantee a
+  // mintable type reaches here — but keep the check so a regression fails
+  // loudly and locally instead of creating a broken canvas.
+  if (!state.type || !isMintableCanvasType(state.type)) {
+    throw new Error(
+      `Cannot mint canvas: "${state.type ?? 'none'}" is not a mintable template type`
+    );
   }
 
   const initial_state = await buildInitialState(state, state.type);
