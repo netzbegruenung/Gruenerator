@@ -1,12 +1,6 @@
-import { yUndoPluginKey } from 'y-prosemirror';
-
 import { useEditorStore } from '../stores/editorStore';
+import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState';
 import { getDocAIExtension, isDocAIForked } from './aiExtension';
-
-// BlockNote's editor exposes the live ProseMirror state; y-prosemirror's undo
-// plugin state hangs off it. Loosely typed because BlockNote's editor type is
-// not exported through our AI trust boundary (see aiExtension.ts).
-type EditorWithPmState = { prosemirrorState?: unknown };
 
 /**
  * - 'merged': accepted and (as far as detectable) broadcast to collaborators
@@ -68,12 +62,9 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   // updates (i.e. future AI merges) stay undoable, which is exactly the goal.
   const onBeforeTransaction = (tx: { origin: unknown }) => {
     if (editor && tx.origin === editor) {
-      const pmState = (editor as EditorWithPmState).prosemirrorState;
-      // Boundary cast: BlockNote does not export its ProseMirror EditorState
-      // type across our AI trust boundary, and `editor` is the loosely-typed
-      // store editor. addTrackedOrigin accepts any origin.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      yUndoPluginKey.getState(pmState as any)?.undoManager?.addTrackedOrigin(editor);
+      // getDocUndoManager centralizes the y-prosemirror plugin-state reach (see
+      // useDocUndoState). addTrackedOrigin accepts any origin.
+      getDocUndoManager(editor as unknown as UndoableEditor)?.addTrackedOrigin(editor);
     }
   };
   ydoc?.on('beforeTransaction', onBeforeTransaction);

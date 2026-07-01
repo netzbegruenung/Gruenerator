@@ -55,6 +55,7 @@ export { usePendingDocAI } from './hooks/usePendingDocAI';
 export {
   useDocUndoState,
   getDocUndoFlags,
+  getDocUndoManager,
   type DocUndoState,
   type UndoableEditor,
 } from './hooks/useDocUndoState';
