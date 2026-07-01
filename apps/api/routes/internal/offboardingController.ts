@@ -154,7 +154,6 @@ router.post('/dry-run', requireAdmin, async (req: AdminRequest, res: Response): 
 
     let count = 0;
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- fetchOffboardingUsers is an async generator (async-iterable)
     for await (const user of service.fetchOffboardingUsers()) {
       if (count >= limit) break;
 
