@@ -672,8 +672,20 @@ Regeln:
 - Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
 - Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
 
-const COMPUTE_GUIDANCE =
-  '\nDer*die Nutzer*in hat eine Berechnung oder Zählung angefordert. Wenn unten ein BERECHNUNGSERGEBNIS steht, präsentiere GENAU diese Zahlen — übernimm sie unverändert und rechne/zähle NICHT selbst nach. Wenn KEIN Berechnungsergebnis vorliegt, erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung. Erfinde niemals eine Zahl.';
+// Compute guidance is state-aware (mirrors image/image_edit): when a
+// deterministic result exists it is ALSO rendered as a card, so the model must
+// present it and never deny the capability. The static version bundled both
+// branches into one string, and the model latched onto the "if no result, ask
+// the user for it" clause even when a result was present — producing a denial
+// ("könnten Sie mir bitte das Berechnungsergebnis mitteilen?") next to a correct
+// card. Splitting on `computedResult` keeps the fallback wording out of the
+// prompt entirely when a number is available.
+function getComputeGuidance(state: ChatGraphState): string {
+  if (state.computedResult) {
+    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten) und dem*der Nutzer*in als Karte angezeigt. Präsentiere GENAU diese Zahlen in einem kurzen, natürlichen Satz und übernimm sie unverändert. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor. Rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl.';
+  }
+  return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert, aber es konnte kein sicheres Ergebnis ermittelt werden. Erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung (z.B. den genauen Text oder Ausdruck). Erfinde niemals eine Zahl.';
+}
 
 const IMAGE_FAILED_GUIDANCE =
   '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
@@ -725,7 +737,7 @@ function getSynthesisGuidance(state: ChatGraphState): string {
   return `\n\n## MEHR-DOKUMENT-KONTEXT\n\nDer*die Nutzer*in hat ${sources.length} Dokumente referenziert:\n${docList}\n\nAntworte als zusammenhängende Prosa, aber:\n1. Stütze jede Kernaussage durch eine Inline-Quellenreferenz [N].\n2. Wenn ein Dokument zur Frage relevant ist, muss es mindestens einmal zitiert werden — sonst kennzeichne explizit, dass es im jeweiligen Punkt schweigt.\n3. Mische nicht stillschweigend Quellen — der*die Leser*in soll erkennen können, welches Dokument welche Aussage stützt.\n4. Genderstern verwenden.`;
 }
 
-function getModeGuidance(state: ChatGraphState): string {
+export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
       return EDIT_CURRENT_DOC_GUIDANCE;
@@ -736,7 +748,7 @@ function getModeGuidance(state: ChatGraphState): string {
     case 'artifact':
       return ARTIFACT_GUIDANCE;
     case 'compute':
-      return COMPUTE_GUIDANCE;
+      return getComputeGuidance(state);
     case 'image':
       return state.generatedImage
         ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
