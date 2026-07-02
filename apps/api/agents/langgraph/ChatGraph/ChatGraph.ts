@@ -150,6 +150,10 @@ const ChatStateAnnotation = Annotation.Root({
   connectFiles: Annotation<ConnectFileRef[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  attachedWebpageUrls: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+    default: () => [],
+  }),
   // Current open document in the docs editor (primary context for docs surface)
   currentDocument: Annotation<CurrentDocument | null>({
     reducer: (x, y) => y ?? x ?? null,
@@ -769,6 +773,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
+
+    // URLs attached via @web mentionable (unioned into detectedUrls by classifier)
+    attachedWebpageUrls: input.attachedWebpageUrls || [],
 
     // Current open document (docs editor surface)
     currentDocument: input.currentDocument || null,

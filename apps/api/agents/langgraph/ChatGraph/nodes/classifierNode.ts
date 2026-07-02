@@ -113,7 +113,12 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     scrapeWhitelist.includes('scrape') ||
     scrapeWhitelist.includes('scrape_url');
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
-  const detectedUrls = scrapeEnabled ? extractUrls(userText) : [];
+  // @web-attached URLs are explicit user intent — union them with auto-detected
+  // ones (deduped, attached first so they rank highest in scrape_url).
+  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  const detectedUrls = scrapeEnabled
+    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    : [];
   if (detectedUrls.length > 0) {
     if (!intent || intent === 'direct') {
       intent = 'scrape_url';

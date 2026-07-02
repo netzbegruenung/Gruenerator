@@ -69,6 +69,9 @@ describe('buildRequestBody', () => {
     currentSharepic: null,
     currentReel: null,
     reelUpload: null,
+    webpageUrls: [],
+    regenerate: false,
+    replaceFromMessageId: undefined,
     ...overrides,
   });
 
