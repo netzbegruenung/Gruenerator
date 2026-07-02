@@ -15,6 +15,8 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
+import { lastUserText } from './pandasComputeNode.js';
+
 import type { ChatGraphState, ComputeData } from '../types.js';
 
 const log = createLogger('ChatGraph:ComputeVerifier');
@@ -58,12 +60,20 @@ export async function computeVerifierNode(
   state: ChatGraphState,
   result: ComputeData
 ): Promise<VerifierVerdict> {
-  const question = state.searchQuery || '';
+  // RAW question, not searchQuery: the retrieval rewrite (or null on
+  // direct/summary/chart intents) would make the verifier judge against the
+  // wrong question — or silently no-op on exactly the gate-widened paths.
+  const question = lastUserText(state) || state.searchQuery || '';
   const code = state.pandasLastCode || '';
   if (!question || !code) return { plausible: true };
 
   try {
-    const entriesText = result.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
+    // Bounded: a bare df print can put the whole table into one entry value —
+    // the plausibility judgement doesn't need megabytes of context.
+    const entriesText = result.entries
+      .map((e) => `- ${e.label}: ${e.value}`)
+      .join('\n')
+      .slice(0, 1500);
     const userMessage = `Frage: ${question}
 
 Ausgeführter Code:

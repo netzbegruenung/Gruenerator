@@ -10,7 +10,9 @@ vi.mock('../../../../utils/logger.js', () => ({
 
 function makeState(llmContent: string): ChatGraphState {
   return {
-    searchQuery: 'wie hoch ist der gesamtumsatz?',
+    messages: [{ role: 'user', content: 'wie hoch ist der gesamtumsatz?' }],
+    // Retrieval rewrite — the verifier must judge against the RAW question.
+    searchQuery: 'Gesamtumsatz Unternehmen Statistik Bericht',
     pandasLastCode: 'print("Gesamtumsatz:", df["Umsatz"].sum())',
     aiWorkerPool: { processRequest: vi.fn().mockResolvedValue({ content: llmContent }) },
   } as unknown as ChatGraphState;
@@ -54,7 +56,9 @@ describe('computeVerifierNode', () => {
     });
     const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
       .processRequest.mock.calls[0][0];
+    // RAW user question, not the retrieval rewrite in searchQuery.
     expect(call.messages[0].content).toContain('wie hoch ist der gesamtumsatz?');
+    expect(call.messages[0].content).not.toContain('Statistik Bericht');
     expect(call.messages[0].content).toContain('df["Umsatz"].sum()');
     expect(call.messages[0].content).toContain('147583.79');
     expect(call.options.response_format).toEqual({ type: 'json_object' });
@@ -75,5 +79,14 @@ describe('computeVerifierNode', () => {
     expect(
       (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> }).processRequest
     ).not.toHaveBeenCalled();
+  });
+
+  it('falls back to searchQuery when there is no user message', async () => {
+    const state = makeState('{"plausible": true}');
+    (state as unknown as { messages: unknown[] }).messages = [];
+    expect(await computeVerifierNode(state, RESULT)).toEqual({ plausible: true });
+    const call = (state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> })
+      .processRequest.mock.calls[0][0];
+    expect(call.messages[0].content).toContain('Gesamtumsatz Unternehmen Statistik Bericht');
   });
 });

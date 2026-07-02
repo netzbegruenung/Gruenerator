@@ -93,8 +93,9 @@ function buildTableContext(state: ChatGraphState): string {
 
 /** The user's RAW last message. Preferred over searchQuery: when the router's
  *  regex gate fires on a search-classified follow-up, searchQuery holds the
- *  retrieval-optimized rewrite — codegen must answer the actual question. */
-function lastUserText(state: ChatGraphState): string {
+ *  retrieval-optimized rewrite (or null for direct/summary/chart intents) —
+ *  codegen AND the verifier must judge against the actual question. */
+export function lastUserText(state: ChatGraphState): string {
   const msg = [...state.messages].reverse().find((m) => m.role === 'user');
   return msg ? extractMessageText(msg.content) : '';
 }

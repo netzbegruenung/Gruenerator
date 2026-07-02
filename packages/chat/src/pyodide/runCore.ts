@@ -90,6 +90,26 @@ try:
     _gruen_ns
 except NameError:
     _gruen_ns = {}
+try:
+    _gruen_files_fp
+except NameError:
+    _gruen_files_fp = None
+
+# The worker is a page-lifetime singleton, so without a reset seam the
+# namespace (and old files in the FS) would leak ACROSS THREADS: switching to
+# a different spreadsheet could silently compute with the previous thread's
+# variables. The input-file fingerprint (names+sizes) is the session key —
+# when it changes, wipe the namespace and every stale file in the cwd.
+if __files_fp != _gruen_files_fp:
+    _gruen_ns = {}
+    _gruen_files_fp = __files_fp
+    _keep = set(__input_files)
+    for _n in os.listdir('.'):
+        if _n not in _keep and os.path.isfile(_n):
+            try:
+                os.remove(_n)
+            except OSError:
+                pass
 _ns = _gruen_ns
 
 # Snapshot the working directory (name → mtime) so files the USER CODE writes
@@ -234,6 +254,15 @@ export async function runPythonCore(
     py.globals.set(
       '__input_files',
       files.map((f) => f.name)
+    );
+    // Session key for the namespace-reset seam: a different file set (thread
+    // switch, replaced upload) wipes the persistent namespace + stale files.
+    py.globals.set(
+      '__files_fp',
+      files
+        .map((f) => `${f.name}:${f.bytes.byteLength}`)
+        .sort()
+        .join('|')
     );
 
     const harnessJson = (await py.runPythonAsync(HARNESS)) as string;
