@@ -624,6 +624,7 @@ export async function executeIntentPipeline(opts: {
       const computeResult = await computeNode(finalState);
       finalState = { ...finalState, ...computeResult } as ChatGraphState;
       if (finalState.computedResult) {
+        finalState.computedResultFresh = true;
         sse.send('compute', { compute: finalState.computedResult });
       }
     } else if (

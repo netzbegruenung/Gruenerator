@@ -6,7 +6,7 @@
  * topic) or by running search + response generation for non-sharepic intents.
  */
 
-import { type chatGraphContract } from '@gruenerator/contracts';
+import { computePayloadSchema, type chatGraphContract } from '@gruenerator/contracts';
 
 import {
   buildSystemMessage,
@@ -66,12 +66,10 @@ export async function runChatGraphResume({
     if (!resumeInput) {
       return sseFail(sse, 'Ungültige Resume-Anfrage.');
     }
-    // Client-tool resume (e.g. run_python) is wired in a follow-up step; until
-    // then only the ask_human clarification path is handled here.
-    if (resumeInput.kind !== 'ask_human') {
+    if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
       return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.');
     }
-    const userAnswer = resumeInput.answer;
+    const userAnswer = resumeInput.kind === 'ask_human' ? resumeInput.answer : null;
 
     const user = getUser(req);
     if (!user?.id) {
@@ -95,12 +93,41 @@ export async function runChatGraphResume({
       return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable);
     }
 
-    log.info(`[ChatGraph:Resume] Thread ${threadId}, answer: "${userAnswer.slice(0, 80)}"`);
+    log.info(
+      `[ChatGraph:Resume] Thread ${threadId}, ${
+        resumeInput.kind === 'ask_human'
+          ? `answer: "${(userAnswer ?? '').slice(0, 80)}"`
+          : `client tool: ${resumeInput.toolName}`
+      }`
+    );
 
     classifiedState.needsClarification = false;
-    classifiedState.searchQuery = userAnswer;
     classifiedState.clarificationQuestion = null;
     classifiedState.clarificationOptions = null;
+
+    if (resumeInput.kind === 'ask_human') {
+      classifiedState.searchQuery = userAnswer;
+    } else {
+      // run_python result: validate the browser-computed payload and seed it as
+      // ground truth for respondNode (formatComputedResultContext). The
+      // `compute` SSE event drives the inline "Berechnung" card. A failed
+      // execution ({error}) is only logged — without computedResult the
+      // respond prompt falls back to the legacy auto-run code-block guidance.
+      const parsed = computePayloadSchema.safeParse(resumeInput.result);
+      if (parsed.success) {
+        classifiedState.computedResult = parsed.data;
+        classifiedState.computedResultFresh = true;
+        sse.send('compute', { compute: parsed.data });
+      } else {
+        const errorText =
+          resumeInput.result != null &&
+          typeof resumeInput.result === 'object' &&
+          'error' in resumeInput.result
+            ? String((resumeInput.result as { error: unknown }).error)
+            : 'invalid payload';
+        log.warn(`[ChatGraph:Resume] run_python failed client-side: ${errorText.slice(0, 200)}`);
+      }
+    }
 
     const startTime = Date.now();
 
@@ -162,14 +189,14 @@ export async function runChatGraphResume({
     }
 
     const nonSearchIntents = new Set(['direct', 'image', 'image_edit']);
-    if (nonSearchIntents.has(classifiedState.intent)) {
+    if (resumeInput.kind === 'ask_human' && nonSearchIntents.has(classifiedState.intent)) {
       classifiedState.intent = 'search';
     }
 
     sse.send('intent', {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
-      reasoning: `Resumed: ${userAnswer}`,
+      reasoning: `Resumed: ${resumeInput.kind === 'ask_human' ? userAnswer : resumeInput.toolName}`,
       ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
       ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
       ...(classifiedState.searchSources?.length && {
@@ -178,10 +205,12 @@ export async function runChatGraphResume({
     });
 
     // === Search ===
+    // Client-tool resumes (run_python) skip search entirely: the answer needs
+    // only the computed result + the already-injected attachment context.
     let finalState = classifiedState;
     const { enabledTools, modelId, forcedTool } = requestContext;
 
-    if (!nonSearchIntents.has(classifiedState.intent)) {
+    if (resumeInput.kind === 'ask_human' && !nonSearchIntents.has(classifiedState.intent)) {
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;
