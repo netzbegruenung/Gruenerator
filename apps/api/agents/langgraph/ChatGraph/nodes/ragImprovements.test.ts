@@ -181,6 +181,7 @@ async function testExpandedContextWindow() {
     imageAttachments: [],
     threadAttachments: [],
     hasTabularAttachment: false,
+    clientCanRunPython: false,
     customSystemPrompt: null,
     activeSkillMention: null,
     userInstructions: null,

@@ -124,6 +124,7 @@ export async function buildStreamContext({
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
     threadId,
+    clientTools,
   } = body;
 
   // === Validate ===
@@ -467,6 +468,7 @@ export async function buildStreamContext({
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,
+    clientCanRunPython: clientTools?.includes('run_python') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
