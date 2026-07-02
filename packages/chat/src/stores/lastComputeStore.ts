@@ -14,6 +14,10 @@ export interface ComputeResult {
   operation: string;
   entries: Array<{ label: string; value: string }>;
   summary: string;
+  /** base64 PNGs of matplotlib figures (capped) — sent with the run_python
+   *  resume so the backend can persist them; stripped when forwarding the
+   *  result as `computedResult` on the NEXT request (keeps bodies slim). */
+  figures?: string[];
 }
 
 interface LastComputeState {

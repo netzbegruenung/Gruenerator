@@ -115,10 +115,13 @@ export async function runChatGraphResume({
       const parsed = computePayloadSchema.safeParse(resumeInput.result);
       // A "successful" run can still be semantically broken: nan/empty values
       // (wrong column, missing dropna — beta: "Produkt mit höchstem Gewinn:
-      // nan") take the correction round too.
+      // nan") take the correction round too. A figure-only run legitimately has
+      // an empty text entry — figures count as a real result.
       const NANISH_VALUE = /^(nan|nat|none|null)?$/i;
       const hasNanValues =
-        parsed.success && parsed.data.entries.some((e) => NANISH_VALUE.test(e.value.trim()));
+        parsed.success &&
+        !parsed.data.figures?.length &&
+        parsed.data.entries.some((e) => NANISH_VALUE.test(e.value.trim()));
       if (parsed.success && !hasNanValues) {
         classifiedState.computedResult = parsed.data;
         classifiedState.computedResultFresh = true;

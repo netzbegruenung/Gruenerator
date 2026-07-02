@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseComputeResult } from './computeResult';
+import { capFigures, MAX_FIGURES, parseComputeResult } from './computeResult';
 
 describe('parseComputeResult', () => {
   it('parses labelled print lines into entries', () => {
@@ -36,5 +36,15 @@ describe('parseComputeResult', () => {
   it('handles empty stdout without throwing', () => {
     const r = parseComputeResult('Tabellen-Berechnung', '   ');
     expect(r.entries).toEqual([{ label: 'Ergebnis', value: '' }]);
+  });
+});
+
+describe('capFigures', () => {
+  it('caps the figure count and drops oversized figures', () => {
+    const small = 'a'.repeat(100);
+    const oversized = 'b'.repeat(2_000_000);
+    expect(capFigures([oversized, small, small, small, small])).toHaveLength(MAX_FIGURES);
+    expect(capFigures([oversized])).toEqual([]);
+    expect(capFigures([small])).toEqual([small]);
   });
 });
