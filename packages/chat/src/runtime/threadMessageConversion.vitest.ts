@@ -84,6 +84,48 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect(custom.sharepicData).toBeUndefined();
   });
 
+  it('rehydrates the social post text from the persisted social_post tool call', () => {
+    const persisted = {
+      postId: 'p1',
+      platform: 'instagram',
+      text: 'Mein Post #Klimaschutz',
+      hashtags: ['#Klimaschutz'],
+      charCount: 22,
+      version: 2,
+      versions: [
+        {
+          text: 'Alter Text',
+          hashtags: [],
+          charCount: 10,
+          version: 1,
+          summary: 'Erstellt',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    const custom = customOf({
+      toolCalls: [{ toolCallId: 'tc1', toolName: 'social_post', args: {}, result: persisted }],
+    });
+    // Head fields survive; the schema strips the `versions` history.
+    expect(custom.socialPostData).toEqual({
+      postId: 'p1',
+      platform: 'instagram',
+      text: 'Mein Post #Klimaschutz',
+      hashtags: ['#Klimaschutz'],
+      charCount: 22,
+      version: 2,
+    });
+  });
+
+  it('drops a malformed social_post tool result', () => {
+    const custom = customOf({
+      toolCalls: [
+        { toolCallId: 'tc1', toolName: 'social_post', args: {}, result: { postId: 'p1' } },
+      ],
+    });
+    expect(custom.socialPostData).toBeUndefined();
+  });
+
   it('rehydrates reel_processing and reel_picker cards from persisted tool calls', () => {
     const custom = customOf({
       toolCalls: [
