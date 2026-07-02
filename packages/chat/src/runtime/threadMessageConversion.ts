@@ -9,6 +9,7 @@ import { type ThreadMessageLike } from '@assistant-ui/react';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import {
   coerceSharepicVariants,
+  type ComputeData,
   type GeneratedImage,
   type Citation,
   type SearchResult,
@@ -33,6 +34,7 @@ export interface LoadedMessage {
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
+    computeData?: ComputeData;
     agentId?: string;
     toolCalls?: PersistedToolCall[];
     senderId?: string;
@@ -84,6 +86,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',
   'generatedImage',
   'createdDocument',
+  'computeData',
   'agentId',
   'roleName',
 ] as const;

@@ -296,6 +296,21 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(parsed.success).toBe(true);
   }, 120_000);
 
+  it('passes the Zod contract with real matplotlib figures attached', async () => {
+    const result = await runPythonCore(
+      py,
+      ['import matplotlib.pyplot as plt', 'plt.plot([1, 2], [3, 4])', 'print("ok: 1")'].join('\n'),
+      [SALES_CSV],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    const payload = parseComputeResult('Tabellen-Berechnung', result.stdout);
+    payload.figures = result.figures;
+    const parsed = computePayloadSchema.safeParse(payload);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.figures).toHaveLength(1);
+  }, 180_000);
+
   it('survives multi-line DataFrame prints without breaking the result parser', async () => {
     const result = await runPythonCore(py, 'print(df.head())', [SALES_CSV], opts);
     expect(result.ok).toBe(true);

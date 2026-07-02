@@ -1,6 +1,8 @@
 'use client';
 
-import { Calculator } from 'lucide-react';
+import { Calculator, Download } from 'lucide-react';
+
+import { downloadBase64 } from '../../lib/downloadBlob';
 
 import type { ComputeData } from '../../hooks/useChatGraphStream';
 
@@ -26,6 +28,22 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           exakt berechnet
         </span>
       </div>
+      {data.figures?.map((figure, i) => (
+        <div key={figure.slice(0, 24)} className="group relative mb-2">
+          <img
+            src={`data:image/png;base64,${figure}`}
+            alt={`Diagramm ${i + 1}`}
+            className="max-w-full rounded border border-border"
+          />
+          <button
+            onClick={() => downloadBase64(figure, `diagramm-${i + 1}.png`, 'image/png')}
+            className="absolute right-2 top-2 rounded-md border border-border bg-background/90 p-1.5 text-foreground-muted opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+            aria-label={`Diagramm ${i + 1} herunterladen`}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
       <dl className="divide-y divide-border/60">
         {data.entries.map((entry, i) => (
           <div
