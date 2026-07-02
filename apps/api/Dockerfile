@@ -129,6 +129,12 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dis
 # Copy compiled API with bundled assets
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/api/dist
 
+# Verify all external packages imported by the compiled API are resolvable.
+# Catches missing direct deps AND missing peer deps of installed packages
+# before the image is tagged and pushed.
+COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/scripts/verify-runtime-deps.mjs ./apps/api/scripts/
+RUN node apps/api/scripts/verify-runtime-deps.mjs
+
 # Set working directory to API
 WORKDIR /app/apps/api
 
