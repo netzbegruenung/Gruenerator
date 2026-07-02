@@ -579,8 +579,20 @@ Zusammenfassung: ${computedResult.summary}
  * emit a properly language-tagged ```python block and must NOT tell the user to
  * click "Run" or apologise that it can't execute (both were happening).
  */
-function formatTabularComputeGuidance(state: ChatGraphState): string {
+export function formatTabularComputeGuidance(state: ChatGraphState): string {
   if (!state.hasTabularAttachment) return '';
+  // Run-then-answer resume: the numbers were already computed client-side
+  // (run_python client tool) and injected as BERECHNUNGSERGEBNIS. The model
+  // must only phrase the answer — emitting another code block here would
+  // trigger a second execution round. Only for a FRESH result: a forwarded
+  // last-turn result must not block a new follow-up computation.
+  if (state.computedResult && state.computedResultFresh) {
+    return `
+
+## TABELLENDATEN — ERGEBNIS LIEGT BEREITS VOR
+
+Die Berechnung über die angehängte Tabelle wurde bereits per Code ausgeführt (siehe BERECHNUNGSERGEBNIS unten). Übernimm die Werte EXAKT und formuliere eine kurze, klare Antwort. Gib KEINEN Code-Block aus und rechne NICHT selbst nach.`;
+  }
   return `
 
 ## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF

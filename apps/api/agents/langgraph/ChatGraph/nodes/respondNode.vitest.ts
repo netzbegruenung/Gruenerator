@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   formatResearchWrapperContext,
   formatSearchContext,
+  formatTabularComputeGuidance,
   getModeGuidance,
 } from './respondNode.js';
 
@@ -118,6 +119,43 @@ describe('getModeGuidance for compute intent', () => {
     const out = getModeGuidance(makeState({ intent: 'compute', computedResult: null }));
     expect(out).toContain('bitte um eine Präzisierung');
     expect(out).not.toContain('Verneine NICHT');
+  });
+});
+
+describe('formatTabularComputeGuidance', () => {
+  it('returns nothing without a tabular attachment', () => {
+    const out = formatTabularComputeGuidance(makeState({ hasTabularAttachment: false }));
+    expect(out).toBe('');
+  });
+
+  it('emits the code-block guidance for a tabular attachment without a result', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ hasTabularAttachment: true, computedResult: null })
+    );
+    expect(out).toContain('```python');
+    expect(out).toContain('automatisch ausgeführt');
+  });
+
+  it('suppresses code emission when a FRESH result exists (run-then-answer resume)', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({
+        hasTabularAttachment: true,
+        computedResult: makeComputeResult(),
+        computedResultFresh: true,
+      })
+    );
+    expect(out).toContain('ERGEBNIS LIEGT BEREITS VOR');
+    expect(out).toContain('KEINEN Code-Block');
+    expect(out).not.toContain('```python');
+  });
+
+  it('keeps the code-block guidance when the result is only forwarded from the last turn', () => {
+    // A stale lastComputeStore result must not block a NEW follow-up
+    // computation (e.g. on clients without the run_python capability).
+    const out = formatTabularComputeGuidance(
+      makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
+    );
+    expect(out).toContain('```python');
   });
 });
 

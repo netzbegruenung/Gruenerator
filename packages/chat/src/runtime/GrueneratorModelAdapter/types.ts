@@ -84,4 +84,10 @@ export interface StreamOutcome {
   interrupted: boolean;
   lastResult?: ChatModelRunResult;
   indexedDocumentIds: string[];
+  /** A client_tool interrupt the ModelAdapter must auto-execute (clientTools
+   *  registry) and resume with — set instead of `interrupted`, which is
+   *  reserved for manual human-in-the-loop interrupts (ask_human). threadId is
+   *  carried from the interrupt event because brand-new threads have no
+   *  config.threadId yet. */
+  clientToolInterrupt?: { toolName: string; args: Record<string, unknown>; threadId?: string };
 }

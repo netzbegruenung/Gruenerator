@@ -115,6 +115,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   search_user_content: { label: 'Inhalte', iconKey: 'search' },
   gruenerator_pressemitteilung_examples: { label: 'Pressemitteilungen', iconKey: 'file' },
   ask_human: { label: 'Rückfrage', iconKey: 'message-circle' },
+  run_python: { label: 'Tabellen-Berechnung', iconKey: 'sparkles' },
   sharepic_edit: { label: 'Sharepic', iconKey: 'image' },
   reel_edit: { label: 'Reel', iconKey: 'image' },
 };

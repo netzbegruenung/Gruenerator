@@ -1,4 +1,5 @@
 import { useLastComputeStore } from '../../stores/lastComputeStore';
+import { getAvailableClientTools } from '../clientTools';
 
 import type { GrueneratorAdapterConfig } from './types';
 import type { ThreadMode } from '../../stores/chatStore';
@@ -162,6 +163,13 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     // give it to the model as ground truth (formatComputedResultContext) — the
     // model can't see the client-side Pyodide output otherwise.
     computedResult: useLastComputeStore.getState().result ?? undefined,
+    // Declare which tools this client can execute locally, so the backend may
+    // pause the turn with a client_tool interrupt (e.g. run_python) instead of
+    // prompting the model to emit a code block.
+    clientTools: (() => {
+      const available = getAvailableClientTools();
+      return available.length > 0 ? available : undefined;
+    })(),
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
