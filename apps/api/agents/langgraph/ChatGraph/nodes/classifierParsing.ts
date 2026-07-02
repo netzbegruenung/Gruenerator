@@ -32,6 +32,7 @@ export function parseClassifierResponse(
     'web',
     'examples',
     'abgeordnetenwatch',
+    'bundestag',
     'sharepic',
     'image',
     'image_edit',

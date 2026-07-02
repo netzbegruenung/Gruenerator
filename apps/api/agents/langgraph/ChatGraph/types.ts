@@ -53,6 +53,7 @@ export type SearchIntent =
   | 'examples' // Social media examples/templates
   | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
   | 'abgeordnetenwatch' // German MP transparency data (votes, Nebentätigkeiten, mandates, roll-calls) via the Abgeordnetenwatch API — DE-only
+  | 'bundestag' // Official Bundestag documents (Drucksachen, Plenarreden, Gesetzgebung, MPs) via the Bundestag MCP / DIP — DE-only
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
   | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
