@@ -578,31 +578,40 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         'summary',
         'compare',
       ]);
-      if (
+      const isTabularCompute =
         computeOverridableIntents.has(classifiedState.intent) &&
+        isTabularComputeQuestion(lastUserText);
+      // Chart requests over an attached table compute their values FIRST —
+      // without this the model invents the aggregation (beta: the category
+      // split in the bar chart was fabricated). Intent stays 'chart'; the
+      // resumed respond step builds the chart JSON from BERECHNUNGSERGEBNIS.
+      const isTabularChart = classifiedState.intent === 'chart';
+      if (
+        (isTabularCompute || isTabularChart) &&
         classifiedState.hasTabularAttachment &&
         !forcedTools?.length &&
-        isTabularComputeQuestion(lastUserText) &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
         const { pythonCode } = await pandasComputeNode(classifiedState);
         if (pythonCode) {
           log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
-          // The resumed respond step should use the compute-mode guidance even
-          // when the classifier had picked a different intent — and the client
-          // already received the original intent event, so send a corrective
-          // one before the tool card appears.
-          classifiedState.intent = 'compute';
+          if (!isTabularChart) {
+            // The resumed respond step should use the compute-mode guidance
+            // even when the classifier had picked a different intent — and the
+            // client already received the original intent event, so send a
+            // corrective one before the tool card appears.
+            classifiedState.intent = 'compute';
+            sse.send('intent', {
+              intent: 'compute',
+              message: getIntentMessage('compute'),
+              reasoning: 'Tabellen-Berechnung erkannt',
+            });
+          }
           // Stashed for the error-correction round: if the client reports a
           // failed execution, the resume handler regenerates with this code +
           // the error message in context.
           classifiedState.pandasLastCode = pythonCode;
-          sse.send('intent', {
-            intent: 'compute',
-            message: getIntentMessage('compute'),
-            reasoning: 'Tabellen-Berechnung erkannt',
-          });
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {

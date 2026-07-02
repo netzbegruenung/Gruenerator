@@ -309,7 +309,7 @@ export function isTabularComputeQuestion(text: string): boolean {
   // 'zähl' must not fire inside 'erzähl'. Noun stems may sit inside German
   // compounds (jahresumsatz, gesamtgewinn), so they match anywhere.
   const wordStart =
-    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|top ?\d|wie ?viel|pro\s+\w+)/i;
+    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|meist|häufigst|beste[rns]?\b|top ?\d|ausreißer|quartil|pivot|prognos|wie ?viel|pro\s+\w+)/i;
   const nounStem = /(umsatz|gewinn|erlös|gesamtsumme|gesamtwert|höchst|niedrigst)/i;
   return wordStart.test(text) || nounStem.test(text);
 }
