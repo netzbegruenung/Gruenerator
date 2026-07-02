@@ -7,7 +7,13 @@
  * Protocol: main thread posts { id, code, files }; worker replies
  * { id, progress } (zero or more) then exactly one { id, result }.
  */
-import { buildFileSetup, detectPyodidePackages, isXls, isXlsx } from '@gruenerator/chat/pyodide';
+import {
+  buildFileSetup,
+  detectPyodidePackages,
+  isXls,
+  isXlsx,
+  sanitizePythonCode,
+} from '@gruenerator/chat/pyodide';
 import { loadPyodide } from 'pyodide';
 
 import type { CodeExecutionResult, PythonFile } from '@gruenerator/chat/stores';
@@ -102,7 +108,10 @@ json.dumps(_figures)
 `;
 
 self.onmessage = async (event: MessageEvent<RunMessage>) => {
-  const { id, code, files } = event.data;
+  const { id, code: rawCode, files } = event.data;
+  // LLM-generated code sometimes carries typographic quotes / NBSP, which
+  // Python rejects ("unterminated string literal") — normalize before exec.
+  const code = sanitizePythonCode(rawCode);
   const started = Date.now();
   let stdout = '';
   const post = (msg: Record<string, unknown>) =>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { extractUrls } from './classifierHeuristics.js';
+import { extractUrls, isTabularComputeQuestion } from './classifierHeuristics.js';
 import {
   extractSearchTopic,
   parseClassifierResponse,
@@ -257,6 +257,14 @@ describe('heuristicClassify', () => {
       hasTabularAttachment: true,
     });
     expect(result.intent).not.toBe('compute');
+  });
+
+  it('isTabularComputeQuestion matches vague follow-ups the confidence penalty would drop', () => {
+    // The contract router re-checks the raw text with this matcher so short
+    // multi-turn follow-ups still take the run_python interrupt path.
+    expect(isTabularComputeQuestion('durchschnittlicher umsatz pro region?')).toBe(true);
+    expect(isTabularComputeQuestion('und der gesamtgewinn?')).toBe(true);
+    expect(isTabularComputeQuestion('worum geht es in dieser datei?')).toBe(false);
   });
 
   it('detects image generation with high confidence', () => {
