@@ -101,6 +101,11 @@ export const chatStreamBodySchema = z.object({
   // A spreadsheet result the client computed in the browser (Pyodide/pandas) —
   // forwarded so the backend can hand it to the model as ground truth.
   computedResult: computePayloadSchema.nullish(),
+  // Tool names this client can execute locally (e.g. 'run_python' when the web
+  // host injected a Pyodide runner). The backend only emits a client_tool
+  // interrupt for tools listed here; clients without the capability (mobile,
+  // voice) keep the legacy prompt-guidance path.
+  clientTools: z.array(z.string()).nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
@@ -160,7 +165,13 @@ export const chatStreamBodySchema = z.object({
 
 export const chatResumeBodySchema = z.object({
   threadId: z.string(),
-  resume: z.string(),
+  // ask_human path (legacy, still used): the human's answer string.
+  resume: z.string().optional(),
+  // Generic client-tool path: the tool that was executed client-side and its
+  // result (e.g. run_python → stdout). Kept separate from `resume` so the
+  // ask_human flow is untouched.
+  toolName: z.string().optional(),
+  result: z.unknown().optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
