@@ -13,11 +13,19 @@
 
 import { isTabularAttachment } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:PandasCompute');
+
+// Codegen quality is the whole point of this node (wrong column names or a
+// wrong aggregation = a wrong number presented as ground truth), so pin
+// Mistral Medium — the same model the notebooks use — instead of the smaller
+// INTERMEDIATE_MODEL. Output is ~100 tokens, latency impact is negligible.
+const CODEGEN_MODEL = {
+  provider: 'mistral' as const,
+  model: 'mistral-medium-2604',
+};
 
 const CODEGEN_PROMPT = `Du bist ein Python/pandas-Codegenerator. Im Browser läuft ein Python-Interpreter, in dem die Tabelle der*des Nutzer*in bereits als pandas-DataFrame \`df\` vorgeladen ist (pandas ist als \`pd\` importiert).
 
@@ -54,11 +62,27 @@ function buildTableContext(state: ChatGraphState): string {
   return combined.slice(0, MAX_TABLE_CONTEXT_CHARS);
 }
 
+/** Text of the last user message — fallback question when the classifier left
+ *  searchQuery empty (e.g. LLM path classified the follow-up as direct). */
+function lastUserText(state: ChatGraphState): string {
+  const msg = [...state.messages].reverse().find((m) => m.role === 'user');
+  if (!msg) return '';
+  const { content } = msg;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((p) => p && typeof p === 'object' && (p as { type?: string }).type === 'text')
+      .map((p) => (p as { text: string }).text)
+      .join('');
+  }
+  return '';
+}
+
 export async function pandasComputeNode(
   state: ChatGraphState
 ): Promise<{ pythonCode: string | null }> {
   const startTime = Date.now();
-  const question = state.searchQuery || '';
+  const question = state.searchQuery || lastUserText(state);
   const tableContext = buildTableContext(state);
 
   if (!question || !tableContext) {
@@ -77,11 +101,11 @@ Schreibe den Python-Code.`;
     const response = await state.aiWorkerPool.processRequest(
       {
         type: 'chat_pandas_codegen',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: CODEGEN_MODEL.provider,
         systemPrompt: CODEGEN_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: INTERMEDIATE_MODEL.model,
+          model: CODEGEN_MODEL.model,
           max_tokens: 500,
           temperature: 0.1,
         },

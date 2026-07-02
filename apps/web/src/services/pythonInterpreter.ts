@@ -65,10 +65,13 @@ export const runPython: RunPython = (code, files = [], options = {}) => {
     };
 
     w.addEventListener('message', onMessage);
-    // Transfer the file buffers (zero-copy); they're sent once and not reused.
+    // Transfer COPIES of the file buffers: transferring the originals detaches
+    // them in the pythonFileStore, so every run after the first failed with
+    // "ArrayBuffer at index 0 is already detached".
+    const filesCopy = files.map((f) => ({ ...f, bytes: f.bytes.slice(0) }));
     w.postMessage(
-      { id, code, files },
-      files.map((f) => f.bytes)
+      { id, code, files: filesCopy },
+      filesCopy.map((f) => f.bytes)
     );
   });
 };
