@@ -16,7 +16,7 @@
  * an interrupt this client cannot execute (mobile/voice send none).
  */
 
-import { parseComputeResult } from '../lib/computeResult';
+import { capFigures, parseComputeResult } from '../lib/computeResult';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useLastComputeStore } from '../stores/lastComputeStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
@@ -39,10 +39,15 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
       try {
         const files = usePythonFileStore.getState().files;
         const result = await runPython(code, files);
-        if (!result.ok || !result.stdout.trim()) {
+        const hasFigures = result.ok && result.figures.length > 0;
+        if (!result.ok || (!result.stdout.trim() && !hasFigures)) {
           return { error: result.error || 'Die Ausführung lieferte keine Ausgabe.' };
         }
         const compute = parseComputeResult('Tabellen-Berechnung', result.stdout);
+        // Matplotlib figures travel with the resume payload so the backend can
+        // persist them in the message metadata (charts survive reloads).
+        const figures = capFigures(result.figures);
+        if (figures.length > 0) compute.figures = figures;
         // Also remember it locally so follow-up turns forward it as
         // `computedResult` (same path as the legacy auto-run code block).
         useLastComputeStore.getState().setResult(compute);
