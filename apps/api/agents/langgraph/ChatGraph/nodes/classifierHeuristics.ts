@@ -289,9 +289,29 @@ export function detectContentType(query: string): string | null {
  * region?" silently fall back to the legacy prompt-guidance path.
  */
 export function isTabularComputeQuestion(text: string): boolean {
-  return /(summe|gesamt|umsatz|gewinn|durchschnitt|mittelwert|median|\bmax\b|\bmin\b|höchst|niedrigst|\bpro\s+\w+|anteil|prozent|wie ?viel|zähl|anzahl|top ?\d|sortier|filter)/i.test(
-    text
-  );
+  // Text-metric questions (Zeichen/Wörter zählen) belong to the plain-JS
+  // computeNode even with a spreadsheet attached — counting characters of a
+  // pasted text has nothing to do with `df` (beta regression: the run_python
+  // gate hijacked "wie viele zeichen sind das hier").
+  if (
+    /(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|abs(?:ä|ae)tze)/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  // Chart/visualization/sharepic requests keep their own intents even when
+  // they mention aggregations ("balkendiagramm der umsätze pro monat").
+  if (/(diagramm|\bchart|\bgraph|visualisier|sharepic|spruchbild|zitatbild)/i.test(text)) {
+    return false;
+  }
+  // Verbs/measure words are bound to a word START — JS \b is ASCII-only and
+  // 'zähl' must not fire inside 'erzähl'. Noun stems may sit inside German
+  // compounds (jahresumsatz, gesamtgewinn), so they match anywhere.
+  const wordStart =
+    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|top ?\d|wie ?viel|pro\s+\w+)/i;
+  const nounStem = /(umsatz|gewinn|erlös|gesamtsumme|gesamtwert|höchst|niedrigst)/i;
+  return wordStart.test(text) || nounStem.test(text);
 }
 
 export function heuristicClassify(
