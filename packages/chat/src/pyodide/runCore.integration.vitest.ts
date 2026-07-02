@@ -161,6 +161,22 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Gesamtgewinn: 42');
   }, 180_000);
 
+  it('keeps variables alive across runs (notebook semantics)', async () => {
+    // Models write follow-up code referencing earlier blocks' variables
+    // (beta: "NameError: name 'top' is not defined") — the harness namespace
+    // persists like Jupyter/OpenWebUI, while `df` reloads every run.
+    const first = await runPythonCore(
+      py,
+      'merker = int(df["Gewinn"].sum())\nprint("gesetzt:", merker)',
+      [SALES_CSV],
+      opts
+    );
+    expect(first.ok).toBe(true);
+    const second = await runPythonCore(py, 'print("Merker:", merker)', [SALES_CSV], opts);
+    expect(second.ok).toBe(true);
+    expect(second.stdout).toContain('Merker: 60');
+  }, 120_000);
+
   it('reports Python errors as ok:false and recovers on the next run', async () => {
     const broken = await runPythonCore(py, 'print(df["GibtEsNicht"].sum())', [SALES_CSV], opts);
     expect(broken.ok).toBe(false);
