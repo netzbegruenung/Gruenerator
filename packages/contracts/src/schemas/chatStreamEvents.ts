@@ -133,6 +133,11 @@ export const computePayloadSchema = z.object({
   operation: z.string(),
   entries: z.array(computeEntrySchema),
   summary: z.string(),
+  /** base64-encoded PNGs (no data: prefix) of matplotlib figures the client
+   *  produced during a run_python execution. Persisted in the message metadata
+   *  (same base64-in-metadata pattern as generatedImage) so charts survive a
+   *  reload. Client caps: max 3 figures, ≤1.5 MB base64 each. */
+  figures: z.array(z.string()).optional(),
 });
 export type ComputeEntry = z.infer<typeof computeEntrySchema>;
 export type ComputePayload = z.infer<typeof computePayloadSchema>;

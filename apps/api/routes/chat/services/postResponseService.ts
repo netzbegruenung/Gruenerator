@@ -260,6 +260,10 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             generationTimeMs: generatedImage.generationTimeMs,
           }
         : undefined,
+      // Deterministic calculation (computeNode / run_python) incl. matplotlib
+      // figures (base64, capped client-side) — same base64-in-metadata pattern
+      // as generatedImage, so the Berechnung card survives reloads.
+      ...(finalState.computedResult != null && { computeData: finalState.computedResult }),
       toolCalls,
     });
 
@@ -426,6 +430,9 @@ export async function persistResumedResponse(params: {
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       resumed: true,
+      // run_python result incl. matplotlib figures — persists the Berechnung
+      // card (and its charts) across reloads, like generatedImage does.
+      ...(finalState.computedResult != null && { computeData: finalState.computedResult }),
       toolCalls,
     });
     await touchThread(threadId);
