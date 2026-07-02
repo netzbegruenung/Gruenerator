@@ -264,7 +264,30 @@ describe('heuristicClassify', () => {
     // multi-turn follow-ups still take the run_python interrupt path.
     expect(isTabularComputeQuestion('durchschnittlicher umsatz pro region?')).toBe(true);
     expect(isTabularComputeQuestion('und der gesamtgewinn?')).toBe(true);
+    expect(isTabularComputeQuestion('wie hoch ist der gewinn')).toBe(true);
+    expect(isTabularComputeQuestion('was ist das produkt mit dem höchsten wert?')).toBe(true);
     expect(isTabularComputeQuestion('worum geht es in dieser datei?')).toBe(false);
+  });
+
+  it('isTabularComputeQuestion binds verbs to word starts (erzähl must not match zähl)', () => {
+    expect(isTabularComputeQuestion('erzähl mir, worum es im angehängten pdf geht')).toBe(false);
+    expect(isTabularComputeQuestion('zähle die einträge pro region')).toBe(true);
+  });
+
+  it('isTabularComputeQuestion leaves text-metric questions to the plain computeNode', () => {
+    // Beta regression: character/word counting of pasted text was hijacked by
+    // the run_python gate and produced a pointless df snippet.
+    expect(isTabularComputeQuestion('wie viele zeichen sind das hier und wie viele wörter')).toBe(
+      false
+    );
+    expect(isTabularComputeQuestion('zähl die wörter in diesem text')).toBe(false);
+  });
+
+  it('isTabularComputeQuestion leaves chart/visualization requests alone', () => {
+    expect(isTabularComputeQuestion('erstelle ein balkendiagramm der umsätze pro monat')).toBe(
+      false
+    );
+    expect(isTabularComputeQuestion('visualisiere die gewinne')).toBe(false);
   });
 
   it('detects image generation with high confidence', () => {

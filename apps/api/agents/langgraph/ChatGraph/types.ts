@@ -554,6 +554,12 @@ export interface ChatGraphState {
    *  computedResult forwarded from the previous turn (lastComputeStore) leaves
    *  this unset so a new follow-up computation can still emit code. */
   computedResultFresh?: boolean | undefined;
+  /** run_python error-correction loop (OpenWebUI-style, max 1 retry): how many
+   *  corrected code versions were already issued this turn, and the last code
+   *  sent to the client — both survive the Redis round-trip so the resume
+   *  handler can regenerate with the failure in context. */
+  pandasComputeRetries?: number | undefined;
+  pandasLastCode?: string | undefined;
 
   // Chart generation
   chartData: ChartData | null;
