@@ -11,6 +11,7 @@ import { computePayloadSchema, type chatGraphContract } from '@gruenerator/contr
 import {
   buildSystemMessage,
   briefGeneratorNode,
+  pandasComputeNode,
   searchNode,
   rerankNode,
   buildCitations,
@@ -110,9 +111,7 @@ export async function runChatGraphResume({
     } else {
       // run_python result: validate the browser-computed payload and seed it as
       // ground truth for respondNode (formatComputedResultContext). The
-      // `compute` SSE event drives the inline "Berechnung" card. A failed
-      // execution ({error}) is only logged — without computedResult the
-      // respond prompt falls back to the legacy auto-run code-block guidance.
+      // `compute` SSE event drives the inline "Berechnung" card.
       const parsed = computePayloadSchema.safeParse(resumeInput.result);
       if (parsed.success) {
         classifiedState.computedResult = parsed.data;
@@ -126,6 +125,55 @@ export async function runChatGraphResume({
             ? String((resumeInput.result as { error: unknown }).error)
             : 'invalid payload';
         log.warn(`[ChatGraph:Resume] run_python failed client-side: ${errorText.slice(0, 200)}`);
+
+        // Error-correction round (OpenWebUI-style, bounded to 1 retry): give
+        // the codegen model the failed code + error message and pause the turn
+        // again — the client executes the corrected code and resumes. If the
+        // retry budget is spent or codegen declines, fall through to a normal
+        // respond without computedResult (legacy prompt-guidance fallback).
+        const retries = classifiedState.pandasComputeRetries ?? 0;
+        if (retries < 1) {
+          classifiedState.aiWorkerPool = aiWorkerPool;
+          const { pythonCode } = await pandasComputeNode(classifiedState, {
+            ...(classifiedState.pandasLastCode != null && {
+              previousCode: classifiedState.pandasLastCode,
+            }),
+            previousError: errorText,
+          });
+          if (pythonCode) {
+            classifiedState.pandasComputeRetries = retries + 1;
+            classifiedState.pandasLastCode = pythonCode;
+            log.info(`[ChatGraph:Resume] run_python correction round (${pythonCode.length} chars)`);
+
+            sse.sendRaw('thinking_step', {
+              stepId: `run_python_retry_${Date.now()}`,
+              toolName: 'run_python',
+              title: 'Korrigiere Berechnung…',
+              status: 'in_progress',
+              args: { code: pythonCode },
+            });
+            sse.send('interrupt', {
+              interruptType: 'client_tool',
+              toolName: 'run_python',
+              args: { code: pythonCode },
+              threadId,
+            });
+            await pipelineStateStore.store(threadId, { classifiedState, requestContext });
+            sse.send('done', {
+              threadId,
+              citations: [],
+              interrupted: true,
+              metadata: {
+                intent: classifiedState.intent,
+                searchCount: 0,
+                totalTimeMs: Date.now() - (classifiedState.startTime || Date.now()),
+                searchTimeMs: 0,
+              },
+            });
+            sse.end();
+            return { status: 200 as const, body: undefined };
+          }
+        }
       }
     }
 
@@ -170,6 +218,8 @@ export async function runChatGraphResume({
         fullText,
         finalState: classifiedState,
         classifiedState,
+        userId: requestContext.userId,
+        processedMeta: requestContext.processedMeta,
       });
 
       sse.send('done', {
@@ -320,6 +370,8 @@ export async function runChatGraphResume({
       fullText,
       finalState,
       classifiedState,
+      userId: requestContext.userId,
+      processedMeta: requestContext.processedMeta,
     });
 
     const totalTimeMs = Date.now() - startTime;
