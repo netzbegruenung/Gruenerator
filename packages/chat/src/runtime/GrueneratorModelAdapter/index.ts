@@ -9,6 +9,8 @@ import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
 import { streamErrorMessage } from '../streamErrorMessage';
 
+import { getClientToolExecutor } from '../clientTools';
+
 import { buildRequestBody } from './buildRequestBody';
 import { parseSSEStream } from './parseSSEStream';
 import { truncateAttachmentContext } from './truncation';
@@ -18,7 +20,12 @@ import type {
   FormattedMessage,
   InjectedCurrentDocument,
 } from './buildRequestBody';
-import type { GrueneratorAdapterConfig, GrueneratorAdapterCallbacks, StreamOutcome } from './types';
+import type {
+  GrueneratorAdapterConfig,
+  GrueneratorAdapterCallbacks,
+  StreamOutcome,
+  ToolCallPart,
+} from './types';
 import type { ThreadMode } from '../../stores/chatStore';
 import type { CurrentBoard } from '@gruenerator/contracts';
 import type {
@@ -33,6 +40,79 @@ export type {
   GrueneratorAdapterConfig,
   GrueneratorAdapterCallbacks,
 } from './types';
+
+// Bounded like OpenWebUI's code-interpreter loop: the backend currently issues
+// at most one client_tool interrupt per turn, but a misbehaving server must
+// never be able to keep the browser executing forever.
+const MAX_CLIENT_TOOL_ROUNDS = 3;
+
+/**
+ * Run-then-answer continuation: while the stream ended in a `client_tool`
+ * interrupt, execute the tool locally (clientTools registry) and resume the
+ * turn with the result — the backend streams the final answer, which we keep
+ * yielding into the SAME assistant message. Returns the outcome of the last
+ * stream (with indexedDocumentIds accumulated across rounds).
+ */
+async function* runClientToolResumes(params: {
+  outcome: StreamOutcome;
+  fallbackThreadId: string | null;
+  callbacks: GrueneratorAdapterCallbacks;
+  agentInfo?: { agentId: string; agentMention?: string } | undefined;
+  abortSignal?: AbortSignal | undefined;
+}): AsyncGenerator<ChatModelRunResult, StreamOutcome, void> {
+  let current = params.outcome;
+  let rounds = 0;
+
+  while (current.clientToolInterrupt && rounds < MAX_CLIENT_TOOL_ROUNDS) {
+    rounds++;
+    const { toolName, args, threadId: interruptThreadId } = current.clientToolInterrupt;
+    const threadId = interruptThreadId ?? params.fallbackThreadId;
+    const execute = getClientToolExecutor(toolName);
+    if (!execute || !threadId) {
+      console.warn(`[ModelAdapter] Cannot resume client tool "${toolName}" — skipping`);
+      break;
+    }
+
+    let result: unknown;
+    try {
+      result = await execute(args);
+    } catch (err) {
+      result = { error: err instanceof Error ? err.message : String(err) };
+    }
+
+    // Carry the turn's tool-call parts into the resumed stream (so the
+    // run_python card survives), marking the executed tool as completed.
+    const priorToolCalls = (current.lastResult?.content ?? [])
+      .filter((p): p is ToolCallPart => (p as { type?: string }).type === 'tool-call')
+      .map((tc) => (tc.toolName === toolName && tc.result == null ? { ...tc, result } : tc));
+
+    const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+    const resumeResponse = await configFetch(endpoints.chatResume, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId, toolName, result }),
+      signal: params.abortSignal,
+    });
+    if (!resumeResponse.ok) {
+      const errorData = await resumeResponse.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
+      );
+    }
+
+    const nextOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+    yield* parseSSEStream(resumeResponse, params.callbacks, nextOutcome, params.agentInfo, {
+      toolCalls: priorToolCalls,
+    });
+    nextOutcome.indexedDocumentIds = [
+      ...current.indexedDocumentIds,
+      ...nextOutcome.indexedDocumentIds,
+    ];
+    current = nextOutcome;
+  }
+
+  return current;
+}
 
 export function createGrueneratorModelAdapter(
   getConfig: () => GrueneratorAdapterConfig,
@@ -84,13 +164,22 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+          let resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
           yield* parseSSEStream(
             resumeResponse,
             callbacks,
             resumeOutcome,
             config.agentId ? { agentId: config.agentId } : undefined
           );
+          if (resumeOutcome.clientToolInterrupt) {
+            resumeOutcome = yield* runClientToolResumes({
+              outcome: resumeOutcome,
+              fallbackThreadId: config.threadId,
+              callbacks,
+              agentInfo: config.agentId ? { agentId: config.agentId } : undefined,
+              abortSignal,
+            });
+          }
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
             lastInterruptedResult = resumeOutcome.lastResult ?? null;
@@ -510,17 +599,26 @@ export function createGrueneratorModelAdapter(
         return;
       }
 
-      const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+      let streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
       const resolvedAgentId = effectiveAgentId || config.agentId;
+      const streamAgentInfo = resolvedAgentId
+        ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
+        : undefined;
       try {
-        yield* parseSSEStream(
-          response,
-          callbacks,
-          streamOutcome,
-          resolvedAgentId
-            ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
-            : undefined
-        );
+        yield* parseSSEStream(response, callbacks, streamOutcome, streamAgentInfo);
+
+        // Run-then-answer: the backend paused this turn so the client executes
+        // a tool (e.g. run_python via Pyodide); resume with the result and keep
+        // streaming the final answer into the same message.
+        if (streamOutcome.clientToolInterrupt) {
+          streamOutcome = yield* runClientToolResumes({
+            outcome: streamOutcome,
+            fallbackThreadId: config.threadId,
+            callbacks,
+            agentInfo: streamAgentInfo,
+            abortSignal,
+          });
+        }
       } catch (err) {
         // Mid-stream connection drop (proxy timeout, mobile blip, worker recycle)
         // surfaces as TypeError; treat it as a graceful end so it doesn't reach Sentry.
