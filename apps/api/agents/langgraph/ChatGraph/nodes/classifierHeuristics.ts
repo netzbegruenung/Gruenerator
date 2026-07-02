@@ -280,6 +280,20 @@ export function detectContentType(query: string): string | null {
  * Medium confidence (0.7-0.9): Keyword matches with some ambiguity
  * Low confidence (<0.7): Fuzzy matches or unclear patterns
  */
+/**
+ * Aggregation/calculation question over tabular data (Summe, Durchschnitt,
+ * "pro X", Anteile …). Shared by the classifier fast path AND the contract
+ * router's run_python gate: multi-turn confidence penalties (vague follow-up)
+ * can push the heuristic below threshold, so the router re-checks the raw
+ * question text — otherwise follow-ups like "durchschnittlicher umsatz pro
+ * region?" silently fall back to the legacy prompt-guidance path.
+ */
+export function isTabularComputeQuestion(text: string): boolean {
+  return /(summe|gesamt|umsatz|gewinn|durchschnitt|mittelwert|median|\bmax\b|\bmin\b|höchst|niedrigst|\bpro\s+\w+|anteil|prozent|wie ?viel|zähl|anzahl|top ?\d|sortier|filter)/i.test(
+    text
+  );
+}
+
 export function heuristicClassify(
   userContent: string,
   opts?: { hasTabularAttachment?: boolean }
@@ -301,9 +315,7 @@ export function heuristicClassify(
   // executes it client-side (run_python interrupt) instead of the model
   // answering from prose. Gated on hasTabularAttachment so plain-text chats
   // never match.
-  const tabularAggregation =
-    /(summe|gesamt|umsatz|gewinn|durchschnitt|mittelwert|median|\bmax\b|\bmin\b|höchst|niedrigst|\bpro\s+\w+|anteil|prozent|wie ?viel|zähl|anzahl|top ?\d|sortier|filter)/i;
-  if (opts?.hasTabularAttachment && tabularAggregation.test(q)) {
+  if (opts?.hasTabularAttachment && isTabularComputeQuestion(q)) {
     return {
       intent: 'compute',
       searchQuery: userContent,
