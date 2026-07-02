@@ -53,7 +53,11 @@ export async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
   outcome: StreamOutcome,
-  agentInfo?: { agentId: string; agentMention?: string }
+  agentInfo?: { agentId: string; agentMention?: string },
+  // Tool-call parts from an earlier stream of the SAME run (client-tool
+  // resume): pre-seeded so the run_python card stays visible while the
+  // resumed answer streams.
+  carryOver?: { toolCalls: ToolCallPart[] }
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
 
@@ -126,8 +130,12 @@ export async function* parseSSEStream(
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let activeToolCall: ToolCallPart | null = null;
-  const allToolCalls: ToolCallPart[] = [];
+  const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   let interruptPending = false;
+  // client_tool interrupt (auto-executed by the ModelAdapter): unlike a
+  // clarification it must NOT flip the message to requires-action — the same
+  // run() continues with the executed result via the resume endpoint.
+  let clientToolPending = false;
   let lastYieldTime = 0;
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
@@ -753,7 +761,22 @@ export async function* parseSSEStream(
         }
 
         case 'interrupt': {
-          interruptPending = true;
+          const payload = data as {
+            interruptType?: 'clarification' | 'client_tool';
+            toolName?: string;
+            args?: Record<string, unknown>;
+            threadId?: string;
+          };
+          if (payload.interruptType === 'client_tool' && payload.toolName) {
+            clientToolPending = true;
+            outcome.clientToolInterrupt = {
+              toolName: payload.toolName,
+              args: payload.args ?? {},
+              ...(payload.threadId != null && { threadId: payload.threadId }),
+            };
+          } else {
+            interruptPending = true;
+          }
           yield buildResult();
           break;
         }
@@ -774,7 +797,7 @@ export async function* parseSSEStream(
           if (cit) receivedCitations = cit;
           if (img) receivedImage = img;
           if (metadata) receivedMetadata = metadata;
-          if (interrupted) interruptPending = true;
+          if (interrupted && !clientToolPending) interruptPending = true;
           transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
           break;
@@ -957,7 +980,7 @@ export async function* parseSSEStream(
 
   outcome.interrupted = interruptPending;
 
-  if (receivedMetadata && !interruptPending) {
+  if (receivedMetadata && !interruptPending && !clientToolPending) {
     callbacks.onComplete?.(receivedMetadata);
   }
 }

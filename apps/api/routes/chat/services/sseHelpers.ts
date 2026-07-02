@@ -200,9 +200,15 @@ export interface SSEEventPayloads {
   trigger_doc_edit: TriggerDocEdit;
   trigger_board_action: TriggerBoardAction;
   interrupt: {
-    interruptType: 'clarification';
-    question: string;
+    // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
+    // client-executed tool (e.g. run_python) whose result the browser produces
+    // automatically and posts back to resume the same turn.
+    interruptType: 'clarification' | 'client_tool';
+    question?: string;
     options?: string[];
+    // client_tool only: which tool the client must run + its arguments.
+    toolName?: string;
+    args?: Record<string, unknown>;
     threadId?: string;
   };
   confirm_action: ConfirmActionEvent;
