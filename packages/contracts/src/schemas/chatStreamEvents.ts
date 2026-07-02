@@ -138,6 +138,10 @@ export const computePayloadSchema = z.object({
    *  (same base64-in-metadata pattern as generatedImage) so charts survive a
    *  reload. Client caps: max 3 figures, ≤1.5 MB base64 each. */
   figures: z.array(z.string()).optional(),
+  /** Files the executed code wrote (exports like a cleaned CSV) — base64 so
+   *  they persist in the message metadata and stay downloadable after a
+   *  reload. Client caps: max 2 files, ≤2 MB base64 each. */
+  files: z.array(z.object({ name: z.string(), b64: z.string() })).optional(),
 });
 export type ComputeEntry = z.infer<typeof computeEntrySchema>;
 export type ComputePayload = z.infer<typeof computePayloadSchema>;

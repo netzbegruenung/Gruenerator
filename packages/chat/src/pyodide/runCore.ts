@@ -78,7 +78,7 @@ async function ensureSpreadsheetEngine(
 // guarded so snippets that never touch matplotlib don't require the wheel.
 // The trailing json.dumps is the value runPythonAsync returns.
 const HARNESS = `
-import os, json
+import os, json, base64
 os.environ.setdefault('MPLBACKEND', 'AGG')
 
 # Persistent namespace across runs (Jupyter/OpenWebUI semantics): follow-up
@@ -91,13 +91,26 @@ try:
 except NameError:
     _gruen_ns = {}
 _ns = _gruen_ns
+
+# Snapshot the working directory (name → mtime) so files the USER CODE writes
+# (exports like df.to_csv('export.csv')) can be collected afterwards — new OR
+# re-written files count, so re-running an export in the same session still
+# surfaces the download. Input files are staged fresh every run (their mtime
+# changes), so they are excluded by name via __input_files.
+_before = {}
+for _n in os.listdir('.'):
+    try:
+        _before[_n] = os.path.getmtime(_n)
+    except OSError:
+        pass
+
 if __setup_code:
     exec(__setup_code, _ns)
 exec(__user_code, _ns)
 
 _figures = []
 try:
-    import io, base64
+    import io
     import matplotlib.pyplot as plt
     for _num in plt.get_fignums():
         _fig = plt.figure(_num)
@@ -107,7 +120,33 @@ try:
     plt.close('all')
 except ImportError:
     pass
-json.dumps(_figures)
+
+# Files written by this run (new or re-written) — capped (5 files / 10 MB
+# total) so the postMessage payload stays bounded.
+_files = []
+_total = 0
+_inputs = set(__input_files)
+for _name in sorted(os.listdir('.')):
+    if len(_files) >= 5:
+        break
+    if _name in _inputs:
+        continue
+    try:
+        if not os.path.isfile(_name):
+            continue
+        _m = os.path.getmtime(_name)
+        if _name in _before and _before[_name] == _m:
+            continue
+        _size = os.path.getsize(_name)
+        if _total + _size > 10 * 1024 * 1024:
+            continue
+        with open(_name, 'rb') as _f:
+            _files.append({'name': _name, 'b64': base64.b64encode(_f.read()).decode('ascii')})
+        _total += _size
+    except OSError:
+        pass
+
+json.dumps({'figures': _figures, 'files': _files})
 `;
 
 /**
@@ -160,14 +199,24 @@ export async function runPythonCore(
       '__setup_code',
       files.length ? buildFileSetup(files[0].name, files[0].mimeType) : ''
     );
+    // Staged fresh every run (mtime changes), so the harness excludes them
+    // from the output-file collection by name.
+    py.globals.set(
+      '__input_files',
+      files.map((f) => f.name)
+    );
 
-    const figuresJson = (await py.runPythonAsync(HARNESS)) as string;
-    const figures = JSON.parse(figuresJson) as string[];
+    const harnessJson = (await py.runPythonAsync(HARNESS)) as string;
+    const harnessResult = JSON.parse(harnessJson) as {
+      figures: string[];
+      files: Array<{ name: string; b64: string }>;
+    };
 
     return {
       ok: true,
       stdout,
-      figures,
+      figures: harnessResult.figures,
+      files: harnessResult.files.map((f) => ({ name: f.name, base64: f.b64 })),
       error: null,
       traceback: null,
       durationMs: Date.now() - started,
@@ -179,6 +228,7 @@ export async function runPythonCore(
       ok: false,
       stdout,
       figures: [],
+      files: [],
       error: lines[lines.length - 1] || 'Unbekannter Fehler',
       traceback,
       durationMs: Date.now() - started,
