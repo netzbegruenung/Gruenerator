@@ -29,6 +29,12 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
     subtype: 'antrag',
     url: '/docs/doc_1',
   },
+  computeData: {
+    operation: 'Tabellen-Berechnung',
+    entries: [{ label: 'Gesamtgewinn', value: '60.0' }],
+    summary: 'Gesamtgewinn: 60.0',
+    figures: ['aGVsbG8='],
+  },
   agentId: 'gruenerator-pressemitteilung',
   roleName: 'Sprecher:in',
 };
