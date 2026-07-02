@@ -4,3 +4,4 @@
 // src/*) and the package `exports` map resolve it.
 export { detectPyodidePackages } from '../lib/pyodidePackages';
 export { buildFileSetup, isXlsx, isXls } from '../lib/spreadsheetSetup';
+export { sanitizePythonCode } from '../lib/pythonCodeSanitizer';

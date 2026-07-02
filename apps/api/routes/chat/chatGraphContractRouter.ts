@@ -23,6 +23,7 @@ import {
   pandasComputeNode,
   buildSystemMessage,
 } from '../../agents/langgraph/ChatGraph/index.js';
+import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -559,8 +560,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // the code and resume with the verified numbers. Mirrors the ask_human
       // interrupt sequence above; clients without the capability (mobile,
       // voice) fall through to the legacy prompt-guidance path.
+      //
+      // Besides intent === 'compute' we re-check the raw question text: on
+      // multi-turn threads the vague-follow-up confidence penalty pushes the
+      // tabular heuristic below threshold and the LLM classifies follow-ups
+      // like "durchschnittlicher umsatz pro region?" as search/direct — which
+      // silently degraded them to the legacy prompt-guidance path.
+      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       if (
-        classifiedState.intent === 'compute' &&
+        (classifiedState.intent === 'compute' || isTabularComputeQuestion(lastUserText)) &&
         classifiedState.hasTabularAttachment &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
@@ -568,6 +576,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         const { pythonCode } = await pandasComputeNode(classifiedState);
         if (pythonCode) {
           log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
+          // The resumed respond step should use the compute-mode guidance even
+          // when the classifier had picked a different intent.
+          classifiedState.intent = 'compute';
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {
