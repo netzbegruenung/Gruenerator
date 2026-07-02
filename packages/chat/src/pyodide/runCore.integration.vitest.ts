@@ -311,6 +311,44 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(parsed.success && parsed.data.figures).toHaveLength(1);
   }, 180_000);
 
+  it('collects files the code writes (CSV export) and excludes input files', async () => {
+    const code = [
+      'df[df["Region"] == "Nord"].to_csv("nord-export.csv", index=False)',
+      'print("Datei erstellt: nord-export.csv")',
+    ].join('\n');
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+    expect(result.files.map((f) => f.name)).toEqual(['nord-export.csv']);
+    // Input file must not be reported even though it is staged every run.
+    expect(result.files.some((f) => f.name === 'umsatz.csv')).toBe(false);
+
+    const csv = atob(result.files[0].base64);
+    expect(csv).toContain('Region;Umsatz;Gewinn'.replace(/;/g, ',')); // pandas writes comma CSV
+    expect(csv).toContain('Nord');
+    expect(csv).not.toContain('Sued');
+  }, 120_000);
+
+  it('reports a re-written export on a second run (mtime diff)', async () => {
+    const code = 'df.to_csv("re-export.csv", index=False)\nprint("ok: 1")';
+    const first = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(first.files.map((f) => f.name)).toContain('re-export.csv');
+    // Same export re-written in the same session must surface again.
+    const second = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(second.files.map((f) => f.name)).toContain('re-export.csv');
+  }, 120_000);
+
+  it('caps collected output files at five', async () => {
+    const code = [
+      'for i in range(8):',
+      '    with open(f"out-{i}.txt", "w") as f:',
+      '        f.write(str(i))',
+      'print("ok: 8")',
+    ].join('\n');
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+    expect(result.files.length).toBe(5);
+  }, 120_000);
+
   it('survives multi-line DataFrame prints without breaking the result parser', async () => {
     const result = await runPythonCore(py, 'print(df.head())', [SALES_CSV], opts);
     expect(result.ok).toBe(true);
