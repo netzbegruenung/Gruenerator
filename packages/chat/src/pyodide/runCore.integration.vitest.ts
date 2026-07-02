@@ -349,6 +349,34 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.files.length).toBe(5);
   }, 120_000);
 
+  it('blocks the js browser-bridge module for user code', async () => {
+    const result = await runPythonCore(py, 'import js\nprint(js.location)', [SALES_CSV], opts);
+    expect(result.ok).toBe(false);
+    expect(result.traceback ?? '').toContain('nicht erlaubt');
+  });
+
+  it('keeps micropip working after the import guard is installed', async () => {
+    // Engine installs run in pyodide's main scope; the guard must only hit
+    // user code. Re-installing an already-present wheel proves js access
+    // inside micropip still works.
+    await py.loadPackage(['micropip']);
+    await py.runPythonAsync(
+      `import micropip\nawait micropip.install(['emfs:/wheels/${ENGINE_WHEEL_FILES.xls[0]}'], deps=False)`
+    );
+    const result = await runPythonCore(py, 'print("Zeilen:", len(df))', [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+  }, 120_000);
+
+  it('prints the repr of a bare trailing expression (Jupyter semantics)', async () => {
+    const simple = await runPythonCore(py, '1 + 1', [], opts);
+    expect(simple.ok).toBe(true);
+    expect(simple.stdout).toContain('2');
+
+    const dfExpr = await runPythonCore(py, 'df["Gewinn"].sum()', [SALES_CSV], opts);
+    expect(dfExpr.ok).toBe(true);
+    expect(dfExpr.stdout).toContain('60');
+  }, 120_000);
+
   it('survives multi-line DataFrame prints without breaking the result parser', async () => {
     const result = await runPythonCore(py, 'print(df.head())', [SALES_CSV], opts);
     expect(result.ok).toBe(true);

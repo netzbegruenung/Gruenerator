@@ -104,9 +104,39 @@ for _n in os.listdir('.'):
     except OSError:
         pass
 
+# Block browser-bridge modules for USER code only (OpenWebUI pattern): 'js'
+# gives generated code DOM/network access. The guard checks the importer's
+# __name__ — our exec namespace has none — so library internals (micropip,
+# pyodide itself) keep working. Patched once per runtime.
+import builtins
+if not getattr(builtins, '_gruen_import_guarded', False):
+    _gruen_real_import = builtins.__import__
+    def _gruen_guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name.split('.')[0] in ('js', 'pyodide_js', 'pyodide'):
+            _imp = globals.get('__name__') if globals else None
+            if _imp in (None, '__main__'):
+                raise ImportError(f"Das Modul '{name}' ist im Interpreter nicht erlaubt.")
+        return _gruen_real_import(name, globals, locals, fromlist, level)
+    builtins.__import__ = _gruen_guarded_import
+    builtins._gruen_import_guarded = True
+
 if __setup_code:
     exec(__setup_code, _ns)
-exec(__user_code, _ns)
+
+# Jupyter semantics for the last statement: a bare trailing expression
+# (df.describe(), 1 + 1) prints its repr instead of vanishing — models on the
+# legacy path routinely omit the print().
+import ast
+_tree = ast.parse(__user_code)
+if _tree.body and isinstance(_tree.body[-1], ast.Expr):
+    _last = ast.Expression(_tree.body[-1].value)
+    _tree.body = _tree.body[:-1]
+    exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
+    _val = eval(compile(_last, '<gruenerator>', 'eval'), _ns)
+    if _val is not None:
+        print(repr(_val))
+else:
+    exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
 
 _figures = []
 try:
