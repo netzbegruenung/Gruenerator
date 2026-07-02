@@ -265,8 +265,6 @@ async function processVideoWithSubtitles(
     finalFontSize
   );
 
-  const useHwAccel = await hwaccel.detectVaapi();
-
   await new Promise<void>((resolve, reject) => {
     const command = ffmpeg(inputPath).setDuration(parseFloat(String(metadata.duration)) || 0);
 
@@ -276,77 +274,44 @@ async function processVideoWithSubtitles(
       tune,
       audioCodec,
       audioBitrate,
-      videoCodec: cpuVideoCodec,
+      videoCodec,
     } = calculateQualitySettings(metadata);
 
     const isVertical = metadata.width < metadata.height;
     const referenceDimension = isVertical ? metadata.width : metadata.height;
-    const is4K = referenceDimension >= 2160;
-    const isHevcSource = metadata.originalFormat?.codec === 'hevc';
 
-    let videoCodec: string;
-    let outputOptions: string[];
+    const outputOptions = [
+      '-y',
+      '-c:v',
+      videoCodec,
+      '-preset',
+      preset,
+      '-crf',
+      crf.toString(),
+      '-tune',
+      tune,
+      '-profile:v',
+      videoCodec === 'libx264' ? 'high' : 'main',
+      '-level',
+      videoCodec === 'libx264' ? '4.1' : '4.0',
+      '-c:a',
+      audioCodec,
+      ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+      '-movflags',
+      '+faststart',
+      '-avoid_negative_ts',
+      'make_zero',
+    ];
 
-    if (useHwAccel) {
-      videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-      const qp = hwaccel.crfToQp(crf);
-
-      command.inputOptions(hwaccel.getVaapiInputOptions());
-
-      outputOptions = [
-        '-y',
-        ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-        '-c:a',
-        audioCodec,
-        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-        '-movflags',
-        '+faststart',
-        '-avoid_negative_ts',
-        'make_zero',
-      ];
-
-      log.debug(`[FFmpeg] Using VAAPI: ${referenceDimension}p, encoder: ${videoCodec}, QP: ${qp}`);
-    } else {
-      videoCodec = cpuVideoCodec;
-
-      outputOptions = [
-        '-y',
-        '-c:v',
-        videoCodec,
-        '-preset',
-        preset,
-        '-crf',
-        crf.toString(),
-        '-tune',
-        tune,
-        '-profile:v',
-        videoCodec === 'libx264' ? 'high' : 'main',
-        '-level',
-        videoCodec === 'libx264' ? '4.1' : '4.0',
-        '-c:a',
-        audioCodec,
-        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-        '-movflags',
-        '+faststart',
-        '-avoid_negative_ts',
-        'make_zero',
-      ];
-
-      if (videoCodec === 'libx264') {
-        outputOptions.push(...hwaccel.getX264QualityParams());
-      }
-
-      log.debug(`[FFmpeg] Using CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
+    if (videoCodec === 'libx264') {
+      outputOptions.push(...hwaccel.getX264QualityParams());
     }
+
+    log.debug(`[FFmpeg] Using CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
 
     command.outputOptions(outputOptions);
 
-    if (useHwAccel) {
-      const fontDir = assFilePath ? path.dirname(tempFontPath || assFilePath) : null;
-      const filterChain = hwaccel.getSubtitleFilterChain(assFilePath, fontDir, null);
-      command.videoFilters([filterChain]);
-      log.debug(`[FFmpeg] Applied VAAPI filter chain with subtitles`);
-    } else if (assFilePath) {
+    if (assFilePath) {
       const fontDir = path.dirname(tempFontPath || assFilePath);
       command.videoFilters([hwaccel.buildSubtitlesFilter(assFilePath, fontDir)]);
       log.debug(

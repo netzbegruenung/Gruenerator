@@ -6,10 +6,13 @@
 
 import { spawn } from 'child_process';
 
+import ffprobeInstaller from '@ffprobe-installer/ffprobe';
+import ffmpegStaticPath from 'ffmpeg-static';
+
 import { createLogger } from '../../utils/logger.js';
 
-export const ffmpegPath = '/usr/bin/ffmpeg';
-export const ffprobePath = '/usr/bin/ffprobe';
+export const ffmpegPath: string = ffmpegStaticPath ?? '/usr/bin/ffmpeg';
+export const ffprobePath: string = ffprobeInstaller.path ?? '/usr/bin/ffprobe';
 
 const log = createLogger('ffmpeg-wrapper');
 
