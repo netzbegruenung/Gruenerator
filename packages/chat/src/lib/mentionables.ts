@@ -9,6 +9,7 @@ import {
   PiImage,
   PiImagesSquare,
   PiClipboardText,
+  PiBank,
   PiFileText,
   PiSparkle,
   PiCloud,
@@ -234,6 +235,22 @@ export const toolMentionables: Mentionable[] = [
     icon: PiClipboardText,
     backgroundColor: '#4B5563',
     mention: 'abgeordnetenwatch',
+    audience: 'de-DE',
+  },
+  {
+    // Official Bundestag documents via the DIP (Drucksachen, plenary speeches,
+    // legislative processes). DE-only source — gated to de-DE so the picker
+    // hides it for Austrian users (Nationalrat isn't covered).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'bundestag',
+    title: 'Bundestag',
+    description: 'Drucksachen, Reden & Gesetzgebung aus dem Bundestag',
+    avatar: '🏛️',
+    icon: PiBank,
+    backgroundColor: '#4B5563',
+    mention: 'bundestag',
     audience: 'de-DE',
   },
   {
