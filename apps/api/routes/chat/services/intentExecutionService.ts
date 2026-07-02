@@ -41,6 +41,7 @@ import type {
   ImageAttachment,
   PendingAction,
   SearchIntent,
+  SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
 import type { Request } from 'express';
@@ -446,6 +447,86 @@ async function resolveSharepicAuthorName(userId?: string): Promise<string> {
   }
 }
 
+/**
+ * Sharepic-variant generation shared by the `sharepic` intent and the
+ * sharepic half of the EXPERIMENTAL `social_post` intent. Emits its own
+ * `sharepic_complete` (including error payloads) and returns the variants
+ * ([] on failure) so callers never have to duplicate the SSE handling.
+ */
+async function runSharepicGeneration(opts: {
+  state: ChatGraphState;
+  sse: SSEWriter;
+  req?: Request | undefined;
+  threadId?: string | null;
+  sharepicRefinement?: { instruction: string; prior: PriorSharepic };
+}): Promise<SharepicVariant[]> {
+  const { state, sse } = opts;
+  try {
+    const lastMsg = state.messages?.[state.messages.length - 1];
+    const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
+    const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
+    const refinement = opts.sharepicRefinement;
+    const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
+
+    // Quote sharepics are attributed to the person creating them — default the
+    // author to the user's profile display name. Empty when no profile name
+    // exists, in which case the quote renders without an author line.
+    const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
+
+    log.info(
+      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", ` +
+        `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
+        `author: ${authorName || '(none)'}`
+    );
+
+    if (!opts.req) throw new Error('Express request required for sharepic generation');
+    // Slider = multi-page deck, a different artifact: ONE deck variant,
+    // minted at generation time (studio open/editing need the pages).
+    let variants: SharepicVariant[];
+    if (preferredVariant === 'slider') {
+      const userId = state.agentConfig?.userId;
+      if (!userId) throw new Error('User required for slider deck creation');
+      variants = [
+        await generateSliderDeckVariant({
+          req: opts.req,
+          text: messageText,
+          threadId: opts.threadId ?? null,
+          userId,
+        }),
+      ];
+    } else {
+      variants = await generateSharepicVariants({
+        req: opts.req as SharepicExpressRequest,
+        text: messageText,
+        ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
+        ...(authorName && { authorName }),
+      });
+    }
+
+    if (variants.length === 0) {
+      sse.send('sharepic_complete', {
+        message: 'Sharepic-Erstellung fehlgeschlagen',
+        variants: [],
+        error: 'All variant generations failed',
+      });
+      return [];
+    }
+    sse.send('sharepic_complete', {
+      message: `${variants.length} Sharepic-Varianten erstellt`,
+      variants,
+    });
+    return variants;
+  } catch (error) {
+    log.error('[ChatGraph] Sharepic variant generation failed:', error);
+    sse.send('sharepic_complete', {
+      message: 'Sharepic-Erstellung fehlgeschlagen',
+      variants: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return [];
+  }
+}
+
 export async function executeIntentPipeline(opts: {
   classifiedState: ChatGraphState;
   sse: SSEWriter;
@@ -461,12 +542,15 @@ export async function executeIntentPipeline(opts: {
   finalState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
+  /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
+  socialPost: SocialPostPayload | null;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
+  let socialPost: SocialPostPayload | null = null;
 
   // Build ordered list of intents to execute (primary first, then secondary)
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
@@ -537,67 +621,79 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (currentIntent === 'sharepic') {
       sse.send('image_start', { message: 'Erstelle Sharepic-Varianten...' });
-      try {
-        const lastMsg = finalState.messages?.[finalState.messages.length - 1];
-        const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
-        const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
-        const refinement = opts.sharepicRefinement;
-        const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
+      sharepicVariants = await runSharepicGeneration({
+        state: finalState,
+        sse,
+        req: opts.req,
+        threadId: opts.threadId ?? null,
+        ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
+      });
+    } else if (currentIntent === 'social_post') {
+      // EXPERIMENTAL combined post: sharepic variants + platform text run in
+      // parallel; each half emits its SSE event as soon as it resolves (text
+      // usually lands first, so the card shows it while thumbnails render).
+      // Agents with sharepic disabled degrade to text-only; a failed text
+      // half degrades to plain sharepic behavior (the error payload on
+      // social_post_complete tells the card).
+      const sharepicEnabled = forcedTool || enabledTools?.['sharepic'] !== false;
+      sse.send('image_start', {
+        message: sharepicEnabled ? 'Texte und gestalte deinen Post...' : 'Texte deinen Post...',
+      });
 
-        // Quote sharepics are attributed to the person creating them — default the
-        // author to the user's profile display name. Empty when no profile name
-        // exists, in which case the quote renders without an author line.
-        const authorName = await resolveSharepicAuthorName(classifiedState.agentConfig?.userId);
+      const sharepicHalf: Promise<SharepicVariant[]> = sharepicEnabled
+        ? runSharepicGeneration({
+            state: finalState,
+            sse,
+            req: opts.req,
+            threadId: opts.threadId ?? null,
+          })
+        : Promise.resolve([]);
 
-        log.info(
-          `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", ` +
-            `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
-            `author: ${authorName || '(none)'}`
-        );
-
-        if (!opts.req) throw new Error('Express request required for sharepic generation');
-        // Slider = multi-page deck, a different artifact: ONE deck variant,
-        // minted at generation time (studio open/editing need the pages).
-        let variants: SharepicVariant[];
-        if (preferredVariant === 'slider') {
-          const userId = classifiedState.agentConfig?.userId;
-          if (!userId) throw new Error('User required for slider deck creation');
-          variants = [
-            await generateSliderDeckVariant({
-              req: opts.req,
-              text: messageText,
-              threadId: opts.threadId ?? null,
-              userId,
-            }),
-          ];
-        } else {
-          variants = await generateSharepicVariants({
-            req: opts.req as SharepicExpressRequest,
-            text: messageText,
-            ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
-            ...(authorName && { authorName }),
-          });
+      const stateForText = finalState;
+      const textHalf: Promise<{
+        state: ChatGraphState;
+        post: SocialPostPayload;
+      }> = (async () => {
+        // Ground the text on real posts first (same retrieval as `examples`);
+        // a failed search degrades gracefully — the composer prompt handles
+        // zero examples ("Keine Vorlagen verfügbar").
+        let textState = stateForText;
+        try {
+          const searchResult = await searchNode(stateForText);
+          textState = { ...stateForText, ...searchResult } as ChatGraphState;
+        } catch (error) {
+          log.warn(`[ChatGraph] social_post examples search failed: ${error}`);
         }
+        const { generateSocialPostText } = await import('./socialPostService.js');
+        const post = await generateSocialPostText({
+          state: textState,
+          ...(opts.req && { req: opts.req }),
+        });
+        sse.send('social_post_complete', {
+          message: `${post.platform === 'generic' ? 'Social-Media' : post.platform}-Post erstellt`,
+          post,
+        });
+        return { state: textState, post };
+      })();
 
-        if (variants.length === 0) {
-          sse.send('sharepic_complete', {
-            message: 'Sharepic-Erstellung fehlgeschlagen',
-            variants: [],
-            error: 'All variant generations failed',
-          });
-        } else {
-          sse.send('sharepic_complete', {
-            message: `${variants.length} Sharepic-Varianten erstellt`,
-            variants,
-          });
-          sharepicVariants = variants;
-        }
-      } catch (error) {
-        log.error('[ChatGraph] Sharepic variant generation failed:', error);
-        sse.send('sharepic_complete', {
-          message: 'Sharepic-Erstellung fehlgeschlagen',
-          variants: [],
-          error: error instanceof Error ? error.message : 'Unknown error',
+      const [variantsSettled, textSettled] = await Promise.allSettled([sharepicHalf, textHalf]);
+
+      if (variantsSettled.status === 'fulfilled') {
+        sharepicVariants = variantsSettled.value;
+      }
+      if (textSettled.status === 'fulfilled') {
+        socialPost = textSettled.value.post;
+        // Keep the examples retrieval on state so persistence/citations work
+        // like the examples flow.
+        finalState = {
+          ...textSettled.value.state,
+          socialPostResult: socialPost,
+        } as ChatGraphState;
+      } else {
+        log.error('[ChatGraph] social_post text generation failed:', textSettled.reason);
+        sse.send('social_post_complete', {
+          message: 'Post-Text konnte nicht erstellt werden',
+          error: textSettled.reason instanceof Error ? textSettled.reason.message : 'Unknown error',
         });
       }
     } else if (currentIntent === 'summary') {
@@ -726,5 +822,5 @@ export async function executeIntentPipeline(opts: {
     }
   }
 
-  return { finalState, generatedImage, sharepicVariants };
+  return { finalState, generatedImage, sharepicVariants, socialPost };
 }
