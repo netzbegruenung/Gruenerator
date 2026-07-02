@@ -260,10 +260,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             generationTimeMs: generatedImage.generationTimeMs,
           }
         : undefined,
-      // Deterministic calculation (computeNode / run_python) incl. matplotlib
-      // figures (base64, capped client-side) — same base64-in-metadata pattern
-      // as generatedImage, so the Berechnung card survives reloads.
-      ...(finalState.computedResult != null && { computeData: finalState.computedResult }),
+      // Deterministic calculation (computeNode / run_python) incl. base64
+      // figures/files (capped) so the Berechnung card survives reloads. Gated
+      // on computedResultFresh: clients forward the LAST result with every
+      // follow-up request, and without the gate every later message in the
+      // thread would persist a stale copy of the card.
+      ...(finalState.computedResult != null &&
+        finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
     });
 
@@ -430,9 +433,11 @@ export async function persistResumedResponse(params: {
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       resumed: true,
-      // run_python result incl. matplotlib figures — persists the Berechnung
-      // card (and its charts) across reloads, like generatedImage does.
-      ...(finalState.computedResult != null && { computeData: finalState.computedResult }),
+      // run_python result incl. figures/files — persists the Berechnung card
+      // across reloads. Fresh-gated: a forwarded last-turn result must not
+      // stamp a stale card onto an unrelated resumed message.
+      ...(finalState.computedResult != null &&
+        finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
     });
     await touchThread(threadId);
