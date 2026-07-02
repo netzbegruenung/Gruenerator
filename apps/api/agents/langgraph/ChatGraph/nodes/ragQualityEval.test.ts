@@ -286,6 +286,7 @@ async function evaluateBudgetAllocation() {
     imageEditDescriptions: null,
     summaryContext: null,
     summaryTimeMs: 0,
+    socialPostResult: null,
     chartData: null,
     computedResult: null,
     computedResultTimeMs: 0,

@@ -53,6 +53,8 @@ import type {
   ImageAttachment,
   ThreadAttachment,
   UserLocale,
+  SocialTextPlatform,
+  SocialPostPayload,
   ChartData,
   ComputeData,
   ResearchToolResult,
@@ -257,7 +259,7 @@ const ChatStateAnnotation = Annotation.Root({
   targetGroupName: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
-  platform: Annotation<'instagram' | 'facebook' | null>({
+  platform: Annotation<SocialTextPlatform | null>({
     reducer: (x, y) => y ?? x ?? null,
   }),
 
@@ -368,6 +370,11 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   summaryTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
+  }),
+
+  // Combined social post (EXPERIMENTAL): text half of the social_post intent
+  socialPostResult: Annotation<SocialPostPayload | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Chart generation
@@ -519,6 +526,9 @@ function routeAfterClassification(
     web: 'web',
     scrape_url: 'scrape',
     examples: 'examples',
+    // Combined post rides the examples search; its sharepic half is gated
+    // separately in the execution stage (production path).
+    social_post: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
     abgeordnetenwatch: 'abgeordnetenwatch',
     image: 'image',
@@ -882,6 +892,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Document summarization (will be set by summarizeNode)
     summaryContext: null,
     summaryTimeMs: 0,
+
+    // Combined social post (set by the execution stage for social_post)
+    socialPostResult: null,
 
     // Chart generation (will be set by chart node)
     chartData: null,

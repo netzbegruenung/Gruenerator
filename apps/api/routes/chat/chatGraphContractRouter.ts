@@ -68,6 +68,10 @@ import {
   isSharepicTopicMissing,
   type PriorSharepic,
 } from './services/sharepicVariantHelpers.js';
+import {
+  handleSocialPostTextEdit,
+  isSocialTextEditInstruction,
+} from './services/socialPostEditService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 
@@ -349,6 +353,41 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             ? `${classifiedState.attachmentContext}\n\n${reelContext}`
             : reelContext;
           initialState.attachmentContext = classifiedState.attachmentContext;
+        }
+      }
+
+      // === Social post TEXT edit (EXPERIMENTAL) ===
+      // "Mach den Text knackiger" on a thread whose latest combined post
+      // exists edits the PROSE, not the graphic. Must run BEFORE the sharepic
+      // edit branch: its EDIT_NOUN_PATTERN contains `text`, so it would
+      // hijack these instructions. Precedence: an explicitly activated
+      // sharepic (Sharepic-Modus, rawCurrentSharepic) always wins — then this
+      // branch — then sharepic-noun instructions ("Zeile 2 kürzer") fall
+      // through unchanged. Declines (returns false) when the thread has no
+      // social post.
+      if (
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced &&
+        rawCurrentSharepic == null
+      ) {
+        const editText = ((extractTextContent(lastUserMessage.content) as string) || '').trim();
+        if (editText && isSocialTextEditInstruction(editText)) {
+          const handled = await handleSocialPostTextEdit({
+            sse,
+            req,
+            threadId: actualThreadId,
+            userId,
+            instruction: editText,
+            aiWorkerPool,
+            startTime: initialState.startTime,
+            ...(classifiedState.classificationTimeMs != null && {
+              classificationTimeMs: classifiedState.classificationTimeMs,
+            }),
+          });
+          if (handled) return { status: 200 as const, body: undefined };
         }
       }
 
@@ -775,20 +814,40 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 2: Search or Image Generation ===
-      const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
-        classifiedState,
-        sse,
-        forcedTool,
-        ...(enabledTools != null && { enabledTools }),
-        imageAttachments,
-        req,
-        threadId: actualThreadId ?? null,
-        ...(sharepicRefinement && { sharepicRefinement }),
-      });
+      const { finalState, generatedImage, sharepicVariants, socialPost } =
+        await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool,
+          ...(enabledTools != null && { enabledTools }),
+          imageAttachments,
+          req,
+          threadId: actualThreadId ?? null,
+          ...(sharepicRefinement && { sharepicRefinement }),
+        });
 
       // === Stage 3: Response generation ===
       let fullText: string | null;
-      if (finalState.intent === 'sharepic') {
+      if (finalState.intent === 'social_post') {
+        // Combined post (EXPERIMENTAL): both halves were already produced +
+        // streamed in Stage 2 (social_post_complete / sharepic_complete).
+        // Fixed confirmation like the sharepic branch — no extra LLM call.
+        const hasText = socialPost != null;
+        const n = sharepicVariants.length;
+        fullText =
+          hasText && n > 0
+            ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
+              `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
+            : hasText
+              ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
+                `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
+              : n > 0
+                ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                  `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
+                : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text: fullText });
+      } else if (finalState.intent === 'sharepic') {
         // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
         // Skip the LLM — with the still-vague topic it asks clarifying questions over the
         // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
@@ -999,6 +1058,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState,
         generatedImage,
         sharepicVariants,
+        socialPost,
         isNewThread,
         lastUserMessage: lastUserMessage as ModelMessage,
         processedMeta,
