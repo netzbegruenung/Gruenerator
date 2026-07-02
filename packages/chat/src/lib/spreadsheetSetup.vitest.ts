@@ -31,10 +31,17 @@ describe('buildFileSetup', () => {
     );
   });
 
-  it('reads CSV with separator sniffing', () => {
-    expect(buildFileSetup('data.csv', 'text/csv')).toBe(
-      'import pandas as pd\ndf = pd.read_csv("data.csv", sep=None, engine=\'python\')'
-    );
+  it('reads CSV with separator sniffing, encoding fallback and German-number normalization', () => {
+    const setup = buildFileSetup('data.csv', 'text/csv');
+    // Separator sniffing for German `;`-CSVs.
+    expect(setup).toContain("sep=None, engine='python'");
+    // Encoding fallback chain: BOM-tolerant UTF-8 first, then cp1252 (Excel).
+    expect(setup).toContain("'utf-8-sig', 'cp1252'");
+    // Decimal-comma columns ("1.234,56") get converted to floats.
+    expect(setup).toContain('pd.to_numeric');
+    expect(setup).toContain('_gruen_load_csv("data.csv")');
+    // The exact runtime behavior is covered by the Pyodide integration suite
+    // (runCore.integration.vitest.ts) against real pandas.
   });
 
   it('reads legacy .xls via read_excel (xlrd engine)', () => {
