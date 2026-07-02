@@ -20,6 +20,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { computePayloadSchema } from '@gruenerator/contracts';
+
 import { parseComputeResult } from '../lib/computeResult';
 import { ENGINE_WHEEL_FILES, runPythonCore, type PyRuntime } from './runCore';
 
@@ -180,5 +182,109 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(second.ok).toBe(true);
     expect(second.stdout).toContain('Summe: 6');
     expect(file.bytes.byteLength).toBeGreaterThan(0);
+  }, 120_000);
+
+  it('parses German decimal commas and thousands separators (Excel-CSV export)', async () => {
+    const file = csvFile('de-zahlen.csv', 'Region;Umsatz\nNord;1.234,56\nSued;12,5\nWest;100\n');
+    const result = await runPythonCore(
+      py,
+      'print("Gesamtumsatz:", round(df["Umsatz"].sum(), 2))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Gesamtumsatz: 1347.06');
+  }, 120_000);
+
+  it('reads cp1252-encoded CSVs with umlauts in headers (Excel-CSV export)', async () => {
+    // TextEncoder is UTF-8-only; latin-1/cp1252 bytes for ö/ü ARE the code
+    // points below 0x100, so a manual byte map produces a genuine cp1252 file.
+    const content = 'Erlös;Größe\n10,5;1\n20;2\n';
+    const bytes = Uint8Array.from(content, (ch) => ch.charCodeAt(0) & 0xff);
+    const file: PythonFile = {
+      name: 'latin1.csv',
+      mimeType: 'text/csv',
+      bytes: bytes.buffer.slice(0, bytes.byteLength),
+    };
+    const result = await runPythonCore(
+      py,
+      `print("Erlös gesamt:", round(df["Erlös"].sum(), 1))`,
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Erlös gesamt: 30.5');
+  }, 120_000);
+
+  it('installs the xlrd engine for .xls files (install path smoke test)', async () => {
+    // We cannot generate a real .xls in-runtime (xlwt is not vendored), so this
+    // covers the engine-install path: micropip must succeed and pandas must
+    // hand the bytes to xlrd — which then rejects the fake content with a
+    // FORMAT error (not an import/install error).
+    const fake = new TextEncoder().encode('not really an xls');
+    const file: PythonFile = {
+      name: 'legacy.xls',
+      mimeType: 'application/vnd.ms-excel',
+      bytes: fake.buffer.slice(0, fake.byteLength),
+    };
+    const result = await runPythonCore(py, 'print(len(df))', [file], opts);
+    expect(result.ok).toBe(false);
+    expect(result.traceback ?? '').not.toMatch(/micropip|ModuleNotFound|No module named/i);
+    expect(result.traceback ?? '').toMatch(/Unsupported format|corrupt|xlrd|Excel/i);
+  }, 120_000);
+
+  it('collects matplotlib figures as base64 PNGs', async () => {
+    const code = [
+      'import matplotlib.pyplot as plt',
+      'plt.plot([1, 2, 3], [2, 4, 9])',
+      'print("Diagramm erstellt")',
+    ].join('\n');
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+    expect(result.figures).toHaveLength(1);
+    // PNG magic bytes at the start of the decoded figure.
+    const png = Uint8Array.from(atob(result.figures[0].slice(0, 12)), (ch) => ch.charCodeAt(0));
+    expect([...png.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  }, 180_000);
+
+  it('handles empty cells (NaN) in aggregations', async () => {
+    const file = csvFile('luecken.csv', 'Region;Umsatz\nNord;10\nSued;\nWest;20\n');
+    const result = await runPythonCore(
+      py,
+      [
+        'print("Summe:", int(df["Umsatz"].sum()))',
+        'print("Zeilen:", len(df))',
+        'print("Mit Wert:", int(df["Umsatz"].count()))',
+      ].join('\n'),
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 30');
+    expect(result.stdout).toContain('Zeilen: 3');
+    expect(result.stdout).toContain('Mit Wert: 2');
+  }, 120_000);
+
+  it('produces a resume payload that passes the backend Zod contract', async () => {
+    // The exact chain the client runs after a run_python interrupt: stdout →
+    // parseComputeResult → POST result → computePayloadSchema on the backend.
+    const result = await runPythonCore(
+      py,
+      'print("Gesamtgewinn:", round(df["Gewinn"].sum(), 2))',
+      [SALES_CSV],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    const payload = parseComputeResult('Tabellen-Berechnung', result.stdout);
+    const parsed = computePayloadSchema.safeParse(payload);
+    expect(parsed.success).toBe(true);
+  }, 120_000);
+
+  it('survives multi-line DataFrame prints without breaking the result parser', async () => {
+    const result = await runPythonCore(py, 'print(df.head())', [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+    const payload = parseComputeResult('Tabellen-Berechnung', result.stdout);
+    expect(payload.entries.length).toBeGreaterThan(0);
+    expect(computePayloadSchema.safeParse(payload).success).toBe(true);
   }, 120_000);
 });
