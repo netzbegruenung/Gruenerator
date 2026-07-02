@@ -31,7 +31,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:pyodide": "PYODIDE_TESTS=1 vitest run src/pyodide/runCore.integration.vitest.ts"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "0.14.2",
@@ -58,6 +59,7 @@
     "@types/katex": "^0.16.8",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
+    "pyodide": "^0.29.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },
