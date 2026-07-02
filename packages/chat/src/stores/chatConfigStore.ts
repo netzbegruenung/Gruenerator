@@ -15,6 +15,10 @@ export interface CodeExecutionResult {
   stdout: string;
   /** base64-encoded PNGs (no `data:` prefix) of matplotlib figures. */
   figures: string[];
+  /** Files the code wrote to the working directory (exports like
+   *  df.to_csv('export.csv')) — collected by the harness, capped at
+   *  5 files / 10 MB total. */
+  files: Array<{ name: string; base64: string }>;
   /** Short error summary (e.g. "KeyError: 'x'"), null on success. */
   error: string | null;
   /** Full Python traceback, null on success. */

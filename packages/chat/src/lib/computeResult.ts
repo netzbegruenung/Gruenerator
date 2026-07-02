@@ -17,6 +17,21 @@ export function capFigures(figures: string[]): string[] {
   return figures.filter((f) => f.length <= MAX_FIGURE_BASE64_LENGTH).slice(0, MAX_FIGURES);
 }
 
+/** Same idea for exported files: they also persist as base64 in the message
+ *  metadata, so count and size stay tight. Oversized exports are dropped —
+ *  the session-local CodeOutput still offers them for download. */
+export const MAX_COMPUTE_FILES = 2;
+export const MAX_COMPUTE_FILE_BASE64_LENGTH = 2_000_000;
+
+export function capComputeFiles(
+  files: Array<{ name: string; base64: string }>
+): Array<{ name: string; b64: string }> {
+  return files
+    .filter((f) => f.base64.length <= MAX_COMPUTE_FILE_BASE64_LENGTH)
+    .slice(0, MAX_COMPUTE_FILES)
+    .map((f) => ({ name: f.name, b64: f.base64 }));
+}
+
 export function parseComputeResult(operation: string, stdout: string): ComputeResult {
   const summary = stdout.trim();
   const lines = summary.split('\n').filter(Boolean);
