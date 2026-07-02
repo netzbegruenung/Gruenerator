@@ -20,7 +20,7 @@ COPY services/mcp/package.json ./services/mcp/
 
 # Install dependencies
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/mcp...
+    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/mcp...
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
