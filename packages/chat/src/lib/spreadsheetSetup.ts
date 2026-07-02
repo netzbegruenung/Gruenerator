@@ -35,9 +35,14 @@ export function isTabularFile(name: string, mimeType: string): boolean {
 
 /**
  * Python that loads the file into a pandas DataFrame `df` before user code runs.
- * CSVs vary wildly (German `;`-separated, odd encodings) — let pandas sniff the
- * separator; .xlsx→openpyxl, .xls→xlrd (engines installed on demand by the
- * worker).
+ * CSVs vary wildly — German Excel exports in particular: `;`-separated,
+ * cp1252-encoded (umlauts!) and with decimal commas ("1.234,56"). The loader
+ * sniffs the separator, falls back through encodings, and converts columns
+ * that consistently look like German-formatted numbers to floats (only
+ * object-dtype columns with at least one comma qualify, so English decimals —
+ * already parsed as float64 — are never touched).
+ * .xlsx→openpyxl, .xls→xlrd (engines installed on demand by the worker);
+ * Excel stores real numbers, so only CSV needs the number normalization.
  */
 export function buildFileSetup(name: string, mimeType: string): string {
   const literal = JSON.stringify(name);
@@ -45,5 +50,30 @@ export function buildFileSetup(name: string, mimeType: string): string {
     // pandas auto-selects openpyxl (.xlsx) or xlrd (.xls) by extension.
     return `import pandas as pd\ndf = pd.read_excel(${literal})`;
   }
-  return `import pandas as pd\ndf = pd.read_csv(${literal}, sep=None, engine='python')`;
+  return `import pandas as pd
+import re as _re
+
+def _gruen_load_csv(_path):
+    _df = None
+    for _enc in ('utf-8-sig', 'cp1252'):
+        try:
+            _df = pd.read_csv(_path, sep=None, engine='python', encoding=_enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    if _df is None:
+        _df = pd.read_csv(_path, sep=None, engine='python', encoding='utf-8', encoding_errors='replace')
+    _german = _re.compile(r'^\\s*-?(?:\\d{1,3}(?:\\.\\d{3})+|\\d+)(?:,\\d+)?\\s*$')
+    for _col in _df.columns:
+        if _df[_col].dtype != object:
+            continue
+        _vals = _df[_col].dropna().astype(str)
+        if len(_vals) and _vals.str.contains(',').any() and _vals.str.match(_german).all():
+            _df[_col] = pd.to_numeric(
+                _df[_col].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False),
+                errors='coerce',
+            )
+    return _df
+
+df = _gruen_load_csv(${literal})`;
 }
