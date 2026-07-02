@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { capFigures, MAX_FIGURES, parseComputeResult } from './computeResult';
+import { capComputeFiles, capFigures, MAX_FIGURES, parseComputeResult } from './computeResult';
 
 describe('parseComputeResult', () => {
   it('parses labelled print lines into entries', () => {
@@ -46,5 +46,18 @@ describe('capFigures', () => {
     expect(capFigures([oversized, small, small, small, small])).toHaveLength(MAX_FIGURES);
     expect(capFigures([oversized])).toEqual([]);
     expect(capFigures([small])).toEqual([small]);
+  });
+});
+
+describe('capComputeFiles', () => {
+  it('caps count, drops oversized files and maps to the wire shape', () => {
+    const small = { name: 'a.csv', base64: 'x'.repeat(100) };
+    const big = { name: 'big.csv', base64: 'y'.repeat(2_500_000) };
+    expect(
+      capComputeFiles([big, small, { ...small, name: 'b.csv' }, { ...small, name: 'c.csv' }])
+    ).toEqual([
+      { name: 'a.csv', b64: 'x'.repeat(100) },
+      { name: 'b.csv', b64: 'x'.repeat(100) },
+    ]);
   });
 });

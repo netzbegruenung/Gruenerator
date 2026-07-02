@@ -1,8 +1,8 @@
 'use client';
 
-import { Calculator, Download } from 'lucide-react';
+import { Calculator, Download, FileDown } from 'lucide-react';
 
-import { downloadBase64 } from '../../lib/downloadBlob';
+import { downloadBase64, mimeFromFilename } from '../../lib/downloadBlob';
 
 import type { ComputeData } from '../../hooks/useChatGraphStream';
 
@@ -44,6 +44,20 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           </button>
         </div>
       ))}
+      {data.files && data.files.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {data.files.map((file) => (
+            <button
+              key={file.name}
+              onClick={() => downloadBase64(file.b64, file.name, mimeFromFilename(file.name))}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10"
+            >
+              <FileDown className="h-3.5 w-3.5 text-primary" />
+              {file.name}
+            </button>
+          ))}
+        </div>
+      )}
       <dl className="divide-y divide-border/60">
         {data.entries.map((entry, i) => (
           <div

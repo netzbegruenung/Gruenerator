@@ -16,7 +16,7 @@
  * an interrupt this client cannot execute (mobile/voice send none).
  */
 
-import { capFigures, parseComputeResult } from '../lib/computeResult';
+import { capComputeFiles, capFigures, parseComputeResult } from '../lib/computeResult';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useLastComputeStore } from '../stores/lastComputeStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
@@ -40,14 +40,25 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
         const files = usePythonFileStore.getState().files;
         const result = await runPython(code, files);
         const hasFigures = result.ok && result.figures.length > 0;
-        if (!result.ok || (!result.stdout.trim() && !hasFigures)) {
+        const hasFiles = result.ok && result.files.length > 0;
+        if (!result.ok || (!result.stdout.trim() && !hasFigures && !hasFiles)) {
           return { error: result.error || 'Die Ausführung lieferte keine Ausgabe.' };
         }
         const compute = parseComputeResult('Tabellen-Berechnung', result.stdout);
-        // Matplotlib figures travel with the resume payload so the backend can
-        // persist them in the message metadata (charts survive reloads).
+        // Matplotlib figures + exported files travel with the resume payload so
+        // the backend can persist them in the message metadata (they survive
+        // reloads, like generatedImage).
         const figures = capFigures(result.figures);
         if (figures.length > 0) compute.figures = figures;
+        const computeFiles = capComputeFiles(result.files);
+        if (computeFiles.length > 0) {
+          compute.files = computeFiles;
+          // Name the exports in the entries so the answer model mentions the
+          // download instead of claiming it cannot create files.
+          for (const f of computeFiles) {
+            compute.entries.push({ label: 'Datei erstellt', value: f.name });
+          }
+        }
         // Also remember it locally so follow-up turns forward it as
         // `computedResult` (same path as the legacy auto-run code block).
         useLastComputeStore.getState().setResult(compute);

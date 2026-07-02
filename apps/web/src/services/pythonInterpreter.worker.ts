@@ -56,6 +56,7 @@ self.onmessage = async (event: MessageEvent<RunMessage>) => {
         ok: false,
         stdout: '',
         figures: [],
+        files: [],
         error: traceback.trim().split('\n').pop() || 'Unbekannter Fehler',
         traceback,
         durationMs: 0,
