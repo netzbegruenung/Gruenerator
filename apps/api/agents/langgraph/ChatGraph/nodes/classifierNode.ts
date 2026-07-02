@@ -647,7 +647,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
-      const result = heuristicClassify(userContent);
+      const result = heuristicClassify(userContent, {
+        hasTabularAttachment: state.hasTabularAttachment ?? false,
+      });
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
@@ -664,7 +666,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // Try heuristics first - check confidence
-    const heuristic = heuristicClassify(userContent);
+    const heuristic = heuristicClassify(userContent, {
+      hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
 
     // Penalize confidence for multi-topic search queries → forces LLM decomposition
     const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
@@ -794,7 +798,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
     const userContent = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-    const fallbackResult = heuristicClassify(userContent);
+    const fallbackResult = heuristicClassify(userContent, {
+      hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
 
     return {
       intent: fallbackResult.intent,

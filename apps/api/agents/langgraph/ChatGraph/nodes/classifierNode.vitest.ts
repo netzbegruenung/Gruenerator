@@ -237,6 +237,28 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('routes tabular aggregation questions to compute when a spreadsheet is attached', () => {
+    const result = heuristicClassify('produkt mit höchstem gesamtgewinn?', {
+      hasTabularAttachment: true,
+    });
+    expect(result.intent).toBe('compute');
+    expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('does NOT fire the tabular compute rule without an attached spreadsheet', () => {
+    const result = heuristicClassify('produkt mit höchstem gesamtgewinn?');
+    expect(result.intent === 'compute' && result.reasoning.includes('Tabular aggregation')).toBe(
+      false
+    );
+  });
+
+  it('leaves non-aggregation questions alone even with a spreadsheet attached', () => {
+    const result = heuristicClassify('worum geht es in dieser datei?', {
+      hasTabularAttachment: true,
+    });
+    expect(result.intent).not.toBe('compute');
+  });
+
   it('detects image generation with high confidence', () => {
     const result = heuristicClassify('Erstelle ein Bild von einem grünen Baum');
     expect(result.intent).toBe('image');
