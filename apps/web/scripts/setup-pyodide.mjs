@@ -24,7 +24,12 @@ import { mkdir, copyFile, writeFile, access } from 'node:fs/promises';
 // detection map in packages/chat/src/lib/pyodidePackages.ts.
 // NOTE: only packages bundled in pyodide-lock.json can be vendored offline via
 // the BFS below. seaborn is still absent from this Pyodide version's lock.
-const PACKAGES = ['pandas', 'matplotlib', 'scipy', 'sympy', 'scikit-learn'];
+// `micropip` is needed at runtime to install the spreadsheet-engine wheels
+// (openpyxl/xlrd) that aren't in pyodide-lock.json. It's a Pyodide-distribution
+// package, so include it here to vendor its wheel — otherwise the worker's
+// `loadPackage(['micropip'])` 404s ("Failed to fetch micropip") and every .xlsx
+// run fails at the "loading packages" step.
+const PACKAGES = ['pandas', 'matplotlib', 'scipy', 'sympy', 'scikit-learn', 'micropip'];
 
 // Pure-Python packages NOT in pyodide-lock.json (so the BFS can't resolve them),
 // vendored as direct PyPI wheels instead. Installed at runtime via micropip from
