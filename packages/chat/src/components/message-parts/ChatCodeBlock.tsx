@@ -7,10 +7,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Check, ChevronDown, ChevronRight, Copy, Loader2, Play } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, FileDown, Loader2, Play } from 'lucide-react';
 import { type ChatChartData } from '@gruenerator/ui';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { parseComputeResult } from '../../lib/computeResult';
+import { downloadBase64, mimeFromFilename } from '../../lib/downloadBlob';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
@@ -140,6 +141,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
         ok: false,
         stdout: '',
         figures: [],
+        files: [],
         error: error instanceof Error ? error.message : String(error),
         traceback: null,
         durationMs: 0,
@@ -250,8 +252,8 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
 }
 
 function CodeOutput({ output }: { output: CodeExecutionResult }) {
-  const { stdout, error, figures } = output;
-  const hasContent = stdout || error || figures.length > 0;
+  const { stdout, error, figures, files } = output;
+  const hasContent = stdout || error || figures.length > 0 || files.length > 0;
   return (
     <div className="border-t border-border/60 px-4 py-3 text-sm">
       <div className="mb-1 font-mono text-xs uppercase tracking-wide text-foreground-muted">
@@ -265,6 +267,20 @@ function CodeOutput({ output }: { output: CodeExecutionResult }) {
           className="mb-2 max-w-full rounded border border-border"
         />
       ))}
+      {files.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {files.map((file) => (
+            <button
+              key={file.name}
+              onClick={() => downloadBase64(file.base64, file.name, mimeFromFilename(file.name))}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10"
+            >
+              <FileDown className="h-3.5 w-3.5 text-primary" />
+              {file.name}
+            </button>
+          ))}
+        </div>
+      )}
       {stdout && (
         <pre className="overflow-x-auto whitespace-pre-wrap text-code-block-fg">{stdout}</pre>
       )}

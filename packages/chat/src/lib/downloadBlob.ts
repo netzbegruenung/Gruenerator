@@ -24,3 +24,20 @@ export function base64ToBlob(base64: string, mimeType: string): Blob {
 export function downloadBase64(base64: string, filename: string, mimeType: string): void {
   downloadBlob(base64ToBlob(base64, mimeType), filename);
 }
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  csv: 'text/csv',
+  json: 'application/json',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
+  pdf: 'application/pdf',
+};
+
+export function mimeFromFilename(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  return MIME_BY_EXTENSION[ext] ?? 'application/octet-stream';
+}
