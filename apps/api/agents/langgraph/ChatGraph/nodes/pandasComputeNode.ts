@@ -40,6 +40,7 @@ Regeln für den Code:
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
 - Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
 - Enthält die Tabelle bereits eine Spalte für die gefragte Größe (z.B. "Umsatz"), verwende NUR diese Spalte — leite sie NICHT zusätzlich aus anderen Spalten her (z.B. Menge*Einzelpreis) und addiere niemals beides.
+- Wünscht der*die Nutzer*in eine Datei/einen Export, schreibe sie ins Arbeitsverzeichnis (z.B. df.to_csv("export.csv", index=False)) und printe danach "Datei erstellt: export.csv" — die Datei wird automatisch zum Download angeboten.
 - Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
 - Wenn die Frage NICHTS mit den Tabellendaten zu tun hat (z.B. Allgemeinwissen, Textaufgaben ohne Bezug zu \`df\`), antworte mit {"related": false, "code": ""}`;
 

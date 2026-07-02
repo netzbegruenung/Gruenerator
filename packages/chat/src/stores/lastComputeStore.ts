@@ -18,6 +18,8 @@ export interface ComputeResult {
    *  resume so the backend can persist them; stripped when forwarding the
    *  result as `computedResult` on the NEXT request (keeps bodies slim). */
   figures?: string[];
+  /** Files the code wrote (capped exports) — same lifecycle as figures. */
+  files?: Array<{ name: string; b64: string }>;
 }
 
 interface LastComputeState {
