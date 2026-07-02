@@ -23,6 +23,16 @@ describe('parseComputeResult', () => {
     expect(r.entries).toEqual([{ label: 'Ergebnis', value: '42' }]);
   });
 
+  it('collapses mostly-unlabelled multi-line output (pivot tables) into one entry', () => {
+    // Beta: a printed pivot table produced a card row per line ("Ergebnis
+    // Anna 17472…", 12 rows). Tabular output stays one block.
+    const pivot = 'Umsatz pro Verkäufer:\nVerkäufer  Umsatz\nAnna  17472.58\nBen  65889.32\n';
+    const r = parseComputeResult('Tabellen-Berechnung', pivot);
+    expect(r.entries).toHaveLength(1);
+    expect(r.entries[0].label).toBe('Ergebnis');
+    expect(r.entries[0].value).toContain('Ben  65889.32');
+  });
+
   it('handles empty stdout without throwing', () => {
     const r = parseComputeResult('Tabellen-Berechnung', '   ');
     expect(r.entries).toEqual([{ label: 'Ergebnis', value: '' }]);

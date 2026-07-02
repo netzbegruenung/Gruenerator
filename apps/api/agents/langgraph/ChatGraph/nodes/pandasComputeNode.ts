@@ -38,6 +38,8 @@ Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
+- Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
+- Enthält die Tabelle bereits eine Spalte für die gefragte Größe (z.B. "Umsatz"), verwende NUR diese Spalte — leite sie NICHT zusätzlich aus anderen Spalten her (z.B. Menge*Einzelpreis) und addiere niemals beides.
 - Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
 - Wenn die Frage NICHTS mit den Tabellendaten zu tun hat (z.B. Allgemeinwissen, Textaufgaben ohne Bezug zu \`df\`), antworte mit {"related": false, "code": ""}`;
 
