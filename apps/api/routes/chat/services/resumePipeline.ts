@@ -113,15 +113,22 @@ export async function runChatGraphResume({
       // ground truth for respondNode (formatComputedResultContext). The
       // `compute` SSE event drives the inline "Berechnung" card.
       const parsed = computePayloadSchema.safeParse(resumeInput.result);
-      if (parsed.success) {
+      // A "successful" run can still be semantically broken: nan/empty values
+      // (wrong column, missing dropna — beta: "Produkt mit höchstem Gewinn:
+      // nan") take the correction round too.
+      const NANISH_VALUE = /^(nan|nat|none|null)?$/i;
+      const hasNanValues =
+        parsed.success && parsed.data.entries.some((e) => NANISH_VALUE.test(e.value.trim()));
+      if (parsed.success && !hasNanValues) {
         classifiedState.computedResult = parsed.data;
         classifiedState.computedResultFresh = true;
         sse.send('compute', { compute: parsed.data });
       } else {
-        const errorText =
-          resumeInput.result != null &&
-          typeof resumeInput.result === 'object' &&
-          'error' in resumeInput.result
+        const errorText = parsed.success
+          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${parsed.data.summary.slice(0, 300)}`
+          : resumeInput.result != null &&
+              typeof resumeInput.result === 'object' &&
+              'error' in resumeInput.result
             ? String((resumeInput.result as { error: unknown }).error)
             : 'invalid payload';
         log.warn(`[ChatGraph:Resume] run_python failed client-side: ${errorText.slice(0, 200)}`);
@@ -173,6 +180,14 @@ export async function runChatGraphResume({
             sse.end();
             return { status: 200 as const, body: undefined };
           }
+        }
+        // Correction budget spent or codegen declined: if the payload itself
+        // was valid (nan case), still hand it to the model — an answer that
+        // names the nan beats silently dropping the computation.
+        if (parsed.success) {
+          classifiedState.computedResult = parsed.data;
+          classifiedState.computedResultFresh = true;
+          sse.send('compute', { compute: parsed.data });
         }
       }
     }

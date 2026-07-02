@@ -81,7 +81,16 @@ const HARNESS = `
 import os, json
 os.environ.setdefault('MPLBACKEND', 'AGG')
 
-_ns = {}
+# Persistent namespace across runs (Jupyter/OpenWebUI semantics): follow-up
+# code blocks in the same conversation routinely reference variables defined
+# by earlier blocks ("NameError: name 'top' is not defined" in beta). The
+# setup snippet re-executes each run, so \`df\` always reflects the CURRENT
+# turn's file even though older variables stay alive.
+try:
+    _gruen_ns
+except NameError:
+    _gruen_ns = {}
+_ns = _gruen_ns
 if __setup_code:
     exec(__setup_code, _ns)
 exec(__user_code, _ns)

@@ -274,6 +274,16 @@ describe('heuristicClassify', () => {
     expect(isTabularComputeQuestion('zähle die einträge pro region')).toBe(true);
   });
 
+  it('isTabularComputeQuestion covers superlative/analysis phrasings from the beta run', () => {
+    // "am meisten" took the legacy path in beta and crashed with a NameError.
+    expect(isTabularComputeQuestion('welcher verkäufer verkauft am meisten?')).toBe(true);
+    expect(isTabularComputeQuestion('was ist das beste produkt?')).toBe(true);
+    expect(isTabularComputeQuestion('finde ausreißer beim einzelpreis')).toBe(true);
+    expect(isTabularComputeQuestion('prognostiziere den umsatz q1 2025')).toBe(true);
+    // 'best…' must not fire inside 'Bestellung'.
+    expect(isTabularComputeQuestion('zeige die bestellung von gestern')).toBe(false);
+  });
+
   it('isTabularComputeQuestion leaves text-metric questions to the plain computeNode', () => {
     // Beta regression: character/word counting of pasted text was hijacked by
     // the run_python gate and produced a pointless df snippet.
