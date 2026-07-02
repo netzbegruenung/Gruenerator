@@ -31,6 +31,7 @@ import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -41,7 +42,13 @@ import { enrichContext } from './contextEnrichmentService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
-import { getUser, createThread, createMessage } from './threadPersistenceService.js';
+import {
+  getUser,
+  createThread,
+  createMessage,
+  deleteMessagesFrom,
+  deleteTrailingAssistant,
+} from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
@@ -121,6 +128,9 @@ export async function buildStreamContext({
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
     threadId,
+    regenerate: rawRegenerate,
+    replaceFromMessageId: rawReplaceFromMessageId,
+    webpageUrls: rawWebpageUrls,
   } = body;
 
   // === Validate ===
@@ -284,9 +294,30 @@ export async function buildStreamContext({
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
       if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        sse.send('error', { error: 'Thread not found' });
-        sse.end();
-        return { done: true };
+        // The client-supplied threadId is gone or not accessible — most often a
+        // freshly-created empty thread reaped by the sidebar's auto-cleanup race
+        // mid-send, or a stale client id. Recover gracefully by minting a new
+        // thread for this user instead of hard-erroring. Safe: a foreign/deleted
+        // id is never reused, we always create a fresh user-owned thread.
+        //
+        // The recovery is invisible to the user, so leave a breadcrumb: without
+        // it we lose all signal on how often the reap race still fires (e.g. if
+        // the client's 60s protection window proves too short).
+        captureSseError({
+          code: 'thread-reaped-recovered',
+          message: 'Thread not found mid-send; minted a fresh thread to recover',
+          level: 'warning',
+          extras: { staleThreadId: actualThreadId, userId, agentId },
+        });
+        const userText = extractTextContent(lastUserMessage.content);
+        const thread = await createThread(
+          userId,
+          agentId ?? 'gruenerator-universal',
+          userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+        );
+        actualThreadId = thread.id;
+        isNewThread = true;
+        sse.send('thread_created', { threadId: actualThreadId });
       }
     }
 
@@ -306,14 +337,32 @@ export async function buildStreamContext({
       );
     }
 
-    const userText = extractTextContent(lastUserMessage.content);
-    await createMessage(
-      actualThreadId,
-      'user',
-      userText,
-      rawRoleName ? { roleName: rawRoleName } : undefined,
-      userId
-    );
+    // Regenerate / edit-resubmit: replace the last turn instead of appending,
+    // so chat_messages stays linear (no duplicate user rows / orphaned replies).
+    // Never truncates a brand-new thread (nothing to replace there).
+    if (!isNewThread) {
+      if (rawReplaceFromMessageId) {
+        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // In-session messages carry an AUI id that isn't a persisted row → the
+        // delete matches nothing; fall back to dropping the trailing reply.
+        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+      } else if (rawRegenerate) {
+        await deleteTrailingAssistant(actualThreadId);
+      }
+    }
+
+    // Regenerate keeps the existing (unchanged) user message; re-persisting it
+    // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
+    if (!rawRegenerate) {
+      const userText = extractTextContent(lastUserMessage.content);
+      await createMessage(
+        actualThreadId,
+        'user',
+        userText,
+        rawRoleName ? { roleName: rawRoleName } : undefined,
+        userId
+      );
+    }
   }
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
@@ -435,6 +484,7 @@ export async function buildStreamContext({
     boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
     wolkeFiles,
     connectFiles,
+    attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
