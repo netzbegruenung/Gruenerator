@@ -50,6 +50,7 @@
   "license": "ISC",
   "dependencies": {
     "@ai-sdk/mistral": "^3.0.38",
+    "@ffprobe-installer/ffprobe": "^1.4.1",
     "@ai-sdk/openai": "^3.0.70",
     "@better-auth/drizzle-adapter": "^1.6.16",
     "@blocknote/xl-ai": "^0.51.4",
@@ -88,6 +89,7 @@
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
+    "ffmpeg-static": "^5.2.0",
     "form-data": "^4.0.5",
     "helmet": "^8.2.0",
     "http-errors": "^2.0.1",

@@ -237,7 +237,6 @@ export async function exportWithSegments(
     const isVertical = metadata.width < metadata.height;
     const referenceDimension = isVertical ? metadata.width : metadata.height;
     const fileSizeMB = fileStats.size / 1024 / 1024;
-    const useHwAccel = await hwaccel.detectVaapi();
 
     const hasAudio = metadata.originalFormat?.audioCodec != null;
 
@@ -256,63 +255,37 @@ export async function exportWithSegments(
           ? buildSegmentFilterComplex(validSegments)
           : buildVideoOnlyFilterComplex(validSegments);
 
-        let outputOptions: string[];
+        const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
-        if (useHwAccel) {
-          const videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-          const qp = hwaccel.crfToQp(crf);
+        const outputOptions = [
+          '-y',
+          '-filter_complex',
+          filterComplex,
+          '-map',
+          outputStreams[0],
+          ...(hasAudio ? ['-map', outputStreams[1]] : []),
+          '-c:v',
+          videoCodec,
+          '-preset',
+          preset,
+          '-crf',
+          crf.toString(),
+          '-profile:v',
+          videoCodec === 'libx264' ? 'high' : 'main',
+          '-level',
+          videoCodec === 'libx264' ? '4.1' : '4.0',
+          ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
+          '-movflags',
+          '+faststart',
+          '-avoid_negative_ts',
+          'make_zero',
+        ];
 
-          command.inputOptions(hwaccel.getVaapiInputOptions());
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            filterComplex,
-            '-map',
-            outputStreams[0],
-            ...(hasAudio ? ['-map', outputStreams[1]] : []),
-            ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          log.debug(`Segment export using VAAPI: ${referenceDimension}p, encoder: ${videoCodec}`);
-        } else {
-          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            filterComplex,
-            '-map',
-            outputStreams[0],
-            ...(hasAudio ? ['-map', outputStreams[1]] : []),
-            '-c:v',
-            videoCodec,
-            '-preset',
-            preset,
-            '-crf',
-            crf.toString(),
-            '-profile:v',
-            videoCodec === 'libx264' ? 'high' : 'main',
-            '-level',
-            videoCodec === 'libx264' ? '4.1' : '4.0',
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          if (videoCodec === 'libx264') {
-            outputOptions.push(...hwaccel.getX264QualityParams());
-          }
-
-          log.debug(`Segment export using CPU: ${referenceDimension}p, CRF: ${crf}`);
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
         }
+
+        log.debug(`Segment export using CPU: ${referenceDimension}p, CRF: ${crf}`);
 
         command.outputOptions(outputOptions);
 
@@ -488,7 +461,6 @@ export async function exportWithSegmentsAndSubtitles(
 
     const referenceDimension = isVertical ? metadata.width : metadata.height;
     const fileSizeMB = fileStats.size / 1024 / 1024;
-    const useHwAccel = await hwaccel.detectVaapi();
     const hasAudio = metadata.originalFormat?.audioCodec != null;
 
     await ffmpegPool.run(async () => {
@@ -511,58 +483,34 @@ export async function exportWithSegmentsAndSubtitles(
 
         const combinedFilter = `${segmentFilter};[outv]${subtitleFilter}[finalv]`;
 
-        let outputOptions: string[];
+        const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
-        if (useHwAccel) {
-          const videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-          const qp = hwaccel.crfToQp(crf);
+        const outputOptions = [
+          '-y',
+          '-filter_complex',
+          combinedFilter,
+          '-map',
+          '[finalv]',
+          ...(hasAudio ? ['-map', '[outa]'] : []),
+          '-c:v',
+          videoCodec,
+          '-preset',
+          preset,
+          '-crf',
+          crf.toString(),
+          '-profile:v',
+          videoCodec === 'libx264' ? 'high' : 'main',
+          '-level',
+          videoCodec === 'libx264' ? '4.1' : '4.0',
+          ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
+          '-movflags',
+          '+faststart',
+          '-avoid_negative_ts',
+          'make_zero',
+        ];
 
-          command.inputOptions(hwaccel.getVaapiInputOptions());
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            combinedFilter,
-            '-map',
-            '[finalv]',
-            ...(hasAudio ? ['-map', '[outa]'] : []),
-            ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-        } else {
-          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            combinedFilter,
-            '-map',
-            '[finalv]',
-            ...(hasAudio ? ['-map', '[outa]'] : []),
-            '-c:v',
-            videoCodec,
-            '-preset',
-            preset,
-            '-crf',
-            crf.toString(),
-            '-profile:v',
-            videoCodec === 'libx264' ? 'high' : 'main',
-            '-level',
-            videoCodec === 'libx264' ? '4.1' : '4.0',
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          if (videoCodec === 'libx264') {
-            outputOptions.push(...hwaccel.getX264QualityParams());
-          }
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
         }
 
         command.outputOptions(outputOptions);

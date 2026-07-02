@@ -16,6 +16,7 @@ import { getDrizzleInstance, type DrizzleDB } from '../../database/services/Driz
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
 import { processSubtitleSegments } from './downloadUtils.js';
+import { ffmpegPath } from './ffmpegWrapper.js';
 
 import type {
   SubtitlerProject,
@@ -593,7 +594,7 @@ export class SubtitlerProjectService {
       // Scale to fit within 480px on the longest side, preserving original aspect ratio.
       // Portrait (9:16) videos → ~270x480, landscape (16:9) → 480x270.
       // No padding/letterboxing — the thumbnail matches the video's native shape.
-      const ffmpeg: ChildProcess = spawn('ffmpeg', [
+      const ffmpeg: ChildProcess = spawn(ffmpegPath, [
         '-y',
         '-i',
         videoPath,
