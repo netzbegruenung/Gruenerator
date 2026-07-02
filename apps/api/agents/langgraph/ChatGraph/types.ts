@@ -549,6 +549,11 @@ export interface ChatGraphState {
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;
   computedResultTimeMs: number;
+  /** True when computedResult answers THIS turn's question (run_python resume /
+   *  computeNode) — respondNode then suppresses code-emission guidance. A
+   *  computedResult forwarded from the previous turn (lastComputeStore) leaves
+   *  this unset so a new follow-up computation can still emit code. */
+  computedResultFresh?: boolean | undefined;
 
   // Chart generation
   chartData: ChartData | null;

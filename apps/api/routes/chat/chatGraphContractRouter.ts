@@ -18,7 +18,11 @@
 import { chatGraphContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { classifierNode, buildSystemMessage } from '../../agents/langgraph/ChatGraph/index.js';
+import {
+  classifierNode,
+  pandasComputeNode,
+  buildSystemMessage,
+} from '../../agents/langgraph/ChatGraph/index.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -546,6 +550,77 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
         sse.end();
         return { status: 200 as const, body: undefined };
+      }
+
+      // === Client-tool interrupt: run-then-answer spreadsheet compute ===
+      // Tabular aggregation question + a client that can execute Python
+      // (web injects a Pyodide runner and declares clientTools:['run_python']):
+      // generate pandas code server-side, pause the turn, let the browser run
+      // the code and resume with the verified numbers. Mirrors the ask_human
+      // interrupt sequence above; clients without the capability (mobile,
+      // voice) fall through to the legacy prompt-guidance path.
+      if (
+        classifiedState.intent === 'compute' &&
+        classifiedState.hasTabularAttachment &&
+        args.body.clientTools?.includes('run_python') &&
+        actualThreadId != null
+      ) {
+        const { pythonCode } = await pandasComputeNode(classifiedState);
+        if (pythonCode) {
+          log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
+
+          const stepId = `run_python_${Date.now()}`;
+          sse.sendRaw('thinking_step', {
+            stepId,
+            toolName: 'run_python',
+            title: 'Berechne mit pandas…',
+            status: 'in_progress',
+            args: { code: pythonCode },
+          });
+
+          sse.send('interrupt', {
+            interruptType: 'client_tool',
+            toolName: 'run_python',
+            args: { code: pythonCode },
+            threadId: actualThreadId,
+          });
+
+          await pipelineStateStore.store(actualThreadId, {
+            classifiedState,
+            requestContext: {
+              userId,
+              agentId: agentId ?? 'gruenerator-universal',
+              enabledTools: enabledTools ?? {},
+              ...(modelId != null && { modelId }),
+              actualThreadId,
+              isNewThread,
+              processedMeta,
+              imageAttachments,
+              memoryContext,
+              memoryRetrieveTimeMs,
+              validMessages,
+              forcedTool,
+              ...(rawDocumentIds != null && { rawDocumentIds }),
+            },
+          });
+
+          sse.send('done', {
+            threadId: actualThreadId,
+            citations: [],
+            interrupted: true,
+            metadata: {
+              intent: classifiedState.intent,
+              searchCount: 0,
+              totalTimeMs: Date.now() - initialState.startTime,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+          sse.end();
+          return { status: 200 as const, body: undefined };
+        }
+        // Codegen failed — continue with the normal pipeline (prompt guidance
+        // still steers the model toward an auto-run code block).
       }
 
       // === Handle @board-erstellen tool ===

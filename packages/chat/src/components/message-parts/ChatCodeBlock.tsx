@@ -7,9 +7,10 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Check, Copy, Loader2, Play } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, Loader2, Play } from 'lucide-react';
 import { type ChatChartData } from '@gruenerator/ui';
 import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
+import { parseComputeResult } from '../../lib/computeResult';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
 import { usePythonFileStore } from '../../stores/pythonFileStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
@@ -26,25 +27,6 @@ function looksLikePandas(code: string): boolean {
 
 /** Code blocks auto-run at most once per unique source across re-mounts. */
 const autoRunSeen = new Set<string>();
-
-/** Parse a single labelled `print("Label:", value)` line into a compute entry so
- *  the result can be surfaced to the model on later turns. Falls back to the raw
- *  stdout as one entry. */
-function parseComputeResult(operation: string, stdout: string) {
-  const lines = stdout.trim().split('\n').filter(Boolean);
-  const entries = lines.map((line) => {
-    const idx = line.indexOf(':');
-    if (idx > 0 && idx < line.length - 1) {
-      return { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() };
-    }
-    return { label: 'Ergebnis', value: line.trim() };
-  });
-  return {
-    operation,
-    entries: entries.length > 0 ? entries : [{ label: 'Ergebnis', value: stdout.trim() }],
-    summary: stdout.trim(),
-  };
-}
 
 /** Parse a ```chart fenced block's JSON into a renderable chart, or null if the
  *  payload is malformed / not chart-shaped (then we fall back to a code view). */
@@ -100,6 +82,9 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState('');
   const [output, setOutput] = useState<CodeExecutionResult | null>(null);
+  // Spreadsheet-compute scripts are collapsed by default: the user cares about
+  // the result (output card + answer text), not the generated pandas code.
+  const [codeExpanded, setCodeExpanded] = useState(false);
 
   const hasTable = pythonFiles.length > 0;
   // Runnable when the host injected runPython (web) AND it's Python — either
@@ -192,9 +177,27 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     <div className="my-3 overflow-hidden rounded-lg border border-border bg-code-block-bg">
       <div className="flex items-center justify-between border-b border-border/60 px-3 py-1.5">
         <span className="font-mono text-xs text-foreground-muted">
-          {effectiveLanguage === 'text' ? 'Code' : effectiveLanguage}
+          {isTabularCompute
+            ? 'Tabellen-Berechnung'
+            : effectiveLanguage === 'text'
+              ? 'Code'
+              : effectiveLanguage}
         </span>
         <div className="flex items-center gap-1">
+          {isTabularCompute && (
+            <button
+              onClick={() => setCodeExpanded((v) => !v)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+              aria-expanded={codeExpanded}
+            >
+              {codeExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" />
+              )}
+              {codeExpanded ? 'Code verbergen' : 'Code anzeigen'}
+            </button>
+          )}
           {canRun && (
             <button
               onClick={runCode}
@@ -220,19 +223,20 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
         </div>
       </div>
 
-      {isMermaid ? (
-        <MermaidDiagram code={code} />
-      ) : html ? (
-        <div
-          className="overflow-x-auto p-4 text-sm [&_pre]:!m-0 [&_pre]:!bg-transparent"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      ) : (
-        <pre className="overflow-x-auto p-4 text-sm text-code-block-fg">
-          <code>{code}</code>
-        </pre>
-      )}
+      {(!isTabularCompute || codeExpanded) &&
+        (isMermaid ? (
+          <MermaidDiagram code={code} />
+        ) : html ? (
+          <div
+            className="overflow-x-auto p-4 text-sm [&_pre]:!m-0 [&_pre]:!bg-transparent"
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        ) : (
+          <pre className="overflow-x-auto p-4 text-sm text-code-block-fg">
+            <code>{code}</code>
+          </pre>
+        ))}
 
       {running && !output && (
         <div className="border-t border-border/60 px-4 py-2 text-xs text-foreground-muted">

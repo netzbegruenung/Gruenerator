@@ -280,7 +280,10 @@ export function detectContentType(query: string): string | null {
  * Medium confidence (0.7-0.9): Keyword matches with some ambiguity
  * Low confidence (<0.7): Fuzzy matches or unclear patterns
  */
-export function heuristicClassify(userContent: string): HeuristicResult {
+export function heuristicClassify(
+  userContent: string,
+  opts?: { hasTabularAttachment?: boolean }
+): HeuristicResult {
   const q = userContent.toLowerCase();
 
   // High confidence (0.95): Greetings and thanks at start of message
@@ -290,6 +293,22 @@ export function heuristicClassify(userContent: string): HeuristicResult {
       searchQuery: null,
       reasoning: 'Greeting detected',
       confidence: 0.95,
+    };
+  }
+
+  // High confidence (0.92): Aggregation/calculation question about an attached
+  // spreadsheet. Routes to `compute` so the pipeline generates pandas code and
+  // executes it client-side (run_python interrupt) instead of the model
+  // answering from prose. Gated on hasTabularAttachment so plain-text chats
+  // never match.
+  const tabularAggregation =
+    /(summe|gesamt|umsatz|gewinn|durchschnitt|mittelwert|median|\bmax\b|\bmin\b|höchst|niedrigst|\bpro\s+\w+|anteil|prozent|wie ?viel|zähl|anzahl|top ?\d|sortier|filter)/i;
+  if (opts?.hasTabularAttachment && tabularAggregation.test(q)) {
+    return {
+      intent: 'compute',
+      searchQuery: userContent,
+      reasoning: 'Tabular aggregation question with attached spreadsheet',
+      confidence: 0.92,
     };
   }
 
