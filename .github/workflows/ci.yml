@@ -91,4 +91,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/${{ matrix.app }}...
 
       - name: Build ${{ matrix.app }}
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo run build --filter=@gruenerator/${{ matrix.app }}
