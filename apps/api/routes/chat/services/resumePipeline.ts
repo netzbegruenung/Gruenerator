@@ -21,6 +21,7 @@ import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStre
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
 import { executeIntentPipeline } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
@@ -114,15 +115,13 @@ export async function runChatGraphResume({
       // ground truth for respondNode (formatComputedResultContext). The
       // `compute` SSE event drives the inline "Berechnung" card.
       const parsed = computePayloadSchema.safeParse(resumeInput.result);
-      // A "successful" run can still be semantically broken: nan/empty values
-      // (wrong column, missing dropna — beta: "Produkt mit höchstem Gewinn:
-      // nan") take the correction round too. A figure-only run legitimately has
-      // an empty text entry — figures count as a real result.
-      const NANISH_VALUE = /^(nan|nat|none|null)?$/i;
-      const hasNanValues =
-        parsed.success &&
-        !parsed.data.figures?.length &&
-        parsed.data.entries.some((e) => NANISH_VALUE.test(e.value.trim()));
+      const hasNanValues = parsed.success && hasBrokenComputeValues(parsed.data);
+
+      const seedComputedResult = (data: (typeof classifiedState)['computedResult']) => {
+        classifiedState.computedResult = data;
+        classifiedState.computedResultFresh = true;
+        if (data) sse.send('compute', { compute: data });
+      };
 
       // Correction round (OpenWebUI-style, bounded to 1 retry total): give the
       // codegen model the failed code + a failure/plausibility hint and pause
@@ -144,6 +143,9 @@ export async function runChatGraphResume({
         classifiedState.pandasLastCode = pythonCode;
         log.info(`[ChatGraph:Resume] run_python correction round (${pythonCode.length} chars)`);
 
+        // State FIRST, then the interrupt: if Redis fails here the client has
+        // not been promised a resume it can never complete.
+        await pipelineStateStore.store(threadId, { classifiedState, requestContext });
         sse.sendRaw('thinking_step', {
           stepId: `run_python_retry_${Date.now()}`,
           toolName: 'run_python',
@@ -157,7 +159,6 @@ export async function runChatGraphResume({
           args: { code: pythonCode },
           threadId,
         });
-        await pipelineStateStore.store(threadId, { classifiedState, requestContext });
         sse.send('done', {
           threadId,
           citations: [],
@@ -183,14 +184,16 @@ export async function runChatGraphResume({
           if (!verdict.plausible) {
             const hint =
               verdict.hint ?? 'Das Ergebnis passt nicht zur Frage — prüfe Spaltenwahl/Gruppierung.';
+            // Stash the SUCCESSFUL result: the verifier is fallible, and if the
+            // corrected code then fails we fall back to this instead of losing
+            // a working computation entirely.
+            classifiedState.pandasComputeFallback = parsed.data;
             if (await tryCorrectionRound(`Plausibilitätsprüfung fehlgeschlagen: ${hint}`)) {
               return { status: 200 as const, body: undefined };
             }
           }
         }
-        classifiedState.computedResult = parsed.data;
-        classifiedState.computedResultFresh = true;
-        sse.send('compute', { compute: parsed.data });
+        seedComputedResult(parsed.data);
       } else {
         const errorText = parsed.success
           ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${parsed.data.summary.slice(0, 300)}`
@@ -204,13 +207,14 @@ export async function runChatGraphResume({
         if (await tryCorrectionRound(errorText)) {
           return { status: 200 as const, body: undefined };
         }
-        // Correction budget spent or codegen declined: if the payload itself
-        // was valid (nan case), still hand it to the model — an answer that
-        // names the nan beats silently dropping the computation.
+        // Correction budget spent or codegen declined: hand the model the best
+        // available result — the valid-but-nan payload, or the stashed result
+        // a fallible verifier sent into a correction round that then failed.
         if (parsed.success) {
-          classifiedState.computedResult = parsed.data;
-          classifiedState.computedResultFresh = true;
-          sse.send('compute', { compute: parsed.data });
+          seedComputedResult(parsed.data);
+        } else if (classifiedState.pandasComputeFallback) {
+          log.info('[ChatGraph:Resume] correction failed — falling back to the original result');
+          seedComputedResult(classifiedState.pandasComputeFallback);
         }
       }
     }

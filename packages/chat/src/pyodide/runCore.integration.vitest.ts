@@ -349,6 +349,33 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.files.length).toBe(5);
   }, 120_000);
 
+  it('resets the namespace and cleans stale files when the file set changes (thread switch)', async () => {
+    const threadA = csvFile('thread-a.csv', 'X;Gewinn\n1;10\n2;20\n');
+    const first = await runPythonCore(
+      py,
+      'geheim = int(df["Gewinn"].sum())\ndf.to_csv("a-export.csv", index=False)\nprint("ok:", geheim)',
+      [threadA],
+      opts
+    );
+    expect(first.ok).toBe(true);
+
+    // Different file (new thread): old variables and old files must be gone —
+    // otherwise code silently computes with the previous thread's data.
+    const threadB = csvFile('thread-b.csv', 'Y;Umsatz\n1;5\n');
+    const leaked = await runPythonCore(py, 'print("Geheim:", geheim)', [threadB], opts);
+    expect(leaked.ok).toBe(false);
+    expect(leaked.traceback ?? '').toContain('geheim');
+
+    const staleFiles = await runPythonCore(
+      py,
+      'import os\nprint("alt:", int(os.path.exists("a-export.csv") or os.path.exists("thread-a.csv")))',
+      [threadB],
+      opts
+    );
+    expect(staleFiles.ok).toBe(true);
+    expect(staleFiles.stdout).toContain('alt: 0');
+  }, 120_000);
+
   it('blocks the js browser-bridge module for user code', async () => {
     const result = await runPythonCore(py, 'import js\nprint(js.location)', [SALES_CSV], opts);
     expect(result.ok).toBe(false);
