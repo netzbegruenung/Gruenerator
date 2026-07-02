@@ -1,3 +1,4 @@
+import { computePayloadSchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { capComputeFiles, capFigures, MAX_FIGURES, parseComputeResult } from './computeResult';
@@ -46,6 +47,36 @@ describe('capFigures', () => {
     expect(capFigures([oversized, small, small, small, small])).toHaveLength(MAX_FIGURES);
     expect(capFigures([oversized])).toEqual([]);
     expect(capFigures([small])).toEqual([small]);
+  });
+});
+
+describe('server-side schema caps (trust boundary)', () => {
+  const base = { operation: 'x', entries: [{ label: 'a', value: '1' }], summary: 'a: 1' };
+
+  it('accepts payloads within the client caps', () => {
+    const small = 'a'.repeat(1000);
+    expect(
+      computePayloadSchema.safeParse({
+        ...base,
+        figures: [small, small, small],
+        files: [{ name: 'e.csv', b64: small }],
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects payloads exceeding the caps — client capping alone is not a boundary', () => {
+    expect(computePayloadSchema.safeParse({ ...base, figures: ['a', 'b', 'c', 'd'] }).success).toBe(
+      false
+    );
+    expect(
+      computePayloadSchema.safeParse({ ...base, figures: ['x'.repeat(1_500_001)] }).success
+    ).toBe(false);
+    expect(
+      computePayloadSchema.safeParse({
+        ...base,
+        files: [{ name: 'f.csv', b64: 'y'.repeat(2_000_001) }],
+      }).success
+    ).toBe(false);
   });
 });
 

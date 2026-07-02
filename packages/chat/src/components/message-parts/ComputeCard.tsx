@@ -29,7 +29,10 @@ export function ComputeCard({ data }: { data: ComputeData }) {
         </span>
       </div>
       {data.figures?.map((figure, i) => (
-        <div key={figure.slice(0, 24)} className="group relative mb-2">
+        // Index key on purpose: every PNG shares the same base64 prefix
+        // (signature + IHDR), so content-slice keys collide.
+        // eslint-disable-next-line react/no-array-index-key
+        <div key={i} className="group relative mb-2">
           <img
             src={`data:image/png;base64,${figure}`}
             alt={`Diagramm ${i + 1}`}
@@ -59,17 +62,30 @@ export function ComputeCard({ data }: { data: ComputeData }) {
         </div>
       )}
       <dl className="divide-y divide-border/60">
-        {data.entries.map((entry, i) => (
-          <div
-            key={`${entry.label}-${i}`}
-            className="flex items-baseline justify-between gap-3 py-1"
-          >
-            <dt className="min-w-0 truncate text-xs text-foreground-muted">{entry.label}</dt>
-            <dd className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-              {entry.value}
-            </dd>
-          </div>
-        ))}
+        {data.entries.map((entry, i) =>
+          // Collapsed tabular output (pivot tables, df prints) lands as one
+          // multi-line value — render it as a block, not a squashed dd row.
+          entry.value.includes('\n') || entry.value.length > 120 ? (
+            <div key={`${entry.label}-${i}`} className="py-1">
+              <dt className="mb-1 text-xs text-foreground-muted">{entry.label}</dt>
+              <dd>
+                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-foreground">
+                  {entry.value}
+                </pre>
+              </dd>
+            </div>
+          ) : (
+            <div
+              key={`${entry.label}-${i}`}
+              className="flex items-baseline justify-between gap-3 py-1"
+            >
+              <dt className="min-w-0 truncate text-xs text-foreground-muted">{entry.label}</dt>
+              <dd className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                {entry.value}
+              </dd>
+            </div>
+          )
+        )}
       </dl>
     </div>
   );

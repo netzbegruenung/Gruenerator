@@ -51,14 +51,10 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
         const figures = capFigures(result.figures);
         if (figures.length > 0) compute.figures = figures;
         const computeFiles = capComputeFiles(result.files);
-        if (computeFiles.length > 0) {
-          compute.files = computeFiles;
-          // Name the exports in the entries so the answer model mentions the
-          // download instead of claiming it cannot create files.
-          for (const f of computeFiles) {
-            compute.entries.push({ label: 'Datei erstellt', value: f.name });
-          }
-        }
+        // The answer model learns about exports via respondNode's fileNote
+        // (from computedResult.files) — no synthetic entries, which would
+        // duplicate the download chips and pollute the verifier prompt.
+        if (computeFiles.length > 0) compute.files = computeFiles;
         // Also remember it locally so follow-up turns forward it as
         // `computedResult` (same path as the legacy auto-run code block).
         useLastComputeStore.getState().setResult(compute);

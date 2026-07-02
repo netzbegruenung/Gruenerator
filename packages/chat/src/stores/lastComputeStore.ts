@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { type ComputePayload } from '@gruenerator/contracts';
 
 /**
  * The most recent client-side spreadsheet computation (auto-run pandas result),
@@ -10,17 +11,11 @@ import { create } from 'zustand';
  * Session-scoped and single-slot (only the latest result matters); cleared on
  * thread switch alongside the tabular file store.
  */
-export interface ComputeResult {
-  operation: string;
-  entries: Array<{ label: string; value: string }>;
-  summary: string;
-  /** base64 PNGs of matplotlib figures (capped) — sent with the run_python
-   *  resume so the backend can persist them; stripped when forwarding the
-   *  result as `computedResult` on the NEXT request (keeps bodies slim). */
-  figures?: string[];
-  /** Files the code wrote (capped exports) — same lifecycle as figures. */
-  files?: Array<{ name: string; b64: string }>;
-}
+/** Derived from the wire schema (computePayloadSchema) — this IS the shape the
+ *  run_python resume POSTs and the backend validates; a hand-written twin
+ *  would drift silently. figures/files (capped base64) travel with the resume
+ *  and are stripped when forwarding as `computedResult` on the NEXT request. */
+export type ComputeResult = ComputePayload;
 
 interface LastComputeState {
   result: ComputeResult | null;
