@@ -29,7 +29,7 @@ COPY apps/api/package.json ./apps/api/
 
 # Install dependencies
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/api...
+    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/api...
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
