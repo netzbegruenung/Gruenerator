@@ -14,6 +14,8 @@
 import { isTabularAttachment } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { extractMessageText } from './classifierHeuristics.js';
+
 import type { ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:PandasCompute');
@@ -29,11 +31,15 @@ const CODEGEN_MODEL = {
 
 const CODEGEN_PROMPT = `Du bist ein Python/pandas-Codegenerator. Im Browser läuft ein Python-Interpreter, in dem die Tabelle der*des Nutzer*in bereits als pandas-DataFrame \`df\` vorgeladen ist (pandas ist als \`pd\` importiert).
 
-Schreibe NUR ausführbaren Python-Code, der die Frage der*des Nutzer*in über \`df\` beantwortet:
+Antworte AUSSCHLIESSLICH mit einem JSON-Objekt dieser Form:
+{"related": true, "code": "<python-code>"}
+
+Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
-- KEIN Markdown, KEINE Code-Fences, KEINE Erklärungen — nur der reine Code.`;
+- Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
+- Wenn die Frage NICHTS mit den Tabellendaten zu tun hat (z.B. Allgemeinwissen, Textaufgaben ohne Bezug zu \`df\`), antworte mit {"related": false, "code": ""}`;
 
 const MAX_TABLE_CONTEXT_CHARS = 6000;
 const MAX_CODE_CHARS = 2000;
@@ -41,9 +47,29 @@ const MAX_CODE_CHARS = 2000;
 /** Strip accidental markdown fences — the prompt forbids them, but models slip. */
 function stripCodeFences(raw: string): string {
   return raw
-    .replace(/^\s*```(?:python)?\s*\n?/i, '')
+    .replace(/^\s*```(?:python|json)?\s*\n?/i, '')
     .replace(/\n?```\s*$/, '')
     .trim();
+}
+
+/**
+ * Parse the codegen response. Primary path is JSON mode ({related, code});
+ * fallback treats the whole content as raw code because not every provider
+ * adapter honors response_format (the native mistralAdapter drops it — only
+ * the litellm/regolo OpenAI-compatible path enforces JSON).
+ */
+export function parseCodegenResponse(raw: string): { related: boolean; code: string } {
+  const stripped = stripCodeFences(raw);
+  try {
+    const parsed = JSON.parse(stripped) as { related?: unknown; code?: unknown };
+    if (typeof parsed === 'object' && parsed !== null && typeof parsed.code === 'string') {
+      return { related: parsed.related !== false, code: parsed.code.trim() };
+    }
+  } catch {
+    /* not JSON — fall through to raw-code handling */
+  }
+  if (/^UNRELATED\b/.test(stripped)) return { related: false, code: '' };
+  return { related: true, code: stripped };
 }
 
 /**
@@ -62,27 +88,20 @@ function buildTableContext(state: ChatGraphState): string {
   return combined.slice(0, MAX_TABLE_CONTEXT_CHARS);
 }
 
-/** Text of the last user message — fallback question when the classifier left
- *  searchQuery empty (e.g. LLM path classified the follow-up as direct). */
+/** The user's RAW last message. Preferred over searchQuery: when the router's
+ *  regex gate fires on a search-classified follow-up, searchQuery holds the
+ *  retrieval-optimized rewrite — codegen must answer the actual question. */
 function lastUserText(state: ChatGraphState): string {
   const msg = [...state.messages].reverse().find((m) => m.role === 'user');
-  if (!msg) return '';
-  const { content } = msg;
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content
-      .filter((p) => p && typeof p === 'object' && (p as { type?: string }).type === 'text')
-      .map((p) => (p as { text: string }).text)
-      .join('');
-  }
-  return '';
+  return msg ? extractMessageText(msg.content) : '';
 }
 
 export async function pandasComputeNode(
-  state: ChatGraphState
+  state: ChatGraphState,
+  opts?: { previousCode?: string; previousError?: string }
 ): Promise<{ pythonCode: string | null }> {
   const startTime = Date.now();
-  const question = state.searchQuery || lastUserText(state);
+  const question = lastUserText(state) || state.searchQuery || '';
   const tableContext = buildTableContext(state);
 
   if (!question || !tableContext) {
@@ -91,10 +110,23 @@ export async function pandasComputeNode(
   }
 
   try {
+    // Error-correction round: the client executed the previous code and it
+    // failed — regenerate with the failure in context (OpenWebUI-style loop).
+    const correctionBlock = opts?.previousError
+      ? `
+
+Der vorherige Code-Versuch ist FEHLGESCHLAGEN.
+Vorheriger Code:
+${opts.previousCode ?? '(unbekannt)'}
+Fehlermeldung: ${opts.previousError}
+
+Analysiere den Fehler (z.B. falscher Spaltenname, falscher Typ) und schreibe korrigierten, lauffähigen Code.`
+      : '';
+
     const userMessage = `Tabellen-Kontext (Spaltennamen + Beispielzeilen):
 ${tableContext}
 
-Frage der*des Nutzer*in: ${question}
+Frage der*des Nutzer*in: ${question}${correctionBlock}
 
 Schreibe den Python-Code.`;
 
@@ -108,12 +140,20 @@ Schreibe den Python-Code.`;
           model: CODEGEN_MODEL.model,
           max_tokens: 500,
           temperature: 0.1,
+          response_format: { type: 'json_object' },
         },
       },
       null
     );
 
-    const code = stripCodeFences(response.content || '').slice(0, MAX_CODE_CHARS);
+    const parsed = parseCodegenResponse(response.content || '');
+    const code = parsed.code.slice(0, MAX_CODE_CHARS);
+    // Escape valve: the model judged the question unrelated to the table —
+    // fall through to the normal pipeline instead of running pointless code.
+    if (!parsed.related) {
+      log.info('[PandasCompute] Question judged unrelated to the table — skipping');
+      return { pythonCode: null };
+    }
     if (!code) {
       log.error('[PandasCompute] Empty codegen response');
       return { pythonCode: null };

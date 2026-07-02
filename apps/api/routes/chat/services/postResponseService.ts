@@ -300,47 +300,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
-    if (processedMeta.length > 0) {
-      for (const meta of processedMeta) {
-        try {
-          const attachmentId = await saveThreadAttachment({
-            threadId,
-            messageId: null,
-            userId,
-            name: meta.name,
-            mimeType: meta.mimeType,
-            sizeBytes: meta.sizeBytes,
-            isImage: meta.isImage,
-            extractedText: meta.extractedText,
-            ...(meta.imageData != null && { imageData: meta.imageData }),
-            ...(meta.fileData != null && { fileData: meta.fileData }),
-          });
-
-          // Large prose documents (not images, not tabular) get chunked+embedded
-          // in the background so follow-up turns retrieve them via RAG instead of
-          // re-injecting truncated full text. Small docs stay full-context.
-          const isTabular = isTabularAttachment(meta.name, meta.mimeType);
-          if (
-            !meta.isImage &&
-            !isTabular &&
-            meta.extractedText &&
-            meta.extractedText.length > RAG_ATTACHMENT_THRESHOLD_CHARS
-          ) {
-            embedThreadAttachmentForRag({
-              attachmentId,
-              userId,
-              name: meta.name,
-              extractedText: meta.extractedText,
-            }).catch((err) => {
-              reportBackgroundError(err, { job: 'attachment-rag-embed', attachmentId });
-            });
-          }
-        } catch (attachError) {
-          log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
-        }
-      }
-      log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${threadId}`);
-    }
+    await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
@@ -386,15 +346,75 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 }
 
 /**
- * Persist a resumed response (simpler — no title gen, no attachments, no mem0).
+ * Save this turn's uploaded files as thread attachments (+ background RAG embed
+ * for large prose docs). Shared by the normal completion path AND the resume
+ * path: an interrupted turn (ask_human / run_python) returns before
+ * persistAssistantResponse runs, so without the resume-side call the uploaded
+ * file was never persisted — follow-up turns then lost hasTabularAttachment
+ * and the re-injected file context entirely.
+ */
+async function saveThreadAttachmentsFromMeta(
+  threadId: string,
+  userId: string,
+  processedMeta: ProcessedAttachmentMeta[]
+): Promise<void> {
+  if (processedMeta.length === 0) return;
+  for (const meta of processedMeta) {
+    try {
+      const attachmentId = await saveThreadAttachment({
+        threadId,
+        messageId: null,
+        userId,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        sizeBytes: meta.sizeBytes,
+        isImage: meta.isImage,
+        extractedText: meta.extractedText,
+        ...(meta.imageData != null && { imageData: meta.imageData }),
+        ...(meta.fileData != null && { fileData: meta.fileData }),
+      });
+
+      // Large prose documents (not images, not tabular) get chunked+embedded
+      // in the background so follow-up turns retrieve them via RAG instead of
+      // re-injecting truncated full text. Small docs stay full-context.
+      const isTabular = isTabularAttachment(meta.name, meta.mimeType);
+      if (
+        !meta.isImage &&
+        !isTabular &&
+        meta.extractedText &&
+        meta.extractedText.length > RAG_ATTACHMENT_THRESHOLD_CHARS
+      ) {
+        embedThreadAttachmentForRag({
+          attachmentId,
+          userId,
+          name: meta.name,
+          extractedText: meta.extractedText,
+        }).catch((err) => {
+          reportBackgroundError(err, { job: 'attachment-rag-embed', attachmentId });
+        });
+      }
+    } catch (attachError) {
+      log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
+    }
+  }
+  log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${threadId}`);
+}
+
+/**
+ * Persist a resumed response (simpler — no title gen, no mem0). Attachments
+ * ARE saved here when the caller passes the stored request context: the
+ * original turn ended in an interrupt, so this is the first (and only) chance
+ * to persist the files uploaded with it.
  */
 export async function persistResumedResponse(params: {
   threadId: string;
   fullText: string;
   finalState: ChatGraphState;
   classifiedState: ChatGraphState;
+  userId?: string;
+  processedMeta?: ProcessedAttachmentMeta[];
 }): Promise<void> {
-  const { threadId, fullText, finalState, classifiedState } = params;
+  const { threadId, fullText, finalState, classifiedState, userId, processedMeta } = params;
 
   if (!threadId || !fullText) return;
 
@@ -409,6 +429,9 @@ export async function persistResumedResponse(params: {
       toolCalls,
     });
     await touchThread(threadId);
+    if (userId && processedMeta?.length) {
+      await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+    }
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
   } catch (error) {
     log.error('[ChatGraph:Resume] Error persisting message:', error);

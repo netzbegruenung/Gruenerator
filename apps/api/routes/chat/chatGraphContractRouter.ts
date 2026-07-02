@@ -561,15 +561,28 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // interrupt sequence above; clients without the capability (mobile,
       // voice) fall through to the legacy prompt-guidance path.
       //
-      // Besides intent === 'compute' we re-check the raw question text: on
-      // multi-turn threads the vague-follow-up confidence penalty pushes the
+      // The gate re-checks the raw question text (not just intent==='compute'):
+      // on multi-turn threads the vague-follow-up confidence penalty pushes the
       // tabular heuristic below threshold and the LLM classifies follow-ups
       // like "durchschnittlicher umsatz pro region?" as search/direct — which
-      // silently degraded them to the legacy prompt-guidance path.
+      // silently degraded them to the legacy prompt-guidance path. Guards:
+      // only hijackable intents (explicit tool intents like chart/image/
+      // sharepic/web keep their flow), no @-forced tools, and the matcher
+      // itself excludes text-metric ("wie viele zeichen") and visualization
+      // questions.
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+      const computeOverridableIntents = new Set([
+        'compute',
+        'direct',
+        'search',
+        'summary',
+        'compare',
+      ]);
       if (
-        (classifiedState.intent === 'compute' || isTabularComputeQuestion(lastUserText)) &&
+        computeOverridableIntents.has(classifiedState.intent) &&
         classifiedState.hasTabularAttachment &&
+        !forcedTools?.length &&
+        isTabularComputeQuestion(lastUserText) &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
@@ -577,8 +590,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (pythonCode) {
           log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
           // The resumed respond step should use the compute-mode guidance even
-          // when the classifier had picked a different intent.
+          // when the classifier had picked a different intent — and the client
+          // already received the original intent event, so send a corrective
+          // one before the tool card appears.
           classifiedState.intent = 'compute';
+          // Stashed for the error-correction round: if the client reports a
+          // failed execution, the resume handler regenerates with this code +
+          // the error message in context.
+          classifiedState.pandasLastCode = pythonCode;
+          sse.send('intent', {
+            intent: 'compute',
+            message: getIntentMessage('compute'),
+            reasoning: 'Tabellen-Berechnung erkannt',
+          });
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {
