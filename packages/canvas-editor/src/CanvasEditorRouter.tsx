@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 import './canvas-editor.css';
 import type { StockImageAttribution } from './common/imageSourceTypes';
@@ -181,10 +181,18 @@ export function ControllableCanvasWrapper({
   const prevInitialStateRef = useRef<CanvasState>(initialState);
   const readyFiredRef = useRef(false);
 
+  // Strip `pages` — slider deck page defs live in the `pages` Y.Array, not
+  // formState. Without this, initialState for a slider deck writes a stale
+  // multi-KB pages blob into the formState Y.Map that is never read back.
+  const formStateFallback = useMemo((): Record<string, unknown> => {
+    const { pages: _, ...rest } = initialState as Record<string, unknown>;
+    return rest;
+  }, [initialState]);
+
   const { formState: yFormState, updateFormState } = useYjsFormState({
     ydoc: collaborative?.ydoc ?? null,
     isSynced: collaborative?.isSynced ?? false,
-    fallback: initialState,
+    fallback: formStateFallback,
   });
 
   const effectiveState = isCollab ? yFormState : internalState;
