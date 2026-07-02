@@ -563,6 +563,11 @@ function formatComputedResultContext(computedResult: ChatGraphState['computedRes
     figureCount > 0
       ? `\n${figureCount === 1 ? 'Ein Diagramm wurde' : `${figureCount} Diagramme wurden`} bei der Berechnung erstellt und der*dem Nutzer*in bereits angezeigt — erwähne das kurz und erstelle KEIN weiteres Diagramm.`
       : '';
+  const fileNames = computedResult.files?.map((f) => f.name) ?? [];
+  const fileNote =
+    fileNames.length > 0
+      ? `\nFolgende Datei${fileNames.length === 1 ? ' wurde' : 'en wurden'} erstellt und ${fileNames.length === 1 ? 'steht' : 'stehen'} der*dem Nutzer*in bereits zum Download bereit: ${fileNames.join(', ')} — erwähne das kurz.`
+      : '';
   return `
 
 ## BERECHNUNGSERGEBNIS (deterministisch per Programm berechnet — NICHT selbst nachrechnen)
@@ -570,7 +575,7 @@ function formatComputedResultContext(computedResult: ChatGraphState['computedRes
 Operation: ${computedResult.operation}
 ${lines}
 
-Zusammenfassung: ${computedResult.summary}${figureNote}
+Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
 
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.`;
