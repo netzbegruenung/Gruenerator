@@ -57,6 +57,18 @@ export const INTENT_KEYWORDS: Record<
     'nebeneinkünfte',
     'namentliche abstimmung',
   ],
+  bundestag: [
+    'drucksache',
+    'bt-drs',
+    'plenarprotokoll',
+    'plenardebatte',
+    'bundestagsdebatte',
+    'bundestagsrede',
+    'gesetzentwurf',
+    'kleine anfrage',
+    'große anfrage',
+    'gesetzgebungsverfahren',
+  ],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
 };

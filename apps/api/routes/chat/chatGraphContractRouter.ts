@@ -195,6 +195,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
       }
 
+      // @bundestag hard-pins the DIP document/speech intent — same rules as
+      // @abgeordnetenwatch above (not in TOOL_PRIORITY, DE-only source).
+      const bundestagForced = !!forcedTools?.includes('bundestag');
+      if (bundestagForced && initialState.userLocale !== 'de-AT') {
+        classifiedState.intent = 'bundestag';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = extractTextContent(lastUserMessage.content).trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
