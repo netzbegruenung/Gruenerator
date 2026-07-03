@@ -103,9 +103,19 @@ export function buildFileSetup(name: string, mimeType: string): string {
   const literal = JSON.stringify(name);
   if (isXlsx(name, mimeType) || isXls(name, mimeType)) {
     // pandas auto-selects openpyxl (.xlsx) or xlrd (.xls) by extension.
+    // Multi-sheet workbooks (OpenWebUI/LobeHub parity): every sheet is loaded
+    // and cleaned, `df` stays the FIRST sheet (backward compatible), and the
+    // sheet map is announced via print — that line lands in the compute card
+    // AND the respond context, so model and user know what is addressable.
     return `import pandas as pd
 ${CLEAN_HELPER}
-df = _gruen_clean(pd.read_excel(${literal}))`;
+_gruen_all = pd.read_excel(${literal}, sheet_name=None)
+sheets = {}
+for _gruen_n in _gruen_all:
+    sheets[_gruen_n] = _gruen_clean(_gruen_all[_gruen_n])
+df = sheets[next(iter(sheets))]
+if len(sheets) > 1:
+    print("Hinweis: Arbeitsmappe mit " + str(len(sheets)) + " Blättern: " + ", ".join(sheets) + ". df ist das Blatt '" + next(iter(sheets)) + "', weitere Blätter über sheets['Blattname'].")`;
   }
   return `import pandas as pd
 import re as _re

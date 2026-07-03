@@ -228,8 +228,33 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('München aktiv: 430000');
     expect(result.stdout).toContain('Dienstälteste: Emma Koch');
     expect(result.stdout).toContain('Plus3: 1293680');
-    // Clean data: the aggregate-row guard must stay silent (25 rows intact).
-    expect(result.stdout).not.toContain('Hinweis:');
+    // Clean data: the aggregate-row guard must stay silent (25 rows intact) —
+    // the only Hinweis is the multi-sheet announcement.
+    expect(result.stdout).not.toContain('Summen-/Gesamtzeile');
+    expect(result.stdout).toContain('Arbeitsmappe mit 4 Blättern: Mitarbeiter, Zeiterfassung');
+  }, 180_000);
+
+  it('answers cross-sheet tasks via the preloaded sheets dict', async () => {
+    // The codegen convention announced in the setup print: sheets['Blattname']
+    // holds every (cleaned) sheet. Ground truth from the Lösungen sheet.
+    const result = await runPythonCore(
+      py,
+      [
+        'z = sheets["Zeiterfassung"]',
+        'if str(z["Datum"].dtype) != "datetime64[ns]":',
+        '    z["Datum"] = pd.to_datetime(z["Datum"], unit="D", origin="1899-12-30")',
+        'print("Zeilen:", len(z))',
+        'print("Wochenende:", int((z["Datum"].dt.weekday >= 5).sum()))',
+        'jan = z[(z["Datum"].dt.month == 1) & (z["Abrechenbar"] == "Ja")]',
+        'print("Januar:", round((jan["Stunden"] * jan["Stundensatz"]).sum(), 2))',
+      ].join('\n'),
+      [loadExcelTestTabelle()],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Zeilen: 120');
+    expect(result.stdout).toContain('Wochenende: 28');
+    expect(result.stdout).toContain('Januar: 6142.5');
   }, 180_000);
 
   it('reaches the Zeiterfassung sheet via explicit sheet_name (cross-sheet tasks)', async () => {

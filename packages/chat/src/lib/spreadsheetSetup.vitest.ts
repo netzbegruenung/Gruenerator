@@ -25,10 +25,16 @@ describe('isXlsx', () => {
 });
 
 describe('buildFileSetup', () => {
-  it('reads .xlsx via read_excel wrapped in the aggregate-row guard', () => {
+  it('reads .xlsx with ALL sheets, cleaned, df = first sheet', () => {
     const setup = buildFileSetup('umsatz.xlsx', XLSX_MIME);
-    expect(setup).toContain('_gruen_clean(pd.read_excel("umsatz.xlsx"))');
+    expect(setup).toContain('pd.read_excel("umsatz.xlsx", sheet_name=None)');
+    // Every sheet runs through the aggregate-row guard.
     expect(setup).toContain('def _gruen_clean(');
+    expect(setup).toContain('sheets[_gruen_n] = _gruen_clean(');
+    // Backward compatible: df stays the first (workbook-order) sheet.
+    expect(setup).toContain('df = sheets[next(iter(sheets))]');
+    // Multi-sheet workbooks announce their sheet map into stdout → card.
+    expect(setup).toContain('Arbeitsmappe mit');
   });
 
   it('reads CSV with separator sniffing, encoding fallback and German-number normalization', () => {
@@ -45,9 +51,10 @@ describe('buildFileSetup', () => {
     // (runCore.integration.vitest.ts) against real pandas.
   });
 
-  it('reads legacy .xls via read_excel wrapped in the aggregate-row guard', () => {
+  it('reads legacy .xls via the same multi-sheet path', () => {
     const setup = buildFileSetup('alt.xls', XLS_MIME);
-    expect(setup).toContain('_gruen_clean(pd.read_excel("alt.xls"))');
+    expect(setup).toContain('pd.read_excel("alt.xls", sheet_name=None)');
+    expect(setup).toContain('df = sheets[next(iter(sheets))]');
   });
 
   it('keeps the guard snippet free of typographic characters (sanitizer gotcha)', () => {
