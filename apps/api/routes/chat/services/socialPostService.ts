@@ -56,9 +56,11 @@ export function parseSocialPostText(raw: string): {
  */
 export async function generateSocialPostText(opts: {
   state: ChatGraphState;
+  /** Crawled pages from URLs the user pasted — the factual basis of the post. */
+  urlContext?: ChatGraphState['searchResults'];
   req?: Request;
 }): Promise<SocialPostPayload> {
-  const { state, req } = opts;
+  const { state, urlContext, req } = opts;
   const platform = state.platform ?? 'generic';
   const info = SOCIAL_PLATFORM_INFO[platform];
 
@@ -66,10 +68,20 @@ export async function generateSocialPostText(opts: {
   const userText = lastMsg ? extractTextContent(lastMsg.content) : '';
   if (!userText.trim()) throw new Error('Empty user message for social post generation');
 
+  // "Schreib einen Tweet zu <URL>" — the crawled page is the factual basis.
+  // Capped per page so a long article can't crowd out the rubric/examples.
+  const urlBlock =
+    urlContext && urlContext.length > 0
+      ? `\n\n## KONTEXT AUS VERLINKTEN SEITEN\nDie*der Nutzer*in hat Link(s) mitgeschickt. Stütze den Post inhaltlich auf diese Seiteninhalte; erfinde nichts darüber hinaus.\n\n${urlContext
+          .slice(0, 3)
+          .map((r) => `### ${r.title}${r.url ? ` (${r.url})` : ''}\n${r.content.slice(0, 4000)}`)
+          .join('\n\n---\n\n')}`
+      : '';
+
   // Reuse the examples-grounded prompt (rubric + up to 6 worked examples),
   // then pin the shared character budget so backend prompt and frontend
   // meter can't drift.
-  const systemPrompt = `${buildSocialMediaSystemPrompt(state)}
+  const systemPrompt = `${buildSocialMediaSystemPrompt(state)}${urlBlock}
 
 ## ZEICHENBUDGET
 Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeichen (inklusive Hashtags).`;
