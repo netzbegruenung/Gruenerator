@@ -27,6 +27,15 @@ export function seedThumbnailCache(variantId: string, dataUrl: string): void {
   trimCache();
 }
 
+/**
+ * Cached full-res head render for a variant at a given live version, or null.
+ * The cache is version-keyed, so a chat edit (version bump) is a miss and
+ * forces a fresh render; switching the hero back and forth is a hit.
+ */
+export function getCachedSharepicRender(variantId: string, version: number | null): string | null {
+  return thumbCache.get(cacheKeyFor(variantId, version)) ?? null;
+}
+
 function trimCache(): void {
   while (thumbCache.size > THUMB_CACHE_MAX) {
     const oldest = thumbCache.keys().next().value;

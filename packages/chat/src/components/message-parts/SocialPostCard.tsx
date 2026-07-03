@@ -97,7 +97,7 @@ export function SocialPostCard({
   return (
     <div
       className={cn(
-        'mb-3 overflow-hidden rounded-lg border bg-background-alt',
+        'mb-3 overflow-hidden rounded-lg border bg-surface',
         isActiveForChat ? 'border-primary ring-1 ring-primary' : 'border-border'
       )}
     >

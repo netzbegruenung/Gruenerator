@@ -22,6 +22,8 @@ import {
   canvasResizeResponseSchema,
   canvasRestoreResponseSchema,
   canvasStateResponseSchema,
+  canvasFromVariantBodySchema,
+  canvasFromVariantResponseSchema,
   canvasVersionListResponseSchema,
   canvasVersionResponseSchema,
   createCanvasBodySchema,
@@ -56,6 +58,20 @@ export const canvasContract = c.router(
         500: canvasErrorResponseSchema,
       },
       summary: 'Create a canvas',
+    },
+
+    /** POST /api/canvas/from-variant — server-authoritative mint of a chat sharepic variant. */
+    fromVariant: {
+      method: 'POST',
+      path: '/api/canvas/from-variant',
+      body: canvasFromVariantBodySchema,
+      responses: {
+        201: canvasFromVariantResponseSchema,
+        400: canvasErrorResponseSchema,
+        401: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'Mint a canvas from an unminted chat sharepic variant',
     },
 
     /** POST /api/canvas/:id/resize — duplicate into a new format. */

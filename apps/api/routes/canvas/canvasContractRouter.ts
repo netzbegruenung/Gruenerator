@@ -46,6 +46,7 @@ import {
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+import { mintCanvasForVariant } from '../chat/services/sharepicEditService.js';
 import { getServerFormat } from '../exports/pageConstants.js';
 
 import type { Application } from 'express';
@@ -101,6 +102,28 @@ export const canvasContractRouter = s.router(canvasContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to create canvas', details: err.message },
+      };
+    }
+  },
+
+  fromVariant: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { canvasType, initialProps, threadId, variantId } = args.body;
+      const { canvasId } = await mintCanvasForVariant({
+        userId,
+        threadId,
+        variantId,
+        canvasType,
+        initialProps,
+      });
+      return { status: 201 as const, body: { canvasId } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.fromVariant] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to mint canvas from variant', details: err.message },
       };
     }
   },
