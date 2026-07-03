@@ -66,6 +66,8 @@ export interface BuildRequestBodyParams {
     canvasId: string | null;
     canvasType: string;
   } | null;
+  /** Social post marked "active for chat editing" (combined post card), if any. */
+  currentSocialPost: { postId: string } | null;
   /** Subtitler project marked active for chat subtitle editing, if any. */
   currentReel: { projectId: string } | null;
   /** Composer-attached video, already TUS-uploaded (reel transcription). */
@@ -113,6 +115,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
+    currentSocialPost,
     currentReel,
     reelUpload,
   } = params;
@@ -168,6 +171,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     currentDocument: injectedCurrentDocument,
     currentBoard: injectedCurrentBoard,
     currentSharepic: currentSharepic ?? undefined,
+    currentSocialPost: currentSocialPost ?? undefined,
     currentReel: currentReel ?? undefined,
     reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,

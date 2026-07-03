@@ -71,7 +71,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 3b. Zeichen/Wörter zählen, rechnen, Einheiten umrechnen oder Datumsmathematik? → compute
 4. Als Dokument speichern? → save_as_doc
 5. Dokument mit Gruppe teilen? → share_doc
-6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
+6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research

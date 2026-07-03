@@ -67,6 +67,7 @@ describe('buildRequestBody', () => {
     injectedAttachmentContext: undefined,
     seededInitialAssistantMessage: undefined,
     currentSharepic: null,
+    currentSocialPost: null,
     currentReel: null,
     reelUpload: null,
     webpageUrls: [],
