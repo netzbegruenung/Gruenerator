@@ -382,6 +382,18 @@ export default defineConfig(({ command }) => ({
         target: process.env.VITE_PREVIEW_API || 'http://localhost:3001',
         changeOrigin: true,
         ws: true,
+        // Mirror the dev-server bypass so a local preview (bundle smoke test /
+        // prod-build debugging) can authenticate against the local backend.
+        // The origin rewrite keeps the backend's CORS allowlist happy when the
+        // preview runs on a non-3000 port (only localhost:3000 is allowlisted).
+        ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
+              proxyReq.setHeader('origin', 'http://localhost:3000');
+            });
+          },
+        }),
       },
     },
   },
