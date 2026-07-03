@@ -28,6 +28,7 @@ import { WolkeMentionPopover } from './WolkeMentionPopover';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
+import { WebMentionPopover } from './WebMentionPopover';
 import type { CollabDocSelection } from '../../lib/documentMentionables';
 import type {
   WolkeFileToken,
@@ -204,7 +205,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen';
+  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -342,6 +343,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           });
         }
         setMention((prev) => ({ ...prev, mode: 'vorlagen', visible: true, mentionStart: -1 }));
+        return;
+      }
+
+      // When user selects the @web trigger, swap to the URL input popover
+      if (mentionable.type === 'webpage') {
+        if (mention.mentionStart >= 0) {
+          const currentText = composerRuntime.getState().text;
+          const before = currentText.slice(0, mention.mentionStart);
+          const after = currentText.slice(textarea.selectionStart);
+          composerRuntime.setText(`${before}${after}`);
+          requestAnimationFrame(() => {
+            const pos = before.length;
+            textarea.setSelectionRange(pos, pos);
+          });
+        }
+        setMention((prev) => ({ ...prev, mode: 'web', visible: true, mentionStart: -1 }));
         return;
       }
 
@@ -496,6 +513,34 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover]
   );
 
+  const handleWebSelect = useCallback(
+    (url: string) => {
+      const hostname = (() => {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return url;
+        }
+      })();
+      void composerRuntime.addAttachment({
+        id: `gruenerator-webpage-${url}`,
+        type: 'document',
+        name: hostname,
+        contentType: 'application/x-gruenerator-webpage',
+        content: [
+          {
+            type: 'data',
+            name: 'gruenerator-mention',
+            data: { kind: 'webpage', url, name: hostname },
+          },
+        ],
+      });
+      dismissPopover();
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [composerRuntime, dismissPopover]
+  );
+
   const handleCanvaSelect = useCallback(
     (designs: CanvaDesignToken[]) => {
       if (designs.length === 0) return;
@@ -550,7 +595,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         mention.mode === 'wolke' ||
         mention.mode === 'connect' ||
         mention.mode === 'canva' ||
-        mention.mode === 'vorlagen'
+        mention.mode === 'vorlagen' ||
+        mention.mode === 'web'
       )
         return;
 
@@ -589,7 +635,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         mention.mode === 'wolke' ||
         mention.mode === 'connect' ||
         mention.mode === 'canva' ||
-        mention.mode === 'vorlagen'
+        mention.mode === 'vorlagen' ||
+        mention.mode === 'web'
       ) {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -704,6 +751,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             <VorlagenMentionPopover
               visible={mention.visible}
               onSelect={handleVorlagenSelect}
+              onDismiss={dismissPopover}
+            />
+          ) : mention.mode === 'web' ? (
+            <WebMentionPopover
+              visible={mention.visible}
+              onSelect={handleWebSelect}
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'skills' ? (
