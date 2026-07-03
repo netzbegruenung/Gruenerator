@@ -36,6 +36,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt dieser Form:
 
 Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
+- Arbeitsmappen mit mehreren Blättern: \`df\` ist das ERSTE Blatt; ALLE Blätter sind als \`sheets["Blattname"]\` verfügbar (Namen stehen im Tabellen-Kontext). Wähle das Blatt, dessen Spalten zur Frage passen.
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
 - Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
