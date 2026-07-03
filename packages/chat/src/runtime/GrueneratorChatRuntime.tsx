@@ -23,6 +23,7 @@ import {
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
+import { usePythonFileStore } from '../stores/pythonFileStore';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
@@ -47,6 +48,15 @@ import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { chatSuggestions } from '../lib/suggestions';
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
+
+/** Decode raw base64 (no data-URL prefix) to an ArrayBuffer for the Pyodide worker. */
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const clean = base64.includes(',') ? base64.slice(base64.indexOf(',') + 1) : base64;
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
 
 function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const aui = useAui();
@@ -95,6 +105,28 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 
             loadCompactionState(remoteId, apiClient);
             useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
+
+            // Rehydrate the in-browser pandas interpreter: setCurrentThread()
+            // cleared the tabular file store, so re-fetch this thread's persisted
+            // spreadsheet bytes and repopulate it — otherwise "Ausführen" on a
+            // reloaded thread has no `df`. Best-effort; on failure the user just
+            // re-attaches the file.
+            try {
+              const tabular = await apiClient.get<{
+                files: Array<{ name: string; mimeType: string; data: string }>;
+              }>(`/api/chat-service/threads/${remoteId}/tabular-files`);
+              const fileStore = usePythonFileStore.getState();
+              for (const f of tabular.files) {
+                fileStore.setFile({
+                  name: f.name,
+                  mimeType: f.mimeType,
+                  bytes: base64ToArrayBuffer(f.data),
+                });
+              }
+            } catch (rehydrateErr) {
+              console.warn('[History] Tabular file rehydration failed:', rehydrateErr);
+            }
+
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);

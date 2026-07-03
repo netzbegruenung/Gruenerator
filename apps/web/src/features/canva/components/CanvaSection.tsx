@@ -1,9 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { FiCheck, FiLoader } from 'react-icons/fi';
-import { SiCanva } from 'react-icons/si';
 
 import { useCanvaStatus, useDisconnectCanva, useInvalidateCanvaStatus } from '../hooks/useCanva';
 import { CANVA_AUTH_START_URL } from '../lib/canvaApi';
+
+import CanvaDesignsGrid from './CanvaDesignsGrid';
+import { CanvaLogo, PoweredByCanva } from './CanvaLogo';
 
 import { cn } from '@/utils/cn';
 
@@ -72,7 +74,7 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
   return (
     <div className="mt-xl">
       <div className="flex items-center gap-sm mb-md">
-        <SiCanva className="w-6 h-6 text-[#00C4CC]" />
+        <CanvaLogo size={24} />
         <h2 className="text-xl font-semibold text-foreground-heading m-0">Canva</h2>
         <span className="text-xs bg-secondary-100 text-secondary-700 px-sm py-0.5 rounded-full font-medium">
           Experimentell
@@ -82,6 +84,7 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
       {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade Verbindung...</p>}
 
       {!isLoading && (
+        <>
         <div
           className={cn(
             'flex items-center justify-between p-md rounded-lg border bg-background-pure transition-colors',
@@ -91,7 +94,7 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
           )}
         >
           <div className="flex items-center gap-md">
-            <SiCanva className="w-5 h-5 text-[#00C4CC]" />
+            <CanvaLogo size={20} />
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-foreground-heading">Canva</span>
               <span className="text-xs text-grey-400">
@@ -140,6 +143,9 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
             )}
           </div>
         </div>
+        {connected && <CanvaDesignsGrid connected={connected} />}
+        <PoweredByCanva className="mt-sm" />
+        </>
       )}
     </div>
   );

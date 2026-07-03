@@ -17,7 +17,7 @@ export interface TemplateFormat {
   /** Human format category shown as the stage badge, e.g. 'Sharepic', 'Story'. */
   typeLabel: string;
   /** Authoring tool / source, derived from the URL. */
-  tool: 'Canva' | 'Download' | 'Link';
+  tool: 'Canva' | 'Grünerator' | 'Download' | 'Link';
 }
 
 interface FormatSource {
@@ -46,6 +46,8 @@ const TYPE_PRESETS: Record<string, FormatPreset> = {
   header: { aspectRatio: '3 / 1', ratioLabel: 'Banner', typeLabel: 'Header' },
   hintergrund: { aspectRatio: '16 / 9', ratioLabel: '16:9', typeLabel: 'Hintergrund' },
   profilbild: { aspectRatio: '1 / 1', ratioLabel: '1:1', typeLabel: 'Profilbild' },
+  // Native Grünerator sharepic templates default to the post-portrait stage.
+  gruenerator: { aspectRatio: '4 / 5', ratioLabel: '4:5', typeLabel: 'Sharepic' },
 };
 
 const DEFAULT_PRESET: FormatPreset = {
@@ -66,6 +68,9 @@ const TAG_OVERRIDES: Array<{ match: string[]; aspectRatio: string; ratioLabel: s
 ];
 
 const deriveTool = (item: FormatSource): TemplateFormat['tool'] => {
+  // Native Grünerator-Vorlagen open in the in-app editor — not an external tool.
+  if (item.template_type === 'gruenerator') return 'Grünerator';
+
   const url =
     (item.content_data as { originalUrl?: string } | undefined)?.originalUrl ||
     item.external_url ||

@@ -1,12 +1,19 @@
-import { triggerDocEditSchema, triggerBoardActionSchema } from '@gruenerator/contracts';
+import {
+  triggerDocEditSchema,
+  triggerBoardActionSchema,
+  isCanvasTemplateType,
+} from '@gruenerator/contracts';
 
+import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
+import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
+import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -26,6 +33,8 @@ import type {
   SearchResult,
   StreamMetadata,
   ProgressStep,
+  ChartData,
+  ComputeData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -45,7 +54,11 @@ export async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
   outcome: StreamOutcome,
-  agentInfo?: { agentId: string; agentMention?: string }
+  agentInfo?: { agentId: string; agentMention?: string },
+  // Tool-call parts from an earlier stream of the SAME run (client-tool
+  // resume): pre-seeded so the run_python card stays visible while the
+  // resumed answer streams.
+  carryOver?: { toolCalls: ToolCallPart[] }
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
 
@@ -108,6 +121,10 @@ export async function* parseSSEStream(
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
+  let receivedSocialPostData: import('@gruenerator/contracts').SocialPostPayload | null = null;
+  let receivedChartData: ChartData | null = null;
+  let receivedArtifactData: ActiveArtifact | null = null;
+  let receivedComputeData: ComputeData | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -115,8 +132,12 @@ export async function* parseSSEStream(
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let activeToolCall: ToolCallPart | null = null;
-  const allToolCalls: ToolCallPart[] = [];
+  const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   let interruptPending = false;
+  // client_tool interrupt (auto-executed by the ModelAdapter): unlike a
+  // clarification it must NOT flip the message to requires-action — the same
+  // run() continues with the executed result via the resume endpoint.
+  let clientToolPending = false;
   let lastYieldTime = 0;
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
@@ -170,6 +191,10 @@ export async function* parseSSEStream(
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
+    if (receivedSocialPostData) custom.socialPostData = receivedSocialPostData;
+    if (receivedChartData) custom.chartData = receivedChartData;
+    if (receivedArtifactData) custom.artifactData = receivedArtifactData;
+    if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -239,8 +264,9 @@ export async function* parseSSEStream(
             searchSources?: string[] | null;
           };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct') stage = 'generating';
-          else if (intent === 'image' || intent === 'sharepic') stage = 'generating_image';
+          if (intent === 'direct' || intent === 'artifact') stage = 'generating';
+          else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
+            stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
           transitionStep(stage);
           currentProgress = { stage, message, intent, reasoning };
@@ -403,19 +429,51 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'chart_data': {
+          const { chart } = data as { chart?: ChartData };
+          if (chart) receivedChartData = chart;
+          yield buildResult();
+          break;
+        }
+
+        case 'artifact': {
+          const { artifact } = data as {
+            artifact?: { type: 'html' | 'svg'; title: string; content: string };
+          };
+          if (artifact) {
+            const active: ActiveArtifact = { id: `artifact-${Date.now()}`, ...artifact };
+            receivedArtifactData = active;
+            // Open the docked panel immediately.
+            useArtifactLiveStore.getState().setActiveArtifact(active);
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'compute': {
+          const { compute } = data as { compute?: ComputeData };
+          if (compute) receivedComputeData = compute;
+          yield buildResult();
+          break;
+        }
+
         case 'sharepic_complete': {
           const payload = data as {
             message: string;
-            variants?: import('../../hooks/useChatGraphStream').SharepicVariant[];
+            variants?: unknown;
             canvasType?: string;
             initialProps?: Record<string, unknown>;
             alternatives?: unknown[];
             error?: string;
           };
           if (!payload.error) {
-            if (payload.variants && payload.variants.length > 0) {
-              receivedSharepicData = { variants: payload.variants };
-            } else if (payload.canvasType && payload.initialProps) {
+            // Validate at the boundary: only variants with a canonical
+            // canvasType are kept, so a malformed type can never reach the
+            // studio handoff / canvas mint.
+            const validated = coerceSharepicVariants(payload.variants);
+            if (validated) {
+              receivedSharepicData = { variants: validated };
+            } else if (isCanvasTemplateType(payload.canvasType) && payload.initialProps) {
               const legacyId =
                 typeof crypto !== 'undefined' && 'randomUUID' in crypto
                   ? crypto.randomUUID()
@@ -438,6 +496,39 @@ export async function* parseSSEStream(
             message: payload.message,
           };
           yield buildResult();
+          break;
+        }
+
+        case 'social_post_complete': {
+          const payload = data as {
+            message: string;
+            post?: import('@gruenerator/contracts').SocialPostPayload;
+            error?: string;
+          };
+          if (!payload.error && payload.post) {
+            receivedSocialPostData = payload.post;
+            useSocialPostLiveStore.getState().upsertEntry(payload.post);
+          }
+          // Text half only — the sharepic half drives the stage transitions
+          // via its own sharepic_complete; don't flip to error here when just
+          // the text failed (the card shows the degradation).
+          yield buildResult();
+          break;
+        }
+
+        case 'social_post_updated': {
+          const payload = data as {
+            postId: string;
+            post: import('@gruenerator/contracts').SocialPostPayload;
+            summary: string;
+          };
+          useSocialPostLiveStore.getState().upsertEntry(payload.post);
+          break;
+        }
+
+        case 'social_post_edit_error': {
+          const { error } = data as { postId?: string; error: string };
+          console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
           break;
         }
 
@@ -707,7 +798,22 @@ export async function* parseSSEStream(
         }
 
         case 'interrupt': {
-          interruptPending = true;
+          const payload = data as {
+            interruptType?: 'clarification' | 'client_tool';
+            toolName?: string;
+            args?: Record<string, unknown>;
+            threadId?: string;
+          };
+          if (payload.interruptType === 'client_tool' && payload.toolName) {
+            clientToolPending = true;
+            outcome.clientToolInterrupt = {
+              toolName: payload.toolName,
+              args: payload.args ?? {},
+              ...(payload.threadId != null && { threadId: payload.threadId }),
+            };
+          } else {
+            interruptPending = true;
+          }
           yield buildResult();
           break;
         }
@@ -728,7 +834,7 @@ export async function* parseSSEStream(
           if (cit) receivedCitations = cit;
           if (img) receivedImage = img;
           if (metadata) receivedMetadata = metadata;
-          if (interrupted) interruptPending = true;
+          if (interrupted && !clientToolPending) interruptPending = true;
           transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
           break;
@@ -911,7 +1017,7 @@ export async function* parseSSEStream(
 
   outcome.interrupted = interruptPending;
 
-  if (receivedMetadata && !interruptPending) {
+  if (receivedMetadata && !interruptPending && !clientToolPending) {
     callbacks.onComplete?.(receivedMetadata);
   }
 }

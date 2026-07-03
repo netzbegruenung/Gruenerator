@@ -256,7 +256,13 @@ Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
 export function validateMem0Environment(): string[] {
   const missing: string[] = [];
 
-  if (!env.LITELLM_API_KEY) missing.push('LITELLM_API_KEY');
+  // Gate on the keys mem0 actually uses: Regolo for the extraction LLM
+  // (buildMem0Config) and the gatekeeper (INTERMEDIATE_MODEL → regolo),
+  // Mistral for embeddings, and Qdrant for the vector store. LiteLLM is NOT
+  // part of the mem0 stack, so requiring LITELLM_API_KEY here previously made
+  // the feature report "available" while every extraction LLM call failed
+  // (or report "unavailable" in envs that only have REGOLO_API_KEY).
+  if (!env.REGOLO_API_KEY) missing.push('REGOLO_API_KEY');
   if (!env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
   if (!env.QDRANT_URL) missing.push('QDRANT_URL');
 

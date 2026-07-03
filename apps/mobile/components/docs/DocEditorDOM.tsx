@@ -1,7 +1,12 @@
 'use dom';
 
 import '@gruenerator/docs/styles';
-import { useCollaboration, useCollaborators, type CollaborationConfig } from '@gruenerator/collab';
+import {
+  useCollaboration,
+  useCollaborators,
+  useSyncGate,
+  type CollaborationConfig,
+} from '@gruenerator/collab';
 import {
   DocsProvider,
   BlockNoteEditor,
@@ -10,7 +15,9 @@ import {
   invokeDocumentAI,
   acceptDocumentAI,
   rejectDocumentAI,
+  getDocUndoFlags,
   type DocsAdapter,
+  type UndoableEditor,
 } from '@gruenerator/docs/mobile';
 import { type DOMProps } from 'expo/dom';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -241,6 +248,7 @@ interface DocEditorDOMProps {
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
+  onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
   onAiReviewPendingChange?: (pending: boolean) => void;
   onAiAcceptFailed?: () => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
@@ -251,6 +259,36 @@ interface DocEditorDOMProps {
   pendingAction: { type: string; [key: string]: unknown } | null;
   actionCounter: number;
   dom?: DOMProps;
+}
+
+/**
+ * Subscribe `fn` to editor content changes (and, if `selection`, selection
+ * moves) with a trailing debounce, priming once immediately. Returns a cleanup
+ * that clears the timer and unsubscribes. Shared by the doc-snapshot and
+ * undo/redo effects so the debounce/subscribe boilerplate lives in one place.
+ */
+function subscribeDebouncedEditorChange(
+  editor: {
+    onChange?: (cb: () => void) => (() => void) | void;
+    onSelectionChange?: (cb: () => void) => () => void;
+  },
+  fn: () => void,
+  delayMs: number,
+  options?: { selection?: boolean }
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const emit = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(fn, delayMs);
+  };
+  const unsubChange = editor.onChange?.(emit);
+  const unsubSelection = options?.selection ? editor.onSelectionChange?.(emit) : undefined;
+  emit();
+  return () => {
+    if (timer) clearTimeout(timer);
+    if (typeof unsubChange === 'function') unsubChange();
+    if (unsubSelection) unsubSelection();
+  };
 }
 
 function EditorContent({
@@ -268,6 +306,7 @@ function EditorContent({
   onActiveStylesChange,
   onDocSnapshotChange,
   onSlashChange,
+  onUndoRedoStateChange,
 }: {
   documentId: string;
   userId: string;
@@ -283,6 +322,7 @@ function EditorContent({
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
+  onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -309,6 +349,9 @@ function EditorContent({
   });
   // Remote collaborators from Yjs awareness — bridged to native for presence avatars.
   const collaborators = useCollaborators(provider);
+  // Gate the editor mount until the initial Yjs sync completes (or times out) —
+  // binding y-prosemirror to a not-yet-synced doc crashes with "nodeSize undefined".
+  const editorReady = useSyncGate(provider, isSynced);
 
   // Editor instance ref for formatting operations
   const editorRef = useRef<unknown>(null);
@@ -336,6 +379,8 @@ function EditorContent({
   onDocSnapshotChangeRef.current = onDocSnapshotChange;
   const onSlashChangeRef = useRef(onSlashChange);
   onSlashChangeRef.current = onSlashChange;
+  const onUndoRedoStateChangeRef = useRef(onUndoRedoStateChange);
+  onUndoRedoStateChangeRef.current = onUndoRedoStateChange;
 
   // Subscribe to editor selection changes → send active styles to native
   useEffect(() => {
@@ -395,16 +440,12 @@ function EditorContent({
     const editor = editorRef.current as {
       onChange?: (cb: () => void) => (() => void) | void;
       onSelectionChange?: (cb: () => void) => () => void;
-      document: unknown;
-      blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
-      getSelectedText?: () => string;
     } | null;
     if (!editor || !onDocSnapshotChangeRef.current) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const emit = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+    return subscribeDebouncedEditorChange(
+      editor,
+      () => {
         const ed = editorRef.current as {
           document: unknown;
           blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
@@ -421,18 +462,29 @@ function EditorContent({
           .catch(() => {
             // editor not ready
           });
-      }, 600);
-    };
+      },
+      600,
+      { selection: true }
+    );
+  }, [isSynced]);
 
-    const unsubChange = editor.onChange?.(emit);
-    const unsubSelection = editor.onSelectionChange?.(emit);
-    emit();
+  // Push undo/redo availability (BlockNote's per-user collab stack) to native so
+  // the toolbar buttons enable/disable. Debounced lightly to limit bridge chatter
+  // during fast typing; the native store dedupes redundant updates anyway.
+  useEffect(() => {
+    const editor = editorRef.current as {
+      onChange?: (cb: () => void) => (() => void) | void;
+    } | null;
+    if (!editor || !onUndoRedoStateChangeRef.current) return;
 
-    return () => {
-      if (timer) clearTimeout(timer);
-      if (typeof unsubChange === 'function') unsubChange();
-      if (unsubSelection) unsubSelection();
-    };
+    return subscribeDebouncedEditorChange(
+      editor,
+      () => {
+        const { canUndo, canRedo } = getDocUndoFlags(editorRef.current as UndoableEditor | null);
+        onUndoRedoStateChangeRef.current?.(canUndo, canRedo);
+      },
+      200
+    );
   }, [isSynced]);
 
   // Listen for formatting actions from native
@@ -511,17 +563,31 @@ function EditorContent({
       }
     };
 
+    const handleUndoRedo = (e: Event) => {
+      const direction = (e as CustomEvent<{ direction: 'undo' | 'redo' }>).detail?.direction;
+      const ed = editorRef.current as { undo: () => void; redo: () => void } | null;
+      if (!ed) return;
+      try {
+        if (direction === 'undo') ed.undo();
+        else if (direction === 'redo') ed.redo();
+      } catch {
+        // editor not ready
+      }
+    };
+
     window.addEventListener('send-chat', handleSendChat);
     window.addEventListener('set-typing', handleSetTyping);
     window.addEventListener('format-action', handleFormatAction);
     window.addEventListener('insert-text', handleInsertText);
     window.addEventListener('slash-select', handleSlashSelect);
+    window.addEventListener('undo-redo-action', handleUndoRedo);
     return () => {
       window.removeEventListener('send-chat', handleSendChat);
       window.removeEventListener('set-typing', handleSetTyping);
       window.removeEventListener('format-action', handleFormatAction);
       window.removeEventListener('insert-text', handleInsertText);
       window.removeEventListener('slash-select', handleSlashSelect);
+      window.removeEventListener('undo-redo-action', handleUndoRedo);
     };
   }, [sendMessage, setTyping]);
 
@@ -594,18 +660,33 @@ function EditorContent({
           paddingInline: 8,
         }}
       >
-        <BlockNoteEditor
-          documentId={documentId}
-          ydoc={ydoc}
-          provider={provider}
-          isSynced={isSynced}
-          editable={isSynced}
-          showComments={false}
-          useStaticFormattingToolbar={false}
-          hideFormattingToolbar={true}
-          showDictationButton={false}
-          onEditorReady={handleEditorReady}
-        />
+        {editorReady ? (
+          <BlockNoteEditor
+            documentId={documentId}
+            ydoc={ydoc}
+            provider={provider}
+            isSynced={isSynced}
+            editable={isSynced}
+            showComments={false}
+            useStaticFormattingToolbar={false}
+            hideFormattingToolbar={true}
+            showDictationButton={false}
+            onEditorReady={handleEditorReady}
+          />
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 200,
+              color: '#6b7280',
+              fontSize: 14,
+            }}
+          >
+            Verbinde mit Server...
+          </div>
+        )}
       </div>
     </div>
   );
@@ -722,6 +803,10 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     } else if (props.pendingAction.type === 'reject-ai') {
       rejectDocumentAI(props.documentId);
       onAiReviewPendingChangeRef.current?.(false);
+    } else if (props.pendingAction.type === 'undo') {
+      window.dispatchEvent(new CustomEvent('undo-redo-action', { detail: { direction: 'undo' } }));
+    } else if (props.pendingAction.type === 'redo') {
+      window.dispatchEvent(new CustomEvent('undo-redo-action', { detail: { direction: 'redo' } }));
     } else if (props.pendingAction.type === 'slash-select') {
       const { blockType, props: blockProps } = props.pendingAction as {
         type: string;
@@ -784,6 +869,13 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     [props.onDocSnapshotChange]
   );
 
+  const handleUndoRedoStateChange = useCallback(
+    (canUndo: boolean, canRedo: boolean) => {
+      props.onUndoRedoStateChange?.(canUndo, canRedo);
+    },
+    [props.onUndoRedoStateChange]
+  );
+
   return (
     <DocsProvider adapter={adapter}>
       <EditorContent
@@ -801,6 +893,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onActiveStylesChange={handleActiveStylesChange}
         onDocSnapshotChange={handleDocSnapshotChange}
         onSlashChange={props.onSlashChange}
+        onUndoRedoStateChange={handleUndoRedoStateChange}
       />
     </DocsProvider>
   );

@@ -31,7 +31,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript type check
         run: pnpm typecheck
@@ -88,7 +88,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter @gruenerator/${{ matrix.app }}...
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/${{ matrix.app }}...
 
       - name: Build ${{ matrix.app }}
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo run build --filter=@gruenerator/${{ matrix.app }}

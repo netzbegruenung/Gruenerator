@@ -27,19 +27,31 @@ router.get('/', async (req, res) => {
     }
     const userId = user.id;
 
+    // tags query param: repeated (?tags=a&tags=b) or comma-separated (?tags=a,b)
+    const rawTags = req.query.tags;
+    const tags = (Array.isArray(rawTags) ? rawTags : rawTags ? [rawTags] : [])
+      .flatMap((t) => String(t).split(','))
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0);
+
     const query = req.query.q as string | undefined;
-    if (!query || query.trim().length < 2) {
-      return res.status(400).json({ error: 'Query parameter "q" is required (min 2 chars)' });
+    // A text query OR at least one tag is required. Tag-only search passes an
+    // empty pattern (matches all) and narrows by tag.
+    if ((!query || query.trim().length < 2) && tags.length === 0) {
+      return res
+        .status(400)
+        .json({ error: 'Provide "q" (min 2 chars) or at least one "tags" value' });
     }
 
     const threadType = req.query.threadType as 'chat' | 'search' | 'notebook' | undefined;
     const limit = Math.min(parseInt(req.query.limit as string) || 5, 20);
     const excludeThreadId = req.query.excludeThreadId as string | undefined;
 
-    const results = await searchChatHistory(userId, query.trim(), {
+    const results = await searchChatHistory(userId, (query ?? '').trim(), {
       ...(threadType && { threadType }),
       limit,
       ...(excludeThreadId && { excludeThreadId }),
+      ...(tags.length > 0 && { tags }),
     });
 
     return res.json({ results, total: results.length });

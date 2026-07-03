@@ -20,6 +20,9 @@ export type GrueneratorMessageMetadata = {
   citations?: Citation[];
   generatedImage?: GeneratedImage;
   sharepicData?: import('../../hooks/useChatGraphStream').SharepicData;
+  chartData?: import('../../hooks/useChatGraphStream').ChartData;
+  artifactData?: import('../../stores/artifactLiveStore').ActiveArtifact;
+  computeData?: import('../../hooks/useChatGraphStream').ComputeData;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
@@ -38,6 +41,12 @@ export interface GrueneratorAdapterConfig {
   enabledTools: Record<ToolKey, boolean>;
   threadId: string | null;
   selectedNotebookId?: string;
+  /** Resolved `*-system` collection ids (or a user-notebook UUID) the notebook-mode
+   *  request scopes retrieval to. Set by the host app, which owns the
+   *  notebook→collection map; absent → fall back to `selectedNotebookId`. */
+  selectedNotebookCollectionIds?: string[];
+  /** Notebook RAG depth; defaults to 'fast' (still returns citations). */
+  notebookMode?: 'fast' | 'deep';
   threadMode?: ThreadMode;
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
@@ -75,4 +84,10 @@ export interface StreamOutcome {
   interrupted: boolean;
   lastResult?: ChatModelRunResult;
   indexedDocumentIds: string[];
+  /** A client_tool interrupt the ModelAdapter must auto-execute (clientTools
+   *  registry) and resume with — set instead of `interrupted`, which is
+   *  reserved for manual human-in-the-loop interrupts (ask_human). threadId is
+   *  carried from the interrupt event because brand-new threads have no
+   *  config.threadId yet. */
+  clientToolInterrupt?: { toolName: string; args: Record<string, unknown>; threadId?: string };
 }

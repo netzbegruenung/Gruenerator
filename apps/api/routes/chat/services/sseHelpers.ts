@@ -5,6 +5,8 @@
  * Used by chat controllers to provide real-time feedback during AI processing.
  */
 
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
+
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   SearchIntent,
@@ -13,6 +15,8 @@ import type {
   GeneratedImageResult,
   ConfirmActionType,
   ChartData,
+  ArtifactData,
+  ComputeData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   CanvasAiSuggestion,
@@ -23,6 +27,7 @@ import type {
   DocumentCreatedEvent,
   SearchResultPayload,
   ThinkingStepPayload,
+  SocialPostPayload,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -47,6 +52,9 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
+  | 'social_post_complete'
+  | 'social_post_updated'
+  | 'social_post_edit_error'
   | 'reel_processing'
   | 'reel_picker'
   | 'reel_updated'
@@ -66,6 +74,8 @@ export type SSEEventType =
   | 'trigger_board_action'
   | 'confirm_action'
   | 'chart_data'
+  | 'artifact'
+  | 'compute'
   | 'memory_context'
   | 'completion'
   | 'canvas_operations_start'
@@ -161,6 +171,20 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
+  // Combined social post (EXPERIMENTAL): text half. Sharepic variants keep
+  // travelling via sharepic_complete so the whole variant machinery
+  // (mint/edit/live store) stays untouched.
+  social_post_complete: {
+    message: string;
+    post?: SocialPostPayload;
+    error?: string;
+  };
+  social_post_updated: {
+    postId: string;
+    post: SocialPostPayload;
+    summary: string;
+  };
+  social_post_edit_error: { postId?: string; error: string };
   // Reel branch (chat subtitle editing of subtitler projects). The frontend
   // polls GET /subtitler/auto-progress/:uploadId after reel_processing; full
   // segments travel via reel_updated only (compact tool results in the DB).
@@ -194,9 +218,15 @@ export interface SSEEventPayloads {
   trigger_doc_edit: TriggerDocEdit;
   trigger_board_action: TriggerBoardAction;
   interrupt: {
-    interruptType: 'clarification';
-    question: string;
+    // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
+    // client-executed tool (e.g. run_python) whose result the browser produces
+    // automatically and posts back to resume the same turn.
+    interruptType: 'clarification' | 'client_tool';
+    question?: string;
     options?: string[];
+    // client_tool only: which tool the client must run + its arguments.
+    toolName?: string;
+    args?: Record<string, unknown>;
     threadId?: string;
   };
   confirm_action: ConfirmActionEvent;
@@ -207,6 +237,12 @@ export interface SSEEventPayloads {
   };
   chart_data: {
     chart: ChartData;
+  };
+  artifact: {
+    artifact: ArtifactData;
+  };
+  compute: {
+    compute: ComputeData;
   };
   completion: {
     type?: 'completion';
@@ -267,11 +303,15 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   scrape_url: ['Lese Webseite...', 'Öffne den Link...', 'Rufe die Seite ab...'],
   examples: ['Krame...', 'Hole Beispiele...', 'Suche Inspiration...'],
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
+  abgeordnetenwatch: ['Prüfe Abgeordnetenwatch...', 'Rufe Mandatsdaten ab...', 'Zähle Stimmen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
+  social_post: ['Texte und gestalte...', 'Baue deinen Post...', 'Schreibe und gestalte...'],
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
+  artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],
+  compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
@@ -339,6 +379,13 @@ export class SSEWriter {
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
     if (this.ended || this.res.writableEnded || this.res.destroyed) return;
+    // Mirror every in-band `error` event to Sentry/GlitchTip. These are written
+    // onto an already-200 stream, so they never throw and are otherwise
+    // invisible to monitoring. Capture only on actual emit (past the writable
+    // guard) so client disconnects don't generate noise.
+    if (event === 'error') {
+      captureSseError({ message: (data as SSEEventPayloads['error']).error });
+    }
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }

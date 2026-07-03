@@ -53,7 +53,10 @@ import type {
   ImageAttachment,
   ThreadAttachment,
   UserLocale,
+  SocialTextPlatform,
+  SocialPostPayload,
   ChartData,
+  ComputeData,
   ResearchToolResult,
   ExamplesToolResult,
   DocumentSource,
@@ -102,6 +105,9 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   threadAttachments: Annotation<ThreadAttachment[]>({
     reducer: (x, y) => y ?? x ?? [],
+  }),
+  hasTabularAttachment: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
   }),
 
   // Notebook scoping (from @notebook mentions)
@@ -257,7 +263,7 @@ const ChatStateAnnotation = Annotation.Root({
   targetGroupName: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
-  platform: Annotation<'instagram' | 'facebook' | null>({
+  platform: Annotation<SocialTextPlatform | null>({
     reducer: (x, y) => y ?? x ?? null,
   }),
 
@@ -370,9 +376,22 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? 0,
   }),
 
+  // Combined social post (EXPERIMENTAL): text half of the social_post intent
+  socialPostResult: Annotation<SocialPostPayload | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Chart generation
   chartData: Annotation<ChartData | null>({
     reducer: (x, y) => y ?? x,
+  }),
+
+  // Deterministic computation (compute intent)
+  computedResult: Annotation<ComputeData | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+  computedResultTimeMs: Annotation<number>({
+    reducer: (x, y) => y ?? x ?? 0,
   }),
 
   // Response generation
@@ -472,6 +491,20 @@ function routeAfterClassification(
     return 'respond';
   }
 
+  // Artifact intent = route to respond; the controller extracts the HTML/SVG
+  // block from the response and emits it as an `artifact` SSE event.
+  if (intent === 'artifact') {
+    log.info('[ChatGraph] Route: classifier → respond (artifact handled by controller)');
+    return 'respond';
+  }
+
+  // Compute intent = route to respond; the controller runs computeNode (plain-JS
+  // calculation) in the pipeline and injects the verified result into the prompt.
+  if (intent === 'compute') {
+    log.info('[ChatGraph] Route: classifier → respond (compute handled by controller)');
+    return 'respond';
+  }
+
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
   // edit_current_doc also falls here: respondNode generates a brief confirmation
   // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
@@ -497,12 +530,18 @@ function routeAfterClassification(
     web: 'web',
     scrape_url: 'scrape',
     examples: 'examples',
+    // Combined post rides the examples search; its sharepic half is gated
+    // separately in the execution stage (production path).
+    social_post: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
+    abgeordnetenwatch: 'abgeordnetenwatch',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
     summary: 'summary',
     chart: 'chart',
+    artifact: 'artifact',
+    compute: 'compute',
     save_as_doc: 'save_as_doc',
     modify_doc: 'modify_doc',
     edit_current_doc: 'edit_current_doc',
@@ -742,6 +781,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     attachmentContext: input.attachmentContext || null,
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
+    hasTabularAttachment: input.hasTabularAttachment ?? false,
 
     // Notebook scoping
     notebookIds: input.notebookIds || [],
@@ -860,8 +900,16 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     summaryContext: null,
     summaryTimeMs: 0,
 
+    // Combined social post (set by the execution stage for social_post)
+    socialPostResult: null,
+
     // Chart generation (will be set by chart node)
     chartData: null,
+
+    // Deterministic computation: seeded from a client-side spreadsheet result
+    // when present (follow-up turns), otherwise set by computeNode.
+    computedResult: input.computedResult ?? null,
+    computedResultTimeMs: 0,
 
     // Response (will be set by respond node)
     responseText: '',

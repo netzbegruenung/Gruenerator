@@ -1,8 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { formatResearchWrapperContext, formatSearchContext } from './respondNode.js';
+import {
+  formatResearchWrapperContext,
+  formatSearchContext,
+  formatTabularComputeGuidance,
+  getModeGuidance,
+} from './respondNode.js';
 
-import type { ChatGraphState, ResearchToolResult, SearchResult } from '../types.js';
+import type { ChatGraphState, ComputeData, ResearchToolResult, SearchResult } from '../types.js';
 
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
@@ -80,6 +85,97 @@ describe('formatResearchWrapperContext', () => {
     expect(out).toContain('…');
     // Ensures we don't dump the entire synthesis (which the model would then echo)
     expect(out.length).toBeLessThan(2000);
+  });
+});
+
+function makeComputeResult(overrides: Partial<ComputeData> = {}): ComputeData {
+  return {
+    operation: 'Zeichen zählen',
+    entries: [
+      { label: 'Zeichen (inkl. Leerzeichen)', value: '591' },
+      { label: 'Wörter (durch Leerzeichen getrennt)', value: '100' },
+    ],
+    summary: '591 Zeichen (inkl. Leerzeichen), 100 Wörter, 1 Zeile.',
+    ...overrides,
+  };
+}
+
+describe('getModeGuidance for compute intent', () => {
+  it('when a result exists: tells the model to answer conversationally and NEVER ask the user for it', () => {
+    const out = getModeGuidance(
+      makeState({ intent: 'compute', computedResult: makeComputeResult() })
+    );
+    // The prose is the real answer, not a stub next to the card.
+    expect(out).toContain('Beantworte die konkrete Frage');
+    expect(out).toContain('Verneine NICHT');
+    expect(out).toContain('bitte NIEMALS um das Ergebnis');
+    // Regression guard: the fallback "ask for precision" wording must NOT leak
+    // into the prompt when a number is already available — that clause is what
+    // made the model deny "591 Zeichen" while the card showed it.
+    expect(out).not.toContain('bitte um eine Präzisierung');
+  });
+
+  it('when no result exists: uses the fallback that asks for precision, without an anti-denial line', () => {
+    const out = getModeGuidance(makeState({ intent: 'compute', computedResult: null }));
+    expect(out).toContain('bitte um eine Präzisierung');
+    expect(out).not.toContain('Verneine NICHT');
+  });
+});
+
+describe('getModeGuidance for chart intent', () => {
+  it('grounds the chart on the computed values when a fresh result exists', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'chart',
+        computedResult: makeComputeResult(),
+        computedResultFresh: true,
+      })
+    );
+    expect(out).toContain('AUSSCHLIESSLICH');
+    expect(out).not.toContain('plausible Daten');
+  });
+
+  it('falls back to the plausible-data guidance without a fresh result', () => {
+    const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
+    expect(out).toContain('plausible Daten');
+    expect(out).not.toContain('AUSSCHLIESSLICH');
+  });
+});
+
+describe('formatTabularComputeGuidance', () => {
+  it('returns nothing without a tabular attachment', () => {
+    const out = formatTabularComputeGuidance(makeState({ hasTabularAttachment: false }));
+    expect(out).toBe('');
+  });
+
+  it('emits the code-block guidance for a tabular attachment without a result', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({ hasTabularAttachment: true, computedResult: null })
+    );
+    expect(out).toContain('```python');
+    expect(out).toContain('automatisch ausgeführt');
+  });
+
+  it('suppresses code emission when a FRESH result exists (run-then-answer resume)', () => {
+    const out = formatTabularComputeGuidance(
+      makeState({
+        hasTabularAttachment: true,
+        computedResult: makeComputeResult(),
+        computedResultFresh: true,
+      })
+    );
+    expect(out).toContain('ERGEBNIS LIEGT BEREITS VOR');
+    expect(out).toContain('KEINEN Code-Block');
+    expect(out).not.toContain('```python');
+  });
+
+  it('keeps the code-block guidance when the result is only forwarded from the last turn', () => {
+    // A stale lastComputeStore result must not block a NEW follow-up
+    // computation (e.g. on clients without the run_python capability).
+    const out = formatTabularComputeGuidance(
+      makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
+    );
+    expect(out).toContain('```python');
   });
 });
 

@@ -11,10 +11,9 @@ interface LinkConfig {
 }
 
 // Re-export the canonical GeneratedContent union from types/baseform so the
-// store shape stays consistent with every consumer that reads generatedTexts
-// (e.g. ActionButtons, ExportDropdown). The canonical union models the
-// actual shapes the store holds: plain strings, { content, metadata }
-// envelopes, and sharepic structured payloads.
+// store shape stays consistent with every consumer that reads generatedTexts.
+// The canonical union models the actual shapes the store holds: plain strings,
+// { content, metadata } envelopes, and sharepic structured payloads.
 //
 // Previously `type StoredContent = string | object` — which was too wide:
 // `object` is not assignable to concrete consumer shapes like

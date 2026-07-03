@@ -11,6 +11,43 @@
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `gruenerator-illustrations-${CACHE_VERSION}`;
 
+// Pyodide runtime cache (in-browser Python). The ~12 MB wasm core + Python
+// wheels under /pyodide/ are NOT content-hashed and nginx serves them
+// `no-cache` (revalidated every load). We cache-first them here under a cache
+// name keyed to the Pyodide version (from /pyodide/version.json), so repeat
+// sessions skip the network entirely and a version bump busts the old cache.
+const PYODIDE_CACHE_PREFIX = 'gruenerator-pyodide-';
+let pyodideVersionPromise = null;
+
+function getPyodideVersion() {
+  if (!pyodideVersionPromise) {
+    pyodideVersionPromise = fetch('/pyodide/version.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => (d && d.version ? String(d.version) : 'unknown'))
+      .catch(() => 'unknown');
+  }
+  return pyodideVersionPromise;
+}
+
+async function pyodideCacheFirst(request) {
+  const version = await getPyodideVersion();
+  const cacheName = `${PYODIDE_CACHE_PREFIX}${version}`;
+  const cache = await caches.open(cacheName);
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const response = await fetch(request);
+  if (response && response.status === 200) {
+    cache.put(request, response.clone());
+    // Prune caches from older Pyodide versions (lazy cleanup on first miss).
+    caches.keys().then((names) =>
+      names
+        .filter((n) => n.startsWith(PYODIDE_CACHE_PREFIX) && n !== cacheName)
+        .forEach((n) => caches.delete(n))
+    );
+  }
+  return response;
+}
+
 // Top 50 most popular illustrations to precache on install
 // These are the most frequently used illustrations across all canvas types
 const TOP_ILLUSTRATIONS = [
@@ -130,6 +167,13 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  // Pyodide runtime: cache-first (version.json itself stays network-fresh so it
+  // can drive cache busting).
+  if (url.pathname.startsWith('/pyodide/') && url.pathname !== '/pyodide/version.json') {
+    event.respondWith(pyodideCacheFirst(event.request));
+    return;
+  }
 
   // Only intercept illustration requests
   if (!url.pathname.startsWith('/illustrations/')) {

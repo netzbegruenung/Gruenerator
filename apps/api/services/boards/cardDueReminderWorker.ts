@@ -7,9 +7,11 @@
  * board owner, then stamp reminded_at so it fires once.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createIntervalWorker } from '../../utils/intervalWorker.js';
 import { createLogger } from '../../utils/logger.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
+import { buildCardEmailMetadata } from './BoardService.js';
 import { getCardSubscribers } from './cardSubscriptionService.js';
 
 const log = createLogger('CardDueReminder');
@@ -17,8 +19,12 @@ const db = getPostgresInstance();
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // hourly
 
-let intervalId: ReturnType<typeof setInterval> | null = null;
-let initialized = false;
+const worker = createIntervalWorker({
+  name: 'CardDueReminder',
+  intervalMs: CHECK_INTERVAL_MS,
+  initialDelayMs: 90_000,
+  tick: runReminderScan,
+});
 
 interface DueRow {
   board_id: string;
@@ -47,15 +53,23 @@ async function runReminderScan(): Promise<void> {
       const recipients = new Set<string>(watchers);
       recipients.add(row.board_owner);
 
+      // Card snapshot (title/status/assignees) once per card for the rich email —
+      // the due_dates mirror only has the date, so without this the reminder is titleless.
+      const cardMeta = await buildCardEmailMetadata(row.board_id, row.card_id, row.board_title);
+      const cardTitle = typeof cardMeta.cardTitle === 'string' ? cardMeta.cardTitle : null;
+      const title = cardTitle
+        ? `Erinnerung: „${cardTitle}" ist bald fällig`
+        : `Karte fällig${row.board_title ? ` in „${row.board_title}"` : ''}`;
+
       await Promise.all(
         Array.from(recipients).map((userId) =>
           createNotification({
             userId,
             type: 'board_due_date_reminder',
-            title: `Karte fällig${row.board_title ? ` in „${row.board_title}"` : ''}`,
+            title,
             body: `Fällig am ${row.due_date}`,
             actionUrl: `/boards/${row.board_id}?card=${row.card_id}`,
-            metadata: { boardId: row.board_id, cardId: row.card_id },
+            metadata: cardMeta,
             groupKey: `board-due-${row.board_id}-${row.card_id}`,
           }).catch(() => null)
         )
@@ -75,17 +89,9 @@ async function runReminderScan(): Promise<void> {
 }
 
 export function startCardDueReminderWorker(): void {
-  if (initialized) return;
-  setTimeout(() => void runReminderScan().catch(() => {}), 90_000);
-  intervalId = setInterval(() => void runReminderScan().catch(() => {}), CHECK_INTERVAL_MS);
-  initialized = true;
-  log.info('Card due-date reminder worker started (interval: 1h)');
+  worker.start();
 }
 
 export function stopCardDueReminderWorker(): void {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-    initialized = false;
-  }
+  worker.stop();
 }

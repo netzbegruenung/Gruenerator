@@ -6,19 +6,27 @@
  * topic) or by running search + response generation for non-sharepic intents.
  */
 
-import { type chatGraphContract } from '@gruenerator/contracts';
+import {
+  computePayloadSchema,
+  type ComputePayload,
+  type chatGraphContract,
+} from '@gruenerator/contracts';
 
 import {
   buildSystemMessage,
   briefGeneratorNode,
+  pandasComputeNode,
+  computeVerifierNode,
   searchNode,
   rerankNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isRegoloReasoningModel } from '../../../services/ai/regoloReasoningStream.js';
+import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { persistComputeAssets } from './computeAssetStorage.js';
+import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
 import { executeIntentPipeline } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
@@ -30,6 +38,7 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './responseStreamingService.js';
+import { resolveResumeInput } from './resumeInput.js';
 import {
   type createSSEStream,
   getIntentMessage,
@@ -60,7 +69,15 @@ export async function runChatGraphResume({
   log.info('[chatGraphContract] resume handler entered, request_id=%s', _requestId);
 
   try {
-    const { threadId, resume: userAnswer } = body;
+    const { threadId } = body;
+    const resumeInput = resolveResumeInput(body);
+    if (!resumeInput) {
+      return sseFail(sse, 'Ungültige Resume-Anfrage.');
+    }
+    if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
+      return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.');
+    }
+    const userAnswer = resumeInput.kind === 'ask_human' ? resumeInput.answer : null;
 
     const user = getUser(req);
     if (!user?.id) {
@@ -84,17 +101,143 @@ export async function runChatGraphResume({
       return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable);
     }
 
-    log.info(`[ChatGraph:Resume] Thread ${threadId}, answer: "${userAnswer.slice(0, 80)}"`);
+    log.info(
+      `[ChatGraph:Resume] Thread ${threadId}, ${
+        resumeInput.kind === 'ask_human'
+          ? `answer: "${(userAnswer ?? '').slice(0, 80)}"`
+          : `client tool: ${resumeInput.toolName}`
+      }`
+    );
 
     classifiedState.needsClarification = false;
-    classifiedState.searchQuery = userAnswer;
     classifiedState.clarificationQuestion = null;
     classifiedState.clarificationOptions = null;
 
+    if (resumeInput.kind === 'ask_human') {
+      classifiedState.searchQuery = userAnswer;
+    } else {
+      // run_python result: validate the browser-computed payload and seed it as
+      // ground truth for respondNode (formatComputedResultContext). The
+      // `compute` SSE event drives the inline "Berechnung" card.
+      const parsed = computePayloadSchema.safeParse(resumeInput.result);
+      // Asset URLs are SERVER-minted only (they render as <img>/<a> in the
+      // card) — strip anything the client sent, then move the capped base64
+      // figures/exports to uploads/compute-assets so the message metadata
+      // carries small authenticated URLs instead of megabytes of base64.
+      let payload: ComputePayload | null = null;
+      if (parsed.success) {
+        const { figureUrls: _cfu, fileAssets: _cfa, ...clientSafe } = parsed.data;
+        payload = await persistComputeAssets(user.id, clientSafe);
+      }
+      const hasNanValues = payload != null && hasBrokenComputeValues(payload);
+
+      const seedComputedResult = (data: (typeof classifiedState)['computedResult']) => {
+        classifiedState.computedResult = data;
+        classifiedState.computedResultFresh = true;
+        if (data) sse.send('compute', { compute: data });
+      };
+
+      // Correction round (OpenWebUI-style, bounded to 1 retry total): give the
+      // codegen model the failed code + a failure/plausibility hint and pause
+      // the turn again — the client executes the corrected code and resumes.
+      // Returns true when the turn was re-interrupted (caller must return).
+      const tryCorrectionRound = async (errorText: string): Promise<boolean> => {
+        const retries = classifiedState.pandasComputeRetries ?? 0;
+        if (retries >= 1) return false;
+        classifiedState.aiWorkerPool = aiWorkerPool;
+        const { pythonCode } = await pandasComputeNode(classifiedState, {
+          ...(classifiedState.pandasLastCode != null && {
+            previousCode: classifiedState.pandasLastCode,
+          }),
+          previousError: errorText,
+        });
+        if (!pythonCode) return false;
+
+        classifiedState.pandasComputeRetries = retries + 1;
+        classifiedState.pandasLastCode = pythonCode;
+        log.info(`[ChatGraph:Resume] run_python correction round (${pythonCode.length} chars)`);
+
+        // State FIRST, then the interrupt: if Redis fails here the client has
+        // not been promised a resume it can never complete.
+        await pipelineStateStore.store(threadId, { classifiedState, requestContext });
+        sse.sendRaw('thinking_step', {
+          stepId: `run_python_retry_${Date.now()}`,
+          toolName: 'run_python',
+          title: 'Korrigiere Berechnung…',
+          status: 'in_progress',
+          args: { code: pythonCode },
+        });
+        sse.send('interrupt', {
+          interruptType: 'client_tool',
+          toolName: 'run_python',
+          args: { code: pythonCode },
+          threadId,
+        });
+        sse.send('done', {
+          threadId,
+          citations: [],
+          interrupted: true,
+          metadata: {
+            intent: classifiedState.intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - (classifiedState.startTime || Date.now()),
+            searchTimeMs: 0,
+          },
+        });
+        sse.end();
+        return true;
+      };
+
+      if (payload && !hasNanValues) {
+        // Plausibility check (fail-open, once per turn, shares the correction
+        // budget): catches code that RAN fine but answered the wrong question
+        // — beta: doubled totals, wrong column for "höchster Gewinn".
+        if ((classifiedState.pandasComputeRetries ?? 0) < 1 && classifiedState.pandasLastCode) {
+          classifiedState.aiWorkerPool = aiWorkerPool;
+          const verdict = await computeVerifierNode(classifiedState, payload);
+          if (!verdict.plausible) {
+            const hint =
+              verdict.hint ?? 'Das Ergebnis passt nicht zur Frage — prüfe Spaltenwahl/Gruppierung.';
+            // Stash the SUCCESSFUL result: the verifier is fallible, and if the
+            // corrected code then fails we fall back to this instead of losing
+            // a working computation entirely.
+            classifiedState.pandasComputeFallback = payload;
+            if (await tryCorrectionRound(`Plausibilitätsprüfung fehlgeschlagen: ${hint}`)) {
+              return { status: 200 as const, body: undefined };
+            }
+          }
+        }
+        seedComputedResult(payload);
+      } else {
+        const errorText = payload
+          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${payload.summary.slice(0, 300)}`
+          : resumeInput.result != null &&
+              typeof resumeInput.result === 'object' &&
+              'error' in resumeInput.result
+            ? String((resumeInput.result as { error: unknown }).error)
+            : 'invalid payload';
+        log.warn(`[ChatGraph:Resume] run_python failed client-side: ${errorText.slice(0, 200)}`);
+
+        if (await tryCorrectionRound(errorText)) {
+          return { status: 200 as const, body: undefined };
+        }
+        // Correction budget spent or codegen declined: hand the model the best
+        // available result — the valid-but-nan payload, or the stashed result
+        // a fallible verifier sent into a correction round that then failed.
+        if (payload) {
+          seedComputedResult(payload);
+        } else if (classifiedState.pandasComputeFallback) {
+          log.info('[ChatGraph:Resume] correction failed — falling back to the original result');
+          seedComputedResult(classifiedState.pandasComputeFallback);
+        }
+      }
+    }
+
     const startTime = Date.now();
 
-    // === Sharepic resume: the answer is the topic — regenerate and finish ===
-    if (classifiedState.intent === 'sharepic') {
+    // === Sharepic / social_post resume: the answer is the topic — regenerate and finish ===
+    if (classifiedState.intent === 'sharepic' || classifiedState.intent === 'social_post') {
+      const resumedIntent = classifiedState.intent;
       // Combine the original (topic-less) request with the answer so any variant
       // hint ("zitat sharepic") survives and the answer supplies the subject.
       const prevUserMsg = [...classifiedState.messages].reverse().find((m) => m.role === 'user');
@@ -103,12 +246,12 @@ export async function runChatGraphResume({
       classifiedState.messages = [...classifiedState.messages, { role: 'user', content: combined }];
 
       sse.send('intent', {
-        intent: 'sharepic',
-        message: getIntentMessage('sharepic'),
+        intent: resumedIntent,
+        message: getIntentMessage(resumedIntent),
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const { sharepicVariants } = await executeIntentPipeline({
+      const { sharepicVariants, socialPost } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -119,11 +262,16 @@ export async function runChatGraphResume({
 
       const n = sharepicVariants.length;
       const fullText =
-        n > 0
-          ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-            `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
-          : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-            `anderen Thema noch einmal versuchen?`;
+        resumedIntent === 'social_post'
+          ? socialPost != null || n > 0
+            ? `Hier ist dein Post${n > 0 ? ` mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}` : ''}. ` +
+              `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
+            : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`
+          : n > 0
+            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+              `anderen Thema noch einmal versuchen?`;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 
@@ -132,6 +280,8 @@ export async function runChatGraphResume({
         fullText,
         finalState: classifiedState,
         classifiedState,
+        userId: requestContext.userId,
+        processedMeta: requestContext.processedMeta,
       });
 
       sse.send('done', {
@@ -140,7 +290,7 @@ export async function runChatGraphResume({
         }),
         citations: [],
         metadata: {
-          intent: 'sharepic',
+          intent: resumedIntent,
           searchCount: 0,
           totalTimeMs: Date.now() - startTime,
           searchTimeMs: 0,
@@ -151,14 +301,14 @@ export async function runChatGraphResume({
     }
 
     const nonSearchIntents = new Set(['direct', 'image', 'image_edit']);
-    if (nonSearchIntents.has(classifiedState.intent)) {
+    if (resumeInput.kind === 'ask_human' && nonSearchIntents.has(classifiedState.intent)) {
       classifiedState.intent = 'search';
     }
 
     sse.send('intent', {
       intent: classifiedState.intent,
       message: getIntentMessage(classifiedState.intent),
-      reasoning: `Resumed: ${userAnswer}`,
+      reasoning: `Resumed: ${resumeInput.kind === 'ask_human' ? userAnswer : resumeInput.toolName}`,
       ...(classifiedState.searchQuery != null && { searchQuery: classifiedState.searchQuery }),
       ...(classifiedState.subQueries != null && { subQueries: classifiedState.subQueries }),
       ...(classifiedState.searchSources?.length && {
@@ -167,10 +317,12 @@ export async function runChatGraphResume({
     });
 
     // === Search ===
+    // Client-tool resumes (run_python) skip search entirely: the answer needs
+    // only the computed result + the already-injected attachment context.
     let finalState = classifiedState;
     const { enabledTools, modelId, forcedTool } = requestContext;
 
-    if (!nonSearchIntents.has(classifiedState.intent)) {
+    if (resumeInput.kind === 'ask_human' && !nonSearchIntents.has(classifiedState.intent)) {
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;
@@ -257,7 +409,7 @@ export async function runChatGraphResume({
         sse,
         logPrefix: '[ChatGraph:Resume]',
         buildStream: async (r) => {
-          const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+          const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
           return streamForResolution({
             resolution: r,
             messages: messagesForAI,
@@ -280,6 +432,8 @@ export async function runChatGraphResume({
       fullText,
       finalState,
       classifiedState,
+      userId: requestContext.userId,
+      processedMeta: requestContext.processedMeta,
     });
 
     const totalTimeMs = Date.now() - startTime;

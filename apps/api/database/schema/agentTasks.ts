@@ -1,6 +1,6 @@
 import { type BoardFlowConfig } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
-import { integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * Type source for the asynchronous board-agent task queue. Runtime DDL lives in
@@ -9,7 +9,9 @@ import { integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-c
  * instead of a hand-written interface.
  */
 
-export type AgentTaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+// 'awaiting_review' is a terminal-ish state for review-enabled runs: the work is
+// done but parked for a human to Accept (→ 'completed') or Redo (re-enqueue).
+export type AgentTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_review';
 
 export const agent_tasks = pgTable('agent_tasks', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -19,6 +21,11 @@ export const agent_tasks = pgTable('agent_tasks', {
   requested_by: uuid('requested_by').notNull(),
   task_text: text('task_text').notNull(),
   status: text('status').$type<AgentTaskStatus>().notNull().default('pending'),
+  // Set when the task was spawned by a board_scheduled_runs schedule; null for
+  // manual "run agent" and legacy @-mention tasks.
+  schedule_id: uuid('schedule_id'),
+  // When true, a finished run parks in 'awaiting_review' for a human to Accept/Redo.
+  require_review: boolean('require_review').notNull().default(false),
   attempts: integer('attempts').notNull().default(0),
   max_attempts: integer('max_attempts').notNull().default(3),
   result_document_id: uuid('result_document_id'),
@@ -27,6 +34,10 @@ export const agent_tasks = pgTable('agent_tasks', {
   // AI-column flow config (source + AI step + output nodes + card context). Null for
   // legacy @-mention tasks. See database/postgres/migrations/add_agent_task_flow_config.sql.
   flow_config: jsonb('flow_config').$type<BoardFlowConfig | null>(),
+  // Identifier of the agent to run this task (own / group-shared / system), picked in
+  // a comment @-mention or a card assignment. A TEXT slug, never a UUID. Null = the
+  // default universal agent. See migrations/add_agent_task_agent_id.sql.
+  agent_id: text('agent_id'),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   started_at: timestamp('started_at', { withTimezone: true }),

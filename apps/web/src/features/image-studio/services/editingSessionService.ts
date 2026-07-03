@@ -1,5 +1,12 @@
 import apiClient from '../../../components/utils/apiClient';
-import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../utils/typeConfig';
+import { isMintableCanvasType } from '../utils/canvasTypeFields';
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  IMAGE_STUDIO_TYPES,
+  FORM_STEPS,
+  isImageStudioType,
+  type ImageStudioType,
+} from '../utils/typeConfig';
 
 export interface GalleryEditData {
   shareToken: string;
@@ -56,20 +63,31 @@ export interface OriginalSharepicData {
   [key: string]: unknown;
 }
 
-const LEGACY_TYPE_MAP: Record<string, string> = {
+const LEGACY_TYPE_MAP: Record<string, ImageStudioType> = {
   Dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
   Zitat: IMAGE_STUDIO_TYPES.ZITAT,
   Zitat_Pure: IMAGE_STUDIO_TYPES.ZITAT_PURE,
   Info: IMAGE_STUDIO_TYPES.INFO,
 };
 
-const EDIT_SESSION_TYPE_MAP: Record<string, string> = {
+const EDIT_SESSION_TYPE_MAP: Record<string, ImageStudioType> = {
   dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
   default: IMAGE_STUDIO_TYPES.DREIZEILEN,
   zitat: IMAGE_STUDIO_TYPES.ZITAT,
   'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
   info: IMAGE_STUDIO_TYPES.INFO,
 };
+
+/**
+ * Resolve a stored/legacy sharepic type string to a known ImageStudioType, or
+ * null when it can't be resolved. Prevents an unknown string from being written
+ * to `state.type` and later crashing the canvas mint.
+ */
+function resolveStudioType(raw: string | null): ImageStudioType | null {
+  if (!raw) return null;
+  const mapped = LEGACY_TYPE_MAP[raw] ?? raw;
+  return isImageStudioType(mapped) ? mapped : null;
+}
 
 export function parseSharepicForEditing(
   sharepicData: OriginalSharepicData,
@@ -125,7 +143,7 @@ export async function loadGalleryEditData(
 ): Promise<Record<string, unknown>> {
   const { shareToken, content, styling, originalImageUrl, title, formatId } = editData;
   const sharepicType = content?.sharepicType || styling?.sharepicType;
-  const mappedType = sharepicType ? LEGACY_TYPE_MAP[sharepicType] || sharepicType : null;
+  const mappedType = resolveStudioType(sharepicType ?? null);
 
   const formData: Record<string, unknown> = {
     galleryEditMode: true,
@@ -138,8 +156,13 @@ export async function loadGalleryEditData(
     // Multi-format: legacy gallery rows lack formatId — fall back to the
     // default sharepic dimensions so existing saves still load correctly.
     selectedFormatId: formatId ?? 'post-portrait',
-    // Use CANVAS_EDIT step for canvas-enabled templates so they open in the canvas editor
-    currentStep: FORM_STEPS.CANVAS_EDIT,
+    // Open the canvas editor only for a MINTABLE type. A non-mintable or
+    // unresolved type must NOT jump to CANVAS_EDIT (that would crash the mint) —
+    // fall back to TYPE_SELECT so the user can pick.
+    currentStep:
+      mappedType && isMintableCanvasType(mappedType)
+        ? FORM_STEPS.CANVAS_EDIT
+        : FORM_STEPS.TYPE_SELECT,
     editingSource: 'gallery',
   };
 
@@ -286,7 +309,7 @@ export function parseAIGeneratedData(
   generatedData: Record<string, string>,
   selectedImage?: AISelectedImage | null
 ): Record<string, unknown> {
-  const typeMap: Record<string, string> = {
+  const typeMap: Record<string, ImageStudioType> = {
     dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
     'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
     zitat_pure: IMAGE_STUDIO_TYPES.ZITAT_PURE,
@@ -295,12 +318,18 @@ export function parseAIGeneratedData(
     simple: IMAGE_STUDIO_TYPES.SIMPLE,
   };
 
-  const mappedType = typeMap[sharepicType] || sharepicType;
+  // Resolve to a known type; only advance to CANVAS_EDIT for a MINTABLE type so
+  // a non-mintable/unrecognized type can't crash the canvas mint.
+  const candidate = typeMap[sharepicType] ?? sharepicType;
+  const mappedType: ImageStudioType | null = isImageStudioType(candidate) ? candidate : null;
 
   const formData: Record<string, unknown> = {
     category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
     type: mappedType,
-    currentStep: FORM_STEPS.CANVAS_EDIT,
+    currentStep:
+      mappedType && isMintableCanvasType(mappedType)
+        ? FORM_STEPS.CANVAS_EDIT
+        : FORM_STEPS.TYPE_SELECT,
     aiGeneratedContent: true,
     editingSource: 'aiPrompt',
   };

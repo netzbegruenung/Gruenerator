@@ -20,7 +20,7 @@ COPY services/hocuspocus/package.json ./services/hocuspocus/
 
 # Install dependencies (trailing ... pulls workspace deps: @gruenerator/shared, @gruenerator/contracts)
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/hocuspocus...
+    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/hocuspocus...
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
