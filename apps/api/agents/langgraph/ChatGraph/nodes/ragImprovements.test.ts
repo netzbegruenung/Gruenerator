@@ -200,6 +200,7 @@ async function testExpandedContextWindow() {
     documentMentionContext: null,
     wolkeFiles: [],
     connectFiles: [],
+    attachedWebpageUrls: [],
     currentDocument: null,
     currentBoard: null,
     searchSources: [],

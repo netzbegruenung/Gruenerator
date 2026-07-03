@@ -270,6 +270,26 @@ interface ChatConfigStore extends ResolvedChatConfig {
   boardActionHandlers: Map<string, BoardActionTriggerHandler>;
   /** Register a board-action handler for a board. Returns the unregister function. */
   registerBoardActionHandler: (boardId: string, handler: BoardActionTriggerHandler) => () => void;
+  /**
+   * Transient signal set by the regenerate / edit-resubmit UI and consumed once
+   * by the model adapter on the next run. Tells the backend to replace the last
+   * turn instead of appending it (keeps chat_messages linear). Scoped to a
+   * threadId so a stale signal can't leak into another thread's run.
+   */
+  pendingRunSignal: {
+    threadId: string;
+    regenerate?: boolean;
+    replaceFromMessageId?: string;
+  } | null;
+  /** Flag the next run as a regenerate of the thread's last assistant turn. */
+  signalRegenerate: (threadId: string) => void;
+  /** Flag the next run as an edit-resubmit starting from a persisted message. */
+  signalEditResubmit: (threadId: string, messageId: string) => void;
+  /** Read + clear the pending signal for a thread (no-op for other threads). */
+  consumeRunSignals: (threadId: string | undefined) => {
+    regenerate: boolean;
+    replaceFromMessageId: string | undefined;
+  };
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
@@ -333,6 +353,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   boardActionHandlers: new Map(),
+  pendingRunSignal: null,
 
   configure: (config?: ChatConfig) => {
     set({
@@ -395,6 +416,23 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
         after.delete(boardId);
         set({ boardActionHandlers: after });
       }
+    };
+  },
+
+  signalRegenerate: (threadId) => set({ pendingRunSignal: { threadId, regenerate: true } }),
+
+  signalEditResubmit: (threadId, messageId) =>
+    set({ pendingRunSignal: { threadId, replaceFromMessageId: messageId } }),
+
+  consumeRunSignals: (threadId) => {
+    const signal = get().pendingRunSignal;
+    if (!signal || !threadId || signal.threadId !== threadId) {
+      return { regenerate: false, replaceFromMessageId: undefined };
+    }
+    set({ pendingRunSignal: null });
+    return {
+      regenerate: signal.regenerate ?? false,
+      replaceFromMessageId: signal.replaceFromMessageId,
     };
   },
 
