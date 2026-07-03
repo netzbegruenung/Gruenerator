@@ -197,6 +197,7 @@ const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
@@ -486,6 +487,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/beta', component: SubtitlerBetaPage },
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
+  { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
   { path: '/transfer', component: GrueneratorenBundle.Transfer, devOnly: true },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {
