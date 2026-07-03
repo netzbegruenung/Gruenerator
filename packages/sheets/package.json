@@ -19,6 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@gruenerator/contracts": "workspace:*",
     "@univerjs/preset-sheets-core": "0.25.1",
     "@univerjs/presets": "0.25.1",
     "@univerjs/themes": "0.25.1",
