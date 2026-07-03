@@ -251,7 +251,11 @@ export async function runChatGraphResume({
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const { sharepicVariants, socialPost } = await executeIntentPipeline({
+      const {
+        finalState: resumedFinalState,
+        sharepicVariants,
+        socialPost,
+      } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -275,13 +279,18 @@ export async function runChatGraphResume({
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 
+      // Persist the artifacts too — without the sharepic/social_post tool
+      // calls the card can't rehydrate on reload and later text edits would
+      // fall through to the sharepic edit branch.
       await persistResumedResponse({
         threadId: requestContext.actualThreadId!,
         fullText,
-        finalState: classifiedState,
+        finalState: resumedFinalState,
         classifiedState,
         userId: requestContext.userId,
         processedMeta: requestContext.processedMeta,
+        sharepicVariants,
+        socialPost,
       });
 
       sse.send('done', {

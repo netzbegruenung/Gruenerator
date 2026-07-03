@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { SOCIAL_PLATFORM_INFO, type SocialPostPayload } from '@gruenerator/contracts';
-import { Check, Copy, FlaskConical, SquarePen } from 'lucide-react';
+import { FlaskConical, SquarePen } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 
+import { CopyTextButton } from './CopyTextButton';
 import { SharepicVariantStack } from './SharepicVariantStack';
 
 import type { SharepicData } from '../../hooks/useChatGraphStream';
@@ -36,25 +37,25 @@ export function SocialPostCard({
   const info = SOCIAL_PLATFORM_INFO[live.platform] ?? SOCIAL_PLATFORM_INFO.generic;
   const overLimit = live.charCount > info.maxChars;
 
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback(() => {
-    void navigator.clipboard.writeText(live.text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [live.text]);
-
   const toggleActive = useCallback(() => {
     const store = useSocialPostLiveStore.getState();
+    const sharepicStore = useSharepicLiveStore.getState();
+    const ownVariantIds = new Set((sharepicData?.variants ?? []).map((v) => v.id));
     if (store.activePost?.postId === post.postId) {
       store.setActivePost(null);
+      // Symmetric deactivation: the variant this activation brought along
+      // must not linger as a silent Sharepic-Modus.
+      const active = sharepicStore.activeVariant;
+      if (active && ownVariantIds.has(active.variantId)) {
+        sharepicStore.setActiveVariant(null);
+      }
       return;
     }
     store.setActivePost({ postId: post.postId, post: live });
     // Bring the first sharepic variant along so the panel shows both halves.
     const first = sharepicData?.variants?.[0];
-    if (first && !useSharepicLiveStore.getState().activeVariant) {
-      useSharepicLiveStore.getState().setActiveVariant({
+    if (first && !sharepicStore.activeVariant) {
+      sharepicStore.setActiveVariant({
         variantId: first.id,
         canvasId: first.canvasId ?? null,
         canvasType: first.canvasType,
@@ -98,18 +99,12 @@ export function SocialPostCard({
           {live.version > 1 && (
             <span className="text-xs text-foreground-muted">v{live.version}</span>
           )}
-          <button
-            onClick={copy}
+          <CopyTextButton
+            text={live.text}
+            ariaLabel="Post-Text kopieren"
+            showLabel
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            aria-label="Post-Text kopieren"
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-primary" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-            <span>{copied ? 'Kopiert' : 'Kopieren'}</span>
-          </button>
+          />
           <button
             onClick={toggleActive}
             className={cn(

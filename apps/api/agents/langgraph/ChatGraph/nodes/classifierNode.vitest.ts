@@ -596,6 +596,14 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     const result = heuristicClassify('Erstelle ein Sharepic für Instagram zu Tempo 30');
     expect(result.intent).toBe('sharepic');
   });
+
+  it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
+    const result = heuristicClassify('Erstelle einen Insta-Post mit Sharepic zu Tempo 30');
+    expect(result.intent).toBe('social_post');
+    expect(heuristicClassify('Schreib einen Post inkl. Sharepic zur Verkehrswende').intent).toBe(
+      'social_post'
+    );
+  });
 });
 
 describe('detectSocialPlatform', () => {
@@ -629,6 +637,16 @@ describe('resolveSocialPostEscape', () => {
 
   it('returns null for plain creation requests', () => {
     expect(resolveSocialPostEscape('instagram-post zu tempo 30')).toBe(null);
+  });
+
+  it('inclusion phrasing ("mit Sharepic") is NOT an escape — combined flow', () => {
+    expect(resolveSocialPostEscape('insta-post mit sharepic zu tempo 30')).toBe(null);
+    expect(resolveSocialPostEscape('post mit einem passenden sharepic')).toBe(null);
+    expect(resolveSocialPostEscape('tweet inklusive spruchbild')).toBe(null);
+  });
+
+  it('exclusionary sharepic wording still escapes despite inclusion words elsewhere', () => {
+    expect(resolveSocialPostEscape('nur ein sharepic mit sonnenblume')).toBe('sharepic');
   });
 });
 
