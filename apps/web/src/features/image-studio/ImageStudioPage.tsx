@@ -10,6 +10,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../stores/imageStudioStore';
+import { APP_COMMIT } from '../../utils/buildInfo';
 
 import ImageStudioCategorySelector from './components/ImageStudioCategorySelector';
 import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
@@ -301,7 +302,11 @@ const ImageStudioPageContent: React.FC = () => {
     };
 
     const bailWithNotice = (reason: string, detail?: unknown) => {
-      console.warn(`[ImageStudioPage] Sharepic handoff rejected (${reason}):`, detail ?? raw);
+      console.warn(
+        `[SharepicHandoff] read rejected (${reason}):`,
+        { handoffId, build: APP_COMMIT },
+        detail ?? raw
+      );
       void import('sonner').then(({ toast }) =>
         toast.error('Vorlage konnte nicht geladen werden — bitte im Chat erneut öffnen.')
       );
@@ -327,10 +332,15 @@ const ImageStudioPageContent: React.FC = () => {
         return;
       }
 
-      // loadFromAIGeneration decides the step itself: CANVAS_EDIT only for a
-      // mintable type, TYPE_SELECT otherwise. Deliberately NO forced
-      // setCurrentStep(CANVAS_EDIT) here — that override bypassed the
-      // mintable gate and crashed the mint with type=null.
+      console.warn('[SharepicHandoff] read', {
+        handoffId,
+        canvasType: parsed.data.canvasType,
+        propKeys: Object.keys(parsed.data.initialProps),
+        build: APP_COMMIT,
+      });
+      // loadFromAIGeneration advances straight to CANVAS_EDIT — safe because
+      // the schema above guarantees a canonical (and therefore mintable)
+      // CanvasTemplateType. Deliberately NO extra forced setCurrentStep here.
       useImageStudioStore
         .getState()
         .loadFromAIGeneration(
