@@ -8,4 +8,5 @@ export * from './BundestagMCPClient.js';
 export * from './BundestagContentProcessor.js';
 export * from './PersonDetectionService.js';
 export * from './EnrichedPersonSearchService.js';
+export * from './BundestagEnrichedService.js';
 export * from './types.js';

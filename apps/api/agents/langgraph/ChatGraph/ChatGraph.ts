@@ -535,6 +535,7 @@ function routeAfterClassification(
     social_post: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
     abgeordnetenwatch: 'abgeordnetenwatch',
+    bundestag: 'bundestag',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
