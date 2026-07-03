@@ -1505,9 +1505,6 @@ importers:
       '@gruenerator/core':
         specifier: workspace:*
         version: link:../core
-      '@gruenerator/ui':
-        specifier: workspace:*
-        version: link:../ui
       '@ts-rest/core':
         specifier: ^3.52.1
         version: 3.52.1(@types/node@25.9.3)(zod@3.25.76)

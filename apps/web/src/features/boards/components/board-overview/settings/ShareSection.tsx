@@ -1,5 +1,5 @@
+import { ShareDialogBody } from '@gruenerator/docs';
 import { saveCollaborativeDocAsTemplate } from '@gruenerator/shared';
-import { ShareDialogBody } from '@gruenerator/shared/collab-share';
 import { memo } from 'react';
 
 import { getPublicAppOrigin } from '../../../../../utils/platform';
