@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { pandasComputeNode, parseCodegenResponse } from './pandasComputeNode.js';
+import {
+  pandasComputeNode,
+  parseCodegenResponse,
+  truncateTableContext,
+} from './pandasComputeNode.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -73,6 +77,27 @@ describe('parseCodegenResponse', () => {
 
   it('recognizes the raw UNRELATED sentinel in fallback mode', () => {
     expect(parseCodegenResponse('UNRELATED')).toEqual({ related: false, code: '' });
+  });
+});
+
+describe('truncateTableContext', () => {
+  it('returns short table text unchanged', () => {
+    const text = 'Region | Umsatz\nNord | 100\nGESAMT | 100';
+    expect(truncateTableContext(text)).toBe(text);
+  });
+
+  it('keeps head AND tail of oversized tables (GESAMT rows live at the end)', () => {
+    const rows = Array.from({ length: 800 }, (_, i) => `Zeile${i} | ${i * 10}`);
+    rows.push('GESAMT | 999999');
+    const text = rows.join('\n');
+    const cut = truncateTableContext(text);
+
+    expect(cut.length).toBeLessThan(text.length);
+    expect(cut).toContain('Zeile0 | 0');
+    // The load-bearing end of the table survives the cut.
+    expect(cut).toContain('GESAMT | 999999');
+    // Cut on line boundaries: the marker sits between complete lines.
+    expect(cut).toContain('\n... [Tabelle gekürzt] ...\n');
   });
 });
 
