@@ -15,7 +15,6 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
 import {
@@ -288,8 +287,9 @@ export async function handleNotebookStream(
     const t2 = Date.now();
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
-    // Reasoning models need extra room for the <think> block before content.
-    const baseMaxOutput = isFast ? 8000 : 16000;
+    // Generous ceilings: reasoning models spend a large share on the <think>
+    // block before visible content, so both modes get ample headroom.
+    const baseMaxOutput = isFast ? 20000 : 40000;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
@@ -300,11 +300,10 @@ export async function handleNotebookStream(
         sse,
         logPrefix: '[Notebook]',
         buildStream: async (resolution) => {
-          const isReasoning = isReasoningStreamModel(resolution.provider, resolution.modelName);
           return streamForResolution({
             resolution,
             messages: aiMessages,
-            maxTokens: isReasoning ? Math.max(baseMaxOutput, 9000) : baseMaxOutput,
+            maxTokens: baseMaxOutput,
             temperature: 0.2,
             sse,
             signal: abortController.signal,
