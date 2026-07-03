@@ -4,6 +4,7 @@ import {
   preloadChatRuntime,
   type SharepicVariant,
 } from '@gruenerator/chat';
+import { type SharepicHandoffPayload } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -161,11 +162,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
             ? crypto.randomUUID()
             : `handoff-${Date.now()}`;
+        // Contract-typed at the write boundary: a non-canonical canvasType is
+        // a compile error here instead of a runtime crash in the studio.
         const payload = {
           canvasType: variant.canvasType,
           initialProps: variant.initialProps,
           ts: Date.now(),
-        };
+        } satisfies SharepicHandoffPayload;
         try {
           localStorage.setItem(
             `gruenerator:sharepic-handoff:${handoffId}`,
