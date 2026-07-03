@@ -3,8 +3,7 @@
  * Calls the bundestag-mcp server for DIP API data
  */
 
-const BUNDESTAG_MCP_URL =
-  process.env.BUNDESTAG_MCP_URL || 'https://bundestagapi.moritz-waechter.de';
+const BUNDESTAG_MCP_URL = process.env.BUNDESTAG_MCP_URL || 'https://mcp.bundestag-wrapped.de';
 const REQUEST_TIMEOUT = 30000;
 
 interface MCPResponse {
