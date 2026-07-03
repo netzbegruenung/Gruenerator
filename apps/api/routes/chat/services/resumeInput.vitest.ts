@@ -66,5 +66,15 @@ describe('hasBrokenComputeValues', () => {
     expect(
       hasBrokenComputeValues({ entries: [entry('')], files: [{ name: 'a.csv', b64: 'x' }] })
     ).toBe(false);
+    // Post-storage payloads carry URLs instead of base64 — same exemption.
+    expect(hasBrokenComputeValues({ entries: [entry('')], figureUrls: ['/api/x.png'] })).toBe(
+      false
+    );
+    expect(
+      hasBrokenComputeValues({
+        entries: [entry('')],
+        fileAssets: [{ name: 'a.csv', url: '/api/x.csv' }],
+      })
+    ).toBe(false);
   });
 });
