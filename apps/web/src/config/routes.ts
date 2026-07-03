@@ -218,7 +218,7 @@ const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorW
 const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
-const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
 const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
 const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
@@ -578,7 +578,8 @@ const standardRoutes: RouteConfig[] = [
   // Pages Feature Routes
   // Docs: overview and editor
   { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
-  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
+  // Dispatches to the BlockNote or Univer editor by document_subtype.
+  { path: '/docs/:id', component: CollabDocRoute, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
