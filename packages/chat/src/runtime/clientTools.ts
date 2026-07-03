@@ -18,6 +18,7 @@
 
 import { capComputeFiles, capFigures, parseComputeResult } from '../lib/computeResult';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { useComputeExportStore } from '../stores/computeExportStore';
 import { useLastComputeStore } from '../stores/lastComputeStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
 
@@ -55,6 +56,10 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
         // (from computedResult.files) — no synthetic entries, which would
         // duplicate the download chips and pollute the verifier prompt.
         if (computeFiles.length > 0) compute.files = computeFiles;
+        // Keep the raw bytes in the session stash: the card's download chips
+        // serve a fresh export from the browser (which just wrote the file)
+        // instead of depending on the server asset round-trip.
+        if (result.files.length > 0) useComputeExportStore.getState().stash(result.files);
         // Also remember it locally so follow-up turns forward it as
         // `computedResult` (same path as the legacy auto-run code block).
         useLastComputeStore.getState().setResult(compute);

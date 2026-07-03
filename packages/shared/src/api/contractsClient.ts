@@ -58,6 +58,7 @@ import {
   subtitlerContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
+import { isAxiosError } from 'axios';
 
 import { getGlobalApiClient } from './client.js';
 
@@ -117,16 +118,31 @@ async function axiosFetcher({
   // the set keeps using the canonical contract paths.
   const relativePath = stripApiPrefix(path);
 
-  const response = await axios.request({
-    url: relativePath,
-    method,
-    headers,
-    data: body,
-    // Let axios resolve with the full response even on 4xx/5xx so ts-rest
-    // can match the status to the contract's response map.
-    validateStatus: () => true,
-    ...(isBinary && { responseType: 'blob' as const }),
-  });
+  const response = await axios
+    .request({
+      url: relativePath,
+      method,
+      headers,
+      data: body,
+      // Let axios resolve with the full response on 4xx/5xx so ts-rest can
+      // match the status to the contract's response map — EXCEPT 401. The
+      // global session handling (probe → transparent retry, or login
+      // redirect + auth-cache wipe) lives in the shared client's *error*
+      // interceptor, which only runs on rejected promises. Resolving 401s
+      // here silently disabled logout for every contract-based endpoint:
+      // the session died server-side but the app kept rendering the
+      // authenticated shell ("half logged in").
+      validateStatus: (status) => status !== 401,
+      ...(isBinary && { responseType: 'blob' as const }),
+    })
+    .catch((error: unknown) => {
+      // The error interceptor has already run (session probe, possible
+      // redirect). If the server answered, hand the response to ts-rest
+      // unchanged so callers keep receiving `{ status: 401, body }` exactly
+      // as before instead of a thrown AxiosError.
+      if (isAxiosError(error) && error.response) return error.response;
+      throw error;
+    });
 
   // Convert axios headers (AxiosResponseHeaders) to native Headers
   const nativeHeaders = new Headers();
