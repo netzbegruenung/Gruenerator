@@ -558,6 +558,20 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 function formatComputedResultContext(computedResult: ChatGraphState['computedResult']): string {
   if (!computedResult) return '';
   const lines = computedResult.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
+  const figureCount =
+    (computedResult.figures?.length ?? 0) + (computedResult.figureUrls?.length ?? 0);
+  const figureNote =
+    figureCount > 0
+      ? `\n${figureCount === 1 ? 'Ein Diagramm wurde' : `${figureCount} Diagramme wurden`} bei der Berechnung erstellt und der*dem Nutzer*in bereits angezeigt — erwähne das kurz und erstelle KEIN weiteres Diagramm.`
+      : '';
+  const fileNames = [
+    ...(computedResult.files?.map((f) => f.name) ?? []),
+    ...(computedResult.fileAssets?.map((f) => f.name) ?? []),
+  ];
+  const fileNote =
+    fileNames.length > 0
+      ? `\nFolgende Datei${fileNames.length === 1 ? ' wurde' : 'en wurden'} erstellt und ${fileNames.length === 1 ? 'steht' : 'stehen'} der*dem Nutzer*in bereits zum Download bereit: ${fileNames.join(', ')} — erwähne das kurz.`
+      : '';
   return `
 
 ## BERECHNUNGSERGEBNIS (deterministisch per Programm berechnet — NICHT selbst nachrechnen)
@@ -565,7 +579,7 @@ function formatComputedResultContext(computedResult: ChatGraphState['computedRes
 Operation: ${computedResult.operation}
 ${lines}
 
-Zusammenfassung: ${computedResult.summary}
+Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
 
 ---
 Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.`;
@@ -706,6 +720,30 @@ Regeln:
 - Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
 
+/**
+ * Chart guidance. When the run_python interrupt already computed the values
+ * (chart over an attached spreadsheet), the model must chart EXACTLY those
+ * numbers — the plain CHART_GUIDANCE's "plausible Daten" licence produced
+ * fabricated category splits in beta.
+ */
+function getChartGuidance(state: ChatGraphState): string {
+  if (state.computedResult && state.computedResultFresh) {
+    return `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
+- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+  }
+  return CHART_GUIDANCE;
+}
+
 const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
 
 - Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
@@ -790,7 +828,7 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'summary':
       return SUMMARY_GUIDANCE;
     case 'chart':
-      return CHART_GUIDANCE;
+      return getChartGuidance(state);
     case 'artifact':
       return ARTIFACT_GUIDANCE;
     case 'compute':

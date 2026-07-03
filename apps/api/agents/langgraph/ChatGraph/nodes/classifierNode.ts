@@ -33,6 +33,12 @@ import {
   looksMultiTopic,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
+  detectSocialPlatform,
+  resolveSocialPostEscape,
+  SOCIAL_CREATE_VERB_PATTERN,
+  SOCIAL_BARE_NOUN_PATTERN,
+  SOCIAL_META_QUESTION_PATTERN,
+  SHAREPIC_NOUN_PATTERN,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
@@ -53,8 +59,6 @@ const PM_NOUN_PATTERN =
   /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
 const SOCIAL_NOUN_PATTERN =
   /\b(post|tweet|tweete|tweeten|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
-const INSTAGRAM_PATTERN = /\b(instagram|insta|reel|story)\b/i;
-const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
 
 /**
  * Public classifier node — wraps the inner implementation with multi-document
@@ -121,7 +125,12 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     scrapeWhitelist.includes('scrape') ||
     scrapeWhitelist.includes('scrape_url');
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
-  const detectedUrls = scrapeEnabled ? extractUrls(userText) : [];
+  // @web-attached URLs are explicit user intent — union them with auto-detected
+  // ones (deduped, attached first so they rank highest in scrape_url).
+  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  const detectedUrls = scrapeEnabled
+    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    : [];
   if (detectedUrls.length > 0) {
     if (!intent || intent === 'direct') {
       intent = 'scrape_url';
@@ -588,17 +597,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const wantsPm = PM_NOUN_PATTERN.test(userContent);
       const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
       if (wantsPm || wantsSocial) {
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'examples';
+        // Social-only prompts route to the EXPERIMENTAL combined post (text +
+        // sharepic) unless an escape hatch ("nur Text", "nur Sharepic")
+        // applies. Mixed PM+social prompts keep the dual-search behavior.
+        const socialIntent: SearchIntent = resolveSocialPostEscape(userContent) ?? 'social_post';
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : socialIntent;
         const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
-        // Platform hint for the social composer: Insta vs FB. Heuristic-only;
-        // the social_media_examples Qdrant collection contains exactly these
-        // two platforms, so detecting more would be misleading. Null when
-        // unspecified → composer falls back to the combined rubric.
-        const platform: 'instagram' | 'facebook' | null = INSTAGRAM_PATTERN.test(userContent)
-          ? 'instagram'
-          : FACEBOOK_PATTERN.test(userContent)
-            ? 'facebook'
-            : null;
+        // Platform hint for the social composer/generator. Null when
+        // unspecified → generic rubric.
+        const platform = detectSocialPlatform(userContent);
         log.info(
           `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
         );
@@ -642,6 +649,48 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         complexity,
         classificationTimeMs: Date.now() - startTime,
       };
+    }
+
+    // EXPERIMENTAL combined social post — for ALL users, not just
+    // content-creation agents: a social-post creation request yields text +
+    // sharepic variants in one turn. Requires a creation verb or a bare
+    // noun-phrase shape ("Instagram-Post zu Tempo 30"); questions and
+    // example-browsing never create. Explicit sharepic wording ("Sharepic
+    // für Instagram") keeps the shipped sharepic-only flow, "nur Text" the
+    // examples flow — both via resolveSocialPostEscape. PM prompts keep
+    // their own routes (handled above for agents, LLM tier otherwise).
+    const looksLikeSocialCreation =
+      SOCIAL_NOUN_PATTERN.test(userContent) &&
+      !PM_NOUN_PATTERN.test(userContent) &&
+      !SOCIAL_META_QUESTION_PATTERN.test(userContent) &&
+      !looksLikeMetaQuestion &&
+      (SOCIAL_CREATE_VERB_PATTERN.test(userContent) || SOCIAL_BARE_NOUN_PATTERN.test(userContent));
+    if (looksLikeSocialCreation && userContent.length >= 10) {
+      if (SHAREPIC_NOUN_PATTERN.test(userContent)) {
+        // "Sharepic für Instagram" — let the heuristic/LLM tiers route to the
+        // sharepic intent as before this feature.
+        log.info('[Classifier] Social creation with explicit sharepic wording — deferring');
+      } else {
+        const escape = resolveSocialPostEscape(userContent);
+        const intent: SearchIntent = escape ?? 'social_post';
+        const platform = detectSocialPlatform(userContent);
+        log.info(
+          `[Classifier] Social post creation → ${intent}${platform ? ` (platform=${platform})` : ''}${escape ? ' via escape hatch' : ''}`
+        );
+        return {
+          intent,
+          platform,
+          searchSources: [],
+          searchQuery: extractSearchTopic(userContent) || userContent,
+          detectedFilters: null,
+          reasoning: escape
+            ? `Social post request with "${escape}" escape hatch`
+            : 'Social post creation — combined text + sharepic (experimental)',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // ── TIER 3: Heuristic pre-check ──

@@ -47,6 +47,12 @@ export interface BuildRequestBodyParams {
   docMentionIds: string[];
   wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'];
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
+  /** URLs attached via the @web mention (crawled through the scrape_url path). */
+  webpageUrls: string[];
+  /** Regenerate the last assistant turn (backend replaces instead of appends). */
+  regenerate: boolean;
+  /** DB id of the user message an edit-resubmit starts from, if any. */
+  replaceFromMessageId: string | undefined;
   mergedDocChatIds: string[];
   hasDocumentChat: boolean;
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
@@ -97,6 +103,9 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     docMentionIds,
     wolkeFiles,
     connectFiles,
+    webpageUrls,
+    regenerate,
+    replaceFromMessageId,
     mergedDocChatIds,
     hasDocumentChat,
     injectedCurrentDocument,
@@ -151,6 +160,9 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
     wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
     connectFiles: connectFiles.length > 0 ? connectFiles : undefined,
+    webpageUrls: webpageUrls.length > 0 ? webpageUrls : undefined,
+    regenerate: regenerate || undefined,
+    replaceFromMessageId: replaceFromMessageId || undefined,
     documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
@@ -161,8 +173,15 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     attachmentContext: injectedAttachmentContext,
     // Forward the last browser-computed spreadsheet result so the backend can
     // give it to the model as ground truth (formatComputedResultContext) — the
-    // model can't see the client-side Pyodide output otherwise.
-    computedResult: useLastComputeStore.getState().result ?? undefined,
+    // model can't see the client-side Pyodide output otherwise. Figures are
+    // stripped: they were already persisted with the original turn, and
+    // re-sending base64 PNGs would bloat every follow-up request.
+    computedResult: (() => {
+      const r = useLastComputeStore.getState().result;
+      if (!r) return undefined;
+      const { figures: _figures, files: _files, figureUrls: _fu, fileAssets: _fa, ...slim } = r;
+      return slim;
+    })(),
     // Declare which tools this client can execute locally, so the backend may
     // pause the turn with a client_tool interrupt (e.g. run_python) instead of
     // prompting the model to emit a code block.
