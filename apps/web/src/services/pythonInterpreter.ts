@@ -48,6 +48,7 @@ export const runPython: RunPython = (code, files = [], options = {}) => {
         ok: false,
         stdout: '',
         figures: [],
+        files: [],
         error: 'Zeitüberschreitung – der Code lief zu lange und wurde abgebrochen.',
         traceback: null,
         durationMs: timeoutMs,

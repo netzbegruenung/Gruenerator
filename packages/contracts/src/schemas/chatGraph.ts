@@ -132,6 +132,14 @@ export const chatStreamBodySchema = z.object({
       canvasType: z.string(),
     })
     .nullish(),
+  // The combined social post the user marked as "active for chat editing"
+  // (EXPERIMENTAL card toggle). Targets the social-post TEXT edit branch
+  // explicitly, so edits hit the activated post instead of the newest one.
+  currentSocialPost: z
+    .object({
+      postId: z.string(),
+    })
+    .nullish(),
   // The subtitler project the user marked as "active for chat editing"
   // (via the reel picker or a processed chat upload). Targets the
   // reel_edit branch.
@@ -161,6 +169,18 @@ export const chatStreamBodySchema = z.object({
   // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
   // so platform-specific spec only loads when the relevant skill is active.
   activeSkillMention: z.string().nullish(),
+  // Regenerate the last assistant turn: the backend skips re-persisting the
+  // (unchanged) user message and deletes the trailing assistant message(s)
+  // before streaming the replacement. Keeps chat_messages linear (no dupes).
+  regenerate: z.boolean().nullish(),
+  // Edit-resubmit: DB id of the persisted user message the edit starts from.
+  // Backend deletes that message and everything created at/after it, then
+  // proceeds normally (edited user message + fresh assistant reply).
+  replaceFromMessageId: z.string().nullish(),
+  // URLs explicitly attached via the @web composer mention. Merged into the
+  // classifier's detected URLs and crawled through the existing scrape_url
+  // pipeline (selectAndCrawlTopUrls).
+  webpageUrls: z.array(z.string().url()).nullish(),
 });
 
 export const chatResumeBodySchema = z.object({

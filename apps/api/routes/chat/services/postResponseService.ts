@@ -36,6 +36,7 @@ import type {
   SearchResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SocialPostPayload, SocialPostToolResult } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
@@ -49,6 +50,9 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   image: 'image_generate',
   image_edit: 'image_edit',
   sharepic: 'sharepic',
+  // EXPERIMENTAL combined post: persisted as TWO tool calls (sharepic +
+  // social_post) — see buildToolCalls.
+  social_post: 'social_post',
   scrape_url: 'scrape_url',
 };
 
@@ -85,7 +89,8 @@ type ToolCallResult =
   | ResearchToolResult
   | ImageToolCallResult
   | SharepicToolCallResult
-  | ScrapeToolCallResult;
+  | ScrapeToolCallResult
+  | SocialPostToolResult;
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -144,10 +149,49 @@ function buildToolCalls(
   classifiedState: ChatGraphState,
   finalState: ChatGraphState,
   generatedImage: GeneratedImageResult | null,
-  sharepicVariants: SharepicVariant[]
+  sharepicVariants: SharepicVariant[],
+  socialPost: SocialPostPayload | null = null
 ): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
+
+  // Combined post (EXPERIMENTAL): TWO tool calls. The plain `sharepic` call
+  // keeps threadMessageConversion rehydration and sharepicEditService target
+  // resolution working unchanged; the `social_post` call carries the text
+  // head + version history for the SocialPostCard.
+  if (toolName === 'social_post') {
+    const calls: PersistedToolCall[] = [];
+    const query = classifiedState.searchQuery || '';
+    if (sharepicVariants.length > 0) {
+      calls.push({
+        toolCallId: `tc_${Date.now()}_sharepic`,
+        toolName: 'sharepic',
+        args: { query },
+        result: { variants: sharepicVariants },
+      });
+    }
+    if (socialPost) {
+      calls.push({
+        toolCallId: `tc_${Date.now()}_social_post`,
+        toolName: 'social_post',
+        args: { query },
+        result: {
+          ...socialPost,
+          versions: [
+            {
+              text: socialPost.text,
+              hashtags: socialPost.hashtags,
+              charCount: socialPost.charCount,
+              version: socialPost.version,
+              summary: 'Erstellt',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      });
+    }
+    return calls.length > 0 ? calls : undefined;
+  }
 
   // scrape_url renders a link-preview card per crawled page. The frontend parser
   // reads `args.url` + `result.content`, so emit one tool call per result rather
@@ -205,6 +249,8 @@ export interface PersistParams {
   classifiedState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
+  /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
+  socialPost?: SocialPostPayload | null;
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
@@ -230,6 +276,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     classifiedState,
     generatedImage,
     sharepicVariants,
+    socialPost,
     isNewThread,
     lastUserMessage,
     processedMeta,
@@ -242,7 +289,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState, generatedImage, sharepicVariants);
+    const toolCalls = buildToolCalls(
+      classifiedState,
+      finalState,
+      generatedImage,
+      sharepicVariants,
+      socialPost ?? null
+    );
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
@@ -260,6 +313,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             generationTimeMs: generatedImage.generationTimeMs,
           }
         : undefined,
+      // Deterministic calculation (computeNode / run_python) incl. base64
+      // figures/files (capped) so the Berechnung card survives reloads. Gated
+      // on computedResultFresh: clients forward the LAST result with every
+      // follow-up request, and without the gate every later message in the
+      // thread would persist a stale copy of the card.
+      ...(finalState.computedResult != null &&
+        finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
     });
 
@@ -300,47 +360,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
-    if (processedMeta.length > 0) {
-      for (const meta of processedMeta) {
-        try {
-          const attachmentId = await saveThreadAttachment({
-            threadId,
-            messageId: null,
-            userId,
-            name: meta.name,
-            mimeType: meta.mimeType,
-            sizeBytes: meta.sizeBytes,
-            isImage: meta.isImage,
-            extractedText: meta.extractedText,
-            ...(meta.imageData != null && { imageData: meta.imageData }),
-            ...(meta.fileData != null && { fileData: meta.fileData }),
-          });
-
-          // Large prose documents (not images, not tabular) get chunked+embedded
-          // in the background so follow-up turns retrieve them via RAG instead of
-          // re-injecting truncated full text. Small docs stay full-context.
-          const isTabular = isTabularAttachment(meta.name, meta.mimeType);
-          if (
-            !meta.isImage &&
-            !isTabular &&
-            meta.extractedText &&
-            meta.extractedText.length > RAG_ATTACHMENT_THRESHOLD_CHARS
-          ) {
-            embedThreadAttachmentForRag({
-              attachmentId,
-              userId,
-              name: meta.name,
-              extractedText: meta.extractedText,
-            }).catch((err) => {
-              reportBackgroundError(err, { job: 'attachment-rag-embed', attachmentId });
-            });
-          }
-        } catch (attachError) {
-          log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
-        }
-      }
-      log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${threadId}`);
-    }
+    await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
@@ -386,29 +406,107 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 }
 
 /**
- * Persist a resumed response (simpler — no title gen, no attachments, no mem0).
+ * Save this turn's uploaded files as thread attachments (+ background RAG embed
+ * for large prose docs). Shared by the normal completion path AND the resume
+ * path: an interrupted turn (ask_human / run_python) returns before
+ * persistAssistantResponse runs, so without the resume-side call the uploaded
+ * file was never persisted — follow-up turns then lost hasTabularAttachment
+ * and the re-injected file context entirely.
+ */
+async function saveThreadAttachmentsFromMeta(
+  threadId: string,
+  userId: string,
+  processedMeta: ProcessedAttachmentMeta[]
+): Promise<void> {
+  if (processedMeta.length === 0) return;
+  for (const meta of processedMeta) {
+    try {
+      const attachmentId = await saveThreadAttachment({
+        threadId,
+        messageId: null,
+        userId,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        sizeBytes: meta.sizeBytes,
+        isImage: meta.isImage,
+        extractedText: meta.extractedText,
+        ...(meta.imageData != null && { imageData: meta.imageData }),
+        ...(meta.fileData != null && { fileData: meta.fileData }),
+      });
+
+      // Large prose documents (not images, not tabular) get chunked+embedded
+      // in the background so follow-up turns retrieve them via RAG instead of
+      // re-injecting truncated full text. Small docs stay full-context.
+      const isTabular = isTabularAttachment(meta.name, meta.mimeType);
+      if (
+        !meta.isImage &&
+        !isTabular &&
+        meta.extractedText &&
+        meta.extractedText.length > RAG_ATTACHMENT_THRESHOLD_CHARS
+      ) {
+        embedThreadAttachmentForRag({
+          attachmentId,
+          userId,
+          name: meta.name,
+          extractedText: meta.extractedText,
+        }).catch((err) => {
+          reportBackgroundError(err, { job: 'attachment-rag-embed', attachmentId });
+        });
+      }
+    } catch (attachError) {
+      log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
+    }
+  }
+  log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${threadId}`);
+}
+
+/**
+ * Persist a resumed response (simpler — no title gen, no mem0). Attachments
+ * ARE saved here when the caller passes the stored request context: the
+ * original turn ended in an interrupt, so this is the first (and only) chance
+ * to persist the files uploaded with it.
  */
 export async function persistResumedResponse(params: {
   threadId: string;
   fullText: string;
   finalState: ChatGraphState;
   classifiedState: ChatGraphState;
+  userId?: string;
+  processedMeta?: ProcessedAttachmentMeta[];
+  /** Sharepic variants generated on the resumed turn (sharepic/social_post). */
+  sharepicVariants?: SharepicVariant[];
+  /** Text half of a resumed social_post turn. */
+  socialPost?: SocialPostPayload | null;
 }): Promise<void> {
-  const { threadId, fullText, finalState, classifiedState } = params;
+  const { threadId, fullText, finalState, classifiedState, userId, processedMeta } = params;
 
   if (!threadId || !fullText) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState, null, []);
+    const toolCalls = buildToolCalls(
+      classifiedState,
+      finalState,
+      null,
+      params.sharepicVariants ?? [],
+      params.socialPost ?? null
+    );
     await createMessage(threadId, 'assistant', fullText, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       resumed: true,
+      // run_python result incl. figures/files — persists the Berechnung card
+      // across reloads. Fresh-gated: a forwarded last-turn result must not
+      // stamp a stale card onto an unrelated resumed message.
+      ...(finalState.computedResult != null &&
+        finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
     });
     await touchThread(threadId);
+    if (userId && processedMeta?.length) {
+      await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+    }
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
   } catch (error) {
     log.error('[ChatGraph:Resume] Error persisting message:', error);

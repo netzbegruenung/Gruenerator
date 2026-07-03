@@ -5,3 +5,4 @@
 export { detectPyodidePackages } from '../lib/pyodidePackages';
 export { buildFileSetup, isXlsx, isXls } from '../lib/spreadsheetSetup';
 export { sanitizePythonCode } from '../lib/pythonCodeSanitizer';
+export { runPythonCore, ENGINE_WHEEL_FILES, type PyRuntime } from './runCore';

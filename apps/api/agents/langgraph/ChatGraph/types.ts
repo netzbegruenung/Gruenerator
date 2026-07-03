@@ -21,10 +21,12 @@ import type {
   ChartPayload,
   ArtifactPayload,
   ComputePayload,
+  SocialPostPayload,
+  SearchIntent,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -41,33 +43,19 @@ export type UserLocale = 'de-DE' | 'de-AT';
 
 /**
  * Intent classification for routing to appropriate search tools.
- * The classifier determines which intent applies, and the graph routes accordingly.
+ * The classifier determines which intent applies, and the graph routes
+ * accordingly. Canonical value list lives in @gruenerator/contracts
+ * (`searchIntentSchema`) — the single source shared with the `intent` SSE
+ * wire schema and the frontend; add new intents THERE.
  */
-export type SearchIntent =
-  | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
-  | 'compare' // Multi-document comparison (≥2 doc sources + compare verbs)
-  | 'search' // Gruenerator document search (party programs, positions)
-  // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
-  | 'web' // Web search (current events, external facts)
-  | 'scrape_url' // Crawl URL(s) pasted in the user message and use the page content as context
-  | 'examples' // Social media examples/templates
-  | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
-  | 'abgeordnetenwatch' // German MP transparency data (votes, Nebentätigkeiten, mandates, roll-calls) via the Abgeordnetenwatch API — DE-only
-  | 'bundestag' // Official Bundestag documents (Drucksachen, Plenarreden, Gesetzgebung, MPs) via the Bundestag MCP / DIP — DE-only
-  | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
-  | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
-  | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
-  | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
-  | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
-  | 'compute' // Deterministic calculation ("zähl die Zeichen", "20% von 340", "Tage bis Weihnachten")
-  | 'artifact' // Generic HTML/SVG artifact rendered in the side panel ("baue eine HTML-Tabelle", "erstelle eine SVG-Grafik")
-  | 'save_as_doc' // Save response as document ("speichere als Dokument")
-  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
-  | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
-  | 'edit_current_board' // Live-edit the open board via the boards assistant — for boards editor surface
-  | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
-  | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
-  | 'direct'; // No search needed (greetings, creative tasks without fact needs)
+export type { SearchIntent };
+
+/**
+ * Platform hint a user prompt can carry for social text generation. `null`
+ * on the state means "generic" (no platform named). Distinct from the wire
+ * `SocialPlatform` in @gruenerator/contracts, which spells generic out.
+ */
+export type SocialTextPlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
 
 /**
  * Image style for generation.
@@ -358,6 +346,11 @@ export interface ChatGraphInput {
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
+  /**
+   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * the classifier's auto-detected URLs and crawled through the scrape_url path.
+   */
+  attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   userLocale?: UserLocale | undefined;
@@ -431,6 +424,10 @@ export interface ChatGraphState {
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
 
+  // URLs attached via the @web mentionable. The classifier unions these into
+  // `detectedUrls` so the existing scrape_url path crawls them.
+  attachedWebpageUrls: string[];
+
   // Current open document in the docs editor (primary context, not retrieval scope).
   // Set when chat is embedded in a document editor surface.
   currentDocument: CurrentDocument | null;
@@ -491,11 +488,12 @@ export interface ChatGraphState {
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
-  // Platform hint for `examples` intent (Instagram vs Facebook). Set by the
-  // classifier's content-creation override branch when the user prompt names a
-  // platform; null otherwise. Consumed by searchNode to filter social examples
-  // and by socialMediaComposerNode to pick the platform-specific rubric.
-  platform: 'instagram' | 'facebook' | null;
+  // Platform hint for the `examples` / `social_post` intents. Set by the
+  // classifier when the user prompt names a platform; null otherwise. Consumed
+  // by searchNode to filter social examples (instagram/facebook only — the
+  // Qdrant collection has no other platforms) and by socialMediaComposerNode
+  // to pick the platform-specific rubric.
+  platform: SocialTextPlatform | null;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;
@@ -555,6 +553,22 @@ export interface ChatGraphState {
    *  computedResult forwarded from the previous turn (lastComputeStore) leaves
    *  this unset so a new follow-up computation can still emit code. */
   computedResultFresh?: boolean | undefined;
+  /** run_python error-correction loop (OpenWebUI-style, max 1 retry): how many
+   *  corrected code versions were already issued this turn, and the last code
+   *  sent to the client — both survive the Redis round-trip so the resume
+   *  handler can regenerate with the failure in context. */
+  pandasComputeRetries?: number | undefined;
+  pandasLastCode?: string | undefined;
+  /** Successful result stashed before a verifier-triggered correction round —
+   *  if the "corrected" code then fails, the turn falls back to this instead
+   *  of ending with no computation at all. */
+  pandasComputeFallback?: ComputeData | undefined;
+
+  // Combined social post (EXPERIMENTAL): text half of the `social_post`
+  // intent. Set by generateSocialPostText in the execution stage; persisted
+  // into the `social_post` tool-call result. The sharepic half travels via
+  // the existing sharepic variant machinery.
+  socialPostResult: SocialPostPayload | null;
 
   // Chart generation
   chartData: ChartData | null;

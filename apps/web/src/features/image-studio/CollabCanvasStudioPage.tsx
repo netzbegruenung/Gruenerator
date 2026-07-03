@@ -17,6 +17,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
+import type { InitialPageDef } from '@gruenerator/canvas-editor';
+
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -37,6 +39,14 @@ function CollabCanvasStudioContent() {
     },
     enabled: !!id,
   });
+
+  const initialPages = useMemo((): InitialPageDef[] | undefined => {
+    const pages = canvas?.initial_state.pages;
+    if (!Array.isArray(pages) || pages.length === 0) return undefined;
+    return (pages as Array<{ configId: string; state: Record<string, unknown> }>)
+      .filter((p) => typeof p?.configId === 'string' && p.state != null)
+      .map((p) => ({ configId: p.configId as InitialPageDef['configId'], state: p.state }));
+  }, [canvas]);
 
   const canEdit = useMemo(() => {
     if (!canvas || !user) return false;
@@ -159,6 +169,7 @@ function CollabCanvasStudioContent() {
           <MasterCanvasEditor
             type={canvas.template_type}
             initialState={canvas.initial_state}
+            initialPages={initialPages}
             onExport={handleExport}
             onCancel={handleCancel}
             collaborative={

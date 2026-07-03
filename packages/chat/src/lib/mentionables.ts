@@ -13,6 +13,7 @@ import {
   PiFileText,
   PiSparkle,
   PiCloud,
+  PiGlobe,
   PiNotePencil,
   PiPlugsConnected,
   PiChartBar,
@@ -29,7 +30,8 @@ export type MentionableType =
   | 'wolke'
   | 'connect'
   | 'canva'
-  | 'vorlagen';
+  | 'vorlagen'
+  | 'webpage';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -485,6 +487,24 @@ export const wolkeMentionables: Mentionable[] = [
   },
 ];
 
+// @web opens a sub-popover for pasting a URL. The page is attached as a chip
+// (contentType application/x-gruenerator-webpage) whose data carries the URL;
+// the backend crawls it through the existing scrape_url pipeline.
+export const webpageMentionables: Mentionable[] = [
+  {
+    type: 'webpage',
+    category: 'function',
+    trigger: '@',
+    identifier: 'webpage-trigger',
+    title: 'Webseite',
+    description: 'Inhalt einer Webseite per URL anhängen',
+    avatar: '🌐',
+    icon: PiGlobe,
+    backgroundColor: '#0EA5E9',
+    mention: 'web',
+  },
+];
+
 export interface WolkeFileToken {
   shareLinkId: string;
   path: string;
@@ -671,6 +691,7 @@ export function getAllMentionables(): Mentionable[] {
     ...connectMentionables,
     ...canvaMentionables,
     ...vorlagenMentionables,
+    ...webpageMentionables,
   ];
 }
 
@@ -694,6 +715,7 @@ function rebuildMentionableMap(): void {
     connectMentionables,
     canvaMentionables,
     vorlagenMentionables,
+    webpageMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -742,7 +764,7 @@ export function filterMentionables(query: string): {
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
       userNotebooks: dynamicUserNotebookMentionables,
-      tools: toolMentionables,
+      tools: [...toolMentionables, ...webpageMentionables],
       boards: allBoards,
       docs: allDocs,
       documents: documentMentionables,
@@ -777,7 +799,7 @@ export function filterMentionables(query: string): {
     userNotebooks: isNotebookCategoryQuery
       ? dynamicUserNotebookMentionables
       : dynamicUserNotebookMentionables.filter(matchFn),
-    tools: toolMentionables.filter(matchFn),
+    tools: [...toolMentionables, ...webpageMentionables].filter(matchFn),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),

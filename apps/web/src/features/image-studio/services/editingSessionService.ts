@@ -1,3 +1,5 @@
+import { type CanvasTemplateType } from '@gruenerator/contracts';
+
 import apiClient from '../../../components/utils/apiClient';
 import { isMintableCanvasType } from '../utils/canvasTypeFields';
 import {
@@ -309,18 +311,17 @@ export function parseAIGeneratedData(
   generatedData: Record<string, string>,
   selectedImage?: AISelectedImage | null
 ): Record<string, unknown> {
-  const typeMap: Record<string, ImageStudioType> = {
-    dreizeilen: IMAGE_STUDIO_TYPES.DREIZEILEN,
-    'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
-    zitat_pure: IMAGE_STUDIO_TYPES.ZITAT_PURE,
-    info: IMAGE_STUDIO_TYPES.INFO,
-    veranstaltung: IMAGE_STUDIO_TYPES.VERANSTALTUNG,
-    simple: IMAGE_STUDIO_TYPES.SIMPLE,
+  // Legacy ids from older payloads/sessions → canonical CanvasTemplateType.
+  // Values are compile-checked against the canonical enum; canonical ids need
+  // no entry (isImageStudioType covers every CanvasTemplateType by the
+  // alignment assertion in typeConfig/constants).
+  const LEGACY_TYPE_ALIASES: Record<string, CanvasTemplateType> = {
+    zitat_pure: 'zitat-pure',
   };
 
   // Resolve to a known type; only advance to CANVAS_EDIT for a MINTABLE type so
   // a non-mintable/unrecognized type can't crash the canvas mint.
-  const candidate = typeMap[sharepicType] ?? sharepicType;
+  const candidate = LEGACY_TYPE_ALIASES[sharepicType] ?? sharepicType;
   const mappedType: ImageStudioType | null = isImageStudioType(candidate) ? candidate : null;
 
   const formData: Record<string, unknown> = {

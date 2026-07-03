@@ -46,7 +46,10 @@ export interface RawSidejob {
   data_change_date?: string | null;
   sidejob_organization?: { label?: string } | null;
   field_topics?: { label?: string }[] | null;
-  mandates?: { id?: number }[] | null;
+  // The mandate ref carries the MP name + period in its label, e.g.
+  // "Albert Stegemann (Bundestag 2021 - 2025)" — used directly so person +
+  // parliament resolve without a mandate fetch (which misses historical ids).
+  mandates?: { id?: number; label?: string }[] | null;
 }
 
 export interface MandateInfo {
@@ -73,10 +76,28 @@ export function stripHtml(html: string | null | undefined, max = 1200): string {
   if (!html) return '';
   const text = html
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&[a-z]+;/gi, ' ')
+    // named (&amp;), decimal (&#8217;) and hex (&#x2019;) entities
+    .replace(/&(?:[a-z]+|#\d+|#x[0-9a-f]+);/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * Parse an Abgeordnetenwatch mandate label into name + parliament, e.g.
+ * "Albert Stegemann (Bundestag 2021 - 2025)" → { person, parliament }. This is
+ * the reliable source for the MP identity: the bulk `id[in]` mandate lookup
+ * misses historical candidacy_mandate ids, so we read the name off the label
+ * the sidejob already carries.
+ */
+export function parseMandateLabel(label: string | null | undefined): {
+  person: string | null;
+  parliament: string | null;
+} {
+  if (!label) return { person: null, parliament: null };
+  const m = label.match(/^(.*?)\s*\((.+)\)\s*$/);
+  if (!m) return { person: label.trim() || null, parliament: null };
+  return { person: m[1].trim() || null, parliament: deriveParliament(m[2]) };
 }
 
 /** "Bundestag 2025 - 2029" → "Bundestag"; "EU-Parlament 2024 - 2029" → "EU-Parlament". */
@@ -176,12 +197,16 @@ export function buildSidejobDocument(
   const label = sidejob.label ?? '';
   const org = sidejob.sidejob_organization?.label ?? null;
   const topics = topicLabels(sidejob.field_topics);
-  const person = info?.politician ?? null;
+  // Person + parliament come from the mandate label the sidejob already carries
+  // (100% coverage). Party comes from the mandate map when it resolved (the
+  // bulk id[in] lookup misses historical mandates), so it's best-effort only.
+  const fromLabel = parseMandateLabel(sidejob.mandates?.[0]?.label);
+  const person = fromLabel.person ?? info?.politician ?? null;
+  const parliament = fromLabel.parliament ?? info?.parliament ?? null;
   const party = info?.party ?? null;
-  const parliament = info?.parliament ?? null;
-  const incomeLevel = sidejob.income_level
-    ? Number.parseInt(sidejob.income_level, 10) || null
-    : null;
+  // Guard the parse so a legitimate 0 isn't coerced to null by `|| null`.
+  const parsedLevel = sidejob.income_level ? Number.parseInt(sidejob.income_level, 10) : Number.NaN;
+  const incomeLevel = Number.isNaN(parsedLevel) ? null : parsedLevel;
   const year = sidejob.job_title_extra ?? null;
 
   const who = [person, [party, parliament].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
@@ -202,7 +227,10 @@ export function buildSidejobDocument(
     subcategories: topics,
     // Stored as string so the keyword facet matches exact stufe values (1–10).
     income_level: incomeLevel != null ? String(incomeLevel) : null,
-    published_at: year ?? sidejob.data_change_date ?? null,
+    // `published_at` is a date_range facet, so it must be an ISO date —
+    // `job_title_extra` ("Einkommen im Jahr 2022") is prose and kept as `year`.
+    published_at: sidejob.data_change_date ?? null,
+    year,
     title: label,
     chunk_text: text,
     content_hash: hash(text),
