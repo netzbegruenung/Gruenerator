@@ -12,6 +12,7 @@ import { useArtifactLiveStore } from './artifactLiveStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
 import { useLastComputeStore } from './lastComputeStore';
+import { useComputeExportStore } from './computeExportStore';
 import { usePythonFileStore } from './pythonFileStore';
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -242,6 +243,8 @@ export const useAgentStore = create<AgentState>()(
         usePythonFileStore.getState().clear();
         // Same for the last spreadsheet computation forwarded to the model.
         useLastComputeStore.getState().clear();
+        // And for the interpreter's output files (download-chip byte stash).
+        useComputeExportStore.getState().clear();
       },
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
