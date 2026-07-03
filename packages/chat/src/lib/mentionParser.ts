@@ -23,6 +23,7 @@ export interface ParsedMentions {
   documentChatIds: string[];
   hasDocumentChat: boolean;
   boardIds: string[];
+  sheetIds: string[];
   docMentionIds: string[];
   wolkeFiles: WolkeFileToken[];
   connectFiles: ConnectFileToken[];
@@ -61,6 +62,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   const documentIds: string[] = [];
   const textIds: string[] = [];
   const boardIds: string[] = [];
+  const sheetIds: string[] = [];
   const docMentionIds: string[] = [];
   const wolkeFiles: WolkeFileToken[] = [];
   const connectFiles: ConnectFileToken[] = [];
@@ -69,6 +71,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   const seenDocuments = new Set<string>();
   const seenTexts = new Set<string>();
   const seenBoards = new Set<string>();
+  const seenSheets = new Set<string>();
   const seenDocMentions = new Set<string>();
   const seenWolke = new Set<string>();
   const seenConnect = new Set<string>();
@@ -207,6 +210,12 @@ export function parseAllMentions(text: string): ParsedMentions {
         } else {
           addUnique(seenBoards, boardIds, mentionable.identifier);
         }
+      } else if (mentionable.type === 'sheet') {
+        if (mentionable.identifier === 'sheet-erstellen') {
+          addUnique(seenTools, forcedTools, mentionable.identifier);
+        } else {
+          addUnique(seenSheets, sheetIds, mentionable.identifier);
+        }
       } else if (mentionable.type === 'doc') {
         if (mentionable.identifier === 'dokument-erstellen') {
           addUnique(seenTools, forcedTools, mentionable.identifier);
@@ -239,6 +248,7 @@ export function parseAllMentions(text: string): ParsedMentions {
     documentChatIds: [],
     hasDocumentChat,
     boardIds,
+    sheetIds,
     docMentionIds,
     wolkeFiles,
     connectFiles,
@@ -254,6 +264,7 @@ export type MentionPreviewKind =
   | 'tool'
   | 'notebook'
   | 'board'
+  | 'sheet'
   | 'wolke'
   | 'connect'
   | 'unresolved';
@@ -396,9 +407,11 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
             ? 'notebook'
             : mentionable.type === 'board'
               ? 'board'
-              : mentionable.type === 'doc'
-                ? 'doc'
-                : 'unresolved';
+              : mentionable.type === 'sheet'
+                ? 'sheet'
+                : mentionable.type === 'doc'
+                  ? 'doc'
+                  : 'unresolved';
 
     previews.push({
       kind,
