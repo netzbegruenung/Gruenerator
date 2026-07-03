@@ -34,6 +34,60 @@ export function isTabularFile(name: string, mimeType: string): boolean {
 }
 
 /**
+ * Trailing-aggregate-row guard, shared by the CSV and Excel setup paths.
+ * Excel exports routinely end with blank + GESAMT/Summen rows; pandas reads
+ * them as data, which EXACTLY DOUBLES every column sum (proven with a real
+ * user file: 295.167,57 statt 147.583,79) and leaks phantom groupby keys
+ * ("GESAMT:" as a Verkäufer). A trailing row is only removed when a numeric
+ * cell equals the sum (or, for labelled/gappy rows, the mean) of ALL other
+ * rows — a mathematically unambiguous signal — and the removal is printed so
+ * the model and the user see it in the compute card.
+ */
+const CLEAN_HELPER = `import re as _gruen_re
+
+_GRUEN_AGG_LABEL = _gruen_re.compile(r'^\\s*(gesamt|gesamtsumme|summe|total|insgesamt|mittelwert|durchschnitt)\\b', _gruen_re.I)
+
+def _gruen_is_agg_row(_row, _head, _num, _txt):
+    _label = any(isinstance(_row[_c], str) and _GRUEN_AGG_LABEL.match(_row[_c]) for _c in _txt)
+    _gap = _label or (bool(_txt) and bool(_row[_txt].isna().any()))
+    for _c in _num:
+        _v = _row[_c]
+        if pd.isna(_v):
+            continue
+        _tol = max(0.01, abs(float(_v)) * 1e-9)
+        _s = _head[_c].sum()
+        if (_gap or not _txt) and _s != 0 and abs(float(_v) - float(_s)) <= _tol:
+            return True
+        if _gap:
+            _m = _head[_c].mean()
+            if pd.notna(_m) and abs(float(_v) - float(_m)) <= _tol:
+                return True
+    return False
+
+def _gruen_clean(_df):
+    _df = _df.dropna(how='all')
+    _num = list(_df.select_dtypes('number').columns)
+    _txt = [_c for _c in _df.columns if _c not in _num]
+    _removed = 0
+    _changed = bool(_num)
+    while _changed:
+        _changed = False
+        for _k in (3, 2, 1):
+            if len(_df) - _k < 3:
+                continue
+            _head = _df.iloc[:-_k]
+            _tail = _df.iloc[-_k:]
+            if all(_gruen_is_agg_row(_tail.iloc[_i], _head, _num, _txt) for _i in range(_k)):
+                _df = _head
+                _removed += _k
+                _changed = True
+                break
+    if _removed:
+        print("Hinweis: " + str(_removed) + " Summen-/Gesamtzeile(n) am Tabellenende erkannt und für Berechnungen entfernt.")
+    return _df.reset_index(drop=True)
+`;
+
+/**
  * Python that loads the file into a pandas DataFrame `df` before user code runs.
  * CSVs vary wildly — German Excel exports in particular: `;`-separated,
  * cp1252-encoded (umlauts!) and with decimal commas ("1.234,56"). The loader
@@ -43,15 +97,19 @@ export function isTabularFile(name: string, mimeType: string): boolean {
  * already parsed as float64 — are never touched).
  * .xlsx→openpyxl, .xls→xlrd (engines installed on demand by the worker);
  * Excel stores real numbers, so only CSV needs the number normalization.
+ * Both paths finish with the trailing-aggregate-row guard (CLEAN_HELPER).
  */
 export function buildFileSetup(name: string, mimeType: string): string {
   const literal = JSON.stringify(name);
   if (isXlsx(name, mimeType) || isXls(name, mimeType)) {
     // pandas auto-selects openpyxl (.xlsx) or xlrd (.xls) by extension.
-    return `import pandas as pd\ndf = pd.read_excel(${literal})`;
+    return `import pandas as pd
+${CLEAN_HELPER}
+df = _gruen_clean(pd.read_excel(${literal}))`;
   }
   return `import pandas as pd
 import re as _re
+${CLEAN_HELPER}
 
 def _gruen_load_csv(_path):
     _df = None
@@ -75,5 +133,5 @@ def _gruen_load_csv(_path):
             )
     return _df
 
-df = _gruen_load_csv(${literal})`;
+df = _gruen_clean(_gruen_load_csv(${literal}))`;
 }
