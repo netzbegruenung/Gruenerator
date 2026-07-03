@@ -14,14 +14,15 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
+import { SheetsEditor, type FUniver } from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FiShare2 } from 'react-icons/fi';
-import { PiTable } from 'react-icons/pi';
+import { FiCornerUpLeft, FiCornerUpRight, FiShare2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
+import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
@@ -90,9 +91,11 @@ function SheetsEditorContent() {
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
+  const [univerAPI, setUniverAPI] = useState<FUniver | null>(null);
+  const [darkMode] = useDarkMode();
 
   const collabConfig = useCollaborationConfig();
-  const { provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
+  const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
     documentId: isAuthResolved ? id || '' : '',
     user: isGuest
       ? null
@@ -202,6 +205,26 @@ function SheetsEditorContent() {
               </div>
             )}
             <CollaboratorAvatars collaborators={collaborators} />
+            {isEditable && univerAPI && (
+              <>
+                <button
+                  className="glass-btn"
+                  onClick={() => void univerAPI.undo()}
+                  aria-label="Rückgängig"
+                  title="Rückgängig (Strg+Z)"
+                >
+                  <FiCornerUpLeft />
+                </button>
+                <button
+                  className="glass-btn"
+                  onClick={() => void univerAPI.redo()}
+                  aria-label="Wiederholen"
+                  title="Wiederholen (Strg+Umschalt+Z)"
+                >
+                  <FiCornerUpRight />
+                </button>
+              </>
+            )}
             {!isGuest && (
               <button
                 className="glass-btn"
@@ -216,15 +239,22 @@ function SheetsEditorContent() {
         }
       />
 
-      <div className="flex-1 min-h-0 flex items-center justify-center">
-        {/* Placeholder until the Univer editor package lands (PR 3). The
-            collaboration provider above is already live, so presence works. */}
-        <div className="flex flex-col items-center gap-3 text-grey-500">
-          <PiTable size={40} className="text-secondary-500" />
-          <span className="text-sm">
-            {editorReady ? 'Der Tabellen-Editor ist in Kürze verfügbar.' : 'Tabelle wird geladen…'}
-          </span>
-        </div>
+      <div className="flex-1 min-h-0 flex flex-col">
+        {editorReady && ydoc ? (
+          <SheetsEditor
+            key={id}
+            documentId={id!}
+            ydoc={ydoc}
+            awareness={provider?.awareness ?? null}
+            editable={isEditable}
+            darkMode={darkMode}
+            onReady={setUniverAPI}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
+            Tabelle wird geladen…
+          </div>
+        )}
       </div>
 
       {showShareModal && (
