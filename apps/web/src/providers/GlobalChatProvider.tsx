@@ -4,7 +4,7 @@ import {
   preloadChatRuntime,
   type SharepicVariant,
 } from '@gruenerator/chat';
-import { type SharepicHandoffPayload } from '@gruenerator/contracts';
+import { sharepicHandoffPayloadSchema, type SharepicHandoffPayload } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -21,6 +21,7 @@ import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
+import { APP_COMMIT } from '../utils/buildInfo';
 import { getDesktopToken } from '../utils/desktopAuth';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
 
@@ -163,22 +164,41 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
             ? crypto.randomUUID()
             : `handoff-${Date.now()}`;
         // Contract-typed at the write boundary: a non-canonical canvasType is
-        // a compile error here instead of a runtime crash in the studio.
-        const payload = {
+        // a compile error here (satisfies) AND rejected at runtime (parse) —
+        // the runtime check catches variants from a different build/tab that
+        // the compiler never saw.
+        const parsedPayload = sharepicHandoffPayloadSchema.safeParse({
           canvasType: variant.canvasType,
           initialProps: variant.initialProps,
           ts: Date.now(),
-        } satisfies SharepicHandoffPayload;
+        } satisfies SharepicHandoffPayload);
+        if (!parsedPayload.success) {
+          console.error(
+            '[SharepicHandoff] write rejected (non-canonical variant):',
+            { canvasType: variant.canvasType, build: APP_COMMIT },
+            parsedPayload.error.issues[0]
+          );
+          void import('sonner').then(({ toast }) =>
+            toast.error('Sharepic konnte nicht übergeben werden — bitte neu generieren.')
+          );
+          return;
+        }
+        console.warn('[SharepicHandoff] write', {
+          handoffId,
+          canvasType: parsedPayload.data.canvasType,
+          propKeys: Object.keys(parsedPayload.data.initialProps),
+          build: APP_COMMIT,
+        });
         try {
           localStorage.setItem(
             `gruenerator:sharepic-handoff:${handoffId}`,
-            JSON.stringify(payload)
+            JSON.stringify(parsedPayload.data)
           );
         } catch (err) {
           console.error('[GlobalChatProvider] Failed to persist sharepic handoff:', err);
         }
         window.open(
-          `/studio/templates/${variant.canvasType}?handoff=${handoffId}`,
+          `/studio/templates/${parsedPayload.data.canvasType}?handoff=${handoffId}`,
           '_blank',
           'noopener,noreferrer'
         );

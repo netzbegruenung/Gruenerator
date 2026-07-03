@@ -8,6 +8,9 @@ declare global {
     readonly VITE_BACKEND_URL: string;
     // Opt-in flag to expose the agent creator on a non-dev deploy.
     readonly VITE_SHOW_AGENT_CREATOR?: string;
+    // Git commit the bundle was built from (set by the Docker image build).
+    // Diagnostic logs stamp it so stale/mixed deployments are visible.
+    readonly VITE_APP_COMMIT?: string;
   }
 
   // Umami analytics
