@@ -340,6 +340,7 @@ export function createGrueneratorModelAdapter(
       let documentIds: string[] = [];
       let textIds: string[] = [];
       let boardIds: string[] = [];
+      let sheetIds: string[] = [];
       let docMentionIds: string[] = [];
       let wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'] = [];
       let connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'] = [];
@@ -367,6 +368,7 @@ export function createGrueneratorModelAdapter(
             documentIds = parsed.documentIds;
             textIds = parsed.textIds;
             boardIds = parsed.boardIds;
+            sheetIds = parsed.sheetIds;
             docMentionIds = parsed.docMentionIds;
             wolkeFiles = parsed.wolkeFiles;
             connectFiles = parsed.connectFiles;
@@ -573,6 +575,7 @@ export function createGrueneratorModelAdapter(
         documentIds,
         textIds,
         boardIds,
+        sheetIds,
         docMentionIds,
         wolkeFiles,
         connectFiles,

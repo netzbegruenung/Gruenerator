@@ -343,6 +343,7 @@ export interface ChatGraphInput {
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
   boardIds?: string[] | undefined;
+  sheetIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
@@ -411,6 +412,10 @@ export interface ChatGraphState {
   // Board context (from @board mentions)
   boardIds: string[];
   boardContext: string | null;
+
+  // Sheet context (from @sheet mentions)
+  sheetIds: string[];
+  sheetContext: string | null;
 
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];

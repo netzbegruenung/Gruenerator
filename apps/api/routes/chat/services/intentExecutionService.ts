@@ -145,6 +145,102 @@ export async function handleBoardCreation(opts: {
 }
 
 /**
+ * Handle the create_sheet intent / @sheet-erstellen forced tool: generate a
+ * structured spreadsheet, create the collaborative_documents row (subtype
+ * 'sheets') and seed its Y.Doc. Mirrors generateAndCreateDocument — the
+ * created sheet streams through the same `document_created` SSE event and
+ * metadata, so the existing chat card and thread-reload rehydration work
+ * unchanged (they navigate via the carried `url`).
+ * Returns true if the sheet was created (caller should return early).
+ */
+export async function handleSheetCreation(opts: {
+  sse: SSEWriter;
+  classifiedState: ChatGraphState;
+  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  req: Express.Request;
+  actualThreadId?: string;
+  userId: string;
+  userContent: string;
+}): Promise<boolean> {
+  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
+
+  sse.send('response_start', { message: 'Erstelle Tabelle...' });
+
+  try {
+    const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
+      await import('../../../services/sheets/SheetGenerationService.js');
+
+    const genResult = await aiWorkerPool.processRequest(
+      {
+        type: 'doc_generation',
+        systemPrompt: SHEET_GENERATION_PROMPT,
+        messages: [{ role: 'user', content: userContent }],
+        options: { temperature: 0.4, max_tokens: 4000 },
+      },
+      req as Express.Request & { user?: { id?: string }; sessionID?: string }
+    );
+
+    const structure =
+      genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
+    if (!structure) {
+      log.warn('[ChatGraph] Sheet generation returned no parseable structure');
+      return false;
+    }
+
+    const newSheet = await createSheetDocument(structure, userId);
+
+    const responseText = `Tabelle **"${newSheet.title}"** wurde erstellt.`;
+    for (let i = 0; i < responseText.length; i += 20) {
+      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+    }
+
+    sse.send('document_created', {
+      documentId: newSheet.id,
+      title: newSheet.title,
+      subtype: 'sheets',
+      url: `/docs/${newSheet.id}`,
+    });
+
+    log.info(`[ChatGraph] Sheet created: "${newSheet.title}" (${newSheet.id})`);
+
+    const totalTimeMs = Date.now() - classifiedState.startTime;
+    sse.sendRaw('done', {
+      threadId: actualThreadId,
+      citations: [],
+      documentId: newSheet.id,
+      metadata: {
+        intent: 'create_sheet',
+        searchCount: 0,
+        totalTimeMs,
+        classificationTimeMs: classifiedState.classificationTimeMs,
+        searchTimeMs: 0,
+      },
+    });
+
+    if (actualThreadId) {
+      await createMessage(actualThreadId, 'assistant', responseText, {
+        intent: 'create_sheet',
+        createdDocument: {
+          documentId: newSheet.id,
+          title: newSheet.title,
+          subtype: 'sheets',
+          url: `/docs/${newSheet.id}`,
+        },
+      });
+      await touchThread(actualThreadId);
+    }
+
+    sse.end();
+    return true;
+  } catch (sheetErr) {
+    log.error(
+      `[ChatGraph] Sheet creation failed: ${sheetErr instanceof Error ? sheetErr.message : String(sheetErr)}`
+    );
+    return false;
+  }
+}
+
+/**
  * Generate a document using AI and create it.
  * Returns true if the document was created successfully.
  */

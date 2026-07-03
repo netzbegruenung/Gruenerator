@@ -196,6 +196,8 @@ async function testExpandedContextWindow() {
     documentChatIds: [],
     boardIds: [],
     boardContext: null,
+    sheetIds: [],
+    sheetContext: null,
     docMentionIds: [],
     documentMentionContext: null,
     wolkeFiles: [],
