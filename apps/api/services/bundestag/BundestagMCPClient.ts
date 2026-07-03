@@ -1,6 +1,6 @@
 /**
  * Client for the Bundestag MCP Server
- * Calls the existing bundestag-mcp server at https://bundestagapi.moritz-waechter.de
+ * Calls the existing bundestag-mcp server at https://mcp.bundestag-wrapped.de
  * instead of directly calling the DIP API
  *
  * Two API surfaces:
@@ -54,7 +54,7 @@ import type {
 
 const log = createLogger('bundestag-mcp');
 
-const BUNDESTAG_MCP_URL = env.BUNDESTAG_MCP_URL ?? 'https://bundestagapi.moritz-waechter.de';
+const BUNDESTAG_MCP_URL = env.BUNDESTAG_MCP_URL ?? 'https://mcp.bundestag-wrapped.de';
 const REQUEST_TIMEOUT = 30000;
 // Chat is latency-sensitive: the enriched service runs up to two sequential
 // rounds, so the legacy 30s budget per call would stall the SSE stream.
