@@ -222,7 +222,6 @@ jobs:
             VITE_API_BASE_URL=/api
             VITE_APP_ENV=production
             VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
-            VITE_APP_COMMIT=${{ github.sha }}
 
   build-api:
     needs: detect-changes
