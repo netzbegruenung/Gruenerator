@@ -235,8 +235,9 @@ export async function runChatGraphResume({
 
     const startTime = Date.now();
 
-    // === Sharepic resume: the answer is the topic — regenerate and finish ===
-    if (classifiedState.intent === 'sharepic') {
+    // === Sharepic / social_post resume: the answer is the topic — regenerate and finish ===
+    if (classifiedState.intent === 'sharepic' || classifiedState.intent === 'social_post') {
+      const resumedIntent = classifiedState.intent;
       // Combine the original (topic-less) request with the answer so any variant
       // hint ("zitat sharepic") survives and the answer supplies the subject.
       const prevUserMsg = [...classifiedState.messages].reverse().find((m) => m.role === 'user');
@@ -245,12 +246,12 @@ export async function runChatGraphResume({
       classifiedState.messages = [...classifiedState.messages, { role: 'user', content: combined }];
 
       sse.send('intent', {
-        intent: 'sharepic',
-        message: getIntentMessage('sharepic'),
+        intent: resumedIntent,
+        message: getIntentMessage(resumedIntent),
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const { sharepicVariants } = await executeIntentPipeline({
+      const { sharepicVariants, socialPost } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -261,11 +262,16 @@ export async function runChatGraphResume({
 
       const n = sharepicVariants.length;
       const fullText =
-        n > 0
-          ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-            `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
-          : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-            `anderen Thema noch einmal versuchen?`;
+        resumedIntent === 'social_post'
+          ? socialPost != null || n > 0
+            ? `Hier ist dein Post${n > 0 ? ` mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}` : ''}. ` +
+              `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
+            : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`
+          : n > 0
+            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+              `anderen Thema noch einmal versuchen?`;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 
@@ -284,7 +290,7 @@ export async function runChatGraphResume({
         }),
         citations: [],
         metadata: {
-          intent: 'sharepic',
+          intent: resumedIntent,
           searchCount: 0,
           totalTimeMs: Date.now() - startTime,
           searchTimeMs: 0,

@@ -79,6 +79,7 @@ export * from './schemas/search.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/socialPost.js';
 export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
