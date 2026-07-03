@@ -57,6 +57,7 @@ describe('buildRequestBody', () => {
     documentIds: [],
     textIds: [],
     boardIds: [],
+    sheetIds: [],
     docMentionIds: [],
     wolkeFiles: [],
     connectFiles: [],
