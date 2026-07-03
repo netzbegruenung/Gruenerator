@@ -36,6 +36,10 @@ export const COLLECTION_MAP: Record<string, CollectionMapping> = {
     qdrantCollection: 'oesterreich_gruene_documents',
     systemId: 'oesterreich-gruene-system',
   },
+  abgeordnetenwatch: {
+    qdrantCollection: 'abgeordnetenwatch_documents',
+    systemId: 'abgeordnetenwatch-system',
+  },
   examples: {
     qdrantCollection: 'social_media_examples',
     systemId: 'examples-system',

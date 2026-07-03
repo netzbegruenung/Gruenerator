@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag). Mutually exclusive with landesverband.'
+        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch). Mutually exclusive with landesverband.'
         required: false
         type: string
       landesverband:
@@ -49,7 +49,7 @@ jobs:
           INPUT_LV: ${{ inputs.landesverband }}
         run: |
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","TH"]'
-          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]'
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch"]'
           EMPTY='[]'
 
           if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then
@@ -108,9 +108,14 @@ jobs:
           ARGS="--landesverband ${{ matrix.lv }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          # Hourly schedule (any cron other than the daily '0 2 * * *') → only crawl
+          # the newest items; the nightly run does the full per-URL walk. Empty
+          # SCHEDULE = manual dispatch → keep the full run.
+          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then ARGS="$ARGS --recent"; fi
           echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
           pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
+          SCHEDULE: ${{ github.event.schedule }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}

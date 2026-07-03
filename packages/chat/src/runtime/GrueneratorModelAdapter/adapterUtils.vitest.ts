@@ -83,11 +83,24 @@ describe('buildRequestBody', () => {
     expect('enabledTools' in body).toBe(false);
   });
 
-  it('notebook mode → notebookId from selectedNotebookId', () => {
+  it('notebook mode → messages + collectionId fallback from selectedNotebookId', () => {
     const body = buildRequestBody(baseParams({ effectiveMode: 'notebook' }));
-    expect(body.notebookId).toBe('nb-1');
-    expect(body.query).toBe('hallo');
-    expect('messages' in body).toBe(false);
+    expect(body.messages).toBeDefined();
+    expect(body.collectionId).toBe('nb-1');
+    expect(body.mode).toBe('fast');
+    expect('notebookId' in body).toBe(false);
+    expect('query' in body).toBe(false);
+  });
+
+  it('notebook mode → resolved collectionIds take precedence over the fallback', () => {
+    const body = buildRequestBody(
+      baseParams({
+        effectiveMode: 'notebook',
+        config: { ...baseConfig, selectedNotebookCollectionIds: ['grundsatz-system'] },
+      })
+    );
+    expect(body.collectionIds).toEqual(['grundsatz-system']);
+    expect('collectionId' in body).toBe(false);
   });
 
   it('chat mode → agentId = effectiveAgentId, carries modelId', () => {

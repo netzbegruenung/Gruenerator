@@ -1,3 +1,6 @@
+import { useLastComputeStore } from '../../stores/lastComputeStore';
+import { getAvailableClientTools } from '../clientTools';
+
 import type { GrueneratorAdapterConfig } from './types';
 import type { ThreadMode } from '../../stores/chatStore';
 import type { parseAllMentions } from '../../lib/mentionParser';
@@ -126,10 +129,17 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
   }
 
   if (effectiveMode === 'notebook') {
-    // Notebook mode: query + collection scoping from selectedNotebookId
+    // Notebook RAG: the /notebook/stream endpoint reads the question from
+    // `messages` and scopes retrieval by collection id(s). The host resolves the
+    // notebook→collection map into `selectedNotebookCollectionIds`; fall back to
+    // the raw notebook id as a single collection (covers user-notebook UUIDs).
+    const collectionIds = config.selectedNotebookCollectionIds;
     return {
-      query: lastUserText(formattedMessages),
-      notebookId: config.selectedNotebookId || 'gruenerator-notebook',
+      messages: formattedMessages,
+      ...(collectionIds && collectionIds.length > 0
+        ? { collectionIds }
+        : { collectionId: config.selectedNotebookId || 'gruenerator-notebook' }),
+      mode: config.notebookMode || 'fast',
       threadId: config.threadId,
     };
   }
@@ -161,6 +171,24 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     currentReel: currentReel ?? undefined,
     reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,
+    // Forward the last browser-computed spreadsheet result so the backend can
+    // give it to the model as ground truth (formatComputedResultContext) — the
+    // model can't see the client-side Pyodide output otherwise. Figures are
+    // stripped: they were already persisted with the original turn, and
+    // re-sending base64 PNGs would bloat every follow-up request.
+    computedResult: (() => {
+      const r = useLastComputeStore.getState().result;
+      if (!r) return undefined;
+      const { figures: _figures, files: _files, figureUrls: _fu, fileAssets: _fa, ...slim } = r;
+      return slim;
+    })(),
+    // Declare which tools this client can execute locally, so the backend may
+    // pause the turn with a client_tool interrupt (e.g. run_python) instead of
+    // prompting the model to emit a code block.
+    clientTools: (() => {
+      const available = getAvailableClientTools();
+      return available.length > 0 ? available : undefined;
+    })(),
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,

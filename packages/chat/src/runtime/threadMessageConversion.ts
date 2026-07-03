@@ -6,8 +6,16 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
+import { socialPostPayloadSchema } from '@gruenerator/contracts';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
-import type { GeneratedImage, Citation, SearchResult } from '../hooks/useChatGraphStream';
+import {
+  coerceSharepicVariants,
+  type ComputeData,
+  type GeneratedImage,
+  type Citation,
+  type SearchResult,
+} from '../hooks/useChatGraphStream';
+import { type DocumentCreatedData } from '../types/messageMetadata';
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -26,6 +34,9 @@ export interface LoadedMessage {
     citations?: Citation[];
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
+    createdDocument?: DocumentCreatedData;
+    computeData?: ComputeData;
+    agentId?: string;
     toolCalls?: PersistedToolCall[];
     senderId?: string;
     senderName?: string | null;
@@ -54,6 +65,95 @@ function extractContent(content: unknown): string {
   }
 
   return content;
+}
+
+/**
+ * Rich message metadata that must survive a thread reload — the reload half of
+ * the live⇄reload contract. The live stream (parseSSEStream) accumulates these
+ * onto `custom.*` as SSE events arrive; `buildCustomMetadata` below rebuilds the
+ * identical `custom.*` from persisted metadata so a reloaded thread renders the
+ * same as the live session.
+ *
+ * ── Invariant ───────────────────────────────────────────────────────────────
+ * Every field `AssistantMessage` reads off `custom` must be reconstructable in
+ * `buildCustomMetadata`. When you add a live custom field: PERSIST it (backend
+ * `postResponseService` / `intentExecutionService`) and reconstruct it here.
+ * For a 1:1 metadata→custom copy, just add its key to PASSTHROUGH_METADATA_FIELDS.
+ * The regression test in `threadMessageConversion.vitest.ts` iterates this list
+ * (and the tool-derived fields) and fails if a rich field is dropped on reload —
+ * this is the guard that would have caught charts / createdDocument / agentId.
+ */
+export const PASSTHROUGH_METADATA_FIELDS = [
+  'citations',
+  'generatedImage',
+  'createdDocument',
+  'computeData',
+  'agentId',
+  'roleName',
+] as const;
+
+/**
+ * Single seam: rebuild the `custom` render metadata from a persisted message.
+ * Two kinds of field —
+ *  - PASSTHROUGH_METADATA_FIELDS: verbatim metadata→custom copies.
+ *  - tool-derived (sharepic / reel): extracted from persisted tool-call results
+ *    with the same validation the live stream applies.
+ * `senderId` and `streamMetadata` are special-cased (paired / derived).
+ */
+function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string, unknown> {
+  const custom: Record<string, unknown> = {};
+  if (!metadata) return custom;
+
+  // Sender identity travels as a pair.
+  if (metadata.senderId) {
+    custom.senderId = metadata.senderId;
+    custom.senderName = metadata.senderName ?? null;
+  }
+
+  // Direct 1:1 passthroughs (see PASSTHROUGH_METADATA_FIELDS invariant above).
+  // Truthy guard matches the historical per-field behaviour (skips ''/nullish).
+  for (const field of PASSTHROUGH_METADATA_FIELDS) {
+    const value = metadata[field];
+    if (value) custom[field] = value;
+  }
+
+  // Tool-derived: sharepic variant stack. Validate on reload the same way the
+  // live stream does — drop any variant with a non-canonical canvasType so the
+  // studio handoff stays safe.
+  const sharepicCall = metadata.toolCalls?.find((tc) => tc.toolName === 'sharepic');
+  const validSharepicVariants = coerceSharepicVariants(
+    (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
+  );
+  if (validSharepicVariants) custom.sharepicData = { variants: validSharepicVariants };
+
+  // Tool-derived: EXPERIMENTAL combined social post (text half). Validate on
+  // reload the same way the live stream's Zod wire schema does; the persisted
+  // result additionally carries `versions`, which the head schema ignores.
+  const socialPostCall = metadata.toolCalls?.find((tc) => tc.toolName === 'social_post');
+  if (socialPostCall?.result) {
+    const parsedPost = socialPostPayloadSchema.safeParse(socialPostCall.result);
+    if (parsedPost.success) custom.socialPostData = parsedPost.data;
+  }
+
+  // Tool-derived: reel cards. The persisted tool results carry payloads
+  // identical to the reel_processing / reel_picker SSE events.
+  const reelProcessingCall = metadata.toolCalls?.find((tc) => tc.toolName === 'reel_processing');
+  if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
+  const reelPickerProjects = (
+    metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
+      | { projects?: unknown }
+      | undefined
+  )?.projects;
+  if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
+    custom.reelPicker = { projects: reelPickerProjects };
+  }
+
+  // Derived: drives the message-action affordances (copy/regenerate context).
+  if (metadata.intent) {
+    custom.streamMetadata = { intent: metadata.intent, searchCount: metadata.searchCount ?? 0 };
+  }
+
+  return custom;
 }
 
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
@@ -95,43 +195,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
 
     contentParts.push({ type: 'text' as const, text: textContent });
 
-    const custom: Record<string, unknown> = {};
-    if (m.metadata?.senderId) {
-      custom.senderId = m.metadata.senderId;
-      custom.senderName = m.metadata.senderName ?? null;
-    }
-    if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
-    if (m.metadata?.citations) custom.citations = m.metadata.citations;
-    if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
-
-    // Reconstruct the sharepic variant stack on reload. The live stream sets
-    // custom.sharepicData from the 'sharepic_complete' SSE event; without this the
-    // persisted sharepic tool call survives in metadata but the variant cards
-    // vanish when the thread is reloaded (AssistantMessage renders custom.sharepicData).
-    const sharepicCall = m.metadata?.toolCalls?.find((tc) => tc.toolName === 'sharepic');
-    const sharepicVariants = (sharepicCall?.result as { variants?: unknown } | undefined)?.variants;
-    if (Array.isArray(sharepicVariants) && sharepicVariants.length > 0) {
-      custom.sharepicData = { variants: sharepicVariants };
-    }
-
-    // Reconstruct reel cards on reload (same mechanism as sharepicData): the
-    // live stream sets these from the reel_processing / reel_picker SSE
-    // events; the persisted tool results carry the identical payloads.
-    const reelProcessingCall = m.metadata?.toolCalls?.find(
-      (tc) => tc.toolName === 'reel_processing'
-    );
-    if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
-    const reelPickerCall = m.metadata?.toolCalls?.find((tc) => tc.toolName === 'reel_picker');
-    const reelPickerProjects = (reelPickerCall?.result as { projects?: unknown } | undefined)
-      ?.projects;
-    if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
-      custom.reelPicker = { projects: reelPickerProjects };
-    }
-    if (m.metadata?.intent)
-      custom.streamMetadata = {
-        intent: m.metadata.intent,
-        searchCount: m.metadata.searchCount ?? 0,
-      };
+    const custom = buildCustomMetadata(m.metadata);
 
     return {
       role: m.role as 'user' | 'assistant',

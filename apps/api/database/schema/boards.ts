@@ -109,3 +109,20 @@ export const board_attachments = pgTable('board_attachments', {
 });
 
 export type BoardAttachment = InferSelectModel<typeof board_attachments>;
+
+// ── Agent-created documents linked to a card ("Grünerator-Dokumente") ─────────
+// Relational equivalent of board_attachments for documents the board agent
+// creates. Written directly by the worker (reliable), unlike the fragile Yjs
+// `field-linked-docs` cell used for manual human linking.
+
+export const board_card_documents = pgTable('board_card_documents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  board_id: uuid('board_id').notNull(),
+  card_id: text('card_id').notNull(),
+  document_id: uuid('document_id').notNull(),
+  title: text('title').notNull(),
+  created_by: uuid('created_by').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type BoardCardDocument = InferSelectModel<typeof board_card_documents>;

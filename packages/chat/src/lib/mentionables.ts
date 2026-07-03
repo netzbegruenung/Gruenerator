@@ -223,6 +223,22 @@ export const toolMentionables: Mentionable[] = [
     audience: 'all',
   },
   {
+    // German MP transparency data (Abgeordnetenwatch): voting behaviour,
+    // Nebentätigkeiten, roll-call results. DE-only source — gated to de-DE so
+    // the picker hides it for Austrian users (Nationalrat isn't covered).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'abgeordnetenwatch',
+    title: 'Abgeordnetenwatch',
+    description: 'Abstimmungen & Nebentätigkeiten von Abgeordneten',
+    avatar: '🗳️',
+    icon: PiClipboardText,
+    backgroundColor: '#4B5563',
+    mention: 'abgeordnetenwatch',
+    audience: 'de-DE',
+  },
+  {
     type: 'tool',
     category: 'function',
     trigger: '@',

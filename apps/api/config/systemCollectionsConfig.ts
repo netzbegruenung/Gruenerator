@@ -81,6 +81,12 @@ export interface SubcategoryFilters {
   curated_lists?: CuratedListId | CuratedListId[];
   themes?: string | string[];
   persons?: string | string[];
+  // Abgeordnetenwatch notebook facets — must be applied by buildSubcategoryFilter,
+  // otherwise selecting them in the notebook UI silently returns unfiltered results.
+  parliament?: string | string[];
+  party?: string | string[];
+  income_level?: string | string[];
+  gruene_vote?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -102,6 +108,10 @@ const MULTI_VALUE_FILTER_KEYS = [
   'curated_lists',
   'themes',
   'persons',
+  'parliament',
+  'party',
+  'income_level',
+  'gruene_vote',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
@@ -198,6 +208,40 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [{ field: 'primary_category', label: 'Programm', type: 'keyword' }],
+  },
+  'abgeordnetenwatch-system': {
+    id: 'abgeordnetenwatch-system',
+    qdrantCollection: 'abgeordnetenwatch_documents',
+    name: 'Abgeordnetenwatch',
+    description:
+      'Namentliche Abstimmungen (mit Grünen-Votum) und Nebentätigkeiten von Abgeordneten',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      {
+        field: 'content_type',
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: { abstimmung: 'Abstimmung', nebentaetigkeit: 'Nebentätigkeit' },
+      },
+      { field: 'primary_category', label: 'Thema / Branche', type: 'keyword' },
+      { field: 'parliament', label: 'Parlament', type: 'keyword' },
+      { field: 'party', label: 'Partei', type: 'keyword' },
+      {
+        field: 'gruene_vote',
+        label: 'Grüne-Votum',
+        type: 'keyword',
+        valueLabels: {
+          ja: 'Ja',
+          nein: 'Nein',
+          enthaltung: 'Enthaltung',
+          uneinheitlich: 'Uneinheitlich',
+          keine: 'Keine',
+        },
+      },
+      { field: 'income_level', label: 'Einkommensstufe', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
   },
   'gruene-de-system': {
     id: 'gruene-de-system',

@@ -1,8 +1,35 @@
+import { isCanvasTemplateType } from '@gruenerator/contracts';
 import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
+import Spinner from '../../components/common/Spinner';
+import Button from '../../components/common/SubmitButton';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
+import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
+import useImageStudioStore from '../../stores/imageStudioStore';
+
+import ImageStudioCategorySelector from './components/ImageStudioCategorySelector';
+import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
+// Lazy-loaded: TemplateStudioFlow transitively imports @gruenerator/canvas-editor,
+// whose side-effect CSS (canvas-editor.css) would otherwise land in the entry
+// chunk and render-block the landing page even for guests who never open the
+// image studio.
+const TemplateStudioFlow = lazy(() => import('./flows/TemplateStudioFlow'));
+import { useImageGeneration } from './hooks/useImageGeneration';
+import { useTemplateClone } from './hooks/useTemplateClone';
+import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
+import {
+  IMAGE_STUDIO_CATEGORIES,
+  IMAGE_STUDIO_TYPES,
+  KI_SUBCATEGORIES,
+  FORM_STEPS,
+  TYPE_CONFIG,
+  getTypeConfig,
+  URL_TYPE_MAP,
+} from './utils/typeConfig';
 
 interface GalleryEditLocationState {
   galleryEditMode?: boolean;
@@ -28,32 +55,6 @@ interface ImagineHandoffLocationState {
   prompt?: string;
   variant?: string | null;
 }
-import Spinner from '../../components/common/Spinner';
-import Button from '../../components/common/SubmitButton';
-import ErrorBoundary from '../../components/ErrorBoundary';
-import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
-import useImageStudioStore from '../../stores/imageStudioStore';
-
-import ImageStudioCategorySelector from './components/ImageStudioCategorySelector';
-import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
-// Lazy-loaded: TemplateStudioFlow transitively imports @gruenerator/canvas-editor,
-// whose side-effect CSS (canvas-editor.css) would otherwise land in the entry
-// chunk and render-block the landing page even for guests who never open the
-// image studio.
-const TemplateStudioFlow = lazy(() => import('./flows/TemplateStudioFlow'));
-import { useImageGeneration } from './hooks/useImageGeneration';
-import { useTemplateClone } from './hooks/useTemplateClone';
-import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
-import {
-  IMAGE_STUDIO_TYPES,
-  KI_SUBCATEGORIES,
-  FORM_STEPS,
-  TYPE_CONFIG,
-  getTypeConfig,
-  URL_TYPE_MAP,
-} from './utils/typeConfig';
-
-// Import extracted components and types
 
 const ImageStudioPageContent: React.FC = () => {
   const { category: urlCategory, type: urlType } = useParams();
@@ -311,7 +312,9 @@ const ImageStudioPageContent: React.FC = () => {
         ts?: number;
       };
       const isFresh = parsed.ts && Date.now() - parsed.ts < 5 * 60 * 1000;
-      if (!isFresh || !parsed.canvasType || !parsed.initialProps) {
+      // Reject at the boundary: an unknown/empty canvasType must never advance
+      // to CANVAS_EDIT (which would crash the canvas mint). Bail cleanly instead.
+      if (!isFresh || !isCanvasTemplateType(parsed.canvasType) || !parsed.initialProps) {
         stripParam();
         return;
       }
@@ -645,6 +648,14 @@ const ImageStudioPageContent: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // Kill-switch: when the sharepic studio research preview is off, the canvas
+  // template flow is unavailable. The KI flow (category 'ki', reached via
+  // /imagine) stays available. If a stale persisted `category` would otherwise
+  // render the type selector / canvas editor, fall back to the landing instead.
+  if (!SHOW_SHAREPIC_STUDIO && category && category !== IMAGE_STUDIO_CATEGORIES.KI) {
+    return <ImageStudioCategorySelector />;
   }
 
   if (currentStep === FORM_STEPS.CATEGORY_SELECT || !category) {

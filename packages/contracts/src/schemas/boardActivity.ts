@@ -30,6 +30,24 @@ export type ActivityType = z.infer<typeof activityTypeSchema>;
 /** Free-form, type-specific detail (e.g. { from, to } for a move). */
 export const activityPayloadSchema = z.record(z.unknown());
 
+/**
+ * Typed view of the `assignees_changed` payload. The generic `activityPayloadSchema`
+ * stays the transport; the router `safeParse`s this when `type === 'assignees_changed'`
+ * and the client builds the payload from `AssigneesChangedPayload` — so the assignment
+ * delegation fields are validated and strongly typed end-to-end (no loose record reads).
+ *
+ * `addedAssigneeIds` is `uuid[]` because it is cast to `::uuid[]` server-side and used
+ * for user notifications — agent identifier slugs must NEVER appear here. A delegated
+ * agent rides in `delegateAgentId` (an identifier slug, open set → plain string).
+ */
+export const assigneesChangedPayloadSchema = z.object({
+  addedAssigneeIds: z.array(z.string().uuid()).optional(),
+  cardTitle: z.string().nullish(),
+  cardDescription: z.string().nullish(),
+  delegateAgentId: z.string().nullish(),
+});
+export type AssigneesChangedPayload = z.infer<typeof assigneesChangedPayloadSchema>;
+
 export const boardActivityRowSchema = z.object({
   id: z.string(),
   board_id: z.string(),

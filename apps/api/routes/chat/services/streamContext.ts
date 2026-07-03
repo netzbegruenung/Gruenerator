@@ -37,7 +37,7 @@ import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { processAttachments } from './attachmentProcessingService.js';
+import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
@@ -89,6 +89,7 @@ export interface StreamContext {
   initialState: Awaited<ReturnType<typeof initializeChatState>>;
   memoryContext: string | null;
   memoryRetrieveTimeMs: number;
+  memoryEnabled: boolean;
   contextWindowTokens: number;
 }
 
@@ -111,6 +112,7 @@ export async function buildStreamContext({
     notebookIds: rawNotebookIds,
     documentChatMode,
     attachmentContext: rawClientAttachmentContext,
+    computedResult: rawComputedResult,
     defaultNotebookId: rawDefaultNotebookId,
     docMentionIds: rawDocMentionIds,
     wolkeFiles: rawWolkeFiles,
@@ -397,13 +399,34 @@ export async function buildStreamContext({
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
+  // Tabular files (this turn or earlier) are bridged into the in-browser pandas
+  // interpreter by the composer — flag it so respondNode steers the model to
+  // compute over `df` instead of doing unreliable mental math.
+  const hasTabularAttachment =
+    docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
+    previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
+
+  // Large prose attachments from earlier turns were embedded into Qdrant — route
+  // their document ids through the existing document-chat retrieval fan-out so
+  // follow-up questions pull the relevant chunks per query (RAG), instead of the
+  // now-skipped full-text injection.
+  const embeddedAttachmentDocIds = previousAttachments
+    .filter((a) => a.documentId)
+    .map((a) => a.documentId as string);
+  const mergedDocumentChatIds = [
+    ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
+  ];
+
   // === Memory retrieval (mem0) ===
+  // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
+  // retrieval here and the write-back in postResponseService.
+  const memoryEnabled = user.memory_enabled ?? false;
   let memoryContext: string | null = null;
   let memoryRetrieveTimeMs = 0;
   let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
   const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage) {
+  if (mem0 && lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
 
@@ -470,14 +493,16 @@ export async function buildStreamContext({
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
+    hasTabularAttachment,
+    computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
     defaultNotebookId,
     defaultNotebookDocumentIds:
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
     documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
-    documentChatIds: rawDocumentChatIds?.length
-      ? rawDocumentChatIds
+    documentChatIds: mergedDocumentChatIds.length
+      ? mergedDocumentChatIds
       : docAttachments.length > 0 || documentChatMode
         ? []
         : undefined,
@@ -556,6 +581,7 @@ export async function buildStreamContext({
       initialState,
       memoryContext,
       memoryRetrieveTimeMs,
+      memoryEnabled,
       contextWindowTokens,
     },
   };

@@ -12,9 +12,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@gruenerator/ui';
+import { SOCIAL_PLATFORM_INFO } from '@gruenerator/contracts';
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Download,
   History,
   Loader2,
@@ -22,12 +25,16 @@ import {
   SquarePen,
   X,
 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 import { useSharepicArtifact } from '../hooks/useSharepicArtifact';
 import { useSliderDeckArtifact } from '../hooks/useSliderDeckArtifact';
 import { useSharepicLiveStore, type ActiveSharepic } from '../stores/sharepicLiveStore';
+import { useSocialPostLiveStore } from '../stores/socialPostLiveStore';
 
 import type { SharepicVariant } from '../hooks/useChatGraphStream';
+import type { SocialPostPayload } from '@gruenerator/contracts';
+import type { ReactNode } from 'react';
 
 /**
  * Docked right-rail artifact view of the sharepic the user marked "active for
@@ -38,15 +45,140 @@ import type { SharepicVariant } from '../hooks/useChatGraphStream';
  */
 export function SharepicArtifactPanel({ className }: { className?: string }) {
   const active = useSharepicLiveStore((s) => s.activeVariant);
-  if (!active) return null;
+  const activePost = useSocialPostLiveStore((s) => s.activePost);
+  if (!active && !activePost) return null;
+
+  // Combined-post mode (EXPERIMENTAL): the post text docks above the sharepic
+  // preview; without an active variant, a text-only panel renders instead.
+  const postSection = activePost ? (
+    <PanelPostSection key={activePost.postId} seed={activePost.post} />
+  ) : null;
+  if (!active) {
+    return <PostOnlyPanel className={className}>{postSection}</PostOnlyPanel>;
+  }
   // Key by variant so stepper/preview state never leaks across sharepics.
   if (active.pages && active.pages.length > 0) {
-    return <DeckPanelInner key={active.variantId} active={active} className={className} />;
+    return (
+      <DeckPanelInner
+        key={active.variantId}
+        active={active}
+        className={className}
+        postSection={postSection}
+      />
+    );
   }
-  return <PanelInner key={active.variantId} active={active} className={className} />;
+  return (
+    <PanelInner
+      key={active.variantId}
+      active={active}
+      className={className}
+      postSection={postSection}
+    />
+  );
 }
 
-function PanelInner({ active, className }: { active: ActiveSharepic; className?: string }) {
+/** Clear BOTH artifact modes — the combined panel closes as one unit. */
+function closePanel() {
+  useSharepicLiveStore.getState().setActiveVariant(null);
+  useSocialPostLiveStore.getState().setActivePost(null);
+}
+
+/**
+ * Post-text block shared by the combined and text-only panel variants. Reads
+ * the live head from the store (chat edits bump it via social_post_updated).
+ */
+function PanelPostSection({ seed }: { seed: SocialPostPayload }) {
+  const live = useSocialPostLiveStore((s) => s.entries[seed.postId]) ?? seed;
+  const info = SOCIAL_PLATFORM_INFO[live.platform] ?? SOCIAL_PLATFORM_INFO.generic;
+  const overLimit = live.charCount > info.maxChars;
+
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    void navigator.clipboard.writeText(live.text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [live.text]);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-background">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-2.5 py-1.5">
+        <span className="text-xs font-medium text-foreground">{info.label}-Post</span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className={
+              overLimit
+                ? 'text-xs font-medium tabular-nums text-red-600 dark:text-red-400'
+                : 'text-xs tabular-nums text-foreground-muted'
+            }
+          >
+            {live.charCount}/{info.maxChars}
+          </span>
+          {live.version > 1 && (
+            <span className="text-xs text-foreground-muted">v{live.version}</span>
+          )}
+          <button
+            onClick={copy}
+            className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            aria-label="Post-Text kopieren"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-primary" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="max-h-48 overflow-y-auto whitespace-pre-wrap px-2.5 py-2 text-xs text-foreground">
+        {live.text}
+      </div>
+    </div>
+  );
+}
+
+/** Panel shell for a post without an active sharepic variant. */
+function PostOnlyPanel({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <aside
+      className={
+        className ??
+        'flex w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt'
+      }
+      aria-label="Aktiver Social-Media-Post"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+          <SquarePen className="h-3 w-3" />
+          Social-Post-Modus
+        </span>
+        <button
+          onClick={closePanel}
+          className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          aria-label="Social-Post-Modus beenden"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+        {children}
+        <p className="text-xs text-foreground-muted">
+          Beschreibe Textänderungen einfach im Chat — sie landen direkt auf diesem Post.
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+function PanelInner({
+  active,
+  className,
+  postSection,
+}: {
+  active: ActiveSharepic;
+  className?: string;
+  postSection?: ReactNode | null;
+}) {
   const variant = useMemo<SharepicVariant>(
     () => ({
       id: active.variantId,
@@ -72,8 +204,6 @@ function PanelInner({ active, className }: { active: ActiveSharepic; className?:
     openInStudio,
   } = useSharepicArtifact(variant);
 
-  const close = () => useSharepicLiveStore.getState().setActiveVariant(null);
-
   return (
     <aside
       className={
@@ -86,20 +216,21 @@ function PanelInner({ active, className }: { active: ActiveSharepic; className?:
         <div className="flex min-w-0 items-center gap-2">
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
             <SquarePen className="h-3 w-3" />
-            Sharepic-Modus
+            {postSection ? 'Social-Post-Modus' : 'Sharepic-Modus'}
           </span>
           <span className="truncate text-sm font-medium text-foreground">{label}</span>
         </div>
         <button
-          onClick={close}
+          onClick={closePanel}
           className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-          aria-label="Sharepic-Modus beenden"
+          aria-label={postSection ? 'Social-Post-Modus beenden' : 'Sharepic-Modus beenden'}
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+        {postSection}
         {renderError ? (
           <div className="rounded-lg border border-border p-4 text-sm text-foreground-muted">
             Sharepic-Vorschau konnte nicht gerendert werden.
@@ -207,7 +338,15 @@ function PanelInner({ active, className }: { active: ActiveSharepic; className?:
   );
 }
 
-function DeckPanelInner({ active, className }: { active: ActiveSharepic; className?: string }) {
+function DeckPanelInner({
+  active,
+  className,
+  postSection,
+}: {
+  active: ActiveSharepic;
+  className?: string;
+  postSection?: ReactNode | null;
+}) {
   const variant = useMemo<SharepicVariant>(
     () => ({
       id: active.variantId,
@@ -238,8 +377,6 @@ function DeckPanelInner({ active, className }: { active: ActiveSharepic; classNa
     openInStudio,
   } = useSliderDeckArtifact(variant);
 
-  const close = () => useSharepicLiveStore.getState().setActiveVariant(null);
-
   return (
     <aside
       className={
@@ -252,22 +389,23 @@ function DeckPanelInner({ active, className }: { active: ActiveSharepic; classNa
         <div className="flex min-w-0 items-center gap-2">
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
             <SquarePen className="h-3 w-3" />
-            Sharepic-Modus
+            {postSection ? 'Social-Post-Modus' : 'Sharepic-Modus'}
           </span>
           <span className="truncate text-sm font-medium text-foreground">
             Slider · {slideCount} Folien
           </span>
         </div>
         <button
-          onClick={close}
+          onClick={closePanel}
           className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-          aria-label="Sharepic-Modus beenden"
+          aria-label={postSection ? 'Social-Post-Modus beenden' : 'Sharepic-Modus beenden'}
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+        {postSection}
         {renderError ? (
           <div className="rounded-lg border border-border p-4 text-sm text-foreground-muted">
             Karussell-Vorschau konnte nicht gerendert werden.

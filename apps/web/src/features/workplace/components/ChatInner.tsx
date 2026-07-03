@@ -1,4 +1,9 @@
-import { ThreadPrimitive, useThreadRuntime, useVoiceState } from '@assistant-ui/react';
+import {
+  ThreadPrimitive,
+  useAssistantRuntime,
+  useThreadRuntime,
+  useVoiceState,
+} from '@assistant-ui/react';
 import { GrueneratorComposer, useAgentStore } from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -49,15 +54,24 @@ const ChatInner: React.FC = memo(() => {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const threadRuntime = useThreadRuntime({ optional: true });
+  const assistantRuntime = useAssistantRuntime();
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
   // The workplace composer is a "new chat" entry point — reset any agent/skill
-  // context carried over from a previous session so a message sent from here
-  // starts a clean general chat (mirrors the /chat overview behaviour).
+  // context carried over from a previous session AND start a fresh thread so a
+  // message sent from here never continues the last active chat. The runtime is
+  // hoisted to the app root, so without switchToNewThread the composer stays
+  // bound to the persisted currentThreadId (mirrors the /chat overview).
   useEffect(() => {
+    const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
+      useAgentStore.getState();
+    // A pending message means another surface queued content for /chat; don't
+    // clobber it by switching threads (same guard ChatOverview uses).
+    if (pendingMessage || pendingDraft || pendingInitialAssistantMessage) return;
     useAgentStore.getState().resetChatContext();
-  }, []);
+    void assistantRuntime.threads.switchToNewThread();
+  }, [assistantRuntime]);
 
   if (!threadRuntime) return null;
 

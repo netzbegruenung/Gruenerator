@@ -33,6 +33,12 @@ import {
   looksMultiTopic,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
+  detectSocialPlatform,
+  resolveSocialPostEscape,
+  SOCIAL_CREATE_VERB_PATTERN,
+  SOCIAL_BARE_NOUN_PATTERN,
+  SOCIAL_META_QUESTION_PATTERN,
+  SHAREPIC_NOUN_PATTERN,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
@@ -53,8 +59,6 @@ const PM_NOUN_PATTERN =
   /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
 const SOCIAL_NOUN_PATTERN =
   /\b(post|tweet|tweete|tweeten|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
-const INSTAGRAM_PATTERN = /\b(instagram|insta|reel|story)\b/i;
-const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
 
 /**
  * Public classifier node — wraps the inner implementation with multi-document
@@ -96,6 +100,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       `[Classifier] Compare upgrade: ${intent} → compare (${documentSources.length} doc sources, compare verbs detected)`
     );
     intent = 'compare';
+  }
+
+  // Abgeordnetenwatch covers German parliaments only (Bundestag/Landtage), not
+  // the Austrian Nationalrat. For de-AT users never route here — fall back to
+  // web so the question still gets answered instead of returning empty data.
+  if (intent === 'abgeordnetenwatch' && state.userLocale === 'de-AT') {
+    log.info('[Classifier] abgeordnetenwatch downgraded to web for de-AT locale (DE-only source)');
+    intent = 'web';
   }
 
   // ── URL context: pasted link(s) → additive scrape_url step ──
@@ -585,17 +597,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const wantsPm = PM_NOUN_PATTERN.test(userContent);
       const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
       if (wantsPm || wantsSocial) {
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'examples';
+        // Social-only prompts route to the EXPERIMENTAL combined post (text +
+        // sharepic) unless an escape hatch ("nur Text", "nur Sharepic")
+        // applies. Mixed PM+social prompts keep the dual-search behavior.
+        const socialIntent: SearchIntent = resolveSocialPostEscape(userContent) ?? 'social_post';
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : socialIntent;
         const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
-        // Platform hint for the social composer: Insta vs FB. Heuristic-only;
-        // the social_media_examples Qdrant collection contains exactly these
-        // two platforms, so detecting more would be misleading. Null when
-        // unspecified → composer falls back to the combined rubric.
-        const platform: 'instagram' | 'facebook' | null = INSTAGRAM_PATTERN.test(userContent)
-          ? 'instagram'
-          : FACEBOOK_PATTERN.test(userContent)
-            ? 'facebook'
-            : null;
+        // Platform hint for the social composer/generator. Null when
+        // unspecified → generic rubric.
+        const platform = detectSocialPlatform(userContent);
         log.info(
           `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
         );
@@ -641,10 +651,54 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // EXPERIMENTAL combined social post — for ALL users, not just
+    // content-creation agents: a social-post creation request yields text +
+    // sharepic variants in one turn. Requires a creation verb or a bare
+    // noun-phrase shape ("Instagram-Post zu Tempo 30"); questions and
+    // example-browsing never create. Explicit sharepic wording ("Sharepic
+    // für Instagram") keeps the shipped sharepic-only flow, "nur Text" the
+    // examples flow — both via resolveSocialPostEscape. PM prompts keep
+    // their own routes (handled above for agents, LLM tier otherwise).
+    const looksLikeSocialCreation =
+      SOCIAL_NOUN_PATTERN.test(userContent) &&
+      !PM_NOUN_PATTERN.test(userContent) &&
+      !SOCIAL_META_QUESTION_PATTERN.test(userContent) &&
+      !looksLikeMetaQuestion &&
+      (SOCIAL_CREATE_VERB_PATTERN.test(userContent) || SOCIAL_BARE_NOUN_PATTERN.test(userContent));
+    if (looksLikeSocialCreation && userContent.length >= 10) {
+      if (SHAREPIC_NOUN_PATTERN.test(userContent)) {
+        // "Sharepic für Instagram" — let the heuristic/LLM tiers route to the
+        // sharepic intent as before this feature.
+        log.info('[Classifier] Social creation with explicit sharepic wording — deferring');
+      } else {
+        const escape = resolveSocialPostEscape(userContent);
+        const intent: SearchIntent = escape ?? 'social_post';
+        const platform = detectSocialPlatform(userContent);
+        log.info(
+          `[Classifier] Social post creation → ${intent}${platform ? ` (platform=${platform})` : ''}${escape ? ' via escape hatch' : ''}`
+        );
+        return {
+          intent,
+          platform,
+          searchSources: [],
+          searchQuery: extractSearchTopic(userContent) || userContent,
+          detectedFilters: null,
+          reasoning: escape
+            ? `Social post request with "${escape}" escape hatch`
+            : 'Social post creation — combined text + sharepic (experimental)',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
-      const result = heuristicClassify(userContent);
+      const result = heuristicClassify(userContent, {
+        hasTabularAttachment: state.hasTabularAttachment ?? false,
+      });
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
@@ -661,7 +715,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // Try heuristics first - check confidence
-    const heuristic = heuristicClassify(userContent);
+    const heuristic = heuristicClassify(userContent, {
+      hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
 
     // Penalize confidence for multi-topic search queries → forces LLM decomposition
     const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
@@ -791,7 +847,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
     const userContent = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-    const fallbackResult = heuristicClassify(userContent);
+    const fallbackResult = heuristicClassify(userContent, {
+      hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
 
     return {
       intent: fallbackResult.intent,
