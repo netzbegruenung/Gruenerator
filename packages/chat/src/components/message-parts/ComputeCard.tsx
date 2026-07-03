@@ -28,6 +28,29 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           exakt berechnet
         </span>
       </div>
+      {/* Server-stored figures (URL, small metadata) — the normal path. An
+          expired asset (90-day retention) hides itself via onError. */}
+      {data.figureUrls?.map((url, i) => (
+        <div key={url} className="group relative mb-2">
+          <img
+            src={url}
+            alt={`Diagramm ${i + 1}`}
+            className="max-w-full rounded border border-border"
+            onError={(e) => {
+              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+            }}
+          />
+          <a
+            href={url}
+            download={`diagramm-${i + 1}.png`}
+            className="absolute right-2 top-2 rounded-md border border-border bg-background/90 p-1.5 text-foreground-muted opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+            aria-label={`Diagramm ${i + 1} herunterladen`}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      ))}
+      {/* Legacy inline-base64 figures (messages persisted before asset storage). */}
       {data.figures?.map((figure, i) => (
         // Index key on purpose: every PNG shares the same base64 prefix
         // (signature + IHDR), so content-slice keys collide.
@@ -47,9 +70,20 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           </button>
         </div>
       ))}
-      {data.files && data.files.length > 0 && (
+      {((data.fileAssets?.length ?? 0) > 0 || (data.files?.length ?? 0) > 0) && (
         <div className="mb-2 flex flex-wrap gap-2">
-          {data.files.map((file) => (
+          {data.fileAssets?.map((file) => (
+            <a
+              key={file.url}
+              href={file.url}
+              download={file.name}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10"
+            >
+              <FileDown className="h-3.5 w-3.5 text-primary" />
+              {file.name}
+            </a>
+          ))}
+          {data.files?.map((file) => (
             <button
               key={file.name}
               onClick={() => downloadBase64(file.b64, file.name, mimeFromFilename(file.name))}
