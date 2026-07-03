@@ -161,6 +161,22 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Gesamtgewinn: 42');
   }, 180_000);
 
+  it('keeps variables alive across runs (notebook semantics)', async () => {
+    // Models write follow-up code referencing earlier blocks' variables
+    // (beta: "NameError: name 'top' is not defined") — the harness namespace
+    // persists like Jupyter/OpenWebUI, while `df` reloads every run.
+    const first = await runPythonCore(
+      py,
+      'merker = int(df["Gewinn"].sum())\nprint("gesetzt:", merker)',
+      [SALES_CSV],
+      opts
+    );
+    expect(first.ok).toBe(true);
+    const second = await runPythonCore(py, 'print("Merker:", merker)', [SALES_CSV], opts);
+    expect(second.ok).toBe(true);
+    expect(second.stdout).toContain('Merker: 60');
+  }, 120_000);
+
   it('reports Python errors as ok:false and recovers on the next run', async () => {
     const broken = await runPythonCore(py, 'print(df["GibtEsNicht"].sum())', [SALES_CSV], opts);
     expect(broken.ok).toBe(false);
@@ -278,6 +294,114 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     const payload = parseComputeResult('Tabellen-Berechnung', result.stdout);
     const parsed = computePayloadSchema.safeParse(payload);
     expect(parsed.success).toBe(true);
+  }, 120_000);
+
+  it('passes the Zod contract with real matplotlib figures attached', async () => {
+    const result = await runPythonCore(
+      py,
+      ['import matplotlib.pyplot as plt', 'plt.plot([1, 2], [3, 4])', 'print("ok: 1")'].join('\n'),
+      [SALES_CSV],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    const payload = parseComputeResult('Tabellen-Berechnung', result.stdout);
+    payload.figures = result.figures;
+    const parsed = computePayloadSchema.safeParse(payload);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.figures).toHaveLength(1);
+  }, 180_000);
+
+  it('collects files the code writes (CSV export) and excludes input files', async () => {
+    const code = [
+      'df[df["Region"] == "Nord"].to_csv("nord-export.csv", index=False)',
+      'print("Datei erstellt: nord-export.csv")',
+    ].join('\n');
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+    expect(result.files.map((f) => f.name)).toEqual(['nord-export.csv']);
+    // Input file must not be reported even though it is staged every run.
+    expect(result.files.some((f) => f.name === 'umsatz.csv')).toBe(false);
+
+    const csv = atob(result.files[0].base64);
+    expect(csv).toContain('Region;Umsatz;Gewinn'.replace(/;/g, ',')); // pandas writes comma CSV
+    expect(csv).toContain('Nord');
+    expect(csv).not.toContain('Sued');
+  }, 120_000);
+
+  it('reports a re-written export on a second run (mtime diff)', async () => {
+    const code = 'df.to_csv("re-export.csv", index=False)\nprint("ok: 1")';
+    const first = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(first.files.map((f) => f.name)).toContain('re-export.csv');
+    // Same export re-written in the same session must surface again.
+    const second = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(second.files.map((f) => f.name)).toContain('re-export.csv');
+  }, 120_000);
+
+  it('caps collected output files at five', async () => {
+    const code = [
+      'for i in range(8):',
+      '    with open(f"out-{i}.txt", "w") as f:',
+      '        f.write(str(i))',
+      'print("ok: 8")',
+    ].join('\n');
+    const result = await runPythonCore(py, code, [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+    expect(result.files.length).toBe(5);
+  }, 120_000);
+
+  it('resets the namespace and cleans stale files when the file set changes (thread switch)', async () => {
+    const threadA = csvFile('thread-a.csv', 'X;Gewinn\n1;10\n2;20\n');
+    const first = await runPythonCore(
+      py,
+      'geheim = int(df["Gewinn"].sum())\ndf.to_csv("a-export.csv", index=False)\nprint("ok:", geheim)',
+      [threadA],
+      opts
+    );
+    expect(first.ok).toBe(true);
+
+    // Different file (new thread): old variables and old files must be gone —
+    // otherwise code silently computes with the previous thread's data.
+    const threadB = csvFile('thread-b.csv', 'Y;Umsatz\n1;5\n');
+    const leaked = await runPythonCore(py, 'print("Geheim:", geheim)', [threadB], opts);
+    expect(leaked.ok).toBe(false);
+    expect(leaked.traceback ?? '').toContain('geheim');
+
+    const staleFiles = await runPythonCore(
+      py,
+      'import os\nprint("alt:", int(os.path.exists("a-export.csv") or os.path.exists("thread-a.csv")))',
+      [threadB],
+      opts
+    );
+    expect(staleFiles.ok).toBe(true);
+    expect(staleFiles.stdout).toContain('alt: 0');
+  }, 120_000);
+
+  it('blocks the js browser-bridge module for user code', async () => {
+    const result = await runPythonCore(py, 'import js\nprint(js.location)', [SALES_CSV], opts);
+    expect(result.ok).toBe(false);
+    expect(result.traceback ?? '').toContain('nicht erlaubt');
+  });
+
+  it('keeps micropip working after the import guard is installed', async () => {
+    // Engine installs run in pyodide's main scope; the guard must only hit
+    // user code. Re-installing an already-present wheel proves js access
+    // inside micropip still works.
+    await py.loadPackage(['micropip']);
+    await py.runPythonAsync(
+      `import micropip\nawait micropip.install(['emfs:/wheels/${ENGINE_WHEEL_FILES.xls[0]}'], deps=False)`
+    );
+    const result = await runPythonCore(py, 'print("Zeilen:", len(df))', [SALES_CSV], opts);
+    expect(result.ok).toBe(true);
+  }, 120_000);
+
+  it('prints the repr of a bare trailing expression (Jupyter semantics)', async () => {
+    const simple = await runPythonCore(py, '1 + 1', [], opts);
+    expect(simple.ok).toBe(true);
+    expect(simple.stdout).toContain('2');
+
+    const dfExpr = await runPythonCore(py, 'df["Gewinn"].sum()', [SALES_CSV], opts);
+    expect(dfExpr.ok).toBe(true);
+    expect(dfExpr.stdout).toContain('60');
   }, 120_000);
 
   it('survives multi-line DataFrame prints without breaking the result parser', async () => {

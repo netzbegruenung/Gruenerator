@@ -122,6 +122,26 @@ describe('getModeGuidance for compute intent', () => {
   });
 });
 
+describe('getModeGuidance for chart intent', () => {
+  it('grounds the chart on the computed values when a fresh result exists', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'chart',
+        computedResult: makeComputeResult(),
+        computedResultFresh: true,
+      })
+    );
+    expect(out).toContain('AUSSCHLIESSLICH');
+    expect(out).not.toContain('plausible Daten');
+  });
+
+  it('falls back to the plausible-data guidance without a fresh result', () => {
+    const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
+    expect(out).toContain('plausible Daten');
+    expect(out).not.toContain('AUSSCHLIESSLICH');
+  });
+});
+
 describe('formatTabularComputeGuidance', () => {
   it('returns nothing without a tabular attachment', () => {
     const out = formatTabularComputeGuidance(makeState({ hasTabularAttachment: false }));

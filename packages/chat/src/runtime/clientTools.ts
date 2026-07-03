@@ -16,7 +16,7 @@
  * an interrupt this client cannot execute (mobile/voice send none).
  */
 
-import { parseComputeResult } from '../lib/computeResult';
+import { capComputeFiles, capFigures, parseComputeResult } from '../lib/computeResult';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useLastComputeStore } from '../stores/lastComputeStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
@@ -39,10 +39,22 @@ const CLIENT_TOOLS: Record<string, ClientToolEntry> = {
       try {
         const files = usePythonFileStore.getState().files;
         const result = await runPython(code, files);
-        if (!result.ok || !result.stdout.trim()) {
+        const hasFigures = result.ok && result.figures.length > 0;
+        const hasFiles = result.ok && result.files.length > 0;
+        if (!result.ok || (!result.stdout.trim() && !hasFigures && !hasFiles)) {
           return { error: result.error || 'Die Ausführung lieferte keine Ausgabe.' };
         }
         const compute = parseComputeResult('Tabellen-Berechnung', result.stdout);
+        // Matplotlib figures + exported files travel with the resume payload so
+        // the backend can persist them in the message metadata (they survive
+        // reloads, like generatedImage).
+        const figures = capFigures(result.figures);
+        if (figures.length > 0) compute.figures = figures;
+        const computeFiles = capComputeFiles(result.files);
+        // The answer model learns about exports via respondNode's fileNote
+        // (from computedResult.files) — no synthetic entries, which would
+        // duplicate the download chips and pollute the verifier prompt.
+        if (computeFiles.length > 0) compute.files = computeFiles;
         // Also remember it locally so follow-up turns forward it as
         // `computedResult` (same path as the legacy auto-run code block).
         useLastComputeStore.getState().setResult(compute);

@@ -11,10 +11,67 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
 
-import type { SearchIntent, ClassificationResult } from '../types.js';
+import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph:Classifier');
+
+// ── Combined social post (EXPERIMENTAL) ─────────────────────────────────────
+// Shared by the heuristic fast-path and the classifier's dedicated branches so
+// escape hatches and platform detection can't drift between tiers.
+
+/** "nur den Text" / "ohne Sharepic" — user wants the caption only. */
+export const SOCIAL_TEXT_ONLY_PATTERN =
+  /\b(nur|bloß|bloss|lediglich)\s+(den\s+|einen\s+)?(post-?|caption-?)?text\b|\bohne\s+(sharepic|grafik|bild)\b/i;
+
+/** "nur ein Sharepic" / "ohne Text" — user wants the graphic only. */
+export const SHAREPIC_ONLY_PATTERN =
+  /\bnur\s+(ein\s+)?(sharepic|spruchbild|zitatbild|grafik)\b|\bohne\s+(post-?|caption-?)?text\b/i;
+
+/** Explicit sharepic wording keeps routing to the shipped sharepic-only flow. */
+export const SHAREPIC_NOUN_PATTERN =
+  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
+
+const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
+const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
+// Mastodon/Bluesky share Twitter's 280-char budget (see prompts/social.json).
+const TWITTER_PLATFORM_PATTERN = /\b(twitter|tweets?|tweete\w*|x-?post|bluesky|mastodon)\b/i;
+const LINKEDIN_PLATFORM_PATTERN = /\blinked-?in\b/i;
+
+/**
+ * Platform hint from the user prompt. Null = no platform named (generic).
+ * Instagram/Facebook win over Twitter/LinkedIn to preserve the pre-existing
+ * two-platform detection order.
+ */
+export function detectSocialPlatform(text: string): SocialTextPlatform | null {
+  if (INSTAGRAM_PLATFORM_PATTERN.test(text)) return 'instagram';
+  if (FACEBOOK_PLATFORM_PATTERN.test(text)) return 'facebook';
+  if (TWITTER_PLATFORM_PATTERN.test(text)) return 'twitter';
+  if (LINKEDIN_PLATFORM_PATTERN.test(text)) return 'linkedin';
+  return null;
+}
+
+/** Creation verb: user wants a post WRITTEN, not examples shown. */
+export const SOCIAL_CREATE_VERB_PATTERN =
+  /\b(erstell|schreib|mach|generier|verfass|formulier|entwirf|tweete)\w*/i;
+
+/** Bare noun-phrase prompts ("Instagram-Post zu Tempo 30") carry no verb. */
+export const SOCIAL_BARE_NOUN_PATTERN =
+  /^\s*(bitte\s+)?(ein(en)?\s+)?((insta(gram)?|facebook|fb|linkedin|twitter|x|tiktok)[-\s]?)?(post(ing)?|beitrag|tweet|reels?|caption|social[-\s]?media[-\s]?post)\b/i;
+
+/** Question-shaped messages must not trigger post creation. */
+export const SOCIAL_META_QUESTION_PATTERN = /^\s*(wie|was|wer|warum|wieso|welche|wann|wo)\b/i;
+
+/**
+ * Escape hatches for a message that would otherwise route to `social_post`:
+ * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
+ * explicit sharepic wording keeps the shipped sharepic-only flow.
+ */
+export function resolveSocialPostEscape(text: string): 'examples' | 'sharepic' | null {
+  if (SOCIAL_TEXT_ONLY_PATTERN.test(text)) return 'examples';
+  if (SHAREPIC_ONLY_PATTERN.test(text) || SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
+  return null;
+}
 
 /**
  * Keywords for fuzzy matching in heuristic fallback.
@@ -39,6 +96,8 @@ export const INTENT_KEYWORDS: Record<
     | 'artifact'
     // compute is detected by dedicated count/math/unit/date patterns, not keywords.
     | 'compute'
+    // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
+    | 'social_post'
   >,
   string[]
 > = {
@@ -309,7 +368,7 @@ export function isTabularComputeQuestion(text: string): boolean {
   // 'zähl' must not fire inside 'erzähl'. Noun stems may sit inside German
   // compounds (jahresumsatz, gesamtgewinn), so they match anywhere.
   const wordStart =
-    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|top ?\d|wie ?viel|pro\s+\w+)/i;
+    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|meist|häufigst|beste[rns]?\b|top ?\d|ausreißer|quartil|pivot|prognos|wie ?viel|pro\s+\w+)/i;
   const nounStem = /(umsatz|gewinn|erlös|gesamtsumme|gesamtwert|höchst|niedrigst)/i;
   return wordStart.test(text) || nounStem.test(text);
 }
@@ -351,8 +410,7 @@ export function heuristicClassify(
   // spelling variants ("spruchbild", "zitatbild"). The specific variant
   // (zitat/dreizeilen/info) is resolved later in the execution path from the same
   // text — here we only need to route to the sharepic intent.
-  const sharepicKeywords = /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
-  if (sharepicKeywords.test(q)) {
+  if (SHAREPIC_NOUN_PATTERN.test(q)) {
     return {
       intent: 'sharepic',
       searchQuery: null,
@@ -539,6 +597,27 @@ export function heuristicClassify(
       searchQuery: userContent,
       reasoning: 'Person query routed to web search',
       confidence: 0.78,
+    };
+  }
+
+  // Medium confidence (0.80): social media requests. Creation verbs route to
+  // the EXPERIMENTAL combined post (text + sharepic) unless an escape hatch
+  // ("nur Text", "nur Sharepic") applies; browse verbs ("zeig mir Beispiele")
+  // keep the examples flow. Meta-questions never create.
+  if (
+    /\b(social\s*media|post|tweet|instagram)\b/i.test(q) &&
+    SOCIAL_CREATE_VERB_PATTERN.test(q) &&
+    !/\b(beispiel|vorlage)\b/i.test(q) &&
+    !SOCIAL_META_QUESTION_PATTERN.test(q)
+  ) {
+    const escape = resolveSocialPostEscape(q);
+    return {
+      intent: escape ?? 'social_post',
+      searchQuery: userContent,
+      reasoning: escape
+        ? `Social media creation with "${escape}" escape hatch`
+        : 'Social media post creation (combined text + sharepic)',
+      confidence: 0.8,
     };
   }
 

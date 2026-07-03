@@ -51,6 +51,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'image',
   'image_edit',
   'sharepic',
+  'social_post',
   'summary',
   'chart',
   'artifact',
@@ -296,6 +297,8 @@ describe('every SearchIntent has a handler path', () => {
     image: 'handled via image branch in controller',
     image_edit: 'handled via image_edit branch in controller',
     sharepic: 'handled via sharepic branch in controller (image generation variant)',
+    social_post:
+      'handled via social_post branch in executeIntentPipeline — parallel sharepic generation + examples-grounded text (EXPERIMENTAL combined post), fixed Stage-3 confirmation',
     direct: 'falls through to response generation',
     research: 'handled via search branch (intent !== direct)',
     compare: 'handled via search branch — multi-document comparison, same path as research',
