@@ -473,13 +473,23 @@ export async function persistResumedResponse(params: {
   classifiedState: ChatGraphState;
   userId?: string;
   processedMeta?: ProcessedAttachmentMeta[];
+  /** Sharepic variants generated on the resumed turn (sharepic/social_post). */
+  sharepicVariants?: SharepicVariant[];
+  /** Text half of a resumed social_post turn. */
+  socialPost?: SocialPostPayload | null;
 }): Promise<void> {
   const { threadId, fullText, finalState, classifiedState, userId, processedMeta } = params;
 
   if (!threadId || !fullText) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState, null, []);
+    const toolCalls = buildToolCalls(
+      classifiedState,
+      finalState,
+      null,
+      params.sharepicVariants ?? [],
+      params.socialPost ?? null
+    );
     await createMessage(threadId, 'assistant', fullText, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,

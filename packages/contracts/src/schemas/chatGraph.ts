@@ -132,6 +132,14 @@ export const chatStreamBodySchema = z.object({
       canvasType: z.string(),
     })
     .nullish(),
+  // The combined social post the user marked as "active for chat editing"
+  // (EXPERIMENTAL card toggle). Targets the social-post TEXT edit branch
+  // explicitly, so edits hit the activated post instead of the newest one.
+  currentSocialPost: z
+    .object({
+      postId: z.string(),
+    })
+    .nullish(),
   // The subtitler project the user marked as "active for chat editing"
   // (via the reel picker or a processed chat upload). Targets the
   // reel_edit branch.
