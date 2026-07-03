@@ -32,6 +32,7 @@ export const searchIntentSchema = z.enum([
   'examples',
   'pressemitteilung_examples',
   'abgeordnetenwatch',
+  'bundestag',
   'image',
   'image_edit',
   'sharepic',
