@@ -1256,13 +1256,19 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       case 'pressemitteilung_examples':
+      case 'social_post': // combined post grounds its text half on social examples
       case 'examples': {
         // Build kinds from intent + secondaryIntent. The dual SearchIntent
         // surface stays so postResponseService picks the right tool name (and
         // therefore the right UI card); the *data fetch* is unified.
         const kinds: ExampleKind[] = [];
         if (intent === 'pressemitteilung_examples') kinds.push('press');
-        if (intent === 'examples' || state.secondaryIntent === 'examples') kinds.push('social');
+        if (
+          intent === 'examples' ||
+          intent === 'social_post' ||
+          state.secondaryIntent === 'examples'
+        )
+          kinds.push('social');
 
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
@@ -1296,7 +1302,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           kinds,
           ...(country && { country }),
           ...(lvScope !== undefined && { lvScope }),
-          ...(state.platform && { platform: state.platform }),
+          // Qdrant's social_media_examples has only these two platforms —
+          // twitter/linkedin prompts get unfiltered examples instead.
+          ...((state.platform === 'instagram' || state.platform === 'facebook') && {
+            platform: state.platform,
+          }),
           ...(agentConfig.toolRestrictions?.examplesCollection != null && {
             examplesCollection: agentConfig.toolRestrictions.examplesCollection,
           }),

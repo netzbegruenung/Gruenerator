@@ -36,6 +36,7 @@ export type SearchIntent =
   | 'image'
   | 'image_edit'
   | 'sharepic'
+  | 'social_post'
   | 'summary'
   | 'artifact'
   | 'direct';
