@@ -11,7 +11,8 @@ import { create } from 'zustand';
  */
 export interface SharepicLiveEntry {
   canvasId: string;
-  canvasType: string;
+  /** Canonical template type; null while only the canvasId is known (mint). */
+  canvasType: CanvasTemplateType | null;
   version: number | null;
   /** Full flat state of the latest version; null until first fetch/update. */
   state: Record<string, unknown> | null;
@@ -61,7 +62,7 @@ export const useSharepicLiveStore = create<SharepicLiveStore>((set, get) => ({
     const prev = get().entries[variantId];
     const next: SharepicLiveEntry = prev
       ? { ...prev, ...entry }
-      : { canvasType: '', version: null, state: null, ...entry };
+      : { canvasType: null, version: null, state: null, ...entry };
     set({ entries: { ...get().entries, [variantId]: next } });
     const active = get().activeVariant;
     if (active?.variantId === variantId && active.canvasId !== next.canvasId) {

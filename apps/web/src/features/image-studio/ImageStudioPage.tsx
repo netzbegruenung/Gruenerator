@@ -1,4 +1,4 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
+import { sharepicHandoffPayloadSchema } from '@gruenerator/contracts';
 import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -300,31 +300,46 @@ const ImageStudioPageContent: React.FC = () => {
       });
     };
 
-    if (!raw) {
+    const bailWithNotice = (reason: string, detail?: unknown) => {
+      console.warn(`[ImageStudioPage] Sharepic handoff rejected (${reason}):`, detail ?? raw);
+      void import('sonner').then(({ toast }) =>
+        toast.error('Vorlage konnte nicht geladen werden — bitte im Chat erneut öffnen.')
+      );
       stripParam();
+    };
+
+    if (!raw) {
+      bailWithNotice('missing payload');
       return;
     }
 
     try {
-      const parsed = JSON.parse(raw) as {
-        canvasType?: string;
-        initialProps?: Record<string, unknown>;
-        ts?: number;
-      };
-      const isFresh = parsed.ts && Date.now() - parsed.ts < 5 * 60 * 1000;
-      // Reject at the boundary: an unknown/empty canvasType must never advance
-      // to CANVAS_EDIT (which would crash the canvas mint). Bail cleanly instead.
-      if (!isFresh || !isCanvasTemplateType(parsed.canvasType) || !parsed.initialProps) {
-        stripParam();
+      // Contract boundary: the writer (GlobalChatProvider) constructs this as
+      // SharepicHandoffPayload; safeParse here means a malformed/legacy blob
+      // can never advance the wizard toward the canvas mint.
+      const parsed = sharepicHandoffPayloadSchema.safeParse(JSON.parse(raw));
+      if (!parsed.success) {
+        bailWithNotice('schema mismatch', parsed.error.issues[0]);
+        return;
+      }
+      if (Date.now() - parsed.data.ts >= 5 * 60 * 1000) {
+        bailWithNotice('stale payload', parsed.data.ts);
         return;
       }
 
+      // loadFromAIGeneration decides the step itself: CANVAS_EDIT only for a
+      // mintable type, TYPE_SELECT otherwise. Deliberately NO forced
+      // setCurrentStep(CANVAS_EDIT) here — that override bypassed the
+      // mintable gate and crashed the mint with type=null.
       useImageStudioStore
         .getState()
-        .loadFromAIGeneration(parsed.canvasType, parsed.initialProps as Record<string, string>);
-      useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+        .loadFromAIGeneration(
+          parsed.data.canvasType,
+          parsed.data.initialProps as Record<string, string>
+        );
     } catch (err) {
-      console.error('[ImageStudioPage] Failed to parse sharepic handoff payload:', err);
+      bailWithNotice('unparseable JSON', err);
+      return;
     }
 
     stripParam();

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { extractUrls, isTabularComputeQuestion } from './classifierHeuristics.js';
+import {
+  extractUrls,
+  isTabularComputeQuestion,
+  detectSocialPlatform,
+  resolveSocialPostEscape,
+} from './classifierHeuristics.js';
 import {
   extractSearchTopic,
   parseClassifierResponse,
@@ -264,7 +269,40 @@ describe('heuristicClassify', () => {
     // multi-turn follow-ups still take the run_python interrupt path.
     expect(isTabularComputeQuestion('durchschnittlicher umsatz pro region?')).toBe(true);
     expect(isTabularComputeQuestion('und der gesamtgewinn?')).toBe(true);
+    expect(isTabularComputeQuestion('wie hoch ist der gewinn')).toBe(true);
+    expect(isTabularComputeQuestion('was ist das produkt mit dem höchsten wert?')).toBe(true);
     expect(isTabularComputeQuestion('worum geht es in dieser datei?')).toBe(false);
+  });
+
+  it('isTabularComputeQuestion binds verbs to word starts (erzähl must not match zähl)', () => {
+    expect(isTabularComputeQuestion('erzähl mir, worum es im angehängten pdf geht')).toBe(false);
+    expect(isTabularComputeQuestion('zähle die einträge pro region')).toBe(true);
+  });
+
+  it('isTabularComputeQuestion covers superlative/analysis phrasings from the beta run', () => {
+    // "am meisten" took the legacy path in beta and crashed with a NameError.
+    expect(isTabularComputeQuestion('welcher verkäufer verkauft am meisten?')).toBe(true);
+    expect(isTabularComputeQuestion('was ist das beste produkt?')).toBe(true);
+    expect(isTabularComputeQuestion('finde ausreißer beim einzelpreis')).toBe(true);
+    expect(isTabularComputeQuestion('prognostiziere den umsatz q1 2025')).toBe(true);
+    // 'best…' must not fire inside 'Bestellung'.
+    expect(isTabularComputeQuestion('zeige die bestellung von gestern')).toBe(false);
+  });
+
+  it('isTabularComputeQuestion leaves text-metric questions to the plain computeNode', () => {
+    // Beta regression: character/word counting of pasted text was hijacked by
+    // the run_python gate and produced a pointless df snippet.
+    expect(isTabularComputeQuestion('wie viele zeichen sind das hier und wie viele wörter')).toBe(
+      false
+    );
+    expect(isTabularComputeQuestion('zähl die wörter in diesem text')).toBe(false);
+  });
+
+  it('isTabularComputeQuestion leaves chart/visualization requests alone', () => {
+    expect(isTabularComputeQuestion('erstelle ein balkendiagramm der umsätze pro monat')).toBe(
+      false
+    );
+    expect(isTabularComputeQuestion('visualisiere die gewinne')).toBe(false);
   });
 
   it('detects image generation with high confidence', () => {
@@ -524,7 +562,110 @@ describe('heuristicClassify: doc/board action intents', () => {
 
 // ─── parseClassifierResponse: new intents are valid ─────────────────────
 
+describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', () => {
+  it('routes creation requests to social_post', () => {
+    // 0.8 sits below HEURISTIC_CONFIDENCE_THRESHOLD by design: the primary
+    // route is the classifier's dedicated Tier-2.5 branch; this heuristic is
+    // the same-confidence successor of the old examples creation rule.
+    const result = heuristicClassify('Erstelle einen Instagram-Post zu Tempo 30');
+    expect(result.intent).toBe('social_post');
+    expect(result.confidence).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('keeps example browsing on the examples intent', () => {
+    const result = heuristicClassify('Zeig mir Beispiele für Instagram-Posts');
+    expect(result.intent).toBe('examples');
+  });
+
+  it('creation with explicit "beispiel" wording stays examples', () => {
+    const result = heuristicClassify('Erstelle einen Post nach dieser Vorlage als Beispiel');
+    expect(result.intent).toBe('examples');
+  });
+
+  it('"nur Text" escape hatch keeps the text-only flow', () => {
+    const result = heuristicClassify('Schreib mir nur den Text für einen Insta-Post zu Tempo 30');
+    expect(result.intent).toBe('examples');
+  });
+
+  it('"ohne Text" escape hatch keeps the sharepic-only flow', () => {
+    const result = heuristicClassify('Erstelle einen Instagram-Post ohne Text zu Tempo 30');
+    expect(result.intent).toBe('sharepic');
+  });
+
+  it('explicit sharepic wording keeps the shipped sharepic flow (0.93 rule wins)', () => {
+    const result = heuristicClassify('Erstelle ein Sharepic für Instagram zu Tempo 30');
+    expect(result.intent).toBe('sharepic');
+  });
+
+  it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
+    const result = heuristicClassify('Erstelle einen Insta-Post mit Sharepic zu Tempo 30');
+    expect(result.intent).toBe('social_post');
+    expect(heuristicClassify('Schreib einen Post inkl. Sharepic zur Verkehrswende').intent).toBe(
+      'social_post'
+    );
+  });
+});
+
+describe('detectSocialPlatform', () => {
+  it('detects the four platforms', () => {
+    expect(detectSocialPlatform('ein insta-post bitte')).toBe('instagram');
+    expect(detectSocialPlatform('was für facebook')).toBe('facebook');
+    expect(detectSocialPlatform('einen tweet dazu')).toBe('twitter');
+    expect(detectSocialPlatform('für linkedin formulieren')).toBe('linkedin');
+  });
+
+  it('maps mastodon/bluesky to the twitter budget', () => {
+    expect(detectSocialPlatform('post für mastodon')).toBe('twitter');
+    expect(detectSocialPlatform('bluesky post')).toBe('twitter');
+  });
+
+  it('returns null when no platform is named', () => {
+    expect(detectSocialPlatform('social media post zur verkehrswende')).toBe(null);
+  });
+});
+
+describe('resolveSocialPostEscape', () => {
+  it('routes "nur Text" to examples', () => {
+    expect(resolveSocialPostEscape('nur den text bitte')).toBe('examples');
+    expect(resolveSocialPostEscape('post ohne sharepic')).toBe('examples');
+  });
+
+  it('routes "nur Sharepic" / "ohne Text" to sharepic', () => {
+    expect(resolveSocialPostEscape('nur ein sharepic')).toBe('sharepic');
+    expect(resolveSocialPostEscape('bitte ohne text')).toBe('sharepic');
+  });
+
+  it('returns null for plain creation requests', () => {
+    expect(resolveSocialPostEscape('instagram-post zu tempo 30')).toBe(null);
+  });
+
+  it('inclusion phrasing ("mit Sharepic") is NOT an escape — combined flow', () => {
+    expect(resolveSocialPostEscape('insta-post mit sharepic zu tempo 30')).toBe(null);
+    expect(resolveSocialPostEscape('post mit einem passenden sharepic')).toBe(null);
+    expect(resolveSocialPostEscape('tweet inklusive spruchbild')).toBe(null);
+  });
+
+  it('exclusionary sharepic wording still escapes despite inclusion words elsewhere', () => {
+    expect(resolveSocialPostEscape('nur ein sharepic mit sonnenblume')).toBe('sharepic');
+  });
+});
+
 describe('parseClassifierResponse: new intent values', () => {
+  it('accepts social_post intent from LLM', () => {
+    const json = JSON.stringify({
+      intent: 'social_post',
+      searchQuery: 'Tempo 30',
+      optimizedSearchQuery: 'Tempo 30 Verkehrswende',
+      reasoning: 'Combined post request',
+      contentType: null,
+      needsResearch: false,
+      needsClarification: false,
+    });
+    const result = parseClassifierResponse(json, 'Schreib einen Instagram-Post zu Tempo 30');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('social_post');
+  });
+
   it('accepts chart intent from LLM', () => {
     const json = JSON.stringify({
       intent: 'chart',

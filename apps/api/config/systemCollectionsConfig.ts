@@ -81,6 +81,12 @@ export interface SubcategoryFilters {
   curated_lists?: CuratedListId | CuratedListId[];
   themes?: string | string[];
   persons?: string | string[];
+  // Abgeordnetenwatch notebook facets — must be applied by buildSubcategoryFilter,
+  // otherwise selecting them in the notebook UI silently returns unfiltered results.
+  parliament?: string | string[];
+  party?: string | string[];
+  income_level?: string | string[];
+  gruene_vote?: string | string[];
   date_from?: string;
   date_to?: string;
 }
@@ -102,6 +108,10 @@ const MULTI_VALUE_FILTER_KEYS = [
   'curated_lists',
   'themes',
   'persons',
+  'parliament',
+  'party',
+  'income_level',
+  'gruene_vote',
 ] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {

@@ -31,6 +31,7 @@ export function parseClassifierResponse(
     'search',
     'web',
     'examples',
+    'social_post',
     'abgeordnetenwatch',
     'bundestag',
     'sharepic',
@@ -263,6 +264,14 @@ export function parseClassifierResponse(
       intent: 'direct',
       searchQuery: null,
       reasoning: 'Fallback: direct detected in response',
+    };
+  // social_post before examples: 'examples' would otherwise never lose to it
+  // in malformed responses that mention both.
+  if (intentFieldPattern('social_post').test(content))
+    return {
+      intent: 'social_post',
+      searchQuery: userContent,
+      reasoning: 'Fallback: social_post detected in response',
     };
   if (intentFieldPattern('examples').test(content))
     return {

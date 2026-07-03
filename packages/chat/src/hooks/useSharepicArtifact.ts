@@ -3,6 +3,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
+import { seedThumbnailCache } from './useSharepicThumbnail';
+
 import type { SharepicVariant } from './useChatGraphStream';
 
 export interface SharepicVersionEntry {
@@ -91,6 +93,8 @@ export function useSharepicArtifact(variant: SharepicVariant) {
           setImageBase64(dataUrl);
           setRenderError(false);
           maybeUploadThumbnail(variant.id, dataUrl, viewState != null);
+          // Head renders double as strip thumbnails (version previews don't).
+          if (viewState == null) seedThumbnailCache(variant.id, dataUrl);
         } else {
           setRenderError(true);
         }

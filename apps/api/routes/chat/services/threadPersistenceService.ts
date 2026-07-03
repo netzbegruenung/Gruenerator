@@ -103,6 +103,48 @@ export async function createMessage(
 }
 
 /**
+ * Truncate a thread from a given message onward — deletes that message and
+ * every message created at or after it (by `created_at`). Used for
+ * edit-and-resubmit: the edited user message and its now-stale replies are
+ * removed before the fresh turn is written. Returns the number of rows deleted
+ * (0 when the id doesn't resolve to a message in this thread).
+ */
+export async function deleteMessagesFrom(threadId: string, messageId: string): Promise<number> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `DELETE FROM chat_messages
+     WHERE thread_id = $1
+       AND created_at >= (
+         SELECT created_at FROM chat_messages WHERE id = $2 AND thread_id = $1
+       )
+     RETURNING id`,
+    [threadId, messageId]
+  )) as unknown[];
+  return result.length;
+}
+
+/**
+ * Delete the trailing assistant message(s) of a thread — everything after the
+ * most recent user message. Used for regenerate (the user message stays; only
+ * the last reply is replaced) and as the fallback for edit-resubmit when the
+ * frontend id doesn't resolve to a persisted row (in-session message).
+ */
+export async function deleteTrailingAssistant(threadId: string): Promise<number> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `DELETE FROM chat_messages
+     WHERE thread_id = $1
+       AND created_at > COALESCE(
+         (SELECT MAX(created_at) FROM chat_messages WHERE thread_id = $1 AND role = 'user'),
+         '-infinity'::timestamptz
+       )
+     RETURNING id`,
+    [threadId]
+  )) as unknown[];
+  return result.length;
+}
+
+/**
  * Check if a thread exists.
  */
 export async function threadExists(threadId: string): Promise<boolean> {
