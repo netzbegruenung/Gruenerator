@@ -167,7 +167,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     computedResult: (() => {
       const r = useLastComputeStore.getState().result;
       if (!r) return undefined;
-      const { figures: _figures, files: _files, ...slim } = r;
+      const { figures: _figures, files: _files, figureUrls: _fu, fileAssets: _fa, ...slim } = r;
       return slim;
     })(),
     // Declare which tools this client can execute locally, so the backend may

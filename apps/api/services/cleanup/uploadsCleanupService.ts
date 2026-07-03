@@ -28,6 +28,10 @@ const AGE_BASED_DIRS = [
   { name: 'temp', maxAgeDays: 1 },
   { name: 'transcriptions', maxAgeDays: 7 },
   { name: 'pending', maxAgeDays: 7 },
+  // run_python figures/exports referenced from chat-message metadata — kept
+  // long (the Berechnung cards live in threads); the ComputeCard tolerates
+  // expired figure URLs by hiding the image.
+  { name: 'compute-assets', maxAgeDays: 90 },
 ] as const;
 
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // Every 6 hours
