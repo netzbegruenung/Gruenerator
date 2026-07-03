@@ -8,18 +8,15 @@ import {
   SHEET_SCHEMA_VERSION,
   SHEET_SEED_ORIGIN,
   SHEET_YDOC_KEYS,
+  coverEntry,
+  coveredPrefixCount,
+  isEntryCovered,
   isSheetMutationEntry,
+  uncoveredEntries,
   type SheetMutationEntry,
+  type SnapshotVector,
 } from '../lib/ydocSchema.js';
-import {
-  COMPACT_IDLE_MS,
-  COMPACT_THRESHOLD,
-  isCompactionLeader,
-  maxSeq,
-  nextSeq,
-  pruneCount,
-  tailEntries,
-} from './compaction.js';
+import { COMPACT_IDLE_MS, COMPACT_THRESHOLD, isCompactionLeader } from './compaction.js';
 
 import type { FWorkbook } from '@univerjs/preset-sheets-core';
 import type { FUniver, IWorkbookData } from '@univerjs/presets';
@@ -61,10 +58,26 @@ function buildBlankWorkbook(documentId: string): Partial<IWorkbookData> {
   };
 }
 
+function readSnapshotVector(yMeta: Y.Map<unknown>): SnapshotVector {
+  const raw = yMeta.get(SHEET_META_KEYS.snapshotVector);
+  if (typeof raw !== 'object' || raw === null) return {};
+  const out: SnapshotVector = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number') out[key] = value;
+  }
+  return out;
+}
+
 /**
  * Connects a Univer sheets instance to the shared Y.Doc (mutation-log collab).
  *
- * Attach order matters: load snapshot → replay log tail → register the
+ * Identity + boundary use a per-client version vector (`SnapshotVector`), not a
+ * shared scalar seq: every entry is `(clientId, clientSeq)` (unique, no ties),
+ * and the snapshot carries the exact set of entries it folds in. An entry is
+ * only ever pruned once the vector covers it — so a failed replay (kept out of
+ * the vector) survives in the log for late joiners instead of being erased.
+ *
+ * Attach order matters: load snapshot → replay uncovered entries → register the
  * local→remote forwarder and the remote→local observer. Registering the
  * forwarder last keeps the initial replay from being re-broadcast.
  */
@@ -80,13 +93,18 @@ export function attachYjsBridge({
 
   let applyingRemote = false;
   let disposed = false;
+  // What THIS client has folded into its live workbook (snapshot coverage +
+  // everything applied since). Authoritative for our own skip/compaction — we
+  // never adopt a remote leader's coverage, because we don't reload its
+  // snapshot and must apply every entry ourselves.
+  const appliedVector: SnapshotVector = {};
+  // Our own author counter for this session (clientId is fresh per Y.Doc).
+  let localSeq = 0;
 
   // ── 1. Load snapshot (or seed a blank workbook) ────────────────────────────
   const snapshotJson = yMeta.get(SHEET_META_KEYS.snapshot);
-  let snapshotSeq =
-    typeof yMeta.get(SHEET_META_KEYS.snapshotSeq) === 'number'
-      ? (yMeta.get(SHEET_META_KEYS.snapshotSeq) as number)
-      : -1;
+  const loadedVector = readSnapshotVector(yMeta);
+  for (const [key, value] of Object.entries(loadedVector)) appliedVector[key] = value;
 
   let workbook: FWorkbook;
   if (typeof snapshotJson === 'string' && snapshotJson.length > 0) {
@@ -101,28 +119,28 @@ export function attachYjsBridge({
       // equivalent blank state, so last-writer-wins on 'seeded' is fine.
       ydoc.transact(() => {
         yMeta.set(SHEET_META_KEYS.snapshot, JSON.stringify(workbook.save()));
-        yMeta.set(SHEET_META_KEYS.snapshotSeq, -1);
+        yMeta.set(SHEET_META_KEYS.snapshotVector, {});
         yMeta.set(SHEET_META_KEYS.seeded, true);
         yMeta.set(SHEET_META_KEYS.schemaVersion, SHEET_SCHEMA_VERSION);
       }, SHEET_SEED_ORIGIN);
     }
   }
 
-  // ── 2. Replay log tail on top of the snapshot ──────────────────────────────
+  // ── 2. Replay entries the snapshot doesn't already cover ───────────────────
   const entries = yMutations.toArray().filter(isSheetMutationEntry);
-  let lastAppliedSeq = snapshotSeq;
   applyingRemote = true;
   try {
-    for (const entry of tailEntries(entries, snapshotSeq)) {
+    for (const entry of uncoveredEntries(entries, appliedVector)) {
       try {
         void univerAPI.executeCommand(entry.id, entry.params as object, {
           onlyLocal: true,
           fromCollab: true,
         });
-        if (entry.seq > lastAppliedSeq) lastAppliedSeq = entry.seq;
+        coverEntry(appliedVector, entry);
       } catch (err) {
         // Best-effort convergence: a failed replay (e.g. structural conflict)
-        // is accepted; frequent compaction keeps divergence windows short.
+        // is accepted and, crucially, NOT covered — so compaction won't prune
+        // it and a later client can still try to apply it.
         console.error('[sheets-bridge] replay failed:', entry.id, err);
       }
     }
@@ -131,7 +149,7 @@ export function attachYjsBridge({
   }
 
   // ── 3. Local → remote: forward mutations into the log ─────────────────────
-  let pending: Omit<SheetMutationEntry, 'seq'>[] = [];
+  let pending: Omit<SheetMutationEntry, 'clientSeq'>[] = [];
   let flushScheduled = false;
 
   const flush = () => {
@@ -140,11 +158,10 @@ export function attachYjsBridge({
     const batch = pending;
     pending = [];
     ydoc.transact(() => {
-      let seq = nextSeq(yMutations.toArray().filter(isSheetMutationEntry), snapshotSeq);
       for (const item of batch) {
-        yMutations.push([{ ...item, seq }]);
-        if (seq > lastAppliedSeq) lastAppliedSeq = seq;
-        seq++;
+        const entry: SheetMutationEntry = { ...item, clientSeq: localSeq++ };
+        yMutations.push([entry]);
+        coverEntry(appliedVector, entry); // local mutations are already applied
       }
     }, SHEET_LOCAL_ORIGIN);
     maybeCompact();
@@ -187,17 +204,17 @@ export function attachYjsBridge({
     applyingRemote = true;
     try {
       for (const entry of inserted) {
-        if (entry.clientId === ydoc.clientID) continue;
-        if (entry.seq <= snapshotSeq) continue;
+        if (entry.clientId === ydoc.clientID) continue; // our own, already applied
+        if (isEntryCovered(entry, appliedVector)) continue; // already folded in
         try {
           void univerAPI.executeCommand(entry.id, entry.params as object, {
             onlyLocal: true,
             fromCollab: true,
           });
+          coverEntry(appliedVector, entry);
         } catch (err) {
           console.error('[sheets-bridge] remote apply failed:', entry.id, err);
         }
-        if (entry.seq > lastAppliedSeq) lastAppliedSeq = entry.seq;
       }
     } finally {
       applyingRemote = false;
@@ -206,32 +223,29 @@ export function attachYjsBridge({
   };
   yMutations.observe(observer);
 
-  // Track remote compactions so our local snapshotSeq boundary stays current.
-  const metaObserver = () => {
-    const remoteSeq = yMeta.get(SHEET_META_KEYS.snapshotSeq);
-    if (typeof remoteSeq === 'number' && remoteSeq > snapshotSeq) snapshotSeq = remoteSeq;
-  };
-  yMeta.observe(metaObserver);
-
   // ── 5. Compaction (leader only) ────────────────────────────────────────────
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
   const compact = () => {
     const current = yMutations.toArray().filter(isSheetMutationEntry);
     if (current.length === 0) return;
-    const newSnapshotSeq = maxSeq(current, snapshotSeq);
-    const prune = pruneCount(current, newSnapshotSeq);
+    // Snapshot exactly what we've applied; prune only the leading run of
+    // entries that snapshot covers (stops at the first un-applied entry).
+    const prune = coveredPrefixCount(current, appliedVector);
     ydoc.transact(() => {
       yMeta.set(SHEET_META_KEYS.snapshot, JSON.stringify(workbook.save()));
-      yMeta.set(SHEET_META_KEYS.snapshotSeq, newSnapshotSeq);
+      yMeta.set(SHEET_META_KEYS.snapshotVector, { ...appliedVector });
       if (prune > 0) yMutations.delete(0, prune);
     }, SHEET_COMPACT_ORIGIN);
-    snapshotSeq = newSnapshotSeq;
   };
 
   const maybeCompact = () => {
     if (disposed || !canWrite) return;
-    const states = awareness?.getStates() ?? new Map([[ydoc.clientID, { canWrite }]]);
+    const awarenessStates = awareness?.getStates();
+    const states =
+      awarenessStates && awarenessStates.size > 0
+        ? awarenessStates
+        : new Map([[ydoc.clientID, { canWrite }]]);
     if (!isCompactionLeader(ydoc.clientID, states)) return;
     if (yMutations.length >= COMPACT_THRESHOLD) {
       compact();
@@ -253,7 +267,6 @@ export function attachYjsBridge({
       if (idleTimer) clearTimeout(idleTimer);
       commandDisposable.dispose();
       yMutations.unobserve(observer);
-      yMeta.unobserve(metaObserver);
     },
   };
 }

@@ -519,6 +519,7 @@ function routeAfterClassification(
   // SSE event the docs-editor frontend dispatches into BlockNote's AI extension.
   if (
     intent === 'save_as_doc' ||
+    intent === 'create_sheet' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
     intent === 'edit_current_board' ||
