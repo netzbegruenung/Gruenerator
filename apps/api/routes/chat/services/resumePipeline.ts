@@ -6,7 +6,11 @@
  * topic) or by running search + response generation for non-sharepic intents.
  */
 
-import { computePayloadSchema, type chatGraphContract } from '@gruenerator/contracts';
+import {
+  computePayloadSchema,
+  type ComputePayload,
+  type chatGraphContract,
+} from '@gruenerator/contracts';
 
 import {
   buildSystemMessage,
@@ -21,6 +25,7 @@ import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStre
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
 import { executeIntentPipeline } from './intentExecutionService.js';
@@ -115,7 +120,16 @@ export async function runChatGraphResume({
       // ground truth for respondNode (formatComputedResultContext). The
       // `compute` SSE event drives the inline "Berechnung" card.
       const parsed = computePayloadSchema.safeParse(resumeInput.result);
-      const hasNanValues = parsed.success && hasBrokenComputeValues(parsed.data);
+      // Asset URLs are SERVER-minted only (they render as <img>/<a> in the
+      // card) — strip anything the client sent, then move the capped base64
+      // figures/exports to uploads/compute-assets so the message metadata
+      // carries small authenticated URLs instead of megabytes of base64.
+      let payload: ComputePayload | null = null;
+      if (parsed.success) {
+        const { figureUrls: _cfu, fileAssets: _cfa, ...clientSafe } = parsed.data;
+        payload = await persistComputeAssets(user.id, clientSafe);
+      }
+      const hasNanValues = payload != null && hasBrokenComputeValues(payload);
 
       const seedComputedResult = (data: (typeof classifiedState)['computedResult']) => {
         classifiedState.computedResult = data;
@@ -174,29 +188,29 @@ export async function runChatGraphResume({
         return true;
       };
 
-      if (parsed.success && !hasNanValues) {
+      if (payload && !hasNanValues) {
         // Plausibility check (fail-open, once per turn, shares the correction
         // budget): catches code that RAN fine but answered the wrong question
         // — beta: doubled totals, wrong column for "höchster Gewinn".
         if ((classifiedState.pandasComputeRetries ?? 0) < 1 && classifiedState.pandasLastCode) {
           classifiedState.aiWorkerPool = aiWorkerPool;
-          const verdict = await computeVerifierNode(classifiedState, parsed.data);
+          const verdict = await computeVerifierNode(classifiedState, payload);
           if (!verdict.plausible) {
             const hint =
               verdict.hint ?? 'Das Ergebnis passt nicht zur Frage — prüfe Spaltenwahl/Gruppierung.';
             // Stash the SUCCESSFUL result: the verifier is fallible, and if the
             // corrected code then fails we fall back to this instead of losing
             // a working computation entirely.
-            classifiedState.pandasComputeFallback = parsed.data;
+            classifiedState.pandasComputeFallback = payload;
             if (await tryCorrectionRound(`Plausibilitätsprüfung fehlgeschlagen: ${hint}`)) {
               return { status: 200 as const, body: undefined };
             }
           }
         }
-        seedComputedResult(parsed.data);
+        seedComputedResult(payload);
       } else {
-        const errorText = parsed.success
-          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${parsed.data.summary.slice(0, 300)}`
+        const errorText = payload
+          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${payload.summary.slice(0, 300)}`
           : resumeInput.result != null &&
               typeof resumeInput.result === 'object' &&
               'error' in resumeInput.result
@@ -210,8 +224,8 @@ export async function runChatGraphResume({
         // Correction budget spent or codegen declined: hand the model the best
         // available result — the valid-but-nan payload, or the stashed result
         // a fallible verifier sent into a correction round that then failed.
-        if (parsed.success) {
-          seedComputedResult(parsed.data);
+        if (payload) {
+          seedComputedResult(payload);
         } else if (classifiedState.pandasComputeFallback) {
           log.info('[ChatGraph:Resume] correction failed — falling back to the original result');
           seedComputedResult(classifiedState.pandasComputeFallback);

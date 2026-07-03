@@ -146,6 +146,15 @@ export const computePayloadSchema = z.object({
     .array(z.object({ name: z.string().max(255), b64: z.string().max(2_000_000) }))
     .max(2)
     .optional(),
+  /** SERVER-SET replacements for figures/files: after the resume endpoint
+   *  stores the base64 assets under uploads/compute-assets, the persisted
+   *  payload carries only these authenticated URLs. Client-sent values are
+   *  stripped by the resume handler — only the server mints them. */
+  figureUrls: z.array(z.string().max(500)).max(3).optional(),
+  fileAssets: z
+    .array(z.object({ name: z.string().max(255), url: z.string().max(500) }))
+    .max(2)
+    .optional(),
 });
 export type ComputeEntry = z.infer<typeof computeEntrySchema>;
 export type ComputePayload = z.infer<typeof computePayloadSchema>;
