@@ -7,7 +7,6 @@ import { StatusBadge } from '../../../components/common/StatusBadge';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { APP_COMMIT } from '../../../utils/buildInfo';
 import { cn } from '../../../utils/cn';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
@@ -80,7 +79,6 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
           currentStep: state.currentStep,
           category: state.category,
           editingSource: state.editingSource,
-          build: APP_COMMIT,
         }
       );
       void import('sonner').then(({ toast }) =>
