@@ -47,6 +47,7 @@ export const searchIntentSchema = z.enum([
   'edit_current_board',
   'modify_board',
   'share_doc',
+  'create_sheet',
   'direct',
 ]);
 export type SearchIntent = z.infer<typeof searchIntentSchema>;

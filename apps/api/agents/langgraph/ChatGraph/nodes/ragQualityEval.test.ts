@@ -237,6 +237,8 @@ async function evaluateBudgetAllocation() {
     documentChatIds: [],
     boardIds: [],
     boardContext: null,
+    sheetIds: [],
+    sheetContext: null,
     docMentionIds: [],
     documentMentionContext: null,
     wolkeFiles: [],

@@ -129,6 +129,7 @@ export async function buildStreamContext({
     textIds: rawTextIds,
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
+    sheetIds: rawSheetIds,
     threadId,
     regenerate: rawRegenerate,
     replaceFromMessageId: rawReplaceFromMessageId,
@@ -507,6 +508,7 @@ export async function buildStreamContext({
         ? []
         : undefined,
     boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+    sheetIds: rawSheetIds?.length ? rawSheetIds : undefined,
     wolkeFiles,
     connectFiles,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
@@ -557,6 +559,7 @@ export async function buildStreamContext({
     ...(rawDocumentIds != null && { rawDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
     ...(rawBoardIds != null && { rawBoardIds }),
+    ...(rawSheetIds != null && { rawSheetIds }),
     ...(rawDocMentionIds != null && { rawDocMentionIds }),
     docAttachments,
     processedMeta,
