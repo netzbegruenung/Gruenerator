@@ -32,9 +32,11 @@ const DEFAULT_TITLES = new Set([
 // so adding/removing a subtype is a single-source change; the derived union
 // catches accidental string drift at compile time.
 //
-// Mirrors `DOCS_SUBTYPES` in apps/api/routes/workplace/recentActivityController.ts.
 // Per CLAUDE.md, the Hocuspocus service has zero cross-package deps, so the
 // constant is duplicated here intentionally rather than imported.
+// 'sheets' (Univer spreadsheets) is intentionally absent: its Y.Doc holds a
+// workbook snapshot + mutation log, not a BlockNote fragment, so the HTML
+// preview pipeline must never touch it.
 const DOC_SUBTYPES = [
   'blank',
   'antrag',
