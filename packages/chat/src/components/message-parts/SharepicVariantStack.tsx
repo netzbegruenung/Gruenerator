@@ -83,14 +83,16 @@ export function SharepicVariantStack({ data }: SharepicVariantStackProps) {
   );
 }
 
-function SharepicVariantThumb({
+export function SharepicVariantThumb({
   variant,
   isSelected,
   onSelect,
+  className,
 }: {
   variant: SharepicVariant;
   isSelected: boolean;
   onSelect: () => void;
+  className?: string;
 }) {
   const { imageBase64, failed } = useSharepicThumbnail(variant);
   const label = sharepicLabel(variant);
@@ -102,10 +104,11 @@ function SharepicVariantThumb({
       aria-pressed={isSelected}
       aria-label={`Variante „${label}" anzeigen`}
       className={cn(
-        'relative w-24 shrink-0 overflow-hidden rounded-md border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+        'relative overflow-hidden rounded-md border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         isSelected
           ? 'border-primary ring-2 ring-primary'
-          : 'border-border opacity-80 hover:border-primary hover:opacity-100'
+          : 'border-border opacity-80 hover:border-primary hover:opacity-100',
+        className ?? 'w-24 shrink-0'
       )}
     >
       {imageBase64 ? (
