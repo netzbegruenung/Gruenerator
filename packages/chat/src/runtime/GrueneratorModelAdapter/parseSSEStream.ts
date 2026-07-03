@@ -2,6 +2,7 @@ import {
   triggerDocEditSchema,
   triggerBoardActionSchema,
   isCanvasTemplateType,
+  chatStreamEventSchemas,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
@@ -240,8 +241,28 @@ export async function* parseSSEStream(
     buffer = lines.pop() || '';
 
     for (const line of lines) {
-      const { event, data } = parseSSELine(line, currentEvent);
-      if (!event || !data) continue;
+      const { event, data: rawData } = parseSSELine(line, currentEvent);
+      if (!event || !rawData) continue;
+
+      // Contract gate: every known event is validated against its wire
+      // schema BEFORE the switch — the `as` casts below therefore assert on
+      // schema-checked data instead of trusting the stream blindly. A
+      // malformed event is dropped with a warning; unknown event names pass
+      // through untouched (forward compatibility).
+      const eventSchema = chatStreamEventSchemas[event];
+      let data: unknown = rawData;
+      if (eventSchema) {
+        const gate = eventSchema.safeParse(rawData);
+        if (!gate.success) {
+          console.warn(
+            `[GrueneratorModelAdapter] Dropping malformed "${event}" event:`,
+            gate.error.issues[0],
+            rawData
+          );
+          continue;
+        }
+        data = gate.data;
+      }
 
       switch (event) {
         case 'thread_created': {
@@ -539,16 +560,9 @@ export async function* parseSSEStream(
         }
 
         case 'sharepic_updated': {
-          const payload = data as {
-            variantId: string;
-            canvasId: string;
-            version: number;
-            canvasType: string;
-            /** Single sharepics send `state`, decks send `pages` instead. */
-            state?: Record<string, unknown>;
-            pages?: Array<Record<string, unknown>>;
-            summary: string;
-          };
+          // Validated by the contract gate above — canvasType is guaranteed
+          // canonical, so junk template types can never enter the live store.
+          const payload = data as import('@gruenerator/contracts').SharepicUpdatedEvent;
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,
