@@ -9,6 +9,27 @@
  */
 import { z } from 'zod';
 
+import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
+
+// ── Chat → Studio handoff ───────────────────────────────────────────────────
+
+/**
+ * Ephemeral localStorage payload for opening an UNMINTED chat sharepic
+ * variant in the studio (`/studio/templates/:type?handoff=<id>`). Written by
+ * the chat host (GlobalChatProvider.onEditSharepic), read once and deleted
+ * by ImageStudioPage. Contract-based on both sides: the writer constructs it
+ * as this type (compile error on a non-canonical canvasType), the reader
+ * `safeParse`s it so a malformed/stale payload can never advance the studio
+ * wizard to the canvas mint.
+ */
+export const sharepicHandoffPayloadSchema = z.object({
+  canvasType: canvasTemplateTypeSchema,
+  initialProps: z.record(z.string(), z.unknown()),
+  /** Write timestamp (ms) — the reader rejects payloads older than 5 min. */
+  ts: z.number(),
+});
+export type SharepicHandoffPayload = z.infer<typeof sharepicHandoffPayloadSchema>;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 /**
