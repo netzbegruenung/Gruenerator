@@ -22,6 +22,7 @@ import type {
   ArtifactPayload,
   ComputePayload,
   SocialPostPayload,
+  SearchIntent,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -42,33 +43,12 @@ export type UserLocale = 'de-DE' | 'de-AT';
 
 /**
  * Intent classification for routing to appropriate search tools.
- * The classifier determines which intent applies, and the graph routes accordingly.
+ * The classifier determines which intent applies, and the graph routes
+ * accordingly. Canonical value list lives in @gruenerator/contracts
+ * (`searchIntentSchema`) — the single source shared with the `intent` SSE
+ * wire schema and the frontend; add new intents THERE.
  */
-export type SearchIntent =
-  | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
-  | 'compare' // Multi-document comparison (≥2 doc sources + compare verbs)
-  | 'search' // Gruenerator document search (party programs, positions)
-  // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
-  | 'web' // Web search (current events, external facts)
-  | 'scrape_url' // Crawl URL(s) pasted in the user message and use the page content as context
-  | 'examples' // Social media examples/templates
-  | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
-  | 'abgeordnetenwatch' // German MP transparency data (votes, Nebentätigkeiten, mandates, roll-calls) via the Abgeordnetenwatch API — DE-only
-  | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
-  | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
-  | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
-  | 'social_post' // EXPERIMENTAL combined social post: platform text + sharepic variants in one turn
-  | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
-  | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
-  | 'compute' // Deterministic calculation ("zähl die Zeichen", "20% von 340", "Tage bis Weihnachten")
-  | 'artifact' // Generic HTML/SVG artifact rendered in the side panel ("baue eine HTML-Tabelle", "erstelle eine SVG-Grafik")
-  | 'save_as_doc' // Save response as document ("speichere als Dokument")
-  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
-  | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
-  | 'edit_current_board' // Live-edit the open board via the boards assistant — for boards editor surface
-  | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
-  | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
-  | 'direct'; // No search needed (greetings, creative tasks without fact needs)
+export type { SearchIntent };
 
 /**
  * Platform hint a user prompt can carry for social text generation. `null`
