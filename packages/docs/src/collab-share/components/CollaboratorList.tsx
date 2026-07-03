@@ -1,4 +1,4 @@
-import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/core/avatar';
+import { getAvatarDisplayProps, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { Badge } from '@gruenerator/ui';
 import { FiTrash2 } from 'react-icons/fi';
 

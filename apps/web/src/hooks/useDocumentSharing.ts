@@ -1,7 +1,4 @@
-import {
-  useDocumentSharing as useSharedDocumentSharing,
-  type CollabShareApiClient,
-} from '@gruenerator/shared/collab-share';
+import { useCollabDocSharing, type CollabShareApiClient } from '@gruenerator/docs';
 import { type QueryKey } from '@tanstack/react-query';
 
 import apiClient from '../components/utils/apiClient';
@@ -11,7 +8,7 @@ export type {
   SharingShareSettings,
   SharingUserGroup,
   SharingGroupShare,
-} from '@gruenerator/shared/collab-share';
+} from '@gruenerator/docs';
 
 /** Adapts the apps/web axios client to the minimal client the shared hook needs. */
 const collabShareClient: CollabShareApiClient = {
@@ -30,13 +27,13 @@ interface UseDocumentSharingOptions {
 
 /**
  * apps/web binding of the shared collab-document sharing hook — supplies the
- * axios client; everything else lives in @gruenerator/shared/collab-share.
+ * axios client; everything else lives in @gruenerator/docs (collab-share).
  */
 export const useDocumentSharing = (
   documentId: string,
   { namespace, extraInvalidationKeys }: UseDocumentSharingOptions
 ) =>
-  useSharedDocumentSharing(documentId, {
+  useCollabDocSharing(documentId, {
     namespace,
     apiClient: collabShareClient,
     ...(extraInvalidationKeys ? { extraInvalidationKeys } : {}),

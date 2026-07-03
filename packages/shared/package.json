@@ -165,12 +165,6 @@
       "import": "./dist/chat/index.js",
       "default": "./dist/chat/index.js"
     },
-    "./collab-share": {
-      "development": "./src/collab-share/index.ts",
-      "types": "./src/collab-share/index.ts",
-      "import": "./dist/collab-share/index.js",
-      "default": "./dist/collab-share/index.js"
-    },
     "./models": {
       "development": "./src/models/index.ts",
       "types": "./src/models/index.ts",
@@ -199,7 +193,6 @@
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/core": "workspace:*",
-    "@gruenerator/ui": "workspace:*",
     "@ts-rest/core": "^3.52.1",
     "axios": "^1.17.0",
     "clsx": "^2.1.1",
