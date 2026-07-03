@@ -111,6 +111,13 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'web';
   }
 
+  // Same DE-only rule for the Bundestag DIP: it covers the Deutsche Bundestag
+  // only, never the Austrian Nationalrat — downgrade to web for de-AT users.
+  if (intent === 'bundestag' && state.userLocale === 'de-AT') {
+    log.info('[Classifier] bundestag downgraded to web for de-AT locale (DE-only source)');
+    intent = 'web';
+  }
+
   // ── URL context: pasted link(s) → additive scrape_url step ──
   // When the active agent has scraping enabled and the message contains URL(s),
   // crawl them so the page content becomes context. Additive, not exclusive:
