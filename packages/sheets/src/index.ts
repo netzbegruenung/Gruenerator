@@ -6,4 +6,7 @@ export {
   SHEET_SCHEMA_VERSION,
   type SheetMutationEntry,
 } from './lib/ydocSchema.js';
+export { applySheetOperations } from './ai/applySheetOperations.js';
+export { serializeSheetContext } from './ai/serializeSheetContext.js';
 export type { FUniver } from '@univerjs/presets';
+export type { FWorkbook } from '@univerjs/preset-sheets-core';

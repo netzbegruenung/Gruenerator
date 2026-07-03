@@ -1563,6 +1563,9 @@ importers:
 
   packages/sheets:
     dependencies:
+      '@gruenerator/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@univerjs/preset-sheets-core':
         specifier: 0.25.1
         version: 0.25.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(rxjs@7.8.2)

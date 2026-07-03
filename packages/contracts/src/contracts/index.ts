@@ -10,6 +10,7 @@ export { searchContract } from './searchContract.js';
 export { researchContract } from './researchContract.js';
 export { chatGraphContract } from './chatGraphContract.js';
 export { boardsContract } from './boardsContract.js';
+export { sheetsContract } from './sheetsContract.js';
 export { boardCommentsContract } from './boardCommentsContract.js';
 export { boardAgentContract } from './boardAgentContract.js';
 export { boardActivityContract } from './boardActivityContract.js';
