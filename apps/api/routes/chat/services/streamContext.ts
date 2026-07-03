@@ -42,7 +42,13 @@ import { enrichContext } from './contextEnrichmentService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
-import { getUser, createThread, createMessage } from './threadPersistenceService.js';
+import {
+  getUser,
+  createThread,
+  createMessage,
+  deleteMessagesFrom,
+  deleteTrailingAssistant,
+} from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
@@ -124,6 +130,9 @@ export async function buildStreamContext({
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
     threadId,
+    regenerate: rawRegenerate,
+    replaceFromMessageId: rawReplaceFromMessageId,
+    webpageUrls: rawWebpageUrls,
   } = body;
 
   // === Validate ===
@@ -330,14 +339,32 @@ export async function buildStreamContext({
       );
     }
 
-    const userText = extractTextContent(lastUserMessage.content);
-    await createMessage(
-      actualThreadId,
-      'user',
-      userText,
-      rawRoleName ? { roleName: rawRoleName } : undefined,
-      userId
-    );
+    // Regenerate / edit-resubmit: replace the last turn instead of appending,
+    // so chat_messages stays linear (no duplicate user rows / orphaned replies).
+    // Never truncates a brand-new thread (nothing to replace there).
+    if (!isNewThread) {
+      if (rawReplaceFromMessageId) {
+        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // In-session messages carry an AUI id that isn't a persisted row → the
+        // delete matches nothing; fall back to dropping the trailing reply.
+        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+      } else if (rawRegenerate) {
+        await deleteTrailingAssistant(actualThreadId);
+      }
+    }
+
+    // Regenerate keeps the existing (unchanged) user message; re-persisting it
+    // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
+    if (!rawRegenerate) {
+      const userText = extractTextContent(lastUserMessage.content);
+      await createMessage(
+        actualThreadId,
+        'user',
+        userText,
+        rawRoleName ? { roleName: rawRoleName } : undefined,
+        userId
+      );
+    }
   }
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
@@ -482,6 +509,7 @@ export async function buildStreamContext({
     boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
     wolkeFiles,
     connectFiles,
+    attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
