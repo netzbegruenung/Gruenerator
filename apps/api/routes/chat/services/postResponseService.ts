@@ -36,6 +36,7 @@ import type {
   SearchResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SocialPostPayload, SocialPostToolResult } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
@@ -49,6 +50,9 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   image: 'image_generate',
   image_edit: 'image_edit',
   sharepic: 'sharepic',
+  // EXPERIMENTAL combined post: persisted as TWO tool calls (sharepic +
+  // social_post) — see buildToolCalls.
+  social_post: 'social_post',
   scrape_url: 'scrape_url',
 };
 
@@ -85,7 +89,8 @@ type ToolCallResult =
   | ResearchToolResult
   | ImageToolCallResult
   | SharepicToolCallResult
-  | ScrapeToolCallResult;
+  | ScrapeToolCallResult
+  | SocialPostToolResult;
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -144,10 +149,49 @@ function buildToolCalls(
   classifiedState: ChatGraphState,
   finalState: ChatGraphState,
   generatedImage: GeneratedImageResult | null,
-  sharepicVariants: SharepicVariant[]
+  sharepicVariants: SharepicVariant[],
+  socialPost: SocialPostPayload | null = null
 ): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
+
+  // Combined post (EXPERIMENTAL): TWO tool calls. The plain `sharepic` call
+  // keeps threadMessageConversion rehydration and sharepicEditService target
+  // resolution working unchanged; the `social_post` call carries the text
+  // head + version history for the SocialPostCard.
+  if (toolName === 'social_post') {
+    const calls: PersistedToolCall[] = [];
+    const query = classifiedState.searchQuery || '';
+    if (sharepicVariants.length > 0) {
+      calls.push({
+        toolCallId: `tc_${Date.now()}_sharepic`,
+        toolName: 'sharepic',
+        args: { query },
+        result: { variants: sharepicVariants },
+      });
+    }
+    if (socialPost) {
+      calls.push({
+        toolCallId: `tc_${Date.now()}_social_post`,
+        toolName: 'social_post',
+        args: { query },
+        result: {
+          ...socialPost,
+          versions: [
+            {
+              text: socialPost.text,
+              hashtags: socialPost.hashtags,
+              charCount: socialPost.charCount,
+              version: socialPost.version,
+              summary: 'Erstellt',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      });
+    }
+    return calls.length > 0 ? calls : undefined;
+  }
 
   // scrape_url renders a link-preview card per crawled page. The frontend parser
   // reads `args.url` + `result.content`, so emit one tool call per result rather
@@ -205,6 +249,8 @@ export interface PersistParams {
   classifiedState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
+  /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
+  socialPost?: SocialPostPayload | null;
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
@@ -230,6 +276,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     classifiedState,
     generatedImage,
     sharepicVariants,
+    socialPost,
     isNewThread,
     lastUserMessage,
     processedMeta,
@@ -242,7 +289,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState, generatedImage, sharepicVariants);
+    const toolCalls = buildToolCalls(
+      classifiedState,
+      finalState,
+      generatedImage,
+      sharepicVariants,
+      socialPost ?? null
+    );
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,

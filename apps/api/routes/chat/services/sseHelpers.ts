@@ -27,6 +27,7 @@ import type {
   DocumentCreatedEvent,
   SearchResultPayload,
   ThinkingStepPayload,
+  SocialPostPayload,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -51,6 +52,9 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
+  | 'social_post_complete'
+  | 'social_post_updated'
+  | 'social_post_edit_error'
   | 'reel_processing'
   | 'reel_picker'
   | 'reel_updated'
@@ -167,6 +171,20 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
+  // Combined social post (EXPERIMENTAL): text half. Sharepic variants keep
+  // travelling via sharepic_complete so the whole variant machinery
+  // (mint/edit/live store) stays untouched.
+  social_post_complete: {
+    message: string;
+    post?: SocialPostPayload;
+    error?: string;
+  };
+  social_post_updated: {
+    postId: string;
+    post: SocialPostPayload;
+    summary: string;
+  };
+  social_post_edit_error: { postId?: string; error: string };
   // Reel branch (chat subtitle editing of subtitler projects). The frontend
   // polls GET /subtitler/auto-progress/:uploadId after reel_processing; full
   // segments travel via reel_updated only (compact tool results in the DB).
@@ -289,6 +307,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
+  social_post: ['Texte und gestalte...', 'Baue deinen Post...', 'Schreibe und gestalte...'],
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
   artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],
