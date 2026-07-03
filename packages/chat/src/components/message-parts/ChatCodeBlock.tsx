@@ -261,7 +261,10 @@ function CodeOutput({ output }: { output: CodeExecutionResult }) {
       </div>
       {figures.map((fig, i) => (
         <img
-          key={fig.slice(0, 24)}
+          // Index key on purpose: every PNG shares the same base64 prefix
+          // (signature + IHDR), so content-slice keys collide.
+          // eslint-disable-next-line react/no-array-index-key
+          key={i}
           src={`data:image/png;base64,${fig}`}
           alt={`Diagramm ${i + 1}`}
           className="mb-2 max-w-full rounded border border-border"
