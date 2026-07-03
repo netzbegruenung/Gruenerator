@@ -9,50 +9,33 @@
  *   mutations. Remote clients replay entries via the command service with
  *   `{ onlyLocal: true, fromCollab: true }` so they aren't re-broadcast.
  * - `sheetMeta` (Y.Map): `snapshot` (JSON string of IWorkbookData),
- *   `snapshotSeq` (highest seq folded into the snapshot), `seeded`,
- *   `schemaVersion`. Late joiners load the snapshot, then replay the log tail
- *   with seq > snapshotSeq.
+ *   `snapshotVector` (per-author high-water of what the snapshot folds in),
+ *   `seeded`, `schemaVersion`. Late joiners load the snapshot, then replay the
+ *   entries the vector does not yet cover.
  *
- * The snapshot is a JSON string (not nested Y types) because it is always
- * replaced wholesale — one Yjs item per snapshot lets old ones be GC'd.
+ * The schema itself + the pure helpers live in `@gruenerator/contracts` so the
+ * Univer-less API image shares one source of truth; this module re-exports
+ * them and adds the frontend-only transaction origins.
  */
 
-export const SHEET_YDOC_KEYS = {
-  mutations: 'sheetMutations',
-  meta: 'sheetMeta',
-} as const;
-
-export const SHEET_META_KEYS = {
-  snapshot: 'snapshot',
-  snapshotSeq: 'snapshotSeq',
-  seeded: 'seeded',
-  schemaVersion: 'schemaVersion',
-} as const;
-
-export const SHEET_SCHEMA_VERSION = 1;
+export {
+  SHEET_YDOC_KEYS,
+  SHEET_META_KEYS,
+  SHEET_SCHEMA_VERSION,
+  SHEET_MD_CELL_MAX,
+  isSheetMutationEntry,
+  isEntryCovered,
+  uncoveredEntries,
+  coveredPrefixCount,
+  coverEntry,
+  mergeVectors,
+  columnLabel,
+  escapeMarkdownCell,
+  type SheetMutationEntry,
+  type SnapshotVector,
+} from '@gruenerator/contracts';
 
 /** Transaction origins so our own observers can ignore our own writes. */
 export const SHEET_LOCAL_ORIGIN = 'gruenerator-sheets-local';
 export const SHEET_COMPACT_ORIGIN = 'gruenerator-sheets-compact';
 export const SHEET_SEED_ORIGIN = 'gruenerator-sheets-seed';
-
-export interface SheetMutationEntry {
-  /** Monotonic-ish ordering key; ties between concurrent clients are fine. */
-  seq: number;
-  /** ydoc.clientID of the author (fresh per session — live-echo guard only). */
-  clientId: number;
-  /** Univer mutation id, e.g. 'sheet.mutation.set-range-values'. */
-  id: string;
-  /** JSON-serializable mutation params (serializable by Univer's contract). */
-  params: unknown;
-  /** Wall-clock append time; used for idle-compaction heuristics only. */
-  ts: number;
-}
-
-export function isSheetMutationEntry(value: unknown): value is SheetMutationEntry {
-  if (typeof value !== 'object' || value === null) return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v['seq'] === 'number' && typeof v['id'] === 'string' && typeof v['clientId'] === 'number'
-  );
-}
