@@ -552,11 +552,14 @@ export async function executeIntentPipeline(opts: {
   let sharepicVariants: SharepicVariant[] = [];
   let socialPost: SocialPostPayload | null = null;
 
-  // Build ordered list of intents to execute (primary first, then secondary)
+  // Build ordered list of intents to execute (primary first, then secondary).
+  // social_post handles pasted URLs inline BEFORE text generation — a
+  // trailing scrape_url iteration would crawl after the post is written.
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
   if (
     classifiedState.secondaryIntent &&
-    classifiedState.secondaryIntent !== classifiedState.intent
+    classifiedState.secondaryIntent !== classifiedState.intent &&
+    !(classifiedState.intent === 'social_post' && classifiedState.secondaryIntent === 'scrape_url')
   ) {
     intentsToExecute.push(classifiedState.secondaryIntent);
     log.info(`[ChatGraph] Multi-intent: ${intentsToExecute.join(' → ')}`);
@@ -654,19 +657,48 @@ export async function executeIntentPipeline(opts: {
         state: ChatGraphState;
         post: SocialPostPayload;
       }> = (async () => {
-        // Ground the text on real posts first (same retrieval as `examples`);
-        // a failed search degrades gracefully — the composer prompt handles
-        // zero examples ("Keine Vorlagen verfügbar").
+        // Pasted URLs must ground the text ("schreib einen Tweet zu <URL>"),
+        // so crawl them HERE, before generation — the secondary-intent loop
+        // iteration would run only after the text already exists (it is
+        // skipped for social_post, see intentsToExecute above).
+        let urlContext: ChatGraphState['searchResults'] = [];
+        if ((stateForText.detectedUrls?.length ?? 0) > 0) {
+          try {
+            const scrape = await searchNode({
+              ...stateForText,
+              intent: 'scrape_url',
+            } as ChatGraphState);
+            urlContext = scrape.searchResults ?? [];
+          } catch (error) {
+            log.warn(`[ChatGraph] social_post URL crawl failed: ${error}`);
+          }
+        }
+        // Ground the text on real posts (same retrieval as `examples`) —
+        // unless the agent/user disabled the examples tool; the composer
+        // prompt handles zero examples ("Keine Vorlagen verfügbar"). A
+        // failed search degrades the same way.
         let textState = stateForText;
-        try {
-          const searchResult = await searchNode(stateForText);
-          textState = { ...stateForText, ...searchResult } as ChatGraphState;
-        } catch (error) {
-          log.warn(`[ChatGraph] social_post examples search failed: ${error}`);
+        const examplesEnabled = forcedTool || enabledTools?.['examples'] !== false;
+        if (examplesEnabled) {
+          try {
+            const searchResult = await searchNode(stateForText);
+            textState = { ...stateForText, ...searchResult } as ChatGraphState;
+          } catch (error) {
+            log.warn(`[ChatGraph] social_post examples search failed: ${error}`);
+          }
+        }
+        if (urlContext.length > 0) {
+          // Keep crawled pages on state too so citations persist with the turn.
+          textState = {
+            ...textState,
+            searchResults: [...(textState.searchResults ?? []), ...urlContext],
+            citations: [...(textState.citations ?? []), ...buildCitations(urlContext)],
+          } as ChatGraphState;
         }
         const { generateSocialPostText } = await import('./socialPostService.js');
         const post = await generateSocialPostText({
           state: textState,
+          urlContext,
           ...(opts.req && { req: opts.req }),
         });
         sse.send('social_post_complete', {
