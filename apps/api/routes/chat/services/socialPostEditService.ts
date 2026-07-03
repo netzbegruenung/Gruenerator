@@ -33,10 +33,18 @@ interface PostHit {
 }
 
 /**
- * Most recent assistant message carrying a `social_post` tool call. Newer
- * posts shadow older ones — an edit always targets the latest.
+ * Resolve the post an edit targets. With an explicit `postId` (the user
+ * activated a card — "Text im Chat bearbeiten"), that post wins wherever it
+ * sits in the thread. Without one, the NEWEST ARTIFACT wins: scanning
+ * newest-first, a sharepic-only message encountered before any social_post
+ * message means the user's ambient instruction ("kürzer") most plausibly
+ * targets that sharepic — return null so the sharepic edit/refinement paths
+ * take over instead of rewriting an older post.
  */
-export async function findLatestSocialPost(threadId: string): Promise<PostHit | null> {
+export async function findSocialPost(
+  threadId: string,
+  postId: string | null
+): Promise<PostHit | null> {
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT id, tool_results FROM chat_messages
@@ -51,8 +59,27 @@ export async function findLatestSocialPost(threadId: string): Promise<PostHit | 
     ) as { toolCalls?: Array<{ toolName?: string; result?: unknown }> } | null;
     const call = meta?.toolCalls?.find((tc) => tc?.toolName === 'social_post');
     const result = call?.result as SocialPostToolResult | undefined;
-    if (result?.postId && typeof result.text === 'string') {
-      return { post: result, messageId: row.id };
+    const isPost = result?.postId != null && typeof result.text === 'string';
+
+    if (postId != null) {
+      if (isPost && result.postId === postId) return { post: result, messageId: row.id };
+      continue;
+    }
+
+    if (isPost) return { post: result, messageId: row.id };
+    // Edit turns persist compact tool calls; they count as artifact activity.
+    // A text-edit turn re-targets its post explicitly (one-level recursion).
+    const editedPostId = (
+      meta?.toolCalls?.find((tc) => tc?.toolName === 'social_post_edit')?.result as
+        | { postId?: string }
+        | undefined
+    )?.postId;
+    if (editedPostId) return findSocialPost(threadId, editedPostId);
+    // Newer sharepic-only artifact shadows older posts (see doc comment).
+    if (
+      meta?.toolCalls?.some((tc) => tc?.toolName === 'sharepic' || tc?.toolName === 'sharepic_edit')
+    ) {
+      return null;
     }
   }
   return null;
@@ -98,6 +125,8 @@ export interface HandleSocialPostEditArgs {
   threadId: string;
   userId: string;
   instruction: string;
+  /** Explicitly activated post (card toggle) — overrides recency targeting. */
+  postId?: string | null;
   aiWorkerPool: AIWorkerPool;
   startTime: number;
   classificationTimeMs?: number;
@@ -145,7 +174,7 @@ export async function handleSocialPostTextEdit(args: HandleSocialPostEditArgs): 
   const { sse, req, threadId, instruction, aiWorkerPool } = args;
 
   try {
-    const hit = await findLatestSocialPost(threadId);
+    const hit = await findSocialPost(threadId, args.postId ?? null);
     if (!hit) return false;
 
     const { post, messageId } = hit;

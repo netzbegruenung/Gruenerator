@@ -6,6 +6,7 @@ import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
+import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
 import { streamErrorMessage } from '../streamErrorMessage';
 
@@ -589,6 +590,10 @@ export function createGrueneratorModelAdapter(
           if (!active) return null;
           const { variantId, canvasId, canvasType } = active;
           return { variantId, canvasId, canvasType };
+        })(),
+        currentSocialPost: (() => {
+          const active = useSocialPostLiveStore.getState().activePost;
+          return active ? { postId: active.postId } : null;
         })(),
         currentReel: (() => {
           const active = useReelLiveStore.getState().activeReel;

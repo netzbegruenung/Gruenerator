@@ -128,6 +128,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
         currentSharepic: rawCurrentSharepic,
+        currentSocialPost: rawCurrentSocialPost,
         currentReel: rawCurrentReel,
         reelUpload: rawReelUpload,
       } = args.body;
@@ -357,21 +358,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Social post TEXT edit (EXPERIMENTAL) ===
-      // "Mach den Text knackiger" on a thread whose latest combined post
-      // exists edits the PROSE, not the graphic. Must run BEFORE the sharepic
-      // edit branch: its EDIT_NOUN_PATTERN contains `text`, so it would
-      // hijack these instructions. Precedence: an explicitly activated
-      // sharepic (Sharepic-Modus, rawCurrentSharepic) always wins — then this
-      // branch — then sharepic-noun instructions ("Zeile 2 kürzer") fall
-      // through unchanged. Declines (returns false) when the thread has no
-      // social post.
+      // "Mach den Text knackiger" on a thread with a combined post edits the
+      // PROSE, not the graphic. Must run BEFORE the sharepic edit branch: its
+      // EDIT_NOUN_PATTERN contains `text`, so it would hijack these
+      // instructions. Precedence: a plain Sharepic-Modus (rawCurrentSharepic
+      // WITHOUT an activated post) wins — but when the user activated the
+      // combined post (rawCurrentSocialPost, which may set both), text-ish
+      // instructions edit the post and sharepic-noun instructions still fall
+      // through to the sharepic path. Declines (returns false) when the
+      // thread has no editable post.
       if (
         actualThreadId &&
         lastUserMessage &&
         imageAttachments.length === 0 &&
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced &&
-        rawCurrentSharepic == null
+        (rawCurrentSocialPost != null || rawCurrentSharepic == null)
       ) {
         const editText = ((extractTextContent(lastUserMessage.content) as string) || '').trim();
         if (editText && isSocialTextEditInstruction(editText)) {
@@ -381,6 +383,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             threadId: actualThreadId,
             userId,
             instruction: editText,
+            postId: rawCurrentSocialPost?.postId ?? null,
             aiWorkerPool,
             startTime: initialState.startTime,
             ...(classifiedState.classificationTimeMs != null && {
