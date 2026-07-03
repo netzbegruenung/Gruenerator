@@ -14,10 +14,8 @@ import {
 } from '@gruenerator/ui';
 import { SOCIAL_PLATFORM_INFO } from '@gruenerator/contracts';
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
-  Copy,
   Download,
   History,
   Loader2,
@@ -25,8 +23,8 @@ import {
   SquarePen,
   X,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
 
+import { CopyTextButton } from './message-parts/CopyTextButton';
 import { useSharepicArtifact } from '../hooks/useSharepicArtifact';
 import { useSliderDeckArtifact } from '../hooks/useSliderDeckArtifact';
 import { useSharepicLiveStore, type ActiveSharepic } from '../stores/sharepicLiveStore';
@@ -92,14 +90,6 @@ function PanelPostSection({ seed }: { seed: SocialPostPayload }) {
   const info = SOCIAL_PLATFORM_INFO[live.platform] ?? SOCIAL_PLATFORM_INFO.generic;
   const overLimit = live.charCount > info.maxChars;
 
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback(() => {
-    void navigator.clipboard.writeText(live.text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [live.text]);
-
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-background">
       <div className="flex items-center justify-between gap-2 border-b border-border px-2.5 py-1.5">
@@ -117,17 +107,11 @@ function PanelPostSection({ seed }: { seed: SocialPostPayload }) {
           {live.version > 1 && (
             <span className="text-xs text-foreground-muted">v{live.version}</span>
           )}
-          <button
-            onClick={copy}
+          <CopyTextButton
+            text={live.text}
+            ariaLabel="Post-Text kopieren"
             className="rounded p-1 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            aria-label="Post-Text kopieren"
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-primary" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-          </button>
+          />
         </div>
       </div>
       <div className="max-h-48 overflow-y-auto whitespace-pre-wrap px-2.5 py-2 text-xs text-foreground">

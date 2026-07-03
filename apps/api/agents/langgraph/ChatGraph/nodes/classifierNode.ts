@@ -39,6 +39,7 @@ import {
   SOCIAL_BARE_NOUN_PATTERN,
   SOCIAL_META_QUESTION_PATTERN,
   SHAREPIC_NOUN_PATTERN,
+  SHAREPIC_INCLUSION_PATTERN,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
@@ -666,9 +667,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       !looksLikeMetaQuestion &&
       (SOCIAL_CREATE_VERB_PATTERN.test(userContent) || SOCIAL_BARE_NOUN_PATTERN.test(userContent));
     if (looksLikeSocialCreation && userContent.length >= 10) {
-      if (SHAREPIC_NOUN_PATTERN.test(userContent)) {
+      if (
+        SHAREPIC_NOUN_PATTERN.test(userContent) &&
+        !SHAREPIC_INCLUSION_PATTERN.test(userContent)
+      ) {
         // "Sharepic für Instagram" — let the heuristic/LLM tiers route to the
-        // sharepic intent as before this feature.
+        // sharepic intent as before this feature. Inclusion phrasing
+        // ("Post mit Sharepic") stays here: it's the explicit combined ask.
         log.info('[Classifier] Social creation with explicit sharepic wording — deferring');
       } else {
         const escape = resolveSocialPostEscape(userContent);

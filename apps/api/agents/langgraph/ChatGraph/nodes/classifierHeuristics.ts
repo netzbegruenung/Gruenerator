@@ -32,6 +32,14 @@ export const SHAREPIC_ONLY_PATTERN =
 export const SHAREPIC_NOUN_PATTERN =
   /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
 
+/**
+ * "Post MIT Sharepic" / "inkl. Sharepic" is the explicit combined ask — the
+ * sharepic noun here is inclusion, not exclusion, so it must NOT act as a
+ * sharepic-only escape.
+ */
+export const SHAREPIC_INCLUSION_PATTERN =
+  /\b(mit|inkl\w*\.?|und|plus|samt)\s+(dazu\s+)?(ein(em)?\s+)?(passende[mn]?\s+)?(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|grafik)\b/i;
+
 const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
 const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
 // Mastodon/Bluesky share Twitter's 280-char budget (see prompts/social.json).
@@ -65,11 +73,15 @@ export const SOCIAL_META_QUESTION_PATTERN = /^\s*(wie|was|wer|warum|wieso|welche
 /**
  * Escape hatches for a message that would otherwise route to `social_post`:
  * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
- * explicit sharepic wording keeps the shipped sharepic-only flow.
+ * exclusionary sharepic wording keeps the shipped sharepic-only flow.
+ * Inclusion phrasing ("Post mit Sharepic") stays combined — it is the most
+ * explicit combined ask there is.
  */
 export function resolveSocialPostEscape(text: string): 'examples' | 'sharepic' | null {
   if (SOCIAL_TEXT_ONLY_PATTERN.test(text)) return 'examples';
-  if (SHAREPIC_ONLY_PATTERN.test(text) || SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
+  if (SHAREPIC_ONLY_PATTERN.test(text)) return 'sharepic';
+  if (SHAREPIC_INCLUSION_PATTERN.test(text)) return null;
+  if (SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
   return null;
 }
 
@@ -410,7 +422,11 @@ export function heuristicClassify(
   // spelling variants ("spruchbild", "zitatbild"). The specific variant
   // (zitat/dreizeilen/info) is resolved later in the execution path from the same
   // text — here we only need to route to the sharepic intent.
-  if (SHAREPIC_NOUN_PATTERN.test(q)) {
+  // "Post MIT Sharepic" is a combined ask — let the social_post rule below
+  // take it instead of the sharepic-only fast path.
+  const sharepicIsInclusion =
+    SHAREPIC_INCLUSION_PATTERN.test(q) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(q);
+  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion) {
     return {
       intent: 'sharepic',
       searchQuery: null,
