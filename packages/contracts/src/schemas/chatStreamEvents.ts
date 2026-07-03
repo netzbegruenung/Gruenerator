@@ -135,13 +135,26 @@ export const computePayloadSchema = z.object({
   summary: z.string(),
   /** base64-encoded PNGs (no data: prefix) of matplotlib figures the client
    *  produced during a run_python execution. Persisted in the message metadata
-   *  (same base64-in-metadata pattern as generatedImage) so charts survive a
-   *  reload. Client caps: max 3 figures, ≤1.5 MB base64 each. */
-  figures: z.array(z.string()).optional(),
+   *  so charts survive a reload. Caps are enforced HERE (the resume endpoint
+   *  is the trust boundary, express accepts 50mb bodies) and mirrored
+   *  client-side in capFigures: max 3 figures, ≤1.5 MB base64 each. */
+  figures: z.array(z.string().max(1_500_000)).max(3).optional(),
   /** Files the executed code wrote (exports like a cleaned CSV) — base64 so
    *  they persist in the message metadata and stay downloadable after a
-   *  reload. Client caps: max 2 files, ≤2 MB base64 each. */
-  files: z.array(z.object({ name: z.string(), b64: z.string() })).optional(),
+   *  reload. Caps mirrored from capComputeFiles: max 2 files, ≤2 MB each. */
+  files: z
+    .array(z.object({ name: z.string().max(255), b64: z.string().max(2_000_000) }))
+    .max(2)
+    .optional(),
+  /** SERVER-SET replacements for figures/files: after the resume endpoint
+   *  stores the base64 assets under uploads/compute-assets, the persisted
+   *  payload carries only these authenticated URLs. Client-sent values are
+   *  stripped by the resume handler — only the server mints them. */
+  figureUrls: z.array(z.string().max(500)).max(3).optional(),
+  fileAssets: z
+    .array(z.object({ name: z.string().max(255), url: z.string().max(500) }))
+    .max(2)
+    .optional(),
 });
 export type ComputeEntry = z.infer<typeof computeEntrySchema>;
 export type ComputePayload = z.infer<typeof computePayloadSchema>;

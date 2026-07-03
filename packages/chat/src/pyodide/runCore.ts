@@ -90,6 +90,26 @@ try:
     _gruen_ns
 except NameError:
     _gruen_ns = {}
+try:
+    _gruen_files_fp
+except NameError:
+    _gruen_files_fp = None
+
+# The worker is a page-lifetime singleton, so without a reset seam the
+# namespace (and old files in the FS) would leak ACROSS THREADS: switching to
+# a different spreadsheet could silently compute with the previous thread's
+# variables. The input-file fingerprint (names+sizes) is the session key —
+# when it changes, wipe the namespace and every stale file in the cwd.
+if __files_fp != _gruen_files_fp:
+    _gruen_ns = {}
+    _gruen_files_fp = __files_fp
+    _keep = set(__input_files)
+    for _n in os.listdir('.'):
+        if _n not in _keep and os.path.isfile(_n):
+            try:
+                os.remove(_n)
+            except OSError:
+                pass
 _ns = _gruen_ns
 
 # Snapshot the working directory (name → mtime) so files the USER CODE writes
@@ -104,9 +124,39 @@ for _n in os.listdir('.'):
     except OSError:
         pass
 
+# Block browser-bridge modules for USER code only (OpenWebUI pattern): 'js'
+# gives generated code DOM/network access. The guard checks the importer's
+# __name__ — our exec namespace has none — so library internals (micropip,
+# pyodide itself) keep working. Patched once per runtime.
+import builtins
+if not getattr(builtins, '_gruen_import_guarded', False):
+    _gruen_real_import = builtins.__import__
+    def _gruen_guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name.split('.')[0] in ('js', 'pyodide_js', 'pyodide'):
+            _imp = globals.get('__name__') if globals else None
+            if _imp in (None, '__main__'):
+                raise ImportError(f"Das Modul '{name}' ist im Interpreter nicht erlaubt.")
+        return _gruen_real_import(name, globals, locals, fromlist, level)
+    builtins.__import__ = _gruen_guarded_import
+    builtins._gruen_import_guarded = True
+
 if __setup_code:
     exec(__setup_code, _ns)
-exec(__user_code, _ns)
+
+# Jupyter semantics for the last statement: a bare trailing expression
+# (df.describe(), 1 + 1) prints its repr instead of vanishing — models on the
+# legacy path routinely omit the print().
+import ast
+_tree = ast.parse(__user_code)
+if _tree.body and isinstance(_tree.body[-1], ast.Expr):
+    _last = ast.Expression(_tree.body[-1].value)
+    _tree.body = _tree.body[:-1]
+    exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
+    _val = eval(compile(_last, '<gruenerator>', 'eval'), _ns)
+    if _val is not None:
+        print(repr(_val))
+else:
+    exec(compile(_tree, '<gruenerator>', 'exec'), _ns)
 
 _figures = []
 try:
@@ -204,6 +254,15 @@ export async function runPythonCore(
     py.globals.set(
       '__input_files',
       files.map((f) => f.name)
+    );
+    // Session key for the namespace-reset seam: a different file set (thread
+    // switch, replaced upload) wipes the persistent namespace + stale files.
+    py.globals.set(
+      '__files_fp',
+      files
+        .map((f) => `${f.name}:${f.bytes.byteLength}`)
+        .sort()
+        .join('|')
     );
 
     const harnessJson = (await py.runPythonAsync(HARNESS)) as string;

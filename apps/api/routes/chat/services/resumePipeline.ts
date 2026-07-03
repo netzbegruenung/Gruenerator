@@ -6,12 +6,17 @@
  * topic) or by running search + response generation for non-sharepic intents.
  */
 
-import { computePayloadSchema, type chatGraphContract } from '@gruenerator/contracts';
+import {
+  computePayloadSchema,
+  type ComputePayload,
+  type chatGraphContract,
+} from '@gruenerator/contracts';
 
 import {
   buildSystemMessage,
   briefGeneratorNode,
   pandasComputeNode,
+  computeVerifierNode,
   searchNode,
   rerankNode,
   buildCitations,
@@ -20,6 +25,8 @@ import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStre
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { persistComputeAssets } from './computeAssetStorage.js';
+import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
 import { executeIntentPipeline } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
@@ -113,22 +120,97 @@ export async function runChatGraphResume({
       // ground truth for respondNode (formatComputedResultContext). The
       // `compute` SSE event drives the inline "Berechnung" card.
       const parsed = computePayloadSchema.safeParse(resumeInput.result);
-      // A "successful" run can still be semantically broken: nan/empty values
-      // (wrong column, missing dropna — beta: "Produkt mit höchstem Gewinn:
-      // nan") take the correction round too. A figure-only run legitimately has
-      // an empty text entry — figures count as a real result.
-      const NANISH_VALUE = /^(nan|nat|none|null)?$/i;
-      const hasNanValues =
-        parsed.success &&
-        !parsed.data.figures?.length &&
-        parsed.data.entries.some((e) => NANISH_VALUE.test(e.value.trim()));
-      if (parsed.success && !hasNanValues) {
-        classifiedState.computedResult = parsed.data;
+      // Asset URLs are SERVER-minted only (they render as <img>/<a> in the
+      // card) — strip anything the client sent, then move the capped base64
+      // figures/exports to uploads/compute-assets so the message metadata
+      // carries small authenticated URLs instead of megabytes of base64.
+      let payload: ComputePayload | null = null;
+      if (parsed.success) {
+        const { figureUrls: _cfu, fileAssets: _cfa, ...clientSafe } = parsed.data;
+        payload = await persistComputeAssets(user.id, clientSafe);
+      }
+      const hasNanValues = payload != null && hasBrokenComputeValues(payload);
+
+      const seedComputedResult = (data: (typeof classifiedState)['computedResult']) => {
+        classifiedState.computedResult = data;
         classifiedState.computedResultFresh = true;
-        sse.send('compute', { compute: parsed.data });
+        if (data) sse.send('compute', { compute: data });
+      };
+
+      // Correction round (OpenWebUI-style, bounded to 1 retry total): give the
+      // codegen model the failed code + a failure/plausibility hint and pause
+      // the turn again — the client executes the corrected code and resumes.
+      // Returns true when the turn was re-interrupted (caller must return).
+      const tryCorrectionRound = async (errorText: string): Promise<boolean> => {
+        const retries = classifiedState.pandasComputeRetries ?? 0;
+        if (retries >= 1) return false;
+        classifiedState.aiWorkerPool = aiWorkerPool;
+        const { pythonCode } = await pandasComputeNode(classifiedState, {
+          ...(classifiedState.pandasLastCode != null && {
+            previousCode: classifiedState.pandasLastCode,
+          }),
+          previousError: errorText,
+        });
+        if (!pythonCode) return false;
+
+        classifiedState.pandasComputeRetries = retries + 1;
+        classifiedState.pandasLastCode = pythonCode;
+        log.info(`[ChatGraph:Resume] run_python correction round (${pythonCode.length} chars)`);
+
+        // State FIRST, then the interrupt: if Redis fails here the client has
+        // not been promised a resume it can never complete.
+        await pipelineStateStore.store(threadId, { classifiedState, requestContext });
+        sse.sendRaw('thinking_step', {
+          stepId: `run_python_retry_${Date.now()}`,
+          toolName: 'run_python',
+          title: 'Korrigiere Berechnung…',
+          status: 'in_progress',
+          args: { code: pythonCode },
+        });
+        sse.send('interrupt', {
+          interruptType: 'client_tool',
+          toolName: 'run_python',
+          args: { code: pythonCode },
+          threadId,
+        });
+        sse.send('done', {
+          threadId,
+          citations: [],
+          interrupted: true,
+          metadata: {
+            intent: classifiedState.intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - (classifiedState.startTime || Date.now()),
+            searchTimeMs: 0,
+          },
+        });
+        sse.end();
+        return true;
+      };
+
+      if (payload && !hasNanValues) {
+        // Plausibility check (fail-open, once per turn, shares the correction
+        // budget): catches code that RAN fine but answered the wrong question
+        // — beta: doubled totals, wrong column for "höchster Gewinn".
+        if ((classifiedState.pandasComputeRetries ?? 0) < 1 && classifiedState.pandasLastCode) {
+          classifiedState.aiWorkerPool = aiWorkerPool;
+          const verdict = await computeVerifierNode(classifiedState, payload);
+          if (!verdict.plausible) {
+            const hint =
+              verdict.hint ?? 'Das Ergebnis passt nicht zur Frage — prüfe Spaltenwahl/Gruppierung.';
+            // Stash the SUCCESSFUL result: the verifier is fallible, and if the
+            // corrected code then fails we fall back to this instead of losing
+            // a working computation entirely.
+            classifiedState.pandasComputeFallback = payload;
+            if (await tryCorrectionRound(`Plausibilitätsprüfung fehlgeschlagen: ${hint}`)) {
+              return { status: 200 as const, body: undefined };
+            }
+          }
+        }
+        seedComputedResult(payload);
       } else {
-        const errorText = parsed.success
-          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${parsed.data.summary.slice(0, 300)}`
+        const errorText = payload
+          ? `Der Code lief durch, aber das Ergebnis enthält nan/leere Werte — vermutlich falsche Spaltenwahl oder fehlendes dropna(). Ausgabe: ${payload.summary.slice(0, 300)}`
           : resumeInput.result != null &&
               typeof resumeInput.result === 'object' &&
               'error' in resumeInput.result
@@ -136,61 +218,17 @@ export async function runChatGraphResume({
             : 'invalid payload';
         log.warn(`[ChatGraph:Resume] run_python failed client-side: ${errorText.slice(0, 200)}`);
 
-        // Error-correction round (OpenWebUI-style, bounded to 1 retry): give
-        // the codegen model the failed code + error message and pause the turn
-        // again — the client executes the corrected code and resumes. If the
-        // retry budget is spent or codegen declines, fall through to a normal
-        // respond without computedResult (legacy prompt-guidance fallback).
-        const retries = classifiedState.pandasComputeRetries ?? 0;
-        if (retries < 1) {
-          classifiedState.aiWorkerPool = aiWorkerPool;
-          const { pythonCode } = await pandasComputeNode(classifiedState, {
-            ...(classifiedState.pandasLastCode != null && {
-              previousCode: classifiedState.pandasLastCode,
-            }),
-            previousError: errorText,
-          });
-          if (pythonCode) {
-            classifiedState.pandasComputeRetries = retries + 1;
-            classifiedState.pandasLastCode = pythonCode;
-            log.info(`[ChatGraph:Resume] run_python correction round (${pythonCode.length} chars)`);
-
-            sse.sendRaw('thinking_step', {
-              stepId: `run_python_retry_${Date.now()}`,
-              toolName: 'run_python',
-              title: 'Korrigiere Berechnung…',
-              status: 'in_progress',
-              args: { code: pythonCode },
-            });
-            sse.send('interrupt', {
-              interruptType: 'client_tool',
-              toolName: 'run_python',
-              args: { code: pythonCode },
-              threadId,
-            });
-            await pipelineStateStore.store(threadId, { classifiedState, requestContext });
-            sse.send('done', {
-              threadId,
-              citations: [],
-              interrupted: true,
-              metadata: {
-                intent: classifiedState.intent,
-                searchCount: 0,
-                totalTimeMs: Date.now() - (classifiedState.startTime || Date.now()),
-                searchTimeMs: 0,
-              },
-            });
-            sse.end();
-            return { status: 200 as const, body: undefined };
-          }
+        if (await tryCorrectionRound(errorText)) {
+          return { status: 200 as const, body: undefined };
         }
-        // Correction budget spent or codegen declined: if the payload itself
-        // was valid (nan case), still hand it to the model — an answer that
-        // names the nan beats silently dropping the computation.
-        if (parsed.success) {
-          classifiedState.computedResult = parsed.data;
-          classifiedState.computedResultFresh = true;
-          sse.send('compute', { compute: parsed.data });
+        // Correction budget spent or codegen declined: hand the model the best
+        // available result — the valid-but-nan payload, or the stashed result
+        // a fallible verifier sent into a correction round that then failed.
+        if (payload) {
+          seedComputedResult(payload);
+        } else if (classifiedState.pandasComputeFallback) {
+          log.info('[ChatGraph:Resume] correction failed — falling back to the original result');
+          seedComputedResult(classifiedState.pandasComputeFallback);
         }
       }
     }

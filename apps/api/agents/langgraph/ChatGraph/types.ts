@@ -570,6 +570,10 @@ export interface ChatGraphState {
    *  handler can regenerate with the failure in context. */
   pandasComputeRetries?: number | undefined;
   pandasLastCode?: string | undefined;
+  /** Successful result stashed before a verifier-triggered correction round —
+   *  if the "corrected" code then fails, the turn falls back to this instead
+   *  of ending with no computation at all. */
+  pandasComputeFallback?: ComputeData | undefined;
 
   // Combined social post (EXPERIMENTAL): text half of the `social_post`
   // intent. Set by generateSocialPostText in the execution stage; persisted
