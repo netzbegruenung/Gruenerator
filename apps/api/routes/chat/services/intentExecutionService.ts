@@ -164,8 +164,7 @@ export async function handleSheetCreation(opts: {
 }): Promise<boolean> {
   const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
 
-  sse.send('response_start', { message: 'Erstelle Tabelle...' });
-
+  let streamOpened = false;
   try {
     const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
       await import('../../../services/sheets/SheetGenerationService.js');
@@ -183,9 +182,15 @@ export async function handleSheetCreation(opts: {
     const structure =
       genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
     if (!structure) {
+      // Nothing streamed yet — return false so the caller falls through to the
+      // normal respond pipeline cleanly (no dangling response_start).
       log.warn('[ChatGraph] Sheet generation returned no parseable structure');
       return false;
     }
+
+    // Only open the stream once we know we're committing to the sheet.
+    sse.send('response_start', { message: 'Erstelle Tabelle...' });
+    streamOpened = true;
 
     const newSheet = await createSheetDocument(structure, userId);
 
@@ -236,6 +241,19 @@ export async function handleSheetCreation(opts: {
     log.error(
       `[ChatGraph] Sheet creation failed: ${sheetErr instanceof Error ? sheetErr.message : String(sheetErr)}`
     );
+    if (streamOpened) {
+      // The stream is already open; don't fall through (that would double the
+      // response). Close it with a short error message instead.
+      const msg = 'Die Tabelle konnte nicht erstellt werden.';
+      sse.send('text_delta', { text: msg });
+      sse.sendRaw('done', {
+        threadId: actualThreadId,
+        citations: [],
+        metadata: { intent: 'create_sheet' },
+      });
+      sse.end();
+      return true;
+    }
     return false;
   }
 }

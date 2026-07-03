@@ -16,6 +16,19 @@
 import { promisify } from 'util';
 import { gunzip, gzip } from 'zlib';
 
+// The Y.Doc schema + pure formatting helpers come from @gruenerator/contracts
+// (Univer-free), so the seed/reader here and the editor in @gruenerator/sheets
+// share one source of truth without pulling Univer into the API image.
+import {
+  SHEET_META_KEYS,
+  SHEET_SCHEMA_VERSION,
+  SHEET_YDOC_KEYS,
+  columnLabel,
+  escapeMarkdownCell,
+  isSheetMutationEntry,
+  uncoveredEntries,
+  type SnapshotVector,
+} from '@gruenerator/contracts';
 import * as Y from 'yjs';
 
 import { collaborative_documents_init } from '../../database/schema/collaborative.js';
@@ -28,19 +41,6 @@ const gunzipAsync = promisify(gunzip);
 const log = createLogger('SheetGeneration');
 
 const SHEETS_SUBTYPE = 'sheets';
-
-// Y.Doc layout of a sheet document. Duplicated from
-// packages/sheets/src/lib/ydocSchema.ts on purpose: importing
-// @gruenerator/sheets would pull the whole Univer dependency tree into the
-// API image; the seed/reader only need the raw data shapes.
-const SHEET_YDOC_KEYS = { mutations: 'sheetMutations', meta: 'sheetMeta' } as const;
-const SHEET_META_KEYS = {
-  snapshot: 'snapshot',
-  snapshotSeq: 'snapshotSeq',
-  seeded: 'seeded',
-  schemaVersion: 'schemaVersion',
-} as const;
-const SHEET_SCHEMA_VERSION = 1;
 
 export const SHEET_GENERATION_PROMPT = `Du bist ein Tabellen-Assistent für die Grünen. Erstelle eine vollständige Tabelle (Spreadsheet) basierend auf der Beschreibung.
 
@@ -188,7 +188,8 @@ export async function createSheetDocument(
     const meta = ydoc.getMap<unknown>(SHEET_YDOC_KEYS.meta);
     ydoc.transact(() => {
       meta.set(SHEET_META_KEYS.snapshot, JSON.stringify(buildWorkbookSnapshot(id, structure)));
-      meta.set(SHEET_META_KEYS.snapshotSeq, -1);
+      // Empty vector: the snapshot IS the content and there are no log entries.
+      meta.set(SHEET_META_KEYS.snapshotVector, {});
       meta.set(SHEET_META_KEYS.seeded, true);
       meta.set(SHEET_META_KEYS.schemaVersion, SHEET_SCHEMA_VERSION);
     });
@@ -217,12 +218,62 @@ export interface LoadedSheetState {
   } | null;
 }
 
+function readSnapshotVector(yMeta: Y.Map<unknown>): SnapshotVector {
+  const raw = yMeta.get(SHEET_META_KEYS.snapshotVector);
+  if (typeof raw !== 'object' || raw === null) return {};
+  const out: SnapshotVector = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number') out[key] = value;
+  }
+  return out;
+}
+
+interface SetRangeValuesParams {
+  subUnitId?: string;
+  cellValue?: Record<string, Record<string, CellData | null | undefined> | undefined>;
+}
+
+/**
+ * Best-effort application of the uncovered mutation-log tail onto the JSON
+ * workbook, so @sheet context reflects edits made since the last compaction
+ * (the snapshot alone can be arbitrarily stale — compaction may never have
+ * run). Only `sheet.mutation.set-range-values` is interpreted (the dominant
+ * mutation from typing and AI setValues/setFormula); structural mutations
+ * (insert/remove row/col) are skipped, leaving that region approximate.
+ */
+function applyLogTailToWorkbook(ydoc: Y.Doc, workbook: NonNullable<LoadedSheetState['workbook']>) {
+  const sheets = workbook.sheets;
+  if (!sheets) return;
+  const yMeta = ydoc.getMap<unknown>(SHEET_YDOC_KEYS.meta);
+  const vector = readSnapshotVector(yMeta);
+  const log = ydoc
+    .getArray<unknown>(SHEET_YDOC_KEYS.mutations)
+    .toArray()
+    .filter(isSheetMutationEntry);
+  for (const entry of uncoveredEntries(log, vector)) {
+    if (entry.id !== 'sheet.mutation.set-range-values') continue;
+    const params = entry.params as SetRangeValuesParams;
+    const sheetId = params.subUnitId;
+    if (!sheetId) continue;
+    const sheet = sheets[sheetId];
+    if (!sheet) continue;
+    const cellData = (sheet.cellData ??= {});
+    for (const [rowKey, rowObj] of Object.entries(params.cellValue ?? {})) {
+      if (!rowObj) continue;
+      const row = (cellData[rowKey] ??= {});
+      for (const [colKey, cell] of Object.entries(rowObj)) {
+        if (cell === null || cell === undefined) delete row[colKey];
+        else row[colKey] = cell;
+      }
+    }
+  }
+}
+
 /**
  * Server-side read of a sheet's current state for @mention context. Loads the
- * Y.Doc (snapshot + updates, like loadBoardYjsDoc) and extracts the workbook
- * snapshot from sheetMeta. Log-tail mutations since the last compaction are
- * NOT replayed here (that needs Univer) — the snapshot is at most one
- * compaction interval stale, which is fine for chat context.
+ * Y.Doc (snapshot + updates, like loadBoardYjsDoc), extracts the workbook
+ * snapshot from sheetMeta, then folds in the uncovered mutation-log tail so
+ * recent (uncompacted) edits are reflected.
  */
 export async function loadSheetState(
   sheetId: string,
@@ -294,21 +345,22 @@ export async function loadSheetState(
       workbook = null;
     }
   }
+  if (workbook) {
+    try {
+      applyLogTailToWorkbook(ydoc, workbook);
+    } catch (err) {
+      // Non-fatal: fall back to the (possibly stale) snapshot on any surprise
+      // in the mutation params shape.
+      log.warn(
+        `Failed to fold sheet log tail for ${sheetId}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
   return { id: sheetId, title, workbook };
 }
 
 const MAX_CONTEXT_ROWS = 50;
 const MAX_CONTEXT_COLS = 20;
-
-function columnLabel(index: number): string {
-  let label = '';
-  let i = index;
-  while (i >= 0) {
-    label = String.fromCharCode(65 + (i % 26)) + label;
-    i = Math.floor(i / 26) - 1;
-  }
-  return label;
-}
 
 /** Render a loaded sheet as markdown tables for LLM context injection. */
 export function formatSheetAsContext(state: LoadedSheetState): string {
@@ -346,8 +398,7 @@ export function formatSheetAsContext(state: LoadedSheetState): string {
       const cells = [`${r + 1}`];
       for (let c = 0; c < cols; c++) {
         const cell = sheet.cellData[r]?.[c];
-        const rendered = cell?.f ?? cell?.v ?? '';
-        cells.push(String(rendered).replaceAll('|', '\\|').replaceAll('\n', ' ').slice(0, 100));
+        cells.push(escapeMarkdownCell(cell?.f ?? cell?.v ?? ''));
       }
       lines.push(`| ${cells.join(' | ')} |`);
     }
