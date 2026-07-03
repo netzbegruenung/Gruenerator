@@ -1,5 +1,5 @@
+import { CollaboratorList, GroupShareControls } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { CollaboratorList, GroupShareControls } from '@gruenerator/shared/collab-share';
 import {
   Button,
   Dialog,
