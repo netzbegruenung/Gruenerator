@@ -14,8 +14,17 @@ export function hasBrokenComputeValues(payload: {
   entries: Array<{ value: string }>;
   figures?: string[] | undefined;
   files?: Array<{ name: string; b64: string }> | undefined;
+  figureUrls?: string[] | undefined;
+  fileAssets?: Array<{ name: string; url: string }> | undefined;
 }): boolean {
-  if (payload.figures?.length || payload.files?.length) return false;
+  if (
+    payload.figures?.length ||
+    payload.files?.length ||
+    payload.figureUrls?.length ||
+    payload.fileAssets?.length
+  ) {
+    return false;
+  }
   const values = payload.entries.map((e) => e.value.trim());
   if (values.length === 0) return true;
   const NANISH = /^(nan|nat|none|null)$/i;

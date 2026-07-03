@@ -558,12 +558,16 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 function formatComputedResultContext(computedResult: ChatGraphState['computedResult']): string {
   if (!computedResult) return '';
   const lines = computedResult.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
-  const figureCount = computedResult.figures?.length ?? 0;
+  const figureCount =
+    (computedResult.figures?.length ?? 0) + (computedResult.figureUrls?.length ?? 0);
   const figureNote =
     figureCount > 0
       ? `\n${figureCount === 1 ? 'Ein Diagramm wurde' : `${figureCount} Diagramme wurden`} bei der Berechnung erstellt und der*dem Nutzer*in bereits angezeigt — erwähne das kurz und erstelle KEIN weiteres Diagramm.`
       : '';
-  const fileNames = computedResult.files?.map((f) => f.name) ?? [];
+  const fileNames = [
+    ...(computedResult.files?.map((f) => f.name) ?? []),
+    ...(computedResult.fileAssets?.map((f) => f.name) ?? []),
+  ];
   const fileNote =
     fileNames.length > 0
       ? `\nFolgende Datei${fileNames.length === 1 ? ' wurde' : 'en wurden'} erstellt und ${fileNames.length === 1 ? 'steht' : 'stehen'} der*dem Nutzer*in bereits zum Download bereit: ${fileNames.join(', ')} — erwähne das kurz.`
