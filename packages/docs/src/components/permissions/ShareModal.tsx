@@ -1,4 +1,5 @@
-import { ShareDialogBody, useDocumentSharing } from '@gruenerator/shared/collab-share';
+import { ShareDialogBody } from '../../collab-share/components/ShareDialogBody';
+import { useDocumentSharing } from '../../collab-share/useDocumentSharing';
 import { Button } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 

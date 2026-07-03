@@ -106,3 +106,8 @@ export { isChunkLoadError } from './utils/chunkErrors';
 
 // Icons
 export { DocsIcon } from './components/icons/DocsIcon';
+
+// Collaborative-document sharing (docs, boards, canvas, sheets) — lives here
+// rather than @gruenerator/shared because the components need @gruenerator/ui,
+// which the API/MCP/hocuspocus Docker builds of shared don't ship.
+export * from './collab-share';

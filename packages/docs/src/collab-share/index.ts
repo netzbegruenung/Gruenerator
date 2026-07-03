@@ -1,6 +1,5 @@
 /**
  * Sharing for collaborative documents (docs, boards, canvas, sheets).
- * Not to be confused with `src/share/` (social-media share tokens).
  */
 
 export type {
@@ -15,7 +14,10 @@ export type {
 
 export { SHARE_MODE_OPTIONS, PERMISSION_LEVEL_LABELS } from './constants.js';
 
-export { useDocumentSharing, type DocumentSharing } from './useDocumentSharing.js';
+export {
+  useDocumentSharing as useCollabDocSharing,
+  type DocumentSharing,
+} from './useDocumentSharing.js';
 
 export { ShareDialogBody } from './components/ShareDialogBody.js';
 export { ShareModeSelect } from './components/ShareModeSelect.js';
