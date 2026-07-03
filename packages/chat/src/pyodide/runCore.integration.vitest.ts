@@ -161,6 +161,78 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Gesamtgewinn: 42');
   }, 180_000);
 
+  it('drops the trailing GESAMT row of a real user xlsx (doubled-sum regression)', async () => {
+    // The actual file behind the beta ground-truth failure: 60 data rows, one
+    // blank row, then a detached GESAMT row with SUM formulas ("GESAMT:" in
+    // the Verkäufer column). Without the guard, df["Umsatz"].sum() returned
+    // exactly 2x (295167.572) and groupby("Verkäufer") grew a "GESAMT:" group.
+    const bytes = readFileSync(path.join(__dirname, 'fixtures/mathe_test_tabelle.xlsx'));
+    const file: PythonFile = {
+      name: 'mathe_test_tabelle.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    };
+    const result = await runPythonCore(
+      py,
+      [
+        'print("Zeilen:", len(df))',
+        'print("Gesamtumsatz:", round(df["Umsatz"].sum(), 2))',
+        'print("GesamtGruppe:", int("GESAMT:" in df.groupby("Verkäufer")["Umsatz"].sum().index))',
+      ].join('\n'),
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Hinweis: 1 Summen-/Gesamtzeile(n)');
+    expect(result.stdout).toContain('Zeilen: 60');
+    expect(result.stdout).toContain('Gesamtumsatz: 147583.79');
+    expect(result.stdout).toContain('GesamtGruppe: 0');
+  }, 180_000);
+
+  it('drops a directly attached total row in a CSV (no blank row, no label)', async () => {
+    const file = csvFile('mit-summe.csv', 'Produkt;Umsatz\nA;10\nB;20\nC;30\nD;40\n;100\n');
+    const result = await runPythonCore(
+      py,
+      'print("Summe:", int(df["Umsatz"].sum()))\nprint("Zeilen:", len(df))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 100');
+    expect(result.stdout).toContain('Zeilen: 4');
+    expect(result.stdout).toContain('Hinweis:');
+  }, 120_000);
+
+  it('removes trailing sum AND mean rows together (aggregate block)', async () => {
+    const file = csvFile(
+      'mit-summe-und-mittel.csv',
+      'Produkt;Umsatz\nA;10\nB;20\nC;30\nD;40\nGesamt;100\nMittelwert;25\n'
+    );
+    const result = await runPythonCore(
+      py,
+      'print("Summe:", int(df["Umsatz"].sum()))\nprint("Zeilen:", len(df))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 100');
+    expect(result.stdout).toContain('Zeilen: 4');
+  }, 120_000);
+
+  it('leaves tables without aggregate rows untouched', async () => {
+    const file = csvFile('ohne-summe.csv', 'Produkt;Umsatz\nA;10\nB;20\nC;30\nD;40\nE;55\n');
+    const result = await runPythonCore(
+      py,
+      'print("Summe:", int(df["Umsatz"].sum()))\nprint("Zeilen:", len(df))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 155');
+    expect(result.stdout).toContain('Zeilen: 5');
+    expect(result.stdout).not.toContain('Hinweis:');
+  }, 120_000);
+
   it('keeps variables alive across runs (notebook semantics)', async () => {
     // Models write follow-up code referencing earlier blocks' variables
     // (beta: "NameError: name 'top' is not defined") — the harness namespace
