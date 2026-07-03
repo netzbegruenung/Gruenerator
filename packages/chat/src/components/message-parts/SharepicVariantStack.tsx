@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
 
 import { sharepicLabel } from '../../hooks/useSharepicArtifact';
@@ -83,7 +83,7 @@ export function SharepicVariantStack({ data }: SharepicVariantStackProps) {
   );
 }
 
-export function SharepicVariantThumb({
+export const SharepicVariantThumb = memo(function SharepicVariantThumb({
   variant,
   isSelected,
   onSelect,
@@ -123,4 +123,4 @@ export function SharepicVariantThumb({
       </span>
     </button>
   );
-}
+});
