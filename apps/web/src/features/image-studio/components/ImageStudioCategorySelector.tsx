@@ -1,3 +1,4 @@
+import { isCanvasTemplateType } from '@gruenerator/contracts';
 import { AIPromptInput, CardGrid, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { Download, Share2 } from 'lucide-react';
@@ -224,6 +225,15 @@ const ImageStudioCategorySelector: React.FC = () => {
 
         if (result.isKiType) {
           void navigate(`/imagine/pure-create`);
+          return;
+        }
+
+        // Boundary guard: SharepicType statically includes KI ids and the API
+        // response is cast — validate against the canonical canvas enum before
+        // it can reach the studio store / mint.
+        if (!isCanvasTemplateType(result.type)) {
+          console.warn('[ImageStudioCategorySelector] non-canonical sharepic type:', result.type);
+          setGenerationError('Unbekannter Vorlagentyp — bitte erneut versuchen.');
           return;
         }
 

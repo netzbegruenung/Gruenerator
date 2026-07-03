@@ -1,3 +1,4 @@
+import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
@@ -490,7 +491,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
 
     // Load data from AI-generated prompt (from ImageStudio chat input)
     loadFromAIGeneration: (
-      sharepicType: string,
+      sharepicType: CanvasTemplateType,
       generatedData: Record<string, string>,
       selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null
     ) => {
