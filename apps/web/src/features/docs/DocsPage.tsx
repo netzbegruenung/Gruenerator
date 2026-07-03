@@ -171,8 +171,6 @@ function DocumentsContent() {
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
-  // Univer spreadsheets — gated until the editor package ships (PR 3).
-  const sheetsEnabled = import.meta.env.VITE_ENABLE_SHEETS === 'true';
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
 
@@ -454,7 +452,7 @@ function DocumentsContent() {
           onShowGallery={() => setShowGallery(true)}
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
-          {...(sheetsEnabled ? { onCreateSheet: () => void handleCreateSheet() } : {})}
+          onCreateSheet={() => void handleCreateSheet()}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 
