@@ -20,6 +20,7 @@ import { ComputeCard } from '../message-parts/ComputeCard';
 import { ChatChart } from '../message-parts/ChatChart';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
+import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
@@ -228,7 +229,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
             />
           ))}
 
-        {custom?.sharepicData && !custom?.generatedImage && (
+        {custom?.socialPostData && (
+          <SocialPostCard
+            post={custom.socialPostData}
+            {...(custom.sharepicData ? { sharepicData: custom.sharepicData } : {})}
+          />
+        )}
+        {custom?.sharepicData && !custom?.generatedImage && !custom?.socialPostData && (
           <SharepicVariantStack data={custom.sharepicData} />
         )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}

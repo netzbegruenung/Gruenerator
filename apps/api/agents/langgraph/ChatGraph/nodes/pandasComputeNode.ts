@@ -38,6 +38,9 @@ Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
+- Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
+- Enthält die Tabelle bereits eine Spalte für die gefragte Größe (z.B. "Umsatz"), verwende NUR diese Spalte — leite sie NICHT zusätzlich aus anderen Spalten her (z.B. Menge*Einzelpreis) und addiere niemals beides.
+- Wünscht der*die Nutzer*in eine Datei/einen Export, schreibe sie ins Arbeitsverzeichnis (z.B. df.to_csv("export.csv", index=False)) und printe danach "Datei erstellt: export.csv" — die Datei wird automatisch zum Download angeboten.
 - Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
 - Wenn die Frage NICHTS mit den Tabellendaten zu tun hat (z.B. Allgemeinwissen, Textaufgaben ohne Bezug zu \`df\`), antworte mit {"related": false, "code": ""}`;
 
@@ -90,8 +93,9 @@ function buildTableContext(state: ChatGraphState): string {
 
 /** The user's RAW last message. Preferred over searchQuery: when the router's
  *  regex gate fires on a search-classified follow-up, searchQuery holds the
- *  retrieval-optimized rewrite — codegen must answer the actual question. */
-function lastUserText(state: ChatGraphState): string {
+ *  retrieval-optimized rewrite (or null for direct/summary/chart intents) —
+ *  codegen AND the verifier must judge against the actual question. */
+export function lastUserText(state: ChatGraphState): string {
   const msg = [...state.messages].reverse().find((m) => m.role === 'user');
   return msg ? extractMessageText(msg.content) : '';
 }

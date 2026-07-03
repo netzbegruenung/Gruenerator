@@ -13,6 +13,7 @@ import {
 import { getParam } from '../../utils/params.js';
 
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
+import computeAssetsRouter from './computeAssetsController.js';
 import confirmRouter from './confirmController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
@@ -30,6 +31,7 @@ router.use('/notebook/stream', notebookStreamRouter);
 router.use('/summarize', summarizeRouter);
 router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
+router.use('/compute-assets', computeAssetsRouter);
 router.use('/search', searchRouter);
 
 router.get('/agents', async (req: Request, res: Response): Promise<void> => {
