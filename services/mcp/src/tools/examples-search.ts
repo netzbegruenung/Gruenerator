@@ -3,12 +3,13 @@
  * Searches for social media examples (Instagram, Facebook) from Green Party
  */
 
-import { getQdrantCollectionName } from '@gruenerator/shared/search/collections';
 import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
 import { z } from 'zod';
 
+import { getQdrantCollectionName } from '../catalog.ts';
 import { generateEmbedding } from '../embeddings.ts';
 import { getQdrantClient } from '../qdrant/client.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 
 const COLLECTION_NAME = getQdrantCollectionName('examples') || 'social_media_examples';
 const DEFAULT_THRESHOLD = 0.15;
@@ -128,9 +129,18 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         examples: dedupedExamples,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[ExamplesSearch] Error:', message);
+      const { detail, isConnection } = classifyError(err);
+      console.error(`[ExamplesSearch] Error: ${detail}`);
 
+      if (isConnection) {
+        return connectionErrorResponse(
+          detail,
+          { query, platform, country, resultsCount: 0, examples: [] },
+          'Die Beispiel-Datenbank'
+        );
+      }
+
+      const message = err instanceof Error ? err.message : String(err);
       // Check if collection doesn't exist
       if (message.includes('Not found') || message.includes('not found')) {
         return {

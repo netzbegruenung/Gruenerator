@@ -16,6 +16,7 @@ import {
   type SheetMutationEntry,
   type SnapshotVector,
 } from '../lib/ydocSchema.js';
+import { buildBlankWorkbook } from '../lib/blankWorkbook.js';
 import { COMPACT_IDLE_MS, COMPACT_THRESHOLD, isCompactionLeader } from './compaction.js';
 
 import type { FWorkbook } from '@univerjs/preset-sheets-core';
@@ -48,15 +49,6 @@ export interface SheetsBridge {
 /** Univer mutations that are session-local bookkeeping despite lacking
  * `onlyLocal` tagging. Grown from observed traffic during manual testing. */
 const LOCAL_ONLY_MUTATIONS = new Set<string>(['sheet.mutation.set-worksheet-active-operation']);
-
-function buildBlankWorkbook(documentId: string): Partial<IWorkbookData> {
-  return {
-    id: documentId,
-    name: 'Tabelle',
-    sheetOrder: [],
-    sheets: {},
-  };
-}
 
 function readSnapshotVector(yMeta: Y.Map<unknown>): SnapshotVector {
   const raw = yMeta.get(SHEET_META_KEYS.snapshotVector);
@@ -106,15 +98,31 @@ export function attachYjsBridge({
   const loadedVector = readSnapshotVector(yMeta);
   for (const [key, value] of Object.entries(loadedVector)) appliedVector[key] = value;
 
+  const parsedSnapshot =
+    typeof snapshotJson === 'string' && snapshotJson.length > 0
+      ? (JSON.parse(snapshotJson) as IWorkbookData)
+      : null;
+  // A snapshot with zero worksheets is a pre-fix blank seed (`sheets: {}`) that
+  // Univer renders as no grid. Treat it as absent so we re-seed one worksheet —
+  // otherwise sheets created during the broken window stay permanently blank.
+  const snapshotHasWorksheet =
+    !!parsedSnapshot &&
+    Array.isArray(parsedSnapshot.sheetOrder) &&
+    parsedSnapshot.sheetOrder.length > 0 &&
+    Object.keys(parsedSnapshot.sheets ?? {}).length > 0;
+
   let workbook: FWorkbook;
-  if (typeof snapshotJson === 'string' && snapshotJson.length > 0) {
-    const data = JSON.parse(snapshotJson) as IWorkbookData;
+  if (parsedSnapshot && snapshotHasWorksheet) {
     // All clients must share one unitId, or mutation params won't match.
-    data.id = documentId;
-    workbook = univerAPI.createWorkbook(data);
+    parsedSnapshot.id = documentId;
+    workbook = univerAPI.createWorkbook(parsedSnapshot);
   } else {
     workbook = univerAPI.createWorkbook(buildBlankWorkbook(documentId));
-    if (canWrite && yMeta.get(SHEET_META_KEYS.seeded) !== true) {
+    // Seed a fresh blank sheet, OR repair a broken zero-worksheet snapshot
+    // (overwrite even if `seeded` was set, since that snapshot is unusable).
+    const brokenSnapshot = !!parsedSnapshot && !snapshotHasWorksheet;
+    const needsSeed = yMeta.get(SHEET_META_KEYS.seeded) !== true || brokenSnapshot;
+    if (canWrite && needsSeed) {
       // Guarded seed: StrictMode double-mounts and two-tab races both write
       // equivalent blank state, so last-writer-wins on 'seeded' is fine.
       ydoc.transact(() => {

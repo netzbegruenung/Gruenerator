@@ -1,12 +1,8 @@
-import {
-  COLLECTIONS,
-  getDefaultSearchCollections,
-  buildCollectionDefaultFilter,
-} from '@gruenerator/shared/search/collections';
 import { buildQdrantFilter, mergeFilters } from '@gruenerator/shared/search/filters';
 import { z } from 'zod';
 
-import { config, COLLECTION_KEYS } from '../config.ts';
+import { getDefaultSearchCollections, buildCollectionDefaultFilter } from '../catalog.ts';
+import { config } from '../config.ts';
 import { generateEmbedding } from '../embeddings.ts';
 import {
   searchCollection,
@@ -20,9 +16,38 @@ import {
   cacheSearch,
   getCacheStats,
 } from '../utils/cache.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 import { type Country } from '../utils/localization.ts';
 
 type SearchMode = 'hybrid' | 'vector' | 'text';
+
+/**
+ * Build the error response for a failed search. A connection-level failure
+ * (search index unreachable) gets a clear, actionable user-facing message and
+ * an `errorType` the client can branch on — distinct from a generic error, and
+ * never silently collapsed into "Keine Ergebnisse". The technical cause is kept
+ * in `technicalDetail` + logs for diagnosis.
+ */
+function buildSearchError(err: unknown, logLabel: string): Record<string, unknown> {
+  const { detail, isConnection } = classifyError(err);
+  console.error(`[Search] ${logLabel}: ${detail}`);
+  if (isConnection) {
+    return connectionErrorResponse(detail);
+  }
+  return {
+    error: true,
+    errorType: 'search_error',
+    message: `Suchfehler: ${detail}`,
+    technicalDetail: detail,
+  };
+}
+
+function noResultsHint(candidateCount: number): string {
+  if (candidateCount > 0) {
+    return `${candidateCount} Kandidaten gefunden, aber keiner über der Relevanzschwelle (${MCP_MIN_RELEVANCE_SCORE}). Versuche breitere/andere Begriffe, eine andere Sammlung, oder entferne Filter.`;
+  }
+  return 'Keine Treffer im Index. Versuche breitere/andere Suchbegriffe, eine andere Sammlung, oder entferne gesetzte Filter.';
+}
 
 // Must match minFinalScore in qdrant/client.ts hybridConfig
 const MCP_MIN_RELEVANCE_SCORE = 0.35;
@@ -174,12 +199,12 @@ function buildSearchDescription(): string {
   const deCollections = getDefaultSearchCollections('DE').join(', ');
   const atCollections = getDefaultSearchCollections('AT').join(', ');
 
-  const defaultRows = Object.entries(COLLECTIONS)
+  const defaultRows = Object.entries(config.collections)
     .filter(([, col]) => !col.defaultFilter)
     .map(([key, col]) => `| ${key} | ${col.displayName} | ${col.description} |`)
     .join('\n');
 
-  const lvRows = Object.entries(COLLECTIONS)
+  const lvRows = Object.entries(config.collections)
     .filter(([, col]) => col.defaultFilter && col.includeInDefaultSearch === false)
     .map(([key, col]) => `| ${key} | ${col.displayName} | ${col.description} |`)
     .join('\n');
@@ -257,7 +282,7 @@ export const searchTool = {
     query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
     country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich. PFLICHT.'),
     collection: z
-      .enum(COLLECTION_KEYS as [string, ...string[]])
+      .string()
       .optional()
       .describe(
         'Optionale Sammlung. Wenn nicht gesetzt, werden alle Sammlungen des Landes durchsucht.'
@@ -455,12 +480,16 @@ async function searchSingleCollectionWithCache({
     });
 
     if (!results || results.length === 0) {
+      const candidateCount =
+        (Number(metadata.vectorResults) || 0) + (Number(metadata.textResults) || 0);
       return {
         collection: collectionConfig.displayName,
         country,
         query,
         searchMode,
+        resultsCount: 0,
         message: 'Keine Ergebnisse gefunden',
+        hint: noResultsHint(candidateCount),
         results: [],
         metadata,
         filters: filters || null,
@@ -488,12 +517,7 @@ async function searchSingleCollectionWithCache({
 
     return response;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[Search] Fehler:', message);
-    return {
-      error: true,
-      message: `Suchfehler: ${message}`,
-    };
+    return buildSearchError(err, 'Fehler');
   }
 }
 
@@ -562,13 +586,24 @@ async function searchMultipleCollections({
           useCache,
           sharedEmbedding: embedding,
         }).catch((err: unknown) => {
-          console.error(
-            `[Search] Collection ${collectionKey} failed: ${err instanceof Error ? err.message : String(err)}`
-          );
-          return { results: [] as SearchResult[], collectionKey, metadata: {} };
+          // Record the per-collection failure (incl. connection errors) instead of
+          // aborting the whole search — a single flaky collection must not discard
+          // good results from the reachable ones. The all-collections-down case is
+          // handled below via hadConnectionFailure once results are known to be empty.
+          const { detail, isConnection } = classifyError(err);
+          console.error(`[Search] Collection ${collectionKey} failed: ${detail}`);
+          return {
+            results: [] as SearchResult[],
+            collectionKey,
+            metadata: { error: detail, isConnection } as Record<string, unknown>,
+          };
         })
       )
     );
+
+    const collectionErrors = collectionResults
+      .filter((c) => c.metadata.error)
+      .map((c) => ({ collection: c.collectionKey, error: c.metadata.error }));
 
     // Merge, deduplicate by URL, sort by score
     const seenUrls = new Set<string>();
@@ -590,15 +625,32 @@ async function searchMultipleCollections({
       .map((key) => config.collections[key]?.displayName || key)
       .join(', ');
 
+    // Nothing came back AND at least one collection failed to connect → the index
+    // is effectively unreachable; surface that instead of a misleading "no results".
+    const connFailure = collectionResults.find((c) => c.metadata.isConnection);
+    if (allResults.length === 0 && connFailure) {
+      return connectionErrorResponse(String(connFailure.metadata.error ?? 'connection error'), {
+        country,
+        collectionsSearched,
+      });
+    }
+
     if (topResults.length === 0) {
       return {
         country,
         collectionsSearched,
         query,
         searchMode,
+        resultsCount: 0,
         message: 'Keine Ergebnisse gefunden',
+        hint: noResultsHint(allResults.length),
         results: [],
-        metadata: { searchType: searchMode, multiCollection: true },
+        metadata: {
+          searchType: searchMode,
+          multiCollection: true,
+          collectionsQueried: collections.length,
+          ...(collectionErrors.length > 0 ? { collectionErrors } : {}),
+        },
         filters: filters || null,
       };
     }
@@ -618,6 +670,7 @@ async function searchMultipleCollections({
         searchType: searchMode,
         multiCollection: true,
         collectionsQueried: collections.length,
+        ...(collectionErrors.length > 0 ? { collectionErrors } : {}),
       },
       filters: filters || null,
       cached: false,
@@ -629,12 +682,7 @@ async function searchMultipleCollections({
 
     return response;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[Search] Multi-collection search error:', message);
-    return {
-      error: true,
-      message: `Suchfehler: ${message}`,
-    };
+    return buildSearchError(err, 'Multi-collection search error');
   }
 }
 
