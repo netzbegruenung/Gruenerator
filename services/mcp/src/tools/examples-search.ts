@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { generateEmbedding } from '../embeddings.ts';
 import { getQdrantClient } from '../qdrant/client.ts';
+import { describeFetchError, isConnectionError } from '../utils/errors.ts';
 
 const COLLECTION_NAME = getQdrantCollectionName('examples') || 'social_media_examples';
 const DEFAULT_THRESHOLD = 0.15;
@@ -129,7 +130,24 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error('[ExamplesSearch] Error:', message);
+      console.error(`[ExamplesSearch] Error: ${describeFetchError(err)}`);
+
+      // Search index unreachable — clear, actionable message instead of "fetch failed"
+      if (isConnectionError(err)) {
+        return {
+          error: true,
+          errorType: 'search_unavailable',
+          message:
+            'Die Beispiel-Datenbank ist derzeit nicht erreichbar (Verbindungsproblem zum Suchindex). ' +
+            'Bitte in ein paar Minuten erneut versuchen.',
+          technicalDetail: describeFetchError(err),
+          query,
+          platform,
+          country,
+          resultsCount: 0,
+          examples: [],
+        };
+      }
 
       // Check if collection doesn't exist
       if (message.includes('Not found') || message.includes('not found')) {
