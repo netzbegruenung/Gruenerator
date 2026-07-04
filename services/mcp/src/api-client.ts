@@ -7,6 +7,23 @@ interface ApiCallOptions {
   query?: Record<string, string>;
 }
 
+/**
+ * Standardized error response for the notebooks_* tools, with an actionable hint
+ * keyed on the HTTP status: auth (401/403) → check key/scope, other 4xx → wrong
+ * identifier (list valid ones), 5xx/network → temporary, retry.
+ */
+export function notebooksApiError(status: number, message: string): Record<string, unknown> {
+  const hint =
+    status === 0 || status >= 500
+      ? 'Vorübergehendes Server- oder Verbindungsproblem — in ein paar Minuten erneut versuchen.'
+      : status === 401 || status === 403
+        ? 'API-Key fehlt, ist ungültig oder deckt diesen Landesverband nicht ab. Erlaubte Landesverbände liefert `notebooks_list`.'
+        : status >= 400
+          ? 'Gültige `landesverband`-Codes und Notebooks findest du über `notebooks_list`.'
+          : null;
+  return { error: true, status, message, ...(hint ? { hint } : {}) };
+}
+
 export async function callGrueneratorApi<T = Record<string, unknown>>(
   path: string,
   opts: ApiCallOptions

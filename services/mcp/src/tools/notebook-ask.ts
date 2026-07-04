@@ -79,6 +79,7 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
         return {
           error: true,
           message: `API-Fehler ${response.status}: ${errorText.slice(0, 200)}`,
+          ...(response.status === 401 || response.status === 403 ? { hint: TOKEN_HINT } : {}),
         };
       }
 
@@ -97,11 +98,17 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
         `[NotebookAsk] Answer generated (${String(data.answer || '').length} chars, ${responseTimeMs}ms)`
       );
 
+      const citations = (data.citations as unknown[]) || [];
       return {
         answer: data.answer,
-        citations: data.citations || [],
+        citations,
         sources: data.sources || [],
         allSources: data.allSources || [],
+        ...(citations.length === 0
+          ? {
+              hint: 'Antwort ohne Quellenbelege — das Notebook enthält evtl. keine zur Frage passenden Dokumente. Frage umformulieren oder ein anderes Notebook prüfen.',
+            }
+          : {}),
         metadata: {
           ...(data.metadata as Record<string, unknown>),
           responseTimeMs,

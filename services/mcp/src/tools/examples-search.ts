@@ -121,6 +121,24 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         })
         .slice(0, limit);
 
+      if (dedupedExamples.length === 0) {
+        const activeFilters = [
+          platform !== 'all' ? `platform="${platform}"` : null,
+          country !== 'all' ? `country="${country}"` : null,
+        ].filter(Boolean);
+        return {
+          query,
+          platform,
+          country,
+          resultsCount: 0,
+          examples: [],
+          message: 'Keine passenden Social-Media-Beispiele gefunden',
+          hint: activeFilters.length
+            ? `Filter (${activeFilters.join(', ')}) entfernen oder breiteren Suchbegriff wählen. Die Beispiel-Sammlung ist thematisch dünner besetzt als die Programm-Sammlungen.`
+            : 'Breiteren/anderen Suchbegriff wählen. Die Beispiel-Sammlung ist thematisch dünner besetzt als die Programm-Sammlungen.',
+        };
+      }
+
       return {
         query,
         platform,

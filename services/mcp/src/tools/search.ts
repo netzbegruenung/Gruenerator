@@ -44,9 +44,9 @@ function buildSearchError(err: unknown, logLabel: string): Record<string, unknow
 
 function noResultsHint(candidateCount: number): string {
   if (candidateCount > 0) {
-    return `${candidateCount} Kandidaten gefunden, aber keiner über der Relevanzschwelle (${MCP_MIN_RELEVANCE_SCORE}). Versuche breitere/andere Begriffe, eine andere Sammlung, oder entferne Filter.`;
+    return `${candidateCount} Kandidaten gefunden, aber keiner über der Relevanzschwelle (${MCP_MIN_RELEVANCE_SCORE}). Versuche breitere/andere Begriffe, searchMode "text" für exakte Begriffe, eine andere Sammlung, oder entferne Filter.`;
   }
-  return 'Keine Treffer im Index. Versuche breitere/andere Suchbegriffe, eine andere Sammlung, oder entferne gesetzte Filter.';
+  return 'Keine Treffer im Index. Versuche breitere/andere Suchbegriffe, searchMode "text" für exakte Begriffe, eine andere Sammlung, oder entferne gesetzte Filter.';
 }
 
 // Must match minFinalScore in qdrant/client.ts hybridConfig
