@@ -1,6 +1,11 @@
 import { columnIndex, type SheetOperation } from '@gruenerator/contracts';
-import { CellValueType } from '@univerjs/core';
+import { CellValueType, type Serializable } from '@univerjs/core';
 import { type FWorkbook, type FWorksheet } from '@univerjs/preset-sheets-core';
+
+import { buildChartData } from './buildChartData.js';
+
+/** Key under which SheetChartFloat is registered via univerAPI.registerComponent. */
+export const SHEET_CHART_COMPONENT_KEY = 'GrueneratorSheetChart';
 
 export interface ApplySheetOperationsResult {
   applied: number;
@@ -113,6 +118,36 @@ export function applySheetOperations(
         }
         case 'unmerge_cells': {
           resolveSheet(workbook, op.sheet).getRange(op.range).breakApart();
+          applied++;
+          break;
+        }
+        case 'add_chart': {
+          // Read LOGICAL values (getCellDatas().v), not display strings, so
+          // numbers stay numeric for the chart.
+          const sheet = resolveSheet(workbook, op.sheet);
+          const range = sheet.getRange(op.range);
+          const values = range.getCellDatas().map((row) => row.map((c) => c?.v ?? null));
+          const data = buildChartData(values, op.chartType, op.title?.trim() || '');
+          if (data.rows.length === 0 || data.seriesKeys.length === 0) {
+            skipped.push('Diagramm übersprungen: kein auswertbarer Datenbereich.');
+            break;
+          }
+          // Float DOM anchored to the data range: renders SheetChartFloat live,
+          // moves/persists with the grid, and (being a drawing MUTATION) syncs
+          // through the collab bridge + snapshot. Draggable via allowTransform.
+          sheet.addFloatDomToRange(
+            range,
+            {
+              componentKey: SHEET_CHART_COMPONENT_KEY,
+              // Boundary cast: SheetChartData is JSON-serializable (all fields are
+              // strings/numbers/arrays), but its typed shape lacks the index
+              // signature Univer's Serializable requires.
+              data: data as unknown as Serializable,
+              allowTransform: true,
+            },
+            {},
+            `chart-${crypto.randomUUID()}`
+          );
           applied++;
           break;
         }

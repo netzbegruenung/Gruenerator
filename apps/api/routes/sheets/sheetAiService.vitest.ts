@@ -89,6 +89,23 @@ describe('Phase 0 operation schema', () => {
   });
 });
 
+describe('add_chart operation schema', () => {
+  it('validates each chart type', () => {
+    for (const chartType of ['bar', 'line', 'area', 'pie', 'donut']) {
+      expect(
+        sheetOperationSchema.safeParse({ type: 'add_chart', range: 'A1:D5', chartType }).success
+      ).toBe(true);
+    }
+  });
+
+  it('rejects an unknown chart type', () => {
+    expect(
+      sheetOperationSchema.safeParse({ type: 'add_chart', range: 'A1:D5', chartType: 'radar' })
+        .success
+    ).toBe(false);
+  });
+});
+
 describe('Phase 1 structural operation schema', () => {
   it('validates insert_rows / delete_rows (1-based row + count)', () => {
     expect(sheetOperationSchema.safeParse({ type: 'insert_rows', at: 5, count: 2 }).success).toBe(
