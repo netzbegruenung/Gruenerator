@@ -65,6 +65,46 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     range: z.string(),
     sheet: z.string().nullish(),
   }),
+  z.object({
+    type: z.literal('insert_rows'),
+    /** 1-based row number; `count` new rows are inserted BEFORE it (existing
+     * rows shift down). "unter Zeile 5 einfügen" → at = 6. */
+    at: z.number().int().positive(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('delete_rows'),
+    /** 1-based row number of the first row to delete. */
+    at: z.number().int().positive(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('insert_columns'),
+    /** Column letter; `count` new columns are inserted BEFORE it. */
+    at: z.string(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('delete_columns'),
+    /** Column letter of the first column to delete. */
+    at: z.string(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('merge_cells'),
+    /** A1 range merged into one cell (top-left value kept). */
+    range: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('unmerge_cells'),
+    range: z.string(),
+    sheet: z.string().nullish(),
+  }),
 ]);
 
 export type SheetOperation = z.infer<typeof sheetOperationSchema>;

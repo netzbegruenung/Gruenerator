@@ -1,4 +1,4 @@
-import { type SheetOperation } from '@gruenerator/contracts';
+import { columnIndex, type SheetOperation } from '@gruenerator/contracts';
 import { CellValueType } from '@univerjs/core';
 import { type FWorkbook, type FWorksheet } from '@univerjs/preset-sheets-core';
 
@@ -78,6 +78,41 @@ export function applySheetOperations(
         }
         case 'clear_range': {
           resolveSheet(workbook, op.sheet).getRange(op.range).clearContent();
+          applied++;
+          break;
+        }
+        case 'insert_rows': {
+          // `at` is a 1-based row number; insert BEFORE it (0-based index at-1).
+          resolveSheet(workbook, op.sheet).insertRows(op.at - 1, op.count);
+          applied++;
+          break;
+        }
+        case 'delete_rows': {
+          resolveSheet(workbook, op.sheet).deleteRows(op.at - 1, op.count);
+          applied++;
+          break;
+        }
+        case 'insert_columns': {
+          const col = columnIndex(op.at);
+          if (col < 0) throw new Error(`Ungültiger Spaltenbuchstabe: "${op.at}"`);
+          resolveSheet(workbook, op.sheet).insertColumns(col, op.count);
+          applied++;
+          break;
+        }
+        case 'delete_columns': {
+          const col = columnIndex(op.at);
+          if (col < 0) throw new Error(`Ungültiger Spaltenbuchstabe: "${op.at}"`);
+          resolveSheet(workbook, op.sheet).deleteColumns(col, op.count);
+          applied++;
+          break;
+        }
+        case 'merge_cells': {
+          resolveSheet(workbook, op.sheet).getRange(op.range).merge();
+          applied++;
+          break;
+        }
+        case 'unmerge_cells': {
+          resolveSheet(workbook, op.sheet).getRange(op.range).breakApart();
           applied++;
           break;
         }

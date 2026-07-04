@@ -88,3 +88,41 @@ describe('Phase 0 operation schema', () => {
     expect(normalizeRawOp(op)).toBe(op);
   });
 });
+
+describe('Phase 1 structural operation schema', () => {
+  it('validates insert_rows / delete_rows (1-based row + count)', () => {
+    expect(sheetOperationSchema.safeParse({ type: 'insert_rows', at: 5, count: 2 }).success).toBe(
+      true
+    );
+    expect(sheetOperationSchema.safeParse({ type: 'delete_rows', at: 3, count: 1 }).success).toBe(
+      true
+    );
+  });
+
+  it('rejects non-positive row targets/counts', () => {
+    expect(sheetOperationSchema.safeParse({ type: 'insert_rows', at: 0, count: 2 }).success).toBe(
+      false
+    );
+    expect(sheetOperationSchema.safeParse({ type: 'delete_rows', at: 3, count: 0 }).success).toBe(
+      false
+    );
+  });
+
+  it('validates insert_columns / delete_columns (column letter + count)', () => {
+    expect(
+      sheetOperationSchema.safeParse({ type: 'insert_columns', at: 'C', count: 1 }).success
+    ).toBe(true);
+    expect(
+      sheetOperationSchema.safeParse({ type: 'delete_columns', at: 'AA', count: 2 }).success
+    ).toBe(true);
+  });
+
+  it('validates merge_cells / unmerge_cells', () => {
+    expect(sheetOperationSchema.safeParse({ type: 'merge_cells', range: 'A1:C1' }).success).toBe(
+      true
+    );
+    expect(sheetOperationSchema.safeParse({ type: 'unmerge_cells', range: 'A1:C1' }).success).toBe(
+      true
+    );
+  });
+});
