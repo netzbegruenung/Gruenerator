@@ -37,6 +37,7 @@ import { pruneMessages, applyCompaction } from './services/contextPruningService
 import {
   handleBoardCreation,
   handleSheetCreation,
+  handlePresentationCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
@@ -760,6 +761,24 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet') {
         const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
         const created = await handleSheetCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
+      // === Handle @praesentation-erstellen tool / create_presentation intent ===
+      if (
+        forcedTools?.includes('praesentation-erstellen') ||
+        classifiedState.intent === 'create_presentation'
+      ) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handlePresentationCreation({
           sse,
           classifiedState,
           aiWorkerPool,

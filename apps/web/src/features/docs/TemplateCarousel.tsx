@@ -4,7 +4,13 @@ import { cn } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useEffect, useRef, useState } from 'react';
 import { FiChevronDown, FiMoreVertical } from 'react-icons/fi';
-import { PiBookmarkSimple, PiKanban, PiPencilLine, PiTable } from 'react-icons/pi';
+import {
+  PiBookmarkSimple,
+  PiKanban,
+  PiPencilLine,
+  PiProjectorScreenChart,
+  PiTable,
+} from 'react-icons/pi';
 
 import { boardTemplates } from '../boards/boardTemplates';
 
@@ -17,6 +23,8 @@ interface TemplateCarouselProps {
   onCreateWhiteboard: () => void;
   /** Renders the spreadsheet tile when provided (feature-flagged by DocsPage). */
   onCreateSheet?: () => void;
+  /** Renders the presentation tile when provided (feature-flagged by DocsPage). */
+  onCreatePresentation?: () => void;
   onUserTemplateSelect: (template: UserTemplateSummary) => void;
 }
 
@@ -27,6 +35,7 @@ export const TemplateCarousel = memo(
     onCreateBoardFromTemplate,
     onCreateWhiteboard,
     onCreateSheet,
+    onCreatePresentation,
     onUserTemplateSelect,
   }: TemplateCarouselProps) => {
     const { data: userTemplates = [] } = useQuery<UserTemplateSummary[]>({
@@ -208,6 +217,29 @@ export const TemplateCarousel = memo(
                   </span>
                   <span className="block text-xs font-light text-grey-500 truncate">
                     Spreadsheet mit Formeln
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {onCreatePresentation && (
+              <button
+                className="group/item shrink-0 w-[118px] cursor-pointer bg-transparent border-none p-0 text-left font-[inherit]"
+                onClick={onCreatePresentation}
+                title="Neue Präsentation (Foliensatz) erstellen"
+              >
+                <div className="w-[118px] h-[150px] border border-grey-200 dark:border-grey-600 rounded bg-secondary-50 dark:bg-secondary-900/20 overflow-hidden flex items-center justify-center transition-[box-shadow,border-color] duration-150 ease-out group-hover/item:shadow-sm group-hover/item:border-secondary-300 dark:group-hover/item:border-secondary-500">
+                  <PiProjectorScreenChart
+                    size={36}
+                    className="text-secondary-600 dark:text-secondary-400"
+                  />
+                </div>
+                <div className="pt-1.5 px-1">
+                  <span className="block text-[0.8125rem] font-medium text-foreground truncate">
+                    Präsentation
+                  </span>
+                  <span className="block text-xs font-light text-grey-500 truncate">
+                    Foliensatz mit KI
                   </span>
                 </div>
               </button>

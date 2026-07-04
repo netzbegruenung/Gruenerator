@@ -66,6 +66,7 @@
 @source "../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/docs/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/slides/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/presentations/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/wolke/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
