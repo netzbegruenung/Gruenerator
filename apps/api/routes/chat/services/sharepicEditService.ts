@@ -283,10 +283,10 @@ export async function mintCanvasForVariant(args: {
   variantId: string;
   canvasType: string;
   initialProps: Record<string, unknown>;
-  /** Present in the chat-edit flow so the persisted variant gets stamped. */
-  messageId?: string | null;
-  /** Pre-resolved canvasId (e.g. decks minted at generation) — skips lookup. */
-  existingCanvasId?: string | null;
+  /** Message holding the variant, for canvasId stamping; null in the endpoint. */
+  messageId: string | null;
+  /** Pre-resolved canvasId (decks minted at generation); null to look it up. */
+  existingCanvasId: string | null;
 }): Promise<MintVariantResult> {
   const { userId, threadId, variantId, canvasType, initialProps, messageId } = args;
 
@@ -329,7 +329,6 @@ export async function mintCanvasForVariant(args: {
  */
 export async function ensureMintedCanvas(args: {
   target: ResolvedTarget;
-  descriptor: SharepicTemplateDescriptor;
   threadId: string;
   userId: string;
   sse: SSEWriter;
@@ -629,7 +628,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       status: 'in_progress',
     });
 
-    const canvasId = await ensureMintedCanvas({ target, descriptor, threadId, userId, sse });
+    const canvasId = await ensureMintedCanvas({ target, threadId, userId, sse });
 
     // Fresh state every turn — picks up studio edits made in between.
     const current = await getCurrentCanvasState(canvasId);

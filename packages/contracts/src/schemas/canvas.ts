@@ -75,7 +75,6 @@ export const canvasFromVariantBodySchema = z.object({
   initialProps: z.record(z.string(), z.unknown()),
   threadId: z.string(),
   variantId: z.string(),
-  title: z.string().nullish(),
 });
 
 export type CanvasFromVariantBody = z.infer<typeof canvasFromVariantBodySchema>;
