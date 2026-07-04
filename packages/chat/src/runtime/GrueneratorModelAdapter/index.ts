@@ -126,7 +126,14 @@ export function createGrueneratorModelAdapter(
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
       const { messages, abortSignal } = options;
-      const config = getConfig();
+      const baseConfig = getConfig();
+      // Per-run thread binding: the runtime passes the owning thread's remoteId.
+      // Prefer it over the store's currentThreadId, which can lag on rapid
+      // thread switches; a fresh thread has no remoteId snapshot yet, so fall
+      // back to the store id that initialize() just set.
+      const config = options.unstable_threadId
+        ? { ...baseConfig, threadId: options.unstable_threadId }
+        : baseConfig;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
       // This is where addResult() writes the user's answer for human tool calls.
