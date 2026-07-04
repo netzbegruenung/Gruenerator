@@ -771,6 +771,7 @@ function rebuildMentionableMap(): void {
     dynamicDocMentionables,
     sheetToolMentionables,
     dynamicSheetMentionables,
+    presentationToolMentionables,
     documentMentionables,
     wolkeMentionables,
     connectMentionables,
@@ -823,6 +824,7 @@ export function filterMentionables(query: string): {
     ...dynamicDocMentionables,
     ...sheetToolMentionables,
     ...dynamicSheetMentionables,
+    ...presentationToolMentionables,
   ];
   if (!query) {
     return {
