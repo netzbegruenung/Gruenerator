@@ -43,6 +43,14 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "format_range", "range": "A1:C1", "bold"?: true, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "sheet"?: "Name" }
 - { "type": "add_sheet", "name": "Blatt 2" }
 - { "type": "clear_range", "range": "B2:B5", "sheet"?: "Name" }
+- { "type": "insert_rows", "at": 5, "count": 2, "sheet"?: "Name" }
+    // inserts "count" rows BEFORE 1-based row "at" (existing rows shift down).
+    // "2 Zeilen unter Zeile 5 einfügen" → at:6
+- { "type": "delete_rows", "at": 5, "count": 1, "sheet"?: "Name" }   // deletes from 1-based row "at"
+- { "type": "insert_columns", "at": "C", "count": 1, "sheet"?: "Name" }   // "at" is a column LETTER; inserts before it
+- { "type": "delete_columns", "at": "C", "count": 1, "sheet"?: "Name" }
+- { "type": "merge_cells", "range": "A1:C1", "sheet"?: "Name" }   // e.g. a title row; keeps the top-left value
+- { "type": "unmerge_cells", "range": "A1:C1", "sheet"?: "Name" }
 
 RULES:
 - Ranges/cells ALWAYS in A1 notation. Row 1 is the first row, column A the first column.
@@ -120,7 +128,7 @@ export async function generateSheetOperations(opts: {
     tools: {
       applySheetOperations: tool({
         description:
-          'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (set_range_values, set_formula, format_range, add_sheet, clear_range) as documented in the system prompt.',
+          'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
         // Deliberately lenient: accept the raw array so a single malformed op
         // does not make the SDK reject the WHOLE tool call (which would surface
         // as a hard error / drop every valid op with it). We validate each op
