@@ -20,11 +20,13 @@ const DOCS_SUBTYPES = [
   'redaktionsplan',
   'checkliste',
   'einladung',
-  'sheets',
+  // Spreadsheet-style docs (created via chat "save as Tabelle"). They open at
+  // /docs/:id like any doc; the frontend renders a grid preview off
+  // documentType === 'tabelle' instead of the prose excerpt.
+  'tabelle',
 ];
 
 const SUBTYPE_EMOJI: Record<string, string> = {
-  sheets: '📊',
   blank: '📄',
   antrag: '📋',
   pressemitteilung: '📰',
