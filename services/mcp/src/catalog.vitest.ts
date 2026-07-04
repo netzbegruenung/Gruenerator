@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Each test re-imports catalog.ts fresh so the module-level in-memory catalog
 // (currentCatalog / lastFetchedAt) never leaks between cases.
