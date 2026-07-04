@@ -20,6 +20,13 @@ function resolveSheet(workbook: FWorkbook, sheetName: string | null | undefined)
   return workbook.getActiveSheet();
 }
 
+/** A1 column letter → 0-based index; throws (caught per-op) on an invalid letter. */
+function toColumnIndex(at: string): number {
+  const col = columnIndex(at);
+  if (col < 0) throw new Error(`Ungültiger Spaltenbuchstabe: "${at}"`);
+  return col;
+}
+
 /**
  * Applies AI-planned operations to the live workbook via the Facade API.
  * Every facade call runs Univer COMMANDs, so the edits flow through the
@@ -98,16 +105,12 @@ export function applySheetOperations(
           break;
         }
         case 'insert_columns': {
-          const col = columnIndex(op.at);
-          if (col < 0) throw new Error(`Ungültiger Spaltenbuchstabe: "${op.at}"`);
-          resolveSheet(workbook, op.sheet).insertColumns(col, op.count);
+          resolveSheet(workbook, op.sheet).insertColumns(toColumnIndex(op.at), op.count);
           applied++;
           break;
         }
         case 'delete_columns': {
-          const col = columnIndex(op.at);
-          if (col < 0) throw new Error(`Ungültiger Spaltenbuchstabe: "${op.at}"`);
-          resolveSheet(workbook, op.sheet).deleteColumns(col, op.count);
+          resolveSheet(workbook, op.sheet).deleteColumns(toColumnIndex(op.at), op.count);
           applied++;
           break;
         }
@@ -126,7 +129,7 @@ export function applySheetOperations(
           // numbers stay numeric for the chart.
           const sheet = resolveSheet(workbook, op.sheet);
           const range = sheet.getRange(op.range);
-          const values = range.getCellDatas().map((row) => row.map((c) => c?.v ?? null));
+          const values = range.getCellDatas().map((row) => (row ?? []).map((c) => c?.v ?? null));
           const data = buildChartData(values, op.chartType, op.title?.trim() || '');
           if (data.rows.length === 0 || data.seriesKeys.length === 0) {
             skipped.push('Diagramm übersprungen: kein auswertbarer Datenbereich.');
