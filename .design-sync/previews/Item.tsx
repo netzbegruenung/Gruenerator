@@ -11,13 +11,27 @@ import {
 } from '@gruenerator/ui';
 
 const FileIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
     <path d="M14 2v6h6" />
   </svg>
 );
 const Download = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
   </svg>
 );
@@ -58,7 +72,9 @@ export function DocumentList() {
             <ItemDescription>Eingereicht für den Kreisparteitag</ItemDescription>
           </ItemContent>
           <ItemActions>
-            <Button variant="outline" size="sm">Öffnen</Button>
+            <Button variant="outline" size="sm">
+              Öffnen
+            </Button>
           </ItemActions>
         </Item>
         <ItemSeparator />
@@ -71,7 +87,9 @@ export function DocumentList() {
             <ItemDescription>Geplant für Montag, 09:00 Uhr</ItemDescription>
           </ItemContent>
           <ItemActions>
-            <Button variant="outline" size="sm">Öffnen</Button>
+            <Button variant="outline" size="sm">
+              Öffnen
+            </Button>
           </ItemActions>
         </Item>
       </ItemGroup>

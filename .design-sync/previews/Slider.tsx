@@ -4,7 +4,12 @@ import { Slider, Label } from '@gruenerator/ui';
 // min / max / step, disabled. Track fill is Eucalyptus green.
 
 const field: React.CSSProperties = { display: 'grid', gap: 10, maxWidth: 340 };
-const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 340 };
+const col: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 24,
+  maxWidth: 340,
+};
 
 // Single-thumb default — e.g. a campaign budget weighting.
 export function Single() {
