@@ -27,6 +27,16 @@ function referenceDocPath(): string | null {
   return existsSync(candidate) ? candidate : null;
 }
 
+/**
+ * Strip markdown image embeds, keeping any alt text. pandoc's pptx writer tries
+ * to read + embed every referenced image; AI-generated decks often reference
+ * placeholder paths that don't exist, which would fail the whole conversion.
+ * Slide backgrounds are handled separately and never appear in the body.
+ */
+function stripImageEmbeds(markdown: string): string {
+  return markdown.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');
+}
+
 /** Render a deck to pandoc markdown (slide-level 2). Hidden slides are omitted. */
 export function renderDeckToPandocMarkdown(slides: readonly Slide[], title: string): string {
   const blocks: string[] = [`% ${title || 'Präsentation'}`];
@@ -38,7 +48,7 @@ export function renderDeckToPandocMarkdown(slides: readonly Slide[], title: stri
     if (slide.layout === 'code') {
       block += `\n\n\`\`\`${slide.codeLanguage ?? ''}\n${slide.body}\n\`\`\``;
     } else if (slide.body.trim() !== '') {
-      block += `\n\n${slide.body.trim()}`;
+      block += `\n\n${stripImageEmbeds(slide.body.trim())}`;
     }
 
     if (slide.notes.trim() !== '') {
