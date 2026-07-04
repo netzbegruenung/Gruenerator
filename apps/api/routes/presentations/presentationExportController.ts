@@ -9,9 +9,9 @@ import { loadPresentationState } from '../../services/presentations/Presentation
 import { createLogger } from '../../utils/logger.js';
 
 import {
+  contentDispositionAttachment,
   exportPresentationToPptx,
   PandocUnavailableError,
-  sanitizeFilename,
 } from './presentationPptxExport.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -38,10 +38,7 @@ router.post('/:id/export/pptx', async (req: AuthenticatedRequest, res: Response)
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     );
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${sanitizeFilename(state.title)}.pptx"`
-    );
+    res.setHeader('Content-Disposition', contentDispositionAttachment(state.title));
     res.send(buffer);
   } catch (err) {
     if (err instanceof PandocUnavailableError) {

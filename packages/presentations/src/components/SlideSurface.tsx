@@ -36,10 +36,10 @@ const DARK_BG = new Set(['#316049', '#005538', '#52907a', '#0c1410']);
 function resolveBackground(
   background: string | null | undefined,
   layout: Slide['layout']
-): { style: CSSProperties | undefined; dark: boolean } {
+): { style: CSSProperties | null; dark: boolean } {
   const bg = background?.trim();
   const layoutDark = layout === 'title' || layout === 'quote';
-  if (!bg) return { style: undefined, dark: layoutDark };
+  if (!bg) return { style: null, dark: layoutDark };
   if (/^(https?:|data:|\/)/.test(bg)) {
     return {
       style: {
@@ -68,7 +68,7 @@ export function SlideSurface({ slide, editable, onChange, presenting }: SlideSur
   // the section itself stays transparent.
   const resolvedBg = resolveBackground(slide.background, slide.layout);
   const dark = resolvedBg.dark;
-  const bgStyle = presenting ? undefined : resolvedBg.style;
+  const bgStyle = presenting ? null : resolvedBg.style;
 
   // In present mode: per-item fragments (opt-in) and click-to-zoom images
   // (reveal's built-in lightbox via data-preview-image).
@@ -84,7 +84,10 @@ export function SlideSurface({ slide, editable, onChange, presenting }: SlideSur
   const isCode = slide.layout === 'code';
 
   return (
-    <div className={`gruene-slide ${layoutClass}${dark ? ' is-dark' : ''}`} style={bgStyle}>
+    <div
+      className={`gruene-slide ${layoutClass}${dark ? ' is-dark' : ''}`}
+      style={bgStyle ?? undefined}
+    >
       {editable ? (
         <textarea
           className="gruene-slide__input gruene-slide__title"

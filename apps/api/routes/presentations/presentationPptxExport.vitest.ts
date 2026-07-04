@@ -1,7 +1,12 @@
 import { type Slide } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { renderDeckToPandocMarkdown, sanitizeFilename } from './presentationPptxExport.js';
+import {
+  asciiFilename,
+  contentDispositionAttachment,
+  renderDeckToPandocMarkdown,
+  sanitizeFilename,
+} from './presentationPptxExport.js';
 
 function slide(partial: Partial<Slide>): Slide {
   return {
@@ -82,5 +87,20 @@ describe('sanitizeFilename', () => {
   });
   it('falls back when empty', () => {
     expect(sanitizeFilename('///')).toBe('Praesentation');
+  });
+});
+
+describe('asciiFilename / contentDispositionAttachment', () => {
+  it('transliterates umlauts to ASCII', () => {
+    expect(asciiFilename('Präsentation über Radwege')).toBe('Praesentation ueber Radwege');
+  });
+  it('builds an ASCII filename plus a UTF-8 filename* for umlaut titles', () => {
+    const header = contentDispositionAttachment('Präsentation über Radwege');
+    expect(header).toContain('filename="Praesentation ueber Radwege.pptx"');
+    expect(header).toContain("filename*=UTF-8''");
+    // ASCII token must not carry raw non-ASCII bytes.
+    // eslint-disable-next-line no-control-regex
+    const asciiToken = header.match(/filename="([^"]*)"/)?.[1] ?? '';
+    expect(/^[\x20-\x7E]*$/.test(asciiToken)).toBe(true);
   });
 });

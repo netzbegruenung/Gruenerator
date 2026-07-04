@@ -35,18 +35,6 @@ export const PRESENTATION_META_KEYS = {
 
 export const PRESENTATION_SCHEMA_VERSION = 1;
 
-/** Fields of a slide Y.Map, in a stable order. */
-export const SLIDE_FIELDS = [
-  'id',
-  'layout',
-  'title',
-  'body',
-  'notes',
-  'background',
-  'transition',
-  'fragments',
-] as const;
-
 /** Max characters the markdown-outline renderer emits (AI context cap). */
 export const PRESENTATION_CONTEXT_MAX = 20_000;
 
