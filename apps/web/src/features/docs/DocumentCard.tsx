@@ -9,6 +9,7 @@ import {
   FiEdit3,
   FiFile,
   FiFileText,
+  FiGrid,
   FiMail,
   FiRadio,
 } from 'react-icons/fi';
@@ -57,6 +58,11 @@ const DOC_TYPE_STYLE: Record<
     icon: FiMail,
     bg: 'bg-rose-100 dark:bg-rose-900/30',
     text: 'text-rose-600 dark:text-rose-400',
+  },
+  sheets: {
+    icon: FiGrid,
+    bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+    text: 'text-emerald-600 dark:text-emerald-400',
   },
 };
 

@@ -20,9 +20,11 @@ const DOCS_SUBTYPES = [
   'redaktionsplan',
   'checkliste',
   'einladung',
+  'sheets',
 ];
 
 const SUBTYPE_EMOJI: Record<string, string> = {
+  sheets: '📊',
   blank: '📄',
   antrag: '📋',
   pressemitteilung: '📰',

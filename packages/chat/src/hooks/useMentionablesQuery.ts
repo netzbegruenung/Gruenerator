@@ -104,7 +104,10 @@ export function useDocsQuery() {
     queryKey: ['mention-docs'],
     queryFn: async () => {
       const docs = await apiClient.get<DocListItem[]>('/api/docs');
-      const list = Array.isArray(docs) ? docs.filter((d) => d.document_subtype !== 'boards') : [];
+      // Boards and sheets are separate mention kinds with their own context loaders.
+      const list = Array.isArray(docs)
+        ? docs.filter((d) => d.document_subtype !== 'boards' && d.document_subtype !== 'sheets')
+        : [];
       setDocMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
       return list;
     },
