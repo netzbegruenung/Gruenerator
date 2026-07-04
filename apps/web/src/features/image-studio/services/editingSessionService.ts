@@ -307,30 +307,21 @@ export interface AISelectedImage {
 }
 
 export function parseAIGeneratedData(
-  sharepicType: string,
+  sharepicType: CanvasTemplateType,
   generatedData: Record<string, string>,
   selectedImage?: AISelectedImage | null
 ): Record<string, unknown> {
-  // Legacy ids from older payloads/sessions → canonical CanvasTemplateType.
-  // Values are compile-checked against the canonical enum; canonical ids need
-  // no entry (isImageStudioType covers every CanvasTemplateType by the
-  // alignment assertion in typeConfig/constants).
-  const LEGACY_TYPE_ALIASES: Record<string, CanvasTemplateType> = {
-    zitat_pure: 'zitat-pure',
-  };
-
-  // Resolve to a known type; only advance to CANVAS_EDIT for a MINTABLE type so
-  // a non-mintable/unrecognized type can't crash the canvas mint.
-  const candidate = LEGACY_TYPE_ALIASES[sharepicType] ?? sharepicType;
-  const mappedType: ImageStudioType | null = isImageStudioType(candidate) ? candidate : null;
+  // The type is already canonical by construction: both callers validate at
+  // their boundary (handoff payload via sharepicHandoffPayloadSchema, prompt
+  // flow via isCanvasTemplateType) — and every CanvasTemplateType is mintable
+  // (CANVAS_TYPE_FIELDS satisfies Record<CanvasTemplateType, …>), so CANVAS_EDIT
+  // is safe unconditionally.
+  const mappedType: ImageStudioType = sharepicType;
 
   const formData: Record<string, unknown> = {
     category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
     type: mappedType,
-    currentStep:
-      mappedType && isMintableCanvasType(mappedType)
-        ? FORM_STEPS.CANVAS_EDIT
-        : FORM_STEPS.TYPE_SELECT,
+    currentStep: FORM_STEPS.CANVAS_EDIT,
     aiGeneratedContent: true,
     editingSource: 'aiPrompt',
   };

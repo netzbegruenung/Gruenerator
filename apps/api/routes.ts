@@ -98,6 +98,7 @@ import sharepicClaudeRoute, {
   handleSliderSmartRequest,
 } from './routes/sharepic/sharepic_claude/index.js';
 import { type SharepicRequest } from './routes/sharepic/sharepic_claude/types.js';
+import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
@@ -400,7 +401,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);
-  app.use('/api/gruen-o-mat', gruenOMatRouter);
+  // optionalAuth so the gruen_o_mat limiter can bucket logged-in users as
+  // 'authenticated' (50/day) instead of the 'anonymous' 20/day fallback.
+  // The tool stays public — anonymous access is still allowed (anonymous = 20).
+  app.use('/api/gruen-o-mat', optionalAuth, gruenOMatRouter);
   app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
@@ -411,9 +415,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // other AI routes. The IP limiter runs first; the Redis middleware
   // auto-increments on success so each completed suggestion request
   // counts against the per-user daily quota.
+  // optionalAuth resolves req.user before the Redis limiter so logged-in users
+  // are bucketed as 'authenticated' (100/day) rather than the 'anonymous' 5/day
+  // fallback. Anonymous access stays allowed here (canvas_ai anonymous = 5).
   app.use(
     '/api/canvas/ai-suggest',
     aiGenerationLimiter,
+    optionalAuth,
     rateLimitMiddleware('canvas_ai', { autoIncrement: true })
   );
   mountCanvasAiContractRouter(app);
@@ -422,9 +430,17 @@ export async function setupRoutes(app: Application): Promise<void> {
   // (research + citations + prose) with a tail canvas-AI-suggest call so
   // operations are research-grounded. Mounted before the canvas CRUD router
   // for the same reason as ai-suggest above.
+  // requireAuth MUST run before the Redis limiter: the limiter buckets by
+  // req.user (authenticated → 60/day) and falls back to 'anonymous' when it is
+  // unset. canvas_chat_edit's anonymous limit is 0, so without auth resolved
+  // first EVERY user — including logged-in ones — is classed anonymous and
+  // blocked with a 429 on their very first request. requireAuth (inside
+  // canvasChatEditRouter via createAuthenticatedRouter) previously ran only
+  // after the limiter, too late to matter.
   app.use(
     '/api/canvas/chat-edit/stream',
     aiGenerationLimiter,
+    requireAuth,
     rateLimitMiddleware('canvas_chat_edit', { autoIncrement: true }),
     canvasChatEditRouter
   );
@@ -641,6 +657,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/board-attachments', boardAttachmentUploadRouter);
   mountBoardAttachmentsContractRouter(app);
   mountBoardCardDocumentsContractRouter(app);
+  // Sheets (Univer): only the AI planning route — CRUD/share run via /api/docs/*.
+  app.use('/api/sheets', requireAuth, authenticatedReadLimiter);
+  mountSheetsContractRouter(app);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);

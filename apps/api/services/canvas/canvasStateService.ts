@@ -135,6 +135,21 @@ export async function applyCanvasStatePatch(
   log.info(`Patched canvas ${canvasId} (${Object.keys(patch).length} key(s), yjs=${internalOk})`);
 }
 
+/**
+ * Authoritatively seed a freshly created single-page canvas's Yjs formState
+ * from its full initial_state, server-side, BEFORE any studio tab opens. This
+ * makes the seed lossless (every prop, not just a field whitelist) and
+ * race-free: the internal endpoint stamps a `_seeded` watermark so the client
+ * never writes template defaults over it. No-op patch — createCanvas already
+ * persisted initial_state to the DB row; this only populates the Y-doc.
+ */
+export async function seedCanvasFormState(
+  canvasId: string,
+  initialState: Record<string, unknown>
+): Promise<void> {
+  await applyCanvasStatePatch(canvasId, {}, { seedState: initialState });
+}
+
 // ---------------------------------------------------------------------------
 // Multi-page (slider deck) variants of the read/write paths. Deck state lives
 // per page in the Yjs `pages` array; root formState is never used for decks.

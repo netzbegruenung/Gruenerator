@@ -347,6 +347,18 @@ function DocumentsContent() {
     [updateBoard]
   );
 
+  const handleCreateSheet = useCallback(async () => {
+    try {
+      const newDoc = await createDocumentMutation.mutateAsync({
+        title: 'Neue Tabelle',
+        documentSubtype: 'sheets',
+      });
+      adapter.navigateToDocument(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create sheet:', err);
+    }
+  }, [createDocumentMutation, adapter]);
+
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
       const title = boardType === 'whiteboard' ? 'Neues Whiteboard' : 'Neues Board';
@@ -440,6 +452,7 @@ function DocumentsContent() {
           onShowGallery={() => setShowGallery(true)}
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
+          onCreateSheet={() => void handleCreateSheet()}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 

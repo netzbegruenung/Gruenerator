@@ -62,11 +62,24 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     // A missing/non-mintable type at this point is a routing bug upstream,
     // not a save failure — fail SOFT back to the type picker instead of
     // looping on a mint that can never succeed.
-    const state = useImageStudioStore.getState();
+    let state = useImageStudioStore.getState();
+    if (!state.type || !isMintableCanvasType(state.type)) {
+      // Subscribed type was set but the fresh read disagrees → a store write
+      // raced this effect. Give pending updates one tick to settle before
+      // deciding this is a real routing hole.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      state = useImageStudioStore.getState();
+    }
     if (!state.type || !isMintableCanvasType(state.type)) {
       console.warn(
         '[TemplateStudioFlow] CANVAS_EDIT reached without mintable type — falling back to type select:',
-        state.type ?? 'none'
+        {
+          subscribedType: type,
+          storeType: state.type ?? null,
+          currentStep: state.currentStep,
+          category: state.category,
+          editingSource: state.editingSource,
+        }
       );
       void import('sonner').then(({ toast }) =>
         toast.error('Vorlage konnte nicht geladen werden — bitte Vorlage neu wählen.')

@@ -1,4 +1,3 @@
-import { sharepicHandoffPayloadSchema } from '@gruenerator/contracts';
 import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -278,72 +277,9 @@ const ImageStudioPageContent: React.FC = () => {
     void loadSession();
   }, [searchParams, loadEditSessionData, navigate, location.pathname]);
 
-  // Handle sharepic handoff from chat (?handoff=<id> → load variant from localStorage)
-  useEffect(() => {
-    const handoffId = searchParams.get('handoff');
-    if (!handoffId) return;
-
-    const storageKey = `gruenerator:sharepic-handoff:${handoffId}`;
-    let raw: string | null = null;
-    try {
-      raw = localStorage.getItem(storageKey);
-      localStorage.removeItem(storageKey);
-    } catch (err) {
-      console.error('[ImageStudioPage] Failed to read sharepic handoff:', err);
-    }
-
-    const stripParam = () => {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('handoff');
-      void navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
-        replace: true,
-      });
-    };
-
-    const bailWithNotice = (reason: string, detail?: unknown) => {
-      console.warn(`[ImageStudioPage] Sharepic handoff rejected (${reason}):`, detail ?? raw);
-      void import('sonner').then(({ toast }) =>
-        toast.error('Vorlage konnte nicht geladen werden — bitte im Chat erneut öffnen.')
-      );
-      stripParam();
-    };
-
-    if (!raw) {
-      bailWithNotice('missing payload');
-      return;
-    }
-
-    try {
-      // Contract boundary: the writer (GlobalChatProvider) constructs this as
-      // SharepicHandoffPayload; safeParse here means a malformed/legacy blob
-      // can never advance the wizard toward the canvas mint.
-      const parsed = sharepicHandoffPayloadSchema.safeParse(JSON.parse(raw));
-      if (!parsed.success) {
-        bailWithNotice('schema mismatch', parsed.error.issues[0]);
-        return;
-      }
-      if (Date.now() - parsed.data.ts >= 5 * 60 * 1000) {
-        bailWithNotice('stale payload', parsed.data.ts);
-        return;
-      }
-
-      // loadFromAIGeneration decides the step itself: CANVAS_EDIT only for a
-      // mintable type, TYPE_SELECT otherwise. Deliberately NO forced
-      // setCurrentStep(CANVAS_EDIT) here — that override bypassed the
-      // mintable gate and crashed the mint with type=null.
-      useImageStudioStore
-        .getState()
-        .loadFromAIGeneration(
-          parsed.data.canvasType,
-          parsed.data.initialProps as Record<string, string>
-        );
-    } catch (err) {
-      bailWithNotice('unparseable JSON', err);
-      return;
-    }
-
-    stripParam();
-  }, [searchParams, navigate, location.pathname]);
+  // Chat sharepic variants are now minted server-side (POST /api/canvas/from-variant)
+  // and opened directly at /studio/canvas/:id — there is no localStorage handoff
+  // into this template wizard anymore.
 
   useEffect(() => {
     return () => {

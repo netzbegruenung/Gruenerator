@@ -1,0 +1,22 @@
+@import '@univerjs/preset-sheets-core/lib/index.css';
+
+.gruenerator-sheets-editor {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* Map the Univer primary palette onto the Grünerator green. */
+.gruenerator-sheets-editor {
+  --univer-primary-600: var(--color-primary-600, #46962b);
+  --univer-primary-500: var(--color-primary-500, #57ab27);
+}
+
+/* Univer's footer wrapper (sheet tabs + zoom) ships a fixed light background
+ * that does not follow dark mode — the inner status section is already themed
+ * dark, but the <footer> around it stays cream. Match it to Univer's dark
+ * surface (rgb(27, 28, 31), the color its own themed content uses at 0.25.1)
+ * when the app is dark. `data-theme="dark"` is set on <html> by useDarkMode. */
+[data-theme='dark'] .gruenerator-sheets-editor footer {
+  background-color: rgb(27, 28, 31) !important;
+}

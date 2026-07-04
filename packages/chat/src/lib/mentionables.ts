@@ -9,6 +9,7 @@ import {
   PiImage,
   PiImagesSquare,
   PiClipboardText,
+  PiBank,
   PiFileText,
   PiSparkle,
   PiCloud,
@@ -26,6 +27,7 @@ export type MentionableType =
   | 'document'
   | 'board'
   | 'doc'
+  | 'sheet'
   | 'wolke'
   | 'connect'
   | 'canva'
@@ -239,6 +241,22 @@ export const toolMentionables: Mentionable[] = [
     audience: 'de-DE',
   },
   {
+    // Official Bundestag documents via the DIP (Drucksachen, plenary speeches,
+    // legislative processes). DE-only source — gated to de-DE so the picker
+    // hides it for Austrian users (Nationalrat isn't covered).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'bundestag',
+    title: 'Bundestag',
+    description: 'Drucksachen, Reden & Gesetzgebung aus dem Bundestag',
+    avatar: '🏛️',
+    icon: PiBank,
+    backgroundColor: '#4B5563',
+    mention: 'bundestag',
+    audience: 'de-DE',
+  },
+  {
     type: 'tool',
     category: 'function',
     trigger: '@',
@@ -350,6 +368,45 @@ export function setBoardMentionables(boards: BoardMentionable[]): void {
 
 export function getBoardMentionables(): Mentionable[] {
   return [...boardToolMentionables, ...dynamicBoardMentionables];
+}
+
+export interface SheetMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+export const sheetToolMentionables: Mentionable[] = [
+  {
+    type: 'sheet',
+    category: 'function',
+    trigger: '@',
+    identifier: 'sheet-erstellen',
+    title: 'Tabelle erstellen',
+    description: 'Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf',
+    avatar: '✨',
+    icon: PiSparkle,
+    backgroundColor: '#316049',
+    mention: 'tabelle-erstellen',
+  },
+];
+
+let dynamicSheetMentionables: Mentionable[] = [];
+
+export function setSheetMentionables(sheets: SheetMentionable[]): void {
+  dynamicSheetMentionables = sheets.map((sh) => ({
+    type: 'sheet' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: sh.id,
+    title: sh.title,
+    description: `Tabelle: ${sh.title}`,
+    avatar: '📊',
+    icon: PiClipboardText,
+    backgroundColor: '#316049',
+    mention: sh.slug,
+  }));
+  rebuildMentionableMap();
 }
 
 export const docToolMentionables: Mentionable[] = [
@@ -669,6 +726,8 @@ export function getAllMentionables(): Mentionable[] {
     ...dynamicBoardMentionables,
     ...docToolMentionables,
     ...dynamicDocMentionables,
+    ...sheetToolMentionables,
+    ...dynamicSheetMentionables,
     ...documentMentionables,
     ...wolkeMentionables,
     ...connectMentionables,
@@ -693,6 +752,8 @@ function rebuildMentionableMap(): void {
     dynamicBoardMentionables,
     docToolMentionables,
     dynamicDocMentionables,
+    sheetToolMentionables,
+    dynamicSheetMentionables,
     documentMentionables,
     wolkeMentionables,
     connectMentionables,
@@ -740,7 +801,12 @@ export function filterMentionables(query: string): {
   vorlagen: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
-  const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
+  const allDocs = [
+    ...docToolMentionables,
+    ...dynamicDocMentionables,
+    ...sheetToolMentionables,
+    ...dynamicSheetMentionables,
+  ];
   if (!query) {
     return {
       agents: getAgentMentionables(),

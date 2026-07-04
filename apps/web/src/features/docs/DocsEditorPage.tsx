@@ -1,6 +1,7 @@
 import {
   useCollaboration,
   useCollaborators,
+  useDelayedConnectionStatus,
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
@@ -19,16 +20,8 @@ import {
   ErrorBoundary,
   type Document,
 } from '@gruenerator/docs';
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import {
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  AvatarGroup,
-  AvatarGroupCount,
-  Skeleton,
-} from '@gruenerator/ui';
+import { Skeleton } from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -58,8 +51,8 @@ import {
 } from 'react-icons/fi';
 import { PiSun, PiMoon, PiDesktop } from 'react-icons/pi';
 import { useBeforeUnload, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { z } from 'zod';
 
+import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
@@ -70,6 +63,7 @@ import { platformFetch } from '../../utils/platformFetch';
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
+import { getOrCreateGuestIdentity } from './guestIdentity';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { BlockNoteEditor } from '@blocknote/core';
@@ -85,51 +79,6 @@ const ChatSidebar = lazyWithRetry(() =>
 const DocsChatPanel = lazyWithRetry(() =>
   import('./DocsChatPanel').then((m) => ({ default: m.DocsChatPanel }))
 );
-
-const GUEST_COLORS = [
-  '#FF6B6B',
-  '#4ECDC4',
-  '#45B7D1',
-  '#FFA07A',
-  '#98D8C8',
-  '#F7DC6F',
-  '#BB8FCE',
-  '#85C1E2',
-  '#F8B739',
-  '#52B788',
-];
-
-const guestIdentitySchema = z.object({
-  guestId: z.string(),
-  guestName: z.string(),
-  guestColor: z.string(),
-  guestAnimalIndex: z.number(),
-});
-
-type GuestIdentity = z.infer<typeof guestIdentitySchema>;
-
-function getOrCreateGuestIdentity(): GuestIdentity {
-  const stored = localStorage.getItem('docs-guest-identity');
-  if (stored) {
-    try {
-      const parsed = guestIdentitySchema.safeParse(JSON.parse(stored));
-      if (parsed.success) return parsed.data;
-    } catch {
-      /* malformed JSON — fall through to regenerate */
-    }
-  }
-
-  const animalIndex = Math.floor(Math.random() * GUEST_ANIMALS.length);
-  const identity: GuestIdentity = {
-    guestId: `guest-${crypto.randomUUID().slice(0, 8)}`,
-    guestName: GUEST_ANIMALS[animalIndex].name,
-    guestColor: GUEST_COLORS[Math.floor(Math.random() * GUEST_COLORS.length)],
-    guestAnimalIndex: animalIndex,
-  };
-
-  localStorage.setItem('docs-guest-identity', JSON.stringify(identity));
-  return identity;
-}
 
 type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions';
 
@@ -451,21 +400,8 @@ function EditorContent() {
 
   const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
 
-  const [showDisconnected, setShowDisconnected] = useState(false);
-  useEffect(() => {
-    if (isConnected) {
-      setShowDisconnected(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowDisconnected(true), 5000);
-    return () => clearTimeout(timer);
-  }, [isConnected]);
-
-  const connectionStatus: 'disconnected' | 'offline-cached' | undefined = showDisconnected
-    ? isLocalLoaded
-      ? 'offline-cached'
-      : 'disconnected'
-    : undefined;
+  const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
+  const showDisconnected = connectionStatus !== undefined;
 
   if (docIsLoading || !isAuthResolved) {
     return (
@@ -595,25 +531,7 @@ function EditorContent() {
                   Lesezugriff
                 </div>
               )}
-              {collaborators.length > 0 && (
-                <>
-                  <AvatarGroup>
-                    {collaborators.slice(0, 5).map((c) => (
-                      <Avatar key={c.id} size="sm" title={c.name}>
-                        {c.avatarRobotId ? (
-                          <AvatarImage src={getRobotAvatarPath(c.avatarRobotId)} alt={c.name} />
-                        ) : null}
-                        <AvatarFallback style={{ backgroundColor: c.color, color: 'white' }}>
-                          {c.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                    {collaborators.length > 5 && (
-                      <AvatarGroupCount>+{collaborators.length - 5}</AvatarGroupCount>
-                    )}
-                  </AvatarGroup>
-                </>
-              )}
+              <CollaboratorAvatars collaborators={collaborators} />
 
               {isEditable && (
                 <>

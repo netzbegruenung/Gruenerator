@@ -4,7 +4,6 @@ import {
   preloadChatRuntime,
   type SharepicVariant,
 } from '@gruenerator/chat';
-import { type SharepicHandoffPayload } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -44,6 +43,10 @@ const chatFetch = async (url: string, options?: RequestInit): Promise<Response> 
   }
   return fetch(url, { ...options, credentials: 'include' });
 };
+
+// Variant ids with an in-flight mint-on-open, to drop concurrent double-clicks
+// (see onEditSharepic). Module scope: the provider is a singleton.
+const mintingVariantIds = new Set<string>();
 
 // DOM id of the sidebar slot the global thread list renders into. The slot
 // element lives in the layout Sidebar; the chat runtime renders the thread list
@@ -150,38 +153,67 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       wolkeConnectUrl: '/profile/wolke',
       renderSharepic: renderSharepicToImage,
       runPython,
-      onEditSharepic: (variant: SharepicVariant) => {
-        // Minted variants live in a real canvas document — open it directly
-        // (fully bidirectional with chat edits). Unminted ones use the legacy
-        // localStorage handoff into the template flow.
+      onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
+        // Already a real canvas document → open it directly.
         if (variant.canvasId) {
           window.open(`/studio/canvas/${variant.canvasId}`, '_blank', 'noopener,noreferrer');
           return;
         }
-        const handoffId =
-          typeof crypto !== 'undefined' && 'randomUUID' in crypto
-            ? crypto.randomUUID()
-            : `handoff-${Date.now()}`;
-        // Contract-typed at the write boundary: a non-canonical canvasType is
-        // a compile error here instead of a runtime crash in the studio.
-        const payload = {
-          canvasType: variant.canvasType,
-          initialProps: variant.initialProps,
-          ts: Date.now(),
-        } satisfies SharepicHandoffPayload;
-        try {
-          localStorage.setItem(
-            `gruenerator:sharepic-handoff:${handoffId}`,
-            JSON.stringify(payload)
+        // Unminted: mint server-side (authoritative, lossless Yjs seed), then
+        // open the real /studio/canvas/:id. The tab MUST open synchronously in
+        // the click handler (popup blockers reject a post-await window.open);
+        // it's redirected once the mint responds. threadId binds the canvas to
+        // the variant so a later chat edit reuses the same document.
+        const threadId = opts?.threadId;
+        if (!threadId) {
+          console.error('[Sharepic] Cannot open in studio: no active threadId');
+          void import('sonner').then(({ toast }) =>
+            toast.error('Sharepic konnte nicht geöffnet werden — bitte Chat neu laden.')
           );
-        } catch (err) {
-          console.error('[GlobalChatProvider] Failed to persist sharepic handoff:', err);
+          return;
         }
-        window.open(
-          `/studio/templates/${variant.canvasType}?handoff=${handoffId}`,
-          '_blank',
-          'noopener,noreferrer'
-        );
+        // Guard a rapid double-click on the same variant: two concurrent mints
+        // would race (both pass the binding lookup → two canvas docs, one
+        // orphaned). Ignore the second click while the first is in flight.
+        if (mintingVariantIds.has(variant.id)) return;
+        mintingVariantIds.add(variant.id);
+        const tab = window.open('about:blank', '_blank');
+        void (async () => {
+          try {
+            const res = await getContractsClient().canvas.fromVariant({
+              body: {
+                canvasType: variant.canvasType,
+                initialProps: variant.initialProps,
+                threadId,
+                variantId: variant.id,
+              },
+            });
+            if (res.status !== 201) throw new Error(`mint failed (HTTP ${res.status})`);
+            const { canvasId } = res.body;
+            const studioUrl = `/studio/canvas/${canvasId}`;
+            // No store stamp needed: the mint is idempotent on the (thread,
+            // variant) binding, so a re-click returns the same canvasId, and a
+            // thread reload resolves it from the binding table.
+            if (tab) {
+              tab.location.href = studioUrl;
+            } else {
+              // Popup was blocked: the canvas is saved; give the user a way in.
+              void import('sonner').then(({ toast }) =>
+                toast.info('Sharepic gespeichert.', {
+                  action: { label: 'Im Studio öffnen', onClick: () => window.open(studioUrl) },
+                })
+              );
+            }
+          } catch (err) {
+            console.error('[Sharepic] mint-on-open failed:', err);
+            tab?.close();
+            void import('sonner').then(({ toast }) =>
+              toast.error('Sharepic konnte nicht geöffnet werden — bitte erneut versuchen.')
+            );
+          } finally {
+            mintingVariantIds.delete(variant.id);
+          }
+        })();
       },
       fetchSharepicState: async (canvasId: string) => {
         const result = await getContractsClient().canvas.getState({ params: { id: canvasId } });

@@ -197,6 +197,7 @@ const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
+const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
@@ -218,7 +219,7 @@ const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorW
 const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
-const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
 const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
 const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
@@ -486,6 +487,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/beta', component: SubtitlerBetaPage },
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
+  { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
   { path: '/transfer', component: GrueneratorenBundle.Transfer, devOnly: true },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {
@@ -564,7 +566,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
-  { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'noChrome' },
+  { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'sidebarOnly' },
   {
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,
@@ -578,7 +580,8 @@ const standardRoutes: RouteConfig[] = [
   // Pages Feature Routes
   // Docs: overview and editor
   { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
-  { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
+  // Dispatches to the BlockNote or Univer editor by document_subtype.
+  { path: '/docs/:id', component: CollabDocRoute, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },

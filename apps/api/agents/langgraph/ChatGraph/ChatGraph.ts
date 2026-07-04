@@ -144,6 +144,14 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
+  // Sheet context (from @sheet mentions)
+  sheetIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  sheetContext: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Collaborative document context (from @doc mentions)
   docMentionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
@@ -511,6 +519,7 @@ function routeAfterClassification(
   // SSE event the docs-editor frontend dispatches into BlockNote's AI extension.
   if (
     intent === 'save_as_doc' ||
+    intent === 'create_sheet' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
     intent === 'edit_current_board' ||
@@ -535,6 +544,7 @@ function routeAfterClassification(
     social_post: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
     abgeordnetenwatch: 'abgeordnetenwatch',
+    bundestag: 'bundestag',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -548,6 +558,7 @@ function routeAfterClassification(
     modify_board: 'modify_board',
     edit_current_board: 'edit_current_board',
     share_doc: 'share_doc',
+    create_sheet: 'create_sheet',
     direct: 'direct',
   };
 
@@ -803,6 +814,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Board context (from @board mentions, populated by controller)
     boardIds: input.boardIds || [],
     boardContext: null,
+
+    // Sheet context (from @sheet mentions, populated by controller)
+    sheetIds: input.sheetIds || [],
+    sheetContext: null,
 
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],

@@ -36,6 +36,7 @@ import { extractChartFromResponse, emitConfirmAction } from './services/confirmA
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import {
   handleBoardCreation,
+  handleSheetCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
@@ -198,6 +199,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
+      }
+
+      // @bundestag hard-pins the DIP document/speech intent — same rules as
+      // @abgeordnetenwatch above (not in TOOL_PRIORITY, DE-only source).
+      const bundestagForced = !!forcedTools?.includes('bundestag');
+      if (bundestagForced && initialState.userLocale !== 'de-AT') {
+        classifiedState.intent = 'bundestag';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = extractTextContent(lastUserMessage.content).trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
       }
 
       if (forcedTools && forcedTools.length > 0) {
@@ -735,6 +752,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           userId,
           userContent: lastUserText as string,
           intent: 'direct',
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
+      // === Handle @sheet-erstellen tool / create_sheet intent ===
+      if (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet') {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handleSheetCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
         });
         if (created) return { status: 200 as const, body: undefined };
       }

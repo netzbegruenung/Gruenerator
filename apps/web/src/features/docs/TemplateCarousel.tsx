@@ -4,7 +4,7 @@ import { cn } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useEffect, useRef, useState } from 'react';
 import { FiChevronDown, FiMoreVertical } from 'react-icons/fi';
-import { PiBookmarkSimple, PiKanban, PiPencilLine } from 'react-icons/pi';
+import { PiBookmarkSimple, PiKanban, PiPencilLine, PiTable } from 'react-icons/pi';
 
 import { boardTemplates } from '../boards/boardTemplates';
 
@@ -15,6 +15,8 @@ interface TemplateCarouselProps {
   onShowGallery: () => void;
   onCreateBoardFromTemplate: (templateId: string) => void;
   onCreateWhiteboard: () => void;
+  /** Renders the spreadsheet tile when provided (feature-flagged by DocsPage). */
+  onCreateSheet?: () => void;
   onUserTemplateSelect: (template: UserTemplateSummary) => void;
 }
 
@@ -24,6 +26,7 @@ export const TemplateCarousel = memo(
     onShowGallery,
     onCreateBoardFromTemplate,
     onCreateWhiteboard,
+    onCreateSheet,
     onUserTemplateSelect,
   }: TemplateCarouselProps) => {
     const { data: userTemplates = [] } = useQuery<UserTemplateSummary[]>({
@@ -189,6 +192,26 @@ export const TemplateCarousel = memo(
                 </span>
               </div>
             </button>
+
+            {onCreateSheet && (
+              <button
+                className="group/item shrink-0 w-[118px] cursor-pointer bg-transparent border-none p-0 text-left font-[inherit]"
+                onClick={onCreateSheet}
+                title="Neue Tabelle (Spreadsheet) erstellen"
+              >
+                <div className="w-[118px] h-[150px] border border-grey-200 dark:border-grey-600 rounded bg-secondary-50 dark:bg-secondary-900/20 overflow-hidden flex items-center justify-center transition-[box-shadow,border-color] duration-150 ease-out group-hover/item:shadow-sm group-hover/item:border-secondary-300 dark:group-hover/item:border-secondary-500">
+                  <PiTable size={36} className="text-secondary-600 dark:text-secondary-400" />
+                </div>
+                <div className="pt-1.5 px-1">
+                  <span className="block text-[0.8125rem] font-medium text-foreground truncate">
+                    Tabelle
+                  </span>
+                  <span className="block text-xs font-light text-grey-500 truncate">
+                    Spreadsheet mit Formeln
+                  </span>
+                </div>
+              </button>
+            )}
 
             {userTemplates.length > 0 && (
               <>
