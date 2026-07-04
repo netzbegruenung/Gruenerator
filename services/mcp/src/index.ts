@@ -111,7 +111,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // === MCP RESOURCES ===
 
   // List available resources
-  server.resource('gruenerator://collections', 'Verfügbare Dokumentsammlungen', async () => {
+  server.resource('Verfügbare Dokumentsammlungen', 'gruenerator://collections', async () => {
     const resources = await getCollectionResources();
     return {
       contents: [
@@ -125,22 +125,22 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   });
 
   // Server info resource
-  server.resource('gruenerator://info', 'Server-Informationen und Fähigkeiten', () =>
+  server.resource('Server-Informationen und Fähigkeiten', 'gruenerator://info', () =>
     readServerInfoResource()
   );
 
   // System prompt resource - AI systems should read this first
   server.resource(
-    'gruenerator://system-prompt',
     'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+    'gruenerator://system-prompt',
     () => getSystemPromptResource()
   );
 
   // Dynamic collection resources
   for (const [key, col] of Object.entries(config.collections)) {
     server.resource(
-      `gruenerator://collections/${key}`,
       `${col.displayName}: ${col.description}`,
+      `gruenerator://collections/${key}`,
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
         return (
