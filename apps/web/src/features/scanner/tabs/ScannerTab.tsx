@@ -217,7 +217,7 @@ const ScannerTab = () => {
       const docResponse = await apiClient.post<{ documentId: string }>('/docs/from-export', {
         content: html,
         title,
-        documentType: 'Dokument',
+        documentType: 'blank',
       });
 
       void navigate(`/docs/${docResponse.data.documentId}`);
