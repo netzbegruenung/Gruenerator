@@ -20,9 +20,46 @@ import {
   cacheSearch,
   getCacheStats,
 } from '../utils/cache.ts';
+import { describeFetchError, isConnectionError } from '../utils/errors.ts';
 import { type Country } from '../utils/localization.ts';
 
 type SearchMode = 'hybrid' | 'vector' | 'text';
+
+/**
+ * Build the error response for a failed search. A connection-level failure
+ * (search index unreachable) gets a clear, actionable user-facing message and
+ * an `errorType` the client can branch on — distinct from a generic error, and
+ * never silently collapsed into "Keine Ergebnisse". The technical cause is kept
+ * in `technicalDetail` + logs for diagnosis.
+ */
+function buildSearchError(
+  err: unknown,
+  logLabel: string
+): {
+  error: true;
+  errorType: 'search_unavailable' | 'search_error';
+  message: string;
+  technicalDetail: string;
+} {
+  const detail = describeFetchError(err);
+  console.error(`[Search] ${logLabel}: ${detail}`);
+  if (isConnectionError(err)) {
+    return {
+      error: true,
+      errorType: 'search_unavailable',
+      message:
+        'Die Wissensdatenbank ist derzeit nicht erreichbar (Verbindungsproblem zum Suchindex). ' +
+        'Das ist ein vorübergehendes technisches Problem – bitte in ein paar Minuten erneut versuchen.',
+      technicalDetail: detail,
+    };
+  }
+  return {
+    error: true,
+    errorType: 'search_error',
+    message: `Suchfehler: ${detail}`,
+    technicalDetail: detail,
+  };
+}
 
 // Must match minFinalScore in qdrant/client.ts hybridConfig
 const MCP_MIN_RELEVANCE_SCORE = 0.35;
@@ -488,12 +525,7 @@ async function searchSingleCollectionWithCache({
 
     return response;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[Search] Fehler:', message);
-    return {
-      error: true,
-      message: `Suchfehler: ${message}`,
-    };
+    return buildSearchError(err, 'Fehler');
   }
 }
 
@@ -562,6 +594,9 @@ async function searchMultipleCollections({
           useCache,
           sharedEmbedding: embedding,
         }).catch((err: unknown) => {
+          // Index unreachable affects every collection — fail the whole search
+          // with a real error instead of masking it as empty per-collection.
+          if (isConnectionError(err)) throw err;
           console.error(
             `[Search] Collection ${collectionKey} failed: ${err instanceof Error ? err.message : String(err)}`
           );
@@ -629,12 +664,7 @@ async function searchMultipleCollections({
 
     return response;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[Search] Multi-collection search error:', message);
-    return {
-      error: true,
-      message: `Suchfehler: ${message}`,
-    };
+    return buildSearchError(err, 'Multi-collection search error');
   }
 }
 
