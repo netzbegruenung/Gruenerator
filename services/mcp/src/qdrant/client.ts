@@ -10,6 +10,7 @@ import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerat
 import { QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
 import { config } from '../config.ts';
+import { describeFetchError, isConnectionError } from '../utils/errors.ts';
 
 let client: QdrantClient | null = null;
 
@@ -52,7 +53,11 @@ export async function getQdrantClient(): Promise<QdrantClient> {
     await client.getCollections();
     console.error('[Qdrant] Verbindung hergestellt');
   } catch (err) {
-    console.error('[Qdrant] Verbindungsfehler:', err instanceof Error ? err.message : String(err));
+    // Surface err.cause so logs say WHY (ENOTFOUND / ECONNREFUSED / connect
+    // timeout / TLS) instead of the opaque "fetch failed". Reset the cached
+    // client so the next call retries the handshake instead of reusing a dead one.
+    client = null;
+    console.error(`[Qdrant] Verbindungsfehler: ${describeFetchError(err)}`);
     throw err;
   }
 
@@ -145,6 +150,10 @@ async function performTextSearch(
         matchType: variant === searchTerm.toLowerCase() ? 'exact' : 'variant',
       };
     } catch (err) {
+      // A connection failure means the whole index is unreachable — do NOT
+      // swallow it as an empty variant (that masks an outage as "no results").
+      // Let it propagate so the tool returns a real error to the user.
+      if (isConnectionError(err)) throw err;
       console.error(
         `[TextSearch] Variant "${variant}" failed:`,
         err instanceof Error ? err.message : String(err)
@@ -194,7 +203,8 @@ async function performTextSearch(
             with_vector: false,
           });
           return tokRes.points || [];
-        } catch {
+        } catch (err) {
+          if (isConnectionError(err)) throw err;
           return [];
         }
       });
