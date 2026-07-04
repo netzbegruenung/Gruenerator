@@ -31,8 +31,8 @@ describe('buildChartData', () => {
       'line',
       ''
     );
-    expect(c.rows[0]?.Betrag).toBe(1234.5);
-    expect(c.rows[1]?.Betrag).toBe(25);
+    expect(c.rows[0]?.['Betrag']).toBe(1234.5);
+    expect(c.rows[1]?.['Betrag']).toBe(25);
   });
 
   it('de-duplicates repeated series names', () => {
