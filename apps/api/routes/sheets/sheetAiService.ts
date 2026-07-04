@@ -31,22 +31,53 @@ const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadshee
 
 You MUST respond ONLY by calling applySheetOperations with { "operations": [ ... ] }.
 
-Permitted operation types:
-- set_range_values { range, values, sheet? }   // range in A1 notation ("A1:C3"); values is a 2D array matching the range shape
-- set_formula { cell, formula, sheet? }        // single cell; formula starts with "=" and uses A1 references
-- format_range { range, bold?, background?, fontColor?, sheet? }  // colors as hex, e.g. "#e8f5e9"
-- add_sheet { name }
-- clear_range { range, sheet? }
+Permitted operation types (each object needs a "type" field):
+- { "type": "set_range_values", "range": "A1:C3", "values": [[...],[...]], "sheet"?: "Name" }
+    // range in A1 notation; values is a 2D array (array of rows) matching the range shape
+- { "type": "set_formula", "cell": "D2", "formula": "=SUM(A1:A10)", "sheet"?: "Name" }
+    // single cell; formula starts with "=" and uses A1 references
+- { "type": "format_range", "range": "A1:C1", "bold"?: true, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "sheet"?: "Name" }
+- { "type": "add_sheet", "name": "Blatt 2" }
+- { "type": "clear_range", "range": "B2:B5", "sheet"?: "Name" }
 
 RULES:
 - Ranges/cells ALWAYS in A1 notation. Row 1 is the first row, column A the first column.
-- The current sheet state below shows values with their A1 coordinates — target EXISTING data precisely; do not overwrite unrelated cells.
+- The "AKTUELLER TABELLEN-ZUSTAND" below shows the existing values at their A1 coordinates. To CHANGE existing data, emit set_range_values (or set_formula) targeting exactly those coordinates — this OVERWRITES them. Do not overwrite unrelated cells.
+- "values" MUST be a 2D array even for a single cell: a single value is [["x"]], one row is [["a","b","c"]], one column is [["a"],["b"],["c"]].
 - In set_range_values, a string starting with "=" is treated as a formula.
 - Numbers must be JSON numbers (1234.5), not localized strings.
 - "sheet" is the sheet NAME; omit it to target the active sheet.
 - Write German content with gender-inclusive language (Genderstern *) where text is generated.
-- Only emit operations the user actually asked for. If nothing should change, return an empty operations array.
-- Return ONLY the tool call. No prose.`;
+- The user is explicitly asking for a change — emit the operations that carry it out. Only return an empty array if the request is truly impossible or requires no change.
+- Return ONLY the tool call. No prose.
+
+EXAMPLE — the sheet has "Umsatz" in A1 and 1000 in B1, and the user says "ändere den Umsatz auf 2500":
+{ "operations": [ { "type": "set_range_values", "range": "B1", "values": [[2500]] } ] }`;
+
+/**
+ * Coerce the two shape mistakes models make most often on set_range_values
+ * (precisely the op used to modify existing cells) so they validate instead of
+ * being dropped:
+ *  - `values` given as a 1D array (["a","b"]) → wrap into one row ([["a","b"]]).
+ *  - `values` given as a bare scalar (2500) → single cell ([[2500]]).
+ * Anything already well-shaped (a 2D array) passes through untouched. Non-objects
+ * and other op types are returned as-is for the strict schema to accept or reject.
+ */
+export function normalizeRawOp(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw;
+  const op = raw as Record<string, unknown>;
+  if (op.type !== 'set_range_values') return raw;
+
+  let values = op.values;
+  if (!Array.isArray(values)) {
+    // scalar → [[scalar]]
+    values = [[values]];
+  } else if (!values.some((row) => Array.isArray(row))) {
+    // 1D row array → [[...]]
+    values = [values];
+  }
+  return { ...op, values };
+}
 
 /**
  * Plan sheet operations for a user request. Returns a validated
@@ -75,17 +106,20 @@ export async function generateSheetOperations(opts: {
 
   const system = `${SHEET_TOOL_STRICT_PROMPT}\n\nAKTUELLER TABELLEN-ZUSTAND:\n${sheetContext.slice(0, 24_000)}${referenceSection}`;
 
-  let captured: SheetOperation[] | null = null;
-
   const result = await generateText({
     model,
     system,
     prompt: userPrompt,
     tools: {
       applySheetOperations: tool({
-        description: 'Apply a batch of operations to the spreadsheet.',
-        // No `.min(1)`: an empty array is the legitimate "nothing to change".
-        inputSchema: z.object({ operations: z.array(sheetOperationSchema).max(50) }),
+        description:
+          'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (set_range_values, set_formula, format_range, add_sheet, clear_range) as documented in the system prompt.',
+        // Deliberately lenient: accept the raw array so a single malformed op
+        // does not make the SDK reject the WHOLE tool call (which would surface
+        // as a hard error / drop every valid op with it). We validate each op
+        // ourselves below against sheetOperationSchema and keep the good ones.
+        // The precise op shapes are enumerated in the system prompt.
+        inputSchema: z.object({ operations: z.array(z.unknown()).max(50) }),
       }),
     },
     toolChoice: 'required',
@@ -94,20 +128,37 @@ export async function generateSheetOperations(opts: {
     temperature: 0.2,
   });
 
-  for (const tc of result.toolCalls) {
-    if (tc.toolName === 'applySheetOperations') {
-      const parsed = z
-        .array(sheetOperationSchema)
-        .max(50)
-        .safeParse((tc.input as { operations: unknown }).operations);
-      if (parsed.success) {
-        captured = parsed.data;
-      } else {
-        log.warn(`[SheetAI] Operation validation failed: ${parsed.error.message}`);
-      }
-    }
+  const toolCall = result.toolCalls.find((tc) => tc.toolName === 'applySheetOperations');
+  const rawOps = toolCall ? (toolCall.input as { operations?: unknown[] }).operations : undefined;
+
+  // Per-op validation: keep every valid operation, drop (and log) only the
+  // malformed ones — one bad op must never silently discard a whole batch.
+  const captured: SheetOperation[] = [];
+  const dropped: string[] = [];
+  for (const raw of Array.isArray(rawOps) ? rawOps : []) {
+    const parsed = sheetOperationSchema.safeParse(normalizeRawOp(raw));
+    if (parsed.success) captured.push(parsed.data);
+    else
+      dropped.push(
+        `${parsed.error.issues[0]?.message ?? 'invalid'} :: ${JSON.stringify(raw).slice(0, 160)}`
+      );
   }
 
-  log.info(`[SheetAI] Planned ${captured?.length ?? 0} operation(s) for prompt: "${userPrompt}"`);
-  return captured ?? [];
+  if (dropped.length > 0) {
+    log.warn(`[SheetAI] Dropped ${dropped.length} malformed operation(s): ${dropped.join(' | ')}`);
+  }
+  // When the model plans nothing, surface WHY (empty tool call vs. no tool call
+  // vs. all-dropped) — the frontend can only show "keine Änderung", so the
+  // diagnosis has to live in the logs.
+  if (captured.length === 0) {
+    log.warn(
+      `[SheetAI] 0 operations for prompt "${userPrompt}" — finish=${result.finishReason}, ` +
+        `toolCall=${toolCall ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
+        `dropped=${dropped.length}, contextChars=${sheetContext.length}, ` +
+        `modelText=${JSON.stringify(result.text.slice(0, 200))}`
+    );
+  }
+
+  log.info(`[SheetAI] Planned ${captured.length} operation(s) for prompt: "${userPrompt}"`);
+  return captured;
 }
