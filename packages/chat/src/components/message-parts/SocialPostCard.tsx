@@ -15,6 +15,10 @@ import type { SharepicData } from '../../hooks/useChatGraphStream';
 
 const COLLAPSE_THRESHOLD = 600;
 
+/** Public documentation for the experimental social-post feature. */
+const SOCIAL_POST_DOC_URL =
+  'https://doku.services.moritz-waechter.de/docs/gruenerieren/social-media-post';
+
 /** Highlight hashtags inside the plain post text (design: primary, bold). */
 function renderPostText(text: string): React.ReactNode[] {
   return text.split(/(#[\p{L}\p{N}_]+)/gu).map((part, i) =>
@@ -106,13 +110,16 @@ export function SocialPostCard({
           <Megaphone className="h-4 w-4" />
         </span>
         <span className="text-sm font-semibold text-foreground">{title}</span>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
-          title="Experimentelles Feature — Verhalten und Funktionen können sich ändern."
+        <a
+          href={SOCIAL_POST_DOC_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+          title="Experimentelles Feature — Verhalten und Funktionen können sich ändern. Mehr in der Dokumentation."
         >
           <FlaskConical className="h-3 w-3" />
           Experimentell
-        </span>
+        </a>
         <span className="flex-1" />
         <button
           onClick={toggleActive}
