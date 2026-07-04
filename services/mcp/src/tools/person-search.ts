@@ -66,6 +66,14 @@ Für Personensuche mit Anreicherung → DIESES Tool.
         aktivitaetenLimit,
       });
 
+      if (result && (result as { isPersonQuery?: boolean }).isPersonQuery === false) {
+        return {
+          ...result,
+          message: `Kein*e Grünen-Abgeordnete*r in "${query}" erkannt.`,
+          hint: 'Erfasst sind nur aktuelle Grünen-MdB im Bundestag. Tipps: vollen Namen nutzen (Vor- + Nachname), Umlaute ggf. ausschreiben (ä→ae). Für thematische Suche statt Personensuche gruenerator_search verwenden.',
+        };
+      }
+
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

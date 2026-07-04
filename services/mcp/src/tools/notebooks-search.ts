@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { callGrueneratorApi } from '../api-client.ts';
+import { callGrueneratorApi, notebooksApiError } from '../api-client.ts';
 
 export const notebooksSearchTool = {
   name: 'notebooks_search',
@@ -32,7 +32,7 @@ Erfordert einen Bearer API-Key, dessen Scope den angefragten \`landesverband\` a
       body: { query, landesverband },
     });
     if (!result.ok) {
-      return { error: true, status: result.status, message: result.message };
+      return notebooksApiError(result.status, result.message);
     }
     return result.data;
   },

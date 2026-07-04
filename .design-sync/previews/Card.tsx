@@ -11,7 +11,9 @@ import {
 
 const Dots = () => (
   <svg viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" />
+    <circle cx="5" cy="12" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="19" cy="12" r="1.6" />
   </svg>
 );
 
@@ -26,9 +28,8 @@ export function PressRelease() {
       </CardHeader>
       <CardContent>
         <p style={{ margin: 0, lineHeight: 1.6 }}>
-          Die grüne Landtagsfraktion fordert ein kommunales Förderprogramm für
-          Wärmepumpen und Dachbegrünung. „Klimaschutz entscheidet sich in den
-          Kommunen", so die Sprecherin.
+          Die grüne Landtagsfraktion fordert ein kommunales Förderprogramm für Wärmepumpen und
+          Dachbegrünung. „Klimaschutz entscheidet sich in den Kommunen", so die Sprecherin.
         </p>
       </CardContent>
       <CardFooter style={{ gap: 8 }}>
@@ -47,7 +48,9 @@ export function WithAction() {
         <CardTitle>Newsletter Juni</CardTitle>
         <CardDescription>Geplant für nächste Woche</CardDescription>
         <CardAction>
-          <Button variant="ghost" size="icon-sm" aria-label="Optionen"><Dots /></Button>
+          <Button variant="ghost" size="icon-sm" aria-label="Optionen">
+            <Dots />
+          </Button>
         </CardAction>
       </CardHeader>
       <CardContent>

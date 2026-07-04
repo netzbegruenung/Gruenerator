@@ -1,7 +1,6 @@
-import { getDefaultSearchCollections } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
-import { COLLECTION_KEYS } from '../config.ts';
+import { getDefaultSearchCollections } from '../catalog.ts';
 import { synthesizeAnswer } from '../services/answer-synthesis.ts';
 import { type Country } from '../utils/localization.ts';
 
@@ -25,7 +24,7 @@ DE = Deutschland, AT = Österreich`,
     question: z.string().describe('Frage auf Deutsch'),
     country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich. PFLICHT.'),
     collection: z
-      .enum(COLLECTION_KEYS as [string, ...string[]])
+      .string()
       .optional()
       .describe('Optionale Sammlung. Ohne: alle Sammlungen des Landes.'),
     mode: z
@@ -71,9 +70,14 @@ DE = Deutschland, AT = Österreich`,
 
     const results = searchResult.results as Array<Record<string, unknown>>;
     if (!results || results.length === 0) {
+      const searchHint =
+        typeof searchResult.hint === 'string'
+          ? searchResult.hint
+          : 'Keine Treffer über der Relevanzschwelle. Versuche breitere/andere Begriffe oder searchMode "text" für exakte Begriffe.';
       return {
         answer: 'Zu dieser Frage konnten leider keine relevanten Quellen gefunden werden.',
         sources: [],
+        hint: `${searchHint} Alternativ das jeweils andere Land (${country === 'DE' ? 'AT' : 'DE'}) probieren.`,
         metadata: {
           responseTimeMs: Date.now() - startTime,
           collectionsSearched: collection ? [collection] : getDefaultSearchCollections(country),

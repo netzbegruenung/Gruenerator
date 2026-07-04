@@ -124,6 +124,16 @@ export function columnLabel(index: number): string {
   return label;
 }
 
+/** Zero-based column index for an A1 column label ("A" → 0, "AA" → 26). Case
+ * insensitive; returns -1 for empty/non-letter input. */
+export function columnIndex(label: string): number {
+  const letters = label.trim().toUpperCase();
+  if (!/^[A-Z]+$/.test(letters)) return -1;
+  let index = 0;
+  for (const ch of letters) index = index * 26 + (ch.charCodeAt(0) - 64);
+  return index - 1;
+}
+
 /** Max characters per cell in the markdown-table context renderers. */
 export const SHEET_MD_CELL_MAX = 120;
 

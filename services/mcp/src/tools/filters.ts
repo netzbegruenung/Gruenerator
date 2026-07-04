@@ -1,8 +1,9 @@
-import { buildCollectionDefaultFilter } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
-import { config, COLLECTION_KEYS } from '../config.ts';
+import { buildCollectionDefaultFilter } from '../catalog.ts';
+import { config } from '../config.ts';
 import { getFieldValueCounts } from '../qdrant/client.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 
 /**
  * Tool to discover available filter values for a collection
@@ -42,7 +43,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 
   inputSchema: {
     collection: z
-      .enum(COLLECTION_KEYS as [string, ...string[]])
+      .string()
       .describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden'),
   },
 
@@ -52,6 +53,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
       return {
         error: true,
         message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${Object.keys(config.collections).join(', ')}`,
+        hint: 'Alle Sammlungen findest du über `resources/list` (gruenerator://collections).',
       };
     }
 
@@ -129,11 +131,17 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
           'Nutze die Werte aus "values" direkt als Filter bei gruenerator_search. Die Werte sind exakt und dürfen nicht verändert werden.',
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[Filters] Error:', message);
+      const { detail, isConnection } = classifyError(err);
+      console.error(`[Filters] Error: ${detail}`);
+      if (isConnection) {
+        return connectionErrorResponse(detail, {
+          collection: col.displayName,
+          collectionId: collection,
+        });
+      }
       return {
         error: true,
-        message: `Fehler beim Abrufen der Filter: ${message}`,
+        message: `Fehler beim Abrufen der Filter: ${detail}`,
         collection: col.displayName,
         collectionId: collection,
       };

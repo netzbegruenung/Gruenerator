@@ -4,9 +4,10 @@ import { cn } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { FiChevronDown, FiFileText, FiGrid, FiMoreVertical, FiPlus } from 'react-icons/fi';
-import { PiBookmarkSimple, PiKanban, PiPencilLine } from 'react-icons/pi';
+import { PiBookmarkSimple, PiKanban, PiPencilLine, PiProjectorScreenChart } from 'react-icons/pi';
 
 import { boardTemplates } from '../boards/boardTemplates';
+import { presentationTemplates } from '../presentations/presentationTemplates';
 import { sheetTemplates } from '../sheets/sheetTemplates';
 
 const STORAGE_KEY = 'gruenerator_web_templates_hidden';
@@ -15,11 +16,12 @@ const STORAGE_KEY = 'gruenerator_web_templates_hidden';
 // the board-template row.
 const EMPTY_BOARD_TEMPLATE_ID = 'board-standard';
 
-type CardType = 'doc' | 'board' | 'sheet';
+type CardType = 'doc' | 'board' | 'sheet' | 'pres';
 type SegmentKey = 'all' | CardType;
 
-// Per-type accent tokens. The design uses green / amber / blue for doc / board /
-// sheet; mapped here to theme palette tokens with dark-mode variants.
+// Per-type accent tokens. The design uses green / amber / blue / purple for
+// doc / board / sheet / presentation; mapped here to theme palette tokens with
+// dark-mode variants.
 const TYPE_TOKENS: Record<
   CardType,
   { label: string; dot: string; chip: string; accent: string; dashed: string }
@@ -45,6 +47,13 @@ const TYPE_TOKENS: Record<
     accent: 'text-blue-600 dark:text-blue-400',
     dashed: 'border-blue-300 dark:border-blue-700',
   },
+  pres: {
+    label: 'Präsentationen',
+    dot: 'bg-purple-500',
+    chip: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    accent: 'text-purple-600 dark:text-purple-400',
+    dashed: 'border-purple-300 dark:border-purple-700',
+  },
 };
 
 const SEGMENTS: { key: SegmentKey; label: string }[] = [
@@ -52,6 +61,7 @@ const SEGMENTS: { key: SegmentKey; label: string }[] = [
   { key: 'doc', label: 'Dokumente' },
   { key: 'board', label: 'Boards' },
   { key: 'sheet', label: 'Tabellen' },
+  { key: 'pres', label: 'Präsentationen' },
 ];
 
 // Scaled-down HTML render of a doc template's content (top-anchored, clipped).
@@ -103,6 +113,26 @@ function GridThumb() {
   );
 }
 
+function SlideThumb() {
+  return (
+    <div className="flex h-full items-center p-3">
+      <div className="flex aspect-video w-full flex-col gap-1.5 rounded border border-grey-200 bg-grey-50 p-2 dark:border-grey-600 dark:bg-grey-800">
+        <div className="h-1.5 w-2/3 rounded bg-purple-400" />
+        <div className="h-1 w-full rounded bg-grey-200 dark:bg-grey-600" />
+        <div className="h-1 w-5/6 rounded bg-grey-200 dark:bg-grey-600" />
+        <div className="mt-auto h-1 w-1/3 rounded bg-purple-300" />
+      </div>
+    </div>
+  );
+}
+
+const CHIP_ICON: Record<CardType, typeof FiFileText> = {
+  doc: FiFileText,
+  board: PiKanban,
+  sheet: FiGrid,
+  pres: PiProjectorScreenChart,
+};
+
 interface GalleryCard {
   key: string;
   type: CardType;
@@ -116,7 +146,7 @@ interface GalleryCard {
 
 function TemplateCard({ card }: { card: GalleryCard }) {
   const token = TYPE_TOKENS[card.type];
-  const ChipIcon = card.type === 'board' ? PiKanban : card.type === 'sheet' ? FiGrid : FiFileText;
+  const ChipIcon = CHIP_ICON[card.type];
 
   return (
     <button
@@ -166,6 +196,9 @@ interface TemplateCarouselProps {
   /** Renders the spreadsheet tiles when provided (feature-flagged by DocsPage). */
   onCreateSheet?: () => void;
   onCreateSheetFromTemplate?: (templateId: string) => void;
+  /** Renders the presentation tiles when provided (feature-flagged by DocsPage). */
+  onCreatePresentation?: () => void;
+  onCreatePresentationFromTemplate?: (templateId: string) => void;
   onUserTemplateSelect: (template: UserTemplateSummary) => void;
 }
 
@@ -177,6 +210,8 @@ export const TemplateCarousel = memo(
     onCreateWhiteboard,
     onCreateSheet,
     onCreateSheetFromTemplate,
+    onCreatePresentation,
+    onCreatePresentationFromTemplate,
     onUserTemplateSelect,
   }: TemplateCarouselProps) => {
     const { data: userTemplates = [] } = useQuery<UserTemplateSummary[]>({
@@ -258,6 +293,17 @@ export const TemplateCarousel = memo(
         empty: true,
       });
     }
+    if (onCreatePresentation) {
+      cards.push({
+        key: 'empty-pres',
+        type: 'pres',
+        title: 'Leere Präsentation',
+        subtitle: 'Starte mit leeren Folien',
+        onClick: onCreatePresentation,
+        thumb: null,
+        empty: true,
+      });
+    }
 
     // Doc templates (blank is the empty tile; tabelle superseded by real sheets)
     for (const template of templates) {
@@ -315,6 +361,20 @@ export const TemplateCarousel = memo(
           subtitle: st.description,
           onClick: () => onCreateSheetFromTemplate(st.id),
           thumb: <GridThumb />,
+        });
+      }
+    }
+
+    // Presentation templates
+    if (onCreatePresentationFromTemplate) {
+      for (const pt of presentationTemplates) {
+        cards.push({
+          key: `pres-${pt.id}`,
+          type: 'pres',
+          title: pt.name,
+          subtitle: pt.description,
+          onClick: () => onCreatePresentationFromTemplate(pt.id),
+          thumb: <SlideThumb />,
         });
       }
     }

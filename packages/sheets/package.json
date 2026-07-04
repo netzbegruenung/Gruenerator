@@ -20,9 +20,12 @@
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
+    "@univerjs/core": "0.25.1",
     "@univerjs/preset-sheets-core": "0.25.1",
+    "@univerjs/preset-sheets-drawing": "0.25.1",
     "@univerjs/presets": "0.25.1",
     "@univerjs/themes": "0.25.1",
+    "recharts": "3.8.1",
     "yjs": "^13.6.31"
   },
   "devDependencies": {
