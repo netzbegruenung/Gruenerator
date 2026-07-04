@@ -25,6 +25,11 @@ import {
   type Slide,
   type SlideLayout,
 } from '@gruenerator/contracts';
+import {
+  bodyFragmentKey,
+  fragmentToMarkdown,
+  seedFragmentFromMarkdown,
+} from '@gruenerator/contracts/presentations-richtext';
 import * as Y from 'yjs';
 
 import { collaborative_documents_init } from '../../database/schema/collaborative.js';
@@ -96,13 +101,20 @@ export function parsePresentationStructure(content: string): PresentationStructu
   return match ? tryParse(match[0]) : null;
 }
 
-/** Build a slide Y.Map (kept local to avoid importing the reveal editor pkg). */
+/** Non-code slide bodies live in a per-slide Y.XmlFragment (collaborative rich
+ * text); code stays a plain string. Mirrors the client's ydocSchema. */
+function isCodeLayout(layout: SlideLayout): boolean {
+  return layout === 'code';
+}
+
+/** Build a slide Y.Map (kept local to avoid importing the reveal editor pkg).
+ * Non-code bodies are seeded into a fragment separately (see the caller). */
 function buildSlideYMap(slide: Slide): Y.Map<unknown> {
   const m = new Y.Map<unknown>();
   m.set('id', slide.id);
   m.set('layout', slide.layout);
   m.set('title', slide.title);
-  m.set('body', slide.body);
+  if (isCodeLayout(slide.layout)) m.set('body', slide.body);
   m.set('notes', slide.notes);
   m.set('background', slide.background ?? null);
   m.set('transition', slide.transition ?? null);
@@ -114,12 +126,17 @@ function buildSlideYMap(slide: Slide): Y.Map<unknown> {
   return m;
 }
 
-function readSlideYMap(m: Y.Map<unknown>): Slide {
+function readSlideYMap(m: Y.Map<unknown>, ydoc: Y.Doc): Slide {
+  const id = String(m.get('id') ?? '');
+  const layout = (m.get('layout') as SlideLayout) ?? 'content';
+  const body = isCodeLayout(layout)
+    ? String(m.get('body') ?? '')
+    : fragmentToMarkdown(ydoc.getXmlFragment(bodyFragmentKey(id)));
   return {
-    id: String(m.get('id') ?? ''),
-    layout: (m.get('layout') as SlideLayout) ?? 'content',
+    id,
+    layout,
     title: String(m.get('title') ?? ''),
-    body: String(m.get('body') ?? ''),
+    body,
     notes: String(m.get('notes') ?? ''),
     background: (m.get('background') as string | null) ?? null,
     transition: (m.get('transition') as Slide['transition']) ?? null,
@@ -173,8 +190,14 @@ export async function createPresentationDocument(
     const ydoc = new Y.Doc();
     const slidesArr = ydoc.getArray<Y.Map<unknown>>(PRESENTATION_YDOC_KEYS.slides);
     const meta = ydoc.getMap<unknown>(PRESENTATION_YDOC_KEYS.meta);
+    const slides = structureToSlides(structure);
     ydoc.transact(() => {
-      slidesArr.insert(0, structureToSlides(structure).map(buildSlideYMap));
+      slidesArr.insert(0, slides.map(buildSlideYMap));
+      for (const slide of slides) {
+        if (!isCodeLayout(slide.layout) && slide.body) {
+          seedFragmentFromMarkdown(ydoc.getXmlFragment(bodyFragmentKey(slide.id)), slide.body);
+        }
+      }
       meta.set(PRESENTATION_META_KEYS.seeded, true);
       meta.set(PRESENTATION_META_KEYS.schemaVersion, PRESENTATION_SCHEMA_VERSION);
     });
@@ -269,7 +292,7 @@ export async function loadPresentationState(
   const slides = ydoc
     .getArray<Y.Map<unknown>>(PRESENTATION_YDOC_KEYS.slides)
     .toArray()
-    .map(readSlideYMap);
+    .map((m) => readSlideYMap(m, ydoc));
   return { id: presentationId, title, slides };
 }
 
