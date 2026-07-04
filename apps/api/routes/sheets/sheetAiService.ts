@@ -15,17 +15,17 @@ import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
-import { type AgentConfig } from '../chat/agents/types.js';
 
 const log = createLogger('SheetAI');
 
-// Mirror boards/docs AI model choices — confirmed to return tool calls.
-const SHEET_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  litellm: 'verdigado-pro',
-  regolo: 'mistral-small-4-119b',
-  mistral: 'mistral-medium-2604',
-  anthropic: 'mistral-medium-2604',
-};
+// Sheet planning ALWAYS uses Mistral Medium 3.5 — it is the op-planner and
+// needs a strong model; smaller fallbacks (mistral-small on Regolo, verdigado
+// on LiteLLM) mis-shape or drop set_range_values ops, which is what produced
+// "keine Tabellen-Änderung erkannt". Pinned with no provider chain: if Mistral
+// is unavailable we fail loudly rather than silently downgrade the model.
+// `mistral-medium-2604` === "Mistral Medium 3.5" (see services/ai/modelDiscovery.ts).
+const SHEET_AI_PROVIDER = 'mistral';
+const SHEET_AI_MODEL = 'mistral-medium-2604';
 
 const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadsheet operations by calling the tool applySheetOperations.
 
@@ -90,15 +90,13 @@ export async function generateSheetOperations(opts: {
 }): Promise<SheetOperation[]> {
   const { userPrompt, sheetContext, referenceContent } = opts;
 
-  const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'litellm'];
-  const provider = providerChain.find((p) => isProviderConfigured(p));
-  if (!provider) {
-    throw new Error('No AI provider configured (tried: mistral, regolo, litellm)');
+  if (!isProviderConfigured(SHEET_AI_PROVIDER)) {
+    throw new Error(
+      'Sheet AI requires Mistral Medium 3.5, but the Mistral provider is not configured (MISTRAL_API_KEY missing)'
+    );
   }
-
-  const modelId = SHEET_AI_MODELS[provider];
-  const model = getModel(provider, modelId);
-  log.info(`[SheetAI] Using provider: ${provider}, model: ${modelId}`);
+  const model = getModel(SHEET_AI_PROVIDER, SHEET_AI_MODEL);
+  log.info(`[SheetAI] Using Mistral Medium 3.5 (${SHEET_AI_MODEL})`);
 
   const referenceSection = referenceContent?.trim()
     ? `\n\nZUSÄTZLICHER KONTEXT (vorherige Antwort des Assistenten, auf die sich der*die Nutzer*in bezieht):\n<reference_content>\n${referenceContent.trim().slice(0, 8000)}\n</reference_content>`
