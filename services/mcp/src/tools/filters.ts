@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { config, COLLECTION_KEYS } from '../config.ts';
 import { getFieldValueCounts } from '../qdrant/client.ts';
-import { describeFetchError, isConnectionError } from '../utils/errors.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 
 /**
  * Tool to discover available filter values for a collection
@@ -130,22 +130,17 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
           'Nutze die Werte aus "values" direkt als Filter bei gruenerator_search. Die Werte sind exakt und dürfen nicht verändert werden.',
       };
     } catch (err) {
-      console.error(`[Filters] Error: ${describeFetchError(err)}`);
-      if (isConnectionError(err)) {
-        return {
-          error: true,
-          errorType: 'search_unavailable',
-          message:
-            'Die Wissensdatenbank ist derzeit nicht erreichbar (Verbindungsproblem zum Suchindex). ' +
-            'Bitte in ein paar Minuten erneut versuchen.',
-          technicalDetail: describeFetchError(err),
+      const { detail, isConnection } = classifyError(err);
+      console.error(`[Filters] Error: ${detail}`);
+      if (isConnection) {
+        return connectionErrorResponse(detail, {
           collection: col.displayName,
           collectionId: collection,
-        };
+        });
       }
       return {
         error: true,
-        message: `Fehler beim Abrufen der Filter: ${err instanceof Error ? err.message : String(err)}`,
+        message: `Fehler beim Abrufen der Filter: ${detail}`,
         collection: col.displayName,
         collectionId: collection,
       };
