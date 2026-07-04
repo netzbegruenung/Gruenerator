@@ -31,9 +31,19 @@ export const PRESENTATION_META_KEYS = {
   loop: 'loop',
   /** boolean — show reveal slide numbers in present mode. */
   slideNumber: 'slideNumber',
+  /** string — deck brand accent colour; drives titles, markers, bars. */
+  accentColor: 'accentColor',
 } as const;
 
 export const PRESENTATION_SCHEMA_VERSION = 1;
+
+/** Default deck accent + the brand options offered in the "Marke" picker. */
+export const PRESENTATION_DEFAULT_ACCENT = '#316049';
+export const PRESENTATION_ACCENT_OPTIONS: { value: string; name: string }[] = [
+  { value: '#316049', name: 'Tanne' },
+  { value: '#005538', name: 'Dunkelgrün' },
+  { value: '#52907A', name: 'Klee' },
+];
 
 /** Max characters the markdown-outline renderer emits (AI context cap). */
 export const PRESENTATION_CONTEXT_MAX = 20_000;

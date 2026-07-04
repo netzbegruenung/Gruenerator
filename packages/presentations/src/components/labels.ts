@@ -27,3 +27,14 @@ export const BACKGROUND_SWATCHES: { value: string; name: string }[] = [
   { value: '#F5F1E9', name: 'Sand' },
   { value: '#ffffff', name: 'Weiß' },
 ];
+
+/**
+ * Design-variant names per layout (index = the slide's `variant`). Layouts not
+ * listed have no variants. Mirrors the SlideSurface CSS variant classes.
+ */
+export const VARIANT_NAMES: Partial<Record<SlideLayout, string[]>> = {
+  title: ['Klassisch', 'Geteilt', 'Sand'],
+  content: ['Liste', 'Karten', 'Nummeriert'],
+  quote: ['Grün', 'Sand'],
+  image: ['Groß', 'Geteilt'],
+};

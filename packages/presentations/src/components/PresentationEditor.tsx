@@ -101,6 +101,7 @@ export function PresentationEditor({
         slides={slides}
         activeIndex={activeIndex}
         editable={editable}
+        accent={deckOptions.accentColor}
         onSelect={setActiveIndex}
         onAdd={handleAdd}
         onDelete={handleDelete}
@@ -143,6 +144,7 @@ export function PresentationEditor({
               <ScaledSlide>
                 <SlideSurface
                   slide={active}
+                  accent={deckOptions.accentColor}
                   editable={editable}
                   onChange={(patch) => updateSlide(activeIndex, patch)}
                 />

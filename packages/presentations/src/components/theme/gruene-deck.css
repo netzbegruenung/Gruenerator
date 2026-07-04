@@ -13,9 +13,12 @@
 .gruene-slide {
   --deck-green: var(--primary-600, #316049);
   --deck-klee: var(--primary-500, #52907a);
+  /* Deck brand accent — set inline by SlideSurface from the deck option. */
+  --deck-accent: var(--deck-green);
   --deck-ink: var(--grey-800, #262a28);
   --deck-paper: #ffffff;
 
+  position: relative;
   box-sizing: border-box;
   width: 960px;
   height: 540px;
@@ -38,7 +41,7 @@
 .gruene-slide .gruene-slide__title {
   font-family: 'Raleway', 'PT Sans', system-ui, sans-serif;
   font-weight: 700;
-  color: var(--deck-green);
+  color: var(--deck-accent);
   margin: 0;
   line-height: 1.15;
 }
@@ -65,7 +68,7 @@
   margin-bottom: 14px;
 }
 
-/* Klee-green dot bullet (matches the Präsentations-Editor design). */
+/* Accent dot bullet (matches the Präsentations-Editor design). */
 .gruene-slide__body ul li::before {
   content: '';
   position: absolute;
@@ -74,7 +77,7 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: var(--deck-klee, #52907a);
+  background: var(--deck-accent);
 }
 
 .gruene-slide__body ol {
@@ -122,38 +125,119 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* ── Layout presets ──────────────────────────────────────────────────────── */
+/* ── Layout presets (background comes from SlideSurface) ─────────────────── */
 
-/* Title slide: centered; default Tanne background (overridden by a custom bg). */
-.gruene-slide.layout-title {
-  background: var(--deck-green);
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
+/* Title. v0 Klassisch = centered; v1 Geteilt = left text + accent side panel;
+ * v2 Sand = left text with a short accent bar on top. */
 .gruene-slide.layout-title .gruene-slide__title {
   font-size: 56px;
 }
 .gruene-slide.layout-title .gruene-slide__body {
   flex: 0 0 auto;
+}
+.gruene-slide.layout-title.variant-0 {
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
-
-/* Quote: large italic text on a Tanne background with a light left rule. */
-.gruene-slide.layout-quote {
-  background: var(--deck-green);
+.gruene-slide.layout-title.variant-1 {
+  align-items: flex-start;
   justify-content: center;
+  padding-right: 42%;
+}
+.gruene-slide.layout-title.variant-1 .gruene-slide__side {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 36%;
+  background: var(--deck-accent);
+}
+.gruene-slide.layout-title.variant-2 {
+  align-items: flex-start;
+  justify-content: center;
+}
+.gruene-slide.layout-title .gruene-slide__bar {
+  width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--deck-accent);
+  flex: none;
+  margin-bottom: 4px;
+}
+
+/* Quote. v0 = left aligned; v1 = centered. Accent left rule (light on dark). */
+.gruene-slide.layout-quote {
+  justify-content: center;
+}
+.gruene-slide.layout-quote.variant-1 {
+  align-items: center;
+  text-align: center;
 }
 .gruene-slide.layout-quote .gruene-slide__body {
   flex: 0 0 auto;
   font-size: 34px;
   font-style: italic;
-  border-left: 6px solid #a9d3be;
+  border-left: 6px solid var(--deck-accent);
   padding-left: 28px;
 }
-/* On a light custom background the left rule uses Klee instead. */
-.gruene-slide.layout-quote:not(.is-dark) .gruene-slide__body {
-  border-left-color: var(--deck-klee);
+.gruene-slide.layout-quote.is-dark .gruene-slide__body {
+  border-left-color: #a9d3be;
+}
+.gruene-slide.layout-quote.variant-1 .gruene-slide__body {
+  border-left: none;
+  padding-left: 0;
+}
+
+/* Content variants. v0 Liste = accent dot bullets (default). v1 Karten =
+ * two-column cards. v2 Nummeriert = numbered accent circles. */
+.gruene-slide.layout-content.variant-1 .gruene-slide__body ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-content: start;
+}
+.gruene-slide.layout-content.variant-1 .gruene-slide__body ul li {
+  margin: 0;
+  padding: 18px 20px;
+  background: #f0f5f2;
+  border-radius: 12px;
+}
+.gruene-slide.layout-content.variant-1 .gruene-slide__body ul li::before {
+  display: none;
+}
+.gruene-slide.is-dark.layout-content.variant-1 .gruene-slide__body ul li {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gruene-slide.layout-content.variant-2 .gruene-slide__body ul {
+  counter-reset: gs-num;
+}
+.gruene-slide.layout-content.variant-2 .gruene-slide__body ul li {
+  counter-increment: gs-num;
+  padding-left: 46px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+}
+.gruene-slide.layout-content.variant-2 .gruene-slide__body ul li::before {
+  content: counter(gs-num);
+  width: 30px;
+  height: 30px;
+  top: 0;
+  border-radius: 999px;
+  background: #eaf2ee;
+  color: var(--deck-accent);
+  font-family: 'Raleway', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gruene-slide.is-dark.layout-content.variant-2 .gruene-slide__body ul li::before {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 
 /* Split: title top, body in two columns. */
@@ -162,7 +246,8 @@
   column-gap: 48px;
 }
 
-/* Image: title small on top, body (image) fills. */
+/* Image. v0 Groß = title on top, image fills below. v1 Geteilt = title left,
+ * image right. */
 .gruene-slide.layout-image .gruene-slide__body {
   display: flex;
   align-items: center;
@@ -170,6 +255,19 @@
 }
 .gruene-slide.layout-image .gruene-slide__body img {
   max-height: 380px;
+}
+.gruene-slide.layout-image.variant-1 {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 36px;
+}
+.gruene-slide.layout-image.variant-1 .gruene-slide__title {
+  width: 34%;
+  flex: none;
+  align-self: center;
+}
+.gruene-slide.layout-image.variant-1 .gruene-slide__body {
+  flex: 1;
 }
 
 /* Code: monospace block on a dark panel. */

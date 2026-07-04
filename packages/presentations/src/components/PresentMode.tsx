@@ -27,20 +27,13 @@ export interface PresentModeProps {
 
 type RevealApi = InstanceType<typeof Reveal>;
 
-/** Classify a background string into the matching reveal data-background-* attr. */
-function backgroundAttrs(bg: string | null | undefined): Record<string, string> {
-  if (!bg) return {};
-  const value = bg.trim();
-  // Classification kept in lockstep with SlideSurface.resolveBackground so the
-  // editor canvas and the presented slide never disagree (e.g. on
-  // `repeating-linear-gradient(...)`).
-  if (/^(https?:|data:|\/)/.test(value)) return { 'data-background-image': value };
-  if (/gradient\(/.test(value)) return { 'data-background-gradient': value };
-  return { 'data-background-color': value };
-}
-
+/**
+ * reveal section attributes. Backgrounds are NOT set here — SlideSurface paints
+ * the (variant-aware, accent-driven) background itself, so there is a single
+ * background classifier for both the editor and the presented deck.
+ */
 function sectionAttrs(slide: Slide): Record<string, string> {
-  const attrs: Record<string, string> = { ...backgroundAttrs(slide.background) };
+  const attrs: Record<string, string> = {};
   if (slide.transition) attrs['data-transition'] = slide.transition;
   if (slide.autoAnimate) attrs['data-auto-animate'] = '';
   if (slide.hidden) attrs['data-visibility'] = 'hidden';
@@ -192,7 +185,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         <div className="slides">
           {slides.map((slide) => (
             <section key={slide.id} {...sectionAttrs(slide)}>
-              <SlideSurface slide={slide} presenting />
+              <SlideSurface slide={slide} accent={deckOptions.accentColor} presenting />
               {slide.notes.trim() !== '' && <aside className="notes">{slide.notes}</aside>}
             </section>
           ))}

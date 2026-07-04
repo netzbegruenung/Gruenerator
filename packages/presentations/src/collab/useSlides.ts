@@ -24,6 +24,8 @@ export interface DeckOptions {
   autoSlide: number | null;
   loop: boolean;
   slideNumber: boolean;
+  /** Deck brand accent colour; null → the default (#316049). */
+  accentColor: string | null;
 }
 
 export interface UseSlidesResult {
@@ -87,7 +89,13 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
   // between unrelated changes (avoids re-render loops via useSyncExternalStore).
   const deckCacheRef = useRef<{ version: number; opts: DeckOptions }>({
     version: -1,
-    opts: { defaultTransition: null, autoSlide: null, loop: false, slideNumber: false },
+    opts: {
+      defaultTransition: null,
+      autoSlide: null,
+      loop: false,
+      slideNumber: false,
+      accentColor: null,
+    },
   });
   const getDeckOptions = useCallback((): DeckOptions => {
     if (deckCacheRef.current.version !== versionRef.current) {
@@ -99,6 +107,7 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
           autoSlide: (meta.get(PRESENTATION_META_KEYS.autoSlide) as number | null) ?? null,
           loop: Boolean(meta.get(PRESENTATION_META_KEYS.loop) ?? false),
           slideNumber: Boolean(meta.get(PRESENTATION_META_KEYS.slideNumber) ?? false),
+          accentColor: (meta.get(PRESENTATION_META_KEYS.accentColor) as string | null) ?? null,
         },
       };
     }
@@ -174,6 +183,8 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
         if (patch.loop !== undefined) meta.set(PRESENTATION_META_KEYS.loop, patch.loop);
         if (patch.slideNumber !== undefined)
           meta.set(PRESENTATION_META_KEYS.slideNumber, patch.slideNumber);
+        if (patch.accentColor !== undefined)
+          meta.set(PRESENTATION_META_KEYS.accentColor, patch.accentColor);
       }, PRESENTATION_LOCAL_ORIGIN);
     },
     [ydoc, meta]

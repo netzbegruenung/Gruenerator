@@ -44,6 +44,7 @@ export function yMapToSlide(m: Y.Map<unknown>): Slide {
     autoAnimate: Boolean(m.get('autoAnimate') ?? false),
     hidden: Boolean(m.get('hidden') ?? false),
     codeLanguage: (m.get('codeLanguage') as string | null) ?? null,
+    variant: Number(m.get('variant') ?? 0),
   };
 }
 
@@ -60,6 +61,7 @@ export function slideToYMap(slide: Slide): Y.Map<unknown> {
   m.set('autoAnimate', slide.autoAnimate ?? false);
   m.set('hidden', slide.hidden ?? false);
   m.set('codeLanguage', slide.codeLanguage ?? null);
+  m.set('variant', slide.variant ?? 0);
   return m;
 }
 
