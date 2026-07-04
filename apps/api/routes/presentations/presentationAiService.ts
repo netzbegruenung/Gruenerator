@@ -35,15 +35,18 @@ Erlaubte Operationstypen (jedes Objekt braucht ein "type"-Feld):
 - { "type": "add_slide", "layout": "title|content|split|quote|image|code", "title": "…", "body": "Markdown …", "notes"?: "…", "at"?: 3 }
     // Fügt eine neue Folie hinzu. "at" ist die 1-basierte Einfügeposition; ohne "at" wird ans Ende angehängt.
     // "body" ist Markdown — nutze "- " für Aufzählungen. Halte Folien knapp (Stichpunkte, kein Fließtext).
-- { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }
+- { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "variant"?: 0, "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }
     // Ändert NUR die angegebenen Felder von Folie "slide". Weggelassene Felder bleiben unverändert.
+    // "variant": Design-Variante innerhalb des Layouts (0–2). title: 0 Klassisch / 1 Geteilt / 2 Sand;
+    //   content: 0 Liste / 1 Karten / 2 Nummeriert; quote: 0 Grün / 1 Sand; image: 0 Groß / 1 Geteilt.
     // "background": CSS-Farbe (#316049), Bild-URL oder "linear-gradient(...)".
     // "fragments": Aufzählungspunkte schrittweise einblenden. "autoAnimate": Elemente zur nächsten Folie morphen.
     // "hidden": Folie in der Präsentation überspringen (nicht löschen). "codeLanguage": nur für layout "code".
 - { "type": "delete_slide", "slide": 4 }
 - { "type": "move_slide", "from": 5, "to": 2 }
-- { "type": "set_deck_option", "defaultTransition"?: "none|fade|slide|convex|concave|zoom", "autoSlide"?: 0, "loop"?: false, "slideNumber"?: false }
+- { "type": "set_deck_option", "defaultTransition"?: "none|fade|slide|convex|concave|zoom", "autoSlide"?: 0, "loop"?: false, "slideNumber"?: false, "accentColor"?: "#316049" }
     // "autoSlide": automatischer Folienwechsel nach N Millisekunden (0 = aus). "loop": Endlosschleife. "slideNumber": Foliennummern zeigen.
+    // "accentColor": Marken-Akzentfarbe der gesamten Präsentation (Grün-Töne: #316049, #005538, #52907A).
 
 REGELN:
 - Layouts: "title" = Titelfolie (Deckblatt), "content" = Titel + Aufzählung, "split" = zweispaltig, "quote" = Zitat, "image" = Bildfolie, "code" = Quellcode (body = Code, codeLanguage setzen).

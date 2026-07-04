@@ -1,4 +1,10 @@
-import { type Slide, type SlideLayout, type SlideTransition } from '@gruenerator/contracts';
+import {
+  PRESENTATION_ACCENT_OPTIONS,
+  PRESENTATION_DEFAULT_ACCENT,
+  type Slide,
+  type SlideLayout,
+  type SlideTransition,
+} from '@gruenerator/contracts';
 import { type ReactNode, useState } from 'react';
 import { FiChevronDown, FiImage, FiX } from 'react-icons/fi';
 
@@ -10,8 +16,10 @@ import {
   LAYOUT_LABELS,
   TRANSITIONS,
   TRANSITION_LABELS,
+  VARIANT_NAMES,
 } from './labels.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
+import { VariantThumb } from './VariantThumb.js';
 
 export interface SlideDesignPanelProps {
   slide: Slide;
@@ -67,6 +75,7 @@ export function SlideDesignPanel({
   onDeckOption,
   onClose,
 }: SlideDesignPanelProps) {
+  const accent = deckOptions.accentColor?.trim() || PRESENTATION_DEFAULT_ACCENT;
   return (
     <div className="flex w-[300px] flex-none flex-col overflow-y-auto border-l border-[#E2E8E4] dark:border-grey-700 bg-white dark:bg-grey-900">
       <div className="flex items-center gap-2 px-[18px] pb-3 pt-4">
@@ -92,7 +101,9 @@ export function SlideDesignPanel({
               <button
                 key={layout}
                 type="button"
-                onClick={() => onUpdateSlide({ layout })}
+                // Reset variant/background: the variant index is layout-specific
+                // and the default background changes with the layout.
+                onClick={() => onUpdateSlide({ layout, variant: 0, background: null })}
                 className={segClass(slide.layout === layout)}
               >
                 {LAYOUT_LABELS[layout]}
@@ -100,6 +111,30 @@ export function SlideDesignPanel({
             ))}
           </div>
         </div>
+
+        {/* Variant */}
+        {(VARIANT_NAMES[slide.layout]?.length ?? 0) > 1 && (
+          <div className="flex flex-col gap-2">
+            <SectionLabel>Variante</SectionLabel>
+            <div className="flex gap-2">
+              {VARIANT_NAMES[slide.layout]!.map((name, i) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => onUpdateSlide({ variant: i, background: null })}
+                  className={`flex flex-1 flex-col gap-1.5 rounded-[10px] p-2 text-left text-[11.5px] font-bold text-[#2F4238] dark:text-grey-200 ${
+                    (slide.variant ?? 0) === i
+                      ? 'border-2 border-primary-600'
+                      : 'border-[1.5px] border-[#D4DDD7] dark:border-grey-600 hover:border-primary-500'
+                  }`}
+                >
+                  <VariantThumb layout={slide.layout} variant={i} accent={accent} />
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Background */}
         <div className="flex flex-col gap-2">
@@ -201,6 +236,25 @@ export function SlideDesignPanel({
 
         {/* Presentation settings (deck-wide) */}
         <Collapsible title="Präsentations-Einstellungen">
+          <div className="flex flex-col gap-2">
+            <div className="text-xs text-[#6E7E74] dark:text-grey-400">Marke (Akzentfarbe)</div>
+            <div className="flex items-center gap-2.5">
+              {PRESENTATION_ACCENT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  title={opt.name}
+                  onClick={() => onDeckOption({ accentColor: opt.value })}
+                  style={{ background: opt.value }}
+                  className={`h-[34px] w-[34px] rounded-full ${
+                    accent.toLowerCase() === opt.value.toLowerCase()
+                      ? 'border-[3px] border-[#1B2A22]'
+                      : 'border-[1.5px] border-[#D4DDD7]'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
           <div className="flex flex-col gap-2">
             <div className="text-xs text-[#6E7E74] dark:text-grey-400">Standard-Übergang</div>
             <select

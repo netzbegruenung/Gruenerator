@@ -43,6 +43,12 @@ export const slideSchema = z.object({
   hidden: z.boolean().nullish(),
   /** Language for the `code` layout (e.g. "typescript", "python"). */
   codeLanguage: z.string().nullish(),
+  /**
+   * Design variant within the layout (0-based). Meaning depends on `layout`:
+   * title → 0 Klassisch / 1 Geteilt / 2 Sand; content → 0 Liste / 1 Karten /
+   * 2 Nummeriert; quote → 0 Grün / 1 Sand; image → 0 Groß / 1 Geteilt.
+   */
+  variant: z.number().int().min(0).max(2).nullish(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;
@@ -78,6 +84,8 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     autoAnimate: z.boolean().nullish(),
     hidden: z.boolean().nullish(),
     codeLanguage: z.string().nullish(),
+    /** Design variant within the layout (0–2); see slideSchema.variant. */
+    variant: z.number().int().min(0).max(2).nullish(),
   }),
   z.object({
     type: z.literal('delete_slide'),
@@ -98,6 +106,8 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     loop: z.boolean().nullish(),
     /** Show reveal slide numbers. */
     slideNumber: z.boolean().nullish(),
+    /** Deck brand accent colour (CSS color); drives titles, markers, bars. */
+    accentColor: z.string().nullish(),
   }),
 ]);
 

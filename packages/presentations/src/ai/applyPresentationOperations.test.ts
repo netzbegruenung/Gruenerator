@@ -61,4 +61,25 @@ describe('applyPresentationOperations', () => {
     applyPresentationOperations(ydoc, [{ type: 'set_deck_option', defaultTransition: 'fade' }]);
     expect(getMetaMap(ydoc).get('defaultTransition')).toBe('fade');
   });
+
+  it('sets a slide design variant', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [{ type: 'update_slide', slide: 2, variant: 2 }]);
+    expect(getSlidesArray(ydoc).get(1).get('variant')).toBe(2);
+  });
+
+  it('sets the deck accent colour', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [{ type: 'set_deck_option', accentColor: '#005538' }]);
+    expect(getMetaMap(ydoc).get('accentColor')).toBe('#005538');
+  });
+
+  it('does not wipe a background when update_slide sends a null background', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [{ type: 'update_slide', slide: 1, background: '#F5F1E9' }]);
+    applyPresentationOperations(ydoc, [
+      { type: 'update_slide', slide: 1, title: 'Neu', background: null },
+    ]);
+    expect(getSlidesArray(ydoc).get(0).get('background')).toBe('#F5F1E9');
+  });
 });

@@ -8,6 +8,8 @@ export interface SlideThumbnailListProps {
   slides: Slide[];
   activeIndex: number;
   editable: boolean;
+  /** Deck brand accent, forwarded to each thumbnail's SlideSurface. */
+  accent?: string | null;
   onSelect: (index: number) => void;
   onAdd: () => void;
   onDelete: (index: number) => void;
@@ -23,6 +25,7 @@ export function SlideThumbnailList({
   slides,
   activeIndex,
   editable,
+  accent,
   onSelect,
   onAdd,
   onDelete,
@@ -46,7 +49,7 @@ export function SlideThumbnailList({
             >
               <div className="pointer-events-none">
                 <ScaledSlide>
-                  <SlideSurface slide={slide} />
+                  <SlideSurface slide={slide} accent={accent} />
                 </ScaledSlide>
               </div>
               <div className="flex items-center gap-2 px-2.5 py-[7px]">

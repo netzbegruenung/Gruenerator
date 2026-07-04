@@ -74,6 +74,7 @@ export function applyPresentationOperations(
             if (op.autoAnimate != null) m.set('autoAnimate', op.autoAnimate);
             if (op.hidden != null) m.set('hidden', op.hidden);
             if (op.codeLanguage != null) m.set('codeLanguage', op.codeLanguage);
+            if (op.variant != null) m.set('variant', op.variant);
             applied += 1;
             break;
           }
@@ -109,6 +110,8 @@ export function applyPresentationOperations(
             if (op.loop != null) meta.set(PRESENTATION_META_KEYS.loop, op.loop);
             if (op.slideNumber != null)
               meta.set(PRESENTATION_META_KEYS.slideNumber, op.slideNumber);
+            if (op.accentColor != null)
+              meta.set(PRESENTATION_META_KEYS.accentColor, op.accentColor);
             applied += 1;
             break;
           }
