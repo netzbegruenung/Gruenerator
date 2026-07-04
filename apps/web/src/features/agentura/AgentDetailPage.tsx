@@ -26,6 +26,7 @@ import { relatedAgents, useAgentBySlug } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
 import PageContainer from '@/components/common/PageContainer';
+import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -213,22 +214,7 @@ function AgentDetailPage() {
         />
       )}
 
-      <div className="mb-lg flex gap-lg border-b border-grey-200 dark:border-grey-700">
-        {tabDefs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 pb-sm text-sm transition-colors ${
-              tab === t.key
-                ? 'border-primary-600 font-bold text-foreground-heading'
-                : 'border-transparent font-semibold text-foreground-muted hover:text-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <UnderlineTabs tabs={tabDefs} value={tab} onChange={setTab} className="mb-lg" />
 
       {tab === 'overview' && (
         <div className="max-w-[640px] text-base leading-relaxed text-foreground">
