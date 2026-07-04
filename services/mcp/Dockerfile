@@ -111,4 +111,4 @@ EXPOSE 3004
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3004/health || exit 1
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "--import", "./dist/instrument.js", "dist/index.js"]
