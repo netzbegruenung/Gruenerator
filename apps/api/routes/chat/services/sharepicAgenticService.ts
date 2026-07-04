@@ -192,7 +192,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       status: 'in_progress',
     });
 
-    const canvasId = await ensureMintedCanvas({ target, descriptor, threadId, userId, sse });
+    const canvasId = await ensureMintedCanvas({ target, threadId, userId, sse });
 
     let deckPages: CanvasPageDef[] = [];
     if (isDeck) {
