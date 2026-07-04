@@ -617,7 +617,10 @@ async function searchMultipleCollections({
 
     const collectionErrors = collectionResults
       .filter((c) => (c.metadata as Record<string, unknown>)?.error)
-      .map((c) => ({ collection: c.collectionKey, error: (c.metadata as Record<string, unknown>).error }));
+      .map((c) => ({
+        collection: c.collectionKey,
+        error: (c.metadata as Record<string, unknown>).error,
+      }));
 
     // Merge, deduplicate by URL, sort by score
     const seenUrls = new Set<string>();
