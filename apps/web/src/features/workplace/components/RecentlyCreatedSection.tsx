@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 import { FaVideo } from 'react-icons/fa';
-import { FiClock, FiFileText, FiGrid, FiImage, FiMonitor } from 'react-icons/fi';
+import { FiClock, FiFileText, FiGrid, FiImage } from 'react-icons/fi';
 import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -26,7 +26,7 @@ import { parseTablePreview } from '../../../utils/parseTablePreview';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text';
 
 interface RecentItem {
   id: string;
@@ -57,7 +57,6 @@ const TYPE_META: Record<
   image: { label: 'Bild', Icon: FiImage },
   video: { label: 'Video', Icon: FaVideo },
   text: { label: 'Text', Icon: FiFileText },
-  presentation: { label: 'Präsentation', Icon: FiMonitor },
 };
 
 // Spreadsheet-style docs (subtype 'tabelle') arrive as `type: 'doc'` but read as
@@ -104,7 +103,6 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   image: 'Ohne Titel',
   video: 'Ohne Titel',
   text: 'Ohne Titel',
-  presentation: 'Neue Präsentation',
 };
 
 // Faint, fixed-height plate every preview sits on (matches the workspace
@@ -650,7 +648,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
         text: 'Text wirklich löschen?',
-        presentation: 'Präsentation wirklich löschen?',
       };
 
       if (!window.confirm(messages[item.type])) return;

@@ -58,6 +58,8 @@ const ALL_INTENTS: SearchIntent[] = [
   'artifact',
   'compute',
   'save_as_doc',
+  'create_sheet',
+  'create_presentation',
   'modify_doc',
   'edit_current_doc',
   'edit_current_board',
@@ -319,6 +321,10 @@ describe('every SearchIntent has a handler path', () => {
       'handled via compute branch in controller — computeNode runs plain-JS calc, emits compute SSE + injects verified result into respond',
     scrape_url: 'handled via search branch — crawls pasted URL(s) as additional context',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    create_sheet:
+      'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
+    create_presentation:
+      'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     edit_current_doc:
       'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',

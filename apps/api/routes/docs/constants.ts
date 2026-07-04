@@ -16,6 +16,7 @@ export const COLLAB_SUBTYPES = [
   'boards',
   'canvas',
   'sheets',
+  'presentations',
 ];
 
 /** @deprecated Use COLLAB_SUBTYPES instead */

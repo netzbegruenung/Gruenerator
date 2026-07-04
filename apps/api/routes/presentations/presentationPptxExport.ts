@@ -1,0 +1,136 @@
+/**
+ * PPTX export for reveal.js decks via pandoc.
+ *
+ * The deck is rendered to pandoc-flavoured markdown (one level-2 heading per
+ * slide, fenced code blocks, `::: notes` divs for speaker notes) and converted
+ * to PowerPoint with `pandoc -t pptx`. Grüne styling rides on an optional
+ * `--reference-doc` template; when it (or pandoc itself) is absent the caller
+ * surfaces a clear error.
+ */
+
+import { execFile } from 'child_process';
+import { existsSync } from 'fs';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { promisify } from 'util';
+
+import { type Slide } from '@gruenerator/contracts';
+
+const execFileAsync = promisify(execFile);
+
+/** Optional themed reference deck; absent in V1 → pandoc's default template. */
+function referenceDocPath(): string | null {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const candidate = path.resolve(dir, '../../assets/gruene-reference.pptx');
+  return existsSync(candidate) ? candidate : null;
+}
+
+/**
+ * Strip markdown image embeds, keeping any alt text. pandoc's pptx writer tries
+ * to read + embed every referenced image; AI-generated decks often reference
+ * placeholder paths that don't exist, which would fail the whole conversion.
+ * Slide backgrounds are handled separately and never appear in the body.
+ */
+function stripImageEmbeds(markdown: string): string {
+  return markdown.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');
+}
+
+/** Render a deck to pandoc markdown (slide-level 2). Hidden slides are omitted. */
+export function renderDeckToPandocMarkdown(slides: readonly Slide[], title: string): string {
+  const blocks: string[] = [`% ${title || 'Präsentation'}`];
+
+  for (const slide of slides) {
+    if (slide.hidden) continue;
+    let block = `## ${(slide.title || 'Folie').replace(/\n/g, ' ')}`;
+
+    if (slide.layout === 'code') {
+      block += `\n\n\`\`\`${slide.codeLanguage ?? ''}\n${slide.body}\n\`\`\``;
+    } else if (slide.body.trim() !== '') {
+      block += `\n\n${stripImageEmbeds(slide.body.trim())}`;
+    }
+
+    if (slide.notes.trim() !== '') {
+      block += `\n\n::: notes\n${slide.notes.trim()}\n:::`;
+    }
+    blocks.push(block);
+  }
+
+  return blocks.join('\n\n');
+}
+
+/** Human-readable filename (Unicode letters kept) for the UTF-8 `filename*` param. */
+export function sanitizeFilename(title: string): string {
+  const cleaned = title
+    .replace(/[^\p{L}\p{N}\-_ ]/gu, '')
+    .trim()
+    .slice(0, 80);
+  return cleaned || 'Praesentation';
+}
+
+/**
+ * ASCII-only fallback for the bare `filename=` token: RFC 6266 forbids raw
+ * non-ASCII there, and Node's setHeader rejects some bytes. Transliterate German
+ * umlauts, drop any other non-ASCII.
+ */
+export function asciiFilename(title: string): string {
+  const cleaned = title
+    .replace(/[äÄ]/g, 'ae')
+    .replace(/[öÖ]/g, 'oe')
+    .replace(/[üÜ]/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/["\\]/g, '')
+    .replace(/[^A-Za-z0-9\-_ ]/g, '')
+    .trim()
+    .slice(0, 80);
+  return cleaned || 'Praesentation';
+}
+
+/**
+ * Build a Content-Disposition value with an ASCII `filename=` fallback plus a
+ * UTF-8 `filename*` (RFC 5987) so umlaut titles download with correct names.
+ */
+export function contentDispositionAttachment(title: string): string {
+  const ascii = `${asciiFilename(title)}.pptx`;
+  const utf8 = encodeURIComponent(`${sanitizeFilename(title)}.pptx`);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${utf8}`;
+}
+
+export class PandocUnavailableError extends Error {
+  constructor() {
+    super('pandoc is not installed');
+    this.name = 'PandocUnavailableError';
+  }
+}
+
+/**
+ * Convert a deck to a PPTX buffer via pandoc. Throws PandocUnavailableError
+ * when the binary is missing (mapped to HTTP 501 by the caller).
+ */
+export async function exportPresentationToPptx(
+  slides: readonly Slide[],
+  title: string
+): Promise<Buffer> {
+  const markdown = renderDeckToPandocMarkdown(slides, title);
+  const dir = await mkdtemp(path.join(tmpdir(), 'gruen-pptx-'));
+  const inputPath = path.join(dir, 'deck.md');
+  const outputPath = path.join(dir, 'deck.pptx');
+  try {
+    await writeFile(inputPath, markdown, 'utf8');
+    const args = ['-f', 'markdown', '-t', 'pptx', '--slide-level=2', '-o', outputPath];
+    const refDoc = referenceDocPath();
+    if (refDoc) args.push(`--reference-doc=${refDoc}`);
+    args.push(inputPath);
+    try {
+      await execFileAsync('pandoc', args, { timeout: 30_000 });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') throw new PandocUnavailableError();
+      throw err;
+    }
+    return await readFile(outputPath);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
