@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import express from 'express';
 console.log('[Boot] Dependencies loaded');
@@ -88,6 +89,12 @@ function wrapToolHandler(
     } catch (err) {
       const { detail, isConnection } = classifyError(err);
       error(label, `${label} failed: ${detail}`);
+      // Report unexpected exceptions to GlitchTip. Connection errors are expected
+      // infra hiccups (Qdrant/API unreachable) and would flood the project during
+      // an outage, so they are logged but not captured.
+      if (!isConnection) {
+        Sentry.captureException(err, { tags: { mcp_tool: label } });
+      }
       const body = isConnection
         ? connectionErrorResponse(detail)
         : { error: true, message: detail };
@@ -214,6 +221,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         error('Search', `Search failed: ${message}`);
+        Sentry.captureException(err, { tags: { mcp_tool: 'Search' } });
         return {
           content: [
             {
@@ -651,6 +659,7 @@ app.post('/mcp', async (req, res) => {
     await transport.handleRequest(req, res, req.body);
   } catch (err) {
     error('MCP', `handleRequest failed: ${err instanceof Error ? err.message : String(err)}`);
+    Sentry.captureException(err, { tags: { mcp_endpoint: 'POST /mcp' } });
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
@@ -690,6 +699,10 @@ app.delete('/mcp', async (req, res) => {
 // Server starten
 const PORT = process.env.PORT || 3003;
 console.log(`[Boot] Starting server on port ${PORT}...`);
+
+// Capture unhandled errors thrown from Express route handlers (registered after
+// all routes, before listen). Tool-level exceptions are captured in-handler above.
+Sentry.setupExpressErrorHandler(app);
 
 app.listen(PORT, () => {
   // Warm the runtime collection catalog from the backend (non-blocking; falls
