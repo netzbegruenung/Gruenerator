@@ -71,7 +71,7 @@ export interface ChatConfig {
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (
     variant: import('../hooks/useChatGraphStream').SharepicVariant,
-    opts?: { threadId?: string | null }
+    opts?: { threadId: string | null }
   ) => void;
   /** Renders a sharepic to a base64 PNG using the canvas editor. */
   renderSharepic?: (
@@ -241,7 +241,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   ) => Promise<string | void>;
   onEditSharepic?: (
     variant: import('../hooks/useChatGraphStream').SharepicVariant,
-    opts?: { threadId?: string | null }
+    opts?: { threadId: string | null }
   ) => void;
   renderSharepic?: (
     canvasType: string,

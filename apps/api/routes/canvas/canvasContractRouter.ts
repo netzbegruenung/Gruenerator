@@ -16,7 +16,7 @@
  * so the prefix middleware must run first).
  */
 
-import { canvasContract } from '@gruenerator/contracts';
+import { canvasContract, getSharepicTemplateDescriptor } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -110,12 +110,23 @@ export const canvasContractRouter = s.router(canvasContract, {
     try {
       const userId = getAuthedUser(args.req).id;
       const { canvasType, initialProps, threadId, variantId } = args.body;
+      // The contract validates canvasType against the full canonical enum, but
+      // only the editable templates have a descriptor to seed template defaults
+      // from. Reject the rest here rather than minting a defaults-less canvas.
+      if (!getSharepicTemplateDescriptor(canvasType)) {
+        return {
+          status: 400 as const,
+          body: { error: `Kein Sharepic-Template für Typ '${canvasType}'` },
+        };
+      }
       const { canvasId } = await mintCanvasForVariant({
         userId,
         threadId,
         variantId,
         canvasType,
         initialProps,
+        messageId: null,
+        existingCanvasId: null,
       });
       return { status: 201 as const, body: { canvasId } };
     } catch (error) {
