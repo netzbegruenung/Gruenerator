@@ -53,14 +53,37 @@
   font-size: 28px;
 }
 
-.gruene-slide__body ul,
-.gruene-slide__body ol {
+.gruene-slide__body ul {
+  list-style: none;
   margin: 0;
-  padding-left: 1.1em;
+  padding: 0;
 }
 
-.gruene-slide__body li {
-  margin-bottom: 0.4em;
+.gruene-slide__body ul li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 14px;
+}
+
+/* Klee-green dot bullet (matches the Präsentations-Editor design). */
+.gruene-slide__body ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--deck-klee, #52907a);
+}
+
+.gruene-slide__body ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.gruene-slide__body ol li {
+  margin-bottom: 12px;
 }
 
 .gruene-slide__body p {
@@ -77,36 +100,60 @@
   object-fit: contain;
 }
 
+/* ── Dark surfaces (custom dark bg, or title/quote defaults) ─────────────── */
+/* Text colour is driven by `.is-dark` (computed from the resolved background),
+ * NOT hardcoded per layout, so a custom light background on a title slide still
+ * reads correctly and a dark background on a content slide flips the text. */
+.gruene-slide.is-dark {
+  color: #ffffff;
+}
+.gruene-slide.is-dark h2,
+.gruene-slide.is-dark .gruene-slide__title {
+  color: #ffffff;
+}
+.gruene-slide.is-dark .gruene-slide__body {
+  color: rgba(255, 255, 255, 0.92);
+}
+.gruene-slide.is-dark .gruene-slide__body ul li::before {
+  background: #a9d3be;
+}
+.gruene-slide.is-dark .gruene-slide__body a,
+.gruene-slide.is-dark .gruene-slide__input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* ── Layout presets ──────────────────────────────────────────────────────── */
 
-/* Title slide: centered on a Tanne background, white text. */
+/* Title slide: centered; default Tanne background (overridden by a custom bg). */
 .gruene-slide.layout-title {
   background: var(--deck-green);
-  color: #ffffff;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
 .gruene-slide.layout-title .gruene-slide__title {
-  color: #ffffff;
   font-size: 56px;
 }
 .gruene-slide.layout-title .gruene-slide__body {
-  color: rgba(255, 255, 255, 0.9);
   flex: 0 0 auto;
   text-align: center;
 }
 
-/* Quote: large italic text with a Klee left rule. */
+/* Quote: large italic text on a Tanne background with a light left rule. */
 .gruene-slide.layout-quote {
+  background: var(--deck-green);
   justify-content: center;
 }
 .gruene-slide.layout-quote .gruene-slide__body {
   flex: 0 0 auto;
   font-size: 34px;
   font-style: italic;
-  border-left: 6px solid var(--deck-klee);
+  border-left: 6px solid #a9d3be;
   padding-left: 28px;
+}
+/* On a light custom background the left rule uses Klee instead. */
+.gruene-slide.layout-quote:not(.is-dark) .gruene-slide__body {
+  border-left-color: var(--deck-klee);
 }
 
 /* Split: title top, body in two columns. */

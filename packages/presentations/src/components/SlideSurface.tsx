@@ -1,5 +1,5 @@
 import { type Slide } from '@gruenerator/contracts';
-import { type ComponentProps } from 'react';
+import { type ComponentProps, type CSSProperties } from 'react';
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
@@ -25,6 +25,35 @@ const LAYOUT_CLASS: Record<Slide['layout'], string> = {
   code: 'layout-code',
 };
 
+/** Grüne CI backgrounds that need light foreground text. */
+const DARK_BG = new Set(['#316049', '#005538', '#52907a', '#0c1410']);
+
+/**
+ * Resolve `slide.background` (color / gradient / image URL) into an inline style
+ * and whether the surface should use light text. In present mode reveal handles
+ * backgrounds via data-* attrs, so this only styles the static editor surface.
+ */
+function resolveBackground(
+  background: string | null | undefined,
+  layout: Slide['layout']
+): { style: CSSProperties | undefined; dark: boolean } {
+  const bg = background?.trim();
+  const layoutDark = layout === 'title' || layout === 'quote';
+  if (!bg) return { style: undefined, dark: layoutDark };
+  if (/^(https?:|data:|\/)/.test(bg)) {
+    return {
+      style: {
+        backgroundImage: `url("${bg}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      },
+      dark: true,
+    };
+  }
+  if (/gradient\(/.test(bg)) return { style: { background: bg }, dark: true };
+  return { style: { background: bg }, dark: DARK_BG.has(bg.toLowerCase()) || layoutDark };
+}
+
 /**
  * One slide rendered at a fixed 960×540 on the shared `.gruene-slide` surface.
  * The parent scales it to fit (editor canvas, thumbnails) or lets reveal.js
@@ -33,6 +62,13 @@ const LAYOUT_CLASS: Record<Slide['layout'], string> = {
 export function SlideSurface({ slide, editable, onChange, presenting }: SlideSurfaceProps) {
   const layoutClass = LAYOUT_CLASS[slide.layout];
   const fragmentClass = presenting && slide.fragments ? 'fragment' : undefined;
+  // `dark` (text contrast) is always derived from the resolved background. The
+  // inline background style only applies to the static editor surface — in
+  // present mode reveal paints the background via data-background-* attrs, so
+  // the section itself stays transparent.
+  const resolvedBg = resolveBackground(slide.background, slide.layout);
+  const dark = resolvedBg.dark;
+  const bgStyle = presenting ? undefined : resolvedBg.style;
 
   // In present mode: per-item fragments (opt-in) and click-to-zoom images
   // (reveal's built-in lightbox via data-preview-image).
@@ -48,7 +84,7 @@ export function SlideSurface({ slide, editable, onChange, presenting }: SlideSur
   const isCode = slide.layout === 'code';
 
   return (
-    <div className={`gruene-slide ${layoutClass}`}>
+    <div className={`gruene-slide ${layoutClass}${dark ? ' is-dark' : ''}`} style={bgStyle}>
       {editable ? (
         <textarea
           className="gruene-slide__input gruene-slide__title"
