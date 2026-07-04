@@ -66,6 +66,17 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     sheet: z.string().nullish(),
   }),
   z.object({
+    type: z.literal('add_chart'),
+    /**
+     * A1 data range including header row and label column, e.g. "A1:D5" where
+     * row 1 = series headers and column A = category labels.
+     */
+    range: z.string(),
+    chartType: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
+    title: z.string().nullish(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
     type: z.literal('insert_rows'),
     /** 1-based row number; `count` new rows are inserted BEFORE it (existing
      * rows shift down). "unter Zeile 5 einfügen" → at = 6. */
