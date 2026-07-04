@@ -119,6 +119,7 @@ import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
+import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -356,6 +357,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
   // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
   app.use('/api/v1/notebooks', v1NotebooksRouter);
+  // Public MCP collection catalog (unauthenticated, rate-limited).
+  app.use('/api/v1/collections', publicReadLimiter, v1CollectionsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.

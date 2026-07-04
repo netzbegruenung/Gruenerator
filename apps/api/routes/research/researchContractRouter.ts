@@ -13,7 +13,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import {
   type SubcategoryFilters,
   SYSTEM_COLLECTIONS,
-  getAllSystemCollectionIds,
+  getSearchableSystemCollectionIds,
+  isAgentOnlyCollectionId,
   getSearchParams,
   getSystemCollectionConfig,
   applyDefaultFilter,
@@ -64,8 +65,10 @@ export const researchContractRouter = s.router(researchContract, {
       const collectionIdsParam = args.query.collectionIds;
       const requestedIds =
         typeof collectionIdsParam === 'string' && collectionIdsParam.length > 0
-          ? collectionIdsParam.split(',').filter((id) => id in SYSTEM_COLLECTIONS)
-          : getAllSystemCollectionIds();
+          ? collectionIdsParam
+              .split(',')
+              .filter((id) => id in SYSTEM_COLLECTIONS && !isAgentOnlyCollectionId(id))
+          : getSearchableSystemCollectionIds();
 
       if (requestedIds.length === 0) {
         return { status: 400 as const, body: { error: 'No valid collection IDs provided.' } };
@@ -102,8 +105,8 @@ export const researchContractRouter = s.router(researchContract, {
     const effectiveLimit = Math.min(Math.max(limit ?? 30, 1), 100);
 
     const requestedIds = collectionIds?.length
-      ? collectionIds.filter((id) => id in SYSTEM_COLLECTIONS)
-      : getAllSystemCollectionIds();
+      ? collectionIds.filter((id) => id in SYSTEM_COLLECTIONS && !isAgentOnlyCollectionId(id))
+      : getSearchableSystemCollectionIds();
 
     if (requestedIds.length === 0) {
       return { status: 400 as const, body: { error: 'No valid collection IDs provided.' } };
