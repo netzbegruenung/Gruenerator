@@ -307,6 +307,29 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* ── WYSIWYG editing surfaces (TipTap body + contentEditable title) ───────── */
+
+/* The EditorContent wrapper must not break the slide's flex column — its child
+ * (the `.gruene-slide__body` ProseMirror element) is the real body box. */
+.gruene-slide__editor {
+  display: contents;
+}
+.gruene-slide__body.ProseMirror:focus,
+.gruene-slide__title:focus {
+  outline: none;
+}
+
+/* Empty-state placeholder for the inline title (a truly-empty contentEditable). */
+.gruene-slide__title[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+.gruene-slide.layout-title .gruene-slide__title[contenteditable]:empty::before,
+.gruene-slide.is-dark .gruene-slide__title[contenteditable]:empty::before {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* ── reveal.js chrome (present mode only) ────────────────────────────────── */
 
 .reveal.gruene-deck {
