@@ -63,6 +63,17 @@ describe('renderDeckToPandocMarkdown', () => {
     const md = renderDeckToPandocMarkdown([slide({ title: 'A', notes: 'Kontext' })], 'T');
     expect(md).toContain('::: notes\nKontext\n:::');
   });
+
+  it('strips markdown image embeds (pandoc would fail on missing files) but keeps alt text', () => {
+    const md = renderDeckToPandocMarkdown(
+      [slide({ title: 'A', body: '![Radweg](/images/missing.jpg)\n\n- Punkt' })],
+      'T'
+    );
+    expect(md).not.toContain('/images/missing.jpg');
+    expect(md).not.toContain('![');
+    expect(md).toContain('Radweg');
+    expect(md).toContain('- Punkt');
+  });
 });
 
 describe('sanitizeFilename', () => {
