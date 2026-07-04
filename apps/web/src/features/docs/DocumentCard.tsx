@@ -11,6 +11,7 @@ import {
   FiFileText,
   FiGrid,
   FiMail,
+  FiMonitor,
   FiRadio,
 } from 'react-icons/fi';
 
@@ -63,6 +64,11 @@ const DOC_TYPE_STYLE: Record<
     icon: FiGrid,
     bg: 'bg-emerald-100 dark:bg-emerald-900/30',
     text: 'text-emerald-600 dark:text-emerald-400',
+  },
+  presentations: {
+    icon: FiMonitor,
+    bg: 'bg-primary-100 dark:bg-primary-900/30',
+    text: 'text-primary-600 dark:text-primary-400',
   },
 };
 
