@@ -35,6 +35,20 @@ describe('buildChartData', () => {
     expect(c.rows[1]?.['Betrag']).toBe(25);
   });
 
+  it('strips yen/generic currency symbols (prefix or suffix)', () => {
+    const c = buildChartData(
+      [
+        ['Land', 'Betrag'],
+        ['JP', '¥1200'],
+        ['XX', '300 ¤'],
+      ],
+      'bar',
+      ''
+    );
+    expect(c.rows[0]?.['Betrag']).toBe(1200);
+    expect(c.rows[1]?.['Betrag']).toBe(300);
+  });
+
   it('de-duplicates repeated series names', () => {
     const c = buildChartData(
       [

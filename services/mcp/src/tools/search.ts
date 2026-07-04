@@ -1,12 +1,8 @@
-import {
-  COLLECTIONS,
-  getDefaultSearchCollections,
-  buildCollectionDefaultFilter,
-} from '@gruenerator/shared/search/collections';
 import { buildQdrantFilter, mergeFilters } from '@gruenerator/shared/search/filters';
 import { z } from 'zod';
 
-import { config, COLLECTION_KEYS } from '../config.ts';
+import { getDefaultSearchCollections, buildCollectionDefaultFilter } from '../catalog.ts';
+import { config } from '../config.ts';
 import { generateEmbedding } from '../embeddings.ts';
 import {
   searchCollection,
@@ -203,12 +199,12 @@ function buildSearchDescription(): string {
   const deCollections = getDefaultSearchCollections('DE').join(', ');
   const atCollections = getDefaultSearchCollections('AT').join(', ');
 
-  const defaultRows = Object.entries(COLLECTIONS)
+  const defaultRows = Object.entries(config.collections)
     .filter(([, col]) => !col.defaultFilter)
     .map(([key, col]) => `| ${key} | ${col.displayName} | ${col.description} |`)
     .join('\n');
 
-  const lvRows = Object.entries(COLLECTIONS)
+  const lvRows = Object.entries(config.collections)
     .filter(([, col]) => col.defaultFilter && col.includeInDefaultSearch === false)
     .map(([key, col]) => `| ${key} | ${col.displayName} | ${col.description} |`)
     .join('\n');
@@ -286,7 +282,7 @@ export const searchTool = {
     query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
     country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich. PFLICHT.'),
     collection: z
-      .enum(COLLECTION_KEYS as [string, ...string[]])
+      .string()
       .optional()
       .describe(
         'Optionale Sammlung. Wenn nicht gesetzt, werden alle Sammlungen des Landes durchsucht.'
@@ -400,6 +396,7 @@ export const searchTool = {
         return {
           error: true,
           message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${available}`,
+          hint: 'Alle Sammlungen: `resources/list` (gruenerator://collections). Gültige Filterwerte einer Sammlung: `gruenerator_get_filters`.',
         };
       }
       return searchSingleCollectionWithCache({

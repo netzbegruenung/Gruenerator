@@ -323,7 +323,9 @@ const ZeichenzaehlerPage = () => {
             type="button"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
-            aria-label={expanded ? 'Social-Media-Limits einklappen' : 'Social-Media-Limits anzeigen'}
+            aria-label={
+              expanded ? 'Social-Media-Limits einklappen' : 'Social-Media-Limits anzeigen'
+            }
             style={{
               width: '100%',
               display: 'flex',

@@ -7,8 +7,8 @@ export function Bordered() {
       <CollapsibleSection title="Erweiterte Einstellungen" defaultOpen bordered>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
           <p style={{ margin: 0, lineHeight: 1.6 }}>
-            Lege fest, wer diesen Antrag bearbeiten darf und ob Änderungen
-            automatisch protokolliert werden.
+            Lege fest, wer diesen Antrag bearbeiten darf und ob Änderungen automatisch protokolliert
+            werden.
           </p>
           <span style={{ opacity: 0.7 }}>Sichtbarkeit: Kreisverband · Zuletzt geändert: heute</span>
         </div>

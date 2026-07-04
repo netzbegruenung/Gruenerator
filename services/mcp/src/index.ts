@@ -15,6 +15,7 @@ import express from 'express';
 console.log('[Boot] Dependencies loaded');
 
 console.log('[Boot] Loading config...');
+import { fetchCatalog } from './catalog.ts';
 import { clientConfigTool } from './clients/config.ts';
 import { config, validateConfig } from './config.ts';
 import { registerAgentPrompts, getPromptList } from './prompts/agent-prompts.ts';
@@ -691,6 +692,11 @@ const PORT = process.env.PORT || 3003;
 console.log(`[Boot] Starting server on port ${PORT}...`);
 
 app.listen(PORT, () => {
+  // Warm the runtime collection catalog from the backend (non-blocking; falls
+  // back to the bundled static catalog on failure). Lets newly added collections
+  // appear without an MCP rebuild.
+  void fetchCatalog();
+
   const localUrl = `http://localhost:${PORT}`;
   const publicUrl = config.server.publicUrl;
 
