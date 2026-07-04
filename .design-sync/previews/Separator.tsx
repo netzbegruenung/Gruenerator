@@ -9,8 +9,7 @@ export function Horizontal() {
       <div style={{ fontSize: 13, opacity: 0.7 }}>Pressemitteilung · 18. Juni 2026</div>
       <Separator style={{ marginTop: 12, marginBottom: 12 }} />
       <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-        Die grüne Fraktion fordert ein kommunales Förderprogramm für Wärmepumpen
-        und Dachbegrünung.
+        Die grüne Fraktion fordert ein kommunales Förderprogramm für Wärmepumpen und Dachbegrünung.
       </p>
     </div>
   );

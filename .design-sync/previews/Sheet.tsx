@@ -24,8 +24,7 @@ export function BoardSettings() {
         <SheetHeader>
           <SheetTitle>Board-Einstellungen</SheetTitle>
           <SheetDescription>
-            Konfiguriere Sichtbarkeit und Benachrichtigungen für das Board
-            „Wahlkampf 2026".
+            Konfiguriere Sichtbarkeit und Benachrichtigungen für das Board „Wahlkampf 2026".
           </SheetDescription>
         </SheetHeader>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '0 16px' }}>
