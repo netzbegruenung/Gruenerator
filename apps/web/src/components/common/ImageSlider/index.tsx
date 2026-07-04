@@ -2,9 +2,11 @@ import { type JSX, useState, useEffect, useCallback } from 'react';
 import { HiRefresh } from 'react-icons/hi';
 import '../../../assets/styles/components/ui/image-slider.css';
 
-// Lazy load react-image-gallery and its styles
+// Lazy load react-image-gallery and its styles in parallel. We only bind the
+// module (index 0); the CSS import is loaded for its side effect only — binding
+// it would destructure an `any`-typed tuple element (no-unsafe-assignment).
 const loadImageGallery = async () => {
-  const [galleryModule, _styleSheet] = await Promise.all([
+  const [galleryModule] = await Promise.all([
     import('react-image-gallery'),
     import('react-image-gallery/styles/css/image-gallery.css'),
   ]);
