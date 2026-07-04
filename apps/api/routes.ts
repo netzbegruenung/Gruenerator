@@ -98,6 +98,7 @@ import sharepicClaudeRoute, {
   handleSliderSmartRequest,
 } from './routes/sharepic/sharepic_claude/index.js';
 import { type SharepicRequest } from './routes/sharepic/sharepic_claude/types.js';
+import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
@@ -641,6 +642,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/board-attachments', boardAttachmentUploadRouter);
   mountBoardAttachmentsContractRouter(app);
   mountBoardCardDocumentsContractRouter(app);
+  // Sheets (Univer): only the AI planning route — CRUD/share run via /api/docs/*.
+  app.use('/api/sheets', requireAuth, authenticatedReadLimiter);
+  mountSheetsContractRouter(app);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);

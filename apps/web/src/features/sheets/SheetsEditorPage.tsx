@@ -14,14 +14,15 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
+import { SheetsEditor, type FUniver } from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FiShare2 } from 'react-icons/fi';
-import { PiTable } from 'react-icons/pi';
+import { FiCornerUpLeft, FiCornerUpRight, FiMessageSquare, FiShare2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
+import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
@@ -29,6 +30,8 @@ import { platformFetch } from '../../utils/platformFetch';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
+
+import { SheetsChatPanel } from './SheetsChatPanel';
 
 const ShareModal = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
@@ -90,9 +93,18 @@ function SheetsEditorContent() {
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
+  const [univerAPI, setUniverAPI] = useState<FUniver | null>(null);
+  const [darkMode] = useDarkMode();
+  const [chatOpen, setChatOpen] = useState(false);
+  // Sticky: once opened, the chat panel stays mounted so runtime + Hocuspocus
+  // connection survive close/reopen (docs pattern).
+  const [hasOpenedChat, setHasOpenedChat] = useState(false);
+  useEffect(() => {
+    if (chatOpen && !hasOpenedChat) setHasOpenedChat(true);
+  }, [chatOpen, hasOpenedChat]);
 
   const collabConfig = useCollaborationConfig();
-  const { provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
+  const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
     documentId: isAuthResolved ? id || '' : '',
     user: isGuest
       ? null
@@ -204,6 +216,36 @@ function SheetsEditorContent() {
             <CollaboratorAvatars collaborators={collaborators} />
             {!isGuest && (
               <button
+                className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                onClick={() => setChatOpen((v) => !v)}
+                aria-label="Chat"
+                title="Chat"
+              >
+                <FiMessageSquare />
+              </button>
+            )}
+            {isEditable && univerAPI && (
+              <>
+                <button
+                  className="glass-btn"
+                  onClick={() => void univerAPI.undo()}
+                  aria-label="Rückgängig"
+                  title="Rückgängig (Strg+Z)"
+                >
+                  <FiCornerUpLeft />
+                </button>
+                <button
+                  className="glass-btn"
+                  onClick={() => void univerAPI.redo()}
+                  aria-label="Wiederholen"
+                  title="Wiederholen (Strg+Umschalt+Z)"
+                >
+                  <FiCornerUpRight />
+                </button>
+              </>
+            )}
+            {!isGuest && (
+              <button
                 className="glass-btn"
                 onClick={() => setShowShareModal(true)}
                 aria-label="Teilen"
@@ -216,15 +258,50 @@ function SheetsEditorContent() {
         }
       />
 
-      <div className="flex-1 min-h-0 flex items-center justify-center">
-        {/* Placeholder until the Univer editor package lands (PR 3). The
-            collaboration provider above is already live, so presence works. */}
-        <div className="flex flex-col items-center gap-3 text-grey-500">
-          <PiTable size={40} className="text-secondary-500" />
-          <span className="text-sm">
-            {editorReady ? 'Der Tabellen-Editor ist in Kürze verfügbar.' : 'Tabelle wird geladen…'}
-          </span>
+      <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+          {editorReady && ydoc ? (
+            <SheetsEditor
+              key={id}
+              documentId={id!}
+              ydoc={ydoc}
+              awareness={provider?.awareness ?? null}
+              editable={isEditable}
+              darkMode={darkMode}
+              onReady={setUniverAPI}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
+              Tabelle wird geladen…
+            </div>
+          )}
         </div>
+
+        {hasOpenedChat && id && (
+          <aside
+            className={
+              chatOpen
+                ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
+                : 'hidden'
+            }
+          >
+            <SheetsChatPanel
+              documentId={id}
+              userId={user ? String(user.id) : null}
+              userName={user?.display_name ?? null}
+              documentTitle={docData?.title ?? null}
+              univerAPI={univerAPI}
+              isOpen={chatOpen}
+            />
+            <button
+              onClick={() => setChatOpen(false)}
+              className="hidden max-md:flex absolute top-2 right-2 z-10 h-9 w-9 items-center justify-center rounded-lg bg-background/90 dark:bg-grey-900/90 text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700 shadow-sm border border-grey-200 dark:border-grey-700"
+              aria-label="Chat schließen"
+            >
+              ×
+            </button>
+          </aside>
+        )}
       </div>
 
       {showShareModal && (
