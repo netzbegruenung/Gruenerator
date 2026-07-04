@@ -15,6 +15,7 @@ import express from 'express';
 console.log('[Boot] Dependencies loaded');
 
 console.log('[Boot] Loading config...');
+import { fetchCatalog } from './catalog.ts';
 import { clientConfigTool } from './clients/config.ts';
 import { config, validateConfig } from './config.ts';
 import { registerAgentPrompts, getPromptList } from './prompts/agent-prompts.ts';
@@ -37,6 +38,7 @@ import { notebooksSearchTool } from './tools/notebooks-search.ts';
 // import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { getCacheStats } from './utils/cache.ts';
+import { classifyError, connectionErrorResponse } from './utils/errors.ts';
 import { info, error, logSearch, getStats } from './utils/logger.ts';
 console.log('[Boot] Config loaded');
 
@@ -84,10 +86,13 @@ function wrapToolHandler(
         isError: !!result.error,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error(label, `${label} failed: ${message}`);
+      const { detail, isConnection } = classifyError(err);
+      error(label, `${label} failed: ${detail}`);
+      const body = isConnection
+        ? connectionErrorResponse(detail)
+        : { error: true, message: detail };
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify({ error: true, message }) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(body, null, 2) }],
         isError: true,
       };
     }
@@ -111,7 +116,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // === MCP RESOURCES ===
 
   // List available resources
-  server.resource('gruenerator://collections', 'Verfügbare Dokumentsammlungen', async () => {
+  server.resource('Verfügbare Dokumentsammlungen', 'gruenerator://collections', async () => {
     const resources = await getCollectionResources();
     return {
       contents: [
@@ -125,22 +130,22 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   });
 
   // Server info resource
-  server.resource('gruenerator://info', 'Server-Informationen und Fähigkeiten', () =>
+  server.resource('Server-Informationen und Fähigkeiten', 'gruenerator://info', () =>
     readServerInfoResource()
   );
 
   // System prompt resource - AI systems should read this first
   server.resource(
-    'gruenerator://system-prompt',
     'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+    'gruenerator://system-prompt',
     () => getSystemPromptResource()
   );
 
   // Dynamic collection resources
   for (const [key, col] of Object.entries(config.collections)) {
     server.resource(
-      `gruenerator://collections/${key}`,
       `${col.displayName}: ${col.description}`,
+      `gruenerator://collections/${key}`,
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
         return (
@@ -602,7 +607,7 @@ app.post('/mcp', async (req, res) => {
 
   if (sessionId && transports[sessionId]) {
     transport = transports[sessionId];
-  } else if (!sessionId && isInitializeRequest(req.body)) {
+  } else if (isInitializeRequest(req.body)) {
     const newTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id: string) => {
@@ -626,16 +631,34 @@ app.post('/mcp', async (req, res) => {
     const apiKey = extractBearerKey(req);
     const server = createMcpServer(baseUrl, apiKey);
     await server.connect(transport);
+  } else if (sessionId) {
+    res.status(404).json({
+      jsonrpc: '2.0',
+      error: { code: -32001, message: 'Session nicht gefunden – bitte neu initialisieren' },
+      id: null,
+    });
+    return;
   } else {
     res.status(400).json({
       jsonrpc: '2.0',
-      error: { code: -32000, message: 'Ungültige Session' },
+      error: { code: -32000, message: 'Keine Session und keine Initialisierungsanfrage' },
       id: null,
     });
     return;
   }
 
-  await transport.handleRequest(req, res, req.body);
+  try {
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    error('MCP', `handleRequest failed: ${err instanceof Error ? err.message : String(err)}`);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: 'Interner Serverfehler' },
+        id: null,
+      });
+    }
+  }
 });
 
 // MCP GET Endpoint (SSE Stream)
@@ -647,7 +670,7 @@ app.get('/mcp', async (req, res) => {
   if (transport) {
     await transport.handleRequest(req, res);
   } else {
-    res.status(400).json({ error: 'Ungültige Session' });
+    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
   }
 });
 
@@ -660,7 +683,7 @@ app.delete('/mcp', async (req, res) => {
   if (transport) {
     await transport.handleRequest(req, res);
   } else {
-    res.status(400).json({ error: 'Ungültige Session' });
+    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
   }
 });
 
@@ -669,6 +692,11 @@ const PORT = process.env.PORT || 3003;
 console.log(`[Boot] Starting server on port ${PORT}...`);
 
 app.listen(PORT, () => {
+  // Warm the runtime collection catalog from the backend (non-blocking; falls
+  // back to the bundled static catalog on failure). Lets newly added collections
+  // appear without an MCP rebuild.
+  void fetchCatalog();
+
   const localUrl = `http://localhost:${PORT}`;
   const publicUrl = config.server.publicUrl;
 

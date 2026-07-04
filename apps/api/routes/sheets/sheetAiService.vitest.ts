@@ -62,3 +62,84 @@ describe('normalizeRawOp', () => {
     expect(normalizeRawOp(42)).toBe(42);
   });
 });
+
+describe('Phase 0 operation schema', () => {
+  it('validates set_number_format', () => {
+    const r = sheetOperationSchema.safeParse({
+      type: 'set_number_format',
+      range: 'B2:B20',
+      pattern: '#,##0.00 €',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('validates set_range_values with asText (force-text)', () => {
+    const r = sheetOperationSchema.safeParse({
+      type: 'set_range_values',
+      range: 'A2:A5',
+      values: [['00123'], ['2-2']],
+      asText: true,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('normalizeRawOp leaves set_number_format untouched', () => {
+    const op = { type: 'set_number_format', range: 'B2', pattern: '0%' };
+    expect(normalizeRawOp(op)).toBe(op);
+  });
+});
+
+describe('add_chart operation schema', () => {
+  it('validates each chart type', () => {
+    for (const chartType of ['bar', 'line', 'area', 'pie', 'donut']) {
+      expect(
+        sheetOperationSchema.safeParse({ type: 'add_chart', range: 'A1:D5', chartType }).success
+      ).toBe(true);
+    }
+  });
+
+  it('rejects an unknown chart type', () => {
+    expect(
+      sheetOperationSchema.safeParse({ type: 'add_chart', range: 'A1:D5', chartType: 'radar' })
+        .success
+    ).toBe(false);
+  });
+});
+
+describe('Phase 1 structural operation schema', () => {
+  it('validates insert_rows / delete_rows (1-based row + count)', () => {
+    expect(sheetOperationSchema.safeParse({ type: 'insert_rows', at: 5, count: 2 }).success).toBe(
+      true
+    );
+    expect(sheetOperationSchema.safeParse({ type: 'delete_rows', at: 3, count: 1 }).success).toBe(
+      true
+    );
+  });
+
+  it('rejects non-positive row targets/counts', () => {
+    expect(sheetOperationSchema.safeParse({ type: 'insert_rows', at: 0, count: 2 }).success).toBe(
+      false
+    );
+    expect(sheetOperationSchema.safeParse({ type: 'delete_rows', at: 3, count: 0 }).success).toBe(
+      false
+    );
+  });
+
+  it('validates insert_columns / delete_columns (column letter + count)', () => {
+    expect(
+      sheetOperationSchema.safeParse({ type: 'insert_columns', at: 'C', count: 1 }).success
+    ).toBe(true);
+    expect(
+      sheetOperationSchema.safeParse({ type: 'delete_columns', at: 'AA', count: 2 }).success
+    ).toBe(true);
+  });
+
+  it('validates merge_cells / unmerge_cells', () => {
+    expect(sheetOperationSchema.safeParse({ type: 'merge_cells', range: 'A1:C1' }).success).toBe(
+      true
+    );
+    expect(sheetOperationSchema.safeParse({ type: 'unmerge_cells', range: 'A1:C1' }).success).toBe(
+      true
+    );
+  });
+});
