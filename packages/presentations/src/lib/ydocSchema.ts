@@ -41,6 +41,9 @@ export function yMapToSlide(m: Y.Map<unknown>): Slide {
     background: (m.get('background') as string | null) ?? null,
     transition: (m.get('transition') as SlideTransition | null) ?? null,
     fragments: Boolean(m.get('fragments') ?? false),
+    autoAnimate: Boolean(m.get('autoAnimate') ?? false),
+    hidden: Boolean(m.get('hidden') ?? false),
+    codeLanguage: (m.get('codeLanguage') as string | null) ?? null,
   };
 }
 
@@ -54,6 +57,9 @@ export function slideToYMap(slide: Slide): Y.Map<unknown> {
   m.set('background', slide.background ?? null);
   m.set('transition', slide.transition ?? null);
   m.set('fragments', slide.fragments ?? false);
+  m.set('autoAnimate', slide.autoAnimate ?? false);
+  m.set('hidden', slide.hidden ?? false);
+  m.set('codeLanguage', slide.codeLanguage ?? null);
   return m;
 }
 

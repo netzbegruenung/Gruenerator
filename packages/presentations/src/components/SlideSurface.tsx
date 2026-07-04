@@ -1,7 +1,11 @@
 import { type Slide } from '@gruenerator/contracts';
 import { type ComponentProps } from 'react';
 import Markdown from 'react-markdown';
+import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+
+import 'katex/dist/katex.min.css';
 
 export interface SlideSurfaceProps {
   slide: Slide;
@@ -18,6 +22,7 @@ const LAYOUT_CLASS: Record<Slide['layout'], string> = {
   split: 'layout-split',
   quote: 'layout-quote',
   image: 'layout-image',
+  code: 'layout-code',
 };
 
 /**
@@ -29,9 +34,18 @@ export function SlideSurface({ slide, editable, onChange, presenting }: SlideSur
   const layoutClass = LAYOUT_CLASS[slide.layout];
   const fragmentClass = presenting && slide.fragments ? 'fragment' : undefined;
 
-  const liComponents: ComponentProps<typeof Markdown>['components'] = fragmentClass
-    ? { li: ({ children }) => <li className={fragmentClass}>{children}</li> }
+  // In present mode: per-item fragments (opt-in) and click-to-zoom images
+  // (reveal's built-in lightbox via data-preview-image).
+  const mdComponents: ComponentProps<typeof Markdown>['components'] = presenting
+    ? {
+        ...(fragmentClass
+          ? { li: ({ children }) => <li className={fragmentClass}>{children}</li> }
+          : {}),
+        img: ({ node: _node, ...props }) => <img {...props} data-preview-image="" />,
+      }
     : undefined;
+
+  const isCode = slide.layout === 'code';
 
   return (
     <div className={`gruene-slide ${layoutClass}`}>
@@ -47,16 +61,39 @@ export function SlideSurface({ slide, editable, onChange, presenting }: SlideSur
         slide.title.trim() !== '' && <h2 className="gruene-slide__title">{slide.title}</h2>
       )}
 
-      {editable ? (
+      {isCode ? (
+        editable ? (
+          <textarea
+            className="gruene-slide__input gruene-slide__code"
+            value={slide.body}
+            placeholder="Quellcode …"
+            spellCheck={false}
+            onChange={(e) => onChange?.({ body: e.target.value })}
+          />
+        ) : (
+          <pre className="gruene-slide__body">
+            <code
+              {...(slide.codeLanguage ? { 'data-language': slide.codeLanguage } : {})}
+              className={slide.codeLanguage ? `language-${slide.codeLanguage}` : undefined}
+            >
+              {slide.body}
+            </code>
+          </pre>
+        )
+      ) : editable ? (
         <textarea
           className="gruene-slide__input gruene-slide__body"
           value={slide.body}
-          placeholder="Inhalt (Markdown) …"
+          placeholder="Inhalt (Markdown, LaTeX mit $…$) …"
           onChange={(e) => onChange?.({ body: e.target.value })}
         />
       ) : (
         <div className="gruene-slide__body">
-          <Markdown remarkPlugins={[remarkGfm]} components={liComponents}>
+          <Markdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={mdComponents}
+          >
             {slide.body}
           </Markdown>
         </div>

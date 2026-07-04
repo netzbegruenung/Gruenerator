@@ -19,14 +19,21 @@ import {
   yMapToSlide,
 } from '../lib/ydocSchema.js';
 
+export interface DeckOptions {
+  defaultTransition: SlideTransition | null;
+  autoSlide: number | null;
+  loop: boolean;
+  slideNumber: boolean;
+}
+
 export interface UseSlidesResult {
   slides: Slide[];
-  defaultTransition: SlideTransition | null;
+  deckOptions: DeckOptions;
   addSlide: (partial?: Partial<Slide>, at?: number) => string;
   updateSlide: (index: number, patch: Partial<Slide>) => void;
   deleteSlide: (index: number) => void;
   moveSlide: (from: number, to: number) => void;
-  setDefaultTransition: (transition: SlideTransition | null) => void;
+  setDeckOption: (patch: Partial<DeckOptions>) => void;
   /** Seed the deck with `initial` slides once (guarded by the `seeded` flag). */
   seedIfNeeded: (initial: Slide[]) => void;
   undo: () => void;
@@ -76,13 +83,30 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
     return cacheRef.current.slides;
   }, [arr]);
 
-  const getTransition = useCallback(
-    () => (meta.get(PRESENTATION_META_KEYS.defaultTransition) as SlideTransition | null) ?? null,
-    [meta]
-  );
+  // Deck options are cached by version too, so the returned object is stable
+  // between unrelated changes (avoids re-render loops via useSyncExternalStore).
+  const deckCacheRef = useRef<{ version: number; opts: DeckOptions }>({
+    version: -1,
+    opts: { defaultTransition: null, autoSlide: null, loop: false, slideNumber: false },
+  });
+  const getDeckOptions = useCallback((): DeckOptions => {
+    if (deckCacheRef.current.version !== versionRef.current) {
+      deckCacheRef.current = {
+        version: versionRef.current,
+        opts: {
+          defaultTransition:
+            (meta.get(PRESENTATION_META_KEYS.defaultTransition) as SlideTransition | null) ?? null,
+          autoSlide: (meta.get(PRESENTATION_META_KEYS.autoSlide) as number | null) ?? null,
+          loop: Boolean(meta.get(PRESENTATION_META_KEYS.loop) ?? false),
+          slideNumber: Boolean(meta.get(PRESENTATION_META_KEYS.slideNumber) ?? false),
+        },
+      };
+    }
+    return deckCacheRef.current.opts;
+  }, [meta]);
 
   const slides = useSyncExternalStore(subscribe, getSlidesSnapshot, getSlidesSnapshot);
-  const defaultTransition = useSyncExternalStore(subscribe, getTransition, getTransition);
+  const deckOptions = useSyncExternalStore(subscribe, getDeckOptions, getDeckOptions);
 
   const addSlide = useCallback(
     (partial?: Partial<Slide>, at?: number): string => {
@@ -140,10 +164,16 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
     [ydoc, arr]
   );
 
-  const setDefaultTransition = useCallback(
-    (transition: SlideTransition | null) => {
+  const setDeckOption = useCallback(
+    (patch: Partial<DeckOptions>) => {
       ydoc.transact(() => {
-        meta.set(PRESENTATION_META_KEYS.defaultTransition, transition);
+        if (patch.defaultTransition !== undefined)
+          meta.set(PRESENTATION_META_KEYS.defaultTransition, patch.defaultTransition);
+        if (patch.autoSlide !== undefined)
+          meta.set(PRESENTATION_META_KEYS.autoSlide, patch.autoSlide);
+        if (patch.loop !== undefined) meta.set(PRESENTATION_META_KEYS.loop, patch.loop);
+        if (patch.slideNumber !== undefined)
+          meta.set(PRESENTATION_META_KEYS.slideNumber, patch.slideNumber);
       }, PRESENTATION_LOCAL_ORIGIN);
     },
     [ydoc, meta]
@@ -188,12 +218,12 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
 
   return {
     slides,
-    defaultTransition,
+    deckOptions,
     addSlide,
     updateSlide,
     deleteSlide,
     moveSlide,
-    setDefaultTransition,
+    setDeckOption,
     seedIfNeeded,
     undo,
     redo,

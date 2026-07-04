@@ -19,6 +19,7 @@ import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  FiBookOpen,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
@@ -114,6 +115,7 @@ function PresentationsEditorContent() {
   const autoPresent = searchParams.get('present') === '1';
   const printPdf = searchParams.has('print-pdf');
   const [presenting, setPresenting] = useState(autoPresent);
+  const [scrollView, setScrollView] = useState(false);
 
   const [chatOpen, setChatOpen] = useState(false);
   // Sticky: once opened, the chat panel stays mounted so runtime + Hocuspocus
@@ -275,11 +277,25 @@ function PresentationsEditorContent() {
             )}
             <button
               className="glass-btn"
-              onClick={() => setPresenting(true)}
+              onClick={() => {
+                setScrollView(false);
+                setPresenting(true);
+              }}
               aria-label="Präsentieren"
               title="Präsentieren"
             >
               <FiPlay />
+            </button>
+            <button
+              className="glass-btn"
+              onClick={() => {
+                setScrollView(true);
+                setPresenting(true);
+              }}
+              aria-label="Lesemodus"
+              title="Lesemodus (scrollbare Ansicht)"
+            >
+              <FiBookOpen />
             </button>
             <button
               className="glass-btn"
@@ -343,7 +359,12 @@ function PresentationsEditorContent() {
 
       {presenting && ydoc && (
         <Suspense fallback={null}>
-          <PresentMode ydoc={ydoc} printPdf={printPdf} onClose={() => setPresenting(false)} />
+          <PresentMode
+            ydoc={ydoc}
+            printPdf={printPdf}
+            scroll={scrollView}
+            onClose={() => setPresenting(false)}
+          />
         </Suspense>
       )}
 

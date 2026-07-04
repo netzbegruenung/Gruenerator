@@ -13,7 +13,7 @@ import { z } from 'zod';
  * plan-then-apply pattern (schemas/sheets.ts).
  */
 
-export const slideLayoutSchema = z.enum(['title', 'content', 'split', 'quote', 'image']);
+export const slideLayoutSchema = z.enum(['title', 'content', 'split', 'quote', 'image', 'code']);
 
 export type SlideLayout = z.infer<typeof slideLayoutSchema>;
 
@@ -23,9 +23,12 @@ export const slideTransitionSchema = z.enum(['none', 'fade', 'slide', 'convex', 
 export type SlideTransition = z.infer<typeof slideTransitionSchema>;
 
 /**
- * One slide. `body` is markdown. `background` is a simple CSS color or image
- * URL in V1 (PR 4 widens it to a discriminated union). `fragments` toggles
- * step-by-step reveal of the body's list items.
+ * One slide. `body` is markdown (or source code for the `code` layout).
+ * `background` is a CSS color, an image/video URL, or a `linear-gradient(...)`
+ * string — the renderer picks the matching reveal `data-background-*`.
+ * `fragments` reveals the body's list items step by step; `autoAnimate` morphs
+ * matching elements from the previous slide; `hidden` skips the slide in
+ * present mode without deleting it.
  */
 export const slideSchema = z.object({
   id: z.string(),
@@ -36,6 +39,10 @@ export const slideSchema = z.object({
   background: z.string().nullish(),
   transition: slideTransitionSchema.nullish(),
   fragments: z.boolean().nullish(),
+  autoAnimate: z.boolean().nullish(),
+  hidden: z.boolean().nullish(),
+  /** Language for the `code` layout (e.g. "typescript", "python"). */
+  codeLanguage: z.string().nullish(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;
@@ -64,9 +71,13 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     body: z.string().nullish(),
     notes: z.string().nullish(),
     layout: slideLayoutSchema.nullish(),
+    /** CSS color, image/video URL, or `linear-gradient(...)`. */
     background: z.string().nullish(),
     transition: slideTransitionSchema.nullish(),
     fragments: z.boolean().nullish(),
+    autoAnimate: z.boolean().nullish(),
+    hidden: z.boolean().nullish(),
+    codeLanguage: z.string().nullish(),
   }),
   z.object({
     type: z.literal('delete_slide'),
@@ -82,6 +93,11 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('set_deck_option'),
     defaultTransition: slideTransitionSchema.nullish(),
+    /** Advance automatically after N ms (kiosk mode); 0/null disables. */
+    autoSlide: z.number().int().nonnegative().nullish(),
+    loop: z.boolean().nullish(),
+    /** Show reveal slide numbers. */
+    slideNumber: z.boolean().nullish(),
   }),
 ]);
 

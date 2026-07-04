@@ -67,6 +67,9 @@ export function applyPresentationOperations(
             if (op.background !== undefined) m.set('background', op.background ?? null);
             if (op.transition !== undefined) m.set('transition', op.transition ?? null);
             if (op.fragments != null) m.set('fragments', op.fragments);
+            if (op.autoAnimate != null) m.set('autoAnimate', op.autoAnimate);
+            if (op.hidden != null) m.set('hidden', op.hidden);
+            if (op.codeLanguage !== undefined) m.set('codeLanguage', op.codeLanguage ?? null);
             applied += 1;
             break;
           }
@@ -96,6 +99,12 @@ export function applyPresentationOperations(
             if (op.defaultTransition !== undefined) {
               meta.set(PRESENTATION_META_KEYS.defaultTransition, op.defaultTransition ?? null);
             }
+            if (op.autoSlide !== undefined) {
+              meta.set(PRESENTATION_META_KEYS.autoSlide, op.autoSlide ?? null);
+            }
+            if (op.loop != null) meta.set(PRESENTATION_META_KEYS.loop, op.loop);
+            if (op.slideNumber != null)
+              meta.set(PRESENTATION_META_KEYS.slideNumber, op.slideNumber);
             applied += 1;
             break;
           }
