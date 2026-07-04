@@ -16,6 +16,7 @@ import {
   type SheetMutationEntry,
   type SnapshotVector,
 } from '../lib/ydocSchema.js';
+import { buildBlankWorkbook } from '../lib/blankWorkbook.js';
 import { COMPACT_IDLE_MS, COMPACT_THRESHOLD, isCompactionLeader } from './compaction.js';
 
 import type { FWorkbook } from '@univerjs/preset-sheets-core';
@@ -48,15 +49,6 @@ export interface SheetsBridge {
 /** Univer mutations that are session-local bookkeeping despite lacking
  * `onlyLocal` tagging. Grown from observed traffic during manual testing. */
 const LOCAL_ONLY_MUTATIONS = new Set<string>(['sheet.mutation.set-worksheet-active-operation']);
-
-function buildBlankWorkbook(documentId: string): Partial<IWorkbookData> {
-  return {
-    id: documentId,
-    name: 'Tabelle',
-    sheetOrder: [],
-    sheets: {},
-  };
-}
 
 function readSnapshotVector(yMeta: Y.Map<unknown>): SnapshotVector {
   const raw = yMeta.get(SHEET_META_KEYS.snapshotVector);
