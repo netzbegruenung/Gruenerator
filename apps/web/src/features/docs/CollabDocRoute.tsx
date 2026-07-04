@@ -10,6 +10,7 @@ import { webAppDocsAdapter } from './docsAdapter';
 
 const DocsEditorPage = lazy(() => import('./DocsEditorPage'));
 const SheetsEditorPage = lazy(() => import('../sheets/SheetsEditorPage'));
+const PresentationsEditorPage = lazy(() => import('../presentations/PresentationsEditorPage'));
 
 const EditorSkeleton = () => (
   <div className="flex flex-col h-full">
@@ -31,8 +32,8 @@ const EditorSkeleton = () => (
 /**
  * `/docs/:id` dispatcher: resolves the document once (same query key the
  * editor pages use, so React Query dedupes) and mounts the matching editor —
- * BlockNote for text docs, Univer for `document_subtype === 'sheets'`. Keeps
- * the two editors in separate lazy chunks.
+ * BlockNote for text docs, Univer for `document_subtype === 'sheets'`,
+ * reveal.js for `'presentations'`. Keeps the editors in separate lazy chunks.
  */
 export default function CollabDocRoute() {
   const { id } = useParams<{ id: string }>();
@@ -54,7 +55,13 @@ export default function CollabDocRoute() {
 
   if (isLoading) return <EditorSkeleton />;
 
-  const Editor = docData?.document_subtype === 'sheets' ? SheetsEditorPage : DocsEditorPage;
+  const subtype = docData?.document_subtype;
+  const Editor =
+    subtype === 'sheets'
+      ? SheetsEditorPage
+      : subtype === 'presentations'
+        ? PresentationsEditorPage
+        : DocsEditorPage;
   return (
     <Suspense fallback={<EditorSkeleton />}>
       <Editor />
