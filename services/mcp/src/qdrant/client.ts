@@ -573,6 +573,7 @@ export async function getFieldValueCounts(
       .sort((a, b) => b.count - a.count)
       .slice(0, maxValues);
   } catch (err) {
+    if (isConnectionError(err)) throw err;
     console.error(
       `[Qdrant] Error fetching value counts for ${fieldName}:`,
       err instanceof Error ? err.message : String(err)
