@@ -52,12 +52,13 @@ const wrapperStyle: React.CSSProperties = {
  * workbook snapshot and synced through the mutation-log bridge).
  */
 export function SheetChartFloat({ data }: SheetChartFloatProps) {
-  if (!data || data.rows.length === 0) {
+  if (!data || data.rows.length === 0 || data.seriesKeys.length === 0) {
     return <div style={wrapperStyle}>Keine Diagrammdaten</div>;
   }
 
   const { chartType, title, categoryKey, seriesKeys, rows } = data;
-  const firstSeries = seriesKeys[0];
+  // Guaranteed by the guard above (seriesKeys is non-empty).
+  const firstSeries = seriesKeys[0]!;
 
   return (
     <div style={wrapperStyle}>

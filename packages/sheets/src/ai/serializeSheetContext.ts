@@ -1,57 +1,37 @@
 import { columnLabel, escapeMarkdownCell } from '@gruenerator/contracts';
 
-import { type ICellData, type Nullable } from '@univerjs/core';
 import type { FWorkbook } from '@univerjs/preset-sheets-core';
 
 const MAX_ROWS = 200;
 const MAX_COLS = 30;
 const MAX_CHARS = 20_000;
 
+/** Per-column tallies accumulated during the single render pass. */
+interface ColumnStat {
+  hasFormula: boolean;
+  numeric: number;
+  nonEmpty: number;
+  fmt: string;
+}
+
 /**
- * Classify each non-text column by its logical type + number format so the model
- * knows HOW to write changes: a date/currency/percent cell is a number + a
- * format (never a formatted string), a formula column holds `=…`. Plain text
- * columns are omitted to keep the legend short. Returns e.g. "B=Währung (Zahl +
- * Format), C=Datum (Zahl + Format), D=Formel".
+ * Classify a column by its logical type + number format so the model knows HOW
+ * to write changes: a date/currency/percent cell is a number + a format (never
+ * a formatted string), a formula column holds `=…`. Returns null for empty or
+ * plain-text columns (omitted to keep the legend short).
  */
-function describeColumnTypes(
-  cellDatas: Nullable<ICellData>[][],
-  numberFormats: string[][],
-  cols: number
-): string {
-  const parts: string[] = [];
-  for (let c = 0; c < cols; c++) {
-    let hasFormula = false;
-    let numericCells = 0;
-    let nonEmpty = 0;
-    let fmt = '';
-    for (let r = 0; r < cellDatas.length; r++) {
-      const cell = cellDatas[r]?.[c];
-      if (cell?.f) hasFormula = true;
-      const v = cell?.v;
-      if (v !== null && v !== undefined && v !== '') {
-        nonEmpty++;
-        if (typeof v === 'number') numericCells++;
-      }
-      const nf = numberFormats[r]?.[c];
-      if (!fmt && nf && nf.length > 0) fmt = nf;
-    }
-    if (nonEmpty === 0 && !hasFormula) continue; // empty column
-
-    let kind: string | null = null;
-    if (hasFormula) kind = 'Formel';
-    else if (fmt) {
-      const lower = fmt.toLowerCase();
-      if (fmt.includes('%')) kind = 'Prozent (Zahl + Format)';
-      else if (/[€$£¥¤]/.test(fmt)) kind = 'Währung (Zahl + Format)';
-      else if (/[yd]/.test(lower)) kind = 'Datum (Zahl + Format)';
-      else kind = 'Zahl (formatiert)';
-    } else if (numericCells > 0 && numericCells >= nonEmpty / 2) kind = 'Zahl';
-    // plain-text columns intentionally omitted
-
-    if (kind) parts.push(`${columnLabel(c)}=${kind}`);
+function classifyColumn(st: ColumnStat): string | null {
+  if (st.nonEmpty === 0 && !st.hasFormula) return null;
+  if (st.hasFormula) return 'Formel';
+  if (st.fmt) {
+    const lower = st.fmt.toLowerCase();
+    if (st.fmt.includes('%')) return 'Prozent (Zahl + Format)';
+    if (/[€$£¥¤]/.test(st.fmt)) return 'Währung (Zahl + Format)';
+    if (/[yd]/.test(lower)) return 'Datum (Zahl + Format)';
+    return 'Zahl (formatiert)';
   }
-  return parts.join(', ');
+  if (st.numeric > 0 && st.numeric >= st.nonEmpty / 2) return 'Zahl';
+  return null; // plain-text columns intentionally omitted
 }
 
 /**
@@ -98,7 +78,20 @@ export function serializeSheetContext(workbook: FWorkbook): string {
   push(`| ${header.join(' | ')} |`);
   push(`| ${header.map(() => '---').join(' | ')} |`);
 
+  // Single pass: render each row AND accumulate per-column type tallies (no
+  // second full scan for the legend). Cap BEFORE emitting a row that would push
+  // the context past MAX_CHARS, so the output stays within budget.
+  const colStats: ColumnStat[] = Array.from({ length: cols }, () => ({
+    hasFormula: false,
+    numeric: 0,
+    nonEmpty: 0,
+    fmt: '',
+  }));
   for (let r = 0; r < rows; r++) {
+    if (charCount > MAX_CHARS) {
+      push(`| … | (abgeschnitten – Zeilen ${r + 1}–${rows} ausgelassen) |`);
+      break;
+    }
     const cells = [`${r + 1}`];
     for (let c = 0; c < cols; c++) {
       const cell = cellDatas[r]?.[c];
@@ -112,15 +105,26 @@ export function serializeSheetContext(workbook: FWorkbook): string {
         rendered = cell?.v ?? ''; // logical value (plain text/number)
       }
       cells.push(escapeMarkdownCell(rendered));
+
+      const st = colStats[c]!;
+      if (cell?.f) st.hasFormula = true;
+      const v = cell?.v;
+      if (v !== null && v !== undefined && v !== '') {
+        st.nonEmpty++;
+        if (typeof v === 'number') st.numeric++;
+      }
+      if (!st.fmt && numFmt && numFmt.length > 0) st.fmt = numFmt;
     }
     push(`| ${cells.join(' | ')} |`);
-    if (charCount > MAX_CHARS) {
-      push(`| … | (abgeschnitten bei Zeile ${r + 1} von ${rows}) |`);
-      break;
-    }
   }
 
-  const legend = describeColumnTypes(cellDatas, numberFormats, cols);
+  const legend = colStats
+    .map((st, c) => {
+      const kind = classifyColumn(st);
+      return kind ? `${columnLabel(c)}=${kind}` : null;
+    })
+    .filter((x): x is string => x !== null)
+    .join(', ');
   if (legend) push(`\nSpalten-Typen (beim Ändern beachten): ${legend}`);
 
   if (lastRow + 1 > rows || lastCol + 1 > cols) {
