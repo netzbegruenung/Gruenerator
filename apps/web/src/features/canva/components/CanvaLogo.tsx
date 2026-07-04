@@ -4,7 +4,6 @@ import type { IconBaseProps, IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
-
 /**
  * Official Canva brand mark.
  *

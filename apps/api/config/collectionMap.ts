@@ -1,97 +1,18 @@
 /**
- * Shared Collection Map
- *
- * Maps chat-facing collection names to Qdrant collection names and system IDs.
- * Used by directSearch, the system full-text endpoint, and other services
- * that need to resolve user-facing collection identifiers.
+ * Chat-facing collection name → Qdrant collection + system id.
+ * Derived from the canonical SYSTEM_COLLECTIONS — do not hand-maintain here.
  */
+
+import { SYSTEM_COLLECTIONS } from './systemCollectionsConfig.js';
 
 export interface CollectionMapping {
   qdrantCollection: string;
   systemId: string;
 }
 
-export const COLLECTION_MAP: Record<string, CollectionMapping> = {
-  deutschland: {
-    qdrantCollection: 'grundsatz_documents',
-    systemId: 'grundsatz-system',
-  },
-  bundestagsfraktion: {
-    qdrantCollection: 'bundestag_content',
-    systemId: 'bundestagsfraktion-system',
-  },
-  kommunalwiki: {
-    qdrantCollection: 'kommunalwiki_documents',
-    systemId: 'kommunalwiki-system',
-  },
-  'gruene-de': {
-    qdrantCollection: 'gruene_de_documents',
-    systemId: 'gruene-de-system',
-  },
-  'gruene-at': {
-    qdrantCollection: 'gruene_at_documents',
-    systemId: 'gruene-at-system',
-  },
-  oesterreich: {
-    qdrantCollection: 'oesterreich_gruene_documents',
-    systemId: 'oesterreich-gruene-system',
-  },
-  abgeordnetenwatch: {
-    qdrantCollection: 'abgeordnetenwatch_documents',
-    systemId: 'abgeordnetenwatch-system',
-  },
-  examples: {
-    qdrantCollection: 'social_media_examples',
-    systemId: 'examples-system',
-  },
-  'boell-stiftung': {
-    qdrantCollection: 'boell_stiftung_documents',
-    systemId: 'boell-stiftung-system',
-  },
-  gruenblog: {
-    qdrantCollection: 'gruenblog_documents',
-    systemId: 'gruenblog-system',
-  },
-  hamburg: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'hamburg-system',
-  },
-  'schleswig-holstein': {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'schleswig-holstein-system',
-  },
-  thueringen: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'thueringen-system',
-  },
-  bayern: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'bayern-system',
-  },
-  berlin: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'berlin-system',
-  },
-  'mecklenburg-vorpommern': {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'mecklenburg-vorpommern-system',
-  },
-  brandenburg: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'brandenburg-system',
-  },
-  'sachsen-anhalt': {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'sachsen-anhalt-system',
-  },
-  hessen: {
-    qdrantCollection: 'landesverbaende_documents',
-    systemId: 'hessen-system',
-  },
-  // Agent-only: reached via the `gruenerator-ricarda-lang` specialized agent.
-  // Not surfaced in @mention or notebook gallery.
-  'ricarda-lang-tweets': {
-    qdrantCollection: 'ricarda_lang_tweets',
-    systemId: 'ricarda-lang-tweets-system',
-  },
-};
+export const COLLECTION_MAP: Record<string, CollectionMapping> = Object.fromEntries(
+  Object.values(SYSTEM_COLLECTIONS).map((c) => [
+    c.key,
+    { qdrantCollection: c.qdrantCollection, systemId: c.id },
+  ])
+);

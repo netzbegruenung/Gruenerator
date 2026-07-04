@@ -1,7 +1,7 @@
 import {
   getSystemCollectionConfig,
   applyDefaultFilter,
-  getAllSystemCollectionIds,
+  getSearchableSystemCollectionIds,
 } from '../../config/systemCollectionsConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
@@ -252,7 +252,7 @@ export async function refreshKeywordSnapshot(
 export async function refreshAllKeywordSnapshots(
   month: string = currentMonth()
 ): Promise<RefreshResult[]> {
-  const ids = getAllSystemCollectionIds();
+  const ids = getSearchableSystemCollectionIds();
   log.info(`Starting monthly snapshot refresh for ${ids.length} collections (month=${month})`);
 
   const results: RefreshResult[] = [];

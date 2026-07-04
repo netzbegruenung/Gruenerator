@@ -36,7 +36,6 @@ import type { IconType } from 'react-icons';
 
 import { CanvaLogoIcon } from '@/features/canva/components/CanvaLogo';
 
-
 export interface LinkIconEntry {
   key: string;
   label: string;
