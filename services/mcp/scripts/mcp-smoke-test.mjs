@@ -217,7 +217,9 @@ async function main() {
         limit: 2,
       },
       expect: 'ok',
-      ok: (d) => Array.isArray(d?.results),
+      // hybrid is the DEFAULT mode; 'Klimaschutz' has plenty of candidates, so 0
+      // here means the RRF fusion / quality-gate dropped everything (relevance bug).
+      ok: (d) => d?.resultsCount > 0,
       detail: (d) => `resultsCount=${d?.resultsCount ?? 0}`,
     },
     {
