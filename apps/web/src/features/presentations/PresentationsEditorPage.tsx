@@ -34,6 +34,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
+import apiClient from '../../components/utils/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { platformFetch } from '../../utils/platformFetch';
@@ -172,29 +173,29 @@ function PresentationsEditorContent() {
     if (!id) return;
     const { toast } = await import('sonner');
     try {
-      const res = await platformFetch(`${API_BASE}/presentations/${id}/export/pptx`, {
-        method: 'POST',
-        credentials: 'include',
+      // Go through the shared apiClient (not a raw fetch) so the download
+      // carries auth like every other request and recovers from transient
+      // 401s during cookie rotation via its onUnauthorized retry.
+      const res = await apiClient.post<Blob>(`/presentations/${id}/export/pptx`, null, {
+        responseType: 'blob',
       });
-      if (res.status === 501) {
-        toast.error('PowerPoint-Export ist auf diesem Server nicht verfügbar (pandoc fehlt).');
-        return;
-      }
-      if (!res.ok) {
-        toast.error('PowerPoint-Export fehlgeschlagen.');
-        return;
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(res.data as Blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `${docData?.title || 'Praesentation'}.pptx`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error('PowerPoint-Export fehlgeschlagen.');
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      toast.error(
+        status === 501
+          ? 'PowerPoint-Export ist auf diesem Server nicht verfügbar (pandoc fehlt).'
+          : 'PowerPoint-Export fehlgeschlagen.'
+      );
     }
-  }, [id, API_BASE, docData]);
+  }, [id, docData]);
 
   if (docIsLoading || !isAuthResolved) {
     return (
