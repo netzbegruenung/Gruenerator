@@ -23,6 +23,7 @@ import {
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
+  FiFileText,
   FiMessageSquare,
   FiPlay,
   FiShare2,
@@ -156,6 +157,34 @@ function PresentationsEditorContent() {
     if (!id) return;
     window.open(`/docs/${id}?present=1&print-pdf`, '_blank', 'noopener');
   }, [id]);
+
+  const handlePptxExport = useCallback(async () => {
+    if (!id) return;
+    const { toast } = await import('sonner');
+    try {
+      const res = await platformFetch(`${API_BASE}/presentations/${id}/export/pptx`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.status === 501) {
+        toast.error('PowerPoint-Export ist auf diesem Server nicht verfügbar (pandoc fehlt).');
+        return;
+      }
+      if (!res.ok) {
+        toast.error('PowerPoint-Export fehlgeschlagen.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${docData?.title || 'Praesentation'}.pptx`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('PowerPoint-Export fehlgeschlagen.');
+    }
+  }, [id, API_BASE, docData]);
 
   if (docIsLoading || !isAuthResolved) {
     return (
@@ -304,6 +333,14 @@ function PresentationsEditorContent() {
               title="Als PDF exportieren"
             >
               <FiDownload />
+            </button>
+            <button
+              className="glass-btn"
+              onClick={() => void handlePptxExport()}
+              aria-label="Als PowerPoint exportieren"
+              title="Als PowerPoint (.pptx) exportieren"
+            >
+              <FiFileText />
             </button>
             {!isGuest && (
               <button
