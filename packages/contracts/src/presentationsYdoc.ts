@@ -25,6 +25,12 @@ export const PRESENTATION_META_KEYS = {
   schemaVersion: 'schemaVersion',
   /** reveal.js transition name applied deck-wide unless a slide overrides it. */
   defaultTransition: 'defaultTransition',
+  /** number (ms) — auto-advance interval for kiosk mode; 0/absent disables. */
+  autoSlide: 'autoSlide',
+  /** boolean — loop back to the first slide after the last. */
+  loop: 'loop',
+  /** boolean — show reveal slide numbers in present mode. */
+  slideNumber: 'slideNumber',
 } as const;
 
 export const PRESENTATION_SCHEMA_VERSION = 1;

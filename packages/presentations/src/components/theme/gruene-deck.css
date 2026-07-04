@@ -125,6 +125,25 @@
   max-height: 380px;
 }
 
+/* Code: monospace block on a dark panel. */
+.gruene-slide.layout-code .gruene-slide__body,
+.gruene-slide.layout-code .gruene-slide__code {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 20px;
+  line-height: 1.45;
+  background: #1e2420;
+  color: #e8efe9;
+  border-radius: 8px;
+  padding: 20px 24px;
+  overflow: auto;
+  white-space: pre;
+}
+.gruene-slide.layout-code pre {
+  margin: 0;
+}
+
 /* Editable fields reuse the surface typography but drop input chrome. */
 .gruene-slide__input {
   width: 100%;

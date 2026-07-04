@@ -1,4 +1,4 @@
-import { type Slide, type SlideLayout } from '@gruenerator/contracts';
+import { type Slide, type SlideLayout, type SlideTransition } from '@gruenerator/contracts';
 import { useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 
@@ -29,7 +29,23 @@ const LAYOUT_LABELS: Record<SlideLayout, string> = {
   split: 'Zweispaltig',
   quote: 'Zitat',
   image: 'Bild',
+  code: 'Code',
 };
+
+const TRANSITION_LABELS: Record<SlideTransition, string> = {
+  none: 'Keine',
+  fade: 'Überblenden',
+  slide: 'Schieben',
+  convex: 'Konvex',
+  concave: 'Konkav',
+  zoom: 'Zoom',
+};
+const TRANSITIONS = Object.keys(TRANSITION_LABELS) as SlideTransition[];
+
+const selectClass =
+  'rounded-md border border-grey-300 dark:border-grey-600 bg-background px-2 py-1 text-sm';
+const checkboxLabelClass =
+  'flex items-center gap-1.5 text-sm text-grey-600 dark:text-grey-300 cursor-pointer';
 
 /**
  * Deck editor: slide-thumbnail rail + a live, inline-editable slide canvas.
@@ -37,8 +53,18 @@ const LAYOUT_LABELS: Record<SlideLayout, string> = {
  * reveal.js instance — that only appears in present mode.
  */
 export function PresentationEditor({ ydoc, editable, onReady }: PresentationEditorProps) {
-  const { slides, addSlide, updateSlide, deleteSlide, moveSlide, seedIfNeeded, undo, redo } =
-    useSlides(ydoc);
+  const {
+    slides,
+    deckOptions,
+    addSlide,
+    updateSlide,
+    deleteSlide,
+    moveSlide,
+    setDeckOption,
+    seedIfNeeded,
+    undo,
+    redo,
+  } = useSlides(ydoc);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -90,21 +116,94 @@ export function PresentationEditor({ ydoc, editable, onReady }: PresentationEdit
         {active ? (
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
             {editable && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-grey-600 dark:text-grey-300">Layout</label>
-                <select
-                  value={active.layout}
-                  onChange={(e) =>
-                    updateSlide(activeIndex, { layout: e.target.value as SlideLayout })
-                  }
-                  className="rounded-md border border-grey-300 dark:border-grey-600 bg-background px-2 py-1 text-sm"
-                >
-                  {(Object.keys(LAYOUT_LABELS) as SlideLayout[]).map((layout) => (
-                    <option key={layout} value={layout}>
-                      {LAYOUT_LABELS[layout]}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-grey-600 dark:text-grey-300">Layout</label>
+                  <select
+                    value={active.layout}
+                    onChange={(e) =>
+                      updateSlide(activeIndex, { layout: e.target.value as SlideLayout })
+                    }
+                    className={selectClass}
+                  >
+                    {(Object.keys(LAYOUT_LABELS) as SlideLayout[]).map((layout) => (
+                      <option key={layout} value={layout}>
+                        {LAYOUT_LABELS[layout]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-grey-600 dark:text-grey-300">Übergang</label>
+                  <select
+                    value={active.transition ?? ''}
+                    onChange={(e) =>
+                      updateSlide(activeIndex, {
+                        transition: e.target.value ? (e.target.value as SlideTransition) : null,
+                      })
+                    }
+                    className={selectClass}
+                  >
+                    <option value="">Standard</option>
+                    {TRANSITIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {TRANSITION_LABELS[t]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {active.layout === 'code' && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-grey-600 dark:text-grey-300">Sprache</label>
+                    <input
+                      value={active.codeLanguage ?? ''}
+                      placeholder="z.B. typescript"
+                      onChange={(e) =>
+                        updateSlide(activeIndex, { codeLanguage: e.target.value || null })
+                      }
+                      className={`${selectClass} w-32`}
+                    />
+                  </div>
+                )}
+
+                <label className={checkboxLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={active.fragments ?? false}
+                    onChange={(e) => updateSlide(activeIndex, { fragments: e.target.checked })}
+                  />
+                  Schrittweise
+                </label>
+                <label className={checkboxLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={active.autoAnimate ?? false}
+                    onChange={(e) => updateSlide(activeIndex, { autoAnimate: e.target.checked })}
+                  />
+                  Auto-Animate
+                </label>
+                <label className={checkboxLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={active.hidden ?? false}
+                    onChange={(e) => updateSlide(activeIndex, { hidden: e.target.checked })}
+                  />
+                  Ausblenden
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-grey-600 dark:text-grey-300">Hintergrund</label>
+                  <input
+                    value={active.background ?? ''}
+                    placeholder="Farbe / Bild-URL"
+                    onChange={(e) =>
+                      updateSlide(activeIndex, { background: e.target.value || null })
+                    }
+                    className={`${selectClass} w-40`}
+                  />
+                </div>
               </div>
             )}
 
@@ -128,6 +227,62 @@ export function PresentationEditor({ ydoc, editable, onReady }: PresentationEdit
                   rows={3}
                   className="resize-y rounded-md border border-grey-300 dark:border-grey-600 bg-background px-3 py-2 text-sm"
                 />
+              </div>
+            )}
+
+            {editable && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-grey-200 dark:border-grey-700 pt-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-grey-500">
+                  Präsentation
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-grey-600 dark:text-grey-300">Übergang</label>
+                  <select
+                    value={deckOptions.defaultTransition ?? 'slide'}
+                    onChange={(e) =>
+                      setDeckOption({ defaultTransition: e.target.value as SlideTransition })
+                    }
+                    className={selectClass}
+                  >
+                    {TRANSITIONS.map((t) => (
+                      <option key={t} value={t}>
+                        {TRANSITION_LABELS[t]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className={checkboxLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={deckOptions.slideNumber}
+                    onChange={(e) => setDeckOption({ slideNumber: e.target.checked })}
+                  />
+                  Foliennummern
+                </label>
+                <label className={checkboxLabelClass}>
+                  <input
+                    type="checkbox"
+                    checked={deckOptions.loop}
+                    onChange={(e) => setDeckOption({ loop: e.target.checked })}
+                  />
+                  Endlosschleife
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-grey-600 dark:text-grey-300">
+                    Auto-Weiter (Sek.)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={deckOptions.autoSlide ? Math.round(deckOptions.autoSlide / 1000) : 0}
+                    onChange={(e) => {
+                      const secs = Number(e.target.value);
+                      setDeckOption({ autoSlide: secs > 0 ? secs * 1000 : null });
+                    }}
+                    className={`${selectClass} w-20`}
+                  />
+                </div>
               </div>
             )}
           </div>
