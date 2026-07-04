@@ -1,0 +1,13 @@
+@import '@univerjs/preset-sheets-core/lib/index.css';
+
+.gruenerator-sheets-editor {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* Map the Univer primary palette onto the Grünerator green. */
+.gruenerator-sheets-editor {
+  --univer-primary-600: var(--color-primary-600, #46962b);
+  --univer-primary-500: var(--color-primary-500, #57ab27);
+}
