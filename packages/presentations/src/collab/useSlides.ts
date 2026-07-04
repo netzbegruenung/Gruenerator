@@ -2,6 +2,7 @@ import {
   PRESENTATION_META_KEYS,
   PRESENTATION_SCHEMA_VERSION,
   type Slide,
+  type SlideLayout,
   type SlideTransition,
 } from '@gruenerator/contracts';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -9,13 +10,17 @@ import * as Y from 'yjs';
 
 import {
   clampInsert,
+  clearSlideBody,
   cloneSlideMap,
   getMetaMap,
   getSlidesArray,
+  migrateSlideBodyForLayout,
   newSlideId,
   PRESENTATION_LOCAL_ORIGIN,
   PRESENTATION_SEED_ORIGIN,
+  seedSlideBody,
   slideToYMap,
+  writeSlideBody,
   yMapToSlide,
 } from '../lib/ydocSchema.js';
 
@@ -45,48 +50,45 @@ export interface UseSlidesResult {
 }
 
 /**
- * The entire collab layer for a presentation: binds the shared Y.Doc's slide
- * array to React via useSyncExternalStore and exposes mutation helpers (each a
- * single tracked transaction) plus a scoped UndoManager. reveal.js never
- * touches the Y.Doc — it only renders the derived `slides`.
+ * The entire collab layer for a presentation. Slide structure lives in a
+ * Y.Array<Y.Map>; each non-code slide's body lives in a top-level
+ * Y.XmlFragment (edited collaboratively by the TipTap editor). The derived
+ * `slides` read-model carries `body` as markdown so static render, AI context,
+ * and export are unchanged. reveal.js never touches the Y.Doc.
  */
 export function useSlides(ydoc: Y.Doc): UseSlidesResult {
   const arr = useMemo(() => getSlidesArray(ydoc), [ydoc]);
   const meta = useMemo(() => getMetaMap(ydoc), [ydoc]);
 
-  // Version counter bumped on any slide/meta change; getSnapshot caches the
-  // derived array so identical reads return a stable reference.
+  // Version counter bumped on any doc change; getSnapshot caches the derived
+  // array so identical reads return a stable reference.
   const versionRef = useRef(0);
   const cacheRef = useRef<{ version: number; slides: Slide[] }>({ version: -1, slides: [] });
 
+  // A single doc-level listener catches array, meta, AND body-fragment changes
+  // (the fragments are top-level, so array.observeDeep would miss them).
   const subscribe = useCallback(
     (onChange: () => void) => {
       const handler = () => {
         versionRef.current += 1;
         onChange();
       };
-      arr.observeDeep(handler);
-      meta.observe(handler);
-      return () => {
-        arr.unobserveDeep(handler);
-        meta.unobserve(handler);
-      };
+      ydoc.on('update', handler);
+      return () => ydoc.off('update', handler);
     },
-    [arr, meta]
+    [ydoc]
   );
 
   const getSlidesSnapshot = useCallback(() => {
     if (cacheRef.current.version !== versionRef.current) {
       cacheRef.current = {
         version: versionRef.current,
-        slides: arr.toArray().map((m) => yMapToSlide(m)),
+        slides: arr.toArray().map((m) => yMapToSlide(m, ydoc)),
       };
     }
     return cacheRef.current.slides;
-  }, [arr]);
+  }, [arr, ydoc]);
 
-  // Deck options are cached by version too, so the returned object is stable
-  // between unrelated changes (avoids re-render loops via useSyncExternalStore).
   const deckCacheRef = useRef<{ version: number; opts: DeckOptions }>({
     version: -1,
     opts: {
@@ -133,6 +135,7 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
       ydoc.transact(() => {
         const idx = at != null ? clampInsert(at, arr.length) : arr.length;
         arr.insert(idx, [slideToYMap(slide)]);
+        seedSlideBody(ydoc, slide);
       }, PRESENTATION_LOCAL_ORIGIN);
       return slide.id;
     },
@@ -144,7 +147,19 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
       ydoc.transact(() => {
         const m = arr.get(index);
         if (!m) return;
+        const id = String(m.get('id') ?? '');
+        const prevLayout = (m.get('layout') as SlideLayout) ?? 'content';
+        const nextLayout = (patch.layout ?? prevLayout) as SlideLayout;
+
+        if (patch.layout != null) {
+          migrateSlideBodyForLayout(ydoc, m, id, prevLayout, nextLayout, patch.body ?? undefined);
+        }
+        if (patch.body !== undefined && prevLayout === nextLayout) {
+          writeSlideBody(ydoc, m, id, nextLayout, patch.body);
+        }
+
         for (const [key, value] of Object.entries(patch)) {
+          if (key === 'body') continue;
           if (value !== undefined) m.set(key, value);
         }
       }, PRESENTATION_LOCAL_ORIGIN);
@@ -155,7 +170,10 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
   const deleteSlide = useCallback(
     (index: number) => {
       ydoc.transact(() => {
-        if (index >= 0 && index < arr.length) arr.delete(index, 1);
+        if (index < 0 || index >= arr.length) return;
+        const id = String(arr.get(index).get('id') ?? '');
+        arr.delete(index, 1);
+        if (id) clearSlideBody(ydoc, id);
       }, PRESENTATION_LOCAL_ORIGIN);
     },
     [ydoc, arr]
@@ -197,7 +215,10 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
         // Re-check inside the transaction: a concurrent tab may have seeded
         // between the guard and here. LWW on `seeded` keeps blank content equal.
         if (meta.get(PRESENTATION_META_KEYS.seeded) === true) return;
-        if (arr.length === 0) arr.insert(0, initial.map(slideToYMap));
+        if (arr.length === 0) {
+          arr.insert(0, initial.map(slideToYMap));
+          for (const slide of initial) seedSlideBody(ydoc, slide);
+        }
         meta.set(PRESENTATION_META_KEYS.seeded, true);
         meta.set(PRESENTATION_META_KEYS.schemaVersion, PRESENTATION_SCHEMA_VERSION);
       }, PRESENTATION_SEED_ORIGIN);
@@ -205,7 +226,8 @@ export function useSlides(ydoc: Y.Doc): UseSlidesResult {
     [ydoc, arr, meta]
   );
 
-  // UndoManager scoped to the slide array, tracking only local + AI edits.
+  // UndoManager scoped to the slide array (structure + code bodies + title etc.).
+  // Rich-text body edits are undone by the editor's own collaboration history.
   const undoManager = useMemo(
     () => new Y.UndoManager(arr, { trackedOrigins: new Set([PRESENTATION_LOCAL_ORIGIN]) }),
     [arr]

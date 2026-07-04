@@ -1,15 +1,19 @@
-import { type PresentationOperation, type Slide } from '@gruenerator/contracts';
+import { type PresentationOperation, type Slide, type SlideLayout } from '@gruenerator/contracts';
 import * as Y from 'yjs';
 
 import {
   clampInsert,
+  clearSlideBody,
   cloneSlideMap,
   getMetaMap,
   getSlidesArray,
+  migrateSlideBodyForLayout,
   newSlideId,
   PRESENTATION_LOCAL_ORIGIN,
   PRESENTATION_META_KEYS,
+  seedSlideBody,
   slideToYMap,
+  writeSlideBody,
 } from '../lib/ydocSchema.js';
 
 export interface ApplyResult {
@@ -51,6 +55,7 @@ export function applyPresentationOperations(
             };
             const idx = op.at != null ? clampInsert(op.at - 1, arr.length) : arr.length;
             arr.insert(idx, [slideToYMap(slide)]);
+            seedSlideBody(ydoc, slide);
             applied += 1;
             break;
           }
@@ -64,8 +69,16 @@ export function applyPresentationOperations(
             // A null (which models emit freely for "untouched") is treated as
             // "no change" for every field — consistent, and never accidentally
             // wipes a background/transition the user set.
+            const id = String(m.get('id') ?? '');
+            const prevLayout = (m.get('layout') as SlideLayout) ?? 'content';
+            const nextLayout = (op.layout ?? prevLayout) as SlideLayout;
+            if (op.layout != null) {
+              migrateSlideBodyForLayout(ydoc, m, id, prevLayout, nextLayout, op.body ?? undefined);
+            }
+            if (op.body != null && prevLayout === nextLayout) {
+              writeSlideBody(ydoc, m, id, nextLayout, op.body);
+            }
             if (op.title != null) m.set('title', op.title);
-            if (op.body != null) m.set('body', op.body);
             if (op.notes != null) m.set('notes', op.notes);
             if (op.layout != null) m.set('layout', op.layout);
             if (op.background != null) m.set('background', op.background);
@@ -84,7 +97,9 @@ export function applyPresentationOperations(
               skipped.push(`Folie ${op.slide} existiert nicht.`);
               break;
             }
+            const id = String(arr.get(idx).get('id') ?? '');
             arr.delete(idx, 1);
+            if (id) clearSlideBody(ydoc, id);
             applied += 1;
             break;
           }

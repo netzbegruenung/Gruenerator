@@ -4,6 +4,10 @@ import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import { type Doc as YDoc } from 'yjs';
+
+import { InlineEditable } from './InlineEditable.js';
+import { SlideBodyEditor } from './SlideBodyEditor.js';
 
 import 'katex/dist/katex.min.css';
 
@@ -13,6 +17,8 @@ export interface SlideSurfaceProps {
   accent?: string | null;
   /** Inline-edit the title/body (editor canvas). */
   editable?: boolean;
+  /** The deck Y.Doc — required for WYSIWYG body editing (editor canvas only). */
+  ydoc?: YDoc | null;
   onChange?: (patch: Partial<Slide>) => void;
   /** Present mode: apply per-item `fragment` classes when the slide opts in. */
   presenting?: boolean;
@@ -79,7 +85,14 @@ function resolveBackground(slide: Slide, accent: string): { style: CSSProperties
  * fit (editor canvas, thumbnails) or lets reveal.js size it (present mode).
  * Never a running reveal instance — just markup + CSS.
  */
-export function SlideSurface({ slide, accent, editable, onChange, presenting }: SlideSurfaceProps) {
+export function SlideSurface({
+  slide,
+  accent,
+  editable,
+  ydoc,
+  onChange,
+  presenting,
+}: SlideSurfaceProps) {
   const deckAccent = accent?.trim() || PRESENTATION_DEFAULT_ACCENT;
   const variant = slide.variant ?? 0;
   const layoutClass = LAYOUT_CLASS[slide.layout];
@@ -107,12 +120,11 @@ export function SlideSurface({ slide, accent, editable, onChange, presenting }: 
       {isTitle && variant === 2 && <span className="gruene-slide__bar" aria-hidden="true" />}
 
       {editable ? (
-        <textarea
+        <InlineEditable
           className="gruene-slide__input gruene-slide__title"
           value={slide.title}
           placeholder="Folientitel"
-          rows={1}
-          onChange={(e) => onChange?.({ title: e.target.value })}
+          onChange={(title) => onChange?.({ title })}
         />
       ) : (
         slide.title.trim() !== '' && <h2 className="gruene-slide__title">{slide.title}</h2>
@@ -137,6 +149,8 @@ export function SlideSurface({ slide, accent, editable, onChange, presenting }: 
             </code>
           </pre>
         )
+      ) : editable && ydoc ? (
+        <SlideBodyEditor key={slide.id} ydoc={ydoc} slideId={slide.id} />
       ) : editable ? (
         <textarea
           className="gruene-slide__input gruene-slide__body"
