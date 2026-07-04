@@ -233,7 +233,9 @@ async function main() {
       name: 'gruenerator_get_filters',
       args: { collection: 'deutschland' },
       expect: 'ok',
-      ok: (d) => !d?.error,
+      // deutschland has filterable fields when the catalog is healthy; 0 fields
+      // means a degraded/fallback catalog (e.g. GRUENERATOR_API_URL unset), not "ok".
+      ok: (d) => !d?.error && Object.keys(d?.filters || {}).length > 0,
       detail: (d) =>
         d?.error ? d.message : `filter fields: ${Object.keys(d?.filters || {}).length}`,
     },
@@ -283,7 +285,12 @@ async function main() {
       name: 'gruenerator_notebook_ask',
       args: { question: 'test', token: 'invalid-token-xyz-000' },
       expect: 'error',
-      ok: (d) => d?.error === true,
+      // Must be the EXPECTED "notebook/token not found" error — not a
+      // misconfiguration (e.g. GRUENERATOR_API_URL unset) masquerading as one.
+      ok: (d) =>
+        d?.error === true &&
+        /nicht gefunden|not found|token/i.test(String(d?.message)) &&
+        !/nicht konfiguriert|not configured/i.test(String(d?.message)),
       detail: (d) => String(d?.message || '').slice(0, 60),
     },
   ];
