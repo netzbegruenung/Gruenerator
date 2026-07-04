@@ -55,6 +55,7 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { getBoardTemplate } from '../boards/boardTemplates';
+import { getSheetTemplate } from '../sheets/sheetTemplates';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -359,6 +360,26 @@ function DocumentsContent() {
     }
   }, [createDocumentMutation, adapter]);
 
+  const handleCreateSheetFromTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getSheetTemplate(templateId);
+      if (!template) return;
+      try {
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title: template.defaultTitle,
+          documentSubtype: 'sheets',
+        });
+        // SPA navigation (not adapter.navigateToDocument, which reloads and
+        // drops nav-state): the seed workbook rides `location.state` into the
+        // Univer editor, which applies it on first open.
+        navigate(`/docs/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
+      } catch (err) {
+        console.error('Failed to create sheet from template:', err);
+      }
+    },
+    [createDocumentMutation, navigate]
+  );
+
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
       const title = boardType === 'whiteboard' ? 'Neues Whiteboard' : 'Neues Board';
@@ -453,6 +474,7 @@ function DocumentsContent() {
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
           onCreateSheet={() => void handleCreateSheet()}
+          onCreateSheetFromTemplate={handleCreateSheetFromTemplate}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 
