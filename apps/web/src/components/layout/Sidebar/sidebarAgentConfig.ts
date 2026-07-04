@@ -17,6 +17,7 @@ import {
   PiBird,
   PiImagesSquare,
   PiScales,
+  PiBank,
 } from 'react-icons/pi';
 
 import type { IconType } from 'react-icons';
@@ -39,6 +40,7 @@ const ICON_REGISTRY: Record<string, IconType> = {
   bird: PiBird,
   'image-square': PiImagesSquare,
   scales: PiScales,
+  bank: PiBank,
 };
 
 const FALLBACK_ICON: IconType = PiSparkle;

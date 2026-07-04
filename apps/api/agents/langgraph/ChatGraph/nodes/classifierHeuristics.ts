@@ -96,6 +96,7 @@ export const INTENT_KEYWORDS: Record<
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
+    | 'create_sheet'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
@@ -127,6 +128,18 @@ export const INTENT_KEYWORDS: Record<
     'nebentätigkeiten',
     'nebeneinkünfte',
     'namentliche abstimmung',
+  ],
+  bundestag: [
+    'drucksache',
+    'bt-drs',
+    'plenarprotokoll',
+    'plenardebatte',
+    'bundestagsdebatte',
+    'bundestagsrede',
+    'gesetzentwurf',
+    'kleine anfrage',
+    'große anfrage',
+    'gesetzgebungsverfahren',
   ],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],

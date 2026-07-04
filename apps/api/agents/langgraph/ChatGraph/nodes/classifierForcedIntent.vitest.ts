@@ -58,6 +58,8 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     documentChatIds: [],
     boardIds: [],
     boardContext: null,
+    sheetIds: [],
+    sheetContext: null,
     docMentionIds: [],
     documentMentionContext: null,
     currentDocument: null,

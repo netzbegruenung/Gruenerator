@@ -34,12 +34,18 @@ export function useYjsFormState({ ydoc, isSynced, fallback }: Options): Result {
     const apply = () => {
       const next: FormState = {};
       yMap.forEach((value, key) => {
+        // `_`-prefixed keys are internal collab markers (e.g. `_seeded`), not
+        // canvas fields — keep them out of the rendered form state.
+        if (key.startsWith('_')) return;
         next[key] = value;
       });
       setYState(next);
     };
 
-    if (!seededRef.current && yMap.size === 0) {
+    // Seed defaults ONLY into a truly empty doc. An authoritative server seed
+    // (mint-on-open) marks the doc with the `seeded` watermark, so the client
+    // never writes defaults over it even if it briefly observes an empty map.
+    if (!seededRef.current && yMap.size === 0 && !yMap.get(YDOC_KEYS.seeded)) {
       seededRef.current = true;
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(fallbackRef.current)) {

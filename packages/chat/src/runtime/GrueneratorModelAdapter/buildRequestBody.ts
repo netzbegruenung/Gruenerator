@@ -44,6 +44,7 @@ export interface BuildRequestBodyParams {
   documentIds: string[];
   textIds: string[];
   boardIds: string[];
+  sheetIds: string[];
   docMentionIds: string[];
   wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'];
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
@@ -102,6 +103,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentIds,
     textIds,
     boardIds,
+    sheetIds,
     docMentionIds,
     wolkeFiles,
     connectFiles,
@@ -160,6 +162,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentIds: documentIds.length > 0 ? documentIds : undefined,
     textIds: textIds.length > 0 ? textIds : undefined,
     boardIds: boardIds.length > 0 ? boardIds : undefined,
+    sheetIds: sheetIds.length > 0 ? sheetIds : undefined,
     docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
     wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
     connectFiles: connectFiles.length > 0 ? connectFiles : undefined,

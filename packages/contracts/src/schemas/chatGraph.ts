@@ -108,6 +108,7 @@ export const chatStreamBodySchema = z.object({
   clientTools: z.array(z.string()).nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
+  sheetIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
   wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
   connectFiles: z.array(connectFileRefSchema).nullish(),

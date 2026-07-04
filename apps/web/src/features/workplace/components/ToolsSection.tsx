@@ -75,6 +75,13 @@ const MAIN_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'scanner')!,
   },
   {
+    id: 'zeichenzaehler',
+    title: 'Zeichenzähler',
+    description: 'Zeichen, Wörter & Social-Limits zählen',
+    path: '/zeichenzaehler',
+    icon: getIcon('navigation', 'zeichenzaehler')!,
+  },
+  {
     id: 'transkription',
     title: 'Audio mit KI transkribieren',
     description: 'Meetings & Interviews verschriftlichen',
