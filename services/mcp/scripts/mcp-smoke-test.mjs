@@ -34,17 +34,17 @@ function headers(extra = {}) {
 
 function parseSse(text) {
   const out = [];
-  for (const line of text.split('\n')) {
-    const t = line.trim();
-    if (t.startsWith('data:')) {
-      const payload = t.slice(5).trim();
-      if (payload) {
-        try {
-          out.push(JSON.parse(payload));
-        } catch {
-          /* keep-alive / non-json */
-        }
-      }
+  // One SSE event = lines until a blank line; its `data:` lines join with \n.
+  for (const event of text.split(/\r?\n\r?\n/)) {
+    const dataLines = [];
+    for (const line of event.split(/\r?\n/)) {
+      if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+    }
+    if (dataLines.length === 0) continue;
+    try {
+      out.push(JSON.parse(dataLines.join('\n')));
+    } catch {
+      /* keep-alive / non-json */
     }
   }
   return out;
@@ -64,7 +64,12 @@ async function post(body, extraHeaders = {}) {
   let msg = null;
   if (ct.includes('text/event-stream')) {
     const msgs = parseSse(text);
-    msg = msgs.find((m) => m.id === body.id) || msgs[0] || null;
+    // Prefer the response matching our request id; else the first actual
+    // response frame (has result/error); never an interleaved notification.
+    msg =
+      msgs.find((m) => m.id === body.id) ||
+      msgs.find((m) => m.result !== undefined || m.error !== undefined) ||
+      null;
   } else if (text) {
     try {
       msg = JSON.parse(text);
