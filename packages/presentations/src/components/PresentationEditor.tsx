@@ -153,6 +153,7 @@ export function PresentationEditor({
                   slide={active}
                   accent={deckOptions.accentColor}
                   editable={editable}
+                  ydoc={ydoc}
                   onChange={(patch) => updateSlide(activeIndex, patch)}
                 />
               </ScaledSlide>

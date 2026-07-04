@@ -70,7 +70,7 @@ export function usePresentationsChat(): PresentationsChatState {
 function readSlides(ydoc: YDoc) {
   return getSlidesArray(ydoc)
     .toArray()
-    .map((m) => yMapToSlide(m));
+    .map((m) => yMapToSlide(m, ydoc));
 }
 
 interface PresentationsChatProviderProps {
