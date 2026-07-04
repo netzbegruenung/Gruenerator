@@ -43,6 +43,10 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "format_range", "range": "A1:C1", "bold"?: true, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "sheet"?: "Name" }
 - { "type": "add_sheet", "name": "Blatt 2" }
 - { "type": "clear_range", "range": "B2:B5", "sheet"?: "Name" }
+- { "type": "add_chart", "range": "A1:D5", "chartType": "bar", "title"?: "Umsatz", "sheet"?: "Name" }
+    // chartType: bar|line|area|pie|donut. "range" MUST include the header row and
+    // the label column: row 1 = series names, column A = category labels, the rest
+    // = numbers. pie/donut use only the first numeric series.
 
 RULES:
 - Ranges/cells ALWAYS in A1 notation. Row 1 is the first row, column A the first column.

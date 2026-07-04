@@ -65,6 +65,17 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     range: z.string(),
     sheet: z.string().nullish(),
   }),
+  z.object({
+    type: z.literal('add_chart'),
+    /**
+     * A1 data range including header row and label column, e.g. "A1:D5" where
+     * row 1 = series headers and column A = category labels.
+     */
+    range: z.string(),
+    chartType: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
+    title: z.string().nullish(),
+    sheet: z.string().nullish(),
+  }),
 ]);
 
 export type SheetOperation = z.infer<typeof sheetOperationSchema>;

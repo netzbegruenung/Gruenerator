@@ -88,3 +88,20 @@ describe('Phase 0 operation schema', () => {
     expect(normalizeRawOp(op)).toBe(op);
   });
 });
+
+describe('add_chart operation schema', () => {
+  it('validates each chart type', () => {
+    for (const chartType of ['bar', 'line', 'area', 'pie', 'donut']) {
+      expect(
+        sheetOperationSchema.safeParse({ type: 'add_chart', range: 'A1:D5', chartType }).success
+      ).toBe(true);
+    }
+  });
+
+  it('rejects an unknown chart type', () => {
+    expect(
+      sheetOperationSchema.safeParse({ type: 'add_chart', range: 'A1:D5', chartType: 'radar' })
+        .success
+    ).toBe(false);
+  });
+});
