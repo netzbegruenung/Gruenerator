@@ -53,6 +53,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
       return {
         error: true,
         message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${Object.keys(config.collections).join(', ')}`,
+        hint: 'Alle Sammlungen findest du über `resources/list` (gruenerator://collections).',
       };
     }
 
