@@ -1,4 +1,4 @@
-import { callGrueneratorApi } from '../api-client.ts';
+import { callGrueneratorApi, notebooksApiError } from '../api-client.ts';
 
 export const notebooksListTool = {
   name: 'notebooks_list',
@@ -20,7 +20,7 @@ Erfordert einen Bearer API-Key — wird automatisch aus dem Request-Header weite
     }
     const result = await callGrueneratorApi('/api/v1/notebooks', { apiKey });
     if (!result.ok) {
-      return { error: true, status: result.status, message: result.message };
+      return notebooksApiError(result.status, result.message, false);
     }
     return result.data;
   },
