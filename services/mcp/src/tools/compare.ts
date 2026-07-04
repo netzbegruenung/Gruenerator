@@ -102,12 +102,21 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
       })
     );
 
+    const failedSources = sourceResults.filter((s) => s.error);
+
     return {
       query,
       comparison: sourceResults,
+      ...(failedSources.length > 0
+        ? {
+            partial: true,
+            failedSources: failedSources.map((s) => ({ label: s.label, error: s.error })),
+          }
+        : {}),
       metadata: {
         responseTimeMs: Date.now() - startTime,
         sourcesCompared: sources.length,
+        sourcesFailed: failedSources.length,
       },
     };
   },
