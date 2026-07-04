@@ -18,7 +18,25 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     /** A1 notation, e.g. "A1:C3". Strings starting with '=' are formulas. */
     range: z.string(),
     values: z.array(z.array(sheetCellValueSchema)),
+    /**
+     * Force every written cell to TEXT identity (Univer CellValueType.FORCE_STRING).
+     * Use for IDs, ZIP codes, leading-zero codes, phone numbers, or scores like
+     * "2-2" that must NOT auto-convert to a number or date. Omit for normal data.
+     */
+    asText: z.boolean().nullish(),
     /** Target sheet name; active sheet when omitted. */
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_number_format'),
+    /** A1 notation, e.g. "B2:B20". */
+    range: z.string(),
+    /**
+     * Excel/Univer number-format pattern applied to the range (display only —
+     * never changes the stored logical value). Examples: "#,##0.00 €" (currency),
+     * "0%" (percent), "yyyy-MM-dd" (date), "#,##0" (thousands), "@" (text).
+     */
+    pattern: z.string(),
     sheet: z.string().nullish(),
   }),
   z.object({

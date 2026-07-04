@@ -1,5 +1,6 @@
-import type { SheetOperation } from '@gruenerator/contracts';
-import type { FWorkbook, FWorksheet } from '@univerjs/preset-sheets-core';
+import { type SheetOperation } from '@gruenerator/contracts';
+import { CellValueType } from '@univerjs/core';
+import { type FWorkbook, type FWorksheet } from '@univerjs/preset-sheets-core';
 
 export interface ApplySheetOperationsResult {
   applied: number;
@@ -31,9 +32,27 @@ export function applySheetOperations(
     try {
       switch (op.type) {
         case 'set_range_values': {
-          // Univer CellValue has no null — the schema's null means "empty cell".
-          const values = op.values.map((row) => row.map((v) => v ?? ''));
-          resolveSheet(workbook, op.sheet).getRange(op.range).setValues(values);
+          const range = resolveSheet(workbook, op.sheet).getRange(op.range);
+          if (op.asText) {
+            // Force TEXT identity (CellValueType.FORCE_STRING = 4) so ids, ZIPs,
+            // leading zeros, and codes like "2-2" are never auto-inferred into a
+            // number or date. Empty stays empty (null → '').
+            range.setValues(
+              op.values.map((row) =>
+                row.map((v) => ({ v: v ?? '', t: CellValueType.FORCE_STRING }))
+              )
+            );
+          } else {
+            // Univer CellValue has no null — the schema's null means "empty cell".
+            range.setValues(op.values.map((row) => row.map((v) => v ?? '')));
+          }
+          applied++;
+          break;
+        }
+        case 'set_number_format': {
+          // Display-only: sets the number/date/currency pattern without touching
+          // the stored logical value (the correct way to render dates, %, €).
+          resolveSheet(workbook, op.sheet).getRange(op.range).setNumberFormat(op.pattern);
           applied++;
           break;
         }
