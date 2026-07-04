@@ -70,9 +70,14 @@ DE = Deutschland, AT = Österreich`,
 
     const results = searchResult.results as Array<Record<string, unknown>>;
     if (!results || results.length === 0) {
+      const searchHint =
+        typeof searchResult.hint === 'string'
+          ? searchResult.hint
+          : 'Keine Treffer über der Relevanzschwelle.';
       return {
         answer: 'Zu dieser Frage konnten leider keine relevanten Quellen gefunden werden.',
         sources: [],
+        hint: `${searchHint} Weitere Optionen: das jeweils andere Land (${country === 'DE' ? 'AT' : 'DE'}) probieren, oder gruenerator_search mit searchMode "text" für exakte Begriffe.`,
         metadata: {
           responseTimeMs: Date.now() - startTime,
           collectionsSearched: collection ? [collection] : getDefaultSearchCollections(country),
