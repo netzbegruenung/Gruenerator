@@ -258,6 +258,116 @@ export async function handleSheetCreation(opts: {
   }
 }
 
+export async function handlePresentationCreation(opts: {
+  sse: SSEWriter;
+  classifiedState: ChatGraphState;
+  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  req: Express.Request;
+  actualThreadId?: string;
+  userId: string;
+  userContent: string;
+}): Promise<boolean> {
+  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
+
+  let streamOpened = false;
+  try {
+    const {
+      PRESENTATION_GENERATION_PROMPT,
+      parsePresentationStructure,
+      createPresentationDocument,
+    } = await import('../../../services/presentations/PresentationGenerationService.js');
+
+    const genResult = await aiWorkerPool.processRequest(
+      {
+        type: 'doc_generation',
+        systemPrompt: PRESENTATION_GENERATION_PROMPT,
+        messages: [{ role: 'user', content: userContent }],
+        options: { temperature: 0.4, max_tokens: 4000 },
+      },
+      req as Express.Request & { user?: { id?: string }; sessionID?: string }
+    );
+
+    const structure =
+      genResult.success && genResult.content ? parsePresentationStructure(genResult.content) : null;
+    if (!structure) {
+      // Nothing streamed yet — return false so the caller falls through to the
+      // normal respond pipeline cleanly (no dangling response_start).
+      log.warn('[ChatGraph] Presentation generation returned no parseable structure');
+      return false;
+    }
+
+    // Only open the stream once we know we're committing to the presentation.
+    sse.send('response_start', { message: 'Erstelle Präsentation...' });
+    streamOpened = true;
+
+    const newPresentation = await createPresentationDocument(structure, userId);
+
+    const responseText = `Präsentation **"${newPresentation.title}"** wurde erstellt.`;
+    for (let i = 0; i < responseText.length; i += 20) {
+      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+    }
+
+    sse.send('document_created', {
+      documentId: newPresentation.id,
+      title: newPresentation.title,
+      subtype: 'presentations',
+      url: `/docs/${newPresentation.id}`,
+    });
+
+    log.info(
+      `[ChatGraph] Presentation created: "${newPresentation.title}" (${newPresentation.id})`
+    );
+
+    const totalTimeMs = Date.now() - classifiedState.startTime;
+    sse.sendRaw('done', {
+      threadId: actualThreadId,
+      citations: [],
+      documentId: newPresentation.id,
+      metadata: {
+        intent: 'create_presentation',
+        searchCount: 0,
+        totalTimeMs,
+        classificationTimeMs: classifiedState.classificationTimeMs,
+        searchTimeMs: 0,
+      },
+    });
+
+    if (actualThreadId) {
+      await createMessage(actualThreadId, 'assistant', responseText, {
+        intent: 'create_presentation',
+        createdDocument: {
+          documentId: newPresentation.id,
+          title: newPresentation.title,
+          subtype: 'presentations',
+          url: `/docs/${newPresentation.id}`,
+        },
+      });
+      await touchThread(actualThreadId);
+    }
+
+    sse.end();
+    return true;
+  } catch (presentationErr) {
+    log.error(
+      `[ChatGraph] Presentation creation failed: ${presentationErr instanceof Error ? presentationErr.message : String(presentationErr)}`
+    );
+    if (streamOpened) {
+      // The stream is already open; don't fall through (that would double the
+      // response). Close it with a short error message instead.
+      const msg = 'Die Präsentation konnte nicht erstellt werden.';
+      sse.send('text_delta', { text: msg });
+      sse.sendRaw('done', {
+        threadId: actualThreadId,
+        citations: [],
+        metadata: { intent: 'create_presentation' },
+      });
+      sse.end();
+      return true;
+    }
+    return false;
+  }
+}
+
 /**
  * Generate a document using AI and create it.
  * Returns true if the document was created successfully.

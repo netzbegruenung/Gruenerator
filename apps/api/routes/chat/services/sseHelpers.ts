@@ -315,6 +315,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   create_sheet: ['Erstelle Tabelle...', 'Baue Spreadsheet...', 'Fülle Zellen...'],
+  create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
   modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
