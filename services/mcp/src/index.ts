@@ -37,6 +37,7 @@ import { notebooksSearchTool } from './tools/notebooks-search.ts';
 // import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { getCacheStats } from './utils/cache.ts';
+import { classifyError, connectionErrorResponse } from './utils/errors.ts';
 import { info, error, logSearch, getStats } from './utils/logger.ts';
 console.log('[Boot] Config loaded');
 
@@ -84,10 +85,13 @@ function wrapToolHandler(
         isError: !!result.error,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error(label, `${label} failed: ${message}`);
+      const { detail, isConnection } = classifyError(err);
+      error(label, `${label} failed: ${detail}`);
+      const body = isConnection
+        ? connectionErrorResponse(detail)
+        : { error: true, message: detail };
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify({ error: true, message }) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(body, null, 2) }],
         isError: true,
       };
     }
@@ -111,7 +115,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // === MCP RESOURCES ===
 
   // List available resources
-  server.resource('gruenerator://collections', 'Verfügbare Dokumentsammlungen', async () => {
+  server.resource('Verfügbare Dokumentsammlungen', 'gruenerator://collections', async () => {
     const resources = await getCollectionResources();
     return {
       contents: [
@@ -125,22 +129,22 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   });
 
   // Server info resource
-  server.resource('gruenerator://info', 'Server-Informationen und Fähigkeiten', () =>
+  server.resource('Server-Informationen und Fähigkeiten', 'gruenerator://info', () =>
     readServerInfoResource()
   );
 
   // System prompt resource - AI systems should read this first
   server.resource(
-    'gruenerator://system-prompt',
     'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+    'gruenerator://system-prompt',
     () => getSystemPromptResource()
   );
 
   // Dynamic collection resources
   for (const [key, col] of Object.entries(config.collections)) {
     server.resource(
-      `gruenerator://collections/${key}`,
       `${col.displayName}: ${col.description}`,
+      `gruenerator://collections/${key}`,
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
         return (
@@ -602,7 +606,7 @@ app.post('/mcp', async (req, res) => {
 
   if (sessionId && transports[sessionId]) {
     transport = transports[sessionId];
-  } else if (!sessionId && isInitializeRequest(req.body)) {
+  } else if (isInitializeRequest(req.body)) {
     const newTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id: string) => {

@@ -20,7 +20,7 @@ import {
   cacheSearch,
   getCacheStats,
 } from '../utils/cache.ts';
-import { describeFetchError, isConnectionError } from '../utils/errors.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 import { type Country } from '../utils/localization.ts';
 
 type SearchMode = 'hybrid' | 'vector' | 'text';
@@ -32,26 +32,11 @@ type SearchMode = 'hybrid' | 'vector' | 'text';
  * never silently collapsed into "Keine Ergebnisse". The technical cause is kept
  * in `technicalDetail` + logs for diagnosis.
  */
-function buildSearchError(
-  err: unknown,
-  logLabel: string
-): {
-  error: true;
-  errorType: 'search_unavailable' | 'search_error';
-  message: string;
-  technicalDetail: string;
-} {
-  const detail = describeFetchError(err);
+function buildSearchError(err: unknown, logLabel: string): Record<string, unknown> {
+  const { detail, isConnection } = classifyError(err);
   console.error(`[Search] ${logLabel}: ${detail}`);
-  if (isConnectionError(err)) {
-    return {
-      error: true,
-      errorType: 'search_unavailable',
-      message:
-        'Die Wissensdatenbank ist derzeit nicht erreichbar (Verbindungsproblem zum Suchindex). ' +
-        'Das ist ein vorübergehendes technisches Problem – bitte in ein paar Minuten erneut versuchen.',
-      technicalDetail: detail,
-    };
+  if (isConnection) {
+    return connectionErrorResponse(detail);
   }
   return {
     error: true,
@@ -605,19 +590,24 @@ async function searchMultipleCollections({
           useCache,
           sharedEmbedding: embedding,
         }).catch((err: unknown) => {
-          // Index unreachable affects every collection — fail the whole search
-          // with a real error instead of masking it as empty per-collection.
-          if (isConnectionError(err)) throw err;
-          const message = err instanceof Error ? err.message : String(err);
-          console.error(`[Search] Collection ${collectionKey} failed: ${message}`);
-          return { results: [] as SearchResult[], collectionKey, metadata: { error: message } };
+          // Record the per-collection failure (incl. connection errors) instead of
+          // aborting the whole search — a single flaky collection must not discard
+          // good results from the reachable ones. The all-collections-down case is
+          // handled below via hadConnectionFailure once results are known to be empty.
+          const { detail, isConnection } = classifyError(err);
+          console.error(`[Search] Collection ${collectionKey} failed: ${detail}`);
+          return {
+            results: [] as SearchResult[],
+            collectionKey,
+            metadata: { error: detail, isConnection } as Record<string, unknown>,
+          };
         })
       )
     );
 
     const collectionErrors = collectionResults
-      .filter((c) => (c.metadata as Record<string, unknown>)?.error)
-      .map((c) => ({ collection: c.collectionKey, error: (c.metadata as Record<string, unknown>).error }));
+      .filter((c) => c.metadata.error)
+      .map((c) => ({ collection: c.collectionKey, error: c.metadata.error }));
 
     // Merge, deduplicate by URL, sort by score
     const seenUrls = new Set<string>();
@@ -639,6 +629,16 @@ async function searchMultipleCollections({
       .map((key) => config.collections[key]?.displayName || key)
       .join(', ');
 
+    // Nothing came back AND at least one collection failed to connect → the index
+    // is effectively unreachable; surface that instead of a misleading "no results".
+    const connFailure = collectionResults.find((c) => c.metadata.isConnection);
+    if (allResults.length === 0 && connFailure) {
+      return connectionErrorResponse(String(connFailure.metadata.error ?? 'connection error'), {
+        country,
+        collectionsSearched,
+      });
+    }
+
     if (topResults.length === 0) {
       return {
         country,
@@ -652,6 +652,7 @@ async function searchMultipleCollections({
         metadata: {
           searchType: searchMode,
           multiCollection: true,
+          collectionsQueried: collections.length,
           ...(collectionErrors.length > 0 ? { collectionErrors } : {}),
         },
         filters: filters || null,
