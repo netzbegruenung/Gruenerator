@@ -41,7 +41,7 @@ export interface RecentActivityItem {
   id: string;
   title: string;
   date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
+  type: 'doc' | 'board' | 'image' | 'video' | 'text';
   href: string;
   emoji?: string | undefined;
   boardType?: 'kanban' | 'whiteboard' | undefined;
@@ -60,23 +60,15 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : 12;
 
-    const [docs, boards, images, reelProjects, texts, presentations] = await Promise.all([
+    const [docs, boards, images, reelProjects, texts] = await Promise.all([
       fetchRecentDocs(userId, limit),
       fetchRecentBoards(userId, limit),
       fetchRecentImages(userId, limit),
       fetchRecentReelProjects(userId, limit),
       fetchRecentTexts(userId, limit),
-      fetchRecentPresentations(userId, limit),
     ]);
 
-    const items: RecentActivityItem[] = [
-      ...docs,
-      ...boards,
-      ...images,
-      ...reelProjects,
-      ...texts,
-      ...presentations,
-    ];
+    const items: RecentActivityItem[] = [...docs, ...boards, ...images, ...reelProjects, ...texts];
 
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -334,50 +326,6 @@ export async function fetchRecentTexts(
       deleteEndpoint: `/api/auth/texts/${row.id}`,
     };
   });
-}
-
-export async function fetchRecentPresentations(
-  userId: string,
-  limit: number
-): Promise<RecentActivityItem[]> {
-  const rows = await db.query(
-    `SELECT
-      cp.id, cp.title, cp.updated_at, cp.user_id,
-      p.display_name as creator_name,
-      CASE
-        WHEN cp.user_id = $1 THEN 'owner'
-        WHEN cp.permissions ? $2::text THEN 'direct'
-      END AS access_type
-    FROM collaborative_presentations cp
-    LEFT JOIN profiles p ON cp.user_id = p.id
-    WHERE
-      cp.user_id = $1
-      OR cp.permissions ? $2::text
-    ORDER BY cp.updated_at DESC
-    LIMIT $3`,
-    [userId, userId, limit]
-  );
-
-  return (
-    rows as Array<{
-      id: string;
-      title: string;
-      updated_at: string;
-      user_id: string;
-      creator_name: string;
-      access_type: string;
-    }>
-  ).map((row) => ({
-    id: row.id,
-    title: row.title || 'Neue Präsentation',
-    date: row.updated_at,
-    type: 'presentation' as const,
-    href: `/docs/presentation/${row.id}`,
-    emoji: '🎬',
-    creatorName: row.creator_name,
-    accessType: row.access_type,
-    deleteEndpoint: `/api/presentations/${row.id}`,
-  }));
 }
 
 export default router;
