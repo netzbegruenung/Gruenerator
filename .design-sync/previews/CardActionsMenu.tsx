@@ -15,7 +15,14 @@ export function NotizbuchKarte() {
   return (
     <Card style={{ maxWidth: 420 }}>
       <CardHeader>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
           <div style={{ minWidth: 0 }}>
             <CardTitle>Wahlprogramm 2026</CardTitle>
             <CardDescription>Notizbuch · zuletzt bearbeitet vor 2 Std.</CardDescription>
@@ -30,8 +37,8 @@ export function NotizbuchKarte() {
       </CardHeader>
       <CardContent>
         <p style={{ margin: 0, lineHeight: 1.6 }}>
-          14 Quellen · 6 Kapitel im Entwurf. Klimaschutz, Verkehrswende und
-          bezahlbares Wohnen als Schwerpunkte.
+          14 Quellen · 6 Kapitel im Entwurf. Klimaschutz, Verkehrswende und bezahlbares Wohnen als
+          Schwerpunkte.
         </p>
       </CardContent>
     </Card>
