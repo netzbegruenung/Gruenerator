@@ -47,7 +47,7 @@ describe('attachYjsBridge — template seeding', () => {
 
     // Template data reaches Univer, with unitId forced to the doc id.
     expect(calls.createArg?.id).toBe(DOC_ID);
-    expect(calls.createArg?.sheets?.s1?.cellData?.[0]?.[0]?.v).toBe('Name');
+    expect(calls.createArg?.sheets?.['s1']?.cellData?.[0]?.[0]?.v).toBe('Name');
 
     // The guard is armed so later opens don't re-seed.
     const yMeta = ydoc.getMap(SHEET_YDOC_KEYS.meta);
@@ -111,8 +111,8 @@ describe('attachYjsBridge — template seeding', () => {
 
     // Existing snapshot wins; template sheet is never applied. Id still forced.
     expect(calls.createArg?.id).toBe(DOC_ID);
-    expect(calls.createArg?.sheets?.s9).toBeDefined();
-    expect(calls.createArg?.sheets?.s1).toBeUndefined();
+    expect(calls.createArg?.sheets?.['s9']).toBeDefined();
+    expect(calls.createArg?.sheets?.['s1']).toBeUndefined();
 
     bridge.dispose();
   });
