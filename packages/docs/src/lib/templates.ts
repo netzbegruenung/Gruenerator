@@ -281,9 +281,11 @@ Maxi Mustermensch<br>
 `,
   },
   {
+    // Simple in-document table — distinct from the 'sheets' subtype, which is
+    // a full Univer spreadsheet. The id must stay 'tabelle' (existing rows).
     id: 'tabelle',
-    name: 'Tabelle',
-    description: 'Tabelle mit Zeilen und Spalten',
+    name: 'Tabelle (im Dokument)',
+    description: 'Einfache Tabelle in einem Textdokument',
     icon: '📊',
     defaultTitle: 'Neue Tabelle',
     content: `
