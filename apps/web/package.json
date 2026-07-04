@@ -17,6 +17,7 @@
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/docs": "workspace:*",
+    "@gruenerator/presentations": "workspace:*",
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sheets": "workspace:*",
     "@gruenerator/sites": "workspace:*",

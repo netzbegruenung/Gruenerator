@@ -1,0 +1,160 @@
+/*
+ * Grünerator default deck theme. Styles live on `.gruene-slide` (the fixed
+ * 960×540 surface) so the SAME look applies in the editor canvas, in
+ * thumbnails, and inside a real reveal.js deck in present mode. Only a few
+ * rules are scoped to `.reveal.gruene-deck` for the reveal chrome (background,
+ * fonts, progress bar).
+ *
+ * Colours/fonts consume the app's CSS custom properties with hardcoded
+ * fallbacks — the fallbacks matter in the print/PDF window where the app's
+ * variables.css may not be loaded.
+ */
+
+.gruene-slide {
+  --deck-green: var(--primary-600, #316049);
+  --deck-klee: var(--primary-500, #52907a);
+  --deck-ink: var(--grey-800, #262a28);
+  --deck-paper: #ffffff;
+
+  box-sizing: border-box;
+  width: 960px;
+  height: 540px;
+  padding: 64px 72px;
+  background: var(--deck-paper);
+  color: var(--deck-ink);
+  font-family:
+    'PT Sans', 'Raleway', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 26px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.gruene-slide h1,
+.gruene-slide h2,
+.gruene-slide .gruene-slide__title {
+  font-family: 'Raleway', 'PT Sans', system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--deck-green);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.gruene-slide__title {
+  font-size: 44px;
+}
+
+.gruene-slide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-size: 28px;
+}
+
+.gruene-slide__body ul,
+.gruene-slide__body ol {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.gruene-slide__body li {
+  margin-bottom: 0.4em;
+}
+
+.gruene-slide__body p {
+  margin: 0 0 0.5em;
+}
+
+.gruene-slide__body a {
+  color: var(--deck-klee);
+}
+
+.gruene-slide__body img {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* ── Layout presets ──────────────────────────────────────────────────────── */
+
+/* Title slide: centered on a Tanne background, white text. */
+.gruene-slide.layout-title {
+  background: var(--deck-green);
+  color: #ffffff;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.gruene-slide.layout-title .gruene-slide__title {
+  color: #ffffff;
+  font-size: 56px;
+}
+.gruene-slide.layout-title .gruene-slide__body {
+  color: rgba(255, 255, 255, 0.9);
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+/* Quote: large italic text with a Klee left rule. */
+.gruene-slide.layout-quote {
+  justify-content: center;
+}
+.gruene-slide.layout-quote .gruene-slide__body {
+  flex: 0 0 auto;
+  font-size: 34px;
+  font-style: italic;
+  border-left: 6px solid var(--deck-klee);
+  padding-left: 28px;
+}
+
+/* Split: title top, body in two columns. */
+.gruene-slide.layout-split .gruene-slide__body {
+  column-count: 2;
+  column-gap: 48px;
+}
+
+/* Image: title small on top, body (image) fills. */
+.gruene-slide.layout-image .gruene-slide__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gruene-slide.layout-image .gruene-slide__body img {
+  max-height: 380px;
+}
+
+/* Editable fields reuse the surface typography but drop input chrome. */
+.gruene-slide__input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  resize: none;
+  padding: 0;
+}
+.gruene-slide__input::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+.gruene-slide.layout-title .gruene-slide__input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── reveal.js chrome (present mode only) ────────────────────────────────── */
+
+.reveal.gruene-deck {
+  background: var(--grey-100, #f2f4f3);
+  font-family: 'PT Sans', 'Raleway', system-ui, sans-serif;
+}
+.reveal.gruene-deck .slides section {
+  padding: 0;
+}
+.reveal.gruene-deck .progress {
+  color: var(--primary-500, #52907a);
+}
+.reveal.gruene-deck .controls {
+  color: var(--primary-600, #316049);
+}

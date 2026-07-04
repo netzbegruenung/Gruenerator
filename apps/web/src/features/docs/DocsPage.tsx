@@ -359,6 +359,18 @@ function DocumentsContent() {
     }
   }, [createDocumentMutation, adapter]);
 
+  const handleCreatePresentation = useCallback(async () => {
+    try {
+      const newDoc = await createDocumentMutation.mutateAsync({
+        title: 'Neue Präsentation',
+        documentSubtype: 'presentations',
+      });
+      adapter.navigateToDocument(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create presentation:', err);
+    }
+  }, [createDocumentMutation, adapter]);
+
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
       const title = boardType === 'whiteboard' ? 'Neues Whiteboard' : 'Neues Board';
@@ -453,6 +465,7 @@ function DocumentsContent() {
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
           onCreateSheet={() => void handleCreateSheet()}
+          onCreatePresentation={() => void handleCreatePresentation()}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 

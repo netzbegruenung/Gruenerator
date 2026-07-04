@@ -24,6 +24,10 @@ const DOCS_SUBTYPES = [
   // /docs/:id like any doc; the frontend renders a grid preview off
   // documentType === 'tabelle' instead of the prose excerpt.
   'tabelle',
+  // Univer spreadsheets and reveal.js decks: they too open at /docs/:id (the
+  // route dispatches on subtype) so they surface as `type: 'doc'`.
+  'sheets',
+  'presentations',
 ];
 
 const SUBTYPE_EMOJI: Record<string, string> = {
@@ -35,6 +39,9 @@ const SUBTYPE_EMOJI: Record<string, string> = {
   redaktionsplan: '📅',
   checkliste: '☑️',
   einladung: '✉️',
+  tabelle: '📊',
+  sheets: '📊',
+  presentations: '🎬',
 };
 
 export interface RecentActivityItem {
