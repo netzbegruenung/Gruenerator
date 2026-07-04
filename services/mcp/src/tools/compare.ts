@@ -1,7 +1,6 @@
-import { COLLECTIONS } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
-import { COLLECTION_KEYS } from '../config.ts';
+import { config } from '../config.ts';
 import { generateEmbedding } from '../embeddings.ts';
 import { getCachedEmbedding, cacheEmbedding } from '../utils/cache.ts';
 import { type Country } from '../utils/localization.ts';
@@ -25,10 +24,7 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
       .array(
         z.object({
           country: z.enum(['DE', 'AT']).describe('Land'),
-          collection: z
-            .enum(COLLECTION_KEYS as [string, ...string[]])
-            .optional()
-            .describe('Optionale Sammlung'),
+          collection: z.string().optional().describe('Optionale Sammlung'),
           label: z.string().optional().describe('Optionales Label für diese Quelle'),
         })
       )
@@ -65,7 +61,7 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
         const label =
           source.label ||
           (source.collection
-            ? COLLECTIONS[source.collection]?.displayName || source.collection
+            ? config.collections[source.collection]?.displayName || source.collection
             : source.country === 'DE'
               ? 'Deutschland'
               : 'Österreich');
