@@ -134,7 +134,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const handleChatClick = useCallback(() => {
     useAgentStore.getState().setChatViewMode('overview');
-    if (location.pathname.startsWith('/chat')) {
+    // Exact match only: from a thread deep link (/chat/<slug>) we still need
+    // to navigate back to /chat so the URL leaves the old thread.
+    if (location.pathname === '/chat') {
       return;
     }
     if (onNavigate) {
