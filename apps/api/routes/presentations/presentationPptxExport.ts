@@ -60,13 +60,42 @@ export function renderDeckToPandocMarkdown(slides: readonly Slide[], title: stri
   return blocks.join('\n\n');
 }
 
-/** Safe filename for the Content-Disposition header (no header injection). */
+/** Human-readable filename (Unicode letters kept) for the UTF-8 `filename*` param. */
 export function sanitizeFilename(title: string): string {
   const cleaned = title
     .replace(/[^\p{L}\p{N}\-_ ]/gu, '')
     .trim()
     .slice(0, 80);
   return cleaned || 'Praesentation';
+}
+
+/**
+ * ASCII-only fallback for the bare `filename=` token: RFC 6266 forbids raw
+ * non-ASCII there, and Node's setHeader rejects some bytes. Transliterate German
+ * umlauts, drop any other non-ASCII.
+ */
+export function asciiFilename(title: string): string {
+  const cleaned = title
+    .replace(/[äÄ]/g, 'ae')
+    .replace(/[öÖ]/g, 'oe')
+    .replace(/[üÜ]/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/["\\]/g, '')
+    .replace(/[^A-Za-z0-9\-_ ]/g, '')
+    .trim()
+    .slice(0, 80);
+  return cleaned || 'Praesentation';
+}
+
+/**
+ * Build a Content-Disposition value with an ASCII `filename=` fallback plus a
+ * UTF-8 `filename*` (RFC 5987) so umlaut titles download with correct names.
+ */
+export function contentDispositionAttachment(title: string): string {
+  const ascii = `${asciiFilename(title)}.pptx`;
+  const utf8 = encodeURIComponent(`${sanitizeFilename(title)}.pptx`);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${utf8}`;
 }
 
 export class PandocUnavailableError extends Error {

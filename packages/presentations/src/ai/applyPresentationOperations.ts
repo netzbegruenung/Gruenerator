@@ -60,16 +60,20 @@ export function applyPresentationOperations(
               skipped.push(`Folie ${op.slide} existiert nicht.`);
               break;
             }
+            // Patch semantics: only fields the model actually provided change.
+            // A null (which models emit freely for "untouched") is treated as
+            // "no change" for every field — consistent, and never accidentally
+            // wipes a background/transition the user set.
             if (op.title != null) m.set('title', op.title);
             if (op.body != null) m.set('body', op.body);
             if (op.notes != null) m.set('notes', op.notes);
             if (op.layout != null) m.set('layout', op.layout);
-            if (op.background !== undefined) m.set('background', op.background ?? null);
-            if (op.transition !== undefined) m.set('transition', op.transition ?? null);
+            if (op.background != null) m.set('background', op.background);
+            if (op.transition != null) m.set('transition', op.transition);
             if (op.fragments != null) m.set('fragments', op.fragments);
             if (op.autoAnimate != null) m.set('autoAnimate', op.autoAnimate);
             if (op.hidden != null) m.set('hidden', op.hidden);
-            if (op.codeLanguage !== undefined) m.set('codeLanguage', op.codeLanguage ?? null);
+            if (op.codeLanguage != null) m.set('codeLanguage', op.codeLanguage);
             applied += 1;
             break;
           }

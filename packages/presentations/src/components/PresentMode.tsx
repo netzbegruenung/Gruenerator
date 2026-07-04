@@ -31,8 +31,11 @@ type RevealApi = InstanceType<typeof Reveal>;
 function backgroundAttrs(bg: string | null | undefined): Record<string, string> {
   if (!bg) return {};
   const value = bg.trim();
+  // Classification kept in lockstep with SlideSurface.resolveBackground so the
+  // editor canvas and the presented slide never disagree (e.g. on
+  // `repeating-linear-gradient(...)`).
   if (/^(https?:|data:|\/)/.test(value)) return { 'data-background-image': value };
-  if (/^(linear|radial|conic)-gradient\(/.test(value)) return { 'data-background-gradient': value };
+  if (/gradient\(/.test(value)) return { 'data-background-gradient': value };
   return { 'data-background-color': value };
 }
 
@@ -82,6 +85,15 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     void deck.initialize().then(() => {
       if (disposed) return;
       revealRef.current = deck;
+      // Re-apply the latest options: the live-configure effect below may have
+      // fired against a still-null ref during this async init and been lost.
+      const latest = optsRef.current;
+      deck.configure({
+        transition: latest.defaultTransition ?? 'slide',
+        slideNumber: latest.slideNumber ? 'c/t' : false,
+        autoSlide: latest.autoSlide ?? 0,
+        loop: latest.loop,
+      });
       deck.on('overviewshown', () => setOverview(true));
       deck.on('overviewhidden', () => setOverview(false));
       if (printPdf) {
@@ -111,13 +123,18 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     });
   }, [deckOptions]);
 
-  // Reflect slide add/remove/reorder/content into the running deck.
+  // Reflect STRUCTURAL slide changes (add / remove / reorder) into the running
+  // deck. Keyed on the id signature, not `slides`, so a collaborator's
+  // keystroke-level content edit doesn't trigger a full sync() that would reset
+  // the presenter's position and fragment state. Content edits re-render the
+  // section markup in place via React.
+  const structureKey = slides.map((s) => s.id).join(',');
   useEffect(() => {
     const deck = revealRef.current;
     if (!deck) return;
     deck.sync();
     deck.layout();
-  }, [slides]);
+  }, [structureKey]);
 
   const toggleOverview = useCallback(() => revealRef.current?.toggleOverview(), []);
   const toggleFullscreen = useCallback(() => {
