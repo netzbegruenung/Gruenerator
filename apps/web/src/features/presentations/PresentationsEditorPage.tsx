@@ -27,6 +27,7 @@ import {
   FiMessageSquare,
   FiPlay,
   FiShare2,
+  FiSliders,
 } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -117,6 +118,7 @@ function PresentationsEditorContent() {
   const printPdf = searchParams.has('print-pdf');
   const [presenting, setPresenting] = useState(autoPresent);
   const [scrollView, setScrollView] = useState(false);
+  const [designPanelOpen, setDesignPanelOpen] = useState(false);
 
   const [chatOpen, setChatOpen] = useState(false);
   // Sticky: once opened, the chat panel stays mounted so runtime + Hocuspocus
@@ -307,17 +309,6 @@ function PresentationsEditorContent() {
             <button
               className="glass-btn"
               onClick={() => {
-                setScrollView(false);
-                setPresenting(true);
-              }}
-              aria-label="Präsentieren"
-              title="Präsentieren"
-            >
-              <FiPlay />
-            </button>
-            <button
-              className="glass-btn"
-              onClick={() => {
                 setScrollView(true);
                 setPresenting(true);
               }}
@@ -342,16 +333,44 @@ function PresentationsEditorContent() {
             >
               <FiFileText />
             </button>
+            {isEditable && (
+              <button
+                onClick={() => setDesignPanelOpen((v) => !v)}
+                aria-label="Gestalten"
+                title="Folie gestalten"
+                className={`flex h-9 items-center gap-[7px] rounded-full px-3.5 text-sm font-bold text-[#2F4238] dark:text-grey-200 ${
+                  designPanelOpen
+                    ? 'bg-[#DCE7E0] dark:bg-grey-700'
+                    : 'bg-[#EFF3F0] dark:bg-grey-800 hover:bg-[#E4EBE7] dark:hover:bg-grey-700'
+                }`}
+              >
+                <FiSliders size={15} />
+                Gestalten
+              </button>
+            )}
             {!isGuest && (
               <button
-                className="glass-btn"
                 onClick={() => setShowShareModal(true)}
                 aria-label="Teilen"
                 title="Teilen"
+                className="flex h-9 items-center gap-[7px] rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 px-3.5 text-sm font-bold text-[#2F4238] dark:text-grey-200 hover:bg-[#F4F7F5] dark:hover:bg-grey-700"
               >
-                <FiShare2 />
+                <FiShare2 size={14} />
+                Teilen
               </button>
             )}
+            <button
+              onClick={() => {
+                setScrollView(false);
+                setPresenting(true);
+              }}
+              aria-label="Präsentieren"
+              title="Präsentieren"
+              className="flex h-9 items-center gap-2 rounded-full bg-primary-600 px-[18px] text-sm font-bold text-white hover:brightness-110"
+            >
+              <FiPlay size={13} fill="currentColor" />
+              Präsentieren
+            </button>
           </>
         }
       />
@@ -359,7 +378,14 @@ function PresentationsEditorContent() {
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {editorReady && ydoc ? (
-            <PresentationEditor key={id} ydoc={ydoc} editable={isEditable} onReady={setEditorApi} />
+            <PresentationEditor
+              key={id}
+              ydoc={ydoc}
+              editable={isEditable}
+              designPanelOpen={designPanelOpen}
+              onCloseDesignPanel={() => setDesignPanelOpen(false)}
+              onReady={setEditorApi}
+            />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
               Präsentation wird geladen…
