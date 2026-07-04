@@ -28,6 +28,7 @@ export type MentionableType =
   | 'board'
   | 'doc'
   | 'sheet'
+  | 'presentation'
   | 'wolke'
   | 'connect'
   | 'canva'
@@ -409,6 +410,21 @@ export function setSheetMentionables(sheets: SheetMentionable[]): void {
   rebuildMentionableMap();
 }
 
+export const presentationToolMentionables: Mentionable[] = [
+  {
+    type: 'presentation',
+    category: 'function',
+    trigger: '@',
+    identifier: 'praesentation-erstellen',
+    title: 'Präsentation erstellen',
+    description: 'Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf',
+    avatar: '🎬',
+    icon: PiSparkle,
+    backgroundColor: '#316049',
+    mention: 'praesentation-erstellen',
+  },
+];
+
 export const docToolMentionables: Mentionable[] = [
   {
     type: 'doc',
@@ -728,6 +744,7 @@ export function getAllMentionables(): Mentionable[] {
     ...dynamicDocMentionables,
     ...sheetToolMentionables,
     ...dynamicSheetMentionables,
+    ...presentationToolMentionables,
     ...documentMentionables,
     ...wolkeMentionables,
     ...connectMentionables,

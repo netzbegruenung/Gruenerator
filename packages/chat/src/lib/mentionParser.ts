@@ -216,6 +216,9 @@ export function parseAllMentions(text: string): ParsedMentions {
         } else {
           addUnique(seenSheets, sheetIds, mentionable.identifier);
         }
+      } else if (mentionable.type === 'presentation') {
+        // Only the create-tool exists for presentations today (no @deck mentions).
+        addUnique(seenTools, forcedTools, mentionable.identifier);
       } else if (mentionable.type === 'doc') {
         if (mentionable.identifier === 'dokument-erstellen') {
           addUnique(seenTools, forcedTools, mentionable.identifier);
