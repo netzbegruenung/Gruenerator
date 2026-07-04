@@ -626,16 +626,34 @@ app.post('/mcp', async (req, res) => {
     const apiKey = extractBearerKey(req);
     const server = createMcpServer(baseUrl, apiKey);
     await server.connect(transport);
+  } else if (sessionId) {
+    res.status(404).json({
+      jsonrpc: '2.0',
+      error: { code: -32001, message: 'Session nicht gefunden – bitte neu initialisieren' },
+      id: null,
+    });
+    return;
   } else {
     res.status(400).json({
       jsonrpc: '2.0',
-      error: { code: -32000, message: 'Ungültige Session' },
+      error: { code: -32000, message: 'Keine Session und keine Initialisierungsanfrage' },
       id: null,
     });
     return;
   }
 
-  await transport.handleRequest(req, res, req.body);
+  try {
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    error('MCP', `handleRequest failed: ${err instanceof Error ? err.message : String(err)}`);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: 'Interner Serverfehler' },
+        id: null,
+      });
+    }
+  }
 });
 
 // MCP GET Endpoint (SSE Stream)
@@ -647,7 +665,7 @@ app.get('/mcp', async (req, res) => {
   if (transport) {
     await transport.handleRequest(req, res);
   } else {
-    res.status(400).json({ error: 'Ungültige Session' });
+    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
   }
 });
 
@@ -660,7 +678,7 @@ app.delete('/mcp', async (req, res) => {
   if (transport) {
     await transport.handleRequest(req, res);
   } else {
-    res.status(400).json({ error: 'Ungültige Session' });
+    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
   }
 });
 
