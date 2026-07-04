@@ -1,4 +1,5 @@
 @import '@univerjs/preset-sheets-core/lib/index.css';
+@import '@univerjs/preset-sheets-drawing/lib/index.css';
 
 .gruenerator-sheets-editor {
   flex: 1;
