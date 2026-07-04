@@ -15,27 +15,31 @@ import { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
-import { type AgentConfig } from '../chat/agents/types.js';
 
 const log = createLogger('SheetAI');
 
-// Mirror boards/docs AI model choices — confirmed to return tool calls.
-const SHEET_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  litellm: 'verdigado-pro',
-  regolo: 'mistral-small-4-119b',
-  mistral: 'mistral-medium-2604',
-  anthropic: 'mistral-medium-2604',
-};
+// Sheet planning ALWAYS uses Mistral Medium 3.5 — it is the op-planner and
+// needs a strong model; smaller fallbacks (mistral-small on Regolo, verdigado
+// on LiteLLM) mis-shape or drop set_range_values ops, which is what produced
+// "keine Tabellen-Änderung erkannt". Pinned with no provider chain: if Mistral
+// is unavailable we fail loudly rather than silently downgrade the model.
+// `mistral-medium-2604` === "Mistral Medium 3.5" (see services/ai/modelDiscovery.ts).
+const SHEET_AI_PROVIDER = 'mistral';
+const SHEET_AI_MODEL = 'mistral-medium-2604';
 
 const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadsheet operations by calling the tool applySheetOperations.
 
 You MUST respond ONLY by calling applySheetOperations with { "operations": [ ... ] }.
 
 Permitted operation types (each object needs a "type" field):
-- { "type": "set_range_values", "range": "A1:C3", "values": [[...],[...]], "sheet"?: "Name" }
+- { "type": "set_range_values", "range": "A1:C3", "values": [[...],[...]], "asText"?: false, "sheet"?: "Name" }
     // range in A1 notation; values is a 2D array (array of rows) matching the range shape
+    // asText:true forces TEXT for ids, ZIP, phone numbers, leading zeros, or codes like "2-2"
 - { "type": "set_formula", "cell": "D2", "formula": "=SUM(A1:A10)", "sheet"?: "Name" }
     // single cell; formula starts with "=" and uses A1 references
+- { "type": "set_number_format", "range": "B2:B20", "pattern": "#,##0.00 €", "sheet"?: "Name" }
+    // DISPLAY format only, never changes the stored value. Patterns: "#,##0.00 €"=Euro,
+    // "0%"=Prozent, "yyyy-MM-dd"=Datum, "#,##0"=Tausender, "@"=Text
 - { "type": "format_range", "range": "A1:C1", "bold"?: true, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "sheet"?: "Name" }
 - { "type": "add_sheet", "name": "Blatt 2" }
 - { "type": "clear_range", "range": "B2:B5", "sheet"?: "Name" }
@@ -46,13 +50,18 @@ RULES:
 - "values" MUST be a 2D array even for a single cell: a single value is [["x"]], one row is [["a","b","c"]], one column is [["a"],["b"],["c"]].
 - In set_range_values, a string starting with "=" is treated as a formula.
 - Numbers must be JSON numbers (1234.5), not localized strings.
+- CURRENCY / PERCENT / DATES are a NUMBER plus a number format, never a formatted string. To show money, percentages, or dates: write the numeric value with set_range_values AND apply set_number_format. Never write "1.000 €", "25%", or "2022-12-05" as a text value into a numeric column — it breaks formulas, sorting and export. (For percent, 25% is the number 0.25 with pattern "0%".)
+- The "Spalten-Typen" note in the sheet state marks which columns are Währung/Prozent/Datum/Formel — respect those types when you change them.
+- For ids, ZIP codes, phone numbers, leading zeros, or codes like "2-2", use set_range_values with asText:true so they are not auto-converted to numbers/dates.
 - "sheet" is the sheet NAME; omit it to target the active sheet.
 - Write German content with gender-inclusive language (Genderstern *) where text is generated.
 - The user is explicitly asking for a change — emit the operations that carry it out. Only return an empty array if the request is truly impossible or requires no change.
 - Return ONLY the tool call. No prose.
 
-EXAMPLE — the sheet has "Umsatz" in A1 and 1000 in B1, and the user says "ändere den Umsatz auf 2500":
-{ "operations": [ { "type": "set_range_values", "range": "B1", "values": [[2500]] } ] }`;
+EXAMPLE 1 — the sheet has "Umsatz" in A1 and 1000 in B1, and the user says "ändere den Umsatz auf 2500":
+{ "operations": [ { "type": "set_range_values", "range": "B1", "values": [[2500]] } ] }
+EXAMPLE 2 — user says "formatiere Spalte B als Euro":
+{ "operations": [ { "type": "set_number_format", "range": "B2:B100", "pattern": "#,##0.00 €" } ] }`;
 
 /**
  * Coerce the two shape mistakes models make most often on set_range_values
@@ -90,15 +99,13 @@ export async function generateSheetOperations(opts: {
 }): Promise<SheetOperation[]> {
   const { userPrompt, sheetContext, referenceContent } = opts;
 
-  const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'litellm'];
-  const provider = providerChain.find((p) => isProviderConfigured(p));
-  if (!provider) {
-    throw new Error('No AI provider configured (tried: mistral, regolo, litellm)');
+  if (!isProviderConfigured(SHEET_AI_PROVIDER)) {
+    throw new Error(
+      'Sheet AI requires Mistral Medium 3.5, but the Mistral provider is not configured (MISTRAL_API_KEY missing)'
+    );
   }
-
-  const modelId = SHEET_AI_MODELS[provider];
-  const model = getModel(provider, modelId);
-  log.info(`[SheetAI] Using provider: ${provider}, model: ${modelId}`);
+  const model = getModel(SHEET_AI_PROVIDER, SHEET_AI_MODEL);
+  log.info(`[SheetAI] Using Mistral Medium 3.5 (${SHEET_AI_MODEL})`);
 
   const referenceSection = referenceContent?.trim()
     ? `\n\nZUSÄTZLICHER KONTEXT (vorherige Antwort des Assistenten, auf die sich der*die Nutzer*in bezieht):\n<reference_content>\n${referenceContent.trim().slice(0, 8000)}\n</reference_content>`

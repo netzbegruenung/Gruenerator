@@ -62,3 +62,29 @@ describe('normalizeRawOp', () => {
     expect(normalizeRawOp(42)).toBe(42);
   });
 });
+
+describe('Phase 0 operation schema', () => {
+  it('validates set_number_format', () => {
+    const r = sheetOperationSchema.safeParse({
+      type: 'set_number_format',
+      range: 'B2:B20',
+      pattern: '#,##0.00 €',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('validates set_range_values with asText (force-text)', () => {
+    const r = sheetOperationSchema.safeParse({
+      type: 'set_range_values',
+      range: 'A2:A5',
+      values: [['00123'], ['2-2']],
+      asText: true,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('normalizeRawOp leaves set_number_format untouched', () => {
+    const op = { type: 'set_number_format', range: 'B2', pattern: '0%' };
+    expect(normalizeRawOp(op)).toBe(op);
+  });
+});
