@@ -101,6 +101,9 @@ export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
+  getThreadSlugSuffix,
+  getThreadAgentId,
+  resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -203,6 +206,7 @@ export { ChatLayout } from './components/ChatLayout';
 export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
+export { ChatThreadRouting, type ChatThreadRoutingProps } from './components/ChatThreadRouting';
 export { ToolToggles } from './components/ToolToggles';
 export { MarkdownContent } from './components/MarkdownContent';
 export { CitationMarkdownText } from './components/message-parts/CitationMarkdownText';

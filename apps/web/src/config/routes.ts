@@ -540,6 +540,9 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
   },
   { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
+  // Thread deep links (Notion-style slug, suffix is the stable key). React
+  // Router ranks the static /chat/settings above this dynamic segment.
+  { path: '/chat/:threadSlug', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
