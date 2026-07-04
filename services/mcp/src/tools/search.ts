@@ -58,6 +58,13 @@ function buildSearchError(err: unknown, logLabel: string): {
   };
 }
 
+function noResultsHint(candidateCount: number): string {
+  if (candidateCount > 0) {
+    return `${candidateCount} Kandidaten gefunden, aber keiner über der Relevanzschwelle (${MCP_MIN_RELEVANCE_SCORE}). Versuche breitere/andere Begriffe, eine andere Sammlung, oder entferne Filter.`;
+  }
+  return 'Keine Treffer im Index. Versuche breitere/andere Suchbegriffe, eine andere Sammlung, oder entferne gesetzte Filter.';
+}
+
 // Must match minFinalScore in qdrant/client.ts hybridConfig
 const MCP_MIN_RELEVANCE_SCORE = 0.35;
 
@@ -489,12 +496,16 @@ async function searchSingleCollectionWithCache({
     });
 
     if (!results || results.length === 0) {
+      const candidateCount =
+        (Number(metadata.vectorResults) || 0) + (Number(metadata.textResults) || 0);
       return {
         collection: collectionConfig.displayName,
         country,
         query,
         searchMode,
+        resultsCount: 0,
         message: 'Keine Ergebnisse gefunden',
+        hint: noResultsHint(candidateCount),
         results: [],
         metadata,
         filters: filters || null,
@@ -594,13 +605,16 @@ async function searchMultipleCollections({
           // Index unreachable affects every collection — fail the whole search
           // with a real error instead of masking it as empty per-collection.
           if (isConnectionError(err)) throw err;
-          console.error(
-            `[Search] Collection ${collectionKey} failed: ${err instanceof Error ? err.message : String(err)}`
-          );
-          return { results: [] as SearchResult[], collectionKey, metadata: {} };
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[Search] Collection ${collectionKey} failed: ${message}`);
+          return { results: [] as SearchResult[], collectionKey, metadata: { error: message } };
         })
       )
     );
+
+    const collectionErrors = collectionResults
+      .filter((c) => (c.metadata as Record<string, unknown>)?.error)
+      .map((c) => ({ collection: c.collectionKey, error: (c.metadata as Record<string, unknown>).error }));
 
     // Merge, deduplicate by URL, sort by score
     const seenUrls = new Set<string>();
@@ -628,9 +642,15 @@ async function searchMultipleCollections({
         collectionsSearched,
         query,
         searchMode,
+        resultsCount: 0,
         message: 'Keine Ergebnisse gefunden',
+        hint: noResultsHint(allResults.length),
         results: [],
-        metadata: { searchType: searchMode, multiCollection: true },
+        metadata: {
+          searchType: searchMode,
+          multiCollection: true,
+          ...(collectionErrors.length > 0 ? { collectionErrors } : {}),
+        },
         filters: filters || null,
       };
     }
@@ -650,6 +670,7 @@ async function searchMultipleCollections({
         searchType: searchMode,
         multiCollection: true,
         collectionsQueried: collections.length,
+        ...(collectionErrors.length > 0 ? { collectionErrors } : {}),
       },
       filters: filters || null,
       cached: false,
