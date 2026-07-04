@@ -51,11 +51,18 @@ export const INFO_CONFIG = {
     color: '#ffffff',
     y: 0, // Dynamic - calculated from header height
   },
+  // Single sunflower overlay, bottom-right — mirrors the server renderer
+  // (apps/api/routes/sharepic/sharepic_canvas/info_canvas.ts). The background is now a solid
+  // colour (no baked-in flower), so this overlay is the ONLY sunflower.
   sunflower: {
-    x: 540, // Center horizontally
-    y: 675, // Center vertically
-    size: 800,
-    src: SYSTEM_ASSETS.sunflower.yellow.src,
+    x: 560,
+    y: 910,
+    size: 820,
+    src: SYSTEM_ASSETS.sunflower.greenLight.src,
+  },
+  // Text must stay above the flower so it is never clipped or overlapped.
+  content: {
+    bottomY: 880,
   },
   backgrounds: {
     tanne: SYSTEM_ASSETS.backgrounds.info.tanne,
