@@ -148,7 +148,7 @@ export async function generateSheetOperations(opts: {
   });
 
   const toolCall = result.toolCalls.find((tc) => tc.toolName === 'applySheetOperations');
-  const rawOps = toolCall ? (toolCall.input as { operations?: unknown[] }).operations : undefined;
+  const rawOps = toolCall ? (toolCall.input as { operations?: unknown[] }).operations : null;
 
   // Per-op validation: keep every valid operation, drop (and log) only the
   // malformed ones — one bad op must never silently discard a whole batch.
