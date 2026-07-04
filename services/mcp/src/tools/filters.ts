@@ -1,7 +1,7 @@
-import { buildCollectionDefaultFilter } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
-import { config, COLLECTION_KEYS } from '../config.ts';
+import { buildCollectionDefaultFilter } from '../catalog.ts';
+import { config } from '../config.ts';
 import { getFieldValueCounts } from '../qdrant/client.ts';
 import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 
@@ -43,7 +43,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 
   inputSchema: {
     collection: z
-      .enum(COLLECTION_KEYS as [string, ...string[]])
+      .string()
       .describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden'),
   },
 

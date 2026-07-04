@@ -12,7 +12,7 @@
  *     route handler and the cache warmer so the logic exists once.
  */
 import {
-  getAllSystemCollectionIds,
+  getSearchableSystemCollectionIds,
   getSystemCollectionConfig,
   getCollectionFilterableFields,
   getCollectionDefaultFilter,
@@ -278,7 +278,7 @@ export async function computeMergedFilters(requestedIds: string[]): Promise<Merg
  */
 export async function warmFilterCache(): Promise<void> {
   try {
-    const allIds = getAllSystemCollectionIds();
+    const allIds = getSearchableSystemCollectionIds();
     const cacheKey = [...allIds].sort().join(',');
 
     // Skip if already cached
