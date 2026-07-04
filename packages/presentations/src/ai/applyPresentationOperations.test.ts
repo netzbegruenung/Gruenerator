@@ -1,4 +1,5 @@
 import { type PresentationOperation } from '@gruenerator/contracts';
+import { bodyFragmentKey, fragmentToMarkdown } from '@gruenerator/contracts/presentations-richtext';
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
@@ -60,6 +61,31 @@ describe('applyPresentationOperations', () => {
     const ydoc = seededDoc();
     applyPresentationOperations(ydoc, [{ type: 'set_deck_option', defaultTransition: 'fade' }]);
     expect(getMetaMap(ydoc).get('defaultTransition')).toBe('fade');
+  });
+
+  it('writes an added slide body into its collaborative fragment, not the map', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [
+      { type: 'add_slide', layout: 'content', title: 'Neu', body: '- a\n- b', at: 2 },
+    ]);
+    const newId = String(getSlidesArray(ydoc).get(1).get('id'));
+    expect(getSlidesArray(ydoc).get(1).get('body')).toBeUndefined();
+    expect(fragmentToMarkdown(ydoc.getXmlFragment(bodyFragmentKey(newId)))).toBe('- a\n- b');
+  });
+
+  it('routes an update_slide body into the fragment (non-code)', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [{ type: 'update_slide', slide: 2, body: '- x' }]);
+    const id = String(getSlidesArray(ydoc).get(1).get('id'));
+    expect(fragmentToMarkdown(ydoc.getXmlFragment(bodyFragmentKey(id)))).toBe('- x');
+  });
+
+  it('keeps a code slide body as a plain string', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [
+      { type: 'update_slide', slide: 2, layout: 'code', body: 'const x = 1;' },
+    ]);
+    expect(getSlidesArray(ydoc).get(1).get('body')).toBe('const x = 1;');
   });
 
   it('sets a slide design variant', () => {
