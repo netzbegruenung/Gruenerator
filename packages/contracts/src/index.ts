@@ -27,6 +27,7 @@ export {
   chatGraphContract,
   boardsContract,
   sheetsContract,
+  presentationsContract,
   boardCommentsContract,
   boardAgentContract,
   boardActivityContract,

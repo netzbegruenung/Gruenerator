@@ -63,6 +63,7 @@ import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSh
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
@@ -660,6 +661,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Sheets (Univer): only the AI planning route — CRUD/share run via /api/docs/*.
   app.use('/api/sheets', requireAuth, authenticatedReadLimiter);
   mountSheetsContractRouter(app);
+  // Presentations (reveal.js): only the AI planning route — CRUD/share via /api/docs/*.
+  app.use('/api/presentations', requireAuth, authenticatedReadLimiter);
+  mountPresentationsContractRouter(app);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);

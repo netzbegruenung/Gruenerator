@@ -18,7 +18,14 @@ import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FiCornerUpLeft, FiCornerUpRight, FiDownload, FiPlay, FiShare2 } from 'react-icons/fi';
+import {
+  FiCornerUpLeft,
+  FiCornerUpRight,
+  FiDownload,
+  FiMessageSquare,
+  FiPlay,
+  FiShare2,
+} from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
@@ -29,6 +36,8 @@ import { platformFetch } from '../../utils/platformFetch';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
+
+import { PresentationsChatPanel } from './PresentationsChatPanel';
 
 const ShareModal = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
@@ -105,6 +114,14 @@ function PresentationsEditorContent() {
   const autoPresent = searchParams.get('present') === '1';
   const printPdf = searchParams.has('print-pdf');
   const [presenting, setPresenting] = useState(autoPresent);
+
+  const [chatOpen, setChatOpen] = useState(false);
+  // Sticky: once opened, the chat panel stays mounted so runtime + Hocuspocus
+  // connection survive close/reopen (docs pattern).
+  const [hasOpenedChat, setHasOpenedChat] = useState(false);
+  useEffect(() => {
+    if (chatOpen && !hasOpenedChat) setHasOpenedChat(true);
+  }, [chatOpen, hasOpenedChat]);
 
   const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
@@ -226,6 +243,16 @@ function PresentationsEditorContent() {
               </div>
             )}
             <CollaboratorAvatars collaborators={collaborators} />
+            {!isGuest && (
+              <button
+                className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                onClick={() => setChatOpen((v) => !v)}
+                aria-label="Chat"
+                title="Chat"
+              >
+                <FiMessageSquare />
+              </button>
+            )}
             {isEditable && editorApi && (
               <>
                 <button
@@ -276,13 +303,41 @@ function PresentationsEditorContent() {
         }
       />
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {editorReady && ydoc ? (
-          <PresentationEditor key={id} ydoc={ydoc} editable={isEditable} onReady={setEditorApi} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-sm text-grey-500 h-full">
-            Präsentation wird geladen…
-          </div>
+      <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+          {editorReady && ydoc ? (
+            <PresentationEditor key={id} ydoc={ydoc} editable={isEditable} onReady={setEditorApi} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
+              Präsentation wird geladen…
+            </div>
+          )}
+        </div>
+
+        {hasOpenedChat && id && (
+          <aside
+            className={
+              chatOpen
+                ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
+                : 'hidden'
+            }
+          >
+            <PresentationsChatPanel
+              documentId={id}
+              userId={user ? String(user.id) : null}
+              userName={user?.display_name ?? null}
+              documentTitle={docData?.title ?? null}
+              ydoc={ydoc}
+              isOpen={chatOpen}
+            />
+            <button
+              onClick={() => setChatOpen(false)}
+              className="hidden max-md:flex absolute top-2 right-2 z-10 h-9 w-9 items-center justify-center rounded-lg bg-background/90 dark:bg-grey-900/90 text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700 shadow-sm border border-grey-200 dark:border-grey-700"
+              aria-label="Chat schließen"
+            >
+              ×
+            </button>
+          </aside>
         )}
       </div>
 
