@@ -32,7 +32,10 @@ type SearchMode = 'hybrid' | 'vector' | 'text';
  * never silently collapsed into "Keine Ergebnisse". The technical cause is kept
  * in `technicalDetail` + logs for diagnosis.
  */
-function buildSearchError(err: unknown, logLabel: string): {
+function buildSearchError(
+  err: unknown,
+  logLabel: string
+): {
   error: true;
   errorType: 'search_unavailable' | 'search_error';
   message: string;

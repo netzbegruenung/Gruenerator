@@ -51,6 +51,10 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "delete_columns", "at": "C", "count": 1, "sheet"?: "Name" }
 - { "type": "merge_cells", "range": "A1:C1", "sheet"?: "Name" }   // e.g. a title row; keeps the top-left value
 - { "type": "unmerge_cells", "range": "A1:C1", "sheet"?: "Name" }
+- { "type": "add_chart", "range": "A1:D5", "chartType": "bar", "title"?: "Umsatz", "sheet"?: "Name" }
+    // chartType: bar|line|area|pie|donut. "range" MUST include the header row and
+    // the label column: row 1 = series names, column A = category labels, the rest
+    // = numbers. pie/donut use only the first numeric series.
 
 RULES:
 - Ranges/cells ALWAYS in A1 notation. Row 1 is the first row, column A the first column.
