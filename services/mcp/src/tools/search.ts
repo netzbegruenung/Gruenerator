@@ -382,6 +382,7 @@ export const searchTool = {
     if (!query || query.trim().length === 0) {
       return {
         error: true,
+        errorType: 'invalid_input',
         message: 'Suchbegriff darf nicht leer sein',
       };
     }
@@ -395,6 +396,7 @@ export const searchTool = {
         const available = Object.keys(config.collections).join(', ');
         return {
           error: true,
+          errorType: 'invalid_input',
           message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${available}`,
           hint: 'Alle Sammlungen: `resources/list` (gruenerator://collections). Gültige Filterwerte einer Sammlung: `gruenerator_get_filters`.',
         };
@@ -541,6 +543,7 @@ async function searchMultipleCollections({
   if (!collections || collections.length === 0) {
     return {
       error: true,
+      errorType: 'invalid_input',
       message: `Unbekanntes Land: ${country}. Verfügbar: DE, AT`,
     };
   }

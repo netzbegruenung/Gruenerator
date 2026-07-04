@@ -20,7 +20,7 @@ Erfordert einen Bearer API-Key — wird automatisch aus dem Request-Header weite
     }
     const result = await callGrueneratorApi('/api/v1/notebooks', { apiKey });
     if (!result.ok) {
-      return notebooksApiError(result.status, result.message);
+      return notebooksApiError(result.status, result.message, false);
     }
     return result.data;
   },
