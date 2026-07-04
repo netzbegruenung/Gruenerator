@@ -36,6 +36,7 @@ import { extractChartFromResponse, emitConfirmAction } from './services/confirmA
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import {
   handleBoardCreation,
+  handleSheetCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
@@ -751,6 +752,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           userId,
           userContent: lastUserText as string,
           intent: 'direct',
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
+      // === Handle @sheet-erstellen tool / create_sheet intent ===
+      if (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet') {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handleSheetCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
         });
         if (created) return { status: 200 as const, body: undefined };
       }

@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setSheetMentionables,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
   type Mentionable,
@@ -91,6 +92,21 @@ export function useBoardsQuery() {
       const boards = await apiClient.get<BoardListItem[]>('/api/boards');
       const list = Array.isArray(boards) ? boards : [];
       setBoardMentionables(list.map((b) => ({ id: b.id, title: b.title, slug: slugify(b.title) })));
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useSheetsQuery() {
+  const apiClient = useApiClient();
+  return useQuery<DocListItem[]>({
+    queryKey: ['mention-sheets'],
+    queryFn: async () => {
+      const docs = await apiClient.get<DocListItem[]>('/api/docs');
+      const list = Array.isArray(docs) ? docs.filter((d) => d.document_subtype === 'sheets') : [];
+      setSheetMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
       return list;
     },
     staleTime: STALE_TIME,
@@ -410,6 +426,7 @@ export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
   useBoardsQuery();
   useDocsQuery();
+  useSheetsQuery();
   useUserNotebooksQuery();
 }
 
