@@ -10,6 +10,7 @@ import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerat
 import { QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
 import { config } from '../config.ts';
+import { describeFetchError, isConnectionError } from '../utils/errors.ts';
 
 let client: QdrantClient | null = null;
 
@@ -52,7 +53,11 @@ export async function getQdrantClient(): Promise<QdrantClient> {
     await client.getCollections();
     console.error('[Qdrant] Verbindung hergestellt');
   } catch (err) {
-    console.error('[Qdrant] Verbindungsfehler:', err instanceof Error ? err.message : String(err));
+    // Surface err.cause so logs say WHY (ENOTFOUND / ECONNREFUSED / connect
+    // timeout / TLS) instead of the opaque "fetch failed". Reset the cached
+    // client so the next call retries the handshake instead of reusing a dead one.
+    client = null;
+    console.error(`[Qdrant] Verbindungsfehler: ${describeFetchError(err)}`);
     throw err;
   }
 
@@ -145,6 +150,10 @@ async function performTextSearch(
         matchType: variant === searchTerm.toLowerCase() ? 'exact' : 'variant',
       };
     } catch (err) {
+      // A connection failure means the whole index is unreachable — do NOT
+      // swallow it as an empty variant (that masks an outage as "no results").
+      // Let it propagate so the tool returns a real error to the user.
+      if (isConnectionError(err)) throw err;
       console.error(
         `[TextSearch] Variant "${variant}" failed:`,
         err instanceof Error ? err.message : String(err)
@@ -194,7 +203,8 @@ async function performTextSearch(
             with_vector: false,
           });
           return tokRes.points || [];
-        } catch {
+        } catch (err) {
+          if (isConnectionError(err)) throw err;
           return [];
         }
       });
@@ -362,12 +372,10 @@ export async function hybridSearchCollection(
     ? applyRRF(mappedVectorResults, typedTextResults, limit * 2, rrfK)
     : applyWeightedCombinationLocal(mappedVectorResults, typedTextResults, vW, tW, limit * 2);
 
-  // Apply quality gate
-  combinedResults = applyQualityGateLocal(combinedResults, hasTextMatches);
-
-  // Normalize RRF scores to vector similarity scale for meaningful display.
-  // RRF produces scores ~0.01-0.04 (ranking-based), while vector scores are ~0.3-0.9
-  // (cosine similarity). Without normalization, RRF results display as "2-4%" relevance.
+  // Normalize RRF scores to the vector-similarity scale BEFORE the quality gate.
+  // RRF produces ranking-based scores ~0.01-0.04; the quality gate's minFinalScore
+  // (0.35) is on the cosine scale, so gating raw RRF scores drops every hit and
+  // hybrid search returns 0 for any query with text matches.
   if (shouldUseRRF && combinedResults.length > 0 && mappedVectorResults.length > 0) {
     const topVectorScore = mappedVectorResults[0]!.score;
     const topRRFScore = combinedResults[0]!.score;
@@ -382,6 +390,9 @@ export async function hybridSearchCollection(
       );
     }
   }
+
+  // Apply quality gate (on normalized, cosine-scale scores)
+  combinedResults = applyQualityGateLocal(combinedResults, hasTextMatches);
 
   // Apply quality-weighted scoring
   const finalResults = combinedResults.slice(0, limit).map((result) => {
@@ -563,6 +574,7 @@ export async function getFieldValueCounts(
       .sort((a, b) => b.count - a.count)
       .slice(0, maxValues);
   } catch (err) {
+    if (isConnectionError(err)) throw err;
     console.error(
       `[Qdrant] Error fetching value counts for ${fieldName}:`,
       err instanceof Error ? err.message : String(err)

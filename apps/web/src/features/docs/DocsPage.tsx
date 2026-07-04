@@ -55,6 +55,7 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { getBoardTemplate } from '../boards/boardTemplates';
+import { getPresentationTemplate } from '../presentations/presentationTemplates';
 import { getSheetTemplate } from '../sheets/sheetTemplates';
 
 import { BoardCard } from './BoardCard';
@@ -380,6 +381,36 @@ function DocumentsContent() {
     [createDocumentMutation, navigate]
   );
 
+  const handleCreatePresentation = useCallback(async () => {
+    try {
+      const newDoc = await createDocumentMutation.mutateAsync({
+        title: 'Neue Präsentation',
+        documentSubtype: 'presentations',
+      });
+      adapter.navigateToDocument(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create presentation:', err);
+    }
+  }, [createDocumentMutation, adapter]);
+
+  const handleCreatePresentationFromTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getPresentationTemplate(templateId);
+      if (!template) return;
+      try {
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title: template.defaultTitle,
+          documentSubtype: 'presentations',
+        });
+        // SPA navigation carries the seed slides via nav-state into the editor.
+        navigate(`/docs/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
+      } catch (err) {
+        console.error('Failed to create presentation from template:', err);
+      }
+    },
+    [createDocumentMutation, navigate]
+  );
+
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
       const title = boardType === 'whiteboard' ? 'Neues Whiteboard' : 'Neues Board';
@@ -475,6 +506,8 @@ function DocumentsContent() {
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
           onCreateSheet={() => void handleCreateSheet()}
           onCreateSheetFromTemplate={handleCreateSheetFromTemplate}
+          onCreatePresentation={() => void handleCreatePresentation()}
+          onCreatePresentationFromTemplate={handleCreatePresentationFromTemplate}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 

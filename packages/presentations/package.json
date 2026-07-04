@@ -1,0 +1,45 @@
+{
+  "name": "@gruenerator/presentations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./present": {
+      "types": "./src/components/PresentMode.tsx",
+      "default": "./src/components/PresentMode.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gruenerator/contracts": "workspace:*",
+    "@revealjs/react": "^0.2.1",
+    "katex": "^0.16.11",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "reveal.js": "^6.0.1",
+    "yjs": "^13.6.31"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

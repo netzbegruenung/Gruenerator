@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
+import { SHEET_CHART_COMPONENT_KEY } from '../ai/applySheetOperations.js';
 import { attachYjsBridge, type AwarenessLike } from '../collab/bridge.js';
 import { attachSelectionPresence } from '../collab/presence.js';
 import { createUniverInstance } from '../lib/createUniverInstance.js';
+
+import { SheetChartFloat } from './SheetChartFloat.js';
 
 import './SheetsEditor.css';
 
@@ -51,6 +54,9 @@ export function SheetsEditor({
     if (!container) return;
 
     const { univer, univerAPI } = createUniverInstance({ container, darkMode });
+    // Register the chart component BEFORE the bridge loads the snapshot, so a
+    // workbook that already contains charts renders them on first paint.
+    univerAPI.registerComponent(SHEET_CHART_COMPONENT_KEY, SheetChartFloat);
     const bridge = attachYjsBridge({
       univerAPI,
       ydoc,

@@ -1,7 +1,6 @@
-import { COLLECTIONS } from '@gruenerator/shared/search/collections';
 import { z } from 'zod';
 
-import { COLLECTION_KEYS } from '../config.ts';
+import { config } from '../config.ts';
 import { generateEmbedding } from '../embeddings.ts';
 import { getCachedEmbedding, cacheEmbedding } from '../utils/cache.ts';
 import { type Country } from '../utils/localization.ts';
@@ -25,10 +24,7 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
       .array(
         z.object({
           country: z.enum(['DE', 'AT']).describe('Land'),
-          collection: z
-            .enum(COLLECTION_KEYS as [string, ...string[]])
-            .optional()
-            .describe('Optionale Sammlung'),
+          collection: z.string().optional().describe('Optionale Sammlung'),
           label: z.string().optional().describe('Optionales Label für diese Quelle'),
         })
       )
@@ -65,7 +61,7 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
         const label =
           source.label ||
           (source.collection
-            ? COLLECTIONS[source.collection]?.displayName || source.collection
+            ? config.collections[source.collection]?.displayName || source.collection
             : source.country === 'DE'
               ? 'Deutschland'
               : 'Österreich');
@@ -88,6 +84,7 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
             resultsCount: (result.resultsCount as number) || 0,
             results: result.results || [],
             error: result.error ? (result.message as string) : null,
+            errorType: result.error ? ((result.errorType as string) ?? null) : null,
           };
         } catch (err) {
           return {
@@ -97,17 +94,38 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
             resultsCount: 0,
             results: [],
             error: err instanceof Error ? err.message : String(err),
+            errorType: null,
           };
         }
       })
     );
 
+    const failedSources = sourceResults.filter((s) => s.error);
+    const allEmpty = sourceResults.every((s) => s.resultsCount === 0);
+    const emptyButOk = allEmpty && failedSources.length === 0;
+
     return {
       query,
       comparison: sourceResults,
+      ...(emptyButOk
+        ? {
+            hint: 'Keine Quelle lieferte Treffer über der Relevanzschwelle. Breiteren/anderen Suchbegriff wählen oder einzeln mit gruenerator_search (searchMode "text") gegenprüfen.',
+          }
+        : {}),
+      ...(failedSources.length > 0
+        ? {
+            partial: true,
+            failedSources: failedSources.map((s) => ({
+              label: s.label,
+              error: s.error,
+              ...(s.errorType ? { errorType: s.errorType } : {}),
+            })),
+          }
+        : {}),
       metadata: {
         responseTimeMs: Date.now() - startTime,
         sourcesCompared: sources.length,
+        sourcesFailed: failedSources.length,
       },
     };
   },

@@ -63,6 +63,8 @@ import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSh
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import presentationExportRouter from './routes/presentations/presentationExportController.js';
+import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
@@ -119,6 +121,7 @@ import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
+import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -356,6 +359,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
   // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
   app.use('/api/v1/notebooks', v1NotebooksRouter);
+  // Public MCP collection catalog (unauthenticated, rate-limited).
+  app.use('/api/v1/collections', publicReadLimiter, v1CollectionsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.
@@ -660,6 +665,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Sheets (Univer): only the AI planning route — CRUD/share run via /api/docs/*.
   app.use('/api/sheets', requireAuth, authenticatedReadLimiter);
   mountSheetsContractRouter(app);
+  // Presentations (reveal.js): AI planning route + PPTX export — CRUD/share via /api/docs/*.
+  app.use('/api/presentations', requireAuth, authenticatedReadLimiter);
+  mountPresentationsContractRouter(app);
+  app.use('/api/presentations', presentationExportRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);

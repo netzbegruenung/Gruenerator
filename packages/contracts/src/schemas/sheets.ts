@@ -18,7 +18,25 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     /** A1 notation, e.g. "A1:C3". Strings starting with '=' are formulas. */
     range: z.string(),
     values: z.array(z.array(sheetCellValueSchema)),
+    /**
+     * Force every written cell to TEXT identity (Univer CellValueType.FORCE_STRING).
+     * Use for IDs, ZIP codes, leading-zero codes, phone numbers, or scores like
+     * "2-2" that must NOT auto-convert to a number or date. Omit for normal data.
+     */
+    asText: z.boolean().nullish(),
     /** Target sheet name; active sheet when omitted. */
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_number_format'),
+    /** A1 notation, e.g. "B2:B20". */
+    range: z.string(),
+    /**
+     * Excel/Univer number-format pattern applied to the range (display only —
+     * never changes the stored logical value). Examples: "#,##0.00 €" (currency),
+     * "0%" (percent), "yyyy-MM-dd" (date), "#,##0" (thousands), "@" (text).
+     */
+    pattern: z.string(),
     sheet: z.string().nullish(),
   }),
   z.object({
@@ -44,6 +62,57 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('clear_range'),
+    range: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('add_chart'),
+    /**
+     * A1 data range including header row and label column, e.g. "A1:D5" where
+     * row 1 = series headers and column A = category labels.
+     */
+    range: z.string(),
+    chartType: z.enum(['bar', 'line', 'area', 'pie', 'donut']),
+    title: z.string().nullish(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('insert_rows'),
+    /** 1-based row number; `count` new rows are inserted BEFORE it (existing
+     * rows shift down). "unter Zeile 5 einfügen" → at = 6. */
+    at: z.number().int().positive(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('delete_rows'),
+    /** 1-based row number of the first row to delete. */
+    at: z.number().int().positive(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('insert_columns'),
+    /** Column letter; `count` new columns are inserted BEFORE it. */
+    at: z.string(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('delete_columns'),
+    /** Column letter of the first column to delete. */
+    at: z.string(),
+    count: z.number().int().positive(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('merge_cells'),
+    /** A1 range merged into one cell (top-left value kept). */
+    range: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('unmerge_cells'),
     range: z.string(),
     sheet: z.string().nullish(),
   }),

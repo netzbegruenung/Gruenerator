@@ -29,6 +29,7 @@ VERFÜGBARE TOOLS:
 - artifact: Darstellbares HTML/SVG-Artefakt - "baue eine HTML-Tabelle", "erstelle eine SVG-Grafik", "mach ein HTML-Mockup", "eine Landingpage als HTML" (NICHT für Diagramme aus Daten → das ist chart)
 - save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
 - create_sheet: Eigenständige, rechnende Tabelle (Spreadsheet) erstellen - "erstelle eine Tabelle", "mach ein Spreadsheet", "Budgetplan als Tabelle", "Kalkulation", "Datenliste mit Formeln". ABGRENZUNG: Eine einfache Tabelle IN einem Textdokument ("füge eine Tabelle ins Dokument ein", "als Dokument mit Tabelle") → save_as_doc mit documentSubtype "tabelle". Eine eigenständige Tabelle mit Daten/Formeln/Berechnungen → create_sheet. Eine HTML-Tabelle zum Anschauen → artifact.
+- create_presentation: Präsentation / Foliensatz / Slides / Pitch-Deck erstellen - "erstelle eine Präsentation", "mach Folien", "ein Foliensatz über X", "Präsentation für den Vortrag", "Slides zu Y". ABGRENZUNG: Eine Rede oder ein Vortrag ALS FLIESSTEXT ("schreibe eine Rede", "einen Vortrag als Text") → save_as_doc. Ein strukturierter Foliensatz zum Präsentieren → create_presentation.
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
@@ -73,6 +74,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 3b. Zeichen/Wörter zählen, rechnen, Einheiten umrechnen oder Datumsmathematik? → compute
 4. Als Dokument speichern? → save_as_doc
 4b. Eigenständige rechnende Tabelle/Spreadsheet erstellen? → create_sheet
+4c. Präsentation / Foliensatz / Slides erstellen? → create_presentation
 5. Dokument mit Gruppe teilen? → share_doc
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
@@ -166,7 +168,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -215,6 +217,7 @@ export const NON_SEARCH_INTENTS = new Set([
   'compute',
   'save_as_doc',
   'create_sheet',
+  'create_presentation',
   'modify_doc',
   'modify_board',
   'share_doc',

@@ -69,7 +69,10 @@ describe('attachYjsBridge — template seeding', () => {
     });
 
     expect(calls.createArg?.id).toBe(DOC_ID);
-    expect(calls.createArg?.sheets).toEqual({});
+    // Blank fallback carries exactly one worksheet (Univer renders no grid for
+    // an empty `sheets: {}`), and none of the template's cells.
+    expect(Object.keys(calls.createArg?.sheets ?? {}).length).toBe(1);
+    expect(calls.createArg?.sheets?.['s1']).toBeUndefined();
 
     bridge.dispose();
   });
@@ -97,7 +100,11 @@ describe('attachYjsBridge — template seeding', () => {
     const yMeta = ydoc.getMap(SHEET_YDOC_KEYS.meta);
     yMeta.set(
       SHEET_META_KEYS.snapshot,
-      JSON.stringify({ id: 'stale', sheets: { s9: { id: 's9', name: 'Alt', cellData: {} } } })
+      JSON.stringify({
+        id: 'stale',
+        sheetOrder: ['s9'],
+        sheets: { s9: { id: 's9', name: 'Alt', cellData: {} } },
+      })
     );
     const { api, calls } = makeApi();
 
