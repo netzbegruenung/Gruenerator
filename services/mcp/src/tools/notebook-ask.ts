@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import { config } from '../config.ts';
 
+const TOKEN_HINT =
+  'Der `token` ist der öffentliche Sharing-Token aus einer geteilten Notebook-URL und muss vom Benutzer bzw. dem Share-Link kommen (es gibt keine öffentliche Liste). Eigene Notebooks lassen sich mit Bearer-API-Key über `notebooks_list` auflisten.';
+
 export const notebookAskTool = {
   name: 'gruenerator_notebook_ask',
   description: `Beantwortet Fragen zu Notebook-Sammlungen mit KI-generierten Antworten und Quellenangaben.
@@ -40,7 +43,7 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
     }
 
     if (!token || token.trim().length === 0) {
-      return { error: true, message: 'Token darf nicht leer sein' };
+      return { error: true, message: 'Token darf nicht leer sein', hint: TOKEN_HINT };
     }
 
     const apiUrl = config.api.url;
@@ -69,6 +72,7 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
           return {
             error: true,
             message: `Notebook nicht gefunden. Prüfe den Token: ${token}`,
+            hint: TOKEN_HINT,
           };
         }
         const errorText = await response.text();
