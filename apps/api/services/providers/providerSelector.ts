@@ -162,7 +162,9 @@ export function selectProviderAndModel({
     type === 'sharepic_zitat_pure' ||
     type === 'sharepic_headline' ||
     type === 'sharepic_info' ||
-    type === 'sharepic_veranstaltung'
+    type === 'sharepic_veranstaltung' ||
+    type === 'sharepic_simple' ||
+    type === 'sharepic_slider'
   ) {
     provider = 'mistral';
     model = options.model || 'mistral-medium-2604';
