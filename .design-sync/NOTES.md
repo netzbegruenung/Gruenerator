@@ -3,16 +3,19 @@
 Repo-specific gotchas for syncing `@gruenerator/ui` to claude.ai/design. Read this first on every re-sync.
 
 ## Brand (from the user)
+
 - **Main font: Raleway** (headings). Body text is **PT Sans**. Decorative: **GrueneType** / GrueneTypeNeue (Die Grünen logo type).
 - **Main color: Eucalyptus** (`--secondary-600: #5F8575`, "Eucalyptus") and **green** (`--primary-500: #52907A`). Brand greens like `--klee` (= primary-500) and `--tanne` (dark fir green) come from Die Grünen.
 - The canonical CSS/design system lives in the **main repo** at `apps/web/src/assets/styles/` (Tailwind v4 `@theme` in `index.css`, token values in `common/variables.css`).
 
 ## Build shape
+
 - `@gruenerator/ui` ships **no compiled dist and no build script** — `exports['.'].import = ./src/index.ts` (TS source). The converter bundles that entry directly via esbuild; props come from ts-morph on the `.tsx` source. Pass `--entry ./packages/ui/src/index.ts` (config has `entry` set) — without it, PKG_DIR defaults to `node_modules/@gruenerator/ui`, which doesn't exist (pnpm workspace) → ENOENT.
 
 ## ⚠️ CRITICAL: `--node-modules` must point at the matched-React scratch install
+
 - The repo has a **react/react-dom version mismatch** (one of the "inconsistencies"): root `node_modules/react@19.2.6` but root `node_modules/react-dom@19.2.7` (and `packages/ui/node_modules/react@19.2.7`). React's internals are version-locked, so the converter's `vendorReact` (esbuild-bundles react+react-dom+react-dom/client into `_vendor/react.js` because React 19 has no UMD) throws `Cannot read properties of undefined (reading 'S')` (`ReactSharedInternals`) when it merges `react-dom/client`. The merge is in a `try/catch`, so it fails **silently**: `window.ReactDOM.createRoot` ends up `undefined` → EVERY preview card fails to render. Floor cards mask it (their catch shows the typographic fallback), so the render check still passes — but authored cards show `⚠ ReactDOM.createRoot is not a function`.
-- **Fix:** point `--node-modules` at an isolated scratch install of a *coherent* pair:
+- **Fix:** point `--node-modules` at an isolated scratch install of a _coherent_ pair:
   ```sh
   mkdir -p .design-sync/.cache/vendor-install && cd .design-sync/.cache/vendor-install
   echo '{"name":"ds-vendor-react","private":true}' > package.json
@@ -24,19 +27,26 @@ Repo-specific gotchas for syncing `@gruenerator/ui` to claude.ai/design. Read th
 - **229 exports** counted as components (~80 logical components + their compound sub-parts: AccordionContent, DialogTrigger, SelectItem, etc.). All ship functional + `.d.ts`; meaningful top-level components get authored previews, sub-parts get floor cards (composed inside their parent's preview).
 
 ## CSS — compiled, not shipped
+
 - `@gruenerator/ui` has zero CSS files; it's pure Tailwind v4 utilities referencing theme tokens. The design environment serves `styles.css` statically (no Tailwind build), so we **pre-compile** via `cfg.buildCmd` = `node .design-sync/build-css.mjs` → `packages/ui/dist/ds-styles.css` (gitignored), wired as `cfg.cssEntry`. **Run build-css before package-build on every sync** (buildCmd handles this).
 - build-css.mjs starts from `apps/web/.../index.css` and tightens to ui: (1) rewrites `@import url('x')` → bare `@import "x"` (Tailwind only inlines the bare form, else token values go missing); (2) keeps only foundational imports (tailwindcss + common/{reset,variables,typography,global}.css), dropping app-chrome + other-package CSS; (3) `@import "tailwindcss" source(none)` + a single `@source packages/ui/src` so Tailwind emits ONLY ui's classes (without source(none) it auto-scans apps/web and leaks classes like `bg-[var(--tanne)]`); (4) strips `@font-face` (fonts ship via cfg.extraFonts).
 
 ## Fonts
+
 - `cfg.extraFonts` → `../../apps/web/src/assets/styles/common/typography.css`; converter parses its @font-face and copies the woff2 from `apps/web/src/assets/fonts/` into the bundle `fonts/` (14 @font-face rules).
 
 ## Known inconsistencies (the user confirmed "there may be inconsistencies")
+
 - `--tanne` is referenced by some apps/web feature files via `[var(--tanne)]` but **defined nowhere in the repo** — dangling in the app too. Scoped out by `source(none)` (only ui classes ship), so not in the DS stylesheet. Do NOT invent a value to "fix" it — sync faithfully.
 
 ## Known render warns (triaged — re-syncs check against this list)
-- `[TOKENS_MISSING]` ~37 vars: mostly runtime-set (`--radix-*` set by Radix, `--skeleton-width` set inline by Skeleton) or legacy app vars. Non-blocking; verify a rendered preview before chasing any specific one.
+
+- `[TOKENS_MISSING]` (13 as of 2026-07-03, was ~37): runtime-set vars (`--radix-*`, `--skeleton-width`, `--border-beam-width`, `--color-from/to`) or legacy app vars (`--font-color-subtle`, `--sidebar-width`, `--radius`). Non-blocking; verify a rendered preview before chasing any specific one.
+- `[RENDER_THIN]` 4 components, all legitimate: ResponsiveMenuSection (nameOnly — sub-part, statically unrenderable per its parent's note), Skeleton (grey bars only by design), Toaster (few small toasts), TweetXIcon (an icon).
+- `[CSS_RUNTIME]` "\_ds_bundle.css is the runtime-styles stub" is a RED FLAG here, not expected: it means `dist/ds-styles.css` was missing, i.e. **`cfg.buildCmd` was not run before the converter**. Fix: `node .design-sync/build-css.mjs`, then re-run the driver. (Learned 2026-07-03: a driver run without it produced completely UNSTYLED captures — serif fonts, native buttons.)
 
 ## Component authoring learnings (folded from waves)
+
 - **`max-w-{xs,sm,md,lg,xl}` resolve to `--spacing-*` (~8–14px), NOT container widths.** The repo defines named spacing tokens (`--spacing-sm` etc.) AND a container scale (`--container-sm`) in `@theme`, and Tailwind v4 prefers the spacing namespace for `max-w-*` — so `.max-w-sm { max-width: var(--spacing-sm) }`. This is **faithful to the web app** (its compiled CSS is identical — verified), so it is NOT fixed in the bundle. It only bites at the `sm:` breakpoint (≥640px viewport). For previews/compositions that hit it, set an explicit inline `width`/`maxWidth` (e.g. Sheet, EmptyHeader). The conventions header tells the design agent to use `max-w-[Npx]`/inline width for container widths.
 - **Overlays render via controlled `open`/`defaultOpen`** (Select/Combobox/DropdownMenu/ContextMenu/Popover/Tooltip/AlertDialog/Sheet) — already pinned `cardMode:single`. Tooltip needs `<TooltipProvider>`. Combobox is **Base UI** (`@base-ui/react`), not Radix: `open` + an `items` array on the root, `ComboboxInput` is the anchor. Popover exports only Popover/Content/Trigger/Anchor (no Header/Title sub-parts).
 - **LiteTooltip** is hover-only (internal `useState`, no `open` prop) — its bubble can't render statically; preview shows resting triggers. No override.
@@ -55,6 +65,7 @@ Repo-specific gotchas for syncing `@gruenerator/ui` to claude.ai/design. Read th
 - **JSX German quotes**: use matched `„…"` pairs; a lone `"` inside a double-quoted attribute breaks esbuild.
 
 ## Screen templates (workplace) — the "Screens" group
+
 - 6 full-screen/section templates recreating `apps/web`'s `WorkplacePage` and its sections, live in `.design-sync/screens/` and ship as the **`screens`** card group: `WorkplacePage` (full home), `WorkplaceCreator`, `WorkplaceRecent`, `WorkplaceNotebooks`, `WorkplaceTools`, `WorkplaceFavorites`.
 - **Why recreations, not the real components:** the actual workplace feature components (CreatorSection, RecentlyCreatedSection, NotebooksSection, ToolsSection…) are app-coupled (react-router, @tanstack/react-query + apiClient live data fetching, Zustand stores, @gruenerator/chat / NotebookEditor) — they can't render in the static design env. The templates are self-contained, built ONLY from synced `@gruenerator/ui` primitives + inline-styled layout.
 - **Wiring:** `cfg.extraEntries: ["../../.design-sync/screens/index.ts"]` merges them into `window.GrueneratorUI`; `cfg.componentSrcMap` registers each as a component (discovery only reads the main entry, so extraEntries exports need this); `cfg.docsMap` points each at `.design-sync/screens/docs/<Name>.md` whose `category: Screens` frontmatter sets the card group; `cfg.overrides.<Name>` pins `cardMode:single` + a viewport.
@@ -62,6 +73,15 @@ Repo-specific gotchas for syncing `@gruenerator/ui` to claude.ai/design. Read th
 - **Authoring gotchas:** `CardGrid columns="3"` collapses to 2 columns at the card viewport (responsive) — use an explicit inline `gridTemplateColumns: repeat(3, minmax(0,1fr))`. `VideoCard` poster needs a bounded cell (`aspect="square"` in a grid cell works); `ArticleCard.publishedAt` is parsed as a date → pass an ISO date (`"2026-06-24"`), not relative German text ("vor 2 Stunden" → "Invalid Date").
 - **To add more screens:** drop `<Name>.tsx` in `screens/` (import from `../../packages/ui/src/index`), export it from `screens/index.ts`, add `componentSrcMap` + `docsMap` (+ stub doc with `category: Screens`) + `overrides` entries, author `previews/<Name>.tsx` (`import { <Name> } from '@gruenerator/ui'`), rebuild.
 
+## Re-sync mechanics (learned 2026-07-03)
+
+- **`cfg.buildCmd` is an instruction to Claude, not automatic**: run `node .design-sync/build-css.mjs` YOURSELF before every driver run. The converter only consumes `dist/ds-styles.css`; when it's missing it silently ships a stub styles.css (see the CSS_RUNTIME red-flag note above).
+- **No playwright browser download needed**: both `package-validate.mjs` and `package-capture.mjs` honor `DS_CHROMIUM_PATH`. Use `DS_CHROMIUM_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"` on this machine (no ms-playwright cache exists; repo's `playwright` npm package is importable).
+- **Write the fetched `_ds_sync.json` anchor from the REPO ROOT** — a stale shell cwd (e.g. left in `.cache/vendor-install` after the scratch install) silently writes it to the wrong path and the driver reports `anchor: "unreadable"` → everything re-verifies as `added`.
+- The claude.ai project also contains app/user content NOT owned by the sync (`templates/`, `uploads/`, `_ds_manifest.json`, `support.js`, `.thumbnail`, `_preview/*.png`) — never delete those during reconciliation.
+- Floor-card components as of 2026-07-03: **ChatChart, MasonryGrid, MasonryItem** (new exports; previews authorable on any later re-sync). GRID_OVERFLOW fixed via `cardMode: column` for FeatureCard, VideoCard, WordCloud (in config).
+
 ## Re-sync risks
+
 - The screen templates (`.design-sync/screens/`) recreate app UI by hand — if the real WorkplacePage layout/sections change, these drift. They're decorative reference templates, not generated from the app, so re-syncs won't auto-update them.
 - The compiled `ds-styles.css` is regenerated from apps/web's live theme — if the app's `index.css`/`variables.css` change, the DS stylesheet changes. build-css.mjs's import keep-list and the `source(none)` scoping are the assumptions; revisit if app styling is restructured.
