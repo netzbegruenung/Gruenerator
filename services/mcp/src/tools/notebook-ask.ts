@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { config } from '../config.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 
 const TOKEN_HINT =
   'Der `token` ist der öffentliche Sharing-Token aus einer geteilten Notebook-URL und muss vom Benutzer bzw. dem Share-Link kommen (es gibt keine öffentliche Liste). Eigene Notebooks lassen sich mit Bearer-API-Key über `notebooks_list` auflisten.';
@@ -79,6 +80,7 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
         return {
           error: true,
           message: `API-Fehler ${response.status}: ${errorText.slice(0, 200)}`,
+          ...(response.status === 401 || response.status === 403 ? { hint: TOKEN_HINT } : {}),
         };
       }
 
@@ -97,11 +99,21 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
         `[NotebookAsk] Answer generated (${String(data.answer || '').length} chars, ${responseTimeMs}ms)`
       );
 
+      const citations = (data.citations as unknown[]) || [];
+      // In fast mode the QA service returns no citations by design, so empty
+      // citations there is expected — only flag it as a "no matching docs" signal
+      // in detailed mode.
+      const noCitationsSignal = mode !== 'fast' && citations.length === 0;
       return {
         answer: data.answer,
-        citations: data.citations || [],
+        citations,
         sources: data.sources || [],
         allSources: data.allSources || [],
+        ...(noCitationsSignal
+          ? {
+              hint: 'Antwort ohne Quellenbelege — das Notebook enthält evtl. keine zur Frage passenden Dokumente. Frage umformulieren oder ein anderes Notebook prüfen.',
+            }
+          : {}),
         metadata: {
           ...(data.metadata as Record<string, unknown>),
           responseTimeMs,
@@ -110,11 +122,14 @@ Notebooks sind benutzerdefinierte Dokumentsammlungen im Grünerator. Dieses Tool
         },
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[NotebookAsk] Error:', message);
+      const { detail, isConnection } = classifyError(err);
+      console.error('[NotebookAsk] Error:', detail);
+      if (isConnection) {
+        return connectionErrorResponse(detail, {}, 'Die Notebook-API');
+      }
       return {
         error: true,
-        message: `Verbindungsfehler: ${message}`,
+        message: `Verbindungsfehler: ${detail}`,
       };
     }
   },

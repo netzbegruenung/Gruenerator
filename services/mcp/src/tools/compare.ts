@@ -84,6 +84,7 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
             resultsCount: (result.resultsCount as number) || 0,
             results: result.results || [],
             error: result.error ? (result.message as string) : null,
+            errorType: result.error ? ((result.errorType as string) ?? null) : null,
           };
         } catch (err) {
           return {
@@ -93,20 +94,32 @@ Jede Quelle wird separat durchsucht und die Ergebnisse nebeneinander zurückgege
             resultsCount: 0,
             results: [],
             error: err instanceof Error ? err.message : String(err),
+            errorType: null,
           };
         }
       })
     );
 
     const failedSources = sourceResults.filter((s) => s.error);
+    const allEmpty = sourceResults.every((s) => s.resultsCount === 0);
+    const emptyButOk = allEmpty && failedSources.length === 0;
 
     return {
       query,
       comparison: sourceResults,
+      ...(emptyButOk
+        ? {
+            hint: 'Keine Quelle lieferte Treffer über der Relevanzschwelle. Breiteren/anderen Suchbegriff wählen oder einzeln mit gruenerator_search (searchMode "text") gegenprüfen.',
+          }
+        : {}),
       ...(failedSources.length > 0
         ? {
             partial: true,
-            failedSources: failedSources.map((s) => ({ label: s.label, error: s.error })),
+            failedSources: failedSources.map((s) => ({
+              label: s.label,
+              error: s.error,
+              ...(s.errorType ? { errorType: s.errorType } : {}),
+            })),
           }
         : {}),
       metadata: {
