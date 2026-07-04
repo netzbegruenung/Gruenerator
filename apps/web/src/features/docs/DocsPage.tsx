@@ -171,6 +171,8 @@ function DocumentsContent() {
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
+  // Univer spreadsheets — gated until the editor package ships (PR 3).
+  const sheetsEnabled = import.meta.env.VITE_ENABLE_SHEETS === 'true';
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
 
@@ -347,6 +349,18 @@ function DocumentsContent() {
     [updateBoard]
   );
 
+  const handleCreateSheet = useCallback(async () => {
+    try {
+      const newDoc = await createDocumentMutation.mutateAsync({
+        title: 'Neue Tabelle',
+        documentSubtype: 'sheets',
+      });
+      adapter.navigateToDocument(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create sheet:', err);
+    }
+  }, [createDocumentMutation, adapter]);
+
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
       const title = boardType === 'whiteboard' ? 'Neues Whiteboard' : 'Neues Board';
@@ -440,6 +454,7 @@ function DocumentsContent() {
           onShowGallery={() => setShowGallery(true)}
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
+          {...(sheetsEnabled ? { onCreateSheet: () => void handleCreateSheet() } : {})}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 
