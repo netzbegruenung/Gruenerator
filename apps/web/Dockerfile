@@ -29,6 +29,7 @@ COPY packages/sheets/package.json ./packages/sheets/
 COPY packages/wolke/package.json ./packages/wolke/
 COPY packages/sites/package.json ./packages/sites/
 COPY packages/sites-design/package.json ./packages/sites-design/
+COPY packages/presentations/package.json ./packages/presentations/
 
 COPY apps/web/package.json ./apps/web/
 
@@ -50,6 +51,7 @@ COPY packages/sheets ./packages/sheets
 COPY packages/wolke ./packages/wolke
 COPY packages/sites ./packages/sites
 COPY packages/sites-design ./packages/sites-design
+COPY packages/presentations ./packages/presentations
 
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
