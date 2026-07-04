@@ -73,11 +73,11 @@ DE = Deutschland, AT = Österreich`,
       const searchHint =
         typeof searchResult.hint === 'string'
           ? searchResult.hint
-          : 'Keine Treffer über der Relevanzschwelle.';
+          : 'Keine Treffer über der Relevanzschwelle. Versuche breitere/andere Begriffe oder searchMode "text" für exakte Begriffe.';
       return {
         answer: 'Zu dieser Frage konnten leider keine relevanten Quellen gefunden werden.',
         sources: [],
-        hint: `${searchHint} Weitere Optionen: das jeweils andere Land (${country === 'DE' ? 'AT' : 'DE'}) probieren, oder gruenerator_search mit searchMode "text" für exakte Begriffe.`,
+        hint: `${searchHint} Alternativ das jeweils andere Land (${country === 'DE' ? 'AT' : 'DE'}) probieren.`,
         metadata: {
           responseTimeMs: Date.now() - startTime,
           collectionsSearched: collection ? [collection] : getDefaultSearchCollections(country),

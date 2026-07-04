@@ -9,18 +9,28 @@ interface ApiCallOptions {
 
 /**
  * Standardized error response for the notebooks_* tools, with an actionable hint
- * keyed on the HTTP status: auth (401/403) → check key/scope, other 4xx → wrong
- * identifier (list valid ones), 5xx/network → temporary, retry.
+ * keyed on the HTTP status: status 0 → unreachable/misconfigured, 5xx → temporary,
+ * auth (401/403) → check key/scope, other 4xx → wrong identifier (list valid ones).
+ *
+ * `suggestList` is false for `notebooks_list` itself so a failed list call is not
+ * told to "recover via notebooks_list" (self-referential).
  */
-export function notebooksApiError(status: number, message: string): Record<string, unknown> {
+export function notebooksApiError(
+  status: number,
+  message: string,
+  suggestList = true
+): Record<string, unknown> {
+  const listTip = suggestList ? ' Erlaubte Landesverbände liefert `notebooks_list`.' : '';
   const hint =
-    status === 0 || status >= 500
-      ? 'Vorübergehendes Server- oder Verbindungsproblem — in ein paar Minuten erneut versuchen.'
-      : status === 401 || status === 403
-        ? 'API-Key fehlt, ist ungültig oder deckt diesen Landesverband nicht ab. Erlaubte Landesverbände liefert `notebooks_list`.'
-        : status >= 400
-          ? 'Gültige `landesverband`-Codes und Notebooks findest du über `notebooks_list`.'
-          : null;
+    status === 0
+      ? 'MCP-Server erreicht die Grünerator-API nicht — Netzwerkproblem oder GRUENERATOR_API_URL nicht gesetzt. Server-Konfiguration prüfen.'
+      : status >= 500
+        ? 'Vorübergehendes Server-Problem — in ein paar Minuten erneut versuchen.'
+        : status === 401 || status === 403
+          ? `API-Key fehlt, ist ungültig oder deckt diesen Landesverband nicht ab.${listTip}`
+          : status >= 400 && suggestList
+            ? 'Gültige `landesverband`-Codes und Notebooks findest du über `notebooks_list`.'
+            : null;
   return { error: true, status, message, ...(hint ? { hint } : {}) };
 }
 
