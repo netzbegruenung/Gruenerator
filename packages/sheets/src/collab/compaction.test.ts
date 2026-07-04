@@ -1,40 +1,67 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
-import { SHEET_META_KEYS, SHEET_YDOC_KEYS, type SheetMutationEntry } from '../lib/ydocSchema.js';
-import { isCompactionLeader, maxSeq, nextSeq, pruneCount, tailEntries } from './compaction.js';
+import {
+  SHEET_META_KEYS,
+  SHEET_YDOC_KEYS,
+  coverEntry,
+  coveredPrefixCount,
+  isEntryCovered,
+  mergeVectors,
+  uncoveredEntries,
+  type SheetMutationEntry,
+  type SnapshotVector,
+} from '../lib/ydocSchema.js';
+import { isCompactionLeader } from './compaction.js';
 
-const entry = (seq: number, clientId = 1): SheetMutationEntry => ({
-  seq,
+const entry = (clientId: number, clientSeq: number): SheetMutationEntry => ({
   clientId,
+  clientSeq,
   id: 'sheet.mutation.set-range-values',
-  params: { seq },
+  params: { clientId, clientSeq },
   ts: 0,
 });
 
-describe('compaction helpers', () => {
-  it('nextSeq continues after the highest log entry', () => {
-    expect(nextSeq([entry(3), entry(7), entry(5)], -1)).toBe(8);
+describe('version-vector helpers', () => {
+  it('coverEntry raises the per-author high-water', () => {
+    const v: SnapshotVector = {};
+    coverEntry(v, entry(1, 0));
+    coverEntry(v, entry(1, 3));
+    coverEntry(v, entry(2, 1));
+    expect(v).toEqual({ '1': 3, '2': 1 });
   });
 
-  it('nextSeq falls back to snapshotSeq + 1 on an empty log', () => {
-    expect(nextSeq([], 41)).toBe(42);
+  it('isEntryCovered respects per-author watermarks', () => {
+    const v: SnapshotVector = { '1': 2 };
+    expect(isEntryCovered(entry(1, 2), v)).toBe(true);
+    expect(isEntryCovered(entry(1, 3), v)).toBe(false);
+    expect(isEntryCovered(entry(2, 0), v)).toBe(false); // author unknown → uncovered
   });
 
-  it('tailEntries keeps only entries newer than the snapshot', () => {
-    const tail = tailEntries([entry(1), entry(2), entry(3)], 2);
-    expect(tail.map((e) => e.seq)).toEqual([3]);
+  it('uncoveredEntries keeps only what the vector does not cover', () => {
+    const entries = [entry(1, 0), entry(1, 1), entry(2, 0)];
+    const tail = uncoveredEntries(entries, { '1': 0 });
+    expect(tail).toEqual([entry(1, 1), entry(2, 0)]);
   });
 
-  it('maxSeq covers concurrent duplicate seqs', () => {
-    expect(maxSeq([entry(6, 1), entry(6, 2)], 5)).toBe(6);
+  it('coveredPrefixCount stops at the first uncovered entry (failed replay is never pruned)', () => {
+    // Author 2's entry replay failed → not in the vector; it and everything
+    // after it must survive pruning even though author 1's later entry IS covered.
+    const entries = [entry(1, 0), entry(2, 0), entry(1, 1)];
+    expect(coveredPrefixCount(entries, { '1': 1 })).toBe(1);
   });
 
-  it('pruneCount only counts the covered prefix', () => {
-    expect(pruneCount([entry(1), entry(2), entry(9)], 2)).toBe(2);
+  it('mergeVectors takes the higher watermark per author', () => {
+    expect(mergeVectors({ '1': 2, '2': 5 }, { '1': 4, '3': 1 })).toEqual({
+      '1': 4,
+      '2': 5,
+      '3': 1,
+    });
   });
+});
 
-  it('elects the lowest writable clientID as leader', () => {
+describe('leader election', () => {
+  it('elects the lowest writable clientID', () => {
     const states = new Map<number, Record<string, unknown> | null>([
       [7, { canWrite: true }],
       [3, { canWrite: false }],
@@ -45,7 +72,7 @@ describe('compaction helpers', () => {
     expect(isCompactionLeader(3, states)).toBe(false);
   });
 
-  it('read-only-only rooms elect nobody', () => {
+  it('elects nobody when no client declares write access', () => {
     const states = new Map<number, Record<string, unknown> | null>([[3, { canWrite: false }]]);
     expect(isCompactionLeader(3, states)).toBe(false);
   });
@@ -57,71 +84,79 @@ describe('mutation log across two Y.Docs', () => {
     Y.applyUpdate(a, Y.encodeStateAsUpdate(b, Y.encodeStateVector(a)));
   };
 
-  it('late joiner sees snapshot + tail after compaction prunes the log', () => {
+  it('late joiner sees snapshot vector + uncovered tail after compaction prunes the log', () => {
     const docA = new Y.Doc();
     const logA = docA.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations);
     const metaA = docA.getMap<unknown>(SHEET_YDOC_KEYS.meta);
 
     docA.transact(() => {
       metaA.set(SHEET_META_KEYS.snapshot, JSON.stringify({ id: 'doc-1' }));
-      metaA.set(SHEET_META_KEYS.snapshotSeq, -1);
-      for (let i = 0; i < 5; i++) logA.push([entry(i)]);
+      metaA.set(SHEET_META_KEYS.snapshotVector, {});
+      for (let i = 0; i < 5; i++) logA.push([entry(1, i)]);
     });
 
-    // Leader compacts: snapshot folds seq 0..4, prunes them, then two more edits land.
+    // Leader applied author-1 seq 0..4, snapshots + prunes the covered prefix.
+    const vector: SnapshotVector = { '1': 4 };
     docA.transact(() => {
       metaA.set(SHEET_META_KEYS.snapshot, JSON.stringify({ id: 'doc-1', upTo: 4 }));
-      metaA.set(SHEET_META_KEYS.snapshotSeq, 4);
-      logA.delete(0, pruneCount(logA.toArray(), 4));
+      metaA.set(SHEET_META_KEYS.snapshotVector, vector);
+      logA.delete(0, coveredPrefixCount(logA.toArray(), vector));
     });
-    logA.push([entry(5), entry(6)]);
+    logA.push([entry(1, 5), entry(1, 6)]);
 
     const docB = new Y.Doc();
     sync(docA, docB);
     const logB = docB.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations);
     const metaB = docB.getMap<unknown>(SHEET_YDOC_KEYS.meta);
 
-    const snapshotSeq = metaB.get(SHEET_META_KEYS.snapshotSeq) as number;
-    expect(snapshotSeq).toBe(4);
+    const loadedVector = metaB.get(SHEET_META_KEYS.snapshotVector) as SnapshotVector;
+    expect(loadedVector).toEqual({ '1': 4 });
     expect(JSON.parse(metaB.get(SHEET_META_KEYS.snapshot) as string)).toEqual({
       id: 'doc-1',
       upTo: 4,
     });
-    expect(tailEntries(logB.toArray(), snapshotSeq).map((e) => e.seq)).toEqual([5, 6]);
+    expect(uncoveredEntries(logB.toArray(), loadedVector).map((e) => e.clientSeq)).toEqual([5, 6]);
   });
 
-  it('concurrent appends from two clients all survive a merge', () => {
+  it('concurrent appends from two authors keep distinct identities (no seq tie)', () => {
     const docA = new Y.Doc();
     const docB = new Y.Doc();
     docA.getArray(SHEET_YDOC_KEYS.mutations);
     docB.getArray(SHEET_YDOC_KEYS.mutations);
     sync(docA, docB);
 
-    docA.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations).push([entry(0, 1)]);
-    docB.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations).push([entry(0, 2)]);
+    docA.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations).push([entry(1, 0)]);
+    docB.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations).push([entry(2, 0)]);
     sync(docA, docB);
 
     const a = docA.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations).toArray();
     const b = docB.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations).toArray();
     expect(a).toHaveLength(2);
-    expect(a).toEqual(b);
-    expect(nextSeq(a, -1)).toBe(1);
+    expect(a).toEqual(b); // both docs converge to the same order
+    // Both survive an uncovered check — neither shadows the other on seq
+    // (order is Yjs-deterministic but not asserted here).
+    expect(
+      uncoveredEntries(a, {})
+        .map((e) => `${e.clientId}:${e.clientSeq}`)
+        .sort()
+    ).toEqual(['1:0', '2:0']);
   });
 
-  it('prune concurrent with a remote append never drops the new entry', () => {
-    const docA = new Y.Doc();
-    const docB = new Y.Doc();
-    const logA = docA.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations);
-    const logB = docB.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations);
-    logA.push([entry(0), entry(1)]);
-    sync(docA, docB);
+  it("a leader that failed to apply a peer's entry does not prune it", () => {
+    const doc = new Y.Doc();
+    const log = doc.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations);
+    log.push([entry(1, 0), entry(2, 0), entry(1, 1)]);
 
-    // A prunes 0..1 while B concurrently appends seq 2.
-    logA.delete(0, 2);
-    logB.push([entry(2, 2)]);
-    sync(docA, docB);
+    // Leader applied all of author 1 but author 2's replay threw → 2 stays uncovered.
+    const vector: SnapshotVector = { '1': 1 };
+    const prune = coveredPrefixCount(log.toArray(), vector);
+    doc.transact(() => log.delete(0, prune));
 
-    expect(logA.toArray().map((e) => e.seq)).toEqual([2]);
-    expect(logB.toArray().map((e) => e.seq)).toEqual([2]);
+    // Only the leading covered entry (author 1 seq 0) is pruned; author 2's
+    // un-applied entry survives for a future client to retry.
+    expect(log.toArray().map((e) => `${e.clientId}:${e.clientSeq}`)).toEqual(['2:0', '1:1']);
+    expect(
+      uncoveredEntries(log.toArray(), vector).map((e) => `${e.clientId}:${e.clientSeq}`)
+    ).toEqual(['2:0']);
   });
 });

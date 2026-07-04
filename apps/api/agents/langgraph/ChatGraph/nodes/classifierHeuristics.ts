@@ -96,6 +96,7 @@ export const INTENT_KEYWORDS: Record<
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
+    | 'create_sheet'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'

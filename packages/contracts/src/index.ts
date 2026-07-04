@@ -129,3 +129,7 @@ export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
 export * from './schemas/richtext.js';
+
+// Sheets (Univer) collab schema + pure formatting helpers — Univer-free, shared
+// by the editor package and the API.
+export * from './sheetsYdoc.js';

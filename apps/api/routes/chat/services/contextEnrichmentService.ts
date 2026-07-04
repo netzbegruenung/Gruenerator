@@ -26,6 +26,7 @@ export async function enrichContext(opts: {
   rawDocumentIds?: string[];
   rawTextIds?: string[];
   rawBoardIds?: string[];
+  rawSheetIds?: string[];
   rawDocMentionIds?: string[];
   docAttachments: ProcessedAttachment[];
   processedMeta: ProcessedAttachmentMeta[];
@@ -38,6 +39,7 @@ export async function enrichContext(opts: {
     rawDocumentIds,
     rawTextIds,
     rawBoardIds,
+    rawSheetIds,
     rawDocMentionIds,
     docAttachments,
     processedMeta,
@@ -118,6 +120,40 @@ export async function enrichContext(opts: {
     }
   }
 
+  // Fetch sheet context (from @sheet mentions)
+  if (rawSheetIds?.length) {
+    try {
+      const { loadSheetState, formatSheetAsContext } =
+        await import('../../../services/sheets/SheetGenerationService.js');
+
+      const sheetStates = await Promise.all(
+        rawSheetIds.map((sheetId) =>
+          loadSheetState(sheetId, userId).catch((err) => {
+            log.warn(
+              `[ChatGraph] Failed to load sheet ${sheetId}: ${err instanceof Error ? err.message : String(err)}`
+            );
+            return null;
+          })
+        )
+      );
+
+      const sheetContextParts = sheetStates
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => {
+          log.info(`[ChatGraph] Sheet context loaded: "${s.title}"`);
+          return formatSheetAsContext(s);
+        });
+
+      if (sheetContextParts.length > 0) {
+        initialState.sheetContext = sheetContextParts.join('\n\n');
+      }
+    } catch (importErr) {
+      log.warn(
+        `[ChatGraph] Sheet context services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
+      );
+    }
+  }
+
   // Fetch collaborative document context (from @doc mentions)
   if (rawDocMentionIds?.length) {
     log.info(
@@ -130,7 +166,7 @@ export async function enrichContext(opts: {
 
       const docResults = await dbInst.query(
         `SELECT id, title, content FROM collaborative_documents
-         WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype != 'boards'
+         WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype NOT IN ('boards', 'sheets')
          AND (created_by = $2::uuid OR permissions ? $2::text OR is_public = true
               OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
                         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
