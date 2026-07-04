@@ -27,7 +27,17 @@ Erfordert einen Bearer API-Key, dessen Scope den \`landesverband\` abdeckt.`,
       query: { landesverband },
     });
     if (!result.ok) {
-      return { error: true, status: result.status, message: result.message };
+      const isIdentifierError = result.status >= 400 && result.status < 500;
+      return {
+        error: true,
+        status: result.status,
+        message: result.message,
+        ...(isIdentifierError
+          ? {
+              hint: 'Gültige `landesverband`-Codes und Notebooks findest du über `notebooks_list`.',
+            }
+          : {}),
+      };
     }
     return result.data;
   },

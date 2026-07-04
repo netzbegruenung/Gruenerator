@@ -396,6 +396,7 @@ export const searchTool = {
         return {
           error: true,
           message: `Unbekannte Sammlung: ${collection}. Verfügbar: ${available}`,
+          hint: 'Alle Sammlungen: `resources/list` (gruenerator://collections). Gültige Filterwerte einer Sammlung: `gruenerator_get_filters`.',
         };
       }
       return searchSingleCollectionWithCache({
