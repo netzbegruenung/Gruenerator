@@ -258,6 +258,14 @@ function SheetsChatReadyHost({
             ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
           },
         });
+        if (result.status === 401) {
+          // Session died mid-edit. The contracts client already routed this
+          // through onUnauthorized (probe → redirect on a dead session); show a
+          // clear message instead of the generic failure toast — and never let a
+          // transparently-retried write fall through to a false success toast.
+          toast.error('Sitzung abgelaufen — bitte neu anmelden.');
+          return;
+        }
         if (result.status !== 200) {
           toast.error('Tabellen-Aktion fehlgeschlagen.');
           return;
