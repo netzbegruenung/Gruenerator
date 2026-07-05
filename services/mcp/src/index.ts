@@ -128,11 +128,13 @@ const dnsRebindingOptions =
       }
     : {};
 
-// --- claude.ai compatibility: strip the MCP 2025-11-25 fields that claude.ai's
-// MCP client silently drops tools over — `execution`/`annotations`/`$schema` on
-// each tool and `instructions` on the initialize result. The high-level SDK
+// --- claude.ai compatibility: strip the MCP 2025-11-25 task-augmentation field
+// that claude.ai's MCP client silently drops tools over. The high-level SDK
 // (>=1.26) emits `execution: {taskSupport:'forbidden'}` on every tool with no
-// opt-out, which makes all tools vanish in claude.ai while resources still work. ---
+// opt-out, which makes all tools vanish in claude.ai while resources still work.
+// We deliberately KEEP `annotations` (readOnlyHint/title etc.) — claude.ai reads
+// them for auto-permissions — and only drop `$schema`, which claude.ai's schema
+// validator does not need. ---
 function sanitizeForClient(message: unknown): void {
   if (!message || typeof message !== 'object') return;
   const result = (message as { result?: unknown }).result;
@@ -141,7 +143,6 @@ function sanitizeForClient(message: unknown): void {
   if (Array.isArray(r.tools)) {
     for (const tool of r.tools as Array<Record<string, unknown>>) {
       delete tool.execution;
-      delete tool.annotations;
       for (const key of ['inputSchema', 'outputSchema'] as const) {
         const schema = tool[key];
         if (schema && typeof schema === 'object') {
@@ -150,10 +151,23 @@ function sanitizeForClient(message: unknown): void {
       }
     }
   }
-  if ('capabilities' in r && 'instructions' in r) {
-    delete r.instructions;
-  }
 }
+
+// Tool annotations (MCP + Anthropic Directory requirement). Every tool here is a
+// pure read. The search-family additionally reaches external data sources
+// (Qdrant/Mistral/backend API) → openWorldHint; cache/config are internal → false.
+const READONLY_EXTERNAL = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+const READONLY_INTERNAL = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 
 function wrapToolHandler(
   label: string,
@@ -203,36 +217,62 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // === MCP RESOURCES ===
 
   // List available resources
-  server.resource('Verfügbare Dokumentsammlungen', 'gruenerator://collections', async () => {
-    const resources = await getCollectionResources();
-    return {
-      contents: [
-        {
-          uri: 'gruenerator://collections',
-          mimeType: 'application/json',
-          text: JSON.stringify({ collections: resources }, null, 2),
-        },
-      ],
-    };
-  });
+  server.registerResource(
+    'collections',
+    'gruenerator://collections',
+    {
+      title: 'Verfügbare Dokumentsammlungen',
+      description: 'Alle durchsuchbaren Sammlungen mit Metadaten.',
+      mimeType: 'application/json',
+    },
+    async () => {
+      const resources = await getCollectionResources();
+      return {
+        contents: [
+          {
+            uri: 'gruenerator://collections',
+            mimeType: 'application/json',
+            text: JSON.stringify({ collections: resources }, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Server info resource
-  server.resource('Server-Informationen und Fähigkeiten', 'gruenerator://info', () =>
-    readServerInfoResource()
+  server.registerResource(
+    'server-info',
+    'gruenerator://info',
+    {
+      title: 'Server-Informationen und Fähigkeiten',
+      description: 'Überblick über Endpunkte, Tools und Sammlungen.',
+      mimeType: 'application/json',
+    },
+    () => readServerInfoResource()
   );
 
   // System prompt resource - AI systems should read this first
-  server.resource(
-    'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+  server.registerResource(
+    'system-prompt',
     'gruenerator://system-prompt',
+    {
+      title: 'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+      description: 'Tool-Auswahl, Sammlungen und Filter-Workflow.',
+      mimeType: 'text/markdown',
+    },
     () => getSystemPromptResource()
   );
 
   // Dynamic collection resources
   for (const [key, col] of Object.entries(config.collections)) {
-    server.resource(
-      `${col.displayName}: ${col.description}`,
+    server.registerResource(
+      `collection-${key}`,
       `gruenerator://collections/${key}`,
+      {
+        title: col.displayName,
+        description: col.description,
+        mimeType: 'application/json',
+      },
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
         return (
@@ -253,10 +293,14 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // === MCP TOOLS ===
 
   // Search Tool with annotations
-  server.tool(
+  server.registerTool(
     searchTool.name,
-    searchTool.description,
-    searchTool.inputSchema,
+    {
+      title: 'Grünen-Dokumente durchsuchen',
+      description: searchTool.description,
+      inputSchema: searchTool.inputSchema,
+      annotations: READONLY_EXTERNAL,
+    },
     async ({
       query,
       country,
@@ -317,10 +361,14 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   );
 
   // Cache Stats Tool
-  server.tool(
+  server.registerTool(
     cacheStatsTool.name,
-    cacheStatsTool.description,
-    cacheStatsTool.inputSchema,
+    {
+      title: 'Cache-Statistiken',
+      description: cacheStatsTool.description,
+      inputSchema: cacheStatsTool.inputSchema,
+      annotations: READONLY_INTERNAL,
+    },
     async () => {
       const result = await cacheStatsTool.handler();
       return {
@@ -335,10 +383,14 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   );
 
   // Client Config Tool
-  server.tool(
+  server.registerTool(
     clientConfigTool.name,
-    clientConfigTool.description,
-    clientConfigTool.inputSchema,
+    {
+      title: 'MCP-Client-Konfiguration',
+      description: clientConfigTool.description,
+      inputSchema: clientConfigTool.inputSchema,
+      annotations: READONLY_INTERNAL,
+    },
     async ({ client }) => {
       const result = clientConfigTool.handler({ client }, baseUrl);
       return {
@@ -353,10 +405,14 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   );
 
   // Filters Tool
-  server.tool(
+  server.registerTool(
     filtersTool.name,
-    filtersTool.description,
-    filtersTool.inputSchema,
+    {
+      title: 'Verfügbare Filter abrufen',
+      description: filtersTool.description,
+      inputSchema: filtersTool.inputSchema,
+      annotations: READONLY_EXTERNAL,
+    },
     wrapToolHandler('Filters', (params) => filtersTool.handler(params as { collection: string }))
   );
 
@@ -369,10 +425,14 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // });
 
   // Examples Search Tool
-  server.tool(
+  server.registerTool(
     examplesSearchTool.name,
-    examplesSearchTool.description,
-    examplesSearchTool.inputSchema,
+    {
+      title: 'Social-Media-Beispiele durchsuchen',
+      description: examplesSearchTool.description,
+      inputSchema: examplesSearchTool.inputSchema,
+      annotations: READONLY_EXTERNAL,
+    },
     wrapToolHandler('ExamplesSearch', (params) =>
       examplesSearchTool.handler(params as Parameters<typeof examplesSearchTool.handler>[0])
     )
@@ -382,24 +442,36 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // Bearer API key. Without a key, these are not advertised in tools/list,
   // and the MCP server stays anonymous-callable for the existing public tools.
   if (apiKey) {
-    server.tool(
+    server.registerTool(
       notebooksListTool.name,
-      notebooksListTool.description,
-      notebooksListTool.inputSchema,
+      {
+        title: 'Notebooks auflisten',
+        description: notebooksListTool.description,
+        inputSchema: notebooksListTool.inputSchema,
+        annotations: READONLY_EXTERNAL,
+      },
       wrapToolHandler('NotebooksList', (p) => notebooksListTool.handler(p, apiKey))
     );
-    server.tool(
+    server.registerTool(
       notebooksSearchTool.name,
-      notebooksSearchTool.description,
-      notebooksSearchTool.inputSchema,
+      {
+        title: 'Notebook durchsuchen',
+        description: notebooksSearchTool.description,
+        inputSchema: notebooksSearchTool.inputSchema,
+        annotations: READONLY_EXTERNAL,
+      },
       wrapToolHandler('NotebooksSearch', (p) =>
         notebooksSearchTool.handler(p as Parameters<typeof notebooksSearchTool.handler>[0], apiKey)
       )
     );
-    server.tool(
+    server.registerTool(
       notebooksGetFiltersTool.name,
-      notebooksGetFiltersTool.description,
-      notebooksGetFiltersTool.inputSchema,
+      {
+        title: 'Notebook-Filter abrufen',
+        description: notebooksGetFiltersTool.description,
+        inputSchema: notebooksGetFiltersTool.inputSchema,
+        annotations: READONLY_EXTERNAL,
+      },
       wrapToolHandler('NotebooksGetFilters', (p) =>
         notebooksGetFiltersTool.handler(
           p as Parameters<typeof notebooksGetFiltersTool.handler>[0],
