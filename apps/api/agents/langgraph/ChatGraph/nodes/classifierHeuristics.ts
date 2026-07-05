@@ -487,6 +487,22 @@ export function heuristicClassify(
     };
   }
 
+  // High confidence (0.9): Presentation-deck creation. create_presentation lives
+  // only in the LLM prompt, and the intermediate classifier model is unreliable
+  // on this newer intent — so an explicit "erstelle eine Präsentation über X"
+  // was falling back to a prose slide outline instead of building a deck.
+  // Fast-path the unambiguous phrasing (creation verb + deck noun).
+  const presentationCreatePattern =
+    /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
+  if (presentationCreatePattern.test(q)) {
+    return {
+      intent: 'create_presentation',
+      searchQuery: null,
+      reasoning: 'Presentation creation request detected',
+      confidence: 0.9,
+    };
+  }
+
   // High confidence (0.88): Share document with group
   if (
     /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i.test(
