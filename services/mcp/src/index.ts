@@ -7,16 +7,18 @@ console.log(`[Boot] Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log('[Boot] Loading dependencies...');
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import express from 'express';
 console.log('[Boot] Dependencies loaded');
 
 console.log('[Boot] Loading config...');
-import { fetchCatalog } from './catalog.ts';
+import { fetchCatalog, getCatalogStatus } from './catalog.ts';
 import { clientConfigTool } from './clients/config.ts';
 import { config, validateConfig } from './config.ts';
 import { registerAgentPrompts, getPromptList } from './prompts/agent-prompts.ts';
+import { checkQdrantHealth } from './qdrant/client.ts';
 import {
   getCollectionResources,
   getCollectionResource,
@@ -484,6 +486,61 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Deep MCP diagnostics — dependency health + client-readiness. Kept separate
+// from /health (liveness) so a dependency hiccup never fails the Docker
+// healthcheck and triggers a restart loop. Use this for monitoring/CI and to
+// catch the claude.ai-compat regressions we debugged (JSON mode, stateless
+// transport, declared capabilities, registered tools).
+app.get('/health/mcp', async (_req, res) => {
+  const qdrant = await checkQdrantHealth();
+  const catalog = getCatalogStatus();
+  const mistralConfigured = !!config.mistral.apiKey;
+
+  const publicTools = [
+    searchTool.name,
+    filtersTool.name,
+    cacheStatsTool.name,
+    examplesSearchTool.name,
+    clientConfigTool.name,
+  ];
+
+  // Transport contract that keeps tools visible in the claude.ai connector —
+  // must stay in sync with the POST /mcp handler (stateless + enableJsonResponse).
+  const mcp = {
+    transport: 'streamable-http',
+    jsonResponseMode: true,
+    stateless: true,
+    supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+    capabilities: ['tools', 'resources', 'prompts'],
+    publicToolCount: publicTools.length,
+    publicTools,
+    claudeAiReady: publicTools.length > 0,
+  };
+
+  const dependencies = {
+    qdrant,
+    mistral: { configured: mistralConfigured },
+    catalogApi: {
+      configured: catalog.apiConfigured,
+      source: catalog.source,
+      collections: catalog.collectionCount,
+      lastFetchedAt: catalog.lastFetchedAt,
+      ageSeconds: catalog.ageSeconds,
+    },
+  };
+
+  // Search needs Qdrant + Mistral; tool discovery itself does not. Report
+  // degraded (503) only when a search dependency is down.
+  const healthy = qdrant.ok && mistralConfigured;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'healthy' : 'degraded',
+    service: 'gruenerator-mcp',
+    version: '1.0.0',
+    mcp,
+    dependencies,
+  });
+});
+
 // Metrics endpoint (detailed stats)
 app.get('/metrics', (req, res) => {
   const cacheStats = getCacheStats();
@@ -768,6 +825,7 @@ app.listen(PORT, () => {
   console.log('Endpoints:');
   console.log(`  MCP:        ${localUrl}/mcp`);
   console.log(`  Health:     ${localUrl}/health`);
+  console.log(`  Diag:       ${localUrl}/health/mcp`);
   console.log(`  Metrics:    ${localUrl}/metrics`);
   console.log(`  Discovery:  ${localUrl}/.well-known/mcp.json`);
   console.log(`  Info:       ${localUrl}/info`);
