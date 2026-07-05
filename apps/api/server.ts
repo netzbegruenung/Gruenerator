@@ -38,6 +38,7 @@ import { startNotificationCleanup } from './services/notifications/notificationC
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
+import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -683,7 +684,9 @@ async function startWorker(): Promise<void> {
 
   // Worker shutdown handler
   const shutdownHandler = createWorkerShutdownHandler({
-    resources: [aiService, redisClient].filter(Boolean),
+    resources: [aiService, redisClient, { shutdown: () => shutdownLangfuseTelemetry() }].filter(
+      Boolean
+    ),
     server,
     logger: log,
   });

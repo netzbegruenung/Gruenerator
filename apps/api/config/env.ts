@@ -112,6 +112,11 @@ const envSchema = z.object({
 
   // ── Monitoring / External services ────────────────────────────────────
   SENTRY_DSN: z.string().optional(),
+  // Langfuse LLM observability (self-hosted). Tracing is a no-op unless all
+  // three are set. .trim() defends against trailing newlines in pasted secrets.
+  LANGFUSE_PUBLIC_KEY: z.string().trim().optional(),
+  LANGFUSE_SECRET_KEY: z.string().trim().optional(),
+  LANGFUSE_BASE_URL: z.string().trim().optional(),
   APIFY_TOKEN: z.string().optional(),
   EVENT_REGISTRY_API_KEY: z.string().optional(),
   POLITPRO_API_KEY: z.string().optional(),

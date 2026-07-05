@@ -22,6 +22,7 @@ import {
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
+import { buildAiTelemetry } from '../../../services/telemetry/langfuseTelemetry.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -416,6 +417,10 @@ export async function runChatGraphResume({
     const baseMaxTokens = finalState.agentConfig.params.max_tokens;
 
     let fullText: string | null;
+    const resumeTelemetry = buildAiTelemetry('chat-graph.resume', {
+      ...(requestContext.userId && { userId: requestContext.userId }),
+      ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
+    });
     try {
       fullText = await streamWithFallback({
         primary: resolution2,
@@ -430,6 +435,7 @@ export async function runChatGraphResume({
             temperature: finalState.agentConfig.params.temperature,
             sse,
             logPrefix: '[ChatGraph:Resume]',
+            ...(resumeTelemetry && { telemetry: resumeTelemetry }),
           });
         },
       });

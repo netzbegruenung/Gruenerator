@@ -302,6 +302,7 @@ async function streamAndAccumulateOrThrow(params: {
   signal?: AbortSignal;
   logPrefix?: string;
   providerOptions?: Parameters<typeof streamText>[0]['providerOptions'];
+  telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
   firstTokenDeadlineMs?: number;
 }): Promise<string | null> {
   const {
@@ -313,6 +314,7 @@ async function streamAndAccumulateOrThrow(params: {
     signal,
     logPrefix = '[ChatGraph]',
     providerOptions,
+    telemetry,
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
   } = params;
 
@@ -335,6 +337,7 @@ async function streamAndAccumulateOrThrow(params: {
     temperature,
     abortSignal: composed,
     ...(providerOptions && { providerOptions }),
+    ...(telemetry && { experimental_telemetry: telemetry }),
   });
 
   // fullStream (not textStream) so reasoning models surface their thinking as
@@ -612,12 +615,16 @@ export async function streamForResolution(params: {
   sse: SSEWriter;
   signal?: AbortSignal;
   logPrefix?: string;
+  telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
 }): Promise<string | null> {
-  const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix } = params;
+  const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix, telemetry } =
+    params;
 
   const firstTokenDeadlineMs = getFirstTokenDeadlineMs(resolution.provider, resolution.modelName);
 
   if (isReasoningStreamModel(resolution.provider, resolution.modelName)) {
+    // Regolo reasoning path is a raw fetch (regoloReasoningStream), not the AI
+    // SDK — no experimental_telemetry hook, so it stays uninstrumented for now.
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
       provider: resolution.provider,
       modelName: resolution.modelName,
@@ -642,6 +649,7 @@ export async function streamForResolution(params: {
   };
   if (signal) args.signal = signal;
   if (logPrefix) args.logPrefix = logPrefix;
+  if (telemetry) args.telemetry = telemetry;
   // Mistral reasoning models (e.g. Medium 3.5) only think when `reasoningEffort`
   // is set per request; @ai-sdk/mistral then surfaces the reasoning via
   // fullStream so streamAndAccumulateOrThrow can emit it as reasoning_delta.

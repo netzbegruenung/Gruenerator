@@ -283,7 +283,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
         )}
 
         {!isStreaming && textContent && (
-          <MessageActions content={textContent} metadata={actionsMetadata} />
+          <MessageActions
+            content={textContent}
+            metadata={actionsMetadata}
+            showFeedback={custom?.streamMetadata?.traceId != null}
+          />
         )}
 
         {!isStreaming && custom?.progress?.memoryContext && (

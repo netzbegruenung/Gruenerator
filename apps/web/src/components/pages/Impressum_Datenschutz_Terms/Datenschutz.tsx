@@ -4,7 +4,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 16. Juni 2026</p>
+      <p>Stand: 5. Juli 2026</p>
 
       <h2>Kurzzusammenfassung</h2>
       <p>
@@ -300,6 +300,34 @@ const Datenschutz = () => {
         </li>
       </ul>
 
+      <p>
+        <strong>9. Langfuse (selbstgehostet)</strong>
+      </p>
+      <ul>
+        <li>
+          Zweck: Qualitätssicherung, Fehleranalyse und Nachvollziehbarkeit der KI-Chat-Funktion
+          (Beobachtbarkeit der Sprachmodell-Antworten)
+        </li>
+        <li>Server: Eigene Server in Deutschland</li>
+        <li>
+          Verarbeitete Daten: Chat-Eingaben und -Ausgaben, verwendetes KI-Modell, Token-Zahlen,
+          pseudonyme Nutzer- und Thread-Kennung, Zeitstempel sowie – sofern Du sie abgibst – eine
+          Bewertung der Antwort (Daumen hoch/runter)
+        </li>
+        <li>
+          Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an Qualitätssicherung)
+        </li>
+        <li>Speicherdauer: Automatische Löschung nach 30 Tagen</li>
+        <li>Sicherheit: TLS-Verschlüsselung, Zugriff ausschließlich durch den Betreiber</li>
+        <li>
+          Besonderheit: Selbst gehostete Open-Source-Software; keine Weitergabe an Dritte, keine
+          Drittlandübermittlung, keine Nutzung zum KI-Training
+        </li>
+        <li>
+          Details: <a href="https://langfuse.com/security/privacy">Datenschutzinformationen</a>
+        </li>
+      </ul>
+
       <h3 id="webanalyse">Webanalyse mit Umami</h3>
       <p>
         Diese Website nutzt den Open-Source-Webanalysedienst Umami zur statistischen Auswertung der
@@ -526,6 +554,10 @@ const Datenschutz = () => {
           <tr>
             <td>Fehlerberichte (GlitchTip)</td>
             <td>90 Tage (automatische Löschung)</td>
+          </tr>
+          <tr>
+            <td>KI-Chat-Protokolle (Langfuse, Qualitätssicherung)</td>
+            <td>30 Tage (automatische Löschung)</td>
           </tr>
           <tr>
             <td>Audio-/Video-Transkription (Regolo)</td>
