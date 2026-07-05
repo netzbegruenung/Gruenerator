@@ -36,7 +36,11 @@ import type {
   SearchResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { SocialPostPayload, SocialPostToolResult } from '@gruenerator/contracts';
+import type {
+  SocialPostPayload,
+  SocialPostToolResult,
+  BundestagPayload,
+} from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
@@ -54,6 +58,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   // social_post) — see buildToolCalls.
   social_post: 'social_post',
   scrape_url: 'scrape_url',
+  bundestag: 'bundestag',
 };
 
 /**
@@ -90,7 +95,8 @@ type ToolCallResult =
   | ImageToolCallResult
   | SharepicToolCallResult
   | ScrapeToolCallResult
-  | SocialPostToolResult;
+  | SocialPostToolResult
+  | BundestagPayload;
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -127,6 +133,9 @@ function buildToolCallResult(
   }
   if (toolName === 'sharepic') {
     return { variants: sharepicVariants };
+  }
+  if (toolName === 'bundestag' && finalState.bundestagResult) {
+    return finalState.bundestagResult;
   }
   const base: SearchToolCallResult = {
     results: finalState.searchResults?.slice(0, 10) || [],

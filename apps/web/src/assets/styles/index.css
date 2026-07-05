@@ -351,6 +351,8 @@
   --color-collection-grundsatzprogramm-bg: var(--color-collection-grundsatzprogramm-bg-val);
   --color-collection-bundestagsfraktion: var(--color-collection-bundestagsfraktion-val);
   --color-collection-bundestagsfraktion-bg: var(--color-collection-bundestagsfraktion-bg-val);
+  --color-collection-bundestag: var(--color-collection-bundestag-val);
+  --color-collection-bundestag-bg: var(--color-collection-bundestag-bg-val);
   --color-collection-gruene-de: var(--color-collection-gruene-de-val);
   --color-collection-gruene-de-bg: var(--color-collection-gruene-de-bg-val);
   --color-collection-kommunalwiki: var(--color-collection-kommunalwiki-val);

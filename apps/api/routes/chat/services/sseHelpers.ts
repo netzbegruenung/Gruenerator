@@ -28,6 +28,7 @@ import type {
   SearchResultPayload,
   ThinkingStepPayload,
   SocialPostPayload,
+  BundestagPayload,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -76,6 +77,7 @@ export type SSEEventType =
   | 'chart_data'
   | 'artifact'
   | 'compute'
+  | 'bundestag'
   | 'memory_context'
   | 'completion'
   | 'canvas_operations_start'
@@ -243,6 +245,9 @@ export interface SSEEventPayloads {
   };
   compute: {
     compute: ComputeData;
+  };
+  bundestag: {
+    bundestag: BundestagPayload;
   };
   completion: {
     type?: 'completion';
