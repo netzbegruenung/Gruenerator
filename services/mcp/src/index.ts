@@ -128,31 +128,6 @@ const dnsRebindingOptions =
       }
     : {};
 
-// --- claude.ai compatibility: strip the MCP 2025-11-25 task-augmentation field
-// that claude.ai's MCP client silently drops tools over. The high-level SDK
-// (>=1.26) emits `execution: {taskSupport:'forbidden'}` on every tool with no
-// opt-out, which makes all tools vanish in claude.ai while resources still work.
-// We deliberately KEEP `annotations` (readOnlyHint/title etc.) — claude.ai reads
-// them for auto-permissions — and only drop `$schema`, which claude.ai's schema
-// validator does not need. ---
-function sanitizeForClient(message: unknown): void {
-  if (!message || typeof message !== 'object') return;
-  const result = (message as { result?: unknown }).result;
-  if (!result || typeof result !== 'object') return;
-  const r = result as Record<string, unknown>;
-  if (Array.isArray(r.tools)) {
-    for (const tool of r.tools as Array<Record<string, unknown>>) {
-      delete tool.execution;
-      for (const key of ['inputSchema', 'outputSchema'] as const) {
-        const schema = tool[key];
-        if (schema && typeof schema === 'object') {
-          delete (schema as Record<string, unknown>).$schema;
-        }
-      }
-    }
-  }
-}
-
 // Tool annotations (MCP + Anthropic Directory requirement). Every tool here is a
 // pure read. The search-family additionally reaches external data sources
 // (Qdrant/Mistral/backend API) → openWorldHint; cache/config are internal → false.
@@ -740,6 +715,12 @@ app.post('/mcp', async (req, res) => {
     }
     const newTransport = new StreamableHTTPServerTransport({
       ...dnsRebindingOptions,
+      // Respond to POST /mcp with application/json instead of an SSE stream.
+      // claude.ai's remote-connector tool discovery indexes tools/list from the
+      // JSON-response path; over SSE the tools never appear in the client's tool
+      // picker (resources still work). The reference Claude.ai HTTP-MCP setup and
+      // our working Bundestag MCP both use enableJsonResponse.
+      enableJsonResponse: true,
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id: string) => {
         transports[id] = newTransport;
@@ -753,15 +734,6 @@ app.post('/mcp', async (req, res) => {
       },
     });
     transport = newTransport;
-
-    // Strip claude.ai-incompatible fields from every outgoing message (see
-    // sanitizeForClient). Wrapping send() covers tools/list and initialize
-    // regardless of which SDK path produced them.
-    const originalSend = newTransport.send.bind(newTransport);
-    newTransport.send = (message, options) => {
-      sanitizeForClient(message);
-      return originalSend(message, options);
-    };
 
     transport.onclose = () => {
       if (transport?.sessionId) {
