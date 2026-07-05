@@ -234,6 +234,7 @@ async function testExpandedContextWindow() {
     researchBrief: null,
     researchMeta: null,
     examplesResult: null,
+    bundestagResult: null,
     searchErrors: [],
     briefGenerationFailed: false,
     rerankFailed: false,
