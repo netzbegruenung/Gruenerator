@@ -5,11 +5,8 @@ console.log(`[Boot] Node.js ${process.version}`);
 console.log(`[Boot] Environment: ${process.env.NODE_ENV || 'development'}`);
 
 console.log('[Boot] Loading dependencies...');
-import { randomUUID } from 'node:crypto';
-
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import express from 'express';
@@ -89,10 +86,6 @@ function getBaseUrl(req: express.Request): string {
   return config.server.publicUrl || `${req.protocol}://${req.get('host')}`;
 }
 
-// Session-Verwaltung
-const transports: Record<string, StreamableHTTPServerTransport> = {};
-const sessionLastActivity: Record<string, number> = {};
-
 // --- Anti-abuse: per-IP rate limiting (in-memory; the server is single-process).
 // Anonymous search triggers a Mistral embedding + Qdrant query per call, so an
 // unbounded /mcp is a cost-DoS surface. ---
@@ -107,11 +100,6 @@ function isRateLimited(ip: string): boolean {
   rateBuckets.set(ip, recent);
   return recent.length > RATE_LIMIT_MAX;
 }
-
-// --- Session limits: cap concurrent sessions and sweep idle ones so the
-// in-memory transport map cannot grow without bound. ---
-const MAX_SESSIONS = Number(process.env.MCP_MAX_SESSIONS) || 2000;
-const SESSION_IDLE_MS = Number(process.env.MCP_SESSION_IDLE_MS) || 30 * 60_000;
 
 // --- DNS-rebinding protection (MCP spec recommendation). Opt-in via env so it
 // can't accidentally lock out a mis-set Host header from a valid client; when
@@ -697,72 +685,24 @@ app.post('/mcp', async (req, res) => {
     return;
   }
 
-  const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  let transport: StreamableHTTPServerTransport | undefined;
-
-  if (sessionId && transports[sessionId]) {
-    transport = transports[sessionId];
-    sessionLastActivity[sessionId] = Date.now();
-  } else if (isInitializeRequest(req.body)) {
-    if (Object.keys(transports).length >= MAX_SESSIONS) {
-      res.status(503).json({
-        jsonrpc: '2.0',
-        error: { code: -32000, message: 'Server ausgelastet – bitte später erneut versuchen.' },
-        id: null,
-      });
-      return;
-    }
-    const newTransport = new StreamableHTTPServerTransport({
-      ...dnsRebindingOptions,
-      // Respond to POST /mcp with application/json instead of an SSE stream.
-      // claude.ai's remote-connector tool discovery indexes tools/list from the
-      // JSON-response path; over SSE the tools never appear in the client's tool
-      // picker (resources still work). The reference Claude.ai HTTP-MCP setup and
-      // our working Bundestag MCP both use enableJsonResponse.
-      enableJsonResponse: true,
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id: string) => {
-        transports[id] = newTransport;
-        sessionLastActivity[id] = Date.now();
-        info('Session', `New session: ${id}`);
-      },
-      onsessionclosed: (id: string) => {
-        delete transports[id];
-        delete sessionLastActivity[id];
-        info('Session', `Session closed: ${id}`);
-      },
-    });
-    transport = newTransport;
-
-    transport.onclose = () => {
-      if (transport?.sessionId) {
-        delete transports[transport.sessionId];
-        delete sessionLastActivity[transport.sessionId];
-      }
-    };
-
-    const baseUrl = getBaseUrl(req);
-    const apiKey = extractBearerKey(req);
-    const server = createMcpServer(baseUrl, apiKey);
-    await server.connect(transport);
-  } else if (sessionId) {
-    res.status(404).json({
-      jsonrpc: '2.0',
-      error: { code: -32001, message: 'Session nicht gefunden – bitte neu initialisieren' },
-      id: null,
-    });
-    return;
-  } else {
-    res.status(400).json({
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Keine Session und keine Initialisierungsanfrage' },
-      id: null,
-    });
-    return;
-  }
-
+  // Stateless mode: every POST gets a fresh McpServer + transport and a JSON
+  // response. claude.ai's connector tool-discovery (and ChatGPT) don't carry an
+  // mcp-session-id — a stateful-only server rejects their session-less tools/list
+  // so the tools never get indexed (resources work via a different path). A fresh
+  // instance per request is required from SDK ≥1.26 to avoid cross-request state
+  // leaks. Mirrors the reference Claude.ai HTTP-MCP setup and our Bundestag MCP.
   try {
+    const server = createMcpServer(getBaseUrl(req), extractBearerKey(req));
+    const transport = new StreamableHTTPServerTransport({
+      ...dnsRebindingOptions,
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    res.on('close', () => {
+      void transport.close();
+      void server.close();
+    });
+    await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   } catch (err) {
     error('MCP', `handleRequest failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -777,31 +717,20 @@ app.post('/mcp', async (req, res) => {
   }
 });
 
-// MCP GET Endpoint (SSE Stream)
-app.get('/mcp', async (req, res) => {
-  const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  const transport = sessionId ? transports[sessionId] : undefined;
-
-  if (transport) {
-    await transport.handleRequest(req, res);
-  } else {
-    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
-  }
-});
-
-// MCP DELETE Endpoint (Session beenden)
-app.delete('/mcp', async (req, res) => {
-  const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  const transport = sessionId ? transports[sessionId] : undefined;
-
-  if (transport) {
-    await transport.handleRequest(req, res);
-  } else {
-    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
-  }
-});
+// Stateless mode has no server-initiated SSE stream and no sessions to terminate,
+// so GET/DELETE on /mcp are not applicable.
+const methodNotAllowed = (_req: express.Request, res: express.Response) => {
+  res.status(405).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32000,
+      message: 'Method Not Allowed – der Server läuft im stateless JSON-Modus.',
+    },
+    id: null,
+  });
+};
+app.get('/mcp', methodNotAllowed);
+app.delete('/mcp', methodNotAllowed);
 
 // Server starten
 const PORT = process.env.PORT || 3003;
@@ -811,17 +740,9 @@ console.log(`[Boot] Starting server on port ${PORT}...`);
 // all routes, before listen). Tool-level exceptions are captured in-handler above.
 Sentry.setupExpressErrorHandler(app);
 
-// Periodic sweep: close idle sessions and drop stale rate-limit buckets so the
-// in-memory maps stay bounded. unref() so it never keeps the process alive.
+// Periodic sweep: drop the rate-limit bucket map if it grows large so the
+// in-memory state stays bounded. unref() so it never keeps the process alive.
 setInterval(() => {
-  const now = Date.now();
-  for (const [id, last] of Object.entries(sessionLastActivity)) {
-    if (now - last > SESSION_IDLE_MS) {
-      void transports[id]?.close();
-      delete transports[id];
-      delete sessionLastActivity[id];
-    }
-  }
   if (rateBuckets.size > 10_000) rateBuckets.clear();
 }, 5 * 60_000).unref();
 
