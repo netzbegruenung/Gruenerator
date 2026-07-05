@@ -10,7 +10,7 @@ import { SheetChartFloat } from './SheetChartFloat.js';
 
 import './SheetsEditor.css';
 
-import type { FUniver } from '@univerjs/presets';
+import type { FUniver, IWorkbookData } from '@univerjs/presets';
 
 export interface SheetsEditorProps {
   /** collaborative_documents UUID; also the Hocuspocus room name. */
@@ -22,6 +22,8 @@ export interface SheetsEditorProps {
   darkMode?: boolean;
   /** Called with the facade once the instance is live (undo/redo, AI tools). */
   onReady?: (api: FUniver) => void;
+  /** Initial workbook seeded only when the doc has no snapshot yet (templates). */
+  seedWorkbook?: Partial<IWorkbookData> | null;
 }
 
 /**
@@ -36,12 +38,16 @@ export function SheetsEditor({
   editable,
   darkMode,
   onReady,
+  seedWorkbook,
 }: SheetsEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<FUniver | null>(null);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const editableRef = useRef(editable);
+  // Captured once — the seed only applies on first attach, so a changing prop
+  // identity must not re-create the instance.
+  const seedWorkbookRef = useRef(seedWorkbook);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -57,6 +63,7 @@ export function SheetsEditor({
       documentId,
       canWrite: editableRef.current,
       awareness: awareness ?? null,
+      seedWorkbook: seedWorkbookRef.current,
     });
     if (!editableRef.current) bridge.workbook.setEditable(false);
     const detachPresence = awareness ? attachSelectionPresence(bridge.workbook, awareness) : null;
