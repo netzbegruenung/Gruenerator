@@ -22,7 +22,7 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
-import { buildAiTelemetry } from '../../services/telemetry/langfuseTelemetry.js';
+import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
@@ -300,23 +300,34 @@ export async function handleNotebookStream(
         ...(userId && { userId }),
         ...(collectionId && { sessionId: collectionId }),
       });
-      fullText = await streamWithFallback({
-        primary: primaryResolution,
-        sse,
-        logPrefix: '[Notebook]',
-        buildStream: async (resolution) => {
-          return streamForResolution({
-            resolution,
-            messages: aiMessages,
-            maxTokens: baseMaxOutput,
-            temperature: 0.2,
-            sse,
-            signal: abortController.signal,
-            logPrefix: '[Notebook]',
-            ...(notebookTelemetry && { telemetry: notebookTelemetry }),
-          });
+      // Wrap in a trace so propagateAttributes sets trace-level user/session —
+      // plain AI-SDK metadata keys aren't hoisted by Langfuse, so without this
+      // notebook traces would show empty User/Session.
+      fullText = await withLangfuseTrace(
+        {
+          name: 'notebook-turn',
+          ...(userId && { userId }),
+          ...(collectionId && { sessionId: collectionId }),
         },
-      });
+        async () =>
+          streamWithFallback({
+            primary: primaryResolution,
+            sse,
+            logPrefix: '[Notebook]',
+            buildStream: async (resolution) => {
+              return streamForResolution({
+                resolution,
+                messages: aiMessages,
+                maxTokens: baseMaxOutput,
+                temperature: 0.2,
+                sse,
+                signal: abortController.signal,
+                logPrefix: '[Notebook]',
+                ...(notebookTelemetry && { telemetry: notebookTelemetry }),
+              });
+            },
+          })
+      );
     } finally {
       if (primaryResolution.releaseSlot) {
         await primaryResolution.releaseSlot();

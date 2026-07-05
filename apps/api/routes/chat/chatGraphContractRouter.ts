@@ -1567,6 +1567,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryEnabled,
         ...(agentId != null && { agentId }),
         ...(agenticSteps != null && { agenticSteps }),
+        ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===

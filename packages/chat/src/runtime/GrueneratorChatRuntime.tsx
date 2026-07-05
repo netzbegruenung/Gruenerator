@@ -301,7 +301,9 @@ function useGrueneratorThreadRuntime() {
 
   // Thumbs up/down → Langfuse score on this turn's trace. The backend put the
   // trace id into the `done` metadata, which parseSSEStream stored on
-  // custom.streamMetadata. No traceId (Langfuse off) → no-op.
+  // custom.streamMetadata. No traceId (Langfuse off) → no-op. A per-trace guard
+  // skips re-POSTing the same rating when the user toggles/double-clicks.
+  const lastFeedbackRef = useRef(new Map<string, 'positive' | 'negative'>());
   const feedbackAdapter = useMemo<FeedbackAdapter>(
     () => ({
       submit: ({ message, type }) => {
@@ -310,6 +312,8 @@ function useGrueneratorThreadRuntime() {
           | undefined;
         const traceId = custom?.streamMetadata?.traceId;
         if (!traceId) return;
+        if (lastFeedbackRef.current.get(traceId) === type) return;
+        lastFeedbackRef.current.set(traceId, type);
         const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
         void configFetch(endpoints.feedback, {
           method: 'POST',

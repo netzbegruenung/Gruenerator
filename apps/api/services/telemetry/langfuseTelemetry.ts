@@ -54,29 +54,43 @@ export function initLangfuseTelemetry(): void {
   const cfg = readConfig();
   if (!cfg) return;
 
-  const processor = new LangfuseSpanProcessor({
-    publicKey: cfg.publicKey,
-    secretKey: cfg.secretKey,
-    baseUrl: cfg.baseUrl,
-    environment: env.NODE_ENV,
-  });
+  // A telemetry misconfig must never take down the API. instrument.ts calls
+  // this bare and is --import'ed before server.ts, so any throw here would
+  // crash every cluster worker — swallow and stay disabled instead.
+  try {
+    const processor = new LangfuseSpanProcessor({
+      publicKey: cfg.publicKey,
+      secretKey: cfg.secretKey,
+      baseUrl: cfg.baseUrl,
+      environment: env.NODE_ENV,
+    });
 
-  provider = new NodeTracerProvider({ spanProcessors: [processor] });
-  // Intentionally NOT provider.register() — keep it off the global tracer.
-  setLangfuseTracerProvider(provider);
+    const created = new NodeTracerProvider({ spanProcessors: [processor] });
+    // Intentionally NOT created.register() — keep it off the global tracer.
+    setLangfuseTracerProvider(created);
 
-  // Span nesting needs a global context manager. Sentry installs an ALS-based
-  // one when it inits; register our own only when it didn't (dev / no DSN).
-  if (!env.SENTRY_DSN) {
-    try {
-      context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
-    } catch {
-      // A context manager already exists — fine, nesting still works.
+    // Span nesting needs a global context manager. Sentry installs an ALS-based
+    // one — but ONLY when it actually inits, i.e. dsn && NODE_ENV==='production'
+    // (see instrument.ts). A DSN set in a non-prod env leaves Sentry disabled
+    // and no context manager, so key off Sentry's real init condition, not just
+    // SENTRY_DSN presence — otherwise context propagation silently no-ops.
+    const sentryActive = !!env.SENTRY_DSN && env.NODE_ENV === 'production';
+    if (!sentryActive) {
+      try {
+        context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+      } catch {
+        // A context manager already exists — fine, nesting still works.
+      }
     }
-  }
 
-  config = cfg;
-  console.info(`[langfuse] telemetry enabled → ${cfg.baseUrl}`);
+    provider = created;
+    config = cfg;
+    console.info(`[langfuse] telemetry enabled → ${cfg.baseUrl}`);
+  } catch (err) {
+    provider = null;
+    config = null;
+    console.warn('[langfuse] telemetry init failed — running without tracing:', err);
+  }
 }
 
 export function isLangfuseEnabled(): boolean {
