@@ -32,24 +32,6 @@ function headers(extra = {}) {
   };
 }
 
-function parseSse(text) {
-  const out = [];
-  // One SSE event = lines until a blank line; its `data:` lines join with \n.
-  for (const event of text.split(/\r?\n\r?\n/)) {
-    const dataLines = [];
-    for (const line of event.split(/\r?\n/)) {
-      if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
-    }
-    if (dataLines.length === 0) continue;
-    try {
-      out.push(JSON.parse(dataLines.join('\n')));
-    } catch {
-      /* keep-alive / non-json */
-    }
-  }
-  return out;
-}
-
 async function post(body, extraHeaders = {}) {
   const res = await fetch(MCP, {
     method: 'POST',
@@ -60,17 +42,10 @@ async function post(body, extraHeaders = {}) {
   const sid = res.headers.get('mcp-session-id');
   if (sid) sessionId = sid;
   const text = await res.text();
-  const ct = res.headers.get('content-type') || '';
+  // The server runs in stateless JSON-response mode, so every reply is a plain
+  // application/json JSON-RPC message.
   let msg = null;
-  if (ct.includes('text/event-stream')) {
-    const msgs = parseSse(text);
-    // Prefer the response matching our request id; else the first actual
-    // response frame (has result/error); never an interleaved notification.
-    msg =
-      msgs.find((m) => m.id === body.id) ||
-      msgs.find((m) => m.result !== undefined || m.error !== undefined) ||
-      null;
-  } else if (text) {
+  if (text) {
     try {
       msg = JSON.parse(text);
     } catch {
