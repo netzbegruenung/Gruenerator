@@ -99,7 +99,6 @@ export const useCollaboration = ({
         idbProviderRef.current = idbProvider;
         idbProvider.on('synced', () => {
           if (ignore) return;
-          console.info('[Collab] Local cache loaded | doc:', documentId);
           markLocalLoaded();
         });
         // A slow IDB open is NOT corruption — slow disks/mobile/large docs hit
@@ -143,9 +142,7 @@ export const useCollaboration = ({
     }
 
     const initProvider = async () => {
-      console.info('[Collab] Init | doc:', documentId, '| isGuest:', isGuest, '| url:', config.url);
       const token = isGuest ? null : await config.getToken();
-      console.info('[Collab] Token:', token ? 'present' : 'null');
 
       if (ignore) return;
 
@@ -175,7 +172,6 @@ export const useCollaboration = ({
       provider.awareness?.setLocalStateField('user', buildAwarenessUser());
 
       provider.on('status', (event: { status: string }) => {
-        console.info('[Collab] Status:', event.status, '| doc:', documentId);
         if (ignore) return;
         const newIsConnected = event.status === 'connected';
         setState((prev) => {
@@ -185,7 +181,6 @@ export const useCollaboration = ({
       });
 
       provider.on('synced', () => {
-        console.info('[Collab] Synced | doc:', documentId);
         if (ignore) return;
         setState((prev) => {
           if (prev.isSynced) return prev;
@@ -232,14 +227,12 @@ export const useCollaboration = ({
       }
 
       setState((prev) => ({ ...prev, ydoc, provider, isConnected: false, isSynced: false }));
-      console.info('[Collab] Connecting to', config.url, '| doc:', documentId);
       provider.connect();
     };
 
     initProvider();
 
     return () => {
-      console.info('[Collab] Cleanup | doc:', documentId);
       ignore = true;
       if (idbTimeout) clearTimeout(idbTimeout);
       providerRef.current?.awareness?.setLocalState(null);
