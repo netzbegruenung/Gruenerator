@@ -17,6 +17,7 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { ComputeCard } from '../message-parts/ComputeCard';
+import { BundestagCard } from '../message-parts/BundestagCard';
 import { ChatChart } from '../message-parts/ChatChart';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -138,7 +139,15 @@ export const AssistantMessage = memo(function AssistantMessage() {
     };
   }, [custom]);
 
-  const showSearchResults = !isStreaming && citations.length > 0;
+  // The dedicated BundestagCard already renders the DIP hits — drop their
+  // generic source cards to avoid double-rendering. Inline citations (in the
+  // text via CitationProvider) stay untouched.
+  const sourceCardCitations = useMemo(
+    () => (custom?.bundestagData ? citations.filter((c) => c.source !== 'bundestag') : citations),
+    [citations, custom?.bundestagData]
+  );
+
+  const showSearchResults = !isStreaming && sourceCardCitations.length > 0;
 
   return (
     <MessagePrimitive.Root
@@ -248,6 +257,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
         {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
+        {!isStreaming && custom?.bundestagData && <BundestagCard data={custom.bundestagData} />}
 
         {!isStreaming && custom?.confirmAction && (
           <ConfirmActionCard action={custom.confirmAction} />
@@ -264,7 +274,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
         {showSearchResults && (
-          <SearchResultsSection citations={citations} additionalSources={additionalSources} />
+          <SearchResultsSection
+            citations={sourceCardCitations}
+            additionalSources={additionalSources}
+          />
         )}
 
         {!isStreaming && textContent && (
