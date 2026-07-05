@@ -68,7 +68,7 @@ describe('Phase 0 operation schema', () => {
     const r = sheetOperationSchema.safeParse({
       type: 'set_number_format',
       range: 'B2:B20',
-      pattern: '#,##0.00 €',
+      pattern: '#,##0.00\\ [$€-407]',
     });
     expect(r.success).toBe(true);
   });

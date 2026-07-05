@@ -286,7 +286,9 @@ Maxi Mustermensch<br>
     id: 'tabelle',
     name: 'Tabelle (im Dokument)',
     description: 'Einfache Tabelle in einem Textdokument',
-    icon: '📊',
+    // 📄 (document), not 📊 — the spreadsheet glyph read as a real Univer sheet
+    // and got clicked by mistake. This is a table inside a text document.
+    icon: '📄',
     defaultTitle: 'Neue Tabelle',
     content: `
 <h1>Neue Tabelle</h1>
