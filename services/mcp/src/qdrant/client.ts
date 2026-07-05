@@ -1,12 +1,12 @@
+import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/query/text';
 import {
   applyReciprocalRankFusion,
   applyWeightedCombination,
   applyQualityGate,
   calculateTextSearchScore,
   DEFAULT_HYBRID_CONFIG,
-} from '@gruenerator/shared/search/vector';
-import { type VectorSearchResult, type TextSearchResult } from '@gruenerator/shared/search/vector';
-import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
+} from '@gruenerator/query/vector';
+import { type VectorSearchResult, type TextSearchResult } from '@gruenerator/query/vector';
 import { QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
 import { config } from '../config.ts';
@@ -256,7 +256,7 @@ async function performTextSearch(
   });
 }
 
-// calculateTextSearchScore is imported from @gruenerator/shared
+// calculateTextSearchScore is imported from @gruenerator/query/vector
 
 /**
  * Apply Reciprocal Rank Fusion - uses shared implementation
