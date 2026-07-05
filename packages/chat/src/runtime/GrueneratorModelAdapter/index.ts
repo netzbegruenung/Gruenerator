@@ -145,9 +145,18 @@ export function createGrueneratorModelAdapter(
       // Prefer it over the store's currentThreadId, which can lag on rapid
       // thread switches; a fresh thread has no remoteId snapshot yet, so fall
       // back to the store id that initialize() just set.
-      const config = options.unstable_threadId
-        ? { ...baseConfig, threadId: options.unstable_threadId }
-        : baseConfig;
+      //
+      // BUT assistant-ui's *local* runtime (editor sidebars: docs/sheets/boards/
+      // presentations via useLocalRuntime) reports the local thread-list sentinel
+      // "__DEFAULT_ID__" as unstable_threadId. That is not a real thread — letting
+      // it override would make contextProviders.get(threadId) miss (providers are
+      // registered under the real getChatThread id), so currentDocument never
+      // reaches the backend and edit_current_doc never classifies. Ignore it.
+      const runtimeThreadId =
+        options.unstable_threadId && options.unstable_threadId !== '__DEFAULT_ID__'
+          ? options.unstable_threadId
+          : null;
+      const config = runtimeThreadId ? { ...baseConfig, threadId: runtimeThreadId } : baseConfig;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
       // This is where addResult() writes the user's answer for human tool calls.
