@@ -6,8 +6,7 @@ export const notebooksSearchTool = {
   name: 'notebooks_search',
   description: `Liefert die rohen, am besten passenden Dokument-Chunks zu einer Anfrage — ohne LLM-Synthese.
 
-Nutze dies, wenn du selbst zusammenfassen oder ein eigenes UI bauen willst.
-Für eine fertige Antwort mit Quellen verwende stattdessen \`notebooks_ask\`.
+Nutze die Treffer, um deine Antwort selbst zu formulieren und auf die Quellen zu verweisen.
 
 Erfordert einen Bearer API-Key, dessen Scope den angefragten \`landesverband\` abdeckt.`,
 
