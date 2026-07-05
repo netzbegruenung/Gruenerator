@@ -3,6 +3,11 @@
  * Extracts the existing scanner logic into a separate tab component
  */
 
+import {
+  scannerExtractResponseSchema,
+  type OcrProvider,
+  type ScannerExtractResponse,
+} from '@gruenerator/contracts';
 import { FeatureToggle } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react';
@@ -19,18 +24,13 @@ import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../Sca
 
 const CameraScanner = lazy(() => import('../CameraScanner'));
 
-interface ScannerResult {
-  text: string;
-  pageCount: number;
-  method: string;
-  fileInfo: {
-    originalname: string;
-    size: number;
-    mimetype: string;
-  };
-}
-
 type ScannerState = 'upload' | 'ready' | 'processing' | 'error';
+
+// Handwriting must force Mistral: Docling can't read handwritten scans and the
+// backend default (env.OCR_PROVIDER) is Docling in production, so relying on the
+// default silently routed handwriting to Docling → near-empty documents.
+const OCR_PROVIDER_FOR_HANDWRITING: OcrProvider = 'mistral';
+const OCR_PROVIDER_FOR_PRINT: OcrProvider = 'docling';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.docx', '.pptx'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -161,16 +161,19 @@ const ScannerTab = () => {
     setError(null);
 
     try {
-      const results: ScannerResult[] = [];
+      const texts: string[] = [];
       let totalPages = 0;
+
+      const provider: OcrProvider = useHandwriting
+        ? OCR_PROVIDER_FOR_HANDWRITING
+        : OCR_PROVIDER_FOR_PRINT;
 
       for (const file of selectedFiles) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const url = useHandwriting ? '/scanner/extract' : '/scanner/extract?provider=docling';
-        const response = await apiClient.post<ScannerResult & { success: boolean; error?: string }>(
-          url,
+        const response = await apiClient.post<unknown>(
+          `/scanner/extract?provider=${provider}`,
           formData,
           {
             headers: {
@@ -179,27 +182,28 @@ const ScannerTab = () => {
           }
         );
 
-        if (response.data.success) {
-          totalPages += response.data.pageCount;
-          if (totalPages > MAX_PAGES) {
-            setError(
-              `Seitenlimit überschritten: maximal ${MAX_PAGES} Seiten erlaubt (${totalPages} Seiten erkannt).`
-            );
-            setScannerState('error');
-            return;
-          }
-          results.push(response.data);
-        } else {
-          setError(response.data.error ?? `Fehler bei "${file.name}"`);
+        const parsed: ScannerExtractResponse = scannerExtractResponseSchema.parse(response.data);
+        if (!parsed.success) {
+          setError(parsed.error || `Fehler bei "${file.name}"`);
           setScannerState('error');
           return;
         }
+
+        totalPages += parsed.pageCount;
+        if (totalPages > MAX_PAGES) {
+          setError(
+            `Seitenlimit überschritten: maximal ${MAX_PAGES} Seiten erlaubt (${totalPages} Seiten erkannt).`
+          );
+          setScannerState('error');
+          return;
+        }
+        texts.push(parsed.text);
       }
 
       const combinedText =
-        results.length === 1
-          ? results[0].text
-          : results.map((r, i) => `**${selectedFiles[i].name}**\n\n${r.text}`).join('\n\n---\n\n');
+        texts.length === 1
+          ? texts[0]
+          : texts.map((text, i) => `**${selectedFiles[i].name}**\n\n${text}`).join('\n\n---\n\n');
 
       if (!combinedText.trim()) {
         setError('Es konnte kein Text aus den Dateien extrahiert werden.');
