@@ -35,6 +35,7 @@ export interface LoadedMessage {
   metadata?: {
     intent?: string;
     searchCount?: number;
+    traceId?: string;
     citations?: Citation[];
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
@@ -176,9 +177,14 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     custom.reelPicker = { projects: reelPickerProjects };
   }
 
-  // Derived: drives the message-action affordances (copy/regenerate context).
-  if (metadata.intent) {
-    custom.streamMetadata = { intent: metadata.intent, searchCount: metadata.searchCount ?? 0 };
+  // Derived: drives the message-action affordances (copy/regenerate context)
+  // and the thumbs feedback button (traceId), so it must survive reload.
+  if (metadata.intent || metadata.traceId) {
+    custom.streamMetadata = {
+      intent: metadata.intent ?? 'direct',
+      searchCount: metadata.searchCount ?? 0,
+      ...(metadata.traceId && { traceId: metadata.traceId }),
+    };
   }
 
   return custom;

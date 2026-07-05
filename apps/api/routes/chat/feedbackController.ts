@@ -54,6 +54,8 @@ router.post(
           dataType: 'NUMERIC',
           ...(comment && { comment }),
         }),
+        // Fail fast if the self-hosted instance hangs — don't tie up a request slot.
+        signal: AbortSignal.timeout(5000),
       });
 
       if (!response.ok) {
