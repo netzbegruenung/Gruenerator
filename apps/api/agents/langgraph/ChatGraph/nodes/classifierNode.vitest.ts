@@ -242,6 +242,24 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('fast-paths explicit presentation-deck requests to create_presentation', () => {
+    for (const q of [
+      'Erstelle eine Präsentation über kommunale Wärmeplanung',
+      'Mach mir einen Foliensatz zum Thema Klimaschutz',
+      'Generiere ein Pitch-Deck für unseren Antrag',
+      'Bau Folien über die Verkehrswende',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_presentation');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it('does NOT route prose mentions of a presentation to create_presentation', () => {
+    const result = heuristicClassify('Worum ging es in der Präsentation von gestern?');
+    expect(result.intent).not.toBe('create_presentation');
+  });
+
   it('routes tabular aggregation questions to compute when a spreadsheet is attached', () => {
     const result = heuristicClassify('produkt mit höchstem gesamtgewinn?', {
       hasTabularAttachment: true,
