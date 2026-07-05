@@ -6,7 +6,7 @@
  * adaptation happens at the fetch boundary so existing consumers read it unchanged.
  */
 
-import { type QdrantFilter } from '@gruenerator/shared/search/filters';
+import { type QdrantFilter } from '@gruenerator/query/filters';
 
 export interface McpFilterableField {
   label: string;
