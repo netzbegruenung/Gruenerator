@@ -176,9 +176,15 @@ function PresentationsEditorContent() {
       // Go through the shared apiClient (not a raw fetch) so the download
       // carries auth like every other request and recovers from transient
       // 401s during cookie rotation via its onUnauthorized retry.
-      const res = await apiClient.post<Blob>(`/presentations/${id}/export/pptx`, null, {
-        responseType: 'blob',
-      });
+      // Body must be {} not null: the apiClient forces application/json, which
+      // serializes null to the string "null" — rejected by strict express.json().
+      const res = await apiClient.post<Blob>(
+        `/presentations/${id}/export/pptx`,
+        {},
+        {
+          responseType: 'blob',
+        }
+      );
       const url = window.URL.createObjectURL(res.data as Blob);
       const link = document.createElement('a');
       link.href = url;
