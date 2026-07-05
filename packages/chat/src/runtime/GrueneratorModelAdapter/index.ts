@@ -48,6 +48,19 @@ export type {
 const MAX_CLIENT_TOOL_ROUNDS = 3;
 
 /**
+ * A 401/403 on the stream or a resume means the session died mid-turn. This is
+ * a raw `fetch` path with no axios interceptor, so route it through the app's
+ * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
+ * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
+ * message and no way back to login until a manual reload.
+ */
+function routeUnauthorized(response: Response): void {
+  if (response.status === 401 || response.status === 403) {
+    useChatConfigStore.getState().onUnauthorized?.();
+  }
+}
+
+/**
  * Run-then-answer continuation: while the stream ended in a `client_tool`
  * interrupt, execute the tool locally (clientTools registry) and resume the
  * turn with the result — the backend streams the final answer, which we keep
@@ -95,6 +108,7 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
+      routeUnauthorized(resumeResponse);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -166,6 +180,7 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
+            routeUnauthorized(resumeResponse);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -627,6 +642,7 @@ export function createGrueneratorModelAdapter(
       }
 
       if (!response.ok) {
+        routeUnauthorized(response);
         yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
         return;
       }
