@@ -209,10 +209,25 @@ function extractBearerKey(req: express.Request): string | null {
 
 // MCP Server Factory
 function createMcpServer(baseUrl: string, apiKey: string | null) {
-  const server = new McpServer({
-    name: 'gruenerator-mcp',
-    version: '1.0.0',
-  });
+  const server = new McpServer(
+    {
+      name: 'gruenerator-mcp',
+      version: '1.0.0',
+    },
+    {
+      // Server-level tool-use guidance — lands in the client's system prompt.
+      // This is the sanctioned place for "call X before Y" hints (unlike tool
+      // descriptions, which must not instruct behaviour). Kept short: it costs
+      // tokens every session. Full guidance stays in the system-prompt resource.
+      instructions: [
+        'Grünerator-MCP: durchsucht Programme, Beschlüsse und Positionen von Bündnis 90/Die Grünen (Deutschland) und den Grünen Österreich.',
+        '- gruenerator_search ist das Haupttool. Formuliere die Antwort aus den Treffern und verweise auf deren Quelle/URL.',
+        '- Der Parameter country ist Pflicht (DE oder AT) und bestimmt, welche Sammlungen durchsucht werden.',
+        '- Rufe gruenerator_get_filters für eine Sammlung auf, bevor du mit filters einschränkst — Filterwerte nicht raten.',
+        '- Für DE-vs-AT-Vergleiche zweimal suchen (country DE und AT) und gegenüberstellen.',
+      ].join('\n'),
+    }
+  );
 
   // === MCP RESOURCES ===
 

@@ -85,7 +85,9 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            xdg-utils \
+            file
 
       - name: Setup pnpm
         if: steps.check.outputs.should_run == 'true'
