@@ -64,7 +64,7 @@ export function CanvasEditorLayout({
       {toolbar}
       {hasSidebar && (
         <div
-          className="canvas-sidebar fixed left-0 top-0 bottom-0 z-[120] max-canvas-mobile:static max-canvas-mobile:contents"
+          className="canvas-sidebar fixed left-[var(--canvas-host-inset-left,0px)] top-0 bottom-0 z-[120] max-canvas-mobile:static max-canvas-mobile:contents"
           style={SIDEBAR_FONT_SIZES}
         >
           {tabBar}
@@ -93,9 +93,10 @@ export function CanvasEditorLayout({
       {bottomBar && (
         <div
           className={cn(
-            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-0 max-canvas-mobile:hidden',
-            hasSidebar && 'left-[var(--image-studio-tab-bar-width)]',
-            externalSidebar && '!left-0'
+            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-[var(--canvas-host-inset-left,0px)] max-canvas-mobile:hidden',
+            hasSidebar &&
+              'left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width))]',
+            externalSidebar && '!left-[var(--canvas-host-inset-left,0px)]'
           )}
         >
           {bottomBar}
