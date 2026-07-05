@@ -5,6 +5,8 @@
  * Uses the direct search functions from the chat agents module.
  */
 
+import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
@@ -191,22 +193,8 @@ function buildAbgeordnetenwatchResults(enriched: AwEnrichedResult): SearchResult
 }
 
 // ── Bundestag (DIP) → SearchResult mapping ────────────────────────────────────
-function dipSearchUrl(term: string): string {
-  return `https://dip.bundestag.de/suche?term=${encodeURIComponent(term)}`;
-}
-
-/**
- * Plenary protocol PDF on dserver.bundestag.de — only constructible for
- * Bundestag protocols with a canonical "wp/number" dokumentnummer; anything
- * else falls back to a DIP search link so citations never 404 by guesswork.
- */
-function btpPdfUrl(protokollNummer: string | null, herausgeber: string | null): string | null {
-  if (herausgeber !== 'BT' || !protokollNummer) return null;
-  const m = protokollNummer.match(/^(\d{1,2})\/(\d{1,4})$/);
-  if (!m) return null;
-  return `https://dserver.bundestag.de/btp/${m[1]}/${m[1]}${m[2].padStart(3, '0')}.pdf`;
-}
-
+// dipSearchUrl / btpPdfUrl link helpers are shared with the BundestagCard via
+// @gruenerator/contracts (imported at the top of this file).
 function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   const content =
     [d.titel, d.datum, d.urheber.length > 0 ? `Urheber: ${d.urheber.join(', ')}` : null]
@@ -750,6 +738,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let searchedCollections: string[] = [];
     let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
+    let bundestagResult: BtEnrichedResult | null = null;
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -1307,6 +1296,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           break;
         }
         const enriched = await getBundestagEnrichedService().search(searchQuery || '');
+        // Stash the structured result for the dedicated BundestagCard; the flat
+        // `results` below stay for text grounding + inline citations.
+        bundestagResult = enriched;
         results = buildBundestagResults(enriched);
         log.info(
           `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
@@ -1568,6 +1560,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       researchMeta,
       examplesResult,
+      bundestagResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {

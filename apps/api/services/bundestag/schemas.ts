@@ -90,71 +90,24 @@ export const rawVorgangSchema = z.object({
   datum: z.string().nullish(),
 });
 
-// ── Trimmed DTOs (leave the client; cached; source of truth for TS types) ───
-export const btDrucksacheSchema = z.object({
-  id: z.string(),
-  titel: z.string(),
-  dokumentnummer: z.string(),
-  drucksachetyp: z.string().nullable(),
-  wahlperiode: z.number().nullable(),
-  datum: z.string().nullable(),
-  urheber: z.array(z.string()),
-  pdfUrl: z.string().nullable(),
-});
-export type BtDrucksache = z.infer<typeof btDrucksacheSchema>;
-
-export const btSpeechSchema = z.object({
-  speaker: z.string(),
-  party: z.string().nullable(),
-  date: z.string().nullable(),
-  /** Truncated at the client boundary — full speeches run 3–4k chars. */
-  excerpt: z.string(),
-  protokollNummer: z.string().nullable(),
-  wahlperiode: z.number().nullable(),
-  herausgeber: z.string().nullable(),
-  topTitle: z.string().nullable(),
-  score: z.number(),
-});
-export type BtSpeech = z.infer<typeof btSpeechSchema>;
-
-export const btSemanticHitSchema = z.object({
-  docType: z.string(),
-  docId: z.string(),
-  entityType: z.string().nullable(),
-  title: z.string(),
-  /** HTML-stripped, entity-decoded, capped at the client boundary. */
-  abstract: z.string().nullable(),
-  dokumentnummer: z.string().nullable(),
-  date: z.string().nullable(),
-  wahlperiode: z.number().nullable(),
-  score: z.number(),
-});
-export type BtSemanticHit = z.infer<typeof btSemanticHitSchema>;
-
-export const btPersonSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  fraktion: z.string().nullable(),
-  wahlperiode: z.number().nullable(),
-});
-export type BtPerson = z.infer<typeof btPersonSchema>;
-
-export const btAktivitaetSchema = z.object({
-  titel: z.string(),
-  typ: z.string().nullable(),
-  datum: z.string().nullable(),
-  dokumentnummer: z.string().nullable(),
-});
-export type BtAktivitaet = z.infer<typeof btAktivitaetSchema>;
-
-export const btVorgangSchema = z.object({
-  id: z.string(),
-  titel: z.string(),
-  vorgangstyp: z.string().nullable(),
-  beratungsstand: z.string().nullable(),
-  datum: z.string().nullable(),
-});
-export type BtVorgang = z.infer<typeof btVorgangSchema>;
+// ── Trimmed DTOs — canonical wire shapes live in @gruenerator/contracts ──────
+// The RAW schemas above stay client-side (lenient, drift-tolerant); the trimmed
+// DTOs that leave the client and travel over the chat SSE stream are the
+// contract source of truth, re-exported here so existing imports keep working.
+export {
+  btDrucksacheSchema,
+  btSpeechSchema,
+  btSemanticHitSchema,
+  btPersonSchema,
+  btAktivitaetSchema,
+  btVorgangSchema,
+  type BtDrucksache,
+  type BtSpeech,
+  type BtSemanticHit,
+  type BtPerson,
+  type BtAktivitaet,
+  type BtVorgang,
+} from '@gruenerator/contracts';
 
 // ── Cleaning helpers ─────────────────────────────────────────────────────────
 const NAMED_ENTITIES: Record<string, string> = {

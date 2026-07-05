@@ -260,6 +260,8 @@
     --color-collection-grundsatzprogramm-bg-val: rgba(5,150,105,0.1);
     --color-collection-bundestagsfraktion-val: #2563eb;
     --color-collection-bundestagsfraktion-bg-val: rgba(37,99,235,0.1);
+    --color-collection-bundestag-val: #475569;
+    --color-collection-bundestag-bg-val: rgba(71,85,105,0.1);
     --color-collection-gruene-de-val: #16a34a;
     --color-collection-gruene-de-bg-val: rgba(22,163,74,0.1);
     --color-collection-kommunalwiki-val: #d97706;
@@ -400,6 +402,8 @@
     --color-collection-grundsatzprogramm-bg-val: rgba(5,150,105,0.25);
     --color-collection-bundestagsfraktion-val: #60a5fa;
     --color-collection-bundestagsfraktion-bg-val: rgba(37,99,235,0.25);
+    --color-collection-bundestag-val: #94a3b8;
+    --color-collection-bundestag-bg-val: rgba(148,163,184,0.22);
     --color-collection-gruene-de-val: #4ade80;
     --color-collection-gruene-de-bg-val: rgba(22,163,74,0.25);
     --color-collection-kommunalwiki-val: #fbbf24;

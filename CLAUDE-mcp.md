@@ -28,7 +28,6 @@ The MCP no longer bundles the list: `services/mcp/src/catalog.ts` fetches the `m
 | Tool                          | Description                                                    |
 | ----------------------------- | -------------------------------------------------------------- |
 | `gruenerator_search`          | Hybrid/vector/text search across party program collections     |
-| `gruenerator_person_search`   | Look up Green politicians with enriched Bundestag DIP API data |
 | `gruenerator_examples_search` | Find social media examples (Instagram/Facebook)                |
 | `gruenerator_get_filters`     | Get available filter values for a collection before filtering  |
 | `gruenerator_cache_stats`     | View embedding and search cache statistics                     |
