@@ -369,7 +369,7 @@ const ReleaseDownloadButtons = ({
 // GitHub release updates this page with no frontend redeploy.
 const DesktopDownloadSection = () => {
   const user = useAuthStore((s) => s.user);
-  const { manifest: stable, failed: stableFailed } = useReleaseManifest('stable', Boolean(user));
+  const { manifest: stable } = useReleaseManifest('stable', Boolean(user));
   const { manifest: beta } = useReleaseManifest('beta', Boolean(user));
 
   // Public visitors (and logged-out) see only the "coming soon" note.
@@ -390,6 +390,7 @@ const DesktopDownloadSection = () => {
         {stable?.notes ? ` ${stable.notes}` : ''}
       </p>
 
+      {/* Stabiler Kanal vorerst ausgeblendet — nur Beta-Kanal verfügbar.
       {stable && Object.keys(stable.platforms).length > 0 ? (
         <ReleaseDownloadButtons channel="stable" manifest={stable} />
       ) : stableFailed ? (
@@ -399,6 +400,7 @@ const DesktopDownloadSection = () => {
       ) : (
         <p className="text-sm text-grey-500">Lade Download-Informationen…</p>
       )}
+      */}
 
       {beta && Object.keys(beta.platforms).length > 0 ? (
         <div className="mt-2 flex w-full flex-col items-center gap-3 border-t border-grey-200 pt-6 dark:border-grey-700">
