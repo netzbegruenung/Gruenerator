@@ -128,13 +128,6 @@ const STATIC_CATALOG: McpCatalog = {
     filterableFields: {},
     includeInDefaultSearch: true,
   },
-  satzungen: {
-    name: 'satzungen_documents',
-    displayName: 'Satzungen',
-    description: 'Satzungen der Kreisverbände und Ortsverbände',
-    filterableFields: {},
-    includeInDefaultSearch: false,
-  },
   examples: {
     name: 'social_media_examples',
     displayName: 'Social Media Beispiele',
