@@ -64,6 +64,22 @@ export async function getQdrantClient(): Promise<QdrantClient> {
   return client;
 }
 
+/** Lightweight liveness probe for /health/mcp — pings Qdrant via getCollections. */
+export async function checkQdrantHealth(): Promise<{
+  ok: boolean;
+  latencyMs: number;
+  error?: string;
+}> {
+  const start = Date.now();
+  try {
+    const c = await getQdrantClient();
+    await c.getCollections();
+    return { ok: true, latencyMs: Date.now() - start };
+  } catch (err) {
+    return { ok: false, latencyMs: Date.now() - start, error: describeFetchError(err) };
+  }
+}
+
 /**
  * Merge base filter with additional filter
  */

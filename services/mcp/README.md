@@ -145,16 +145,17 @@ After configuration, you can ask questions like:
 
 ### Endpoints
 
-| Endpoint                | Method | Description                                    |
-| ----------------------- | ------ | ---------------------------------------------- |
-| `/mcp`                  | POST   | MCP communication (stateless, JSON responses)  |
-| `/mcp`                  | GET    | 405 — no SSE stream in stateless JSON mode     |
-| `/mcp`                  | DELETE | 405 — no sessions in stateless mode            |
-| `/health`               | GET    | Health check with cache and request statistics |
-| `/metrics`              | GET    | Detailed server metrics                        |
-| `/.well-known/mcp.json` | GET    | Auto-discovery metadata                        |
-| `/config/:client`       | GET    | Generate client configuration                  |
-| `/info`                 | GET    | Server information                             |
+| Endpoint                | Method | Description                                                                                                                     |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `/mcp`                  | POST   | MCP communication (stateless, JSON responses)                                                                                   |
+| `/mcp`                  | GET    | 405 — no SSE stream in stateless JSON mode                                                                                      |
+| `/mcp`                  | DELETE | 405 — no sessions in stateless mode                                                                                             |
+| `/health`               | GET    | Liveness check with cache and request statistics                                                                                |
+| `/health/mcp`           | GET    | Deep diagnostics: dependency health (Qdrant/Mistral/catalog) + MCP client-readiness (JSON mode, stateless, capabilities, tools) |
+| `/metrics`              | GET    | Detailed server metrics                                                                                                         |
+| `/.well-known/mcp.json` | GET    | Auto-discovery metadata                                                                                                         |
+| `/config/:client`       | GET    | Generate client configuration                                                                                                   |
+| `/info`                 | GET    | Server information                                                                                                              |
 
 ### Health Check Response
 
