@@ -250,7 +250,6 @@ WICHTIG: Rufe ZUERST gruenerator_get_filters auf, um gültige Filterwerte zu erf
 | examples | platform (instagram, facebook), country (DE oder AT) |
 | Landesverbände | content_type (Typ), primary_category, subcategories |
 | berlin | source_id (Quelle: LV/Fraktion Presse/Beschlüsse) |
-| satzungen | landesverband, gremium |
 | viele Sammlungen | date_from / date_to (Datumsbereich, ISO-Format) |
 
 ## Beispiele
@@ -334,14 +333,6 @@ export const searchTool = {
           .describe(
             'Quellen-ID (nur berlin: berlin-lv-presse, berlin-fraktion-presse, etc.) - erst gruenerator_get_filters aufrufen!'
           ),
-        landesverband: z
-          .string()
-          .optional()
-          .describe('Landesverband (nur satzungen) - erst gruenerator_get_filters aufrufen!'),
-        gremium: z
-          .string()
-          .optional()
-          .describe('Gremium (nur satzungen) - erst gruenerator_get_filters aufrufen!'),
         date_from: z
           .string()
           .optional()
