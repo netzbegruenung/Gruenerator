@@ -30,8 +30,6 @@ import { filtersTool } from './tools/filters.ts';
 import { notebooksGetFiltersTool } from './tools/notebooks-get-filters.ts';
 import { notebooksListTool } from './tools/notebooks-list.ts';
 import { notebooksSearchTool } from './tools/notebooks-search.ts';
-// DISABLED: Person search removed — DIP API integration non-functional
-// import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { getCacheStats } from './utils/cache.ts';
 import { classifyError, connectionErrorResponse } from './utils/errors.ts';
@@ -398,11 +396,6 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
 
   // === MCP PROMPTS ===
   registerAgentPrompts(server);
-
-  // DISABLED: Person search removed — DIP API integration non-functional
-  // server.tool(personSearchTool.name, personSearchTool.inputSchema, async (params) => {
-  //   ...
-  // });
 
   // Examples Search Tool
   server.registerTool(

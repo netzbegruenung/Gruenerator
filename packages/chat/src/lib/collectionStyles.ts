@@ -9,6 +9,14 @@ export const COLLECTION_STYLES: Record<string, { color: string; bg: string; labe
     bg: 'var(--color-collection-bundestagsfraktion-bg)',
     label: 'Bundestagsfraktion',
   },
+  // Official DIP documents (bundestag intent) — distinct from the crawled
+  // gruene-bundestag.de "Bundestagsfraktion" collection above. Attributed to
+  // the Bundestag Wrapped MCP that serves the DIP data.
+  bundestag: {
+    color: 'var(--color-collection-bundestag)',
+    bg: 'var(--color-collection-bundestag-bg)',
+    label: 'Bundestag Wrapped',
+  },
   'gruene-de': {
     color: 'var(--color-collection-gruene-de)',
     bg: 'var(--color-collection-gruene-de-bg)',
