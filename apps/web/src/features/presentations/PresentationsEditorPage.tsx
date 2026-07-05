@@ -5,6 +5,7 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import { type Slide } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -29,7 +30,7 @@ import {
   FiShare2,
   FiSliders,
 } from 'react-icons/fi';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
@@ -56,7 +57,14 @@ const PresentMode = lazyWithRetry(() =>
 function PresentationsEditorContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const adapter = useDocsAdapter();
+
+  // Template picked at creation (SPA nav-state from DocsPage). Seeds the fresh
+  // deck on first open; the `seeded` guard ignores it once the deck has slides,
+  // so a reload (state gone) is a no-op.
+  const seedSlides = (location.state as { presentationTemplate?: Slide[] } | null)
+    ?.presentationTemplate;
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
 
@@ -386,6 +394,7 @@ function PresentationsEditorContent() {
               designPanelOpen={designPanelOpen}
               onCloseDesignPanel={() => setDesignPanelOpen(false)}
               onReady={setEditorApi}
+              seedSlides={seedSlides}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
