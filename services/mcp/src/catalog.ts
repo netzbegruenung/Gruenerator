@@ -266,6 +266,24 @@ export function getCatalog(): McpCatalog {
   return currentCatalog;
 }
 
+/** Diagnostic snapshot of the catalog state (for /health/mcp). */
+export function getCatalogStatus(): {
+  source: 'live' | 'static';
+  collectionCount: number;
+  lastFetchedAt: string | null;
+  ageSeconds: number | null;
+  apiConfigured: boolean;
+} {
+  const live = lastFetchedAt > 0;
+  return {
+    source: live ? 'live' : 'static',
+    collectionCount: Object.keys(currentCatalog).length,
+    lastFetchedAt: live ? new Date(lastFetchedAt).toISOString() : null,
+    ageSeconds: live ? Math.round((Date.now() - lastFetchedAt) / 1000) : null,
+    apiConfigured: !!process.env.GRUENERATOR_API_URL,
+  };
+}
+
 /** Chat/user-facing collection keys currently known to the catalog. */
 export function getCollectionKeys(): string[] {
   return Object.keys(getCatalog());
