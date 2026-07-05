@@ -22,6 +22,7 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
+import { buildAiTelemetry } from '../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
@@ -295,6 +296,10 @@ export async function handleNotebookStream(
 
     let fullText: string | null;
     try {
+      const notebookTelemetry = buildAiTelemetry('notebook-chat.respond', {
+        ...(userId && { userId }),
+        ...(collectionId && { sessionId: collectionId }),
+      });
       fullText = await streamWithFallback({
         primary: primaryResolution,
         sse,
@@ -308,6 +313,7 @@ export async function handleNotebookStream(
             sse,
             signal: abortController.signal,
             logPrefix: '[Notebook]',
+            ...(notebookTelemetry && { telemetry: notebookTelemetry }),
           });
         },
       });

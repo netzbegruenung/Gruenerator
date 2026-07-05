@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/node';
 import 'dotenv/config';
 
 import { env } from './config/env.js';
+import { initLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
 
 const dsn = env.SENTRY_DSN;
 
@@ -15,3 +16,8 @@ if (dsn) {
     tracesSampleRate: 0,
   });
 }
+
+// After Sentry so we can detect whether it already installed a context manager.
+// No-op unless LANGFUSE_* env vars are set. Runs in every cluster worker (this
+// file is --import'ed before server.ts).
+initLangfuseTelemetry();

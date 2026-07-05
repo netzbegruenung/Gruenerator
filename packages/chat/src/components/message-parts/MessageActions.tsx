@@ -1,9 +1,9 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { Copy, Check, Download, Loader2, RefreshCw } from 'lucide-react';
+import { Copy, Check, Download, Loader2, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
-import { useMessageRuntime } from '@assistant-ui/react';
+import { useMessageRuntime, ActionBarPrimitive } from '@assistant-ui/react';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
@@ -16,11 +16,14 @@ import type { ChatMessage } from '../../hooks/useChatGraphStream';
 interface MessageActionsProps {
   content: string;
   metadata?: ChatMessage['metadata'];
+  /** Show thumbs up/down — only when this turn produced a Langfuse trace. */
+  showFeedback?: boolean;
 }
 
 export const MessageActions = memo(function MessageActions({
   content,
   metadata,
+  showFeedback = false,
 }: MessageActionsProps) {
   const extraActions = useExtraActions();
   const messageRuntime = useMessageRuntime();
@@ -188,6 +191,24 @@ export const MessageActions = memo(function MessageActions({
           {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
         </button>
       ))}
+      {showFeedback && (
+        <>
+          <ActionBarPrimitive.FeedbackPositive
+            className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground data-[submitted]:text-primary"
+            aria-label="Hilfreich"
+            title="Hilfreich"
+          >
+            <ThumbsUp className="h-4 w-4" />
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative
+            className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground data-[submitted]:text-primary"
+            aria-label="Nicht hilfreich"
+            title="Nicht hilfreich"
+          >
+            <ThumbsDown className="h-4 w-4" />
+          </ActionBarPrimitive.FeedbackNegative>
+        </>
+      )}
     </div>
   );
 });
