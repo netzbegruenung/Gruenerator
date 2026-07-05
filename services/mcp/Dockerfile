@@ -13,30 +13,23 @@ WORKDIR /app
 # Copy workspace config
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/core/package.json ./packages/core/
-COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/query/package.json ./packages/query/
 COPY services/mcp/package.json ./services/mcp/
 
 # Install dependencies
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/mcp...
 
-# Copy source and compile
-COPY packages/shared ./packages/shared
-COPY packages/core ./packages/core
-COPY packages/contracts ./packages/contracts
+# Copy source and compile. The MCP only depends on @gruenerator/query (pure-TS
+# search/text primitives) — no more building all of @gruenerator/shared.
+COPY packages/query ./packages/query
 COPY services/mcp ./services/mcp
 
-# Compile core package (shared re-exports @gruenerator/core; must build first)
-RUN pnpm --filter @gruenerator/core build
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' /app/packages/core/package.json
-
-# Compile shared package (MCP imports @gruenerator/shared at runtime)
-RUN pnpm --filter @gruenerator/shared build
-# Redirect shared exports from .ts source to compiled .js/.d.ts so MCP's
-# stricter tsconfig doesn't type-check shared source (skipLibCheck applies to .d.ts)
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' /app/packages/shared/package.json
+# Compile the query package (MCP imports @gruenerator/query at runtime).
+RUN pnpm --filter @gruenerator/query build
+# Redirect query exports from .ts source to compiled .js/.d.ts so MCP's stricter
+# tsconfig type-checks against the built types (skipLibCheck applies to .d.ts).
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' /app/packages/query/package.json
 
 # Compile MCP server
 WORKDIR /app/services/mcp
@@ -78,9 +71,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/package.json ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/package.json ./packages/query/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/package.json ./services/mcp/
 
 # Switch to non-root user before install (files written as gruenerator, no chown needed)
@@ -90,11 +81,10 @@ USER gruenerator
 RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile --filter @gruenerator/mcp...
 
-# Copy compiled shared package (resolves @gruenerator/shared imports at runtime)
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
-# Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
-RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
+# Copy compiled query package (resolves @gruenerator/query imports at runtime)
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/dist ./packages/query/dist
+# Redirect query package exports from ./src/*.ts to ./dist/*.js for Node.js
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/query/package.json
 
 # Copy compiled MCP server
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/dist ./services/mcp/dist
