@@ -14,7 +14,14 @@ import { type ThreadId, type UserId } from '../../../utils/types/branded.js';
  * Uses separate queries to avoid PostgreSQL type ambiguity
  * (chat_threads.user_id is varchar, group_memberships.user_id is uuid).
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function canAccessThread(threadId: ThreadId, userId: UserId): Promise<boolean> {
+  // `chat_threads.id` is a uuid column. A non-UUID id (e.g. an unsaved local
+  // sentinel like "__LOCALID_...") would make `WHERE id = $1` throw 22P02 and
+  // 500 the request. There is no persisted thread to access, so deny cleanly.
+  if (!UUID_RE.test(threadId)) return false;
+
   const db = getPostgresInstance();
 
   // Check owner, permissions, or public
