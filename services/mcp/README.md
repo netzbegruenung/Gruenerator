@@ -147,9 +147,9 @@ After configuration, you can ask questions like:
 
 | Endpoint                | Method | Description                                    |
 | ----------------------- | ------ | ---------------------------------------------- |
-| `/mcp`                  | POST   | MCP communication                              |
-| `/mcp`                  | GET    | SSE stream                                     |
-| `/mcp`                  | DELETE | End session                                    |
+| `/mcp`                  | POST   | MCP communication (stateless, JSON responses)  |
+| `/mcp`                  | GET    | 405 — no SSE stream in stateless JSON mode     |
+| `/mcp`                  | DELETE | 405 — no sessions in stateless mode            |
 | `/health`               | GET    | Health check with cache and request statistics |
 | `/metrics`              | GET    | Detailed server metrics                        |
 | `/.well-known/mcp.json` | GET    | Auto-discovery metadata                        |
