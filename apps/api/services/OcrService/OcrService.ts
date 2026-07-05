@@ -7,6 +7,8 @@
 import { createRequire } from 'module';
 import path from 'path';
 
+import { type OcrProvider } from '@gruenerator/contracts';
+
 import { env } from '../../config/env.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -97,7 +99,6 @@ export class OCRService {
   async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await loadPdfJs();
 
     // Configure worker path — use createRequire to resolve from the actual
@@ -107,7 +108,6 @@ export class OCRService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this._pdfjsLib = pdfjsLib;
     return pdfjsLib;
   }
@@ -116,7 +116,6 @@ export class OCRService {
    * Open PDF document with PDF.js
    */
   async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
   }
@@ -187,7 +186,7 @@ export class OCRService {
    */
   async extractTextFromDocument(
     filePath: string,
-    preferredProvider?: string
+    preferredProvider?: OcrProvider
   ): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
