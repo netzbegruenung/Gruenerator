@@ -265,36 +265,6 @@ async function main() {
       ok: (d) => Array.isArray(d?.examples) || d?.errorType === 'search_unavailable',
       detail: (d) => d?.errorType || `resultsCount=${d?.resultsCount ?? 0}`,
     },
-    {
-      label: 'gruenerator_ask (QA + synthesis)',
-      name: 'gruenerator_ask',
-      args: { question: 'Was ist die Position zum Klimaschutz?', country: 'DE' },
-      expect: 'ok',
-      ok: (d) => typeof d?.answer === 'string' && d.answer.length > 0,
-      detail: (d) =>
-        `answer ${String(d?.answer || '').length} chars, ${d?.sources?.length ?? 0} sources`,
-    },
-    {
-      label: 'gruenerator_compare (DE vs AT)',
-      name: 'gruenerator_compare',
-      args: { query: 'Klimaschutz', sources: [{ country: 'DE' }, { country: 'AT' }], limit: 2 },
-      expect: 'ok',
-      ok: (d) => Array.isArray(d?.comparison) && d.comparison.length === 2,
-      detail: (d) => `${d?.comparison?.length} sources compared`,
-    },
-    {
-      label: 'gruenerator_notebook_ask (invalid token → clean error)',
-      name: 'gruenerator_notebook_ask',
-      args: { question: 'test', token: 'invalid-token-xyz-000' },
-      expect: 'error',
-      // Must be the EXPECTED "notebook/token not found" error — not a
-      // misconfiguration (e.g. GRUENERATOR_API_URL unset) masquerading as one.
-      ok: (d) =>
-        d?.error === true &&
-        /nicht gefunden|not found|token/i.test(String(d?.message)) &&
-        !/nicht konfiguriert|not configured/i.test(String(d?.message)),
-      detail: (d) => String(d?.message || '').slice(0, 60),
-    },
   ];
 
   for (const t of toolTests) {
@@ -330,7 +300,6 @@ async function main() {
     const authTools = [
       'gruenerator_notebooks_list',
       'gruenerator_notebooks_search',
-      'gruenerator_notebooks_ask',
       'gruenerator_notebooks_get_filters',
     ];
     check(

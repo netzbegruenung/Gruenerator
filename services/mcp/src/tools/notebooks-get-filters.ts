@@ -6,7 +6,7 @@ export const notebooksGetFiltersTool = {
   name: 'notebooks_get_filters',
   description: `Liefert die verfügbaren Filterwerte (Facetten) für einen Landesverband.
 
-Hilfreich, wenn du in \`notebooks_ask\` oder \`notebooks_search\` mit \`filters\` einschränken willst —
+Hilfreich, wenn du in \`notebooks_search\` mit \`filters\` einschränken willst —
 z.B. nach Datum, Kategorie oder Inhaltstyp.
 
 Erfordert einen Bearer API-Key, dessen Scope den \`landesverband\` abdeckt.`,
