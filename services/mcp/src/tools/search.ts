@@ -279,7 +279,7 @@ export const searchTool = {
   description: buildSearchDescription(),
 
   inputSchema: {
-    query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
+    query: z.string().min(1).max(2000).describe('Suchbegriff oder Frage auf Deutsch'),
     country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich. PFLICHT.'),
     collection: z
       .string()
