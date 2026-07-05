@@ -50,9 +50,16 @@ export default function SheetImportDialog({ open, onOpenChange }: SheetImportDia
 
         const workbook = await new Promise<IWorkbookData>((resolve, reject) => {
           const onOk = (data: IWorkbookData) => resolve(data);
-          const onErr = (err: Error) => reject(err instanceof Error ? err : new Error(String(err)));
-          if (isCsv) LuckyExcel.transformCsvToUniver(file, onOk, onErr);
-          else LuckyExcel.transformExcelToUniver(file, onOk, onErr);
+          const onErr = (err: unknown) =>
+            reject(err instanceof Error ? err : new Error(String(err)));
+          const run = isCsv
+            ? LuckyExcel.transformCsvToUniver(file, onOk, onErr)
+            : LuckyExcel.transformExcelToUniver(file, onOk, onErr);
+          // The Excel path returns a Promise that can reject on failures the
+          // library does not route through `onErr` (e.g. a corrupt workbook).
+          // Without this the outer Promise never settles and the dialog — locked
+          // shut while `isImporting` — hangs until a full page reload.
+          Promise.resolve(run).catch(onErr);
         });
 
         if (!workbook?.sheetOrder?.length) {
