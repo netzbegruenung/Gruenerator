@@ -360,7 +360,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     id: 'satzungen-system',
     key: 'satzungen',
     includeInDefaultSearch: false,
-    mcpExposed: true,
+    // Dormant collection — hidden from the public MCP catalog (/api/v1/collections).
+    mcpExposed: false,
     qdrantCollection: 'satzungen_documents',
     name: 'Satzungen',
     description: 'Satzungen der Kreisverbände und Ortsverbände',
