@@ -52,15 +52,36 @@ try {
 
 console.log('[Boot] Setting up Express...');
 const app = express();
-app.use(express.json());
+
+// Behind the Salt-deployed nginx reverse proxy — trust the first hop so req.ip
+// reflects the real client (required for per-IP rate limiting to work).
+app.set('trust proxy', 1);
+
+// MCP JSON-RPC payloads are small; reject oversized bodies early.
+app.use(express.json({ limit: '64kb' }));
+
+// CORS. Defaults to '*' (public read-only search server). Set
+// MCP_ALLOWED_ORIGINS (comma-separated) to restrict to specific origins.
+const allowedOrigins = (process.env.MCP_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 app.use(
   cors({
-    origin: '*',
+    origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'mcp-session-id', 'Authorization'],
     exposedHeaders: ['Mcp-Session-Id'],
   })
 );
+
+// Baseline security headers (helmet-equivalent, kept dependency-free).
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 console.log('[Boot] Express configured');
 
 // Helper: Base URL ermitteln
@@ -70,6 +91,69 @@ function getBaseUrl(req: express.Request): string {
 
 // Session-Verwaltung
 const transports: Record<string, StreamableHTTPServerTransport> = {};
+const sessionLastActivity: Record<string, number> = {};
+
+// --- Anti-abuse: per-IP rate limiting (in-memory; the server is single-process).
+// Anonymous search triggers a Mistral embedding + Qdrant query per call, so an
+// unbounded /mcp is a cost-DoS surface. ---
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = Number(process.env.MCP_RATE_LIMIT_PER_MIN) || 120;
+const rateBuckets = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const recent = (rateBuckets.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  rateBuckets.set(ip, recent);
+  return recent.length > RATE_LIMIT_MAX;
+}
+
+// --- Session limits: cap concurrent sessions and sweep idle ones so the
+// in-memory transport map cannot grow without bound. ---
+const MAX_SESSIONS = Number(process.env.MCP_MAX_SESSIONS) || 2000;
+const SESSION_IDLE_MS = Number(process.env.MCP_SESSION_IDLE_MS) || 30 * 60_000;
+
+// --- DNS-rebinding protection (MCP spec recommendation). Opt-in via env so it
+// can't accidentally lock out a mis-set Host header from a valid client; when
+// enabled, set MCP_ALLOWED_HOSTS to the served host(s), e.g. mcp.gruenerator.eu. ---
+const dnsRebindingOptions =
+  process.env.MCP_DNS_REBINDING_PROTECTION === 'true'
+    ? {
+        enableDnsRebindingProtection: true,
+        allowedHosts: (process.env.MCP_ALLOWED_HOSTS || '')
+          .split(',')
+          .map((h) => h.trim())
+          .filter(Boolean),
+        ...(allowedOrigins.length > 0 ? { allowedOrigins } : {}),
+      }
+    : {};
+
+// --- claude.ai compatibility: strip the MCP 2025-11-25 fields that claude.ai's
+// MCP client silently drops tools over — `execution`/`annotations`/`$schema` on
+// each tool and `instructions` on the initialize result. The high-level SDK
+// (>=1.26) emits `execution: {taskSupport:'forbidden'}` on every tool with no
+// opt-out, which makes all tools vanish in claude.ai while resources still work. ---
+function sanitizeForClient(message: unknown): void {
+  if (!message || typeof message !== 'object') return;
+  const result = (message as { result?: unknown }).result;
+  if (!result || typeof result !== 'object') return;
+  const r = result as Record<string, unknown>;
+  if (Array.isArray(r.tools)) {
+    for (const tool of r.tools as Array<Record<string, unknown>>) {
+      delete tool.execution;
+      delete tool.annotations;
+      for (const key of ['inputSchema', 'outputSchema'] as const) {
+        const schema = tool[key];
+        if (schema && typeof schema === 'object') {
+          delete (schema as Record<string, unknown>).$schema;
+        }
+      }
+    }
+  }
+  if ('capabilities' in r && 'instructions' in r) {
+    delete r.instructions;
+  }
+}
 
 function wrapToolHandler(
   label: string,
@@ -171,6 +255,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // Search Tool with annotations
   server.tool(
     searchTool.name,
+    searchTool.description,
     searchTool.inputSchema,
     async ({
       query,
@@ -232,34 +317,45 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   );
 
   // Cache Stats Tool
-  server.tool(cacheStatsTool.name, cacheStatsTool.inputSchema, async () => {
-    const result = await cacheStatsTool.handler();
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  });
+  server.tool(
+    cacheStatsTool.name,
+    cacheStatsTool.description,
+    cacheStatsTool.inputSchema,
+    async () => {
+      const result = await cacheStatsTool.handler();
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Client Config Tool
-  server.tool(clientConfigTool.name, clientConfigTool.inputSchema, async ({ client }) => {
-    const result = clientConfigTool.handler({ client }, baseUrl);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  });
+  server.tool(
+    clientConfigTool.name,
+    clientConfigTool.description,
+    clientConfigTool.inputSchema,
+    async ({ client }) => {
+      const result = clientConfigTool.handler({ client }, baseUrl);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Filters Tool
   server.tool(
     filtersTool.name,
+    filtersTool.description,
     filtersTool.inputSchema,
     wrapToolHandler('Filters', (params) => filtersTool.handler(params as { collection: string }))
   );
@@ -275,6 +371,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // Examples Search Tool
   server.tool(
     examplesSearchTool.name,
+    examplesSearchTool.description,
     examplesSearchTool.inputSchema,
     wrapToolHandler('ExamplesSearch', (params) =>
       examplesSearchTool.handler(params as Parameters<typeof examplesSearchTool.handler>[0])
@@ -287,11 +384,13 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   if (apiKey) {
     server.tool(
       notebooksListTool.name,
+      notebooksListTool.description,
       notebooksListTool.inputSchema,
       wrapToolHandler('NotebooksList', (p) => notebooksListTool.handler(p, apiKey))
     );
     server.tool(
       notebooksSearchTool.name,
+      notebooksSearchTool.description,
       notebooksSearchTool.inputSchema,
       wrapToolHandler('NotebooksSearch', (p) =>
         notebooksSearchTool.handler(p as Parameters<typeof notebooksSearchTool.handler>[0], apiKey)
@@ -299,6 +398,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
     );
     server.tool(
       notebooksGetFiltersTool.name,
+      notebooksGetFiltersTool.description,
       notebooksGetFiltersTool.inputSchema,
       wrapToolHandler('NotebooksGetFilters', (p) =>
         notebooksGetFiltersTool.handler(
@@ -526,29 +626,60 @@ app.get('/info', (req, res) => {
 
 // MCP POST Endpoint (Hauptkommunikation)
 app.post('/mcp', async (req, res) => {
+  if (isRateLimited(req.ip ?? req.socket.remoteAddress ?? 'unknown')) {
+    res.status(429).json({
+      jsonrpc: '2.0',
+      error: { code: -32029, message: 'Zu viele Anfragen – bitte kurz warten.' },
+      id: null,
+    });
+    return;
+  }
+
   const sessionIdHeader = req.headers['mcp-session-id'];
   const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
   let transport: StreamableHTTPServerTransport | undefined;
 
   if (sessionId && transports[sessionId]) {
     transport = transports[sessionId];
+    sessionLastActivity[sessionId] = Date.now();
   } else if (isInitializeRequest(req.body)) {
+    if (Object.keys(transports).length >= MAX_SESSIONS) {
+      res.status(503).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Server ausgelastet – bitte später erneut versuchen.' },
+        id: null,
+      });
+      return;
+    }
     const newTransport = new StreamableHTTPServerTransport({
+      ...dnsRebindingOptions,
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id: string) => {
         transports[id] = newTransport;
+        sessionLastActivity[id] = Date.now();
         info('Session', `New session: ${id}`);
       },
       onsessionclosed: (id: string) => {
         delete transports[id];
+        delete sessionLastActivity[id];
         info('Session', `Session closed: ${id}`);
       },
     });
     transport = newTransport;
 
+    // Strip claude.ai-incompatible fields from every outgoing message (see
+    // sanitizeForClient). Wrapping send() covers tools/list and initialize
+    // regardless of which SDK path produced them.
+    const originalSend = newTransport.send.bind(newTransport);
+    newTransport.send = (message, options) => {
+      sanitizeForClient(message);
+      return originalSend(message, options);
+    };
+
     transport.onclose = () => {
       if (transport?.sessionId) {
         delete transports[transport.sessionId];
+        delete sessionLastActivity[transport.sessionId];
       }
     };
 
@@ -620,6 +751,20 @@ console.log(`[Boot] Starting server on port ${PORT}...`);
 // Capture unhandled errors thrown from Express route handlers (registered after
 // all routes, before listen). Tool-level exceptions are captured in-handler above.
 Sentry.setupExpressErrorHandler(app);
+
+// Periodic sweep: close idle sessions and drop stale rate-limit buckets so the
+// in-memory maps stay bounded. unref() so it never keeps the process alive.
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, last] of Object.entries(sessionLastActivity)) {
+    if (now - last > SESSION_IDLE_MS) {
+      void transports[id]?.close();
+      delete transports[id];
+      delete sessionLastActivity[id];
+    }
+  }
+  if (rateBuckets.size > 10_000) rateBuckets.clear();
+}, 5 * 60_000).unref();
 
 app.listen(PORT, () => {
   // Warm the runtime collection catalog from the backend (non-blocking; falls
