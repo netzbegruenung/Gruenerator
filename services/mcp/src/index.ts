@@ -26,12 +26,8 @@ import {
   readServerInfoResource,
 } from './resources/collections.ts';
 import { getSystemPromptResource } from './resources/system-prompt.ts';
-import { askTool } from './tools/ask.ts';
-import { compareTool } from './tools/compare.ts';
 import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
-import { notebookAskTool } from './tools/notebook-ask.ts';
-import { notebooksAskTool } from './tools/notebooks-ask.ts';
 import { notebooksGetFiltersTool } from './tools/notebooks-get-filters.ts';
 import { notebooksListTool } from './tools/notebooks-list.ts';
 import { notebooksSearchTool } from './tools/notebooks-search.ts';
@@ -285,38 +281,6 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
     )
   );
 
-  // Ask Tool (QA with answer synthesis) — custom handler for logging
-  server.tool(askTool.name, askTool.inputSchema, async (params) => {
-    const { question, country, collection } = params as {
-      question: string;
-      country: string;
-      collection?: string;
-    };
-    const startTime = Date.now();
-    const wrapped = wrapToolHandler('Ask', (p) =>
-      askTool.handler(p as Parameters<typeof askTool.handler>[0])
-    );
-    const result = await wrapped(params as Record<string, unknown>);
-    logSearch(
-      question || '',
-      collection || `ask:${country || 'unknown'}`,
-      'ask',
-      1,
-      Date.now() - startTime,
-      false
-    );
-    return result;
-  });
-
-  // Notebook Ask Tool (legacy, share-token based — DEPRECATED for programmatic use)
-  server.tool(
-    notebookAskTool.name,
-    notebookAskTool.inputSchema,
-    wrapToolHandler('NotebookAsk', (params) =>
-      notebookAskTool.handler(params as Parameters<typeof notebookAskTool.handler>[0])
-    )
-  );
-
   // Authenticated notebook tools — only registered when caller forwarded a
   // Bearer API key. Without a key, these are not advertised in tools/list,
   // and the MCP server stays anonymous-callable for the existing public tools.
@@ -325,13 +289,6 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       notebooksListTool.name,
       notebooksListTool.inputSchema,
       wrapToolHandler('NotebooksList', (p) => notebooksListTool.handler(p, apiKey))
-    );
-    server.tool(
-      notebooksAskTool.name,
-      notebooksAskTool.inputSchema,
-      wrapToolHandler('NotebooksAsk', (p) =>
-        notebooksAskTool.handler(p as Parameters<typeof notebooksAskTool.handler>[0], apiKey)
-      )
     );
     server.tool(
       notebooksSearchTool.name,
@@ -351,15 +308,6 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       )
     );
   }
-
-  // Compare Tool (cross-source comparison)
-  server.tool(
-    compareTool.name,
-    compareTool.inputSchema,
-    wrapToolHandler('Compare', (params) =>
-      compareTool.handler(params as Parameters<typeof compareTool.handler>[0])
-    )
-  );
 
   return server;
 }
@@ -445,21 +393,6 @@ app.get('/.well-known/mcp.json', (req, res) => {
       {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen (Instagram, Facebook)',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_ask',
-        description: 'Beantwortet Fragen mit KI-generierter Antwort und Quellenangaben',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_notebook_ask',
-        description: 'Beantwortet Fragen zu Notebook-Sammlungen via öffentlichem Token',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_compare',
-        description: 'Vergleicht Suchergebnisse aus verschiedenen Quellen nebeneinander',
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
     ],
@@ -559,22 +492,6 @@ app.get('/info', (req, res) => {
         description: 'Sucht nach Social-Media-Beispielen der Grünen',
         platforms: ['instagram', 'facebook'],
         countries: ['DE', 'AT'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_ask',
-        description: 'KI-generierte Antwort mit Quellenangaben [1][2]',
-        modes: ['detailed', 'fast'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_notebook_ask',
-        description: 'Notebook-Sammlungen abfragen via öffentlichem Sharing-Token',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_compare',
-        description: 'Vergleicht Suchergebnisse aus 2-3 Quellen nebeneinander',
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
     ],
