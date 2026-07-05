@@ -29,7 +29,7 @@
   "author": "Moritz Wächter",
   "license": "MIT",
   "dependencies": {
-    "@gruenerator/shared": "workspace:*",
+    "@gruenerator/query": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@qdrant/js-client-rest": "^1.18.0",
     "@sentry/node": "^10.57.0",

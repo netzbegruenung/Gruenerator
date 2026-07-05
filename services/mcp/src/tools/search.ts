@@ -1,4 +1,4 @@
-import { buildQdrantFilter, mergeFilters } from '@gruenerator/shared/search/filters';
+import { buildQdrantFilter, mergeFilters } from '@gruenerator/query/filters';
 import { z } from 'zod';
 
 import { getDefaultSearchCollections, buildCollectionDefaultFilter } from '../catalog.ts';
