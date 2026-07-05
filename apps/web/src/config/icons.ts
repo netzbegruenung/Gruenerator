@@ -64,6 +64,7 @@ import {
   PiChatCircle,
   PiDesktop,
   PiChartBar,
+  PiReceipt,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -138,6 +139,7 @@ export type NavigationIconName =
   | 'eigene'
   | 'home'
   | 'scanner'
+  | 'reisekosten'
   | 'messenger'
   | 'docs'
   | 'boards'
@@ -254,6 +256,7 @@ export const ICONS: IconRegistry = {
     eigene: PiWrench,
     home: GrueneratorHomeIcon,
     scanner: PiScan,
+    reisekosten: PiReceipt,
     messenger: PiChatCircle,
     docs: HiOutlineDocumentText,
     boards: PiSquaresFour,

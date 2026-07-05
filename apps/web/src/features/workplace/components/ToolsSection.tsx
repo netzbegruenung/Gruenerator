@@ -75,6 +75,13 @@ const MAIN_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'scanner')!,
   },
   {
+    id: 'reisekosten',
+    title: 'Fahrtkosten abrechnen',
+    description: 'Reisekostenformular mit Belegprüfung',
+    path: '/reisekosten',
+    icon: getIcon('navigation', 'reisekosten')!,
+  },
+  {
     id: 'transkription',
     title: 'Audio mit KI transkribieren',
     description: 'Meetings & Interviews verschriftlichen',

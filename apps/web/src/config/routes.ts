@@ -119,6 +119,7 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
+const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
 const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
@@ -554,6 +555,7 @@ const standardRoutes: RouteConfig[] = [
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
+  { path: '/reisekosten', component: ReisekostenPage },
   // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
   // `:category` routes below) are all prod-visible. Creation is a public research
   // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
