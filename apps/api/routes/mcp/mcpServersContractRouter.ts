@@ -56,6 +56,8 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
         url: args.body.url,
         authType: args.body.authType,
         token: args.body.token ?? null,
+        oauthClientId: args.body.oauthClientId ?? null,
+        oauthClientSecret: args.body.oauthClientSecret ?? null,
       });
       return { status: 201 as const, body: { server } };
     } catch (error) {
