@@ -92,7 +92,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     fonts-dejavu-core \
     procps \
-    pandoc \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user and /app directory with correct ownership
