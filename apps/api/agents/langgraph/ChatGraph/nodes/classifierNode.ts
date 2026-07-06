@@ -659,6 +659,34 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Bundestag agent is a dedicated DIP research assistant: selecting it means
+    // the user wants Bundestag document/speech research. enabledTools only gates
+    // which tools are allowed, it does not force the intent, so bare topic
+    // prompts otherwise fall through to `direct` and never reach the bundestag
+    // search branch. Force it here — except obvious meta/help questions. de-AT
+    // never reaches this (agent is de-DE only; downgrade guard above also covers it).
+    const isBundestagAgent = state.agentConfig.identifier === 'gruenerator-bundestag';
+    if (
+      isBundestagAgent &&
+      state.userLocale !== 'de-AT' &&
+      userContent.length >= 10 &&
+      !looksLikeMetaQuestion
+    ) {
+      log.info(
+        `[Classifier] Bundestag agent (${state.agentConfig.identifier}) active → forcing bundestag intent`
+      );
+      return {
+        intent: 'bundestag',
+        searchSources: [],
+        searchQuery: extractSearchTopic(userContent) || userContent,
+        detectedFilters: null,
+        reasoning: 'Bundestag agent selected — routing to DIP research',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // EXPERIMENTAL combined social post — for ALL users, not just
     // content-creation agents: a social-post creation request yields text +
     // sharepic variants in one turn. Requires a creation verb or a bare
