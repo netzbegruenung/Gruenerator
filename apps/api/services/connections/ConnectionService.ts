@@ -1,4 +1,9 @@
-import { getNango, NANGO_PROVIDERS, type NangoProviderKey } from '../../config/nango.js';
+import {
+  getNango,
+  HIDDEN_NANGO_PROVIDERS,
+  NANGO_PROVIDERS,
+  type NangoProviderKey,
+} from '../../config/nango.js';
 
 export interface ConnectionStatus {
   provider: NangoProviderKey;
@@ -22,17 +27,19 @@ export class ConnectionService {
     // userId (→ ?endUserId=), NOT connectionId (which never equals userId).
     const result = await getNango().listConnections({ userId });
 
-    return Object.entries(NANGO_PROVIDERS).map(([key, config]) => {
-      const connection = result.connections.find((c) => c.provider_config_key === key);
-      return {
-        provider: key as NangoProviderKey,
-        label: config.label,
-        services: config.services,
-        connected: !!connection,
-        connectionId: connection ? connection.connection_id : null,
-        connectedAt: connection ? (connection.created ?? null) : null,
-      };
-    });
+    return Object.entries(NANGO_PROVIDERS)
+      .filter(([key]) => !HIDDEN_NANGO_PROVIDERS.has(key as NangoProviderKey))
+      .map(([key, config]) => {
+        const connection = result.connections.find((c) => c.provider_config_key === key);
+        return {
+          provider: key as NangoProviderKey,
+          label: config.label,
+          services: config.services,
+          connected: !!connection,
+          connectionId: connection ? connection.connection_id : null,
+          connectedAt: connection ? (connection.created ?? null) : null,
+        };
+      });
   }
 
   // getConnection/deleteConnection need Nango's real connection_id, not the end-user id —
