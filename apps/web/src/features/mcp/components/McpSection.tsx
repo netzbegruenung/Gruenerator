@@ -234,46 +234,29 @@ McpRegistryCard.displayName = 'McpRegistryCard';
 const McpDiscover = memo(({ onPick }: { onPick: (e: McpRegistryEntry) => void }) => {
   const [search, setSearch] = useState('');
   const { data, isLoading } = useMcpRegistry(search);
-  const recommended = data?.recommended ?? [];
-  const servers = data?.servers ?? [];
+  const servers = data?.recommended ?? [];
 
   return (
     <div className="flex flex-col gap-sm mb-md">
+      <span className="text-xs font-medium text-grey-500 uppercase tracking-wide">
+        Offizielle Server verbinden
+      </span>
       <input
         className={inputClass}
-        placeholder="MCP-Server suchen (offizielle Registry)…"
+        placeholder="Server suchen (z.B. Canva, Notion, GitHub)…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {recommended.length > 0 && (
-        <>
-          <span className="text-xs font-medium text-grey-500 uppercase tracking-wide">
-            Empfohlen
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-            {recommended.map((entry) => (
-              <McpRegistryCard key={entry.url} entry={entry} onPick={onPick} />
-            ))}
-          </div>
-        </>
-      )}
-      {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade Registry…</p>}
+      {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade…</p>}
       {!isLoading && servers.length > 0 && (
-        <>
-          {recommended.length > 0 && (
-            <span className="text-xs font-medium text-grey-500 uppercase tracking-wide mt-sm">
-              Aus der Registry
-            </span>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-            {servers.map((entry) => (
-              <McpRegistryCard key={`${entry.name}:${entry.url}`} entry={entry} onPick={onPick} />
-            ))}
-          </div>
-        </>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+          {servers.map((entry) => (
+            <McpRegistryCard key={entry.url} entry={entry} onPick={onPick} />
+          ))}
+        </div>
       )}
       {!isLoading && search && servers.length === 0 && (
-        <p className="text-xs text-grey-400 py-sm">Keine remote-fähigen Server gefunden.</p>
+        <p className="text-xs text-grey-400 py-sm">Kein Server gefunden.</p>
       )}
     </div>
   );
