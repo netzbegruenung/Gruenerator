@@ -220,6 +220,8 @@ export interface LoadedPresentationState {
   id: string;
   title: string;
   slides: Slide[];
+  /** Deck brand accent colour (CSS color); drives titles, panels, markers. */
+  accentColor: string | null;
 }
 
 /**
@@ -287,13 +289,17 @@ export async function loadPresentationState(
       }
     }
   }
-  if (!hasData) return { id: presentationId, title, slides: [] };
+  if (!hasData) return { id: presentationId, title, slides: [], accentColor: null };
 
   const slides = ydoc
     .getArray<Y.Map<unknown>>(PRESENTATION_YDOC_KEYS.slides)
     .toArray()
     .map((m) => readSlideYMap(m, ydoc));
-  return { id: presentationId, title, slides };
+  const metaAccent = ydoc
+    .getMap<unknown>(PRESENTATION_YDOC_KEYS.meta)
+    .get(PRESENTATION_META_KEYS.accentColor);
+  const accentColor = typeof metaAccent === 'string' ? metaAccent : null;
+  return { id: presentationId, title, slides, accentColor };
 }
 
 /** Render a loaded deck as a markdown outline for LLM context injection. */
