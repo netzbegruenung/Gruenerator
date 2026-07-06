@@ -11,7 +11,6 @@ import { createLogger } from '../../utils/logger.js';
 import {
   contentDispositionAttachment,
   exportPresentationToPptx,
-  PandocUnavailableError,
 } from './presentationPptxExport.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -33,7 +32,7 @@ router.post('/:id/export/pptx', async (req: AuthenticatedRequest, res: Response)
       res.status(404).json({ error: 'Präsentation nicht gefunden' });
       return;
     }
-    const buffer = await exportPresentationToPptx(state.slides, state.title);
+    const buffer = await exportPresentationToPptx(state.slides, state.title, state.accentColor);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation'
@@ -41,12 +40,6 @@ router.post('/:id/export/pptx', async (req: AuthenticatedRequest, res: Response)
     res.setHeader('Content-Disposition', contentDispositionAttachment(state.title));
     res.send(buffer);
   } catch (err) {
-    if (err instanceof PandocUnavailableError) {
-      res.status(501).json({
-        error: 'PPTX-Export benötigt pandoc, das auf diesem Server nicht installiert ist.',
-      });
-      return;
-    }
     log.error('[Presentations] PPTX export failed:', err);
     res.status(500).json({ error: 'PPTX-Export fehlgeschlagen' });
   }
