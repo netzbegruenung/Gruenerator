@@ -1,6 +1,14 @@
-import { CardActionsMenu, CardGrid, SectionHeader, Skeleton, VideoCard } from '@gruenerator/ui';
+import {
+  CardActionsMenu,
+  CardGrid,
+  DropdownMenuItem,
+  SectionHeader,
+  Skeleton,
+  VideoCard,
+} from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { memo, useCallback } from 'react';
+import { HiPencil } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -54,7 +62,12 @@ const ReelCard = memo(
               onShare={() => onShare(item)}
               onDelete={() => onDelete(item)}
               className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
-            />
+            >
+              <DropdownMenuItem onClick={() => onClick(item)}>
+                <HiPencil />
+                Bearbeiten
+              </DropdownMenuItem>
+            </CardActionsMenu>
           </div>
         }
       />
