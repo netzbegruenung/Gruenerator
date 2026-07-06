@@ -15,6 +15,7 @@
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { type Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
@@ -51,7 +52,7 @@ export interface McpCallResult {
 
 export class UserMCPClient {
   private client: Client | null = null;
-  private transport: StreamableHTTPClientTransport | null = null;
+  private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
 
   constructor(private readonly config: McpConnectionConfig) {}
 
@@ -63,7 +64,7 @@ export class UserMCPClient {
     return this.config.name;
   }
 
-  private buildTransport(): StreamableHTTPClientTransport {
+  private buildTransport(): StreamableHTTPClientTransport | SSEClientTransport {
     const headers: Record<string, string> = {};
     if (
       (this.config.authType === 'bearer' || this.config.authType === 'oauth') &&
@@ -71,9 +72,24 @@ export class UserMCPClient {
     ) {
       headers.Authorization = `Bearer ${this.config.token}`;
     }
-    return new StreamableHTTPClientTransport(new URL(this.config.url), {
-      requestInit: { headers },
-    });
+    const url = new URL(this.config.url);
+    // Many official servers only expose the legacy SSE transport (URL ends in
+    // `/sse`); the rest use StreamableHTTP. Pick by URL so both connect. For SSE
+    // the auth header must ride both the POST (requestInit) and the GET event
+    // stream (eventSourceInit.fetch), since EventSource can't set headers itself.
+    if (url.pathname.endsWith('/sse')) {
+      return new SSEClientTransport(url, {
+        requestInit: { headers },
+        eventSourceInit: {
+          fetch: (input: string | URL | Request, init?: RequestInit) =>
+            fetch(input, {
+              ...init,
+              headers: { ...(init?.headers as Record<string, string>), ...headers },
+            }),
+        },
+      });
+    }
+    return new StreamableHTTPClientTransport(url, { requestInit: { headers } });
   }
 
   /** Connect and complete the MCP initialize handshake. Throws on failure. */
