@@ -18,6 +18,8 @@ export interface McpServerCreateInput {
   url: string;
   authType: McpAuthType;
   token?: string | null;
+  oauthClientId?: string | null;
+  oauthClientSecret?: string | null;
 }
 
 export interface McpServerTestResult {
