@@ -187,9 +187,10 @@ export class McpOAuthService {
 
     const server = await getServer(st.userId, st.serverId);
     const oidc = server?.oauth_meta;
-    if (!server || !oidc?.clientId) {
+    if (!server || !oidc?.clientId || !oidc.redirectUri) {
       throw Object.assign(new Error('Server-/OAuth-Konfiguration fehlt'), { statusCode: 400 });
     }
+    const redirectUri = oidc.redirectUri;
     const clientSecret = server.oauth_client_secret_encrypted
       ? decryptCredential(server.oauth_client_secret_encrypted)
       : undefined;
@@ -206,7 +207,7 @@ export class McpOAuthService {
       },
       authorizationCode: code,
       codeVerifier: st.codeVerifier,
-      redirectUri: oidc.redirectUri,
+      redirectUri,
       ...(oidc.resource ? { resource: new URL(oidc.resource) } : {}),
     });
 
@@ -237,6 +238,7 @@ export class McpOAuthService {
 
     try {
       const oidc = server.oauth_meta;
+      if (!oidc?.issuer || !oidc.clientId) return stored;
       const clientSecret = server.oauth_client_secret_encrypted
         ? decryptCredential(server.oauth_client_secret_encrypted)
         : undefined;

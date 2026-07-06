@@ -28,6 +28,10 @@ export const mcpServerCreateBodySchema = z.object({
   url: z.string().url(),
   authType: mcpAuthTypeSchema.default('none'),
   token: z.string().min(1).max(4096).nullish(),
+  // Optional pre-registered OAuth client (for providers that reject dynamic
+  // registration, e.g. Canva/Atlassian). Leave empty to use DCR.
+  oauthClientId: z.string().min(1).max(512).nullish(),
+  oauthClientSecret: z.string().min(1).max(4096).nullish(),
 });
 
 export const mcpServerUpdateBodySchema = z.object({
@@ -36,6 +40,8 @@ export const mcpServerUpdateBodySchema = z.object({
   authType: mcpAuthTypeSchema.optional(),
   token: z.string().min(1).max(4096).nullish(),
   enabled: z.boolean().optional(),
+  oauthClientId: z.string().min(1).max(512).nullish(),
+  oauthClientSecret: z.string().min(1).max(4096).nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────

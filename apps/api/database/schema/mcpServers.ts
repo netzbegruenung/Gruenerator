@@ -7,14 +7,14 @@ import { boolean, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-c
  * sensitive and lives in its own encrypted column, not here.
  */
 export interface McpOidcConfig {
-  issuer: string;
+  issuer?: string;
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   registrationEndpoint?: string;
-  clientId: string;
-  scheme: 'dcr' | 'pre_registration';
+  clientId?: string;
+  scheme?: 'dcr' | 'pre_registration';
   scopes?: string[];
-  redirectUri: string;
+  redirectUri?: string;
   resource?: string;
 }
 

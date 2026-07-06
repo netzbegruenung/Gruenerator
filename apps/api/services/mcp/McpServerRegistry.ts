@@ -41,6 +41,9 @@ export interface McpServerCreateInput {
   url: string;
   authType: McpAuthType;
   token?: string | null;
+  /** Pre-registered OAuth client (skips DCR). */
+  oauthClientId?: string | null;
+  oauthClientSecret?: string | null;
 }
 
 export interface McpServerUpdateInput {
@@ -50,6 +53,8 @@ export interface McpServerUpdateInput {
   /** undefined = leave unchanged; null = clear; string = replace (re-encrypted). */
   token?: string | null;
   enabled?: boolean;
+  oauthClientId?: string | null;
+  oauthClientSecret?: string | null;
 }
 
 function toSummary(row: McpServer): McpServerSummary {
@@ -123,6 +128,13 @@ export class McpServerRegistry {
         url: input.url,
         auth_type: input.authType,
         token_encrypted: input.token ? encryptCredential(input.token) : null,
+        // Pre-registered OAuth client → store id in oauth_meta, secret encrypted.
+        ...(input.oauthClientId
+          ? { oauth_meta: { clientId: input.oauthClientId, scheme: 'pre_registration' as const } }
+          : {}),
+        ...(input.oauthClientSecret
+          ? { oauth_client_secret_encrypted: encryptCredential(input.oauthClientSecret) }
+          : {}),
       })
       .returning();
     const row = rows[0];
@@ -144,6 +156,16 @@ export class McpServerRegistry {
     if (patch.enabled !== undefined) values.enabled = patch.enabled;
     if (patch.token !== undefined) {
       values.token_encrypted = patch.token ? encryptCredential(patch.token) : null;
+    }
+    if (patch.oauthClientId !== undefined) {
+      values.oauth_meta = patch.oauthClientId
+        ? { clientId: patch.oauthClientId, scheme: 'pre_registration' }
+        : null;
+    }
+    if (patch.oauthClientSecret !== undefined) {
+      values.oauth_client_secret_encrypted = patch.oauthClientSecret
+        ? encryptCredential(patch.oauthClientSecret)
+        : null;
     }
     const rows = await db
       .update(mcp_servers)
