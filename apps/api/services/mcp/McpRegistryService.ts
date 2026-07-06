@@ -25,38 +25,39 @@ type Seed = [
   authHint: McpRegistryEntry['authHint'],
   description: string,
   websiteUrl: string,
+  category: string,
+  // Provider rejects DCR → user creates an app and pastes Client-ID/Secret.
+  opts?: { setupUrl: string },
 ];
 
 // prettier-ignore
 const SEEDS: Seed[] = [
-  ['Notion', 'https://mcp.notion.com/mcp', 'oauth', 'Seiten, Datenbanken und Aufgaben durchsuchen und bearbeiten.', 'https://notion.com'],
-  ['Coda', 'https://coda.io/apis/mcp', 'oauth', 'Dokumente erstellen, Tabellen lesen und Inhalte aktualisieren.', 'https://coda.io'],
-  ['Canva', 'https://mcp.canva.com/mcp', 'oauth', 'Designs, Präsentationen und visuelle Inhalte erstellen und bearbeiten.', 'https://canva.com'],
-  ['Asana', 'https://mcp.asana.com/mcp', 'oauth', 'Aufgaben, Projekte und Team-Workflows.', 'https://asana.com'],
-  ['ClickUp', 'https://mcp.clickup.com/mcp', 'oauth', 'Projektmanagement und Zusammenarbeit für Teams.', 'https://clickup.com'],
-  ['monday.com', 'https://mcp.monday.com/sse', 'oauth', 'Work OS für Projekte, Aufgaben und Team-Workflows.', 'https://monday.com'],
-  ['HubSpot', 'https://app.hubspot.com/mcp/v1/http', 'bearer', 'Kontakte, Deals, Unternehmen und Marketing-Daten.', 'https://hubspot.com'],
-  ['Attio', 'https://mcp.attio.com/mcp', 'oauth', 'CRM für Beziehungen, Kontakte und Deals.', 'https://attio.com'],
-  ['Intercom', 'https://mcp.intercom.com/sse', 'oauth', 'Kundenkommunikation, Support und Engagement.', 'https://intercom.com'],
-  ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com'],
-  ['Fireflies.ai', 'https://api.fireflies.ai/mcp', 'oauth', 'Meeting-Transkripte und Notizen verwalten.', 'https://fireflies.ai'],
-  ['Jamie', 'https://mcp.meetjamie.ai/mcp', 'oauth', 'Meeting-Notizen durchsuchen und Action Items extrahieren.', 'https://meetjamie.ai'],
-  ['Statista', 'https://api.statista.ai/v1/mcp', 'bearer', 'Statistiken, Konsumenten- und Marktdaten.', 'https://statista.com'],
-  ['SISTRIX', 'https://api.sistrix.com/mcp/', 'bearer', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com'],
-  ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps'],
-  ['Wix', 'https://mcp.wix.com/mcp', 'oauth', 'Wix-Websites erstellen und verwalten.', 'https://wix.com'],
-  ['Webflow', 'https://mcp.webflow.com/mcp', 'oauth', 'Webflow-Projekte und Inhalte.', 'https://webflow.com'],
+  ['Notion', 'https://mcp.notion.com/mcp', 'oauth', 'Seiten, Datenbanken und Aufgaben durchsuchen und bearbeiten.', 'https://notion.com', 'Produktivität'],
+  ['Coda', 'https://coda.io/apis/mcp', 'oauth', 'Dokumente erstellen, Tabellen lesen und Inhalte aktualisieren.', 'https://coda.io', 'Produktivität'],
+  ['monday.com', 'https://mcp.monday.com/sse', 'oauth', 'Work OS für Projekte, Aufgaben und Team-Workflows.', 'https://monday.com', 'Produktivität'],
+  ['Jamie', 'https://mcp.meetjamie.ai/mcp', 'oauth', 'Meeting-Notizen durchsuchen und Action Items extrahieren.', 'https://meetjamie.ai', 'Produktivität'],
+  ['Sally', 'https://app.sally.io/api/v1/McpExternal', 'bearer', 'Termine, Aufzeichnungen, Zusammenfassungen und Transkripte abfragen.', 'https://sally.io', 'Produktivität'],
+  ['HubSpot', 'https://app.hubspot.com/mcp/v1/http', 'bearer', 'Kontakte, Deals, Unternehmen und Marketing-Daten.', 'https://hubspot.com', 'CRM & Marketing'],
+  ['Attio', 'https://mcp.attio.com/mcp', 'oauth', 'CRM für Beziehungen, Kontakte und Deals.', 'https://attio.com', 'CRM & Marketing'],
+  ['Statista', 'https://api.statista.ai/v1/mcp', 'bearer', 'Statistiken, Konsumenten- und Marktdaten.', 'https://statista.com', 'Analyse & SEO'],
+  ['SISTRIX', 'https://api.sistrix.com/mcp/', 'bearer', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com', 'Analyse & SEO'],
+  ['Wix', 'https://mcp.wix.com/mcp', 'oauth', 'Wix-Websites erstellen und verwalten.', 'https://wix.com', 'Web & Design'],
+  ['Webflow', 'https://mcp.webflow.com/mcp', 'oauth', 'Webflow-Projekte und Inhalte.', 'https://webflow.com', 'Web & Design'],
+  ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
+  ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
-  ([title, url, authHint, description, websiteUrl]) => ({
+  ([title, url, authHint, description, websiteUrl, category, opts]) => ({
     name: new URL(url).host,
     title,
     url,
     authHint,
     description,
     websiteUrl,
+    category,
     recommended: true,
+    ...(opts ? { requiresManualRegistration: true, setupUrl: opts.setupUrl } : {}),
   })
 );
 
@@ -71,7 +72,9 @@ export class McpRegistryService {
     const recommended = search
       ? RECOMMENDED.filter(
           (e) =>
-            e.title.toLowerCase().includes(search) || e.description.toLowerCase().includes(search)
+            e.title.toLowerCase().includes(search) ||
+            e.description.toLowerCase().includes(search) ||
+            (e.category?.toLowerCase().includes(search) ?? false)
         )
       : RECOMMENDED;
     return { recommended, servers: [], nextCursor: null };
