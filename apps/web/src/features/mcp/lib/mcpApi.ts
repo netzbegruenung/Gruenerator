@@ -69,6 +69,16 @@ export async function deleteMcpServer(id: string): Promise<void> {
   if (result.status !== 200) throw new Error('MCP-Server konnte nicht entfernt werden');
 }
 
+export async function startMcpOAuth(id: string): Promise<string> {
+  const client = getContractsClient();
+  const result = await client.mcpServers.oauthStart({ params: { id } });
+  if (result.status !== 200) {
+    const body = result.body as { error?: string };
+    throw new Error(body.error || 'OAuth konnte nicht gestartet werden');
+  }
+  return result.body.authorizationUrl;
+}
+
 export async function testMcpServer(id: string): Promise<McpServerTestResult> {
   const client = getContractsClient();
   const result = await client.mcpServers.test({ params: { id } });

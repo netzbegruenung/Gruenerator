@@ -9,6 +9,7 @@
 import { mcpServersContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { McpOAuthService } from '../../services/mcp/McpOAuthService.js';
 import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
 import { McpServerRegistry } from '../../services/mcp/McpServerRegistry.js';
 import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
@@ -137,6 +138,21 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
     } catch (error) {
       log.error('test failed', error);
       return { status: 500 as const, body: { error: (error as Error).message || 'Fehler' } };
+    }
+  },
+
+  oauthStart: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const authorizationUrl = await McpOAuthService.startAuthorization(userId, args.params.id);
+      return { status: 200 as const, body: { authorizationUrl } };
+    } catch (error) {
+      const statusCode = (error as { statusCode?: number }).statusCode;
+      const message = (error as Error).message || 'Fehler';
+      if (statusCode === 404) return { status: 404 as const, body: { error: message } };
+      if (statusCode === 400) return { status: 400 as const, body: { error: message } };
+      log.error('oauthStart failed', error);
+      return { status: 500 as const, body: { error: message } };
     }
   },
 });
