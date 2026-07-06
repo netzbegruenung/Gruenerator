@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useState } from 'react';
 import { FiServer } from 'react-icons/fi';
 
@@ -8,10 +9,36 @@ import {
   useUpdateMcpServer,
   useTestMcpServer,
   useMcpRegistry,
+  mcpKeys,
 } from '../hooks/useMcpServers';
-import { type McpAuthType, type McpRegistryEntry, type McpServerSummary } from '../lib/mcpApi';
+import {
+  createMcpServer,
+  startMcpOAuth,
+  type McpAuthType,
+  type McpRegistryEntry,
+  type McpServerSummary,
+} from '../lib/mcpApi';
+import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
 
 import { cn } from '@/utils/cn';
+
+/**
+ * Drive the OAuth popup. The popup MUST be opened synchronously (first line,
+ * before any await) or the browser blocks it; `resolveServerId` then creates or
+ * looks up the server before we navigate the popup to the provider.
+ */
+async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAuthResult> {
+  const popup = openOAuthPopup();
+  if (!popup) return { status: 'error', error: 'Popup wurde blockiert' };
+  try {
+    const serverId = await resolveServerId();
+    popup.location.href = await startMcpOAuth(serverId);
+    return await waitForOAuthPopup(popup);
+  } catch (e) {
+    popup.close();
+    return { status: 'error', error: e instanceof Error ? e.message : 'Fehler' };
+  }
+}
 
 interface McpSectionProps {
   onSuccess: (message: string) => void;
@@ -120,7 +147,17 @@ const McpServerRow = memo(
     const del = useDeleteMcpServer();
     const update = useUpdateMcpServer();
     const test = useTestMcpServer();
+    const queryClient = useQueryClient();
     const [testMsg, setTestMsg] = useState<string | null>(null);
+
+    const needsAuth = server.authType === 'oauth' && !server.hasToken;
+    const authorize = () => {
+      void runOAuth(async () => server.id).then((result) => {
+        void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
+        if (result.status === 'success') onSuccess(`${server.name} verbunden`);
+        else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
+      });
+    };
 
     const runTest = () => {
       setTestMsg('Teste…');
@@ -158,6 +195,15 @@ const McpServerRow = memo(
               />
               Aktiv
             </label>
+            {needsAuth && (
+              <button
+                type="button"
+                onClick={authorize}
+                className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors bg-transparent border-none cursor-pointer"
+              >
+                Autorisieren
+              </button>
+            )}
             <button
               type="button"
               onClick={runTest}
@@ -191,7 +237,7 @@ McpServerRow.displayName = 'McpServerRow';
 const authBadge: Record<McpRegistryEntry['authHint'], string | null> = {
   none: null,
   bearer: 'Token',
-  oauth: 'OAuth folgt',
+  oauth: 'OAuth',
   unknown: null,
 };
 
@@ -266,10 +312,38 @@ McpDiscover.displayName = 'McpDiscover';
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: servers = [], isLoading } = useMcpServers();
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
+  const queryClient = useQueryClient();
+
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
 
   const handlePick = (entry: McpRegistryEntry) => {
-    // New object identity each pick so the form's effect re-fires even for the
-    // same server; scroll target is the add-form just below.
+    if (entry.authHint === 'oauth') {
+      // Popup opens synchronously inside runOAuth; create the server, then auth.
+      void runOAuth(async () => {
+        const server = await createMcpServer({
+          name: entry.title,
+          url: entry.url,
+          authType: 'oauth',
+        });
+        return server.id;
+      }).then((result) => {
+        refresh();
+        if (result.status === 'success') onSuccess(`${entry.title} verbunden`);
+        else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
+      });
+      return;
+    }
+    if (entry.authHint === 'none') {
+      createMcpServer({ name: entry.title, url: entry.url, authType: 'none' })
+        .then(() => {
+          refresh();
+          onSuccess(`${entry.title} verbunden`);
+        })
+        .catch((e) => onError(e instanceof Error ? e.message : 'Fehler'));
+      return;
+    }
+    // bearer / unknown → prefill the form so the user pastes a token. New object
+    // identity each pick so the form's effect re-fires even for the same server.
     setPrefill({ name: entry.title, url: entry.url });
   };
 
@@ -283,7 +357,8 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         </span>
       </div>
       <p className="text-xs text-grey-400 mb-md">
-        Verbinde externe Tools (MCP-Server). Im Chat mit „@mcp“ nutzbar. OAuth-Server folgen.
+        Verbinde externe Tools (MCP-Server). Im Chat mit „@mcp“ nutzbar. Klick auf einen Dienst
+        startet die Verbindung (OAuth, Token oder ohne Auth).
       </p>
 
       {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade…</p>}

@@ -16,6 +16,7 @@ import {
   mcpServerTestResponseSchema,
   mcpServerErrorResponseSchema,
   mcpRegistryResponseSchema,
+  mcpOauthStartResponseSchema,
 } from '../schemas/mcpServers.js';
 
 const c = initContract();
@@ -96,6 +97,20 @@ export const mcpServersContract = c.router(
         500: mcpServerErrorResponseSchema,
       },
       summary: 'Test connect + list tools for an MCP server',
+    },
+
+    oauthStart: {
+      method: 'POST',
+      path: '/api/mcp/servers/:id/oauth/start',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: mcpOauthStartResponseSchema,
+        400: mcpServerErrorResponseSchema,
+        404: mcpServerErrorResponseSchema,
+        500: mcpServerErrorResponseSchema,
+      },
+      summary: 'Begin OAuth for an MCP server (returns the provider authorize URL)',
     },
   },
   { pathPrefix: '' }

@@ -63,6 +63,10 @@ export const mcpServerErrorResponseSchema = z.object({
   error: z.string(),
 });
 
+export const mcpOauthStartResponseSchema = z.object({
+  authorizationUrl: z.string(),
+});
+
 // ── Registry discovery ──────────────────────────────────────────────────────
 
 export const mcpRegistryEntrySchema = z.object({
