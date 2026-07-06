@@ -508,7 +508,8 @@ const RecentItemCard = memo(
           </div>
           {/* Menu lives in the footer (not an overlay on the preview) so its hit
               target never overlaps the navigable card; CardActionsMenu stops
-              propagation internally, so a click here never opens the document. */}
+              propagation *and* preventDefaults internally, so a click here never
+              follows the enclosing <Link>'s href. */}
           <div className="-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
             <CardActionsMenu onShare={() => onShare(item)} onDelete={() => onDelete(item)}>
               {item.type === 'board' && <FavouriteMenuItem id={item.id} />}
