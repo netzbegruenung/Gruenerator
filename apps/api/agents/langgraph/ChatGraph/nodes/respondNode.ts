@@ -550,6 +550,23 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 }
 
 /**
+ * Format the aggregated output of the EXPERIMENTAL `mcp` intent tool-loop. The
+ * text was produced by external, user-connected MCP tools plus the loop's own
+ * summary; the model must ground its answer in it and cite the tool source.
+ */
+function formatMcpToolContext(mcpToolContext: string | null | undefined): string {
+  if (!mcpToolContext) return '';
+  return `
+
+## ERGEBNIS EXTERNER TOOLS (via verbundene MCP-Server)
+
+${mcpToolContext}
+
+---
+Stütze deine Antwort auf diese Tool-Ergebnisse. Nenne, welches Tool/welcher Dienst die Information geliefert hat, wenn relevant.`;
+}
+
+/**
  * Format the deterministic computation result (compute intent). These numbers
  * were produced by computeEngine in plain JS, so the model must echo them
  * verbatim and is explicitly told NOT to recompute — the whole point is that it
@@ -929,6 +946,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     memoryContext,
     summaryContext,
     computedResult,
+    mcpToolContext,
     boardContext,
     documentMentionContext,
   } = state;
@@ -939,6 +957,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
+  const mcpToolContextFormatted = formatMcpToolContext(mcpToolContext);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
@@ -987,7 +1006,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${mcpToolContextFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1019,7 +1038,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${mcpToolContextFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

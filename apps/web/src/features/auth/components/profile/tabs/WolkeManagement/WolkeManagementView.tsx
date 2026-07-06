@@ -21,6 +21,7 @@ const ConnectedAccountsSection = lazy(
   () => import('../../../../../connections/components/ConnectedAccountsSection')
 );
 const CanvaSection = lazy(() => import('../../../../../canva/components/CanvaSection'));
+const McpSection = lazy(() => import('../../../../../mcp/components/McpSection'));
 
 import { cn } from '@/utils/cn';
 import './clouds.css';
@@ -238,6 +239,9 @@ const WolkeManagementView = memo(
         )}
         {import.meta.env.DEV && (
           <CanvaSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
+        )}
+        {import.meta.env.DEV && (
+          <McpSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
         )}
       </motion.div>
     );

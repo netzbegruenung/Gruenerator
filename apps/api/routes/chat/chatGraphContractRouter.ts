@@ -218,6 +218,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
       }
 
+      // @mcp hard-pins the EXPERIMENTAL external-tool intent. Like the tools
+      // above it is not part of TOOL_PRIORITY, so it's resolved here. The forced
+      // flag lets the tool-loop run even if enabledTools.mcp was left off;
+      // mcpToolNode still no-ops safely if the user has no servers.
+      const mcpForced = !!forcedTools?.includes('mcp');
+      if (mcpForced) {
+        classifiedState.intent = 'mcp';
+        forcedTool = true;
+        log.info('[ChatGraph] Intent forced to "mcp" via @mcp mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
