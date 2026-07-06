@@ -143,12 +143,14 @@ Fasse am Ende die Ergebnisse knapp auf Deutsch zusammen.`;
       const aiResult = await state.aiWorkerPool.processRequest(
         {
           type: 'mcp_tool_loop',
+          // Mistral Medium 3.5 is our strongest tool-calling model; route
+          // explicitly (the mistralAdapter passes tools + returns tool_use).
+          provider: 'mistral',
           systemPrompt,
           messages,
           options: {
+            model: 'mistral-medium-2604',
             max_tokens: 2000,
-            useBedrock: true,
-            anthropic_version: 'bedrock-2023-05-31',
             tools: catalog,
           },
         },

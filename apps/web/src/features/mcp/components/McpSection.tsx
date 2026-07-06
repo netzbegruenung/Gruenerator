@@ -60,6 +60,9 @@ const McpAddForm = memo(
     const [url, setUrl] = useState('');
     const [authType, setAuthType] = useState<McpAuthType>('none');
     const [token, setToken] = useState('');
+    const [clientId, setClientId] = useState('');
+    const [clientSecret, setClientSecret] = useState('');
+    const redirectUri = `${window.location.origin}/api/mcp/auth/callback`;
 
     // A pick from the discover list fills the form so the user only confirms.
     useEffect(() => {
@@ -77,7 +80,9 @@ const McpAddForm = memo(
           name: name.trim(),
           url: url.trim(),
           authType,
-          token: authType === 'none' ? null : token.trim() || null,
+          token: authType === 'bearer' ? token.trim() || null : null,
+          oauthClientId: authType === 'oauth' ? clientId.trim() || null : null,
+          oauthClientSecret: authType === 'oauth' ? clientSecret.trim() || null : null,
         },
         {
           onSuccess: () => {
@@ -85,7 +90,13 @@ const McpAddForm = memo(
             setUrl('');
             setAuthType('none');
             setToken('');
-            onSuccess('MCP-Server hinzugefügt');
+            setClientId('');
+            setClientSecret('');
+            onSuccess(
+              authType === 'oauth'
+                ? 'Hinzugefügt — jetzt „Autorisieren" klicken.'
+                : 'MCP-Server hinzugefügt'
+            );
           },
           onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
         }
@@ -114,8 +125,9 @@ const McpAddForm = memo(
           >
             <option value="none">Keine Auth</option>
             <option value="bearer">Bearer-Token</option>
+            <option value="oauth">OAuth</option>
           </select>
-          {authType !== 'none' && (
+          {authType === 'bearer' && (
             <input
               className={inputClass}
               type="password"
@@ -125,6 +137,32 @@ const McpAddForm = memo(
             />
           )}
         </div>
+        {authType === 'oauth' && (
+          <div className="flex flex-col gap-xs">
+            <p className="text-xs text-grey-400">
+              Meist genügt „Autorisieren“ (dynamische Registrierung). Für Anbieter ohne DCR (z.B.
+              Canva) eine App mit dieser Redirect-URI anlegen und Client-ID/Secret eintragen:
+            </p>
+            <code className="text-xs bg-grey-100 dark:bg-grey-800 px-sm py-0.5 rounded break-all">
+              {redirectUri}
+            </code>
+            <div className="flex gap-sm">
+              <input
+                className={inputClass}
+                placeholder="Client-ID (optional)"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+              />
+              <input
+                className={inputClass}
+                type="password"
+                placeholder="Client-Secret (optional)"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
         <button
           type="submit"
           disabled={create.isPending || !name.trim() || !url.trim()}
