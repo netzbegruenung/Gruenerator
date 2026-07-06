@@ -15,6 +15,7 @@ import {
   imageEditNode,
   summarizeNode,
   computeNode,
+  mcpToolNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { env } from '../../../config/env.js';
@@ -978,6 +979,41 @@ export async function executeIntentPipeline(opts: {
       if (finalState.computedResult) {
         finalState.computedResultFresh = true;
         sse.send('compute', { compute: finalState.computedResult });
+      }
+    } else if (currentIntent === 'mcp') {
+      // EXPERIMENTAL: external MCP tool-loop. Gated per-user by enabledTools.mcp
+      // unless @mcp forces it. mcpToolNode never throws — a dead/empty server
+      // yields null context and the turn falls back to a normal `direct` answer.
+      const mcpEnabled = forcedTool || enabledTools?.['mcp'] !== false;
+      if (mcpEnabled) {
+        // Correlate tool_step_start/result pairs: calls are sequential, so a
+        // FIFO queue of step ids is sufficient.
+        const stepIds: string[] = [];
+        let stepCounter = 0;
+        const mcpState = {
+          ...finalState,
+          onMcpProgress: (step: {
+            phase: 'start' | 'result';
+            server: string;
+            tool: string;
+            ok?: boolean;
+          }) => {
+            if (step.phase === 'start') {
+              const stepId = `mcp_${Date.now()}_${stepCounter++}`;
+              stepIds.push(stepId);
+              sse.send('tool_step_start', { stepId, toolName: `${step.server}·${step.tool}` });
+            } else {
+              const stepId = stepIds.shift() ?? `mcp_${Date.now()}_${stepCounter++}`;
+              sse.send('tool_step_result', {
+                stepId,
+                toolName: `${step.server}·${step.tool}`,
+                ok: step.ok ?? true,
+              });
+            }
+          },
+        } as ChatGraphState;
+        const mcpResult = await mcpToolNode(mcpState);
+        finalState = { ...finalState, ...mcpResult } as ChatGraphState;
       }
     } else if (
       currentIntent !== 'direct' &&

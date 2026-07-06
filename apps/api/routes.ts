@@ -56,6 +56,7 @@ import {
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
+import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
@@ -622,6 +623,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountNotificationsContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
+  // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
+  // prefix — every route is user-scoped and handles user-entered credentials.
+  app.use('/api/mcp/servers', requireAuth);
+  mountMcpServersContractRouter(app);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);

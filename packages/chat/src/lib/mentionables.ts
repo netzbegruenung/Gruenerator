@@ -258,6 +258,20 @@ export const toolMentionables: Mentionable[] = [
     audience: 'de-DE',
   },
   {
+    // EXPERIMENTAL: hard-pins the `mcp` intent so the tool-loop runs against the
+    // user's connected external MCP servers (managed on the Wolke settings page).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'mcp',
+    title: 'MCP-Tools',
+    description: 'Verbundene externe Tools (experimentell)',
+    avatar: '🔌',
+    icon: PiPlugsConnected,
+    backgroundColor: '#4B5563',
+    mention: 'mcp',
+  },
+  {
     type: 'tool',
     category: 'function',
     trigger: '@',
