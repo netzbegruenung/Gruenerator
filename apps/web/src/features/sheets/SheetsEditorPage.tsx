@@ -14,12 +14,12 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import { SheetsEditor, type FUniver } from '@gruenerator/sheets';
+import { SheetsEditor, type FUniver, type IWorkbookData } from '@gruenerator/sheets';
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiCornerUpLeft, FiCornerUpRight, FiMessageSquare, FiShare2 } from 'react-icons/fi';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
@@ -40,7 +40,14 @@ const ShareModal = lazyWithRetry(() =>
 function SheetsEditorContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const adapter = useDocsAdapter();
+
+  // Template picked at creation (SPA nav-state from DocsPage). Seeds the fresh
+  // sheet's workbook on first open; the bridge's `seeded` guard ignores it
+  // once the doc has content, so a reload (state gone) is a no-op.
+  const seedWorkbook = (location.state as { sheetTemplate?: Partial<IWorkbookData> } | null)
+    ?.sheetTemplate;
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
 
@@ -269,6 +276,7 @@ function SheetsEditorContent() {
               editable={isEditable}
               darkMode={darkMode}
               onReady={setUniverAPI}
+              seedWorkbook={seedWorkbook}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">

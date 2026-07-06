@@ -33,8 +33,9 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     range: z.string(),
     /**
      * Excel/Univer number-format pattern applied to the range (display only —
-     * never changes the stored logical value). Examples: "#,##0.00 €" (currency),
-     * "0%" (percent), "yyyy-MM-dd" (date), "#,##0" (thousands), "@" (text).
+     * never changes the stored logical value). Examples: "#,##0.00\ [$€-407]"
+     * (Euro, German separators), "0%" (percent), "dd.MM.yyyy" (date),
+     * "#,##0" (thousands), "@" (text).
      */
     pattern: z.string(),
     sheet: z.string().nullish(),

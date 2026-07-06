@@ -48,6 +48,19 @@ export type {
 const MAX_CLIENT_TOOL_ROUNDS = 3;
 
 /**
+ * A 401/403 on the stream or a resume means the session died mid-turn. This is
+ * a raw `fetch` path with no axios interceptor, so route it through the app's
+ * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
+ * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
+ * message and no way back to login until a manual reload.
+ */
+function routeUnauthorized(response: Response): void {
+  if (response.status === 401 || response.status === 403) {
+    useChatConfigStore.getState().onUnauthorized?.();
+  }
+}
+
+/**
  * Run-then-answer continuation: while the stream ended in a `client_tool`
  * interrupt, execute the tool locally (clientTools registry) and resume the
  * turn with the result — the backend streams the final answer, which we keep
@@ -95,6 +108,7 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
+      routeUnauthorized(resumeResponse);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -126,7 +140,23 @@ export function createGrueneratorModelAdapter(
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
       const { messages, abortSignal } = options;
-      const config = getConfig();
+      const baseConfig = getConfig();
+      // Per-run thread binding: the runtime passes the owning thread's remoteId.
+      // Prefer it over the store's currentThreadId, which can lag on rapid
+      // thread switches; a fresh thread has no remoteId snapshot yet, so fall
+      // back to the store id that initialize() just set.
+      //
+      // BUT assistant-ui's *local* runtime (editor sidebars: docs/sheets/boards/
+      // presentations via useLocalRuntime) reports the local thread-list sentinel
+      // "__DEFAULT_ID__" as unstable_threadId. That is not a real thread — letting
+      // it override would make contextProviders.get(threadId) miss (providers are
+      // registered under the real getChatThread id), so currentDocument never
+      // reaches the backend and edit_current_doc never classifies. Ignore it.
+      const runtimeThreadId =
+        options.unstable_threadId && options.unstable_threadId !== '__DEFAULT_ID__'
+          ? options.unstable_threadId
+          : null;
+      const config = runtimeThreadId ? { ...baseConfig, threadId: runtimeThreadId } : baseConfig;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
       // This is where addResult() writes the user's answer for human tool calls.
@@ -159,6 +189,7 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
+            routeUnauthorized(resumeResponse);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -620,6 +651,7 @@ export function createGrueneratorModelAdapter(
       }
 
       if (!response.ok) {
+        routeUnauthorized(response);
         yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
         return;
       }

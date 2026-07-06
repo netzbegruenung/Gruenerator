@@ -6,7 +6,7 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
-import { socialPostPayloadSchema } from '@gruenerator/contracts';
+import { socialPostPayloadSchema, bundestagPayloadSchema } from '@gruenerator/contracts';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import {
   coerceSharepicVariants,
@@ -133,6 +133,14 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   if (socialPostCall?.result) {
     const parsedPost = socialPostPayloadSchema.safeParse(socialPostCall.result);
     if (parsedPost.success) custom.socialPostData = parsedPost.data;
+  }
+
+  // Tool-derived: Bundestag/DIP card. The persisted `bundestag` tool result is
+  // the same BundestagPayload the live stream sends — validate it identically.
+  const bundestagCall = metadata.toolCalls?.find((tc) => tc.toolName === 'bundestag');
+  if (bundestagCall?.result) {
+    const parsedBt = bundestagPayloadSchema.safeParse(bundestagCall.result);
+    if (parsedBt.success) custom.bundestagData = parsedBt.data;
   }
 
   // Tool-derived: reel cards. The persisted tool results carry payloads

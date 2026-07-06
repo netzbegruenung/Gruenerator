@@ -37,9 +37,10 @@ Permitted operation types (each object needs a "type" field):
     // asText:true forces TEXT for ids, ZIP, phone numbers, leading zeros, or codes like "2-2"
 - { "type": "set_formula", "cell": "D2", "formula": "=SUM(A1:A10)", "sheet"?: "Name" }
     // single cell; formula starts with "=" and uses A1 references
-- { "type": "set_number_format", "range": "B2:B20", "pattern": "#,##0.00 €", "sheet"?: "Name" }
-    // DISPLAY format only, never changes the stored value. Patterns: "#,##0.00 €"=Euro,
-    // "0%"=Prozent, "yyyy-MM-dd"=Datum, "#,##0"=Tausender, "@"=Text
+- { "type": "set_number_format", "range": "B2:B20", "pattern": "#,##0.00\\ [$€-407]", "sheet"?: "Name" }
+    // DISPLAY format only, never changes the stored value. Patterns:
+    // "#,##0.00\\ [$€-407]"=Euro (German separators: 1.234,56 €), "0%"=Prozent,
+    // "dd.MM.yyyy"=Datum, "#,##0"=Tausender, "@"=Text
 - { "type": "format_range", "range": "A1:C1", "bold"?: true, "background"?: "#e8f5e9", "fontColor"?: "#1b5e20", "sheet"?: "Name" }
 - { "type": "add_sheet", "name": "Blatt 2" }
 - { "type": "clear_range", "range": "B2:B5", "sheet"?: "Name" }
@@ -62,7 +63,9 @@ RULES:
 - "values" MUST be a 2D array even for a single cell: a single value is [["x"]], one row is [["a","b","c"]], one column is [["a"],["b"],["c"]].
 - In set_range_values, a string starting with "=" is treated as a formula.
 - Numbers must be JSON numbers (1234.5), not localized strings.
-- CURRENCY / PERCENT / DATES are a NUMBER plus a number format, never a formatted string. To show money, percentages, or dates: write the numeric value with set_range_values AND apply set_number_format. Never write "1.000 €", "25%", or "2022-12-05" as a text value into a numeric column — it breaks formulas, sorting and export. (For percent, 25% is the number 0.25 with pattern "0%".)
+- CURRENCY and PERCENT are a NUMBER plus a number format, never a formatted string: write the numeric value with set_range_values AND apply set_number_format. Never write "1.000 €" or "25%" as text into a numeric column — it breaks formulas, sorting and export. (25% is the number 0.25 with pattern "0%"; Euro uses pattern "#,##0.00\\ [$€-407]".)
+- DATES: write the plain ISO string "yyyy-MM-dd" (or "yyyy-MM-ddTHH:mm") as the VALUE in set_range_values AND apply a date set_number_format (e.g. "dd.MM.yyyy"). The platform converts the ISO string to the correct date value deterministically — do NOT compute or emit an Excel serial number yourself, you will get it wrong.
+- When a formula's result should read as a date, currency or percent (e.g. "=E1+1" over a date cell), ALSO emit a set_number_format on the formula cell — Univer does not inherit the format of referenced cells.
 - The "Spalten-Typen" note in the sheet state marks which columns are Währung/Prozent/Datum/Formel — respect those types when you change them.
 - For ids, ZIP codes, phone numbers, leading zeros, or codes like "2-2", use set_range_values with asText:true so they are not auto-converted to numbers/dates.
 - "sheet" is the sheet NAME; omit it to target the active sheet.
@@ -73,7 +76,9 @@ RULES:
 EXAMPLE 1 — the sheet has "Umsatz" in A1 and 1000 in B1, and the user says "ändere den Umsatz auf 2500":
 { "operations": [ { "type": "set_range_values", "range": "B1", "values": [[2500]] } ] }
 EXAMPLE 2 — user says "formatiere Spalte B als Euro":
-{ "operations": [ { "type": "set_number_format", "range": "B2:B100", "pattern": "#,##0.00 €" } ] }`;
+{ "operations": [ { "type": "set_number_format", "range": "B2:B100", "pattern": "#,##0.00\\ [$€-407]" } ] }
+EXAMPLE 3 — user says "schreibe das Datum 2026-03-15 in E1 und in E2 den Folgetag":
+{ "operations": [ { "type": "set_range_values", "range": "E1", "values": [["2026-03-15"]] }, { "type": "set_formula", "cell": "E2", "formula": "=E1+1" }, { "type": "set_number_format", "range": "E1:E2", "pattern": "dd.MM.yyyy" } ] }`;
 
 /**
  * Coerce the two shape mistakes models make most often on set_range_values

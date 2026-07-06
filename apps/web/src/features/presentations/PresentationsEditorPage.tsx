@@ -5,6 +5,7 @@ import {
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
+import { type Slide } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -29,7 +30,7 @@ import {
   FiShare2,
   FiSliders,
 } from 'react-icons/fi';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
@@ -56,7 +57,14 @@ const PresentMode = lazyWithRetry(() =>
 function PresentationsEditorContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const adapter = useDocsAdapter();
+
+  // Template picked at creation (SPA nav-state from DocsPage). Seeds the fresh
+  // deck on first open; the `seeded` guard ignores it once the deck has slides,
+  // so a reload (state gone) is a no-op.
+  const seedSlides = (location.state as { presentationTemplate?: Slide[] } | null)
+    ?.presentationTemplate;
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
 
@@ -168,9 +176,15 @@ function PresentationsEditorContent() {
       // Go through the shared apiClient (not a raw fetch) so the download
       // carries auth like every other request and recovers from transient
       // 401s during cookie rotation via its onUnauthorized retry.
-      const res = await apiClient.post<Blob>(`/presentations/${id}/export/pptx`, null, {
-        responseType: 'blob',
-      });
+      // Body must be {} not null: the apiClient forces application/json, which
+      // serializes null to the string "null" — rejected by strict express.json().
+      const res = await apiClient.post<Blob>(
+        `/presentations/${id}/export/pptx`,
+        {},
+        {
+          responseType: 'blob',
+        }
+      );
       const url = window.URL.createObjectURL(res.data as Blob);
       const link = document.createElement('a');
       link.href = url;
@@ -386,6 +400,7 @@ function PresentationsEditorContent() {
               designPanelOpen={designPanelOpen}
               onCloseDesignPanel={() => setDesignPanelOpen(false)}
               onReady={setEditorApi}
+              seedSlides={seedSlides}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">

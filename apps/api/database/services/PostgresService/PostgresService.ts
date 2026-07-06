@@ -118,6 +118,17 @@ export class PostgresService {
       }
 
       try {
+        const { backfillChatThreadSlugSuffixes } =
+          await import('../../../services/migrations/backfillChatThreadSlugSuffixes.js');
+        await backfillChatThreadSlugSuffixes();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Chat thread slug backfill skipped:',
+          (error as Error).message
+        );
+      }
+
+      try {
         const { backfillNotebookAudience } =
           await import('../../../services/migrations/backfillNotebookAudience.js');
         await backfillNotebookAudience();

@@ -258,6 +258,14 @@ function SheetsChatReadyHost({
             ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
           },
         });
+        if (result.status === 401) {
+          // Session died mid-edit. The contracts client already routed this
+          // through onUnauthorized (probe → redirect on a dead session); show a
+          // clear message instead of the generic failure toast — and never let a
+          // transparently-retried write fall through to a false success toast.
+          toast.error('Sitzung abgelaufen — bitte neu anmelden.');
+          return;
+        }
         if (result.status !== 200) {
           toast.error('Tabellen-Aktion fehlgeschlagen.');
           return;
@@ -268,7 +276,14 @@ function SheetsChatReadyHost({
         }
         const { applied, skipped } = applySheetOperations(workbook, result.body.operations);
         if (applied > 0) {
-          toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`);
+          // Dedup + short duration: a stable id collapses repeated edits into one
+          // toast, and an explicit duration stops sonner from keeping the toast
+          // alive (its dismiss timer pauses while the cursor hovers the region,
+          // which otherwise piles them up over the composer).
+          toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`, {
+            id: 'sheet-edit-applied',
+            duration: 2000,
+          });
         }
         if (skipped.length > 0) {
           toast.warning(skipped.join(' · '));

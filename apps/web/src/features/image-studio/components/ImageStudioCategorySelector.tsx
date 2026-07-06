@@ -13,6 +13,7 @@ import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import ReelsSection from '../../workplace/components/ReelsSection';
 // import { useFeaturedVorlagen, type FeaturedVorlage } from '../hooks/useFeaturedVorlagen';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
@@ -32,6 +33,11 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?
 
 const RECENT_GALLERY_OPTIONS = { limit: 20 } as const;
 
+// Legacy `image_type` values written by the Bilder tab before it emitted
+// canonical KI ids (`pure-create`/`universal-edit`/`green-edit`). Existing rows
+// still carry these, so the classifier maps them to KI without a backfill.
+const KI_LEGACY_ALIASES = new Set(['imagine', 'edit']);
+
 /**
  * Classifies a stored `image_type` value as a KI ("Imagine") image.
  * KI type ids (e.g. `pure-create`) resolve directly; template legacy types
@@ -40,6 +46,7 @@ const RECENT_GALLERY_OPTIONS = { limit: 20 } as const;
  */
 const isKiImage = (imageType?: string): boolean => {
   if (!imageType) return false;
+  if (KI_LEGACY_ALIASES.has(imageType)) return true;
   const direct = getTypeConfig(imageType);
   const legacyId = direct ? null : getTypeFromLegacy(imageType);
   const config = direct ?? (legacyId ? getTypeConfig(legacyId) : null);
@@ -405,16 +412,15 @@ const ImageStudioCategorySelector: React.FC = () => {
               </CardGrid>
             )}
           </section>
-
-          <section className="mb-xl">
-            <SectionHeader
-              title="Reel"
-              onCreate={() => navigate('/studio/video')}
-              createLabel="Neues Reel erstellen"
-            />
-          </section>
         </>
       )}
+
+      {/* Reels live in subtitler_projects (served by /recent-activity), a separate
+          feed from the /share/recent images above — so the widget fetches its own
+          data and self-hides when the user has no reels. Rendered outside the
+          isStudioEmpty gate (that flag only reflects the image buckets) so a
+          reel-only user still sees them. */}
+      <ReelsSection />
 
       {/* Read-only preview for gallery items when the canvas editor is gated off. */}
       <Lightbox

@@ -39,6 +39,12 @@ export interface AttachYjsBridgeOptions {
   /** Write access of the local user; read-only clients never compact or forward. */
   canWrite: boolean;
   awareness?: AwarenessLike | null;
+  /**
+   * Initial workbook to seed when the doc has no snapshot yet (e.g. a template
+   * picked at creation). Falls back to a blank workbook. Ignored once the doc
+   * is seeded, so existing sheets are never overwritten.
+   */
+  seedWorkbook?: Partial<IWorkbookData> | null;
 }
 
 export interface SheetsBridge {
@@ -79,6 +85,7 @@ export function attachYjsBridge({
   documentId,
   canWrite,
   awareness,
+  seedWorkbook,
 }: AttachYjsBridgeOptions): SheetsBridge {
   const yMutations = ydoc.getArray<SheetMutationEntry>(SHEET_YDOC_KEYS.mutations);
   const yMeta = ydoc.getMap<unknown>(SHEET_YDOC_KEYS.meta);
@@ -117,8 +124,13 @@ export function attachYjsBridge({
     parsedSnapshot.id = documentId;
     workbook = univerAPI.createWorkbook(parsedSnapshot);
   } else {
-    workbook = univerAPI.createWorkbook(buildBlankWorkbook(documentId));
-    // Seed a fresh blank sheet, OR repair a broken zero-worksheet snapshot
+    // Template seed (if provided) or a blank workbook. All clients must share
+    // one unitId, so force it regardless of what the template carries.
+    const seedData = seedWorkbook
+      ? { ...seedWorkbook, id: documentId }
+      : buildBlankWorkbook(documentId);
+    workbook = univerAPI.createWorkbook(seedData);
+    // Seed a fresh sheet, OR repair a broken zero-worksheet snapshot
     // (overwrite even if `seeded` was set, since that snapshot is unusable).
     const brokenSnapshot = !!parsedSnapshot && !snapshotHasWorksheet;
     const needsSeed = yMeta.get(SHEET_META_KEYS.seeded) !== true || brokenSnapshot;
