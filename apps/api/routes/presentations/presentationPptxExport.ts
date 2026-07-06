@@ -14,7 +14,13 @@
 
 import { Buffer } from 'buffer';
 
-import { type Slide } from '@gruenerator/contracts';
+import {
+  defaultDeckBackground,
+  isDeckColorDark,
+  normalizeCssColorToHex,
+  PRESENTATION_DEFAULT_ACCENT,
+  type Slide,
+} from '@gruenerator/contracts';
 import { marked, type Token } from 'marked';
 
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
@@ -46,7 +52,6 @@ const CONTENT_W = inch(960 - PAD_X * 2); // 8.5in
 // ── Brand palette (mirrors gruene-deck.css) ─────────────────────────────────
 const INK = '262A28';
 const WHITE = 'FFFFFF';
-const SAND = 'F5F1E9';
 const CODE_BG = '1E2420';
 const CODE_FG = 'E8EFE9';
 const KLEE = '52907A';
@@ -55,41 +60,14 @@ const FONT_HEAD = 'Raleway';
 const FONT_BODY = 'PT Sans';
 const FONT_MONO = 'JetBrains Mono';
 
+/** Cap for an embedded image background/asset (bytes). */
+const MAX_IMAGE_BYTES = 6_000_000;
+
 // ── Colour helpers ──────────────────────────────────────────────────────────
-/** Normalise a CSS hex colour to a 6-digit uppercase string (no #), else null. */
-function toHex(color: string | null | undefined): string | null {
-  if (!color) return null;
-  const raw = color.trim().replace(/^#/, '');
-  if (/^[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
-  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
-    return raw
-      .split('')
-      .map((c) => c + c)
-      .join('')
-      .toUpperCase();
-  }
-  return null;
-}
+/** CSS colour → 6-digit hex (no #) for pptxgenjs; null when unrecognised. */
+const toHex = normalizeCssColorToHex;
 
-/** Perceived-luminance dark test — mirrors SlideSurface.isDarkColor. */
-function isDarkColor(c: string): boolean {
-  const hex = toHex(c);
-  if (!hex) return /^#?(00|31|0c|1b|05)/i.test(c.trim());
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  return 0.299 * r + 0.587 * g + 0.114 * b < 140;
-}
-
-const SAND_HEX = SAND;
-const WHITE_HEX = WHITE;
-
-/** Default background for a (layout, variant) — mirrors SlideSurface.defaultBg. */
-function defaultBg(layout: Slide['layout'], variant: number, accent: string): string {
-  if (layout === 'title') return [accent, `#${WHITE_HEX}`, `#${SAND_HEX}`][variant] ?? accent;
-  if (layout === 'quote') return [accent, `#${SAND_HEX}`][variant] ?? accent;
-  return `#${WHITE_HEX}`;
-}
+const DEFAULT_ACCENT_HEX = toHex(PRESENTATION_DEFAULT_ACCENT) ?? '316049';
 
 interface ResolvedBg {
   /** Solid slide fill (hex, no #). Null when an image fill is used. */
@@ -115,17 +93,24 @@ async function fetchImageData(url: string): Promise<string | null> {
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type') ?? '';
     if (!contentType.startsWith('image/')) return null;
+    // Reject oversized payloads up front (declared length) before buffering.
+    const declaredLength = Number(res.headers.get('content-length'));
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES) return null;
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 6_000_000) return null;
+    if (buf.length > MAX_IMAGE_BYTES) return null;
     return `data:${contentType};base64,${buf.toString('base64')}`;
   } catch {
     return null;
   }
 }
 
-/** Resolve a slide's effective background into a PPTX fill — mirrors resolveBackground. */
+/**
+ * Resolve a slide's effective background into a PPTX fill. Mirrors
+ * SlideSurface.resolveBackground, sharing defaultDeckBackground/isDeckColorDark.
+ */
 async function resolveBackground(slide: Slide, accent: string): Promise<ResolvedBg> {
-  const bg = slide.background?.trim() || defaultBg(slide.layout, slide.variant ?? 0, accent);
+  const bg =
+    slide.background?.trim() || defaultDeckBackground(slide.layout, slide.variant ?? 0, accent);
   if (/^(https?:|data:|\/)/.test(bg)) {
     const image = await fetchImageData(bg);
     if (image) return { color: null, image, dark: true };
@@ -135,7 +120,7 @@ async function resolveBackground(slide: Slide, accent: string): Promise<Resolved
     // pptxgenjs has no CSS-gradient fill — approximate with the accent colour.
     return { color: toHex(accent) ?? INK, image: null, dark: true };
   }
-  return { color: toHex(bg) ?? WHITE_HEX, image: null, dark: isDarkColor(bg) };
+  return { color: toHex(bg) ?? WHITE, image: null, dark: isDeckColorDark(bg) };
 }
 
 // ── Markdown body → pptxgenjs text runs ─────────────────────────────────────
@@ -183,9 +168,9 @@ function collectRuns(tokens: Token[] | undefined, style: Omit<Run, 'text'>, out:
 }
 
 interface LineOpts {
-  bullet?: PptxTextOptions['bullet'] | undefined;
-  indentLevel?: number | undefined;
-  italic?: boolean | undefined;
+  bullet?: PptxTextOptions['bullet'];
+  indentLevel?: number;
+  italic?: boolean;
 }
 
 /** Emit one paragraph (a run of text objects terminated by breakLine). */
@@ -207,10 +192,55 @@ function emitLine(out: PptxTextProps[], runs: Run[], color: string, lineOpts: Li
   });
 }
 
+type MdList = { ordered?: boolean; items?: { tokens?: Token[] }[] };
+type MdTableCell = { tokens?: Token[] };
+type MdTable = { header?: MdTableCell[]; rows?: MdTableCell[][] };
+
+/** Emit a (possibly nested) markdown list, indenting sub-lists one level deeper. */
+function emitList(
+  list: MdList,
+  out: PptxTextProps[],
+  color: string,
+  opts: { italic?: boolean; numbered?: boolean },
+  level: number
+): void {
+  const ordered = list.ordered || (level === 0 && opts.numbered);
+  for (const item of list.items ?? []) {
+    const inlineToks: Token[] = [];
+    const nested: MdList[] = [];
+    for (const child of item.tokens ?? []) {
+      if ((child as Token).type === 'list') nested.push(child as MdList);
+      else inlineToks.push(child);
+    }
+    const runs: Run[] = [];
+    collectRuns(inlineToks, {}, runs);
+    emitLine(out, runs, color, {
+      bullet: ordered ? { type: 'number' } : { code: '2022' },
+      indentLevel: level,
+      italic: !!opts.italic,
+    });
+    for (const child of nested) emitList(child, out, color, opts, level + 1);
+  }
+}
+
+/** Emit a markdown table as one line per row (cells separated by spaces). */
+function emitTable(table: MdTable, out: PptxTextProps[], color: string, italic: boolean): void {
+  const emitRow = (cells: MdTableCell[], bold: boolean): void => {
+    const runs: Run[] = [];
+    cells.forEach((cell, i) => {
+      collectRuns(cell.tokens, bold ? { bold: true } : {}, runs);
+      if (i < cells.length - 1) runs.push({ text: '    ' });
+    });
+    emitLine(out, runs, color, { italic });
+  };
+  if (table.header?.length) emitRow(table.header, true);
+  for (const row of table.rows ?? []) emitRow(row, false);
+}
+
 /**
  * Convert a slide's markdown body into pptxgenjs text runs. `italic` forces the
- * quote style; `accentBullets` picks numbered vs dot bullets for content
- * variants. Images are dropped (handled separately for image layouts).
+ * quote style; `numbered` picks numbered vs dot bullets for content variants.
+ * Images are dropped (handled separately for image layouts).
  */
 function bodyToTextProps(
   markdown: string,
@@ -221,23 +251,11 @@ function bodyToTextProps(
   const out: PptxTextProps[] = [];
 
   for (const token of tokens) {
-    const tok = token as Token & {
-      tokens?: Token[];
-      items?: { tokens?: Token[] }[];
-      ordered?: boolean;
-      text?: string;
-    };
-    if (tok.type === 'list' && tok.items) {
-      const ordered = tok.ordered || opts.numbered;
-      tok.items.forEach((item) => {
-        const runs: Run[] = [];
-        collectRuns(item.tokens, {}, runs);
-        emitLine(out, runs, color, {
-          bullet: ordered ? { type: 'number' } : { code: '2022' },
-          indentLevel: 0,
-          italic: opts.italic,
-        });
-      });
+    const tok = token as Token & { tokens?: Token[]; text?: string };
+    if (tok.type === 'list') {
+      emitList(tok as MdList, out, color, opts, 0);
+    } else if (tok.type === 'table') {
+      emitTable(tok as MdTable, out, color, !!opts.italic);
     } else if (tok.type === 'blockquote') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
@@ -245,7 +263,7 @@ function bodyToTextProps(
     } else if (tok.type === 'heading') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, { bold: true }, runs);
-      emitLine(out, runs, color, { italic: opts.italic });
+      emitLine(out, runs, color, { italic: !!opts.italic });
     } else if (tok.type === 'code') {
       out.push({
         text: tok.text ?? '',
@@ -254,17 +272,45 @@ function bodyToTextProps(
     } else if (tok.type === 'paragraph') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: opts.italic });
+      emitLine(out, runs, color, { italic: !!opts.italic });
     }
   }
 
   return out;
 }
 
-/** First markdown image URL in a body, if any (for the image layout). */
+/**
+ * First markdown image URL in a body, if any (for the image layout). Allows one
+ * level of nested parens so URLs like `img_(1).png` aren't truncated, and drops
+ * an optional `"title"` suffix.
+ */
 function firstImageUrl(markdown: string): string | null {
-  const match = markdown.match(/!\[[^\]]*\]\(([^)]+)\)/);
-  return match ? match[1].trim() : null;
+  const match = markdown.match(/!\[[^\]]*\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/);
+  if (!match) return null;
+  const url = match[1].trim().split(/\s+/)[0];
+  return url || null;
+}
+
+/** Group flattened runs into paragraph lines (each ends at a breakLine run). */
+function groupRunsIntoLines(runs: PptxTextProps[]): PptxTextProps[][] {
+  const lines: PptxTextProps[][] = [];
+  let current: PptxTextProps[] = [];
+  for (const run of runs) {
+    current.push(run);
+    if (run.options?.breakLine) {
+      lines.push(current);
+      current = [];
+    }
+  }
+  if (current.length) lines.push(current);
+  return lines;
+}
+
+/** Split body runs into two balanced columns on line boundaries (never mid-line). */
+function splitRunsIntoColumns(runs: PptxTextProps[]): [PptxTextProps[], PptxTextProps[]] {
+  const lines = groupRunsIntoLines(runs);
+  const mid = Math.ceil(lines.length / 2);
+  return [lines.slice(0, mid).flat(), lines.slice(mid).flat()];
 }
 
 // ── Slide builders ──────────────────────────────────────────────────────────
@@ -504,9 +550,11 @@ function addContentSlide(
   const runs = bodyToTextProps(data.body, bColor, { numbered: variant === 2 });
 
   if (split) {
-    const mid = Math.ceil(runs.length / 2);
+    // Split on paragraph (breakLine) boundaries, not mid-line, so a bullet
+    // never straddles both columns.
+    const [colA, colB] = splitRunsIntoColumns(runs);
     const colW = (CONTENT_W - inch(48)) / 2;
-    slide.addText(runs.slice(0, mid), {
+    slide.addText(colA.length ? colA : [{ text: '' }], {
       x: MARGIN,
       y: bodyY,
       w: colW,
@@ -515,7 +563,7 @@ function addContentSlide(
       valign: 'top',
       lineSpacingMultiple: 1.15,
     });
-    slide.addText(runs.slice(mid).length ? runs.slice(mid) : [{ text: '' }], {
+    slide.addText(colB.length ? colB : [{ text: '' }], {
       x: MARGIN + colW + inch(48),
       y: bodyY,
       w: colW,
@@ -545,11 +593,11 @@ async function addSlide(
   showNotes: boolean
 ): Promise<void> {
   const slide = pptx.addSlide();
-  const accentHex = toHex(accent) ?? '316049';
+  const accentHex = toHex(accent) ?? DEFAULT_ACCENT_HEX;
   const variant = data.variant ?? 0;
 
   const bg = await resolveBackground(data, accent);
-  slide.background = bg.image ? { data: bg.image } : { color: bg.color ?? WHITE_HEX };
+  slide.background = bg.image ? { data: bg.image } : { color: bg.color ?? WHITE };
 
   switch (data.layout) {
     case 'title':
@@ -594,7 +642,7 @@ export async function exportPresentationToPptx(
   pptx.defineLayout({ name: 'GRUENE_16x9', width: PAGE_W, height: PAGE_H });
   pptx.layout = 'GRUENE_16x9';
 
-  const deckAccent = accent?.trim() || '#316049';
+  const deckAccent = accent?.trim() || PRESENTATION_DEFAULT_ACCENT;
   for (const slide of slides) {
     if (slide.hidden) continue;
     await addSlide(pptx, slide, deckAccent, true);
