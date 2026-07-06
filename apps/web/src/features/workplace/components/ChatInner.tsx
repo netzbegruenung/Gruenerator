@@ -4,7 +4,7 @@ import {
   useThreadRuntime,
   useVoiceState,
 } from '@assistant-ui/react';
-import { GrueneratorComposer, useAgentStore } from '@gruenerator/chat';
+import { GrueneratorComposer, useAgentStore, useChatRuntimeReady } from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,7 +50,7 @@ function NavigateToChatOnSend() {
   return null;
 }
 
-const ChatInner: React.FC = memo(() => {
+const ChatInnerReady: React.FC = () => {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const threadRuntime = useThreadRuntime({ optional: true });
@@ -96,6 +96,19 @@ const ChatInner: React.FC = memo(() => {
       />
     </ThreadPrimitive.Root>
   );
+};
+
+// While the lazy assistant-ui runtime chunk loads, GrueneratorChatProvider's
+// Suspense fallback renders the page WITHOUT AssistantRuntimeProvider — calling
+// useAssistantRuntime()/useVoiceState() there crashes with "requires an
+// AuiProvider". Gate on runtime readiness (same guard as ChatPage/SearchPage)
+// and reserve the composer's footprint so the hero doesn't jump.
+const ChatInner: React.FC = memo(() => {
+  const runtimeReady = useChatRuntimeReady();
+  if (!runtimeReady) {
+    return <div className="w-full shrink-0 mx-auto max-w-[680px] min-h-24" aria-hidden />;
+  }
+  return <ChatInnerReady />;
 });
 
 ChatInner.displayName = 'ChatInner';

@@ -32,7 +32,6 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 - **examples**: platform (instagram/facebook), country (DE/AT)
 - **Landesverbände** (hamburg, schleswig-holstein, thueringen, bayern, mecklenburg-vorpommern, brandenburg): content_type, primary_category, subcategories, published_at (Datum)
 - **berlin**: source_id (Quelle mit Anzeigenamen), published_at (Datum)
-- **satzungen**: landesverband, gremium
 
 ## Beispiel-Workflow
 

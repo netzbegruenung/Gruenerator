@@ -1,4 +1,4 @@
-import { buildQdrantFilter, mergeFilters } from '@gruenerator/shared/search/filters';
+import { buildQdrantFilter, mergeFilters } from '@gruenerator/query/filters';
 import { z } from 'zod';
 
 import { getDefaultSearchCollections, buildCollectionDefaultFilter } from '../catalog.ts';
@@ -250,7 +250,6 @@ WICHTIG: Rufe ZUERST gruenerator_get_filters auf, um gültige Filterwerte zu erf
 | examples | platform (instagram, facebook), country (DE oder AT) |
 | Landesverbände | content_type (Typ), primary_category, subcategories |
 | berlin | source_id (Quelle: LV/Fraktion Presse/Beschlüsse) |
-| satzungen | landesverband, gremium |
 | viele Sammlungen | date_from / date_to (Datumsbereich, ISO-Format) |
 
 ## Beispiele
@@ -279,7 +278,7 @@ export const searchTool = {
   description: buildSearchDescription(),
 
   inputSchema: {
-    query: z.string().describe('Suchbegriff oder Frage auf Deutsch'),
+    query: z.string().min(1).max(2000).describe('Suchbegriff oder Frage auf Deutsch'),
     country: z.enum(['DE', 'AT']).describe('Land: DE = Deutschland, AT = Österreich. PFLICHT.'),
     collection: z
       .string()
@@ -334,14 +333,6 @@ export const searchTool = {
           .describe(
             'Quellen-ID (nur berlin: berlin-lv-presse, berlin-fraktion-presse, etc.) - erst gruenerator_get_filters aufrufen!'
           ),
-        landesverband: z
-          .string()
-          .optional()
-          .describe('Landesverband (nur satzungen) - erst gruenerator_get_filters aufrufen!'),
-        gremium: z
-          .string()
-          .optional()
-          .describe('Gremium (nur satzungen) - erst gruenerator_get_filters aufrufen!'),
         date_from: z
           .string()
           .optional()
