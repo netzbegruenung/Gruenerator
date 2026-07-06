@@ -240,9 +240,7 @@ const WolkeManagementView = memo(
         {import.meta.env.DEV && (
           <CanvaSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
         )}
-        {import.meta.env.DEV && (
-          <McpSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
-        )}
+        <McpSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
       </motion.div>
     );
   }
