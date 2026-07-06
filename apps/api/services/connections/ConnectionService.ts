@@ -4,6 +4,9 @@ import {
   NANGO_PROVIDERS,
   type NangoProviderKey,
 } from '../../config/nango.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('connections');
 
 export interface ConnectionStatus {
   provider: NangoProviderKey;
@@ -25,12 +28,21 @@ export class ConnectionService {
     // Connections are created via createConnectSession with end_user.id = userId, so Nango
     // files them under that end-user id and assigns its own random connection_id. Filter by
     // userId (→ ?endUserId=), NOT connectionId (which never equals userId).
-    const result = await getNango().listConnections({ userId });
+    // A Nango outage/misconfig must NOT break the whole connector panel — degrade to
+    // "all disconnected" so MCP connectors still render alongside.
+    let connections: Awaited<
+      ReturnType<ReturnType<typeof getNango>['listConnections']>
+    >['connections'] = [];
+    try {
+      ({ connections } = await getNango().listConnections({ userId }));
+    } catch (error) {
+      log.error('Nango listConnections failed — reporting all providers as disconnected', error);
+    }
 
     return Object.entries(NANGO_PROVIDERS)
       .filter(([key]) => !HIDDEN_NANGO_PROVIDERS.has(key as NangoProviderKey))
       .map(([key, config]) => {
-        const connection = result.connections.find((c) => c.provider_config_key === key);
+        const connection = connections.find((c) => c.provider_config_key === key);
         return {
           provider: key as NangoProviderKey,
           label: config.label,
