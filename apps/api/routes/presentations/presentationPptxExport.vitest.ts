@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   asciiFilename,
   contentDispositionAttachment,
-  renderDeckToPandocMarkdown,
+  exportPresentationToPptx,
   sanitizeFilename,
 } from './presentationPptxExport.js';
 
@@ -21,63 +21,37 @@ function slide(partial: Partial<Slide>): Slide {
     autoAnimate: false,
     hidden: false,
     codeLanguage: null,
+    variant: null,
     ...partial,
   };
 }
 
-describe('renderDeckToPandocMarkdown', () => {
-  it('renders one level-2 heading per visible slide', () => {
-    const md = renderDeckToPandocMarkdown(
+describe('exportPresentationToPptx', () => {
+  it('produces a non-empty PPTX (ZIP/OOXML) buffer across layouts', async () => {
+    const buf = await exportPresentationToPptx(
       [
-        slide({ layout: 'title', title: 'Deck', body: 'Untertitel' }),
-        slide({ title: 'Punkte', body: '- a\n- b' }),
+        slide({ layout: 'title', title: 'Deck', body: 'Untertitel', variant: 0 }),
+        slide({ title: 'Punkte', body: '- **a**\n- b' }),
+        slide({ layout: 'quote', title: '', body: 'Ein Zitat', variant: 0 }),
+        slide({ layout: 'code', title: 'Beispiel', body: 'const x = 1;', codeLanguage: 'ts' }),
       ],
-      'Meine Präsentation'
+      'Meine Präsentation',
+      '#316049'
     );
-    expect(md).toContain('% Meine Präsentation');
-    expect(md).toContain('## Deck');
-    expect(md).toContain('## Punkte');
-    expect(md).toContain('- a\n- b');
+    expect(buf.length).toBeGreaterThan(0);
+    // OOXML/pptx is a ZIP — starts with the local-file-header magic "PK\x03\x04".
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK');
   });
 
-  it('omits hidden slides', () => {
-    const md = renderDeckToPandocMarkdown(
+  it('omits hidden slides', async () => {
+    const withHidden = await exportPresentationToPptx(
       [slide({ title: 'Sichtbar' }), slide({ title: 'Versteckt', hidden: true })],
-      'T'
+      'T',
+      null
     );
-    expect(md).toContain('## Sichtbar');
-    expect(md).not.toContain('## Versteckt');
-  });
-
-  it('renders code slides as fenced blocks with the language', () => {
-    const md = renderDeckToPandocMarkdown(
-      [
-        slide({
-          layout: 'code',
-          title: 'Beispiel',
-          body: 'const x = 1;',
-          codeLanguage: 'typescript',
-        }),
-      ],
-      'T'
-    );
-    expect(md).toContain('```typescript\nconst x = 1;\n```');
-  });
-
-  it('renders speaker notes as a pandoc notes div', () => {
-    const md = renderDeckToPandocMarkdown([slide({ title: 'A', notes: 'Kontext' })], 'T');
-    expect(md).toContain('::: notes\nKontext\n:::');
-  });
-
-  it('strips markdown image embeds (pandoc would fail on missing files) but keeps alt text', () => {
-    const md = renderDeckToPandocMarkdown(
-      [slide({ title: 'A', body: '![Radweg](/images/missing.jpg)\n\n- Punkt' })],
-      'T'
-    );
-    expect(md).not.toContain('/images/missing.jpg');
-    expect(md).not.toContain('![');
-    expect(md).toContain('Radweg');
-    expect(md).toContain('- Punkt');
+    const onlyVisible = await exportPresentationToPptx([slide({ title: 'Sichtbar' })], 'T', null);
+    // Hidden slide contributes no slideN.xml, so the two decks are byte-comparable in size.
+    expect(Math.abs(withHidden.length - onlyVisible.length)).toBeLessThan(400);
   });
 });
 
