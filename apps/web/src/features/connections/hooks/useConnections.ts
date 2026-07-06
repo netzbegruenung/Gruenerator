@@ -4,6 +4,7 @@ import {
   fetchConnectionStatus,
   createSessionToken,
   disconnectProvider,
+  testConnection,
   type ConnectionStatus,
 } from '../lib/connectionsApi';
 
@@ -21,6 +22,12 @@ export function useConnectionStatus() {
 export function useCreateSessionToken() {
   return useMutation({
     mutationFn: createSessionToken,
+  });
+}
+
+export function useTestConnection() {
+  return useMutation({
+    mutationFn: testConnection,
   });
 }
 

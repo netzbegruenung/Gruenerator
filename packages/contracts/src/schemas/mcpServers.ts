@@ -83,6 +83,12 @@ export const mcpRegistryEntrySchema = z.object({
   websiteUrl: z.string().nullish(),
   authHint: z.enum(['none', 'bearer', 'oauth', 'unknown']),
   recommended: z.boolean(),
+  // Directory grouping for the category filter pills (e.g. "Produktivität").
+  category: z.string().optional(),
+  // Provider rejects dynamic client registration → user must create an app and
+  // paste Client-ID/Secret (with our redirect URI). `setupUrl` links that console.
+  requiresManualRegistration: z.boolean().optional(),
+  setupUrl: z.string().nullish(),
 });
 export type McpRegistryEntry = z.infer<typeof mcpRegistryEntrySchema>;
 
