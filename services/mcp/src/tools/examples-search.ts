@@ -3,7 +3,7 @@
  * Searches for social media examples (Instagram, Facebook) from Green Party
  */
 
-import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
+import { buildQdrantFilter } from '@gruenerator/query/filters';
 import { z } from 'zod';
 
 import { getQdrantCollectionName } from '../catalog.ts';
@@ -48,7 +48,11 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
 - "Wie posten Grüne über Bildung?" → gruenerator_examples_search({ query: "Bildung", limit: 10 })`,
 
   inputSchema: {
-    query: z.string().describe('Thema für Beispielsuche (z.B. "Klimaschutz", "Bildungspolitik")'),
+    query: z
+      .string()
+      .min(1)
+      .max(2000)
+      .describe('Thema für Beispielsuche (z.B. "Klimaschutz", "Bildungspolitik")'),
     platform: z.enum(['instagram', 'facebook', 'all']).default('all').describe('Plattform filtern'),
     country: z.enum(['DE', 'AT', 'all']).default('all').describe('Land filtern'),
     limit: z.number().min(1).max(20).default(5).describe('Anzahl der Ergebnisse'),

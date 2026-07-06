@@ -90,8 +90,19 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
       deck.on('overviewshown', () => setOverview(true));
       deck.on('overviewhidden', () => setOverview(false));
       if (printPdf) {
-        // Give reveal a tick to apply its print layout before the dialog.
-        setTimeout(() => window.print(), 500);
+        // Open the print dialog only once reveal signals its print layout is
+        // complete (`pdf-ready`). A fixed timer could beat that event on a
+        // non-trivial deck and capture a half-laid-out PDF. The fallback timer
+        // still fires the dialog if the event already fired or never does (a
+        // load-race), and `printed` dedups so we never print twice.
+        let printed = false;
+        const doPrint = () => {
+          if (printed) return;
+          printed = true;
+          window.print();
+        };
+        deck.on('pdf-ready', doPrint);
+        setTimeout(doPrint, 1500);
       }
     });
     return () => {
@@ -128,6 +139,20 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     deck.sync();
     deck.layout();
   }, [structureKey]);
+
+  // ESC exits present mode. reveal binds ESC (and O) to toggleOverview, so
+  // without this ESC could only ever open/close the overview, never close the
+  // deck. The capture-phase listener runs before reveal's handler: on a slide
+  // we exit; in overview we let reveal close the overview first (next ESC exits).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || overview) return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [overview, onClose]);
 
   const toggleOverview = useCallback(() => revealRef.current?.toggleOverview(), []);
   const toggleFullscreen = useCallback(() => {

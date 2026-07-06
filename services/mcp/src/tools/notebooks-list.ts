@@ -5,7 +5,7 @@ export const notebooksListTool = {
   description: `Listet die Landesverbände auf, die mit dem aktuellen API-Key abgefragt werden dürfen.
 
 Verwende dies, um zu sehen, welche \`landesverband\`-Codes (z.B. "HH", "BY") du an
-\`notebooks_ask\` und \`notebooks_search\` übergeben kannst.
+\`notebooks_search\` übergeben kannst.
 
 Erfordert einen Bearer API-Key — wird automatisch aus dem Request-Header weitergeleitet.`,
 

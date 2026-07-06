@@ -75,9 +75,6 @@ export function useYjsFormState({ ydoc, isSynced, fallback }: Options): Result {
         setLocalFallback((prev) => ({ ...prev, ...changes }));
         return;
       }
-      console.log('[CanvasCollab][updateFormState] writing to Y.formState', {
-        keys: Object.keys(changes),
-      });
       const yMap = ydoc.getMap<unknown>(YDOC_KEYS.formState);
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(changes)) {

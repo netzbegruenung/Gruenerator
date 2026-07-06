@@ -6,7 +6,7 @@
  * adaptation happens at the fetch boundary so existing consumers read it unchanged.
  */
 
-import { type QdrantFilter } from '@gruenerator/shared/search/filters';
+import { type QdrantFilter } from '@gruenerator/query/filters';
 
 export interface McpFilterableField {
   label: string;
@@ -127,13 +127,6 @@ const STATIC_CATALOG: McpCatalog = {
     description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',
     filterableFields: {},
     includeInDefaultSearch: true,
-  },
-  satzungen: {
-    name: 'satzungen_documents',
-    displayName: 'Satzungen',
-    description: 'Satzungen der Kreisverbände und Ortsverbände',
-    filterableFields: {},
-    includeInDefaultSearch: false,
   },
   examples: {
     name: 'social_media_examples',
@@ -264,6 +257,24 @@ export function getCatalog(): McpCatalog {
     void fetchCatalog();
   }
   return currentCatalog;
+}
+
+/** Diagnostic snapshot of the catalog state (for /health/mcp). */
+export function getCatalogStatus(): {
+  source: 'live' | 'static';
+  collectionCount: number;
+  lastFetchedAt: string | null;
+  ageSeconds: number | null;
+  apiConfigured: boolean;
+} {
+  const live = lastFetchedAt > 0;
+  return {
+    source: live ? 'live' : 'static',
+    collectionCount: Object.keys(currentCatalog).length,
+    lastFetchedAt: live ? new Date(lastFetchedAt).toISOString() : null,
+    ageSeconds: live ? Math.round((Date.now() - lastFetchedAt) / 1000) : null,
+    apiConfigured: !!process.env.GRUENERATOR_API_URL,
+  };
 }
 
 /** Chat/user-facing collection keys currently known to the catalog. */

@@ -126,6 +126,50 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect(custom.socialPostData).toBeUndefined();
   });
 
+  it('rehydrates a persisted bundestag tool result onto custom.bundestagData', () => {
+    const persisted = {
+      kind: 'document',
+      document: {
+        drucksache: {
+          id: 'd1',
+          titel: 'Entwurf eines Gesetzes',
+          dokumentnummer: '21/50',
+          drucksachetyp: 'Gesetzentwurf',
+          wahlperiode: 21,
+          datum: '2025-06-01',
+          urheber: ['Bundesregierung'],
+          pdfUrl: 'https://dserver.bundestag.de/btd/21/000/2100050.pdf',
+        },
+        siblings: [],
+        vorgang: null,
+      },
+      notes: [],
+      metadata: {
+        query: 'Drucksache 21/50',
+        extractedName: null,
+        matchedDokumentnummer: '21/50',
+        fetchTimeMs: 120,
+      },
+    };
+    const custom = customOf({
+      toolCalls: [{ toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: persisted }],
+    });
+    expect((custom.bundestagData as { kind?: string })?.kind).toBe('document');
+    expect(
+      (custom.bundestagData as { document?: { drucksache?: { dokumentnummer?: string } } })
+        ?.document?.drucksache?.dokumentnummer
+    ).toBe('21/50');
+  });
+
+  it('drops a malformed bundestag tool result', () => {
+    const custom = customOf({
+      toolCalls: [
+        { toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: { kind: 'weird' } },
+      ],
+    });
+    expect(custom.bundestagData).toBeUndefined();
+  });
+
   it('rehydrates reel_processing and reel_picker cards from persisted tool calls', () => {
     const custom = customOf({
       toolCalls: [

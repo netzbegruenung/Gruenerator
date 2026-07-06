@@ -32,24 +32,6 @@ function headers(extra = {}) {
   };
 }
 
-function parseSse(text) {
-  const out = [];
-  // One SSE event = lines until a blank line; its `data:` lines join with \n.
-  for (const event of text.split(/\r?\n\r?\n/)) {
-    const dataLines = [];
-    for (const line of event.split(/\r?\n/)) {
-      if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
-    }
-    if (dataLines.length === 0) continue;
-    try {
-      out.push(JSON.parse(dataLines.join('\n')));
-    } catch {
-      /* keep-alive / non-json */
-    }
-  }
-  return out;
-}
-
 async function post(body, extraHeaders = {}) {
   const res = await fetch(MCP, {
     method: 'POST',
@@ -60,17 +42,10 @@ async function post(body, extraHeaders = {}) {
   const sid = res.headers.get('mcp-session-id');
   if (sid) sessionId = sid;
   const text = await res.text();
-  const ct = res.headers.get('content-type') || '';
+  // The server runs in stateless JSON-response mode, so every reply is a plain
+  // application/json JSON-RPC message.
   let msg = null;
-  if (ct.includes('text/event-stream')) {
-    const msgs = parseSse(text);
-    // Prefer the response matching our request id; else the first actual
-    // response frame (has result/error); never an interleaved notification.
-    msg =
-      msgs.find((m) => m.id === body.id) ||
-      msgs.find((m) => m.result !== undefined || m.error !== undefined) ||
-      null;
-  } else if (text) {
+  if (text) {
     try {
       msg = JSON.parse(text);
     } catch {
@@ -265,36 +240,6 @@ async function main() {
       ok: (d) => Array.isArray(d?.examples) || d?.errorType === 'search_unavailable',
       detail: (d) => d?.errorType || `resultsCount=${d?.resultsCount ?? 0}`,
     },
-    {
-      label: 'gruenerator_ask (QA + synthesis)',
-      name: 'gruenerator_ask',
-      args: { question: 'Was ist die Position zum Klimaschutz?', country: 'DE' },
-      expect: 'ok',
-      ok: (d) => typeof d?.answer === 'string' && d.answer.length > 0,
-      detail: (d) =>
-        `answer ${String(d?.answer || '').length} chars, ${d?.sources?.length ?? 0} sources`,
-    },
-    {
-      label: 'gruenerator_compare (DE vs AT)',
-      name: 'gruenerator_compare',
-      args: { query: 'Klimaschutz', sources: [{ country: 'DE' }, { country: 'AT' }], limit: 2 },
-      expect: 'ok',
-      ok: (d) => Array.isArray(d?.comparison) && d.comparison.length === 2,
-      detail: (d) => `${d?.comparison?.length} sources compared`,
-    },
-    {
-      label: 'gruenerator_notebook_ask (invalid token → clean error)',
-      name: 'gruenerator_notebook_ask',
-      args: { question: 'test', token: 'invalid-token-xyz-000' },
-      expect: 'error',
-      // Must be the EXPECTED "notebook/token not found" error — not a
-      // misconfiguration (e.g. GRUENERATOR_API_URL unset) masquerading as one.
-      ok: (d) =>
-        d?.error === true &&
-        /nicht gefunden|not found|token/i.test(String(d?.message)) &&
-        !/nicht konfiguriert|not configured/i.test(String(d?.message)),
-      detail: (d) => String(d?.message || '').slice(0, 60),
-    },
   ];
 
   for (const t of toolTests) {
@@ -330,7 +275,6 @@ async function main() {
     const authTools = [
       'gruenerator_notebooks_list',
       'gruenerator_notebooks_search',
-      'gruenerator_notebooks_ask',
       'gruenerator_notebooks_get_filters',
     ];
     check(

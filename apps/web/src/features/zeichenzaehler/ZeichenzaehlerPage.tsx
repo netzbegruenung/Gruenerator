@@ -180,14 +180,19 @@ const ZeichenzaehlerPage = () => {
       style={{
         minHeight: '100vh',
         background: 'var(--color-background)',
-        padding: '48px 24px 80px',
+        padding: 'clamp(24px, 6vw, 48px) clamp(14px, 4vw, 24px) 80px',
         boxSizing: 'border-box',
         color: 'var(--color-foreground)',
         display: 'flex',
         justifyContent: 'center',
       }}
     >
-      <style>{`@keyframes zz-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <style>{`
+        @keyframes zz-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        .zz-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 20px 14px; }
+        .zz-social-row { gap: clamp(12px, 5vw, 34px); padding: clamp(18px, 5vw, 24px); }
+        .zz-social-detail { padding: 4px clamp(16px, 5vw, 26px) 22px; }
+      `}</style>
       <div
         style={{
           width: '100%',
@@ -214,7 +219,7 @@ const ZeichenzaehlerPage = () => {
           <h1
             style={{
               margin: 0,
-              fontSize: '30px',
+              fontSize: 'clamp(24px, 6vw, 30px)',
               lineHeight: 1.1,
               color: 'var(--color-foreground-heading)',
             }}
@@ -280,18 +285,10 @@ const ZeichenzaehlerPage = () => {
         </div>
 
         {/* Übersicht */}
-        <div style={{ ...CARD_STYLE, padding: '24px 26px' }}>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              gap: '22px 18px',
-              alignItems: 'flex-start',
-            }}
-          >
+        <div style={{ ...CARD_STYLE, padding: 'clamp(18px, 5vw, 24px) clamp(18px, 5vw, 26px)' }}>
+          <div className="zz-stats">
             {stats.map((s) => (
-              <div key={s.label} style={{ minWidth: '52px' }}>
+              <div key={s.label}>
                 <div
                   style={{
                     fontSize: '26px',
@@ -321,6 +318,7 @@ const ZeichenzaehlerPage = () => {
         <div style={{ ...CARD_STYLE, overflow: 'hidden' }}>
           <button
             type="button"
+            className="zz-social-row"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
             aria-label={
@@ -331,11 +329,10 @@ const ZeichenzaehlerPage = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '34px',
+              flexWrap: 'wrap',
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              padding: '24px',
               fontFamily: 'inherit',
             }}
           >
@@ -354,7 +351,7 @@ const ZeichenzaehlerPage = () => {
           </button>
 
           {expanded && (
-            <div style={{ padding: '4px 26px 22px', animation: 'zz-reveal .25s ease' }}>
+            <div className="zz-social-detail" style={{ animation: 'zz-reveal .25s ease' }}>
               {chips.map((c) => (
                 <div
                   key={c.id}

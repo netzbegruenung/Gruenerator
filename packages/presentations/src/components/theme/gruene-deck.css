@@ -26,7 +26,12 @@
   background: var(--deck-paper);
   color: var(--deck-ink);
   font-family:
-    'PT Sans', 'Raleway', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    'PT Sans',
+    'Raleway',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
   font-size: 26px;
   line-height: 1.4;
   display: flex;
@@ -344,4 +349,11 @@
 }
 .reveal.gruene-deck .controls {
   color: var(--primary-600, #316049);
+}
+/* Overview: reveal's base rule leaves non-current sections at display:none, so
+ * with this deck's React-rendered <section>s every slide but the active one
+ * collapses to 0×0 and shows blank in the grid. reveal's overview CSS forces
+ * opacity/visibility but never display — so force it here. */
+.reveal.gruene-deck.overview .slides > section {
+  display: block !important;
 }
