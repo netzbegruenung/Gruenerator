@@ -27,13 +27,22 @@ function slide(partial: Partial<Slide>): Slide {
 }
 
 describe('exportPresentationToPptx', () => {
-  it('produces a non-empty PPTX (ZIP/OOXML) buffer across layouts', async () => {
+  it('produces a non-empty PPTX (ZIP/OOXML) buffer across layouts, tables, nested lists and non-hex colors', async () => {
     const buf = await exportPresentationToPptx(
       [
         slide({ layout: 'title', title: 'Deck', body: 'Untertitel', variant: 0 }),
         slide({ title: 'Punkte', body: '- **a**\n- b' }),
+        slide({ title: 'Tabelle', body: '| A | B |\n|---|---|\n| 1 | 2 |' }),
+        slide({ title: 'Verschachtelt', body: '- oben\n  - unten\n- zwei' }),
+        slide({
+          layout: 'split',
+          title: 'Split',
+          body: '- ein **fett** wort\n- zwei\n- drei\n- vier',
+        }),
         slide({ layout: 'quote', title: '', body: 'Ein Zitat', variant: 0 }),
         slide({ layout: 'code', title: 'Beispiel', body: 'const x = 1;', codeLanguage: 'ts' }),
+        slide({ title: 'RGB', body: '- x', background: 'rgb(0,0,0)' }),
+        slide({ title: 'Named', body: '- x', background: 'navy' }),
       ],
       'Meine Präsentation',
       '#316049'

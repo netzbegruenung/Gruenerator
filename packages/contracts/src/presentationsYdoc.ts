@@ -39,6 +39,91 @@ export const PRESENTATION_SCHEMA_VERSION = 1;
 
 /** Default deck accent + the brand options offered in the "Marke" picker. */
 export const PRESENTATION_DEFAULT_ACCENT = '#316049';
+
+/** Sand tone used as a default background for some title/quote variants. */
+export const PRESENTATION_SAND = '#f5f1e9';
+
+/** The 16 basic CSS named colours plus a few brand-adjacent ones (hex, no #). */
+const CSS_NAMED_COLORS: Record<string, string> = {
+  black: '000000',
+  silver: 'C0C0C0',
+  gray: '808080',
+  grey: '808080',
+  white: 'FFFFFF',
+  maroon: '800000',
+  red: 'FF0000',
+  purple: '800080',
+  fuchsia: 'FF00FF',
+  green: '008000',
+  lime: '00FF00',
+  olive: '808000',
+  yellow: 'FFFF00',
+  navy: '000080',
+  blue: '0000FF',
+  teal: '008080',
+  aqua: '00FFFF',
+  orange: 'FFA500',
+};
+
+/**
+ * Normalise a CSS colour to a 6-digit uppercase hex string (no #), else null.
+ * Accepts #rgb/#rrggbb, `rgb()/rgba()`, and common CSS named colours. Shared by
+ * the on-screen surface and the PPTX exporter (which needs hex for pptxgenjs).
+ */
+export function normalizeCssColorToHex(color: string | null | undefined): string | null {
+  if (!color) return null;
+  const trimmed = color.trim();
+  const raw = trimmed.replace(/^#/, '');
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
+  if (/^[0-9a-fA-F]{3}$/.test(raw)) {
+    return raw
+      .split('')
+      .map((c) => c + c)
+      .join('')
+      .toUpperCase();
+  }
+  const rgb = trimmed.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+  if (rgb) {
+    return [rgb[1], rgb[2], rgb[3]]
+      .map((n) =>
+        Math.min(255, parseInt(n ?? '0', 10))
+          .toString(16)
+          .padStart(2, '0')
+      )
+      .join('')
+      .toUpperCase();
+  }
+  return CSS_NAMED_COLORS[trimmed.toLowerCase()] ?? null;
+}
+
+/**
+ * Perceived-luminance dark test for a deck colour. Shared by the on-screen
+ * surface (`SlideSurface`) and the PPTX exporter so both classify text
+ * light/dark identically. Unrecognised strings fall back to a prefix heuristic.
+ */
+export function isDeckColorDark(color: string): boolean {
+  const hex = normalizeCssColorToHex(color);
+  if (!hex) return /^#(00|31|0c|1b)/i.test(color);
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b < 140;
+}
+
+/**
+ * Default background for a (layout, variant): title 0→accent / 1→white / 2→sand;
+ * quote 0→accent / 1→sand; everything else white. A slide's own `background`
+ * overrides this. Shared by `SlideSurface` and the PPTX exporter.
+ */
+export function defaultDeckBackground(
+  layout: Slide['layout'],
+  variant: number,
+  accent: string
+): string {
+  if (layout === 'title') return [accent, '#ffffff', PRESENTATION_SAND][variant] ?? accent;
+  if (layout === 'quote') return [accent, PRESENTATION_SAND][variant] ?? accent;
+  return '#ffffff';
+}
 export const PRESENTATION_ACCENT_OPTIONS: { value: string; name: string }[] = [
   { value: '#316049', name: 'Tanne' },
   { value: '#005538', name: 'Dunkelgrün' },

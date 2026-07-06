@@ -179,13 +179,8 @@ function PresentationsEditorContent() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (err) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      toast.error(
-        status === 501
-          ? 'PowerPoint-Export ist auf diesem Server nicht verfügbar (pandoc fehlt).'
-          : 'PowerPoint-Export fehlgeschlagen.'
-      );
+    } catch {
+      toast.error('PowerPoint-Export fehlgeschlagen.');
     }
   }, [id, docData]);
 

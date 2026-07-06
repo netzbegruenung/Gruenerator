@@ -1,4 +1,9 @@
-import { PRESENTATION_DEFAULT_ACCENT, type Slide } from '@gruenerator/contracts';
+import {
+  defaultDeckBackground,
+  isDeckColorDark,
+  PRESENTATION_DEFAULT_ACCENT,
+  type Slide,
+} from '@gruenerator/contracts';
 import { type ComponentProps, type CSSProperties } from 'react';
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
@@ -33,38 +38,16 @@ const LAYOUT_CLASS: Record<Slide['layout'], string> = {
   code: 'layout-code',
 };
 
-const SAND = '#f5f1e9';
-const WHITE = '#ffffff';
-
-/**
- * Default background for a (layout, variant): title 0→accent / 1→white / 2→sand;
- * quote 0→accent / 1→sand; everything else white. A slide's own `background`
- * overrides this.
- */
-function defaultBg(layout: Slide['layout'], variant: number, accent: string): string {
-  if (layout === 'title') return [accent, WHITE, SAND][variant] ?? accent;
-  if (layout === 'quote') return [accent, SAND][variant] ?? accent;
-  return WHITE;
-}
-
-/** Perceived-luminance dark test so any accent hex classifies correctly. */
-function isDarkColor(c: string): boolean {
-  const hex = c.replace('#', '');
-  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return /^#(00|31|0c|1b)/i.test(c);
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  return 0.299 * r + 0.587 * g + 0.114 * b < 140;
-}
-
 /**
  * Resolve the effective background (own background, else the variant default)
  * into an inline style plus whether the surface uses light text. Applied on the
  * static surface in BOTH the editor and present mode — SlideSurface owns the
- * background so there is a single classifier (reveal doesn't paint it).
+ * background so there is a single classifier (reveal doesn't paint it). The
+ * background/dark logic is shared with the PPTX exporter (@gruenerator/contracts).
  */
 function resolveBackground(slide: Slide, accent: string): { style: CSSProperties; dark: boolean } {
-  const bg = slide.background?.trim() || defaultBg(slide.layout, slide.variant ?? 0, accent);
+  const bg =
+    slide.background?.trim() || defaultDeckBackground(slide.layout, slide.variant ?? 0, accent);
   if (/^(https?:|data:|\/)/.test(bg)) {
     return {
       style: {
@@ -76,7 +59,7 @@ function resolveBackground(slide: Slide, accent: string): { style: CSSProperties
     };
   }
   if (/gradient\(/.test(bg)) return { style: { background: bg }, dark: true };
-  return { style: { background: bg }, dark: isDarkColor(bg) };
+  return { style: { background: bg }, dark: isDeckColorDark(bg) };
 }
 
 /**
