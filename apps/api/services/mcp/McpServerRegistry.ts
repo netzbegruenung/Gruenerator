@@ -90,20 +90,27 @@ export class McpServerRegistry {
       .select()
       .from(mcp_servers)
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true)));
-    return rows.map((row) => {
-      let token: string | null = null;
-      if (row.token_encrypted) {
-        try {
-          token = decryptCredential(row.token_encrypted);
-        } catch (err) {
-          log.warn('Failed to decrypt MCP token; connecting without auth', {
-            server: row.name,
-            error: err instanceof Error ? err.message : String(err),
-          });
+    return Promise.all(
+      rows.map(async (row) => {
+        let token: string | null = null;
+        if (row.auth_type === 'oauth') {
+          // Lazy-refresh a valid access token (McpOAuthService owns the crypto +
+          // refresh lock). Imported lazily to avoid a module cycle.
+          const { McpOAuthService } = await import('./McpOAuthService.js');
+          token = await McpOAuthService.getValidAccessToken(userId, row.id).catch(() => null);
+        } else if (row.token_encrypted) {
+          try {
+            token = decryptCredential(row.token_encrypted);
+          } catch (err) {
+            log.warn('Failed to decrypt MCP token; connecting without auth', {
+              server: row.name,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         }
-      }
-      return { id: row.id, name: row.name, url: row.url, authType: row.auth_type, token };
-    });
+        return { id: row.id, name: row.name, url: row.url, authType: row.auth_type, token };
+      })
+    );
   }
 
   static async create(userId: string, input: McpServerCreateInput): Promise<McpServerSummary> {
