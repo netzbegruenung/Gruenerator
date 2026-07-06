@@ -42,6 +42,7 @@ import {
   FiChevronUp,
   FiCloud,
   FiFile,
+  FiGrid,
   FiPlus,
   FiSearch,
   FiUpload,
@@ -55,6 +56,8 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { getBoardTemplate } from '../boards/boardTemplates';
+import { getPresentationTemplate } from '../presentations/presentationTemplates';
+import { getSheetTemplate } from '../sheets/sheetTemplates';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -70,13 +73,16 @@ const LazyTemplatePicker = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.TemplatePicker }))
 );
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
+const LazySheetImportDialog = lazy(() => import('../sheets/SheetImportDialog'));
 const LazyWolkeImportModal = lazy(() => import('./WolkeImportModal'));
 
 const ImportMenu = memo(function ImportMenu({
   onShowImportDialog,
+  onShowSheetImport,
   onShowWolkeImport,
 }: {
   onShowImportDialog: () => void;
+  onShowSheetImport: () => void;
   onShowWolkeImport: () => void;
 }) {
   const desktopContent = (
@@ -84,6 +90,10 @@ const ImportMenu = memo(function ImportMenu({
       <DropdownMenuItem onClick={onShowImportDialog}>
         <FiUpload size={16} />
         Datei importieren…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onShowSheetImport}>
+        <FiGrid size={16} />
+        Tabelle importieren…
       </DropdownMenuItem>
       <DropdownMenuItem onClick={onShowWolkeImport}>
         <FiCloud size={16} />
@@ -96,6 +106,9 @@ const ImportMenu = memo(function ImportMenu({
     <>
       <ResponsiveMenuItem icon={<FiUpload size={16} />} onClick={onShowImportDialog}>
         Datei importieren…
+      </ResponsiveMenuItem>
+      <ResponsiveMenuItem icon={<FiGrid size={16} />} onClick={onShowSheetImport}>
+        Tabelle importieren…
       </ResponsiveMenuItem>
       <ResponsiveMenuItem icon={<FiCloud size={16} />} onClick={onShowWolkeImport}>
         Aus Wolke importieren…
@@ -186,6 +199,7 @@ function DocumentsContent() {
   const deferredSearch = useDeferredValue(searchQuery);
   const [showGallery, setShowGallery] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showSheetImport, setShowSheetImport] = useState(false);
   const [showWolkeImport, setShowWolkeImport] = useState(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -359,6 +373,26 @@ function DocumentsContent() {
     }
   }, [createDocumentMutation, adapter]);
 
+  const handleCreateSheetFromTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getSheetTemplate(templateId);
+      if (!template) return;
+      try {
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title: template.defaultTitle,
+          documentSubtype: 'sheets',
+        });
+        // SPA navigation (not adapter.navigateToDocument, which reloads and
+        // drops nav-state): the seed workbook rides `location.state` into the
+        // Univer editor, which applies it on first open.
+        navigate(`/docs/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
+      } catch (err) {
+        console.error('Failed to create sheet from template:', err);
+      }
+    },
+    [createDocumentMutation, navigate]
+  );
+
   const handleCreatePresentation = useCallback(async () => {
     try {
       const newDoc = await createDocumentMutation.mutateAsync({
@@ -370,6 +404,24 @@ function DocumentsContent() {
       console.error('Failed to create presentation:', err);
     }
   }, [createDocumentMutation, adapter]);
+
+  const handleCreatePresentationFromTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getPresentationTemplate(templateId);
+      if (!template) return;
+      try {
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title: template.defaultTitle,
+          documentSubtype: 'presentations',
+        });
+        // SPA navigation carries the seed slides via nav-state into the editor.
+        navigate(`/docs/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
+      } catch (err) {
+        console.error('Failed to create presentation from template:', err);
+      }
+    },
+    [createDocumentMutation, navigate]
+  );
 
   const handleCreateBoard = useCallback(
     (boardType: 'kanban' | 'whiteboard') => {
@@ -445,6 +497,7 @@ function DocumentsContent() {
         </div>
         <ImportMenu
           onShowImportDialog={() => setShowImportDialog(true)}
+          onShowSheetImport={() => setShowSheetImport(true)}
           onShowWolkeImport={() => setShowWolkeImport(true)}
         />
       </div>
@@ -465,7 +518,9 @@ function DocumentsContent() {
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
           onCreateSheet={() => void handleCreateSheet()}
+          onCreateSheetFromTemplate={handleCreateSheetFromTemplate}
           onCreatePresentation={() => void handleCreatePresentation()}
+          onCreatePresentationFromTemplate={handleCreatePresentationFromTemplate}
           onUserTemplateSelect={handleUserTemplateSelect}
         />
 
@@ -597,6 +652,12 @@ function DocumentsContent() {
       {showImportDialog && (
         <Suspense fallback={null}>
           <LazyFileImportDialog open={showImportDialog} onOpenChange={setShowImportDialog} />
+        </Suspense>
+      )}
+
+      {showSheetImport && (
+        <Suspense fallback={null}>
+          <LazySheetImportDialog open={showSheetImport} onOpenChange={setShowSheetImport} />
         </Suspense>
       )}
 

@@ -5,37 +5,31 @@ console.log(`[Boot] Node.js ${process.version}`);
 console.log(`[Boot] Environment: ${process.env.NODE_ENV || 'development'}`);
 
 console.log('[Boot] Loading dependencies...');
-import { randomUUID } from 'node:crypto';
-
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
+import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import express from 'express';
 console.log('[Boot] Dependencies loaded');
 
 console.log('[Boot] Loading config...');
-import { fetchCatalog } from './catalog.ts';
+import { fetchCatalog, getCatalogStatus } from './catalog.ts';
 import { clientConfigTool } from './clients/config.ts';
 import { config, validateConfig } from './config.ts';
 import { registerAgentPrompts, getPromptList } from './prompts/agent-prompts.ts';
+import { checkQdrantHealth } from './qdrant/client.ts';
 import {
   getCollectionResources,
   getCollectionResource,
   readServerInfoResource,
 } from './resources/collections.ts';
 import { getSystemPromptResource } from './resources/system-prompt.ts';
-import { askTool } from './tools/ask.ts';
-import { compareTool } from './tools/compare.ts';
 import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
-import { notebookAskTool } from './tools/notebook-ask.ts';
-import { notebooksAskTool } from './tools/notebooks-ask.ts';
 import { notebooksGetFiltersTool } from './tools/notebooks-get-filters.ts';
 import { notebooksListTool } from './tools/notebooks-list.ts';
 import { notebooksSearchTool } from './tools/notebooks-search.ts';
-// DISABLED: Person search removed — DIP API integration non-functional
-// import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
 import { getCacheStats } from './utils/cache.ts';
 import { classifyError, connectionErrorResponse } from './utils/errors.ts';
@@ -55,15 +49,36 @@ try {
 
 console.log('[Boot] Setting up Express...');
 const app = express();
-app.use(express.json());
+
+// Behind the Salt-deployed nginx reverse proxy — trust the first hop so req.ip
+// reflects the real client (required for per-IP rate limiting to work).
+app.set('trust proxy', 1);
+
+// MCP JSON-RPC payloads are small; reject oversized bodies early.
+app.use(express.json({ limit: '64kb' }));
+
+// CORS. Defaults to '*' (public read-only search server). Set
+// MCP_ALLOWED_ORIGINS (comma-separated) to restrict to specific origins.
+const allowedOrigins = (process.env.MCP_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 app.use(
   cors({
-    origin: '*',
+    origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'mcp-session-id', 'Authorization'],
     exposedHeaders: ['Mcp-Session-Id'],
   })
 );
+
+// Baseline security headers (helmet-equivalent, kept dependency-free).
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
 console.log('[Boot] Express configured');
 
 // Helper: Base URL ermitteln
@@ -71,8 +86,51 @@ function getBaseUrl(req: express.Request): string {
   return config.server.publicUrl || `${req.protocol}://${req.get('host')}`;
 }
 
-// Session-Verwaltung
-const transports: Record<string, StreamableHTTPServerTransport> = {};
+// --- Anti-abuse: per-IP rate limiting (in-memory; the server is single-process).
+// Anonymous search triggers a Mistral embedding + Qdrant query per call, so an
+// unbounded /mcp is a cost-DoS surface. ---
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = Number(process.env.MCP_RATE_LIMIT_PER_MIN) || 120;
+const rateBuckets = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const recent = (rateBuckets.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  rateBuckets.set(ip, recent);
+  return recent.length > RATE_LIMIT_MAX;
+}
+
+// --- DNS-rebinding protection (MCP spec recommendation). Opt-in via env so it
+// can't accidentally lock out a mis-set Host header from a valid client; when
+// enabled, set MCP_ALLOWED_HOSTS to the served host(s), e.g. mcp.gruenerator.eu. ---
+const dnsRebindingOptions =
+  process.env.MCP_DNS_REBINDING_PROTECTION === 'true'
+    ? {
+        enableDnsRebindingProtection: true,
+        allowedHosts: (process.env.MCP_ALLOWED_HOSTS || '')
+          .split(',')
+          .map((h) => h.trim())
+          .filter(Boolean),
+        ...(allowedOrigins.length > 0 ? { allowedOrigins } : {}),
+      }
+    : {};
+
+// Tool annotations (MCP + Anthropic Directory requirement). Every tool here is a
+// pure read. The search-family additionally reaches external data sources
+// (Qdrant/Mistral/backend API) → openWorldHint; cache/config are internal → false.
+const READONLY_EXTERNAL = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+const READONLY_INTERNAL = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 
 function wrapToolHandler(
   label: string,
@@ -88,6 +146,12 @@ function wrapToolHandler(
     } catch (err) {
       const { detail, isConnection } = classifyError(err);
       error(label, `${label} failed: ${detail}`);
+      // Report unexpected exceptions to GlitchTip. Connection errors are expected
+      // infra hiccups (Qdrant/API unreachable) and would flood the project during
+      // an outage, so they are logged but not captured.
+      if (!isConnection) {
+        Sentry.captureException(err, { tags: { mcp_tool: label } });
+      }
       const body = isConnection
         ? connectionErrorResponse(detail)
         : { error: true, message: detail };
@@ -108,44 +172,85 @@ function extractBearerKey(req: express.Request): string | null {
 
 // MCP Server Factory
 function createMcpServer(baseUrl: string, apiKey: string | null) {
-  const server = new McpServer({
-    name: 'gruenerator-mcp',
-    version: '1.0.0',
-  });
+  const server = new McpServer(
+    {
+      name: 'gruenerator-mcp',
+      version: '1.0.0',
+    },
+    {
+      // Server-level tool-use guidance — lands in the client's system prompt.
+      // This is the sanctioned place for "call X before Y" hints (unlike tool
+      // descriptions, which must not instruct behaviour). Kept short: it costs
+      // tokens every session. Full guidance stays in the system-prompt resource.
+      instructions: [
+        'Grünerator-MCP: durchsucht Programme, Beschlüsse und Positionen von Bündnis 90/Die Grünen (Deutschland) und den Grünen Österreich.',
+        '- gruenerator_search ist das Haupttool. Formuliere die Antwort aus den Treffern und verweise auf deren Quelle/URL.',
+        '- Der Parameter country ist Pflicht (DE oder AT) und bestimmt, welche Sammlungen durchsucht werden.',
+        '- Rufe gruenerator_get_filters für eine Sammlung auf, bevor du mit filters einschränkst — Filterwerte nicht raten.',
+        '- Für DE-vs-AT-Vergleiche zweimal suchen (country DE und AT) und gegenüberstellen.',
+      ].join('\n'),
+    }
+  );
 
   // === MCP RESOURCES ===
 
   // List available resources
-  server.resource('Verfügbare Dokumentsammlungen', 'gruenerator://collections', async () => {
-    const resources = await getCollectionResources();
-    return {
-      contents: [
-        {
-          uri: 'gruenerator://collections',
-          mimeType: 'application/json',
-          text: JSON.stringify({ collections: resources }, null, 2),
-        },
-      ],
-    };
-  });
+  server.registerResource(
+    'collections',
+    'gruenerator://collections',
+    {
+      title: 'Verfügbare Dokumentsammlungen',
+      description: 'Alle durchsuchbaren Sammlungen mit Metadaten.',
+      mimeType: 'application/json',
+    },
+    async () => {
+      const resources = await getCollectionResources();
+      return {
+        contents: [
+          {
+            uri: 'gruenerator://collections',
+            mimeType: 'application/json',
+            text: JSON.stringify({ collections: resources }, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Server info resource
-  server.resource('Server-Informationen und Fähigkeiten', 'gruenerator://info', () =>
-    readServerInfoResource()
+  server.registerResource(
+    'server-info',
+    'gruenerator://info',
+    {
+      title: 'Server-Informationen und Fähigkeiten',
+      description: 'Überblick über Endpunkte, Tools und Sammlungen.',
+      mimeType: 'application/json',
+    },
+    () => readServerInfoResource()
   );
 
   // System prompt resource - AI systems should read this first
-  server.resource(
-    'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+  server.registerResource(
+    'system-prompt',
     'gruenerator://system-prompt',
+    {
+      title: 'Anleitung zur Nutzung des MCP Servers (für AI-Assistenten)',
+      description: 'Tool-Auswahl, Sammlungen und Filter-Workflow.',
+      mimeType: 'text/markdown',
+    },
     () => getSystemPromptResource()
   );
 
   // Dynamic collection resources
   for (const [key, col] of Object.entries(config.collections)) {
-    server.resource(
-      `${col.displayName}: ${col.description}`,
+    server.registerResource(
+      `collection-${key}`,
       `gruenerator://collections/${key}`,
+      {
+        title: col.displayName,
+        description: col.description,
+        mimeType: 'application/json',
+      },
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
         return (
@@ -166,9 +271,14 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // === MCP TOOLS ===
 
   // Search Tool with annotations
-  server.tool(
+  server.registerTool(
     searchTool.name,
-    searchTool.inputSchema,
+    {
+      title: 'Grünen-Dokumente durchsuchen',
+      description: searchTool.description,
+      inputSchema: searchTool.inputSchema,
+      annotations: READONLY_EXTERNAL,
+    },
     async ({
       query,
       country,
@@ -214,6 +324,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         error('Search', `Search failed: ${message}`);
+        Sentry.captureException(err, { tags: { mcp_tool: 'Search' } });
         return {
           content: [
             {
@@ -228,84 +339,75 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   );
 
   // Cache Stats Tool
-  server.tool(cacheStatsTool.name, cacheStatsTool.inputSchema, async () => {
-    const result = await cacheStatsTool.handler();
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  });
+  server.registerTool(
+    cacheStatsTool.name,
+    {
+      title: 'Cache-Statistiken',
+      description: cacheStatsTool.description,
+      inputSchema: cacheStatsTool.inputSchema,
+      annotations: READONLY_INTERNAL,
+    },
+    async () => {
+      const result = await cacheStatsTool.handler();
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Client Config Tool
-  server.tool(clientConfigTool.name, clientConfigTool.inputSchema, async ({ client }) => {
-    const result = clientConfigTool.handler({ client }, baseUrl);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
-  });
+  server.registerTool(
+    clientConfigTool.name,
+    {
+      title: 'MCP-Client-Konfiguration',
+      description: clientConfigTool.description,
+      inputSchema: clientConfigTool.inputSchema,
+      annotations: READONLY_INTERNAL,
+    },
+    async ({ client }) => {
+      const result = clientConfigTool.handler({ client }, baseUrl);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Filters Tool
-  server.tool(
+  server.registerTool(
     filtersTool.name,
-    filtersTool.inputSchema,
+    {
+      title: 'Verfügbare Filter abrufen',
+      description: filtersTool.description,
+      inputSchema: filtersTool.inputSchema,
+      annotations: READONLY_EXTERNAL,
+    },
     wrapToolHandler('Filters', (params) => filtersTool.handler(params as { collection: string }))
   );
 
   // === MCP PROMPTS ===
   registerAgentPrompts(server);
 
-  // DISABLED: Person search removed — DIP API integration non-functional
-  // server.tool(personSearchTool.name, personSearchTool.inputSchema, async (params) => {
-  //   ...
-  // });
-
   // Examples Search Tool
-  server.tool(
+  server.registerTool(
     examplesSearchTool.name,
-    examplesSearchTool.inputSchema,
+    {
+      title: 'Social-Media-Beispiele durchsuchen',
+      description: examplesSearchTool.description,
+      inputSchema: examplesSearchTool.inputSchema,
+      annotations: READONLY_EXTERNAL,
+    },
     wrapToolHandler('ExamplesSearch', (params) =>
       examplesSearchTool.handler(params as Parameters<typeof examplesSearchTool.handler>[0])
-    )
-  );
-
-  // Ask Tool (QA with answer synthesis) — custom handler for logging
-  server.tool(askTool.name, askTool.inputSchema, async (params) => {
-    const { question, country, collection } = params as {
-      question: string;
-      country: string;
-      collection?: string;
-    };
-    const startTime = Date.now();
-    const wrapped = wrapToolHandler('Ask', (p) =>
-      askTool.handler(p as Parameters<typeof askTool.handler>[0])
-    );
-    const result = await wrapped(params as Record<string, unknown>);
-    logSearch(
-      question || '',
-      collection || `ask:${country || 'unknown'}`,
-      'ask',
-      1,
-      Date.now() - startTime,
-      false
-    );
-    return result;
-  });
-
-  // Notebook Ask Tool (legacy, share-token based — DEPRECATED for programmatic use)
-  server.tool(
-    notebookAskTool.name,
-    notebookAskTool.inputSchema,
-    wrapToolHandler('NotebookAsk', (params) =>
-      notebookAskTool.handler(params as Parameters<typeof notebookAskTool.handler>[0])
     )
   );
 
@@ -313,28 +415,36 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // Bearer API key. Without a key, these are not advertised in tools/list,
   // and the MCP server stays anonymous-callable for the existing public tools.
   if (apiKey) {
-    server.tool(
+    server.registerTool(
       notebooksListTool.name,
-      notebooksListTool.inputSchema,
+      {
+        title: 'Notebooks auflisten',
+        description: notebooksListTool.description,
+        inputSchema: notebooksListTool.inputSchema,
+        annotations: READONLY_EXTERNAL,
+      },
       wrapToolHandler('NotebooksList', (p) => notebooksListTool.handler(p, apiKey))
     );
-    server.tool(
-      notebooksAskTool.name,
-      notebooksAskTool.inputSchema,
-      wrapToolHandler('NotebooksAsk', (p) =>
-        notebooksAskTool.handler(p as Parameters<typeof notebooksAskTool.handler>[0], apiKey)
-      )
-    );
-    server.tool(
+    server.registerTool(
       notebooksSearchTool.name,
-      notebooksSearchTool.inputSchema,
+      {
+        title: 'Notebook durchsuchen',
+        description: notebooksSearchTool.description,
+        inputSchema: notebooksSearchTool.inputSchema,
+        annotations: READONLY_EXTERNAL,
+      },
       wrapToolHandler('NotebooksSearch', (p) =>
         notebooksSearchTool.handler(p as Parameters<typeof notebooksSearchTool.handler>[0], apiKey)
       )
     );
-    server.tool(
+    server.registerTool(
       notebooksGetFiltersTool.name,
-      notebooksGetFiltersTool.inputSchema,
+      {
+        title: 'Notebook-Filter abrufen',
+        description: notebooksGetFiltersTool.description,
+        inputSchema: notebooksGetFiltersTool.inputSchema,
+        annotations: READONLY_EXTERNAL,
+      },
       wrapToolHandler('NotebooksGetFilters', (p) =>
         notebooksGetFiltersTool.handler(
           p as Parameters<typeof notebooksGetFiltersTool.handler>[0],
@@ -343,15 +453,6 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       )
     );
   }
-
-  // Compare Tool (cross-source comparison)
-  server.tool(
-    compareTool.name,
-    compareTool.inputSchema,
-    wrapToolHandler('Compare', (params) =>
-      compareTool.handler(params as Parameters<typeof compareTool.handler>[0])
-    )
-  );
 
   return server;
 }
@@ -375,6 +476,61 @@ app.get('/health', (req, res) => {
     },
     requests: serverStats.requests,
     performance: serverStats.performance,
+  });
+});
+
+// Deep MCP diagnostics — dependency health + client-readiness. Kept separate
+// from /health (liveness) so a dependency hiccup never fails the Docker
+// healthcheck and triggers a restart loop. Use this for monitoring/CI and to
+// catch the claude.ai-compat regressions we debugged (JSON mode, stateless
+// transport, declared capabilities, registered tools).
+app.get('/health/mcp', async (_req, res) => {
+  const qdrant = await checkQdrantHealth();
+  const catalog = getCatalogStatus();
+  const mistralConfigured = !!config.mistral.apiKey;
+
+  const publicTools = [
+    searchTool.name,
+    filtersTool.name,
+    cacheStatsTool.name,
+    examplesSearchTool.name,
+    clientConfigTool.name,
+  ];
+
+  // Transport contract that keeps tools visible in the claude.ai connector —
+  // must stay in sync with the POST /mcp handler (stateless + enableJsonResponse).
+  const mcp = {
+    transport: 'streamable-http',
+    jsonResponseMode: true,
+    stateless: true,
+    supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+    capabilities: ['tools', 'resources', 'prompts'],
+    publicToolCount: publicTools.length,
+    publicTools,
+    claudeAiReady: publicTools.length > 0,
+  };
+
+  const dependencies = {
+    qdrant,
+    mistral: { configured: mistralConfigured },
+    catalogApi: {
+      configured: catalog.apiConfigured,
+      source: catalog.source,
+      collections: catalog.collectionCount,
+      lastFetchedAt: catalog.lastFetchedAt,
+      ageSeconds: catalog.ageSeconds,
+    },
+  };
+
+  // Search needs Qdrant + Mistral; tool discovery itself does not. Report
+  // degraded (503) only when a search dependency is down.
+  const healthy = qdrant.ok && mistralConfigured;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'healthy' : 'degraded',
+    service: 'gruenerator-mcp',
+    version: '1.0.0',
+    mcp,
+    dependencies,
   });
 });
 
@@ -437,21 +593,6 @@ app.get('/.well-known/mcp.json', (req, res) => {
       {
         name: 'gruenerator_examples_search',
         description: 'Sucht nach Social-Media-Beispielen der Grünen (Instagram, Facebook)',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_ask',
-        description: 'Beantwortet Fragen mit KI-generierter Antwort und Quellenangaben',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_notebook_ask',
-        description: 'Beantwortet Fragen zu Notebook-Sammlungen via öffentlichem Token',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_compare',
-        description: 'Vergleicht Suchergebnisse aus verschiedenen Quellen nebeneinander',
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
     ],
@@ -553,22 +694,6 @@ app.get('/info', (req, res) => {
         countries: ['DE', 'AT'],
         annotations: { readOnlyHint: true, idempotentHint: true },
       },
-      {
-        name: 'gruenerator_ask',
-        description: 'KI-generierte Antwort mit Quellenangaben [1][2]',
-        modes: ['detailed', 'fast'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_notebook_ask',
-        description: 'Notebook-Sammlungen abfragen via öffentlichem Sharing-Token',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_compare',
-        description: 'Vergleicht Suchergebnisse aus 2-3 Quellen nebeneinander',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
     ],
     resources: [
       {
@@ -601,56 +726,37 @@ app.get('/info', (req, res) => {
 
 // MCP POST Endpoint (Hauptkommunikation)
 app.post('/mcp', async (req, res) => {
-  const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  let transport: StreamableHTTPServerTransport | undefined;
-
-  if (sessionId && transports[sessionId]) {
-    transport = transports[sessionId];
-  } else if (isInitializeRequest(req.body)) {
-    const newTransport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id: string) => {
-        transports[id] = newTransport;
-        info('Session', `New session: ${id}`);
-      },
-      onsessionclosed: (id: string) => {
-        delete transports[id];
-        info('Session', `Session closed: ${id}`);
-      },
-    });
-    transport = newTransport;
-
-    transport.onclose = () => {
-      if (transport?.sessionId) {
-        delete transports[transport.sessionId];
-      }
-    };
-
-    const baseUrl = getBaseUrl(req);
-    const apiKey = extractBearerKey(req);
-    const server = createMcpServer(baseUrl, apiKey);
-    await server.connect(transport);
-  } else if (sessionId) {
-    res.status(404).json({
+  if (isRateLimited(req.ip ?? req.socket.remoteAddress ?? 'unknown')) {
+    res.status(429).json({
       jsonrpc: '2.0',
-      error: { code: -32001, message: 'Session nicht gefunden – bitte neu initialisieren' },
-      id: null,
-    });
-    return;
-  } else {
-    res.status(400).json({
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Keine Session und keine Initialisierungsanfrage' },
+      error: { code: -32029, message: 'Zu viele Anfragen – bitte kurz warten.' },
       id: null,
     });
     return;
   }
 
+  // Stateless mode: every POST gets a fresh McpServer + transport and a JSON
+  // response. claude.ai's connector tool-discovery (and ChatGPT) don't carry an
+  // mcp-session-id — a stateful-only server rejects their session-less tools/list
+  // so the tools never get indexed (resources work via a different path). A fresh
+  // instance per request is required from SDK ≥1.26 to avoid cross-request state
+  // leaks. Mirrors the reference Claude.ai HTTP-MCP setup and our Bundestag MCP.
   try {
+    const server = createMcpServer(getBaseUrl(req), extractBearerKey(req));
+    const transport = new StreamableHTTPServerTransport({
+      ...dnsRebindingOptions,
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    res.on('close', () => {
+      void transport.close();
+      void server.close();
+    });
+    await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   } catch (err) {
     error('MCP', `handleRequest failed: ${err instanceof Error ? err.message : String(err)}`);
+    Sentry.captureException(err, { tags: { mcp_endpoint: 'POST /mcp' } });
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
@@ -661,35 +767,34 @@ app.post('/mcp', async (req, res) => {
   }
 });
 
-// MCP GET Endpoint (SSE Stream)
-app.get('/mcp', async (req, res) => {
-  const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  const transport = sessionId ? transports[sessionId] : undefined;
-
-  if (transport) {
-    await transport.handleRequest(req, res);
-  } else {
-    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
-  }
-});
-
-// MCP DELETE Endpoint (Session beenden)
-app.delete('/mcp', async (req, res) => {
-  const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
-  const transport = sessionId ? transports[sessionId] : undefined;
-
-  if (transport) {
-    await transport.handleRequest(req, res);
-  } else {
-    res.status(404).json({ error: 'Session nicht gefunden – bitte neu initialisieren' });
-  }
-});
+// Stateless mode has no server-initiated SSE stream and no sessions to terminate,
+// so GET/DELETE on /mcp are not applicable.
+const methodNotAllowed = (_req: express.Request, res: express.Response) => {
+  res.status(405).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32000,
+      message: 'Method Not Allowed – der Server läuft im stateless JSON-Modus.',
+    },
+    id: null,
+  });
+};
+app.get('/mcp', methodNotAllowed);
+app.delete('/mcp', methodNotAllowed);
 
 // Server starten
 const PORT = process.env.PORT || 3003;
 console.log(`[Boot] Starting server on port ${PORT}...`);
+
+// Capture unhandled errors thrown from Express route handlers (registered after
+// all routes, before listen). Tool-level exceptions are captured in-handler above.
+Sentry.setupExpressErrorHandler(app);
+
+// Periodic sweep: drop the rate-limit bucket map if it grows large so the
+// in-memory state stays bounded. unref() so it never keeps the process alive.
+setInterval(() => {
+  if (rateBuckets.size > 10_000) rateBuckets.clear();
+}, 5 * 60_000).unref();
 
 app.listen(PORT, () => {
   // Warm the runtime collection catalog from the backend (non-blocking; falls
@@ -713,6 +818,7 @@ app.listen(PORT, () => {
   console.log('Endpoints:');
   console.log(`  MCP:        ${localUrl}/mcp`);
   console.log(`  Health:     ${localUrl}/health`);
+  console.log(`  Diag:       ${localUrl}/health/mcp`);
   console.log(`  Metrics:    ${localUrl}/metrics`);
   console.log(`  Discovery:  ${localUrl}/.well-known/mcp.json`);
   console.log(`  Info:       ${localUrl}/info`);

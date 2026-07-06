@@ -141,6 +141,13 @@ export default defineConfig(({ command }) => ({
       //   "Rolldown failed to resolve import '@gruenerator/core/models'
       //    from packages/shared/src/models/index.ts".
       '@gruenerator/core': path.resolve(__dirname, '../../packages/core/src'),
+      // @gruenerator/query is imported transitively from the @gruenerator/shared
+      // alias (shared/utils/textNormalization + shared/search/{filters,vector}
+      // re-export from @gruenerator/query/*). Same cascade rule as core above —
+      // alias it to src or Rolldown fails:
+      //   "Rolldown failed to resolve import '@gruenerator/query/text'
+      //    from packages/shared/src/utils/textNormalization.ts".
+      '@gruenerator/query': path.resolve(__dirname, '../../packages/query/src'),
     },
     // React MUST be deduped to a single physical copy. pnpm installs several
     // react versions (root 19.2.6, plus 19.2.3/19.2.4 nested under deps like

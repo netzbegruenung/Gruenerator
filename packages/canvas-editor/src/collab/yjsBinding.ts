@@ -52,12 +52,6 @@ export function bindCanvasStoreToYMap({ store, parent }: BindOptions): CanvasBin
   if (!ydoc) {
     throw new Error('bindCanvasStoreToYMap: parent Y.Map is not attached to a Y.Doc');
   }
-  console.log('[CanvasCollab][bindCanvasStoreToYMap] binding canvas store to Y.Map', {
-    parentSize: parent.size,
-    parentHasLayers: parent.has(YDOC_KEYS.layers),
-    parentHasConfig: parent.has(YDOC_KEYS.config),
-  });
-
   // Ensure structural Y types exist before observers attach.
   ydoc.transact(() => {
     ensureLayers(parent);
@@ -113,10 +107,6 @@ export function bindCanvasStoreToYMap({ store, parent }: BindOptions): CanvasBin
   yConfig.observe(yConfigObserver);
 
   const reconcileLayers = (next: Layer[]) => {
-    console.log('[CanvasCollab][reconcileLayers] writing layers to Y', {
-      count: next.length,
-      ids: next.map((l) => l.id),
-    });
     ydoc.transact(() => {
       const presentIds = new Set(next.map((l) => l.id));
       const yIdToIndex = new Map<string, number>();
@@ -155,9 +145,6 @@ export function bindCanvasStoreToYMap({ store, parent }: BindOptions): CanvasBin
   };
 
   const reconcileConfig = (cfg: Record<string, unknown>) => {
-    console.log('[CanvasCollab][reconcileConfig] writing config to Y', {
-      keys: Object.keys(cfg),
-    });
     ydoc.transact(() => {
       for (const [k, v] of Object.entries(cfg)) {
         if (yConfig.get(k) !== v) yConfig.set(k, v);

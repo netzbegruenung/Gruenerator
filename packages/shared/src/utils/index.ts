@@ -36,6 +36,7 @@ export {
   generateSlugSuffix,
   buildNotebookSlug,
   buildGroupSlug,
+  buildChatThreadSlug,
   extractSlugSuffix,
 } from './slug.js';
 

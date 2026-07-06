@@ -11,15 +11,22 @@
   min-width: 0;
   margin-left: var(--sidebar-collapsed-width);
   transition: margin-left 0.2s ease;
+  /* Width the app sidebar occupies on the left. Fixed-position chrome inside
+     .app-content (e.g. the canvas editor's tab bar/panel, which ignore the
+     margin) reads this via left: var(--canvas-host-inset-left) so it lines up
+     directly after the app sidebar instead of underneath it. Mirrors margin-left. */
+  --canvas-host-inset-left: var(--sidebar-collapsed-width);
 }
 
 .app-layout.sidebar-open .app-content {
   margin-left: var(--sidebar-expanded-width);
+  --canvas-host-inset-left: var(--sidebar-expanded-width);
 }
 
 /* When app sidebar icon rail is hidden (e.g., Image Studio with its own sidebar) */
 .app-layout.sidebar-hidden .app-content {
   margin-left: 0;
+  --canvas-host-inset-left: 0px;
 }
 
 /* Hide the collapsed icon rail, but allow opening via hamburger */
@@ -51,16 +58,19 @@
 /* Content stays in place when sidebar opens as overlay */
 .app-layout.sidebar-hidden.sidebar-open .app-content {
   margin-left: 0;
+  --canvas-host-inset-left: 0px;
 }
 
 /* Mobile: content takes full width (Sheet handles backdrop/overlay) */
 @media (max-width: 768px) {
   .app-content {
     margin-left: 0;
+    --canvas-host-inset-left: 0px;
   }
 
   .app-layout.sidebar-open .app-content {
     margin-left: 0;
+    --canvas-host-inset-left: 0px;
   }
 }
 

@@ -856,7 +856,7 @@ const BilderInner: React.FC = memo(() => {
         createImageShare({
           imageData: base64,
           title: trimmed.slice(0, 100),
-          imageType: 'imagine',
+          imageType: 'pure-create',
           status: 'ready',
           metadata: { prompt: trimmed },
         })
@@ -901,7 +901,7 @@ const BilderInner: React.FC = memo(() => {
       createImageShare({
         imageData: base64,
         title: trimmed.slice(0, 100),
-        imageType: 'edit',
+        imageType: 'universal-edit',
         status: 'ready',
         metadata: {
           prompt: trimmed,
@@ -951,7 +951,7 @@ const BilderInner: React.FC = memo(() => {
       createImageShare({
         imageData: base64,
         title: trimmed.slice(0, 100),
-        imageType: 'edit',
+        imageType: 'green-edit',
         status: 'ready',
         metadata: {
           prompt: trimmed,
@@ -982,7 +982,7 @@ const BilderInner: React.FC = memo(() => {
         createImageShare({
           imageData: base64,
           title: title.slice(0, 100),
-          imageType: 'edit',
+          imageType: 'universal-edit',
           status: 'ready',
           metadata: { sourceFilename: file.name, editType: 'remove-background' },
         })
@@ -1069,7 +1069,7 @@ const BilderInner: React.FC = memo(() => {
       createImageShare({
         imageData: base64,
         title: title.slice(0, 100),
-        imageType: 'imagine',
+        imageType: 'pure-create',
         status: 'ready',
         metadata: {
           sourceFilename: sourceFile.name,

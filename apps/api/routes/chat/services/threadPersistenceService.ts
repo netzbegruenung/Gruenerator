@@ -5,6 +5,8 @@
  * Wraps PostgreSQL queries for thread CRUD and message storage.
  */
 
+import { generateSlugSuffix } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import type { UserProfile } from '../../../services/user/types.js';
@@ -17,6 +19,29 @@ import type express from 'express';
  */
 export const getUser = (req: AuthRequest | express.Request): UserProfile | undefined =>
   (req as AuthRequest).user;
+
+const UNIQUE_VIOLATION = '23505';
+const MAX_SLUG_ATTEMPTS = 5;
+
+/**
+ * Run a thread INSERT with a freshly generated slug suffix, regenerating on a
+ * unique-index collision (idx_chat_threads_slug_suffix). Bounded so we never
+ * loop forever; with a 56^6 keyspace a second attempt is already exceptional.
+ */
+export async function insertThreadWithSlugRetry<T>(
+  insert: (slugSuffix: string) => Promise<T>
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+    try {
+      return await insert(generateSlugSuffix());
+    } catch (error) {
+      if ((error as { code?: string }).code !== UNIQUE_VIOLATION) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 
 /**
  * Create a new chat thread.
@@ -36,26 +61,31 @@ export async function createThread(
   agent_id: string;
   title: string | null;
   thread_type: string;
+  slug_suffix: string | null;
 }> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, user_id, agent_id, title, thread_type`,
-    [
-      userId,
-      agentId,
-      title || null,
-      threadType || 'chat',
-      options?.notebookCollectionId || null,
-      options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
-    ]
+  const result = (await insertThreadWithSlugRetry((slugSuffix) =>
+    postgres.query(
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids, slug_suffix)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, user_id, agent_id, title, thread_type, slug_suffix`,
+      [
+        userId,
+        agentId,
+        title || null,
+        threadType || 'chat',
+        options?.notebookCollectionId || null,
+        options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
+        slugSuffix,
+      ]
+    )
   )) as {
     id: string;
     user_id: string;
     agent_id: string;
     title: string | null;
     thread_type: string;
+    slug_suffix: string | null;
   }[];
   return result[0];
 }
@@ -73,13 +103,15 @@ export async function ensureDocChatThread(
   agentId: string = 'gruenerator-universal'
 ): Promise<{ id: string }> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, doc_id)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL
-     DO UPDATE SET updated_at = CURRENT_TIMESTAMP
-     RETURNING id`,
-    [userId, agentId, 'Dokument-Chat', 'chat', docId]
+  const result = (await insertThreadWithSlugRetry((slugSuffix) =>
+    postgres.query(
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, doc_id, slug_suffix)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL
+       DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+       RETURNING id`,
+      [userId, agentId, 'Dokument-Chat', 'chat', docId, slugSuffix]
+    )
   )) as { id: string }[];
   return result[0];
 }

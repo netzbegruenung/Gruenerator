@@ -26,6 +26,9 @@ export interface PresentationEditorProps {
   onCloseDesignPanel?: () => void;
   /** Receives undo/redo so the page's top bar can drive them. */
   onReady?: (api: PresentationEditorApi) => void;
+  /** Slides to seed a fresh deck with (a template picked at creation). Falls
+   * back to the blank two-slide deck. Ignored once the deck is seeded. */
+  seedSlides?: Slide[] | null;
 }
 
 /**
@@ -41,6 +44,7 @@ export function PresentationEditor({
   designPanelOpen,
   onCloseDesignPanel,
   onReady,
+  seedSlides,
 }: PresentationEditorProps) {
   const {
     slides,
@@ -57,8 +61,11 @@ export function PresentationEditor({
   const [activeIndex, setActiveIndex] = useState(0);
   const [notesOpen, setNotesOpen] = useState(false);
 
+  // Captured once — the seed only applies on first open, so a changing prop
+  // identity must not reseed.
+  const seedSlidesRef = useRef(seedSlides);
   useEffect(() => {
-    if (editable) seedIfNeeded(buildBlankDeckSlides());
+    if (editable) seedIfNeeded(seedSlidesRef.current ?? buildBlankDeckSlides());
   }, [editable, seedIfNeeded]);
 
   useEffect(() => {
