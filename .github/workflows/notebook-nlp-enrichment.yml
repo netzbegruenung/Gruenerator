@@ -36,9 +36,9 @@ jobs:
       - name: Build request payload
         id: payload
         run: |
-          PAYLOAD=$(jq -n --arg mode "${{ inputs.mode || 'missing' }}" '{mode: $mode}')
+          PAYLOAD=$(jq -nc --arg mode "${{ inputs.mode || 'missing' }}" '{mode: $mode}')
           if [ -n "${{ inputs.collection }}" ]; then
-            PAYLOAD=$(echo "$PAYLOAD" | jq --arg c "${{ inputs.collection }}" '. + {collection: $c}')
+            PAYLOAD=$(echo "$PAYLOAD" | jq -c --arg c "${{ inputs.collection }}" '. + {collection: $c}')
           fi
           echo "payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
           echo "Payload: $PAYLOAD"
