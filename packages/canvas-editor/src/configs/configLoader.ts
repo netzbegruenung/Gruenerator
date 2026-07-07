@@ -17,15 +17,11 @@ type CanvasConfigType =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
-  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'zitat'
   | 'slider'
   | 'freeform'
-  | 'pres-title'
-  | 'pres-image'
-  | 'pres-content'
   | 'profilbild';
 
 // Use a flexible type that accepts any state/action types
@@ -48,9 +44,6 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'veranstaltung':
       return (await import('./veranstaltung_full.config')).veranstaltungFullConfig;
 
-    case 'veranstaltung-plakat':
-      return (await import('./veranstaltung_plakat_full.config')).veranstaltungPlakatFullConfig;
-
     case 'simple':
       return (await import('./simple_full.config')).simpleFullConfig;
 
@@ -65,15 +58,6 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
 
     case 'freeform':
       return (await import('./freeform_full.config')).freeformFullConfig;
-
-    case 'pres-title':
-      return (await import('./presentation/presTitle.config')).presTitleConfig;
-
-    case 'pres-image':
-      return (await import('./presentation/presImage.config')).presImageConfig;
-
-    case 'pres-content':
-      return (await import('./presentation/presContent.config')).presContentConfig;
 
     case 'profilbild':
       return (await import('./profilbild_full.config')).profilbildFullConfig;
@@ -91,15 +75,11 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'zitat-pure',
     'info',
     'veranstaltung',
-    'veranstaltung-plakat',
     'simple',
     'dreizeilen',
     'zitat',
     'slider',
     'freeform',
-    'pres-title',
-    'pres-image',
-    'pres-content',
     'profilbild',
   ].includes(type);
 }
