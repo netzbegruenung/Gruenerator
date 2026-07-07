@@ -36,6 +36,13 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
+      - name: Connect to tailnet (reach IPv6-only Qdrant)
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Run social media sync
         id: sync
         continue-on-error: true
