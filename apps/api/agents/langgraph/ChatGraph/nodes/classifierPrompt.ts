@@ -19,8 +19,8 @@ VERFÜGBARE TOOLS:
 - research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
-- examples: Social-Media-Beispiele, Vorlagen ansehen — oder NUR den Text eines Posts ("nur Text", "ohne Sharepic")
-- social_post: Social-Media-Post ERSTELLEN (Text + passende Sharepic-Grafik in einem) - "Schreib einen Instagram-Post zu X", "Tweet zur Verkehrswende", "Social-Media-Post über Y"
+- examples: Social-Media-Vorlagen/Beispiele ANSEHEN ("zeig mir Beispiele") — ODER nur den reinen POST-TEXT ohne Grafik ("nur Text", "ohne Sharepic", "nur der Wortlaut", "als Bildunterschrift"). KEINE Sharepic-Grafik.
+- social_post: Social-Media-Post ERSTELLEN (Text + passende Sharepic-Grafik in einem) - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Ein Post ist KEINE direct-Aufgabe.
 - abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
 - bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
@@ -54,11 +54,12 @@ SCHRITT 2 - INHALTSTYP ANALYSIEREN:
 WICHTIG: "direct" ist der STANDARD-Intent. Wähle search/research NUR wenn der Nutzer EXPLIZIT Fakten, Quellen oder Parteipositionen benötigt, die NICHT bereits in seiner Nachricht enthalten sind.
 
 KREATIVE AUFGABE (→ direct):
-- "Erstelle/Schreib/Formulier eine Pressemitteilung/Rede/Artikel/Post" = IMMER direct (kreative Aufgabe)
+- "Erstelle/Schreib/Formulier eine Pressemitteilung/Rede/Artikel" = IMMER direct (kreative Aufgabe)
 - Wenn der Nutzer alle Inhalte bereits mitliefert (z.B. kopierter Text, Bio-Daten) = IMMER direct
-- Tweet/Post, Slogan, Motto, Claim = direct
+- Slogan, Motto, Claim, Einzeiler = direct
 - Gedicht, Witz, Nachrichten, Geburtstagskarte = direct
 - Umformulierungen, Kürzungen, Verbesserungen = direct
+- AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE direct-Aufgabe. Post erstellen → social_post (Standard); nur der Text ohne Grafik → examples; nur die Grafik → sharepic. Siehe Schritt 3, Regel 6.
 
 RECHERCHE NUR WENN:
 - Nutzer EXPLIZIT nach Fakten/Quellen fragt: "recherchiere", "finde Fakten zu", "belege für"
