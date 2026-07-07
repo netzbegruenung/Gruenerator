@@ -30,15 +30,9 @@ import type { TypeConfig } from '../utils/typeConfig/types';
 // no previewImage. Picked from CANVAS_COLORS in shared/canvas-editor.
 const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
   sharepic: '#005538', // TANNE
-  story: '#0BA1DD', // HIMMEL
-  praesentation: '#008939', // KLEE
-  flyer: '#46962b', // KLEE-alt
-  plakat: '#2E2E3D', // DUNKELGRAU
 };
 
-// Section topology for the picker. Print collapses Flyer + Plakat into one
-// section because they share the print-export workflow (PDF/PNG @ 300 dpi)
-// and the user wants them browsed together.
+// Section topology for the picker. Sharepic is the only output format.
 interface SectionDef {
   key: string;
   label: string;
@@ -47,13 +41,6 @@ interface SectionDef {
 
 const SECTION_DEFS: readonly SectionDef[] = [
   { key: 'sharepic', label: CANVAS_FORMAT_GROUP_LABEL.sharepic, groups: ['sharepic'] },
-  { key: 'story', label: CANVAS_FORMAT_GROUP_LABEL.story, groups: ['story'] },
-  {
-    key: 'praesentation',
-    label: CANVAS_FORMAT_GROUP_LABEL.praesentation,
-    groups: ['praesentation'],
-  },
-  { key: 'print', label: 'Print', groups: ['flyer', 'plakat'] },
 ];
 
 // Beta wins over KI — "in early access" is the more specific UX promise.
