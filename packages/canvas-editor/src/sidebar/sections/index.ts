@@ -53,11 +53,6 @@ export const GenericShareSection = lazy(() =>
 );
 export type { GenericShareSectionProps } from './GenericShareSection';
 
-export const PresentationDesignSection = lazy(() =>
-  import('./PresentationDesignSection').then((m) => ({ default: m.PresentationDesignSection }))
-);
-export type { PresentationDesignSectionProps } from './PresentationDesignSection';
-
 export const UploadsSection = lazy(() =>
   import('./UploadsSection').then((m) => ({ default: m.UploadsSection }))
 );
