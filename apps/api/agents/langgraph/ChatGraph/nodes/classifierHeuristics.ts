@@ -20,9 +20,15 @@ const log = createLogger('ChatGraph:Classifier');
 // Shared by the heuristic fast-path and the classifier's dedicated branches so
 // escape hatches and platform detection can't drift between tiers.
 
-/** "nur den Text" / "ohne Sharepic" — user wants the caption only. */
+/**
+ * "nur den Text" / "ohne Sharepic" / "nur der Wortlaut" — user wants the caption
+ * only. Compound "-text" nouns ("Posttext", "Beitragstext", "Social-Media-Text")
+ * and `wortlaut`/`bildunterschrift` are unambiguously text-only, so they escape
+ * even without a "nur"; a bare "Text" stays combined (it often means the post's
+ * text, not text-instead-of-graphic) and needs a "nur"/"reine" qualifier.
+ */
 export const SOCIAL_TEXT_ONLY_PATTERN =
-  /\b(nur|bloß|bloss|lediglich)\s+(den\s+|einen\s+)?(post-?|caption-?)?text\b|\bohne\s+(sharepic|grafik|bild)\b/i;
+  /\b(nur|bloß|bloss|lediglich|reine[rn]?)\s+(den\s+|einen\s+|die\s+)?(post-?|caption-?)?(text|wortlaut|caption)\b|\b(post|beitrag|social[-\s]?media|caption)s{0,2}[-\s]?text\b|\b(wortlaut|bildunterschrift)\b|\bohne\s+(sharepic|grafik|bild)\b/i;
 
 /** "nur ein Sharepic" / "ohne Text" — user wants the graphic only. */
 export const SHAREPIC_ONLY_PATTERN =
@@ -61,7 +67,7 @@ export function detectSocialPlatform(text: string): SocialTextPlatform | null {
 
 /** Creation verb: user wants a post WRITTEN, not examples shown. */
 export const SOCIAL_CREATE_VERB_PATTERN =
-  /\b(erstell|schreib|mach|generier|verfass|formulier|entwirf|tweete)\w*/i;
+  /\b(erstell|schreib|mach|generier|verfass|formulier|entwirf|entwerf|bastel|produzier|dichte|tweete)\w*/i;
 
 /** Bare noun-phrase prompts ("Instagram-Post zu Tempo 30") carry no verb. */
 export const SOCIAL_BARE_NOUN_PATTERN =

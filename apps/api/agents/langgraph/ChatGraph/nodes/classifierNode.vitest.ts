@@ -663,6 +663,24 @@ describe('resolveSocialPostEscape', () => {
     expect(resolveSocialPostEscape('tweet inklusive spruchbild')).toBe(null);
   });
 
+  it('unambiguous text-only nouns escape to examples without a "nur"', () => {
+    expect(resolveSocialPostEscape('gib mir den wortlaut für insta')).toBe('examples');
+    expect(resolveSocialPostEscape('post als bildunterschrift')).toBe('examples');
+    expect(resolveSocialPostEscape('reiner text bitte')).toBe('examples');
+  });
+
+  it('compound "-text" nouns (Posttext, Beitragstext, Social-Media-Text) escape to examples', () => {
+    expect(resolveSocialPostEscape('schreib mir den posttext zu tempo 30')).toBe('examples');
+    expect(resolveSocialPostEscape('beitragstext für facebook')).toBe('examples');
+    expect(resolveSocialPostEscape('beitragsstext zur verkehrswende')).toBe('examples');
+    expect(resolveSocialPostEscape('social-media-text über x')).toBe('examples');
+    expect(resolveSocialPostEscape('post-text bitte')).toBe('examples');
+  });
+
+  it('a bare "Text" stays combined (needs a "nur"/"reine" qualifier)', () => {
+    expect(resolveSocialPostEscape('schreib einen text für einen insta-post')).toBe(null);
+  });
+
   it('exclusionary sharepic wording still escapes despite inclusion words elsewhere', () => {
     expect(resolveSocialPostEscape('nur ein sharepic mit sonnenblume')).toBe('sharepic');
   });
