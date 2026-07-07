@@ -101,6 +101,13 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
+      - name: Connect to tailnet (reach IPv6-only Qdrant)
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Run LV sync (sends own email if anything changed)
         id: sync
         continue-on-error: true
@@ -166,6 +173,13 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Connect to tailnet (reach IPv6-only Qdrant)
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Run content sync
         id: sync
@@ -373,6 +387,13 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Connect to tailnet (reach IPv6-only Qdrant)
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Run content sync
         id: sync
