@@ -72,10 +72,6 @@ export function useTemplateClone(): TemplateCloneResult {
           simple: '/studio/templates/simple',
           slider: '/studio/templates/slider',
           freeform: '/studio/templates/freeform',
-          'pres-title': '/studio/templates/pres-title',
-          'pres-image': '/studio/templates/pres-image',
-          'pres-content': '/studio/templates/pres-content',
-          presentation: '/studio/templates/pres-title',
         };
 
         const route = routeMap[normalizedType] ?? '/studio/templates';
