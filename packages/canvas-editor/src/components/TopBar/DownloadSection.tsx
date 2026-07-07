@@ -11,19 +11,11 @@ import {
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-export type CanvasDownloadChoice = 'png' | 'jpeg' | 'pdf' | 'pdf-print';
+export type CanvasDownloadChoice = 'png' | 'jpeg';
 
 export interface DownloadSectionProps {
   onDownload: (format: 'png' | 'jpeg', pixelRatio: number) => void;
   onDownloadAllZip?: () => Promise<void>;
-  /**
-   * Server-side PDF wrap. The canvas-editor produces the high-DPI PNG; the
-   * consumer uploads it. `withBleed` is meaningful only for print formats —
-   * the UI only exposes it when `bleedSupported` is true (via the dedicated
-   * "PDF Druck" option).
-   */
-  onDownloadPdf?: (withBleed: boolean) => Promise<void>;
-  bleedSupported?: boolean;
   pageCount: number;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
@@ -34,8 +26,6 @@ const DEFAULT_RASTER_PIXEL_RATIO = 2;
 export function DownloadSection({
   onDownload,
   onDownloadAllZip,
-  onDownloadPdf,
-  bleedSupported = false,
   pageCount,
   isMultiExporting = false,
   exportProgress,
@@ -60,12 +50,6 @@ export function DownloadSection({
         case 'jpeg':
           onDownload('jpeg', DEFAULT_RASTER_PIXEL_RATIO);
           break;
-        case 'pdf':
-          if (onDownloadPdf) await onDownloadPdf(false);
-          break;
-        case 'pdf-print':
-          if (onDownloadPdf) await onDownloadPdf(true);
-          break;
       }
     } finally {
       setIsDownloading(false);
@@ -83,10 +67,6 @@ export function DownloadSection({
           <SelectContent position="popper" className="z-[10001]">
             <SelectItem value="png">PNG</SelectItem>
             <SelectItem value="jpeg">JPG</SelectItem>
-            {onDownloadPdf && <SelectItem value="pdf">PDF</SelectItem>}
-            {onDownloadPdf && bleedSupported && (
-              <SelectItem value="pdf-print">PDF Druck</SelectItem>
-            )}
           </SelectContent>
         </Select>
       </div>

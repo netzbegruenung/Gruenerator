@@ -224,7 +224,7 @@ function CanvasEditorInner({
     error: multiExportError,
   } = useMultiPageExport({
     canvasRefs,
-    canvasType: 'heterogeneous',
+    canvasType: 'sharepic',
   });
 
   // Stable callback using functional pattern (Rule 5.5)
