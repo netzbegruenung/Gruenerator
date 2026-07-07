@@ -27,12 +27,7 @@ import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } fr
 
 import { Skeleton } from '@gruenerator/ui';
 
-import {
-  usePageManager,
-  useMultiPageExport,
-  usePresentationExport,
-  usePageThumbnails,
-} from '../../hooks';
+import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { CanvasEditorLayout } from '../../layouts';
 import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
@@ -220,9 +215,6 @@ function CanvasEditorInner({
     [collaborative, getPageYMap]
   );
 
-  // Detect presentation mode from initial config
-  const isPresentationMode = initialConfigId.startsWith('pres-');
-
   // Multi-page export hook
   const {
     exportAllPages,
@@ -232,17 +224,8 @@ function CanvasEditorInner({
     error: multiExportError,
   } = useMultiPageExport({
     canvasRefs,
-    canvasType: isPresentationMode ? 'presentation' : 'heterogeneous',
+    canvasType: 'heterogeneous',
   });
-
-  // Presentation-specific export (PPTX + PDF)
-  const {
-    exportAsPptx,
-    exportAsPdf,
-    isExporting: isPresentationExporting,
-    exportProgress: presentationExportProgress,
-    error: presentationExportError,
-  } = usePresentationExport(pages, canvasRefs);
 
   // Stable callback using functional pattern (Rule 5.5)
   const handleExport = useCallback(
@@ -674,13 +657,9 @@ function CanvasEditorInner({
       pageCount,
       onDownloadAllZip: downloadAllAsZip,
       onShareAllPages: shareAllPages,
-      isMultiExporting: isMultiExporting || isPresentationExporting,
-      exportProgress: isPresentationExporting
-        ? { current: presentationExportProgress.current, total: presentationExportProgress.total }
-        : exportProgress,
-      exportError: presentationExportError ?? multiExportError,
-      onDownloadPptx: isPresentationMode ? exportAsPptx : undefined,
-      onDownloadPdf: isPresentationMode ? exportAsPdf : undefined,
+      isMultiExporting,
+      exportProgress,
+      exportError: multiExportError,
     }),
     [
       pageCount,
@@ -690,13 +669,7 @@ function CanvasEditorInner({
       exportProgress,
       currentPageIndex,
       canvasRefsRef,
-      isPresentationMode,
-      isPresentationExporting,
-      presentationExportProgress,
-      presentationExportError,
       multiExportError,
-      exportAsPptx,
-      exportAsPdf,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
     ]
