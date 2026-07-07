@@ -48,12 +48,6 @@ export type {
   DreizeilenFullState,
   DreizeilenFullActions,
 } from './configs/dreizeilen.types';
-export type {
-  PresentationSlideState,
-  PresentationSlideActions,
-} from './configs/presentation/presentationTypes';
-export type { PresentationColorMode } from './utils/presentationTokens';
-export { PRES_COLORS, PRES_CONFIG } from './utils/presentationTokens';
 
 export {
   CANVAS_FORMATS,
@@ -62,7 +56,6 @@ export {
   DEFAULT_FORMAT_ID,
   getCanvasFormat,
   getCanvasFormatOrDefault,
-  isPrintFormat,
 } from './formats';
 export type {
   CanvasFormat,
