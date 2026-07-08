@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { THUMBNAIL_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
@@ -655,9 +656,10 @@ class SharedMediaService {
                        duration, image_type, image_metadata, status, download_count, created_at
                 FROM shared_media
                 WHERE user_id = $1
+                  AND (upload_source IS NULL OR upload_source != ALL($2))
             `;
-      const params: unknown[] = [userId];
-      let paramIndex = 2;
+      const params: unknown[] = [userId, [...THUMBNAIL_UPLOAD_SOURCES]];
+      let paramIndex = 3;
 
       if (mediaType) {
         query += ` AND media_type = $${paramIndex}`;
@@ -998,12 +1000,16 @@ class SharedMediaService {
         }
       }
 
+      // Canvas gallery thumbnails are internal artifacts — keep them out of
+      // the Mediathek (getMediaLibrary filters on is_library_item).
+      const isLibraryItem = !(THUMBNAIL_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
+
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
                  image_metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', TRUE, $10, $11, $12, $13)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14)
                 RETURNING id, share_token, created_at
             `;
 
@@ -1021,6 +1027,7 @@ class SharedMediaService {
         null, // thumbnail_path filled by processMediaVariants
         fileBuffer.length,
         mimeType,
+        isLibraryItem,
         altText || null,
         uploadSource,
         originalFilename,
