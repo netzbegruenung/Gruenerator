@@ -1,4 +1,5 @@
 import { getContractsClient } from '@gruenerator/shared/api';
+import { type UploadSource } from '@gruenerator/shared/media-library';
 
 import { uploadBlobToMediaLibrary } from './mediaUploadService';
 
@@ -10,7 +11,7 @@ import { uploadBlobToMediaLibrary } from './mediaUploadService';
 export async function updateCanvasThumbnail(
   canvasId: string,
   dataUrl: string,
-  uploadSource = 'canvas-thumbnail'
+  uploadSource: UploadSource = 'canvas-thumbnail'
 ): Promise<void> {
   const blob = await (await fetch(dataUrl)).blob();
   const thumbnailUrl = await uploadBlobToMediaLibrary(blob, {
