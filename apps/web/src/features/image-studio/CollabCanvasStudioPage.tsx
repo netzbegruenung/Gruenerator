@@ -102,13 +102,19 @@ function CollabCanvasStudioContent() {
     config,
   });
 
-  // Hocuspocus persists the state itself; the exported image doubles as a
-  // fresh gallery thumbnail.
-  const handleExport = useCallback(
+  const handleExport = useCallback((_base64: string) => {
+    // No-op in collab mode — Hocuspocus persists state.
+  }, []);
+
+  // Every download already renders the full-res image, so it doubles as a
+  // fresh gallery thumbnail. Only the list key is invalidated — the open
+  // document's ['canvas', id] query must not refetch (it would race the
+  // optimistic title rename).
+  const handleDownload = useCallback(
     (base64: string) => {
       if (!id || !canEdit) return;
       updateCanvasThumbnail(id, base64)
-        .then(() => queryClient.invalidateQueries({ queryKey: ['canvas'] }))
+        .then(() => queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] }))
         .catch((err) => console.warn('[CollabCanvasStudioPage] thumbnail refresh failed:', err));
     },
     [id, canEdit, queryClient]
@@ -169,6 +175,7 @@ function CollabCanvasStudioContent() {
             initialState={canvas.initial_state}
             initialPages={initialPages}
             onExport={handleExport}
+            onDownload={handleDownload}
             onCancel={handleCancel}
             collaborative={
               collab.ydoc
