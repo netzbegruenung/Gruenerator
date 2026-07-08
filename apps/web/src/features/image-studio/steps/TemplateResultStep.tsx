@@ -22,6 +22,11 @@ import { useImageHelpers } from '../hooks/useImageHelpers';
 import { useLightbox } from '../hooks/useLightbox';
 import { useTemplateResultActions } from '../hooks/useTemplateResultActions';
 import { useTemplateResultAutoSave } from '../hooks/useTemplateResultAutoSave';
+import {
+  persistGalleryEditSession,
+  clearGalleryEditSession,
+  isRestorableSharepicType,
+} from '../services/editingSessionService';
 import { buildPreviewValues } from '../utils/templateResultUtils';
 import {
   getTypeConfig,
@@ -216,6 +221,20 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     [updateFormData]
   );
 
+  // Bridge the canvas editor's per-instance auto-save token into the app:
+  // remounts (edit → image view → edit) seed the same share and the app-level
+  // autosave hooks update it instead of creating a duplicate draft. The
+  // session is persisted for reload-restore only for types whose metadata
+  // loadGalleryEditData can faithfully map back — others would restore blank.
+  const handleAutoSaveShareToken = useCallback(
+    (token: string) => {
+      useAutoSaveStore.getState().setAutoSavedShareToken(token);
+      updateFormData({ editShareToken: token });
+      if (isRestorableSharepicType(type)) persistGalleryEditSession(token);
+    },
+    [updateFormData, type]
+  );
+
   const handleCanvasCancel = useCallback(() => {
     setIsCanvasMode(false);
   }, []);
@@ -225,6 +244,11 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   }, []);
 
   const handleRecreate = useCallback(() => {
+    // New creation: the previous share's token must not leak into it, or the
+    // next autosave would overwrite the finished sharepic instead of creating
+    // a fresh gallery entry.
+    useAutoSaveStore.getState().clearAutoSaveState();
+    clearGalleryEditSession();
     // Clear all form data
     updateFormData({
       thema: '',
@@ -298,6 +322,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.ZITAT:
@@ -312,6 +337,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.ZITAT_PURE:
@@ -325,6 +351,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.INFO:
@@ -338,6 +365,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
@@ -357,6 +385,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.SLIDER:
@@ -371,6 +400,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.FREEFORM:
@@ -381,6 +411,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
             initialShareToken={editShareToken}
+            onAutoSaveShareToken={handleAutoSaveShareToken}
           />
         );
       default:
@@ -408,6 +439,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     uploadedImageUrl,
     handleCanvasExport,
     handleCanvasCancel,
+    handleAutoSaveShareToken,
     editShareToken,
   ]);
 
