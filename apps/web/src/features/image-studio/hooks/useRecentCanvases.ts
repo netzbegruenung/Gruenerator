@@ -1,4 +1,4 @@
-import { type CanvasDocument } from '@gruenerator/contracts';
+import { type CanvasListItem } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
@@ -7,8 +7,8 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
  * (instead of the 5-min app default) so a canvas minted moments ago appears
  * when the user navigates back to /studio.
  */
-export const useRecentCanvases = (enabled: boolean): UseQueryResult<CanvasDocument[]> =>
-  useQuery<CanvasDocument[]>({
+export const useRecentCanvases = (enabled: boolean): UseQueryResult<CanvasListItem[]> =>
+  useQuery<CanvasListItem[]>({
     queryKey: ['canvas', 'list'],
     queryFn: async () => {
       const result = await getContractsClient().canvas.list();
