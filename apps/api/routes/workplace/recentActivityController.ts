@@ -4,7 +4,9 @@ import express, { type Response, type Router } from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { CANVAS_ACCESS_WHERE, CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
 import { createLogger } from '../../utils/logger.js';
+import { getSharedMediaService } from '../share/shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -228,31 +230,24 @@ export async function fetchRecentImages(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
-  // Include drafts: canvas autosave only ever writes status='draft' (nothing
-  // promotes to 'ready' without an explicit publish), so a ready-only filter
-  // would permanently hide autosaved creations from this surface.
-  const rows = await db.query(
-    `SELECT id, share_token, title, thumbnail_path, status, created_at
-    FROM shared_media
-    WHERE user_id = $1 AND media_type = 'image' AND status IN ('ready', 'draft')
-    ORDER BY created_at DESC
-    LIMIT $2`,
-    [userId, limit]
-  );
+  // Status policy lives in the service (USER_VISIBLE_SHARE_STATUSES) — this
+  // surface shows everything the user's own galleries show, drafts included.
+  let rows;
+  try {
+    const service = await getSharedMediaService();
+    rows = await service.getUserShares(userId, 'image', USER_VISIBLE_SHARE_STATUSES, limit);
+  } catch (error) {
+    // Degrade to an empty strip instead of failing the whole Promise.all'd
+    // /recent-activity response (the media service adds an fs dependency the
+    // old raw query didn't have).
+    log.error('Failed to fetch recent images:', error);
+    return [];
+  }
 
-  return (
-    rows as Array<{
-      id: string;
-      share_token: string;
-      title: string;
-      thumbnail_path: string | null;
-      status: string;
-      created_at: string;
-    }>
-  ).map((row) => ({
+  return rows.map((row) => ({
     id: row.share_token,
     title: row.title || 'Ohne Titel',
-    date: row.created_at,
+    date: row.created_at.toISOString(),
     type: 'image' as const,
     href: `/share/${row.share_token}`,
     // Fresh shares have thumbnail_path=null until the async variants pass
