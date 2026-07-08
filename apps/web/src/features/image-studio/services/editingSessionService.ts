@@ -1,4 +1,5 @@
 import { type CanvasTemplateType } from '@gruenerator/contracts';
+import { shareApi, type ShareImageMetadata } from '@gruenerator/shared/share';
 
 import apiClient from '../../../components/utils/apiClient';
 import { isMintableCanvasType } from '../utils/canvasTypeFields';
@@ -241,19 +242,19 @@ export async function restoreGalleryEditSession(pathname: string): Promise<Galle
   const persisted = stashedGalleryEditSession;
   if (!persisted) return null;
   try {
-    const response = await apiClient.get<{ shares?: Array<Record<string, unknown>> }>('/share/my', {
-      params: { type: 'image' },
-    });
-    const share = response.data.shares?.find((s) => s.shareToken === persisted.shareToken);
+    const response = await shareApi.getUserShares('image');
+    const share = response.shares?.find((s) => s.shareToken === persisted.shareToken);
     if (!share) {
       clearGalleryEditSession();
       return null;
     }
-    const metadata = (share.imageMetadata ?? {}) as {
+    // Boundary cast: ShareImageMetadata types only the generic image fields;
+    // the sharepic payload (sharepicType/content/styling) is written by the
+    // autosave hooks per canvas type and has no shared schema.
+    const metadata = (share.imageMetadata ?? {}) as ShareImageMetadata & {
       sharepicType?: string;
       content?: Record<string, unknown>;
       styling?: GalleryEditData['styling'];
-      hasOriginalImage?: boolean;
     };
     if (!isRestorableSharepicType(metadata.sharepicType ?? null)) {
       clearGalleryEditSession();
@@ -269,7 +270,7 @@ export async function restoreGalleryEditSession(pathname: string): Promise<Galle
       ...(metadata.hasOriginalImage
         ? { originalImageUrl: `${apiBaseUrl}/share/${persisted.shareToken}/original` }
         : {}),
-      ...(typeof share.title === 'string' ? { title: share.title } : {}),
+      ...(share.title ? { title: share.title } : {}),
     };
   } catch (error) {
     console.warn('[EditingSessionService] Failed to restore gallery edit session:', error);

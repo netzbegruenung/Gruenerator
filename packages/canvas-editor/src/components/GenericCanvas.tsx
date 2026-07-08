@@ -41,6 +41,7 @@ import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
 import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
+import { captureStageImage } from '../utils/captureStage';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -366,29 +367,12 @@ function GenericCanvasWithRef<
   // would race with Y.Doc state.
   const autoSaveEnabled = !mobileBridge && !props.collaborative;
 
-  // Fresh capture for the flush path (unmount/pagehide). Unlike the debounced
-  // capture below it must not skip on selection — transformers are hidden for
-  // the shot instead, so selection handles don't end up in the saved image.
-  const captureForAutoSaveFlush = useCallback((): string | null => {
-    const stageApi = stageRef.current;
-    if (!stageApi) return null;
-    const stage = stageApi.getStage();
-    const transformers = stage ? stage.find('Transformer') : [];
-    try {
-      if (transformers.length > 0 && stage) {
-        transformers.forEach((t) => t.hide());
-        stage.draw();
-      }
-      return stageApi.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
-    } catch {
-      return null;
-    } finally {
-      if (transformers.length > 0 && stage) {
-        transformers.forEach((t) => t.show());
-        stage.draw();
-      }
-    }
-  }, []);
+  // Fresh capture for the unmount-flush path — transformer hiding makes the
+  // shot clean even while an element is still selected.
+  const captureForAutoSaveFlush = useCallback(
+    (): string | null => captureStageImage(stageRef.current),
+    []
+  );
 
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
@@ -400,7 +384,6 @@ function GenericCanvasWithRef<
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes
   const historyIndex = useCanvasStoreSelector((s) => s.historyIndex);
-  const selectedElementForCapture = useCanvasStoreSelector((s) => s.selectedElement);
   const setAutoSaveDirty = useAutoSaveStore((s) => s.setDirty);
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
@@ -414,18 +397,14 @@ function GenericCanvasWithRef<
     ) {
       setAutoSaveDirty(true);
     }
-    // Capture waits until nothing is selected (selection handles would end up in
-    // the screenshot); selectedElementForCapture in the deps re-runs this effect
-    // on deselect so the pending historyIndex still gets captured.
-    if (store.getState().selectedElement) return;
     if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
-    // 1500ms ensures we only capture after the user stops editing.
+    // 1500ms ensures we only capture after the user stops editing. Transformer
+    // hiding inside captureStageImage keeps the shot clean even while an
+    // element is selected, so edits made with a live selection auto-save too.
     const timer = setTimeout(() => {
-      // Re-check at capture time in case selection changed during debounce
-      if (store.getState().selectedElement) return;
-      const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
+      const dataUrl = captureStageImage(stageRef.current);
       if (dataUrl) {
         setExportedImage(dataUrl);
         exportedImageRef.current = dataUrl;
@@ -436,14 +415,7 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [
-    historyIndex,
-    isExporting,
-    store,
-    selectedElementForCapture,
-    autoSaveEnabled,
-    setAutoSaveDirty,
-  ]);
+  }, [historyIndex, isExporting, autoSaveEnabled, setAutoSaveDirty]);
 
   // Live remote selections (collab mode). Publishes the local selection to
   // awareness (active page only) and maps remote peers' selections on this
@@ -548,22 +520,11 @@ function GenericCanvasWithRef<
       toDataURL: (options) => {
         return stageRef.current?.toDataURL(options);
       },
-      captureCanvas: async () => {
-        if (store.getState().selectedElement) {
-          setSelectedElement(null);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        return stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
-      },
-      captureCanvasForAi: async () => {
-        if (store.getState().selectedElement) {
-          setSelectedElement(null);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        return (
-          stageRef.current?.toDataURL({ format: 'jpeg', pixelRatio: 1, quality: 0.85 }) ?? null
-        );
-      },
+      // Transformer hiding replaces the old deselect + 50ms-rerender hack:
+      // the user's selection survives a capture.
+      captureCanvas: async () => captureStageImage(stageRef.current),
+      captureCanvasForAi: async () =>
+        captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       getState: () => state as Record<string, unknown>,
       getActions: () => actions as unknown as Record<string, unknown>,
       getSelectedElement: () => store.getState().selectedElement,
@@ -575,16 +536,7 @@ function GenericCanvasWithRef<
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
       handleAlign,
     }),
-    [
-      state,
-      actions,
-      store,
-      setSelectedElement,
-      undo,
-      redo,
-      elementHandlers.handleFontSizeChange,
-      handleAlign,
-    ]
+    [state, actions, store, undo, redo, elementHandlers.handleFontSizeChange, handleAlign]
   );
 
   return (
