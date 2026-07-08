@@ -97,6 +97,8 @@ export interface ControllableCanvasWrapperProps {
   imageSrc?: string;
   onExport: (base64: string) => void;
   onCancel: () => void;
+  /** Pure observation hook fired with the image of every page download. */
+  onDownload?: (base64: string) => void;
   onStateChange?: (newState: CanvasState) => void;
   /** Pre-populated pages for heterogeneous multi-page mode (e.g. slider slides) */
   initialPages?: InitialPageDef[];
@@ -145,6 +147,7 @@ export function ControllableCanvasWrapper({
   imageSrc,
   onExport,
   onCancel,
+  onDownload,
   onStateChange,
   initialPages,
   onReady,
@@ -440,6 +443,7 @@ export function ControllableCanvasWrapper({
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}
+            onDownload={onDownload}
             callbacks={buildCallbacks()}
             maxPages={config.multiPage?.maxPages ?? 30}
             initialPages={initialPages}
