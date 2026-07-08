@@ -48,7 +48,7 @@ export interface RecentActivityItem {
   id: string;
   title: string;
   date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'text';
+  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
   href: string;
   emoji?: string | undefined;
   boardType?: 'kanban' | 'whiteboard' | undefined;
@@ -67,15 +67,23 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : 12;
 
-    const [docs, boards, images, reelProjects, texts] = await Promise.all([
+    const [docs, boards, images, reelProjects, texts, canvases] = await Promise.all([
       fetchRecentDocs(userId, limit),
       fetchRecentBoards(userId, limit),
       fetchRecentImages(userId, limit),
       fetchRecentReelProjects(userId, limit),
       fetchRecentTexts(userId, limit),
+      fetchRecentCanvases(userId, limit),
     ]);
 
-    const items: RecentActivityItem[] = [...docs, ...boards, ...images, ...reelProjects, ...texts];
+    const items: RecentActivityItem[] = [
+      ...docs,
+      ...boards,
+      ...images,
+      ...reelProjects,
+      ...texts,
+      ...canvases,
+    ];
 
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -333,6 +341,63 @@ export async function fetchRecentTexts(
       deleteEndpoint: `/api/auth/texts/${row.id}`,
     };
   });
+}
+
+export async function fetchRecentCanvases(
+  userId: string,
+  limit: number
+): Promise<RecentActivityItem[]> {
+  const rows = await db.query(
+    `SELECT
+      cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url,
+      p.display_name as creator_name,
+      CASE
+        WHEN cd.created_by = $1 THEN 'owner'
+        WHEN cd.permissions ? $2::text THEN 'direct'
+        ELSE 'group'
+      END AS access_type
+    FROM collaborative_documents cd
+    INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+    LEFT JOIN profiles p ON cd.created_by = p.id
+    WHERE
+      cd.document_subtype = 'canvas'
+      AND cd.is_deleted = false
+      AND (
+        cd.created_by = $1
+        OR cd.permissions ? $2::text
+        OR cd.id IN (
+          SELECT gcs.content_id::uuid
+          FROM group_content_shares gcs
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          WHERE gcs.content_type = 'collaborative_documents'
+        )
+      )
+    ORDER BY cd.updated_at DESC
+    LIMIT $3`,
+    [userId, userId, limit]
+  );
+
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      updated_at: string;
+      created_by: string;
+      thumbnail_url: string | null;
+      creator_name: string | null;
+      access_type: string;
+    }>
+  ).map((row) => ({
+    id: row.id,
+    title: row.title || 'Neuer Canvas',
+    date: row.updated_at,
+    type: 'canvas' as const,
+    href: `/studio/canvas/${row.id}`,
+    thumbnailUrl: row.thumbnail_url ?? undefined,
+    creatorName: row.creator_name ?? undefined,
+    accessType: row.access_type,
+    deleteEndpoint: `/api/canvas/${row.id}`,
+  }));
 }
 
 export default router;
