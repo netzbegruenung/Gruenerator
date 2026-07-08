@@ -218,6 +218,7 @@ async function evaluateBudgetAllocation() {
     enabledTools: {},
     aiWorkerPool: null as never,
     userLocale: 'de-DE',
+    clientPlatform: 'web',
     attachmentContext: null,
     imageAttachments: [],
     threadAttachments: [],

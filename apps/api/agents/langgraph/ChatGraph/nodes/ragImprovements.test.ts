@@ -177,6 +177,7 @@ async function testExpandedContextWindow() {
     enabledTools: {},
     aiWorkerPool: null as never,
     userLocale: 'de-DE',
+    clientPlatform: 'web',
     attachmentContext: null,
     imageAttachments: [],
     threadAttachments: [],
