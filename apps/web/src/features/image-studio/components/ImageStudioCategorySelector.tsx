@@ -1,4 +1,4 @@
-import { isCanvasTemplateType, type CanvasDocument } from '@gruenerator/contracts';
+import { isCanvasTemplateType, type CanvasListItem } from '@gruenerator/contracts';
 import { AIPromptInput, CardGrid, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { Download, Share2 } from 'lucide-react';
@@ -40,7 +40,7 @@ const RECENT_GALLERY_OPTIONS = { limit: 20 } as const;
 // are two distinct artifacts with no linking key.
 type SharepicCard =
   | { kind: 'share'; date: string; item: RecentGalleryItem }
-  | { kind: 'canvas'; date: string; item: CanvasDocument };
+  | { kind: 'canvas'; date: string; item: CanvasListItem };
 
 // Legacy `image_type` values written by the Bilder tab before it emitted
 // canonical KI ids (`pure-create`/`universal-edit`/`green-edit`). Existing rows
@@ -164,13 +164,18 @@ const ImageStudioCategorySelector: React.FC = () => {
     return { sharepicCards: sharepics.slice(0, 5), imagineItems: imagine.slice(0, 5) };
   }, [recentGalleryItems, canvasQuery.data]);
 
-  const canvasesSettled = !canvasesEnabled || canvasQuery.isFetched;
-  const hasFetched = galleryLastFetch !== null && canvasesSettled;
+  // Sections paint as soon as the gallery resolves (incl. its localStorage
+  // cache) — a slow canvas.list must not hold back already-loaded content.
+  const hasFetched = galleryLastFetch !== null;
   const showSharepics = hasFetched && sharepicCards.length > 0;
   const showImagine = hasFetched && imagineItems.length > 0;
   // Once the gallery has loaded and both buckets are empty there's nothing to
   // preview, so we swap the bare section headers for engaging quick-start tiles.
-  const isStudioEmpty = hasFetched && sharepicCards.length === 0 && imagineItems.length === 0;
+  // Only this decision additionally waits for the canvas query, so a user
+  // whose sole artifact is a canvas doesn't get misclassified as empty.
+  const canvasesSettled = !canvasesEnabled || canvasQuery.isFetched;
+  const isStudioEmpty =
+    hasFetched && canvasesSettled && sharepicCards.length === 0 && imagineItems.length === 0;
 
   // const { data: featuredVorlagen = [] } = useFeaturedVorlagen(5);
 

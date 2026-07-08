@@ -1,5 +1,6 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 
+import { renderSharepicToImage } from '../renderSharepicToImage';
 import { getCanvasTypeFields, isMintableCanvasType } from '../utils/canvasTypeFields';
 
 import { updateCanvasThumbnail } from './canvasThumbnailService';
@@ -115,10 +116,10 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
   // mint latency stays unchanged. Without this the /studio gallery card has no
   // preview until the first export.
   const canvasId = result.body.id;
-  const mintedType = state.type;
-  void import('../renderSharepicToImage')
-    .then(({ renderSharepicToImage }) => renderSharepicToImage(mintedType, initial_state))
-    .then((dataUrl) => (dataUrl ? updateCanvasThumbnail(canvasId, dataUrl) : undefined))
+  void renderSharepicToImage(state.type, initial_state)
+    .then((dataUrl) =>
+      dataUrl ? updateCanvasThumbnail(canvasId, dataUrl, 'canvas-mint-thumbnail') : undefined
+    )
     .catch((err) => console.warn('[canvasMint] thumbnail generation failed:', err));
 
   return { id: canvasId };
