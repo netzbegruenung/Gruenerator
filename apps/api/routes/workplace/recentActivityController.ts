@@ -3,6 +3,7 @@ import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { CANVAS_ACCESS_WHERE, CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -352,29 +353,17 @@ export async function fetchRecentCanvases(
       cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url,
       p.display_name as creator_name,
       CASE
-        WHEN cd.created_by = $1 THEN 'owner'
-        WHEN cd.permissions ? $2::text THEN 'direct'
+        WHEN cd.created_by = $2 THEN 'owner'
+        WHEN cd.permissions ? $3::text THEN 'direct'
         ELSE 'group'
       END AS access_type
     FROM collaborative_documents cd
     INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
     LEFT JOIN profiles p ON cd.created_by = p.id
-    WHERE
-      cd.document_subtype = 'canvas'
-      AND cd.is_deleted = false
-      AND (
-        cd.created_by = $1
-        OR cd.permissions ? $2::text
-        OR cd.id IN (
-          SELECT gcs.content_id::uuid
-          FROM group_content_shares gcs
-          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-          WHERE gcs.content_type = 'collaborative_documents'
-        )
-      )
+    WHERE ${CANVAS_ACCESS_WHERE}
     ORDER BY cd.updated_at DESC
-    LIMIT $3`,
-    [userId, userId, limit]
+    LIMIT $4`,
+    [CANVAS_SUBTYPE, userId, userId, limit]
   );
 
   return (
