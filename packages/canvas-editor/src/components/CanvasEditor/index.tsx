@@ -99,6 +99,7 @@ function CanvasEditorInner({
   initialProps,
   onExport,
   onCancel,
+  onDownload,
   callbacks = {},
   maxPages = 10,
   initialPages,
@@ -397,9 +398,10 @@ function CanvasEditorInner({
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        onDownload?.(dataUrl);
       }
     },
-    [currentPageIndex, canvasRefsRef]
+    [currentPageIndex, canvasRefsRef, onDownload]
   );
 
   // Get active page data for shared sidebar
