@@ -632,6 +632,39 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     systemUserId: SYSTEM_USER_ID,
   },
 
+  abgeordnetenwatch: {
+    id: 'abgeordnetenwatch',
+    slug: 'abgeordnetenwatch',
+    title: 'Frag Abgeordnetenwatch',
+    authTitle: 'Frag Abgeordnetenwatch',
+    collectionType: 'single',
+    collections: [{ id: 'abgeordnetenwatch-system', name: 'Abgeordnetenwatch' }],
+    startPageTitle: 'Was möchtest du über Abstimmungen und Nebentätigkeiten wissen?',
+    placeholder: 'Stell deine Frage zu Abgeordneten und Abstimmungen...',
+    headerIcon: HiDocumentText,
+    exampleQuestions: [
+      {
+        icon: '🗳️',
+        tag: 'Abstimmung',
+        text: 'Wie haben die Grünen bei der letzten namentlichen Abstimmung gestimmt?',
+      },
+      {
+        icon: '💼',
+        tag: 'Nebentätigkeiten',
+        text: 'Welche Nebentätigkeiten haben Abgeordnete gemeldet?',
+      },
+      {
+        icon: '🏛️',
+        tag: 'Bundestag',
+        text: 'Welche namentlichen Abstimmungen gab es zuletzt im Bundestag?',
+      },
+    ],
+    externalUrl: 'https://www.abgeordnetenwatch.de',
+    persistMessages: true,
+    useSystemUserId: true,
+    systemUserId: SYSTEM_USER_ID,
+  },
+
   gruenblog: {
     id: 'gruenblog',
     slug: 'gruenblog',
