@@ -81,7 +81,8 @@ export interface SharedMediaService {
   getUserShares(
     userId: string,
     type: string | null,
-    status?: string | null
+    status?: string | readonly string[] | null,
+    limit?: number
   ): Promise<SharedMediaRow[]>;
   getUserShareCount(userId: string): Promise<number>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
