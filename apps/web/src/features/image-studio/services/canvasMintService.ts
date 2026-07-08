@@ -2,6 +2,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 
 import { getCanvasTypeFields, isMintableCanvasType } from '../utils/canvasTypeFields';
 
+import { updateCanvasThumbnail } from './canvasThumbnailService';
 import { uploadBlobToMediaLibrary } from './mediaUploadService';
 
 import type { ImageStudioState } from '../types/storeTypes';
@@ -109,5 +110,16 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
     throw new Error(`Failed to create canvas (HTTP ${result.status})`);
   }
 
-  return { id: result.body.id };
+  // Fire-and-forget: renderSharepicToImage mounts its own offscreen root on
+  // document.body, so the SPA navigation to the editor doesn't cancel it and
+  // mint latency stays unchanged. Without this the /studio gallery card has no
+  // preview until the first export.
+  const canvasId = result.body.id;
+  const mintedType = state.type;
+  void import('../renderSharepicToImage')
+    .then(({ renderSharepicToImage }) => renderSharepicToImage(mintedType, initial_state))
+    .then((dataUrl) => (dataUrl ? updateCanvasThumbnail(canvasId, dataUrl) : undefined))
+    .catch((err) => console.warn('[canvasMint] thumbnail generation failed:', err));
+
+  return { id: canvasId };
 }
