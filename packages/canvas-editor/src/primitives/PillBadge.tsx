@@ -285,6 +285,7 @@ function PillBadgeInner({
 
         {selected && !isEditing && (
           <Rect
+            name="selection-chrome"
             x={-4}
             y={-4}
             width={dimensions.width + 8}
