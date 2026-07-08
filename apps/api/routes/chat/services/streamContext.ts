@@ -42,7 +42,13 @@ import { enrichContext } from './contextEnrichmentService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
-import { getUser, createThread, createMessage } from './threadPersistenceService.js';
+import {
+  getUser,
+  createThread,
+  createMessage,
+  deleteMessagesFrom,
+  deleteTrailingAssistant,
+} from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
@@ -59,6 +65,14 @@ const log = createLogger('chatGraphContractRouter');
 // hanging service must not stall the chat. On timeout the turn proceeds
 // without that context.
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
+
+// chat_threads.id is a uuid column. A client may send a local-only sentinel id
+// (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
+// deck editor sidebars) for a thread it has not persisted yet — that is not a
+// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
+// yet" and mint a fresh one.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
@@ -123,8 +137,12 @@ export async function buildStreamContext({
     textIds: rawTextIds,
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
+    sheetIds: rawSheetIds,
     threadId,
     clientTools,
+    regenerate: rawRegenerate,
+    replaceFromMessageId: rawReplaceFromMessageId,
+    webpageUrls: rawWebpageUrls,
   } = body;
 
   // === Validate ===
@@ -271,6 +289,12 @@ export async function buildStreamContext({
   // Normalize null → undefined: contract schema uses .nullish() to accept
   // both, but downstream code is typed for string | undefined.
   let actualThreadId: string | undefined = threadId ?? undefined;
+  // A non-UUID id (local sentinel for an unsaved thread) can't be looked up or
+  // stored — drop it so the create-thread branch below mints a real one and
+  // reports it back via `thread_created`.
+  if (actualThreadId && !UUID_RE.test(actualThreadId)) {
+    actualThreadId = undefined;
+  }
   let isNewThread = false;
 
   if (!actualThreadId && lastUserMessage) {
@@ -331,14 +355,32 @@ export async function buildStreamContext({
       );
     }
 
-    const userText = extractTextContent(lastUserMessage.content);
-    await createMessage(
-      actualThreadId,
-      'user',
-      userText,
-      rawRoleName ? { roleName: rawRoleName } : undefined,
-      userId
-    );
+    // Regenerate / edit-resubmit: replace the last turn instead of appending,
+    // so chat_messages stays linear (no duplicate user rows / orphaned replies).
+    // Never truncates a brand-new thread (nothing to replace there).
+    if (!isNewThread) {
+      if (rawReplaceFromMessageId) {
+        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // In-session messages carry an AUI id that isn't a persisted row → the
+        // delete matches nothing; fall back to dropping the trailing reply.
+        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+      } else if (rawRegenerate) {
+        await deleteTrailingAssistant(actualThreadId);
+      }
+    }
+
+    // Regenerate keeps the existing (unchanged) user message; re-persisting it
+    // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
+    if (!rawRegenerate) {
+      const userText = extractTextContent(lastUserMessage.content);
+      await createMessage(
+        actualThreadId,
+        'user',
+        userText,
+        rawRoleName ? { roleName: rawRoleName } : undefined,
+        userId
+      );
+    }
   }
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
@@ -482,8 +524,10 @@ export async function buildStreamContext({
         ? []
         : undefined,
     boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+    sheetIds: rawSheetIds?.length ? rawSheetIds : undefined,
     wolkeFiles,
     connectFiles,
+    attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
@@ -531,6 +575,7 @@ export async function buildStreamContext({
     ...(rawDocumentIds != null && { rawDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
     ...(rawBoardIds != null && { rawBoardIds }),
+    ...(rawSheetIds != null && { rawSheetIds }),
     ...(rawDocMentionIds != null && { rawDocMentionIds }),
     docAttachments,
     processedMeta,

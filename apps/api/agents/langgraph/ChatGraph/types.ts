@@ -12,6 +12,7 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { BtEnrichedResult } from '../../../services/bundestag/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   WolkeFileRef,
@@ -21,10 +22,13 @@ import type {
   ChartPayload,
   ArtifactPayload,
   ComputePayload,
+  SocialPostPayload,
+  SearchIntent,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
+export type { BtEnrichedResult };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -41,32 +45,19 @@ export type UserLocale = 'de-DE' | 'de-AT';
 
 /**
  * Intent classification for routing to appropriate search tools.
- * The classifier determines which intent applies, and the graph routes accordingly.
+ * The classifier determines which intent applies, and the graph routes
+ * accordingly. Canonical value list lives in @gruenerator/contracts
+ * (`searchIntentSchema`) — the single source shared with the `intent` SSE
+ * wire schema and the frontend; add new intents THERE.
  */
-export type SearchIntent =
-  | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
-  | 'compare' // Multi-document comparison (≥2 doc sources + compare verbs)
-  | 'search' // Gruenerator document search (party programs, positions)
-  // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
-  | 'web' // Web search (current events, external facts)
-  | 'scrape_url' // Crawl URL(s) pasted in the user message and use the page content as context
-  | 'examples' // Social media examples/templates
-  | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
-  | 'abgeordnetenwatch' // German MP transparency data (votes, Nebentätigkeiten, mandates, roll-calls) via the Abgeordnetenwatch API — DE-only
-  | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
-  | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
-  | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
-  | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
-  | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
-  | 'compute' // Deterministic calculation ("zähl die Zeichen", "20% von 340", "Tage bis Weihnachten")
-  | 'artifact' // Generic HTML/SVG artifact rendered in the side panel ("baue eine HTML-Tabelle", "erstelle eine SVG-Grafik")
-  | 'save_as_doc' // Save response as document ("speichere als Dokument")
-  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
-  | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
-  | 'edit_current_board' // Live-edit the open board via the boards assistant — for boards editor surface
-  | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
-  | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
-  | 'direct'; // No search needed (greetings, creative tasks without fact needs)
+export type { SearchIntent };
+
+/**
+ * Platform hint a user prompt can carry for social text generation. `null`
+ * on the state means "generic" (no platform named). Distinct from the wire
+ * `SocialPlatform` in @gruenerator/contracts, which spells generic out.
+ */
+export type SocialTextPlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
 
 /**
  * Image style for generation.
@@ -361,9 +352,15 @@ export interface ChatGraphInput {
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
   boardIds?: string[] | undefined;
+  sheetIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
+  /**
+   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * the classifier's auto-detected URLs and crawled through the scrape_url path.
+   */
+  attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   userLocale?: UserLocale | undefined;
@@ -426,6 +423,10 @@ export interface ChatGraphState {
   boardIds: string[];
   boardContext: string | null;
 
+  // Sheet context (from @sheet mentions)
+  sheetIds: string[];
+  sheetContext: string | null;
+
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
@@ -437,6 +438,10 @@ export interface ChatGraphState {
   // Connected-account (Nango) file refs selected via @connect mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
+
+  // URLs attached via the @web mentionable. The classifier unions these into
+  // `detectedUrls` so the existing scrape_url path crawls them.
+  attachedWebpageUrls: string[];
 
   // Current open document in the docs editor (primary context, not retrieval scope).
   // Set when chat is embedded in a document editor surface.
@@ -498,11 +503,12 @@ export interface ChatGraphState {
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
-  // Platform hint for `examples` intent (Instagram vs Facebook). Set by the
-  // classifier's content-creation override branch when the user prompt names a
-  // platform; null otherwise. Consumed by searchNode to filter social examples
-  // and by socialMediaComposerNode to pick the platform-specific rubric.
-  platform: 'instagram' | 'facebook' | null;
+  // Platform hint for the `examples` / `social_post` intents. Set by the
+  // classifier when the user prompt names a platform; null otherwise. Consumed
+  // by searchNode to filter social examples (instagram/facebook only — the
+  // Qdrant collection has no other platforms) and by socialMediaComposerNode
+  // to pick the platform-specific rubric.
+  platform: SocialTextPlatform | null;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;
@@ -531,6 +537,12 @@ export interface ChatGraphState {
   // `result.examples` so PressemitteilungExamplesCard can render title/body/lv
   // /url; the generic ToolCallUI also reads `examples`.
   examplesResult: ExamplesToolResult | null;
+
+  // Structured Bundestag/DIP result (set by search node for the `bundestag`
+  // intent). Emitted as its own `bundestag` SSE event and persisted into the
+  // `bundestag` tool-call result so BundestagCard can render Drucksachen,
+  // Verfahrensstand, Reden and PDF links on stream + reload.
+  bundestagResult: BtEnrichedResult | null;
 
   // Quality gate (iterative search)
   qualityScore: number;
@@ -572,6 +584,12 @@ export interface ChatGraphState {
    *  if the "corrected" code then fails, the turn falls back to this instead
    *  of ending with no computation at all. */
   pandasComputeFallback?: ComputeData | undefined;
+
+  // Combined social post (EXPERIMENTAL): text half of the `social_post`
+  // intent. Set by generateSocialPostText in the execution stage; persisted
+  // into the `social_post` tool-call result. The sharepic half travels via
+  // the existing sharepic variant machinery.
+  socialPostResult: SocialPostPayload | null;
 
   // Chart generation
   chartData: ChartData | null;

@@ -712,36 +712,6 @@ export interface MonitorArticleRow {
 }
 
 // ---------------------------------------------------------------------------
-// SECTION: PRESENTATIONS
-// ---------------------------------------------------------------------------
-
-export interface CollaborativePresentationRow {
-  id: string;
-  title: string;
-  user_id: string;
-  language: string;
-  theme: Record<string, unknown>;
-  template: string;
-  permissions: Record<string, unknown>;
-  is_public: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface PresentationSlideRow {
-  id: string;
-  presentation_id: string;
-  index: number;
-  layout_group: string;
-  layout: string;
-  content: Record<string, unknown>;
-  speaker_note: string | null;
-  properties: Record<string, unknown>;
-  created_at: Date;
-  updated_at: Date;
-}
-
-// ---------------------------------------------------------------------------
 // SECTION: BOARD COMMENTS & REACTIONS
 // ---------------------------------------------------------------------------
 
@@ -823,8 +793,6 @@ export interface Database {
   notifications: NotificationRow;
   monitor_snapshots: MonitorSnapshotRow;
   monitor_articles: MonitorArticleRow;
-  collaborative_presentations: CollaborativePresentationRow;
-  presentation_slides: PresentationSlideRow;
   board_comments: BoardCommentRow;
   board_comment_reactions: BoardCommentReactionRow;
 }

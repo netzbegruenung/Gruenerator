@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { extractUrls, isTabularComputeQuestion } from './classifierHeuristics.js';
+import {
+  extractUrls,
+  isTabularComputeQuestion,
+  detectSocialPlatform,
+  resolveSocialPostEscape,
+} from './classifierHeuristics.js';
 import {
   extractSearchTopic,
   parseClassifierResponse,
@@ -235,6 +240,24 @@ describe('heuristicClassify', () => {
     const result = heuristicClassify('Hallo, wie geht es?');
     expect(result.intent).toBe('direct');
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('fast-paths explicit presentation-deck requests to create_presentation', () => {
+    for (const q of [
+      'Erstelle eine Präsentation über kommunale Wärmeplanung',
+      'Mach mir einen Foliensatz zum Thema Klimaschutz',
+      'Generiere ein Pitch-Deck für unseren Antrag',
+      'Bau Folien über die Verkehrswende',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_presentation');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it('does NOT route prose mentions of a presentation to create_presentation', () => {
+    const result = heuristicClassify('Worum ging es in der Präsentation von gestern?');
+    expect(result.intent).not.toBe('create_presentation');
   });
 
   it('routes tabular aggregation questions to compute when a spreadsheet is attached', () => {
@@ -557,7 +580,128 @@ describe('heuristicClassify: doc/board action intents', () => {
 
 // ─── parseClassifierResponse: new intents are valid ─────────────────────
 
+describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', () => {
+  it('routes creation requests to social_post', () => {
+    // 0.8 sits below HEURISTIC_CONFIDENCE_THRESHOLD by design: the primary
+    // route is the classifier's dedicated Tier-2.5 branch; this heuristic is
+    // the same-confidence successor of the old examples creation rule.
+    const result = heuristicClassify('Erstelle einen Instagram-Post zu Tempo 30');
+    expect(result.intent).toBe('social_post');
+    expect(result.confidence).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('keeps example browsing on the examples intent', () => {
+    const result = heuristicClassify('Zeig mir Beispiele für Instagram-Posts');
+    expect(result.intent).toBe('examples');
+  });
+
+  it('creation with explicit "beispiel" wording stays examples', () => {
+    const result = heuristicClassify('Erstelle einen Post nach dieser Vorlage als Beispiel');
+    expect(result.intent).toBe('examples');
+  });
+
+  it('"nur Text" escape hatch keeps the text-only flow', () => {
+    const result = heuristicClassify('Schreib mir nur den Text für einen Insta-Post zu Tempo 30');
+    expect(result.intent).toBe('examples');
+  });
+
+  it('"ohne Text" escape hatch keeps the sharepic-only flow', () => {
+    const result = heuristicClassify('Erstelle einen Instagram-Post ohne Text zu Tempo 30');
+    expect(result.intent).toBe('sharepic');
+  });
+
+  it('explicit sharepic wording keeps the shipped sharepic flow (0.93 rule wins)', () => {
+    const result = heuristicClassify('Erstelle ein Sharepic für Instagram zu Tempo 30');
+    expect(result.intent).toBe('sharepic');
+  });
+
+  it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
+    const result = heuristicClassify('Erstelle einen Insta-Post mit Sharepic zu Tempo 30');
+    expect(result.intent).toBe('social_post');
+    expect(heuristicClassify('Schreib einen Post inkl. Sharepic zur Verkehrswende').intent).toBe(
+      'social_post'
+    );
+  });
+});
+
+describe('detectSocialPlatform', () => {
+  it('detects the four platforms', () => {
+    expect(detectSocialPlatform('ein insta-post bitte')).toBe('instagram');
+    expect(detectSocialPlatform('was für facebook')).toBe('facebook');
+    expect(detectSocialPlatform('einen tweet dazu')).toBe('twitter');
+    expect(detectSocialPlatform('für linkedin formulieren')).toBe('linkedin');
+  });
+
+  it('maps mastodon/bluesky to the twitter budget', () => {
+    expect(detectSocialPlatform('post für mastodon')).toBe('twitter');
+    expect(detectSocialPlatform('bluesky post')).toBe('twitter');
+  });
+
+  it('returns null when no platform is named', () => {
+    expect(detectSocialPlatform('social media post zur verkehrswende')).toBe(null);
+  });
+});
+
+describe('resolveSocialPostEscape', () => {
+  it('routes "nur Text" to examples', () => {
+    expect(resolveSocialPostEscape('nur den text bitte')).toBe('examples');
+    expect(resolveSocialPostEscape('post ohne sharepic')).toBe('examples');
+  });
+
+  it('routes "nur Sharepic" / "ohne Text" to sharepic', () => {
+    expect(resolveSocialPostEscape('nur ein sharepic')).toBe('sharepic');
+    expect(resolveSocialPostEscape('bitte ohne text')).toBe('sharepic');
+  });
+
+  it('returns null for plain creation requests', () => {
+    expect(resolveSocialPostEscape('instagram-post zu tempo 30')).toBe(null);
+  });
+
+  it('inclusion phrasing ("mit Sharepic") is NOT an escape — combined flow', () => {
+    expect(resolveSocialPostEscape('insta-post mit sharepic zu tempo 30')).toBe(null);
+    expect(resolveSocialPostEscape('post mit einem passenden sharepic')).toBe(null);
+    expect(resolveSocialPostEscape('tweet inklusive spruchbild')).toBe(null);
+  });
+
+  it('unambiguous text-only nouns escape to examples without a "nur"', () => {
+    expect(resolveSocialPostEscape('gib mir den wortlaut für insta')).toBe('examples');
+    expect(resolveSocialPostEscape('post als bildunterschrift')).toBe('examples');
+    expect(resolveSocialPostEscape('reiner text bitte')).toBe('examples');
+  });
+
+  it('compound "-text" nouns (Posttext, Beitragstext, Social-Media-Text) escape to examples', () => {
+    expect(resolveSocialPostEscape('schreib mir den posttext zu tempo 30')).toBe('examples');
+    expect(resolveSocialPostEscape('beitragstext für facebook')).toBe('examples');
+    expect(resolveSocialPostEscape('beitragsstext zur verkehrswende')).toBe('examples');
+    expect(resolveSocialPostEscape('social-media-text über x')).toBe('examples');
+    expect(resolveSocialPostEscape('post-text bitte')).toBe('examples');
+  });
+
+  it('a bare "Text" stays combined (needs a "nur"/"reine" qualifier)', () => {
+    expect(resolveSocialPostEscape('schreib einen text für einen insta-post')).toBe(null);
+  });
+
+  it('exclusionary sharepic wording still escapes despite inclusion words elsewhere', () => {
+    expect(resolveSocialPostEscape('nur ein sharepic mit sonnenblume')).toBe('sharepic');
+  });
+});
+
 describe('parseClassifierResponse: new intent values', () => {
+  it('accepts social_post intent from LLM', () => {
+    const json = JSON.stringify({
+      intent: 'social_post',
+      searchQuery: 'Tempo 30',
+      optimizedSearchQuery: 'Tempo 30 Verkehrswende',
+      reasoning: 'Combined post request',
+      contentType: null,
+      needsResearch: false,
+      needsClarification: false,
+    });
+    const result = parseClassifierResponse(json, 'Schreib einen Instagram-Post zu Tempo 30');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('social_post');
+  });
+
   it('accepts chart intent from LLM', () => {
     const json = JSON.stringify({
       intent: 'chart',

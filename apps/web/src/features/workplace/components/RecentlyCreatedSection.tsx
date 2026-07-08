@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 import { FaVideo } from 'react-icons/fa';
-import { FiClock, FiFileText, FiImage, FiMonitor } from 'react-icons/fi';
+import { FiClock, FiFileText, FiGrid, FiImage } from 'react-icons/fi';
 import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -22,10 +22,11 @@ import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { parseDocPreview } from '../../../utils/parseDocPreview';
+import { parseTablePreview } from '../../../utils/parseTablePreview';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
 
 interface RecentItem {
   id: string;
@@ -56,14 +57,22 @@ const TYPE_META: Record<
   image: { label: 'Bild', Icon: FiImage },
   video: { label: 'Video', Icon: FaVideo },
   text: { label: 'Text', Icon: FiFileText },
-  presentation: { label: 'Präsentation', Icon: FiMonitor },
+  canvas: { label: 'Sharepic', Icon: FiImage },
 };
+
+// Spreadsheet-style docs (subtype 'tabelle') arrive as `type: 'doc'` but read as
+// their own category: a grid badge + grid preview instead of the prose excerpt.
+const isTablePreview = (item: RecentItem): boolean =>
+  item.type === 'doc' && item.documentType === 'tabelle';
 
 const getTypeMeta = (
   item: RecentItem
 ): { label: string; Icon: React.ComponentType<{ className?: string }> } => {
   if (item.type === 'board' && item.boardType === 'whiteboard') {
     return { label: 'Whiteboard', Icon: PiPencilLine };
+  }
+  if (isTablePreview(item)) {
+    return { label: 'Tabelle', Icon: FiGrid };
   }
   return TYPE_META[item.type];
 };
@@ -95,7 +104,7 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   image: 'Ohne Titel',
   video: 'Ohne Titel',
   text: 'Ohne Titel',
-  presentation: 'Neue Präsentation',
+  canvas: 'Neuer Canvas',
 };
 
 // Faint, fixed-height plate every preview sits on (matches the workspace
@@ -164,13 +173,94 @@ const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboa
 });
 BoardPreviewBody.displayName = 'BoardPreviewBody';
 
+// Spreadsheet preview for 'tabelle' docs: a schematic grid (A/B/C column
+// headers + numbered row gutter) filled with the table's real leading cells when
+// the content carries an HTML <table>, else faint placeholder bars. Reads as a
+// spreadsheet at a glance — distinct from the prose plate a plain doc shows.
+const COLUMN_LETTERS = ['A', 'B', 'C', 'D'];
+const TABLE_PLACEHOLDER_ROWS = 4;
+
+const TablePreviewBody = memo(({ content }: { content?: string }) => {
+  const rows = content ? parseTablePreview(content) : [];
+  const colCount = Math.min(
+    COLUMN_LETTERS.length,
+    Math.max(2, rows.reduce((max, row) => Math.max(max, row.length), 0) || 3)
+  );
+  const bodyRows: string[][] =
+    rows.length > 0 ? rows : Array.from({ length: TABLE_PLACEHOLDER_ROWS }, () => []);
+  const cols = COLUMN_LETTERS.slice(0, colCount);
+
+  const cellBase =
+    'flex items-center overflow-hidden px-2 text-[10.5px] leading-none border-r border-b';
+  const gutterCell =
+    'flex items-center justify-center text-[10px] leading-none border-r border-b bg-grey-50 text-grey-400 dark:bg-grey-800/60 dark:text-grey-500';
+
+  return (
+    <div
+      className="grid text-left"
+      style={{ gridTemplateColumns: `26px repeat(${colCount}, minmax(0, 1fr))` }}
+      aria-hidden
+    >
+      {/* Column header strip */}
+      <div className="h-5 border-r border-b border-grey-200 bg-grey-100 dark:border-grey-700/60 dark:bg-grey-700/40" />
+      {cols.map((letter) => (
+        <div
+          key={`h-${letter}`}
+          className="flex h-5 items-center px-2 border-r border-b border-grey-200 bg-grey-100 text-[10px] font-bold text-grey-500 dark:border-grey-700/60 dark:bg-grey-700/40 dark:text-grey-400"
+        >
+          {letter}
+        </div>
+      ))}
+
+      {bodyRows.map((row, rowIdx) => {
+        const isHeaderRow = rowIdx === 0;
+        return (
+          <React.Fragment key={`row-${rowIdx}`}>
+            <div className={cn(gutterCell, 'h-7')}>{rowIdx + 1}</div>
+            {cols.map((letter, colIdx) => {
+              const value = row[colIdx];
+              return (
+                <div
+                  key={`c-${rowIdx}-${letter}`}
+                  className={cn(
+                    cellBase,
+                    'h-7',
+                    isHeaderRow
+                      ? 'border-secondary-200 bg-secondary-50 font-semibold text-secondary-700 dark:border-secondary-800/60 dark:bg-secondary-900/30 dark:text-secondary-200'
+                      : 'border-grey-100 text-grey-700 dark:border-grey-700/40 dark:text-grey-300'
+                  )}
+                >
+                  {value ? (
+                    <span className="truncate">{value}</span>
+                  ) : (
+                    <span
+                      className={cn(
+                        'h-1.5 w-3/4 rounded-full',
+                        isHeaderRow
+                          ? 'bg-secondary-300 dark:bg-secondary-600'
+                          : 'bg-grey-200 dark:bg-grey-700/50'
+                      )}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+});
+TablePreviewBody.displayName = 'TablePreviewBody';
+
 // Flat preview surface: media fills the plate (object-cover), documents show
 // their heading + excerpt directly on the tinted plate, boards a schematic, and
 // content-less items the prose outline — no floating paper sheet.
 const PreviewArea = memo(({ item }: { item: RecentItem }) => {
-  if (item.type === 'image' || item.type === 'video') {
+  if (item.type === 'image' || item.type === 'video' || item.type === 'canvas') {
     // Images are shared-media backed (item.id is the share token) → responsive
-    // variants + BlurHash. Videos have no image variants, so keep the poster img.
+    // variants + BlurHash. Videos and canvases have no image variants, so they
+    // keep the plain thumbnail img.
     if (item.type === 'image') {
       return (
         <div className={PREVIEW_PLATE}>
@@ -207,6 +297,17 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
         <span className="rounded-md bg-white/80 px-2 py-1 text-[11px] text-grey-500 dark:bg-grey-900/70 dark:text-grey-300">
           Bild-Vorschau
         </span>
+      </div>
+    );
+  }
+
+  // Tables get an edge-to-edge grid (no plate padding) plus a bottom fade so the
+  // clipped rows read as "more below", matching the workspace mockup.
+  if (isTablePreview(item)) {
+    return (
+      <div className={cn(PREVIEW_PLATE, 'relative')}>
+        <TablePreviewBody content={item.content} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-b from-transparent to-grey-50 dark:to-grey-800" />
       </div>
     );
   }
@@ -368,6 +469,7 @@ const RecentItemCard = memo(
     onConvertText?: (textId: string) => void;
   }) => {
     const { label: typeLabel, Icon: TypeIcon } = getTypeMeta(item);
+    const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
     const isShared = !!item.accessType && item.accessType !== 'owner';
     const durationLabel =
       item.type === 'video' && item.duration ? formatDuration(item.duration) : null;
@@ -397,7 +499,7 @@ const RecentItemCard = memo(
               {typeLabel}
             </span>
             <h3 className="m-0 mb-1.5 mt-2.5 min-w-0 truncate text-[15px] font-semibold text-foreground-heading">
-              {item.title || FALLBACK_TITLES[item.type]}
+              {item.title || fallbackTitle}
             </h3>
             <p className="m-0 flex min-w-0 items-center gap-1.5 truncate text-[12.5px] text-grey-500 dark:text-grey-400">
               <FiClock className="size-3 shrink-0" />
@@ -409,7 +511,8 @@ const RecentItemCard = memo(
           </div>
           {/* Menu lives in the footer (not an overlay on the preview) so its hit
               target never overlaps the navigable card; CardActionsMenu stops
-              propagation internally, so a click here never opens the document. */}
+              propagation *and* preventDefaults internally, so a click here never
+              follows the enclosing <Link>'s href. */}
           <div className="-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
             <CardActionsMenu onShare={() => onShare(item)} onDelete={() => onDelete(item)}>
               {item.type === 'board' && <FavouriteMenuItem id={item.id} />}
@@ -549,7 +652,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
         text: 'Text wirklich löschen?',
-        presentation: 'Präsentation wirklich löschen?',
+        canvas: 'Sharepic wirklich löschen?',
       };
 
       if (!window.confirm(messages[item.type])) return;

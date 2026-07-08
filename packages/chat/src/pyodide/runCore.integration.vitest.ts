@@ -161,6 +161,171 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Gesamtgewinn: 42');
   }, 180_000);
 
+  it('drops the trailing GESAMT row of a real user xlsx (doubled-sum regression)', async () => {
+    // The actual file behind the beta ground-truth failure: 60 data rows, one
+    // blank row, then a detached GESAMT row with SUM formulas ("GESAMT:" in
+    // the Verkäufer column). Without the guard, df["Umsatz"].sum() returned
+    // exactly 2x (295167.572) and groupby("Verkäufer") grew a "GESAMT:" group.
+    const bytes = readFileSync(path.join(__dirname, 'fixtures/mathe_test_tabelle.xlsx'));
+    const file: PythonFile = {
+      name: 'mathe_test_tabelle.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    };
+    const result = await runPythonCore(
+      py,
+      [
+        'print("Zeilen:", len(df))',
+        'print("Gesamtumsatz:", round(df["Umsatz"].sum(), 2))',
+        'print("GesamtGruppe:", int("GESAMT:" in df.groupby("Verkäufer")["Umsatz"].sum().index))',
+      ].join('\n'),
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Hinweis: 1 Summen-/Gesamtzeile(n)');
+    expect(result.stdout).toContain('Zeilen: 60');
+    expect(result.stdout).toContain('Gesamtumsatz: 147583.79');
+    expect(result.stdout).toContain('GesamtGruppe: 0');
+  }, 180_000);
+
+  // Second real user workbook: 4 sheets (Mitarbeiter, Zeiterfassung, Aufgaben,
+  // Lösungen). The Lösungen sheet carries Excel-computed ground truth for 20
+  // tasks — the assertions below ARE those cached formula results, so a wrong
+  // pandas answer means the compute path diverged from Excel, not the test.
+  const loadExcelTestTabelle = (): PythonFile => {
+    const bytes = readFileSync(path.join(__dirname, 'fixtures/excel_test_tabelle.xlsx'));
+    return {
+      name: 'excel_test_tabelle.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    };
+  };
+
+  it('solves the Mitarbeiter tasks of the HR workbook (Excel ground truth)', async () => {
+    const result = await runPythonCore(
+      py,
+      [
+        // Aufgabe 1 (ZÄHLENWENN): aktive Mitarbeiter
+        'print("Aktive:", int((df["Aktiv"] == "Ja").sum()))',
+        // Aufgabe 2 (MITTELWERTWENN): Durchschnittsgehalt IT
+        'print("IT-Gehalt:", round(df.loc[df["Abteilung"] == "IT", "Gehalt_Jahr"].mean(), 2))',
+        // Aufgabe 3 (SUMMEWENNS, 2 Kriterien): aktiv UND München
+        'muc = df[(df["Aktiv"] == "Ja") & (df["Standort"] == "München")]',
+        'print("München aktiv:", int(muc["Gehalt_Jahr"].sum()))',
+        // Aufgabe 4 (MIN + INDEX/VERGLEICH): dienstälteste:r Mitarbeiter:in
+        'aelteste = df.loc[df["Eintrittsdatum"].idxmin()]',
+        'print("Dienstälteste:", aelteste["Vorname"], aelteste["Nachname"])',
+        // Aufgabe 20 (Szenario): Gehaltssumme der Aktiven bei +3%
+        'print("Plus3:", round(df.loc[df["Aktiv"] == "Ja", "Gehalt_Jahr"].sum() * 1.03))',
+      ].join('\n'),
+      [loadExcelTestTabelle()],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Aktive: 19');
+    expect(result.stdout).toContain('IT-Gehalt: 77500.0');
+    expect(result.stdout).toContain('München aktiv: 430000');
+    expect(result.stdout).toContain('Dienstälteste: Emma Koch');
+    expect(result.stdout).toContain('Plus3: 1293680');
+    // Clean data: the aggregate-row guard must stay silent (25 rows intact) —
+    // the only Hinweis is the multi-sheet announcement.
+    expect(result.stdout).not.toContain('Summen-/Gesamtzeile');
+    expect(result.stdout).toContain('Arbeitsmappe mit 4 Blättern: Mitarbeiter, Zeiterfassung');
+  }, 180_000);
+
+  it('answers cross-sheet tasks via the preloaded sheets dict', async () => {
+    // The codegen convention announced in the setup print: sheets['Blattname']
+    // holds every (cleaned) sheet. Ground truth from the Lösungen sheet.
+    const result = await runPythonCore(
+      py,
+      [
+        'z = sheets["Zeiterfassung"]',
+        'if str(z["Datum"].dtype) != "datetime64[ns]":',
+        '    z["Datum"] = pd.to_datetime(z["Datum"], unit="D", origin="1899-12-30")',
+        'print("Zeilen:", len(z))',
+        'print("Wochenende:", int((z["Datum"].dt.weekday >= 5).sum()))',
+        'jan = z[(z["Datum"].dt.month == 1) & (z["Abrechenbar"] == "Ja")]',
+        'print("Januar:", round((jan["Stunden"] * jan["Stundensatz"]).sum(), 2))',
+      ].join('\n'),
+      [loadExcelTestTabelle()],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Zeilen: 120');
+    expect(result.stdout).toContain('Wochenende: 28');
+    expect(result.stdout).toContain('Januar: 6142.5');
+  }, 180_000);
+
+  it('reaches the Zeiterfassung sheet via explicit sheet_name (cross-sheet tasks)', async () => {
+    // The df preload is sheet 1 only, but the whole workbook sits in the FS —
+    // generated code CAN read further sheets. Ground truth from Lösungen:
+    // Aufgabe 18 (Wochenend-Einträge) = 28, Aufgabe 19 (abrechenbarer
+    // Januar-Umsatz Stunden×Satz) = 6142.5.
+    const result = await runPythonCore(
+      py,
+      [
+        'z = pd.read_excel("excel_test_tabelle.xlsx", sheet_name="Zeiterfassung")',
+        'if str(z["Datum"].dtype) != "datetime64[ns]":',
+        '    z["Datum"] = pd.to_datetime(z["Datum"], unit="D", origin="1899-12-30")',
+        'print("Zeilen:", len(z))',
+        'print("Wochenende:", int((z["Datum"].dt.weekday >= 5).sum()))',
+        'jan = z[(z["Datum"].dt.month == 1) & (z["Abrechenbar"] == "Ja")]',
+        'print("Januar:", round((jan["Stunden"] * jan["Stundensatz"]).sum(), 2))',
+      ].join('\n'),
+      [loadExcelTestTabelle()],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Zeilen: 120');
+    expect(result.stdout).toContain('Wochenende: 28');
+    expect(result.stdout).toContain('Januar: 6142.5');
+  }, 180_000);
+
+  it('drops a directly attached total row in a CSV (no blank row, no label)', async () => {
+    const file = csvFile('mit-summe.csv', 'Produkt;Umsatz\nA;10\nB;20\nC;30\nD;40\n;100\n');
+    const result = await runPythonCore(
+      py,
+      'print("Summe:", int(df["Umsatz"].sum()))\nprint("Zeilen:", len(df))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 100');
+    expect(result.stdout).toContain('Zeilen: 4');
+    expect(result.stdout).toContain('Hinweis:');
+  }, 120_000);
+
+  it('removes trailing sum AND mean rows together (aggregate block)', async () => {
+    const file = csvFile(
+      'mit-summe-und-mittel.csv',
+      'Produkt;Umsatz\nA;10\nB;20\nC;30\nD;40\nGesamt;100\nMittelwert;25\n'
+    );
+    const result = await runPythonCore(
+      py,
+      'print("Summe:", int(df["Umsatz"].sum()))\nprint("Zeilen:", len(df))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 100');
+    expect(result.stdout).toContain('Zeilen: 4');
+  }, 120_000);
+
+  it('leaves tables without aggregate rows untouched', async () => {
+    const file = csvFile('ohne-summe.csv', 'Produkt;Umsatz\nA;10\nB;20\nC;30\nD;40\nE;55\n');
+    const result = await runPythonCore(
+      py,
+      'print("Summe:", int(df["Umsatz"].sum()))\nprint("Zeilen:", len(df))',
+      [file],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Summe: 155');
+    expect(result.stdout).toContain('Zeilen: 5');
+    expect(result.stdout).not.toContain('Hinweis:');
+  }, 120_000);
+
   it('keeps variables alive across runs (notebook semantics)', async () => {
     // Models write follow-up code referencing earlier blocks' variables
     // (beta: "NameError: name 'top' is not defined") — the harness namespace

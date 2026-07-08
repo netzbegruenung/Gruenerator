@@ -1,12 +1,18 @@
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-  Button,
-} from '@gruenerator/ui';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent, Button } from '@gruenerator/ui';
 
 const Chevron = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="m6 9 6 6 6-6" />
+  </svg>
 );
 
 // Raw Radix primitive (unstyled by design): open state, with a styled trigger
@@ -23,9 +29,7 @@ export function TeamMembers() {
             gap: 8,
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600 }}>
-            Aktive Mitglieder · 5
-          </span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Aktive Mitglieder · 5</span>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Liste einklappen">
               <Chevron />

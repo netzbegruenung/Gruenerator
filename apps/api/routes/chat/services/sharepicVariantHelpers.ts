@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 
-import { type CanvasTemplateType } from '@gruenerator/contracts';
+import { type CanvasTemplateType, type SharepicVariant } from '@gruenerator/contracts';
 
 import {
   generateSharepicForChat,
@@ -147,18 +147,10 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
   }
 }
 
-export interface SharepicVariant {
-  id: string;
-  canvasType: CanvasTemplateType;
-  initialProps: Record<string, unknown>;
-  label?: string;
-  /** Accessibility description generated alongside the sharepic text (for screen readers / social posts). */
-  altText?: string;
-  /** Set for deck variants, which are minted at generation time. */
-  canvasId?: string;
-  /** Per-slide states for deck variants (slider); cover state doubles as initialProps. */
-  pages?: Array<Record<string, unknown>>;
-}
+// Canonical shape lives in @gruenerator/contracts (sharepicVariantSchema) —
+// shared with the sharepic_complete wire payload and the frontend cards, so
+// generator, stream and UI can't drift.
+export type { SharepicVariant };
 
 // Values are validated CanvasTemplateTypes, so a mapped canvasType is always a
 // canonical type the frontend canvas pipeline can mint.

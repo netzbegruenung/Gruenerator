@@ -39,11 +39,13 @@ async function pyodideCacheFirst(request) {
   if (response && response.status === 200) {
     cache.put(request, response.clone());
     // Prune caches from older Pyodide versions (lazy cleanup on first miss).
-    caches.keys().then((names) =>
-      names
-        .filter((n) => n.startsWith(PYODIDE_CACHE_PREFIX) && n !== cacheName)
-        .forEach((n) => caches.delete(n))
-    );
+    caches
+      .keys()
+      .then((names) =>
+        names
+          .filter((n) => n.startsWith(PYODIDE_CACHE_PREFIX) && n !== cacheName)
+          .forEach((n) => caches.delete(n))
+      );
   }
   return response;
 }

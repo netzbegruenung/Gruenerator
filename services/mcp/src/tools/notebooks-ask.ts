@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { callGrueneratorApi } from '../api-client.ts';
+import { callGrueneratorApi, notebooksApiError } from '../api-client.ts';
 
 export const notebooksAskTool = {
   name: 'notebooks_ask',
@@ -40,7 +40,7 @@ Bei nicht erlaubtem Landesverband antwortet der Server mit 403.
       body: { question, landesverband, ...(fastMode !== undefined && { fastMode }) },
     });
     if (!result.ok) {
-      return { error: true, status: result.status, message: result.message };
+      return notebooksApiError(result.status, result.message);
     }
     return result.data;
   },

@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setSheetMentionables,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
   type Mentionable,
@@ -98,13 +99,31 @@ export function useBoardsQuery() {
   });
 }
 
+export function useSheetsQuery() {
+  const apiClient = useApiClient();
+  return useQuery<DocListItem[]>({
+    queryKey: ['mention-sheets'],
+    queryFn: async () => {
+      const docs = await apiClient.get<DocListItem[]>('/api/docs');
+      const list = Array.isArray(docs) ? docs.filter((d) => d.document_subtype === 'sheets') : [];
+      setSheetMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export function useDocsQuery() {
   const apiClient = useApiClient();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-docs'],
     queryFn: async () => {
       const docs = await apiClient.get<DocListItem[]>('/api/docs');
-      const list = Array.isArray(docs) ? docs.filter((d) => d.document_subtype !== 'boards') : [];
+      // Boards and sheets are separate mention kinds with their own context loaders.
+      const list = Array.isArray(docs)
+        ? docs.filter((d) => d.document_subtype !== 'boards' && d.document_subtype !== 'sheets')
+        : [];
       setDocMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
       return list;
     },
@@ -407,6 +426,7 @@ export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
   useBoardsQuery();
   useDocsQuery();
+  useSheetsQuery();
   useUserNotebooksQuery();
 }
 

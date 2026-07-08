@@ -6,6 +6,16 @@ import './assets/styles/index.css';
 import App from './App';
 import { registerServiceWorker } from './utils/registerServiceWorker';
 
+// Stale deploy: cached HTML/chunks reference hashed assets that no longer exist.
+// Reload once per URL to pick up the new build; a second failure surfaces normally.
+window.addEventListener('vite:preloadError', (event) => {
+  const reloadedFor = sessionStorage.getItem('vite:preloadError:reloaded');
+  if (reloadedFor === window.location.href) return;
+  sessionStorage.setItem('vite:preloadError:reloaded', window.location.href);
+  event.preventDefault();
+  window.location.reload();
+});
+
 // Initialize error monitoring (GlitchTip via Sentry SDK)
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 if (sentryDsn) {
@@ -31,6 +41,11 @@ if (sentryDsn) {
       /feature named `.+` was not found/, // DuckDuckGo browser internal privacy feature errors
       'invalid origin', // DuckDuckGo iOS WKWebView internal error
       'Invalid call to runtime.sendMessage', // DuckDuckGo iOS content-script messaging — no extension tab in WKWebView
+      'Unable to preload CSS', // stale deploy; recovered via vite:preloadError reload above
+    ],
+    denyUrls: [
+      /^webkit-masked-url:\/\//, // Safari masks browser-extension frames behind this scheme
+      /^(safari|safari-web|chrome|moz)-extension:\/\//,
     ],
   });
 } else {

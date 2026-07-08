@@ -13,6 +13,7 @@ import { useImageGeneration } from '../hooks/useImageGeneration';
 import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
 import { mintCanvasFromStudioStore } from '../services/canvasMintService';
 import TemplateResultStep from '../steps/TemplateResultStep';
+import { isMintableCanvasType } from '../utils/canvasTypeFields';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
 import { WebCanvasEditorProvider } from '../WebCanvasEditorProvider';
 
@@ -57,8 +58,37 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
     mintingRef.current = true;
     setMintError(false);
+    // Read fresh: the subscribed `type` above can lag behind a store reset.
+    // A missing/non-mintable type at this point is a routing bug upstream,
+    // not a save failure — fail SOFT back to the type picker instead of
+    // looping on a mint that can never succeed.
+    let state = useImageStudioStore.getState();
+    if (!state.type || !isMintableCanvasType(state.type)) {
+      // Subscribed type was set but the fresh read disagrees → a store write
+      // raced this effect. Give pending updates one tick to settle before
+      // deciding this is a real routing hole.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      state = useImageStudioStore.getState();
+    }
+    if (!state.type || !isMintableCanvasType(state.type)) {
+      console.warn(
+        '[TemplateStudioFlow] CANVAS_EDIT reached without mintable type — falling back to type select:',
+        {
+          subscribedType: type,
+          storeType: state.type ?? null,
+          currentStep: state.currentStep,
+          category: state.category,
+          editingSource: state.editingSource,
+        }
+      );
+      void import('sonner').then(({ toast }) =>
+        toast.error('Vorlage konnte nicht geladen werden — bitte Vorlage neu wählen.')
+      );
+      mintingRef.current = false;
+      useImageStudioStore.getState().setCurrentStep(FORM_STEPS.TYPE_SELECT);
+      return;
+    }
     try {
-      const state = useImageStudioStore.getState();
       const { id } = await mintCanvasFromStudioStore(state);
       void navigate(`/studio/canvas/${id}`, { replace: true });
     } catch (err) {

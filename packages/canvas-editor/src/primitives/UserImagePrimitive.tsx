@@ -97,6 +97,7 @@ function UserImagePrimitiveInner({
 
         {isSelected && (
           <Rect
+            name="selection-chrome"
             width={width}
             height={height}
             stroke="#005437"
