@@ -39,6 +39,7 @@
     "update:all": "cross-env NODE_OPTIONS=--conditions=development npx tsx update-all-content.ts",
     "update:all:dry-run": "cross-env NODE_OPTIONS=--conditions=development npx tsx update-all-content.ts --dry-run",
     "sync:aggregate": "cross-env NODE_OPTIONS=--conditions=development npx tsx aggregate-sync-summaries.ts",
+    "sync:wrap-result": "cross-env NODE_OPTIONS=--conditions=development npx tsx wrap-sync-result.ts",
     "stats:content": "cross-env NODE_OPTIONS=--conditions=development npx tsx generate-content-stats.ts",
     "export:finetuning": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/exportFineTuningData.ts",
     "export:finetuning:dry-run": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/exportFineTuningData.ts --dry-run",

@@ -15,8 +15,10 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  contentStatsResponseSchema,
   contentSyncBusyResponseSchema,
   contentSyncFailureSchema,
+  contentSyncRequestSchema,
   contentSyncResultSchema,
   contentSyncSourceSchema,
   contentSyncSourcesResponseSchema,
@@ -31,7 +33,8 @@ export const contentSyncContract = c.router(
       method: 'POST',
       path: '/api/internal/content-sync/source/:sourceId',
       pathParams: z.object({ sourceId: contentSyncSourceSchema }),
-      body: c.noBody(),
+      // Optional — n8n's existing calls send no body at all.
+      body: contentSyncRequestSchema.optional(),
       responses: {
         200: contentSyncResultSchema,
         409: contentSyncBusyResponseSchema,
@@ -48,6 +51,16 @@ export const contentSyncContract = c.router(
         200: contentSyncSourcesResponseSchema,
       },
       summary: 'List valid content-sync source ids (admin token)',
+    },
+
+    /** GET /api/internal/content-sync/stats — live-rendered content-stats docs page. */
+    getStats: {
+      method: 'GET',
+      path: '/api/internal/content-sync/stats',
+      responses: {
+        200: contentStatsResponseSchema,
+      },
+      summary: 'Render the content-stats docs page from live Qdrant counts (admin token)',
     },
   },
   { pathPrefix: '' }
