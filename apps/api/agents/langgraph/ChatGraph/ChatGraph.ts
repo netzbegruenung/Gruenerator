@@ -53,6 +53,7 @@ import type {
   ImageAttachment,
   ThreadAttachment,
   UserLocale,
+  ClientPlatform,
   SocialTextPlatform,
   SocialPostPayload,
   ChartData,
@@ -94,6 +95,9 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
   userLocale: Annotation<UserLocale>({
+    reducer: (x, y) => y ?? x,
+  }),
+  clientPlatform: Annotation<ClientPlatform>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -794,6 +798,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     },
     aiWorkerPool: input.aiWorkerPool,
     userLocale: input.userLocale || 'de-DE',
+    clientPlatform: input.clientPlatform || 'web',
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,

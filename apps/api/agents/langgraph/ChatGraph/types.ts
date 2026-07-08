@@ -24,6 +24,7 @@ import type {
   ComputePayload,
   SocialPostPayload,
   SearchIntent,
+  ClientPlatform,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -42,6 +43,8 @@ export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | '
  * Austrian users (de-AT) get Austrian collections, German users (de-DE) get German defaults.
  */
 export type UserLocale = 'de-DE' | 'de-AT';
+
+export type { ClientPlatform };
 
 /**
  * Intent classification for routing to appropriate search tools.
@@ -357,6 +360,7 @@ export interface ChatGraphInput {
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   userLocale?: UserLocale | undefined;
+  clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
@@ -378,6 +382,8 @@ export interface ChatGraphState {
   enabledTools: Record<string, boolean>;
   aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
+  /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
+  clientPlatform: ClientPlatform;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays

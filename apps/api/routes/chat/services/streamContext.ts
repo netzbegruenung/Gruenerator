@@ -142,6 +142,7 @@ export async function buildStreamContext({
     regenerate: rawRegenerate,
     replaceFromMessageId: rawReplaceFromMessageId,
     webpageUrls: rawWebpageUrls,
+    platform: rawPlatform,
   } = body;
 
   // === Validate ===
@@ -544,6 +545,7 @@ export async function buildStreamContext({
         }
       : undefined,
     userLocale: user.locale ?? 'de-DE',
+    clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt: rawCustomSystemPrompt ?? undefined,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
