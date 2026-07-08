@@ -1,4 +1,4 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
+import { isCanvasTemplateType, type CanvasDocument } from '@gruenerator/contracts';
 import { AIPromptInput, CardGrid, SectionHeader } from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { Download, Share2 } from 'lucide-react';
@@ -13,8 +13,10 @@ import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { resolveApiAssetUrl } from '../../../utils/platform';
 import ReelsSection from '../../workplace/components/ReelsSection';
 // import { useFeaturedVorlagen, type FeaturedVorlage } from '../hooks/useFeaturedVorlagen';
+import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { SharepicResearchPreviewBanner } from '../researchPreviewWarning';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
@@ -32,6 +34,13 @@ const EXAMPLE_PROMPTS = [
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const RECENT_GALLERY_OPTIONS = { limit: 20 } as const;
+
+// The Sharepics grid merges two sources: published image shares (shared_media)
+// and editable canvas documents. No dedup — an exported share and its canvas
+// are two distinct artifacts with no linking key.
+type SharepicCard =
+  | { kind: 'share'; date: string; item: RecentGalleryItem }
+  | { kind: 'canvas'; date: string; item: CanvasDocument };
 
 // Legacy `image_type` values written by the Bilder tab before it emitted
 // canonical KI ids (`pure-create`/`universal-edit`/`green-edit`). Existing rows
@@ -131,25 +140,39 @@ const ImageStudioCategorySelector: React.FC = () => {
   const { items: recentGalleryItems, lastFetch: galleryLastFetch } =
     useRecentGalleryItems(RECENT_GALLERY_OPTIONS);
 
-  const { sharepicItems, imagineItems } = useMemo(() => {
-    const sharepics: RecentGalleryItem[] = [];
+  const isAustrianUser = user?.locale === 'de-AT';
+
+  // Canvas cards only lead to the flag-gated editor; AT users create via the
+  // external bildgenerator — skip the fetch entirely in both cases.
+  const canvasesEnabled = SHOW_SHAREPIC_STUDIO && !isAustrianUser;
+  const canvasQuery = useRecentCanvases(canvasesEnabled);
+
+  const { sharepicCards, imagineItems } = useMemo(() => {
+    const sharepics: SharepicCard[] = [];
     const imagine: RecentGalleryItem[] = [];
     for (const item of recentGalleryItems) {
-      (isKiImage(item.imageType) ? imagine : sharepics).push(item);
+      if (isKiImage(item.imageType)) {
+        imagine.push(item);
+      } else {
+        sharepics.push({ kind: 'share', date: item.createdAt, item });
+      }
     }
-    return { sharepicItems: sharepics.slice(0, 5), imagineItems: imagine.slice(0, 5) };
-  }, [recentGalleryItems]);
+    for (const canvas of canvasQuery.data ?? []) {
+      sharepics.push({ kind: 'canvas', date: canvas.updated_at, item: canvas });
+    }
+    sharepics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return { sharepicCards: sharepics.slice(0, 5), imagineItems: imagine.slice(0, 5) };
+  }, [recentGalleryItems, canvasQuery.data]);
 
-  const hasFetched = galleryLastFetch !== null;
-  const showSharepics = hasFetched && sharepicItems.length > 0;
+  const canvasesSettled = !canvasesEnabled || canvasQuery.isFetched;
+  const hasFetched = galleryLastFetch !== null && canvasesSettled;
+  const showSharepics = hasFetched && sharepicCards.length > 0;
   const showImagine = hasFetched && imagineItems.length > 0;
   // Once the gallery has loaded and both buckets are empty there's nothing to
   // preview, so we swap the bare section headers for engaging quick-start tiles.
-  const isStudioEmpty = hasFetched && sharepicItems.length === 0 && imagineItems.length === 0;
+  const isStudioEmpty = hasFetched && sharepicCards.length === 0 && imagineItems.length === 0;
 
   // const { data: featuredVorlagen = [] } = useFeaturedVorlagen(5);
-
-  const isAustrianUser = user?.locale === 'de-AT';
 
   const handleCategorySelect = useCallback(
     (cat: string | null, subcat: string | null, directType?: string) => {
@@ -172,10 +195,13 @@ const ImageStudioCategorySelector: React.FC = () => {
       const metadata = item.imageMetadata || {};
       const sharepicType = metadata.sharepicType;
 
-      if (!sharepicType) return;
-
-      const route = getSharepicRoute(sharepicType);
-      if (!route) return;
+      // Shares without edit metadata (e.g. pre-canvas legacy rows) can't open
+      // the edit flow — show the read-only preview instead of dead-clicking.
+      const route = sharepicType ? getSharepicRoute(sharepicType) : null;
+      if (!sharepicType || !route) {
+        setPreviewItem(item);
+        return;
+      }
 
       void navigate(route, {
         state: {
@@ -336,20 +362,31 @@ const ImageStudioCategorySelector: React.FC = () => {
           />
           {showSharepics && (
             <CardGrid columns="5">
-              {sharepicItems.map((item, i) => (
-                <PreviewCard
-                  key={item.shareToken}
-                  title={item.title || 'Sharepic'}
-                  shareToken={item.shareToken}
-                  blurhash={item.imageMetadata?.blurhash as string | undefined}
-                  priority={i < 5}
-                  // With the studio on, editing opens the canvas flow; otherwise
-                  // (kill-switch off) it opens a read-only preview.
-                  onClick={() =>
-                    SHOW_SHAREPIC_STUDIO ? handleGalleryItemEdit(item) : setPreviewItem(item)
-                  }
-                />
-              ))}
+              {sharepicCards.map((card, i) =>
+                card.kind === 'canvas' ? (
+                  <PreviewCard
+                    key={`canvas-${card.item.id}`}
+                    title={card.item.title || 'Sharepic'}
+                    thumbnailUrl={resolveApiAssetUrl(card.item.thumbnail_url ?? undefined)}
+                    onClick={() => void navigate(`/studio/canvas/${card.item.id}`)}
+                  />
+                ) : (
+                  <PreviewCard
+                    key={card.item.shareToken}
+                    title={card.item.title || 'Sharepic'}
+                    shareToken={card.item.shareToken}
+                    blurhash={card.item.imageMetadata?.blurhash as string | undefined}
+                    priority={i < 5}
+                    // With the studio on, editing opens the canvas flow; otherwise
+                    // (kill-switch off) it opens a read-only preview.
+                    onClick={() =>
+                      SHOW_SHAREPIC_STUDIO
+                        ? handleGalleryItemEdit(card.item)
+                        : setPreviewItem(card.item)
+                    }
+                  />
+                )
+              )}
             </CardGrid>
           )}
         </section>
