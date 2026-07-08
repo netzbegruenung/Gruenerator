@@ -15,6 +15,7 @@ import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 import type { InitialPageDef } from '@gruenerator/canvas-editor';
@@ -101,9 +102,17 @@ function CollabCanvasStudioContent() {
     config,
   });
 
-  const handleExport = useCallback((_base64: string) => {
-    // No-op in collab mode — Hocuspocus persists state.
-  }, []);
+  // Hocuspocus persists the state itself; the exported image doubles as a
+  // fresh gallery thumbnail.
+  const handleExport = useCallback(
+    (base64: string) => {
+      if (!id || !canEdit) return;
+      updateCanvasThumbnail(id, base64)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['canvas'] }))
+        .catch((err) => console.warn('[CollabCanvasStudioPage] thumbnail refresh failed:', err));
+    },
+    [id, canEdit, queryClient]
+  );
 
   const handleCancel = useCallback(() => {
     void navigate('/studio');

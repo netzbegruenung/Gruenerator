@@ -26,7 +26,7 @@ import { parseTablePreview } from '../../../utils/parseTablePreview';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
 
 interface RecentItem {
   id: string;
@@ -57,6 +57,7 @@ const TYPE_META: Record<
   image: { label: 'Bild', Icon: FiImage },
   video: { label: 'Video', Icon: FaVideo },
   text: { label: 'Text', Icon: FiFileText },
+  canvas: { label: 'Sharepic', Icon: FiImage },
 };
 
 // Spreadsheet-style docs (subtype 'tabelle') arrive as `type: 'doc'` but read as
@@ -103,6 +104,7 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   image: 'Ohne Titel',
   video: 'Ohne Titel',
   text: 'Ohne Titel',
+  canvas: 'Neuer Canvas',
 };
 
 // Faint, fixed-height plate every preview sits on (matches the workspace
@@ -255,9 +257,10 @@ TablePreviewBody.displayName = 'TablePreviewBody';
 // their heading + excerpt directly on the tinted plate, boards a schematic, and
 // content-less items the prose outline — no floating paper sheet.
 const PreviewArea = memo(({ item }: { item: RecentItem }) => {
-  if (item.type === 'image' || item.type === 'video') {
+  if (item.type === 'image' || item.type === 'video' || item.type === 'canvas') {
     // Images are shared-media backed (item.id is the share token) → responsive
-    // variants + BlurHash. Videos have no image variants, so keep the poster img.
+    // variants + BlurHash. Videos and canvases have no image variants, so they
+    // keep the plain thumbnail img.
     if (item.type === 'image') {
       return (
         <div className={PREVIEW_PLATE}>
@@ -649,6 +652,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
         text: 'Text wirklich löschen?',
+        canvas: 'Sharepic wirklich löschen?',
       };
 
       if (!window.confirm(messages[item.type])) return;
