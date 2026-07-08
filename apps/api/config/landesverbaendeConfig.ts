@@ -13,6 +13,10 @@
  * - excludePatterns: URL patterns to skip
  */
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import {
   type CuratedListId,
   type LandesverbandContentType,
@@ -1082,6 +1086,24 @@ export function getCuratedContentTypeForUrl(url: string): ContentType | null {
     }
   }
   return null;
+}
+
+/**
+ * Per-LV email recipients for --landesverband / per-LV API runs. Falls back to
+ * an empty map (caller falls back to CONTENT_SYNC_EMAIL) if the file is missing.
+ */
+export function loadLandesverbandContacts(): Record<string, string> {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const contactsPath = path.join(here, 'landesverbaendeContacts.json');
+  try {
+    const raw = readFileSync(contactsPath, 'utf-8');
+    return JSON.parse(raw) as Record<string, string>;
+  } catch (err) {
+    console.warn(
+      `Could not load ${contactsPath} (${err instanceof Error ? err.message : err}); falling back to CONTENT_SYNC_EMAIL`
+    );
+    return {};
+  }
 }
 
 export default LANDESVERBAENDE_CONFIG;
