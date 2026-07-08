@@ -111,8 +111,13 @@ function CanvasEditorInner({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onAutoSaveShareToken,
 }: CanvasEditorProps) {
   const autoSaveStoreApi = useAutoSaveStoreApi();
+  // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
+  // PageWrapper → GenericCanvas) instead of a store subscription here — a
+  // subscription dies with the unmount, losing tokens that resolve after the
+  // editor closes (flush save, in-flight save) and re-creating duplicates.
   const isMobileBridge = Boolean(mobileBridge);
   const isExternalSidebar = externalSidebar && !isMobileBridge;
 
@@ -944,6 +949,7 @@ function CanvasEditorInner({
                 multiPageExport={index === 0 ? multiPageExportProps : undefined}
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                onAutoSaveShareToken={onAutoSaveShareToken}
                 mobileBridge={isActive ? mobileBridge : undefined}
                 pageCollaborative={pageCollaborativeAt(index, page.id, isActive)}
               />

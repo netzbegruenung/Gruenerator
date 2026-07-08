@@ -31,6 +31,7 @@ export const PageWrapper = memo(function PageWrapper({
   onStateChange,
   onToolbarStateChange,
   mobileBridge,
+  onAutoSaveShareToken,
   pageCollaborative,
   pageRef,
 }: PageWrapperProps) {
@@ -128,6 +129,7 @@ export const PageWrapper = memo(function PageWrapper({
           multiPageExport={multiPageExport}
           mobileBridge={mobileBridge}
           onToolbarStateChange={onToolbarStateChange}
+          onAutoSaveShareToken={onAutoSaveShareToken}
           collaborative={pageCollaborative}
         />
       </ZoomableViewport>
