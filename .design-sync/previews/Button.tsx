@@ -3,17 +3,36 @@ import { Button } from '@gruenerator/ui';
 // Inline SVGs keep previews dependency-free; Button sizes any child svg via
 // its `[&_svg]:size-4` class.
 const Plus = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
 const Check = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M20 6 9 17l-5-5" />
   </svg>
 );
 
-const row: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 };
+const row: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 12,
+};
 
 // The standard shadcn variant axis — the prop that most changes appearance.
 export function Variants() {
@@ -47,7 +66,9 @@ export function Sizes() {
       <Button size="sm">Klein</Button>
       <Button size="default">Standard</Button>
       <Button size="lg">Groß</Button>
-      <Button size="icon" aria-label="Hinzufügen"><Plus /></Button>
+      <Button size="icon" aria-label="Hinzufügen">
+        <Plus />
+      </Button>
     </div>
   );
 }
@@ -55,9 +76,13 @@ export function Sizes() {
 export function States() {
   return (
     <div style={row}>
-      <Button><Check /> Gespeichert</Button>
+      <Button>
+        <Check /> Gespeichert
+      </Button>
       <Button disabled>Deaktiviert</Button>
-      <Button variant="outline" disabled>Nicht verfügbar</Button>
+      <Button variant="outline" disabled>
+        Nicht verfügbar
+      </Button>
     </div>
   );
 }

@@ -11,6 +11,8 @@
  * for operations like export, that need direct stage access.
  */
 
+import { withSelectionChromeHidden } from '../utils/captureStage';
+
 import type { ExportOptions, ExportResult, ExportFormat } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
 
@@ -58,11 +60,13 @@ class CanvasRefRegistry {
     const mimeType = `image/${options.format}` as `image/${ExportFormat}`;
     const pixelRatio = options.pixelRatio ?? 2;
 
-    const dataUrl = stage.toDataURL({
-      pixelRatio,
-      mimeType,
-      quality: options.quality,
-    });
+    const dataUrl = withSelectionChromeHidden(stage, () =>
+      stage.toDataURL({
+        pixelRatio,
+        mimeType,
+        quality: options.quality,
+      })
+    );
 
     return {
       dataUrl,

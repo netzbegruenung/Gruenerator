@@ -601,13 +601,21 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = isHttpError(err) ? err.status : 500;
 
-    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
-      path: req.path,
-      method: req.method,
-      statusCode,
-      errorCode: (err as NodeJS.ErrnoException).code,
-      stack: err.stack,
-    });
+    // 4xx are client errors (malformed JSON body, bad params, …) — noise at ERROR
+    // level. Log them compactly at warn without a stack; reserve ERROR + stack for 5xx.
+    if (statusCode >= 400 && statusCode < 500) {
+      log.warn(
+        `[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path} (${statusCode})`,
+      );
+    } else {
+      log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
+        path: req.path,
+        method: req.method,
+        statusCode,
+        errorCode: (err as NodeJS.ErrnoException).code,
+        stack: err.stack,
+      });
+    }
 
     if (req.path.startsWith('/api/auth/v2/')) {
       log.error(`[BetterAuth] Error on ${req.path}: ${err.message}`, {

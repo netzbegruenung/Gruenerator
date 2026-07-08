@@ -558,12 +558,16 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 function formatComputedResultContext(computedResult: ChatGraphState['computedResult']): string {
   if (!computedResult) return '';
   const lines = computedResult.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
-  const figureCount = computedResult.figures?.length ?? 0;
+  const figureCount =
+    (computedResult.figures?.length ?? 0) + (computedResult.figureUrls?.length ?? 0);
   const figureNote =
     figureCount > 0
       ? `\n${figureCount === 1 ? 'Ein Diagramm wurde' : `${figureCount} Diagramme wurden`} bei der Berechnung erstellt und der*dem Nutzer*in bereits angezeigt — erwähne das kurz und erstelle KEIN weiteres Diagramm.`
       : '';
-  const fileNames = computedResult.files?.map((f) => f.name) ?? [];
+  const fileNames = [
+    ...(computedResult.files?.map((f) => f.name) ?? []),
+    ...(computedResult.fileAssets?.map((f) => f.name) ?? []),
+  ];
   const fileNote =
     fileNames.length > 0
       ? `\nFolgende Datei${fileNames.length === 1 ? ' wurde' : 'en wurden'} erstellt und ${fileNames.length === 1 ? 'steht' : 'stehen'} der*dem Nutzer*in bereits zum Download bereit: ${fileNames.join(', ')} — erwähne das kurz.`
@@ -648,6 +652,20 @@ function formatBoardContext(boardContext: string | null): string {
 ## BOARD-KONTEXT
 
 ${boardContext}`;
+}
+
+/**
+ * Format sheet context (from @sheet mentions).
+ * Injects the spreadsheet's cells (markdown with A1 coordinates).
+ */
+function formatSheetContext(sheetContext: string | null): string {
+  if (!sheetContext) return '';
+
+  return `
+
+## TABELLEN-KONTEXT (Spreadsheet)
+
+${sheetContext}`;
 }
 
 /**
@@ -945,6 +963,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
+  const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
@@ -987,7 +1006,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1019,7 +1038,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

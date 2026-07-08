@@ -7,7 +7,7 @@
 
 import type { CanvasConfigId } from '../configs/types';
 
-export type TemplateCategory = 'sharepic' | 'slider' | 'plakat' | 'presentation' | 'profilbild';
+export type TemplateCategory = 'sharepic' | 'slider' | 'profilbild';
 
 export interface TemplateInfo {
   id: CanvasConfigId;
@@ -63,13 +63,6 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     previewImage: '/imagine/previews/veranstaltung-preview.webp',
     category: 'sharepic',
   },
-  'veranstaltung-plakat': {
-    id: 'veranstaltung-plakat',
-    label: 'Event-Plakat',
-    description: 'Veranstaltungsankündigung im Plakat-Format',
-    previewImage: '/imagine/previews/veranstaltung-plakat-preview.svg',
-    category: 'plakat',
-  },
   slider: {
     id: 'slider',
     label: 'Slider',
@@ -83,27 +76,6 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Leere Leinwand zum freien Gestalten',
     previewImage: '/imagine/previews/freeform-preview.webp',
     category: 'sharepic',
-  },
-  'pres-title': {
-    id: 'pres-title',
-    label: 'Nur Titel',
-    description: 'Titelfolie mit Sonnenblume',
-    previewImage: '/imagine/previews/pres-title-preview.webp',
-    category: 'presentation',
-  },
-  'pres-image': {
-    id: 'pres-image',
-    label: 'Bild mit Überschrift',
-    description: 'Vollbild-Foto mit Textoverlay',
-    previewImage: '/imagine/previews/pres-image-preview.webp',
-    category: 'presentation',
-  },
-  'pres-content': {
-    id: 'pres-content',
-    label: 'Inhalt',
-    description: 'Titel mit Text, optional zweispaltig',
-    previewImage: '/imagine/previews/pres-content-preview.webp',
-    category: 'presentation',
   },
   profilbild: {
     id: 'profilbild',
@@ -140,22 +112,12 @@ export function getCategoryForTemplate(configId: CanvasConfigId): TemplateCatego
  * Used to determine if background can be inherited
  */
 export function templateSupportsImageBackground(configId: CanvasConfigId): boolean {
-  return [
-    'zitat',
-    'simple',
-    'veranstaltung',
-    'veranstaltung-plakat',
-    'dreizeilen',
-    'freeform',
-    'pres-image',
-  ].includes(configId);
+  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform'].includes(configId);
 }
 
 /**
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(
-    configId
-  );
+  return ['info', 'zitat-pure', 'slider', 'freeform'].includes(configId);
 }

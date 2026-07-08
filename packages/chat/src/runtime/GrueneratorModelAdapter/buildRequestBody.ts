@@ -44,9 +44,16 @@ export interface BuildRequestBodyParams {
   documentIds: string[];
   textIds: string[];
   boardIds: string[];
+  sheetIds: string[];
   docMentionIds: string[];
   wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'];
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
+  /** URLs attached via the @web mention (crawled through the scrape_url path). */
+  webpageUrls: string[];
+  /** Regenerate the last assistant turn (backend replaces instead of appends). */
+  regenerate: boolean;
+  /** DB id of the user message an edit-resubmit starts from, if any. */
+  replaceFromMessageId: string | undefined;
   mergedDocChatIds: string[];
   hasDocumentChat: boolean;
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
@@ -60,6 +67,8 @@ export interface BuildRequestBodyParams {
     canvasId: string | null;
     canvasType: string;
   } | null;
+  /** Social post marked "active for chat editing" (combined post card), if any. */
+  currentSocialPost: { postId: string } | null;
   /** Subtitler project marked active for chat subtitle editing, if any. */
   currentReel: { projectId: string } | null;
   /** Composer-attached video, already TUS-uploaded (reel transcription). */
@@ -94,9 +103,13 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentIds,
     textIds,
     boardIds,
+    sheetIds,
     docMentionIds,
     wolkeFiles,
     connectFiles,
+    webpageUrls,
+    regenerate,
+    replaceFromMessageId,
     mergedDocChatIds,
     hasDocumentChat,
     injectedCurrentDocument,
@@ -104,6 +117,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
+    currentSocialPost,
     currentReel,
     reelUpload,
   } = params;
@@ -148,14 +162,19 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentIds: documentIds.length > 0 ? documentIds : undefined,
     textIds: textIds.length > 0 ? textIds : undefined,
     boardIds: boardIds.length > 0 ? boardIds : undefined,
+    sheetIds: sheetIds.length > 0 ? sheetIds : undefined,
     docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
     wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
     connectFiles: connectFiles.length > 0 ? connectFiles : undefined,
+    webpageUrls: webpageUrls.length > 0 ? webpageUrls : undefined,
+    regenerate: regenerate || undefined,
+    replaceFromMessageId: replaceFromMessageId || undefined,
     documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
     currentBoard: injectedCurrentBoard,
     currentSharepic: currentSharepic ?? undefined,
+    currentSocialPost: currentSocialPost ?? undefined,
     currentReel: currentReel ?? undefined,
     reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,
@@ -167,7 +186,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     computedResult: (() => {
       const r = useLastComputeStore.getState().result;
       if (!r) return undefined;
-      const { figures: _figures, files: _files, ...slim } = r;
+      const { figures: _figures, files: _files, figureUrls: _fu, fileAssets: _fa, ...slim } = r;
       return slim;
     })(),
     // Declare which tools this client can execute locally, so the backend may

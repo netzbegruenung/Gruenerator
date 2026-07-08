@@ -56,6 +56,12 @@ export const SYSTEM_ASSETS = {
       src: '/sonnenblume_dunkelgruen.svg',
       label: 'Sonnenblume (Grün)',
     },
+    // Light-green flower matching the Info sharepic's server render
+    // (apps/api/public/sonnenblume_gruen.png).
+    greenLight: {
+      src: '/sonnenblume_gruen.png',
+      label: 'Sonnenblume (Hellgrün)',
+    },
   },
   quote: {
     white: {
@@ -135,7 +141,6 @@ export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
   info: ['arrow'],
   dreizeilen: ['sunflower'],
   veranstaltung: [],
-  'veranstaltung-plakat': [],
 };
 
 /**

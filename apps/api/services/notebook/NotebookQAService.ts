@@ -922,7 +922,7 @@ export class NotebookQAService {
       type: 'qa_draft',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 16000, temperature: 0.2, top_p: 0.8 },
+      options: { max_tokens: 40000, temperature: 0.2, top_p: 0.8 },
     });
 
     return (
@@ -965,7 +965,7 @@ export class NotebookQAService {
       type: 'qa_draft_fast',
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt,
-      options: { max_tokens: 8000, temperature: 0.3, top_p: 0.9 },
+      options: { max_tokens: 20000, temperature: 0.3, top_p: 0.9 },
     });
 
     return (
