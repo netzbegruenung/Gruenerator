@@ -316,6 +316,13 @@ export interface ChatGraphInput {
    */
   hasTabularAttachment?: boolean | undefined;
   /**
+   * True when the requesting client declared the run_python client tool
+   * (clientTools includes 'run_python') — i.e. it can execute the pandas code
+   * respondNode may steer the model to emit. Mobile/voice send no clientTools,
+   * so their tabular guidance must not promise code execution.
+   */
+  clientCanRunPython?: boolean | undefined;
+  /**
    * A spreadsheet result the client already computed in the browser (Pyodide).
    * Injected via formatComputedResultContext so the model treats it as ground
    * truth on follow-up turns instead of re-deriving it.
@@ -389,6 +396,7 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  clientCanRunPython: boolean;
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];

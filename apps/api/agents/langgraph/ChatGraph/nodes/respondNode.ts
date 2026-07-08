@@ -592,6 +592,10 @@ Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
  * client auto-runs the emitted block and shows the result — so the model must
  * emit a properly language-tagged ```python block and must NOT tell the user to
  * click "Run" or apologise that it can't execute (both were happening).
+ *
+ * Forks on `clientCanRunPython`: clients without the run_python client tool
+ * (mobile/voice) instead get guidance to derive the answer from the document
+ * context — never a code block that would silently do nothing there.
  */
 export function formatTabularComputeGuidance(state: ChatGraphState): string {
   if (!state.hasTabularAttachment) return '';
@@ -606,6 +610,21 @@ export function formatTabularComputeGuidance(state: ChatGraphState): string {
 ## TABELLENDATEN — ERGEBNIS LIEGT BEREITS VOR
 
 Die Berechnung über die angehängte Tabelle wurde bereits per Code ausgeführt (siehe BERECHNUNGSERGEBNIS unten). Übernimm die Werte EXAKT und formuliere eine kurze, klare Antwort. Gib KEINEN Code-Block aus und rechne NICHT selbst nach.`;
+  }
+  // Client cannot execute Python (mobile/voice declare no run_python client
+  // tool). The pandas guidance below would produce a dead "wird automatisch
+  // ausgeführt" code block on those clients — steer the model to derive the
+  // answer from the attached document context instead.
+  if (!state.clientCanRunPython) {
+    return `
+
+## TABELLENDATEN — OHNE CODE-AUSFÜHRUNG RECHNEN
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät steht KEIN Python-Interpreter zur Verfügung — Code-Blöcke werden hier NICHT ausgeführt.
+- Gib KEINEN ausführbaren Code-Block aus und behaupte NIEMALS, dass Code automatisch ausgeführt wird.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im angehängten Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
   return `
 

@@ -46,7 +46,8 @@ function buildHeaders(): Record<string, string> {
   const basicUser = env.QDRANT_BASIC_AUTH_USERNAME;
   const basicPass = env.QDRANT_BASIC_AUTH_PASSWORD;
   if (basicUser && basicPass) {
-    headers['Authorization'] = `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
+    headers['Authorization'] =
+      `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
   }
   return headers;
 }
