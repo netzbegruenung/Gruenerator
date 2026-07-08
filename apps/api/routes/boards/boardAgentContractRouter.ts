@@ -9,7 +9,7 @@ import { boardAgentContract, type BoardFlowConfig } from '@gruenerator/contracts
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
+import { enqueueAgentTask, flowTaskText } from '../../services/boards/agentTaskService.js';
 import { isConfigured as isApifyConfigured } from '../../services/monitor/ApifyService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -49,8 +49,7 @@ export const boardAgentContractRouter = s.router(boardAgentContract, {
       );
 
       const flowConfig: BoardFlowConfig = { ...flow, cardContext };
-      const taskText =
-        flow.task.type === 'custom' ? flow.task.prompt : `KI-Aufgabe: ${flow.task.preset}`;
+      const taskText = flowTaskText(flow);
 
       const task = await enqueueAgentTask({
         boardId,

@@ -19,8 +19,8 @@ export function NewsletterTabs() {
           <TabsTrigger value="versand">Versand</TabsTrigger>
         </TabsList>
         <TabsContent value="inhalt" style={panel}>
-          Drei Themenblöcke im Entwurf: Klimaschutz vor Ort, Mitgliederversammlung
-          und der Rückblick auf den Kreisparteitag.
+          Drei Themenblöcke im Entwurf: Klimaschutz vor Ort, Mitgliederversammlung und der Rückblick
+          auf den Kreisparteitag.
         </TabsContent>
         <TabsContent value="empfaenger" style={panel}>
           4.812 Empfänger:innen im Verteiler „Aktive Mitglieder“.

@@ -1098,6 +1098,8 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
     -- Extracted content
     extracted_text TEXT,          -- Full OCR text (for re-processing)
     summary TEXT,                 -- LLM summary (~200-400 tokens)
+    file_data TEXT,               -- Raw bytes (base64), tabular files only — rehydrates the pandas interpreter after reload
+    document_id UUID,             -- Qdrant doc id when a large prose doc was embedded — follow-up turns retrieve via RAG
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -1260,43 +1262,6 @@ CREATE INDEX IF NOT EXISTS idx_monitor_articles_excerpt_trgm ON monitor_articles
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_seen ON monitor_articles(last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_locale ON monitor_articles(locale);
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_topic ON monitor_articles(primary_topic);
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: PRESENTATIONS
--- Collaborative presentation editor
--- ════════════════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS collaborative_presentations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL DEFAULT 'Neue Präsentation',
-  user_id UUID NOT NULL,
-  language TEXT DEFAULT 'de',
-  theme JSONB DEFAULT '{}',
-  template TEXT DEFAULT 'general',
-  permissions JSONB DEFAULT '{}',
-  is_public BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS presentation_slides (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  presentation_id UUID NOT NULL REFERENCES collaborative_presentations(id) ON DELETE CASCADE,
-  index INTEGER NOT NULL,
-  layout_group TEXT NOT NULL DEFAULT 'general',
-  layout TEXT NOT NULL,
-  content JSONB NOT NULL DEFAULT '{}',
-  speaker_note TEXT,
-  properties JSONB DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_presentations_user_id ON collaborative_presentations(user_id);
-CREATE INDEX IF NOT EXISTS idx_presentations_updated_at ON collaborative_presentations(updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_presentation_slides_presentation_id ON presentation_slides(presentation_id);
-CREATE INDEX IF NOT EXISTS idx_presentation_slides_order ON presentation_slides(presentation_id, index);
 
 
 -- ════════════════════════════════════════════════════════════════════════════

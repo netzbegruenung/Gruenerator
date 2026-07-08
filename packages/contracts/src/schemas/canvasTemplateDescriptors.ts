@@ -36,7 +36,6 @@ export const CANVAS_TEMPLATE_TYPES = [
   'zitat-pure',
   'info',
   'veranstaltung',
-  'veranstaltung-plakat',
   'simple',
   'slider',
   'profilbild',

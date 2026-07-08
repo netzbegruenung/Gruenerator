@@ -22,8 +22,6 @@ import { DownloadSection } from './DownloadSection';
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;
   onDownload: (format: 'png' | 'jpeg', pixelRatio: number) => void;
-  onDownloadPdf?: (withBleed: boolean) => Promise<void>;
-  bleedSupported?: boolean;
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;
@@ -47,8 +45,6 @@ export interface ShareDropdownProps {
 export function ShareDropdown({
   onCaptureCanvas,
   onDownload,
-  onDownloadPdf,
-  bleedSupported,
   onNavigateToGallery,
   canvasText,
   canvasType,
@@ -172,8 +168,6 @@ export function ShareDropdown({
               <DownloadSection
                 onDownload={onDownload}
                 onDownloadAllZip={onDownloadAllZip}
-                onDownloadPdf={onDownloadPdf}
-                bleedSupported={bleedSupported}
                 pageCount={pageCount}
                 isMultiExporting={isMultiExporting}
                 exportProgress={exportProgress}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 import './canvas-editor.css';
 import type { StockImageAttribution } from './common/imageSourceTypes';
@@ -36,7 +36,6 @@ export interface CanvasInitialPropsMap {
   'zitat-pure': { quote: string; name: string };
   info: { header: string; body: string };
   veranstaltung: VeranstaltungInitialProps;
-  'veranstaltung-plakat': VeranstaltungInitialProps;
   simple: { headline: string; subtext: string; imageSrc: string } & BackgroundImageProps;
   slider: { label: string; headline: string; subtext: string };
   dreizeilen: {
@@ -50,10 +49,6 @@ export interface CanvasInitialPropsMap {
     backgroundColor: string;
     currentImageSrc: string;
   } & BackgroundImageProps;
-  'pres-title': PresentationInitialProps;
-  'pres-image': PresentationInitialProps;
-  'pres-content': PresentationInitialProps;
-  presentation: PresentationInitialProps;
   profilbild: { transparentImage: string; backgroundColor: string };
 }
 
@@ -66,14 +61,6 @@ interface VeranstaltungInitialProps extends BackgroundImageProps {
   locationName: string;
   address: string;
   imageSrc: string;
-}
-
-interface PresentationInitialProps extends BackgroundImageProps {
-  title: string;
-  subtitle: string;
-  bodyText: string;
-  bodyText2: string;
-  currentImageSrc: string;
 }
 
 // Compare two values with special handling for arrays
@@ -110,6 +97,8 @@ export interface ControllableCanvasWrapperProps {
   imageSrc?: string;
   onExport: (base64: string) => void;
   onCancel: () => void;
+  /** Pure observation hook fired with the image of every page download. */
+  onDownload?: (base64: string) => void;
   onStateChange?: (newState: CanvasState) => void;
   /** Pre-populated pages for heterogeneous multi-page mode (e.g. slider slides) */
   initialPages?: InitialPageDef[];
@@ -150,6 +139,8 @@ export interface ControllableCanvasWrapperProps {
    * existing share by token should pass it through here.
    */
   initialShareToken?: string | null;
+  /** Reports auto-save share tokens to the host (see CanvasEditorProps). */
+  onAutoSaveShareToken?: (token: string) => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -158,6 +149,7 @@ export function ControllableCanvasWrapper({
   imageSrc,
   onExport,
   onCancel,
+  onDownload,
   onStateChange,
   initialPages,
   onReady,
@@ -170,6 +162,7 @@ export function ControllableCanvasWrapper({
   chromeRight,
   onInvitePeople,
   initialShareToken,
+  onAutoSaveShareToken,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -181,10 +174,18 @@ export function ControllableCanvasWrapper({
   const prevInitialStateRef = useRef<CanvasState>(initialState);
   const readyFiredRef = useRef(false);
 
+  // Strip `pages` — slider deck page defs live in the `pages` Y.Array, not
+  // formState. Without this, initialState for a slider deck writes a stale
+  // multi-KB pages blob into the formState Y.Map that is never read back.
+  const formStateFallback = useMemo((): Record<string, unknown> => {
+    const { pages: _, ...rest } = initialState as Record<string, unknown>;
+    return rest;
+  }, [initialState]);
+
   const { formState: yFormState, updateFormState } = useYjsFormState({
     ydoc: collaborative?.ydoc ?? null,
     isSynced: collaborative?.isSynced ?? false,
-    fallback: initialState,
+    fallback: formStateFallback,
   });
 
   const effectiveState = isCollab ? yFormState : internalState;
@@ -223,23 +224,16 @@ export function ControllableCanvasWrapper({
       'zitat-pure',
       'info',
       'veranstaltung',
-      'veranstaltung-plakat',
       'simple',
       'dreizeilen',
       'slider',
       'freeform',
-      'pres-title',
-      'pres-image',
-      'pres-content',
-      'presentation',
       'profilbild',
     ].includes(type);
 
-    // 'presentation' is an alias — load the default pres-title config
-    const configType = type === 'presentation' ? 'pres-title' : type;
-    if (needsConfig && isValidCanvasType(configType)) {
+    if (needsConfig && isValidCanvasType(type)) {
       setConfigLoading(true);
-      loadCanvasConfig(configType)
+      loadCanvasConfig(type)
         .then(setConfig)
         .catch((error) => {
           console.error(`Failed to load canvas config for type "${type}":`, error);
@@ -278,10 +272,6 @@ export function ControllableCanvasWrapper({
 
   const handlePartChange = useCallback(
     (change: Partial<CanvasState>) => {
-      console.log('[CanvasCollab][handlePartChange]', {
-        isCollab,
-        keys: Object.keys(change),
-      });
       if (isCollab) {
         updateFormState(change);
         return;
@@ -349,7 +339,6 @@ export function ControllableCanvasWrapper({
             body: str(effectiveState.body),
           } satisfies CanvasInitialPropsMap['info'];
         case 'veranstaltung':
-        case 'veranstaltung-plakat':
           return {
             eventTitle: str(effectiveState.eventTitle),
             beschreibung: str(effectiveState.beschreibung),
@@ -389,18 +378,6 @@ export function ControllableCanvasWrapper({
             currentImageSrc: bgSrc(),
             ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['freeform'];
-        case 'pres-title':
-        case 'pres-image':
-        case 'pres-content':
-        case 'presentation':
-          return {
-            title: str(effectiveState.title),
-            subtitle: str(effectiveState.subtitle),
-            bodyText: str(effectiveState.bodyText),
-            bodyText2: str(effectiveState.bodyText2),
-            currentImageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies PresentationInitialProps;
         case 'profilbild':
           return {
             transparentImage: str(effectiveState.transparentImage) || imageSrc || '',
@@ -433,7 +410,6 @@ export function ControllableCanvasWrapper({
         case 'info':
           return createCallbacks(['header', 'body']);
         case 'veranstaltung':
-        case 'veranstaltung-plakat':
           return createCallbacks(['eventTitle', 'beschreibung', ...BG_IMAGE_KEYS]);
         case 'simple':
           return createCallbacks(['headline', 'subtext', ...BG_IMAGE_KEYS]);
@@ -445,11 +421,6 @@ export function ControllableCanvasWrapper({
           // backgroundMode must persist alongside the image — the background
           // image element only renders when backgroundMode === 'image'.
           return createCallbacks(['backgroundMode', ...BG_IMAGE_KEYS]);
-        case 'pres-title':
-        case 'pres-image':
-        case 'pres-content':
-        case 'presentation':
-          return createCallbacks(['title', 'subtitle', 'bodyText', 'bodyText2', ...BG_IMAGE_KEYS]);
         default:
           return {};
       }
@@ -461,25 +432,21 @@ export function ControllableCanvasWrapper({
       case 'zitat-pure':
       case 'info':
       case 'veranstaltung':
-      case 'veranstaltung-plakat':
       case 'simple':
       case 'slider':
       case 'dreizeilen':
       case 'freeform':
-      case 'pres-title':
-      case 'pres-image':
-      case 'pres-content':
-      case 'presentation':
       case 'profilbild':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
           <CanvasEditor
             key={componentKey}
-            initialConfigId={(type === 'presentation' ? 'pres-title' : type) as CanvasConfigId}
+            initialConfigId={type as CanvasConfigId}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}
+            onDownload={onDownload}
             callbacks={buildCallbacks()}
             maxPages={config.multiPage?.maxPages ?? 30}
             initialPages={initialPages}
@@ -492,6 +459,7 @@ export function ControllableCanvasWrapper({
             chromeRight={chromeRight}
             onInvitePeople={onInvitePeople}
             initialShareToken={initialShareToken}
+            onAutoSaveShareToken={onAutoSaveShareToken}
           />
         );
 

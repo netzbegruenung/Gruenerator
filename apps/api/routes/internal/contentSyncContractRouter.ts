@@ -1,11 +1,12 @@
 /**
  * ts-rest contract router for the internal content-sync endpoint.
  *
- * Replaces the legacy Express router (contentSyncController.ts). This is the
- * n8n boundary: n8n triggers a per-source scraper run and reads back the
- * SyncResult counts. The contract (@gruenerator/contracts) is the source of
- * truth for request/response shapes, and `contentSyncSourceSchema` validates
- * `:sourceId` before the handler runs.
+ * This is the boundary CI and n8n both trigger scraper runs through — neither
+ * has direct network access to Qdrant (CI runners are IPv4-only, Qdrant is
+ * IPv6-only), but this long-lived API process does. The contract
+ * (@gruenerator/contracts) is the source of truth for request/response
+ * shapes, and `contentSyncSourceSchema` validates `:sourceId` before the
+ * handler runs.
  *
  * Middleware is applied at the prefix in routes.ts, not here:
  *   - /api/internal/content-sync/* → requireAdminToken
@@ -17,7 +18,10 @@ import {
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { loadLandesverbandContacts } from '../../config/landesverbaendeConfig.js';
+import { sendContentSyncEmail } from '../../services/email/emailService.js';
 import { upsertSyncEvents } from '../../services/monitor/ContentSyncEventsService.js';
+import { getContentStatsMarkdown } from '../../services/scrapers/contentStats.js';
 import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
@@ -35,15 +39,21 @@ interface SyncResult {
   fetchErrors?: number;
 }
 
+interface RunOpts {
+  forceUpdate: boolean;
+  recent: boolean;
+  dryRun: boolean;
+}
+
 interface SourceConfig {
   name: string;
   timeoutMs: number;
   init: () => Promise<void>;
-  run: () => Promise<SyncResult>;
+  run: (opts: RunOpts) => Promise<SyncResult>;
 }
 
 const sourceCache: Partial<Record<ContentSyncSource, SourceConfig>> = {};
-const runningSync = new Set<ContentSyncSource>();
+const runningSync = new Set<string>();
 
 async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
   const cached = sourceCache[sourceId];
@@ -59,8 +69,11 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Landesverbaende',
         timeoutMs: 30 * 60 * 1000,
         init: () => landesverbandScraperService.init(),
-        run: () =>
-          landesverbandScraperService.scrapeAllSources({ forceUpdate: false, dryRun: false }),
+        run: (opts) =>
+          landesverbandScraperService.scrapeAllSources({
+            forceUpdate: opts.forceUpdate,
+            dryRun: opts.dryRun,
+          }),
       };
       break;
     }
@@ -71,7 +84,7 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Gruenblog',
         timeoutMs: 30 * 60 * 1000,
         init: () => gruenblogScraperService.init(),
-        run: () => gruenblogScraperService.fullCrawl({ forceUpdate: false }),
+        run: (opts) => gruenblogScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
       };
       break;
     }
@@ -82,7 +95,7 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Gruene AT',
         timeoutMs: 45 * 60 * 1000,
         init: () => grueneAtScraperService.init(),
-        run: () => grueneAtScraperService.fullCrawl({ forceUpdate: false }),
+        run: (opts) => grueneAtScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
       };
       break;
     }
@@ -93,7 +106,7 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'KommunalWiki',
         timeoutMs: 30 * 60 * 1000,
         init: () => kommunalwikiScraper.init(),
-        run: () => kommunalwikiScraper.fullCrawl({ forceUpdate: false }),
+        run: (opts) => kommunalwikiScraper.fullCrawl({ forceUpdate: opts.forceUpdate }),
       };
       break;
     }
@@ -104,7 +117,7 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Boell Stiftung',
         timeoutMs: 45 * 60 * 1000,
         init: () => boellStiftungScraperService.init(),
-        run: () => boellStiftungScraperService.fullCrawl({ forceUpdate: false }),
+        run: (opts) => boellStiftungScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
       };
       break;
     }
@@ -115,7 +128,7 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Bundestag',
         timeoutMs: 20 * 60 * 1000,
         init: () => bundestagScraperService.init(),
-        run: () => bundestagScraperService.scrapeAllSources({ forceUpdate: false }),
+        run: (opts) => bundestagScraperService.scrapeAllSources({ forceUpdate: opts.forceUpdate }),
       };
       break;
     }
@@ -126,7 +139,26 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Social Media',
         timeoutMs: 30 * 60 * 1000,
         init: async () => {},
-        run: () => scrapeAndIndexSocialMedia({ forceUpdate: false }),
+        run: (opts) => scrapeAndIndexSocialMedia({ forceUpdate: opts.forceUpdate }),
+      };
+      break;
+    }
+    case 'abgeordnetenwatch': {
+      const { getAbgeordnetenwatchScraperService } =
+        await import('../../services/scrapers/implementations/AbgeordnetenwatchScraper/index.js');
+      const service = getAbgeordnetenwatchScraperService();
+      config = {
+        name: 'Abgeordnetenwatch',
+        // Full backfill enriches ~1,900 Abstimmungen with one votes-call each
+        // (Grünen stance) at the fair-use limit; --recent runs are minutes.
+        timeoutMs: 90 * 60 * 1000,
+        init: () => service.init(),
+        run: (opts) =>
+          service.scrapeAllSources({
+            forceUpdate: opts.forceUpdate,
+            recent: opts.recent,
+            dryRun: opts.dryRun,
+          }),
       };
       break;
     }
@@ -152,34 +184,140 @@ async function persistRecordedEvents(): Promise<void> {
   }
 }
 
+/**
+ * Scoped per-LV run — mirrors update-all-content.ts's `--landesverband` CLI
+ * path, including its own email notification (recipient from
+ * landesverbaendeContacts.json, suppressed when nothing changed).
+ */
+async function runScopedLandesverband(
+  landesverband: string,
+  opts: RunOpts,
+  runUrl: string | undefined,
+  fallbackEmail: string | undefined
+): Promise<SyncResult> {
+  const { landesverbandScraperService } =
+    await import('../../services/scrapers/implementations/LandesverbandScraper/index.js');
+
+  await landesverbandScraperService.init();
+  const result = await landesverbandScraperService.scrapeAllSources({
+    forceUpdate: opts.forceUpdate,
+    dryRun: opts.dryRun,
+    recent: opts.recent,
+    landesverband,
+  });
+
+  const hasChanges = result.stored + result.updated + result.errors > 0;
+  if (!opts.dryRun) {
+    if (!hasChanges) {
+      log.info(
+        `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email`
+      );
+    } else {
+      const { env } = await import('../../config/env.js');
+      const emailTo =
+        loadLandesverbandContacts()[landesverband] ?? fallbackEmail ?? env.CONTENT_SYNC_EMAIL;
+      if (emailTo) {
+        try {
+          const sent = await sendContentSyncEmail(emailTo, {
+            timestamp: new Date().toISOString(),
+            totalDuration: result.duration,
+            sources: [
+              {
+                name: `Landesverband ${landesverband}`,
+                status: 'success',
+                stored: result.stored,
+                updated: result.updated,
+                skipped: result.skipped,
+                errors: 0,
+                duration: result.duration,
+              },
+            ],
+            totals: {
+              sources: 1,
+              succeeded: 1,
+              failed: 0,
+              stored: result.stored,
+              updated: result.updated,
+              skipped: result.skipped,
+              errors: 0,
+            },
+            runUrl,
+            dryRun: opts.dryRun,
+          });
+          log.info(sent ? `LV email sent to ${emailTo}` : 'LV email skipped (SMTP not configured)');
+        } catch (emailErr) {
+          log.warn(`LV email send failed (non-fatal): ${toError(emailErr).message}`);
+        }
+      }
+    }
+  }
+
+  return {
+    stored: result.stored,
+    updated: result.updated,
+    skipped: result.skipped,
+    fetchErrors: result.errors,
+    errors: 0,
+  };
+}
+
 const s = initServer();
 
 export const contentSyncContractRouter = s.router(contentSyncContract, {
-  syncSource: async ({ params }) => {
+  syncSource: async ({ params, body }) => {
     const { sourceId } = params;
+    const {
+      landesverband,
+      recent = false,
+      forceUpdate = false,
+      dryRun = false,
+      runUrl,
+      fallbackEmail,
+    } = body ?? {};
 
-    if (runningSync.has(sourceId)) {
-      return { status: 409 as const, body: { error: `Sync already running for: ${sourceId}` } };
+    // Concurrent per-LV runs (GH Actions' 8-way matrix) must not lock each
+    // other out — only collide on the same LV or the same bulk source.
+    const lockKey = landesverband ? `${sourceId}:${landesverband}` : sourceId;
+    if (runningSync.has(lockKey)) {
+      return { status: 409 as const, body: { error: `Sync already running for: ${lockKey}` } };
     }
 
     const startTime = Date.now();
 
     try {
-      runningSync.add(sourceId);
-      log.info(`Content sync started: ${sourceId}`);
+      runningSync.add(lockKey);
+      log.info(`Content sync started: ${lockKey}`);
 
-      const source = await loadSource(sourceId);
-      await source.init();
+      let name: string;
+      let timeoutMs: number;
+      let runPromise: Promise<SyncResult>;
+
+      if (sourceId === 'landesverbaende' && landesverband) {
+        name = `Landesverband ${landesverband}`;
+        timeoutMs = 50 * 60 * 1000;
+        runPromise = runScopedLandesverband(
+          landesverband,
+          { forceUpdate, recent, dryRun },
+          runUrl,
+          fallbackEmail
+        );
+      } else {
+        const source = await loadSource(sourceId);
+        await source.init();
+        name = source.name;
+        timeoutMs = source.timeoutMs;
+        runPromise = source.run({ forceUpdate, recent, dryRun });
+      }
 
       let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(
-          () => reject(new Error(`Timeout after ${Math.round(source.timeoutMs / 60000)} minutes`)),
-          source.timeoutMs
+          () => reject(new Error(`Timeout after ${Math.round(timeoutMs / 60000)} minutes`)),
+          timeoutMs
         );
       });
 
-      const result = await Promise.race([source.run(), timeoutPromise]);
+      const result = await Promise.race([runPromise, timeoutPromise]);
       clearTimeout(timeoutId!);
 
       await persistRecordedEvents();
@@ -187,7 +325,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
       const durationMs = Date.now() - startTime;
 
       log.info(
-        `Content sync completed: ${sourceId} — stored=${result.stored} updated=${result.updated} skipped=${result.skipped} errors=${result.errors} (${Math.round(durationMs / 1000)}s)`
+        `Content sync completed: ${lockKey} — stored=${result.stored} updated=${result.updated} skipped=${result.skipped} errors=${result.errors} (${Math.round(durationMs / 1000)}s)`
       );
 
       return {
@@ -195,7 +333,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
         body: {
           success: true as const,
           sourceId,
-          name: source.name,
+          name,
           stored: result.stored,
           updated: result.updated,
           skipped: result.skipped,
@@ -209,18 +347,23 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
       const durationMs = Date.now() - startTime;
       // Articles indexed before the failure are real — keep their events.
       await persistRecordedEvents();
-      log.error(`Content sync failed: ${sourceId} — ${err.message}`);
+      log.error(`Content sync failed: ${lockKey} — ${err.message}`);
       return {
         status: 500 as const,
         body: { success: false as const, sourceId, error: err.message, durationMs },
       };
     } finally {
-      runningSync.delete(sourceId);
+      runningSync.delete(lockKey);
     }
   },
 
   listSources: async () => {
     return { status: 200 as const, body: { sources: [...contentSyncSourceSchema.options] } };
+  },
+
+  getStats: async () => {
+    const { markdown, totalPoints } = await getContentStatsMarkdown();
+    return { status: 200 as const, body: { markdown, totalPoints } };
   },
 });
 

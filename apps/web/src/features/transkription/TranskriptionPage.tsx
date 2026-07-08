@@ -19,6 +19,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import SubmitButton from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { copyFormattedContent } from '../../components/utils/commonFunctions';
 import { useContentActions } from '../../hooks/useContentActions';
 import { downloadFile } from '../../utils/downloadFile';
 
@@ -27,6 +28,7 @@ import TranscriptionResult from './components/TranscriptionResult';
 import UploadZone from './components/UploadZone';
 import { useProtokoll } from './hooks/useProtokoll';
 import { useTranscription } from './hooks/useTranscription';
+import { transcriptToMarkdown } from './utils/formatTranscript';
 
 import type { ProtokollTyp } from './hooks/useProtokoll';
 import type { TranscriptionOptions } from './hooks/useTranscription';
@@ -89,9 +91,11 @@ const TranskriptionPage = () => {
   const [selectedProtokollTyp, setSelectedProtokollTyp] = useState<ProtokollTyp | null>(null);
   const isVideo = selectedFile?.type.startsWith('video/') ?? false;
 
+  // Protokoll result is already Markdown; a raw transcript gets its `[speaker_N]`
+  // markers resolved to labelled Markdown so copy/docs/todo/board all format cleanly.
   const getActiveContent = useCallback(
-    () => protokollState.result || state.text,
-    [protokollState.result, state.text]
+    () => protokollState.result || transcriptToMarkdown(state.text, state.speakerMap),
+    [protokollState.result, state.text, state.speakerMap]
   );
   const getTitle = useCallback(
     () => selectedFile?.name.replace(/\.[^.]+$/, '') ?? 'Transkription',
@@ -114,9 +118,10 @@ const TranskriptionPage = () => {
   }, [selectedFile, transcribe, options, selectedProtokollTyp, formatAsProtokoll]);
 
   const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(getActiveContent());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    await copyFormattedContent(getActiveContent(), () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }, [getActiveContent]);
 
   const handleDownloadTxt = useCallback(() => {

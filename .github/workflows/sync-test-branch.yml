@@ -1,0 +1,92 @@
+# Keeps the long-lived `test-branch` in sync with `master`, and rebuilds the
+# beta Docker images after each sync.
+#
+# Fires on every push to master (i.e. whenever a PR is merged): merges master
+# into test-branch (regular merge — test-branch is never squashed), pushes, then
+# dispatches build-images.yml so the beta images rebuild.
+#
+# Why the explicit dispatch: a push made with the default GITHUB_TOKEN does NOT
+# re-trigger other workflows, so the push alone won't rebuild. A workflow_dispatch
+# triggered with GITHUB_TOKEN DOES run — so we sync with GITHUB_TOKEN (no PAT
+# needed) and kick the build explicitly. build-images.yml detects which images
+# changed in the merge (see its detect-changes base fallback).
+name: Sync test-branch
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: {}
+
+# Serialize runs so two rapid master merges can't race on the same push.
+# Don't cancel in-progress: every merge should be applied, not dropped.
+concurrency:
+  group: sync-test-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  actions: write # to dispatch build-images.yml after a sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0 # never run local git hooks (commitlint) in CI
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout test-branch (full history)
+        uses: actions/checkout@v5
+        with:
+          ref: test-branch
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge master into test-branch
+        id: merge
+        run: |
+          git fetch origin master
+          if git merge-base --is-ancestor origin/master HEAD; then
+            echo "test-branch already contains master — nothing to do."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git merge origin/master --no-verify --no-edit \
+              -m "chore: sync test-branch with master"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Merge conflict merging master into test-branch — manual resolution required."
+            exit 1
+          fi
+
+      - name: Push test-branch
+        if: steps.merge.outputs.changed == 'true'
+        run: git push origin test-branch
+
+      - name: Rebuild beta images
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          # workflow_dispatch (not push) so it runs under GITHUB_TOKEN.
+          # build-images.yml detects which images the merge touched.
+          gh workflow run build-images.yml --ref test-branch
+
+      - name: Open issue on conflict
+        if: failure() && steps.merge.outputs.conflict == 'true'
+        run: |
+          title="Sync failed: merge conflict master → test-branch"
+          body=$(printf '`master` could not be auto-merged into `test-branch` (conflict).\n\nResolve manually:\n```\ngit fetch origin\ngit switch test-branch\ngit merge origin/master   # resolve conflicts\ngit push origin test-branch\n```\n\nTriggered by %s. [Workflow run](%s/%s/actions/runs/%s).' \
+            "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --label "ci" 2>/dev/null \
+              || gh issue create --title "$title" --body "$body"
+          fi

@@ -426,6 +426,29 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
+  // Abgeordnetenwatch transparency corpus: namentliche Abstimmungen +
+  // Nebentätigkeiten (one collection, discriminated by content_type). Facets
+  // support the notebook's Abstimmung/Nebentätigkeit, Partei, Einkommensstufe
+  // and Grünen-Votum filters.
+  abgeordnetenwatch_documents: {
+    name: 'abgeordnetenwatch_documents',
+    optimizer: 'medium',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'source_url', type: 'keyword' },
+      { field: 'content_type', type: 'keyword' },
+      { field: 'primary_category', type: 'keyword' },
+      { field: 'subcategories', type: 'keyword' },
+      { field: 'parliament', type: 'keyword' },
+      { field: 'party', type: 'keyword' },
+      { field: 'person', type: 'keyword' },
+      { field: 'income_level', type: 'keyword' },
+      { field: 'gruene_vote', type: 'keyword' },
+      { field: 'published_at', type: 'keyword' },
+      { field: 'indexed_at', type: 'keyword' },
+      { field: 'chunk_text', type: 'text' },
+    ],
+  },
   // mem0 user memory collection for cross-thread persistent context
   user_memories: {
     name: 'user_memories',
