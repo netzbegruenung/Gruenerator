@@ -50,8 +50,23 @@ export const UPLOAD_SOURCES = [
   'camera',
   'canvas-mint',
   'canvas-editor',
+  'canvas-mint-thumbnail',
+  'canvas-thumbnail',
   'chat-sharepic-thumbnail',
+  'gruenerator-vorlage',
   'template-upload',
+] as const;
+
+/**
+ * Internal preview artifacts (canvas gallery thumbnails, template previews).
+ * Excluded from the Mediathek and share galleries — the canvas/template card
+ * is the user-facing representation; these rows only back its image URL.
+ */
+export const THUMBNAIL_UPLOAD_SOURCES = [
+  'canvas-mint-thumbnail',
+  'canvas-thumbnail',
+  'chat-sharepic-thumbnail',
+  'gruenerator-vorlage',
 ] as const;
 
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {
