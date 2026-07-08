@@ -33,6 +33,16 @@ const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
 const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
 
+/**
+ * Statuses a user sees in their own creation listings (galleries, recent
+ * strips). Canvas autosave writes 'draft' and only an explicit publish
+ * promotes to 'ready', so user-facing lists must include drafts — a
+ * ready-only filter permanently hides autosaved work. Surfaces that
+ * intentionally narrow (the curated media library is ready-only) should pass
+ * an explicit status instead of duplicating the policy in raw SQL.
+ */
+export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
+
 // Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
 // with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
 // on-demand fallback in shareFileRouter's `/preview` handler.
@@ -645,7 +655,8 @@ class SharedMediaService {
   async getUserShares(
     userId: string,
     mediaType: 'image' | 'video' | null = null,
-    status: string | null = null
+    status: string | readonly string[] | null = null,
+    limit: number = 100
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -665,13 +676,18 @@ class SharedMediaService {
         paramIndex++;
       }
 
-      if (status) {
+      if (Array.isArray(status)) {
+        query += ` AND status = ANY($${paramIndex})`;
+        params.push(status);
+        paramIndex++;
+      } else if (status) {
         query += ` AND status = $${paramIndex}`;
         params.push(status);
         paramIndex++;
       }
 
-      query += ` ORDER BY created_at DESC LIMIT 100`;
+      query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
+      params.push(Math.min(Math.max(1, Math.trunc(limit)), 100));
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
       return results;
@@ -828,6 +844,8 @@ class SharedMediaService {
     const { type = 'all', search = null, limit = 50, offset = 0, sort = 'newest' } = filters;
 
     try {
+      // Intentionally narrower than USER_VISIBLE_SHARE_STATUSES: the media
+      // library is a curated asset pool, drafts stay out until published.
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
