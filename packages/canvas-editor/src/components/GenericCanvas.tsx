@@ -107,6 +107,12 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   /** Callback to report toolbar state to parent (for layout-level toolbar rendering) */
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /**
+   * Reports the auto-save share token to the host as soon as a save creates
+   * or adopts one. Called from the save routine itself (not a store
+   * subscription) so tokens resolving after unmount still reach the host.
+   */
+  onAutoSaveShareToken?: (token: string) => void;
+  /**
    * When provided, the per-instance Zustand store is bound to the supplied
    * page Y.Map for collaborative editing. The page Y.Map owns its own
    * `layers` (Y.Array<Y.Map>) and `config` (Y.Map) sub-collections so each
@@ -167,6 +173,7 @@ function GenericCanvasWithRef<
     forwardedRef,
     mobileBridge,
     onToolbarStateChange,
+    onAutoSaveShareToken,
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
@@ -358,10 +365,37 @@ function GenericCanvasWithRef<
   // Hocuspocus persists Yjs updates server-side; the gallery share-token path
   // would race with Y.Doc state.
   const autoSaveEnabled = !mobileBridge && !props.collaborative;
+
+  // Fresh capture for the flush path (unmount/pagehide). Unlike the debounced
+  // capture below it must not skip on selection — transformers are hidden for
+  // the shot instead, so selection handles don't end up in the saved image.
+  const captureForAutoSaveFlush = useCallback((): string | null => {
+    const stageApi = stageRef.current;
+    if (!stageApi) return null;
+    const stage = stageApi.getStage();
+    const transformers = stage ? stage.find('Transformer') : [];
+    try {
+      if (transformers.length > 0 && stage) {
+        transformers.forEach((t) => t.hide());
+        stage.draw();
+      }
+      return stageApi.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
+    } catch {
+      return null;
+    } finally {
+      if (transformers.length > 0 && stage) {
+        transformers.forEach((t) => t.show());
+        stage.draw();
+      }
+    }
+  }, []);
+
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
     enabled: autoSaveEnabled,
+    captureImage: captureForAutoSaveFlush,
+    onShareToken: onAutoSaveShareToken,
   });
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes
