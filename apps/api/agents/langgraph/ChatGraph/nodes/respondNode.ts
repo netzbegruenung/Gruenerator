@@ -705,6 +705,25 @@ Der Nutzer ist in Österreich. Beachte:
   return '';
 }
 
+/**
+ * Platform context for the system prompt. The mobile app can't render several
+ * web-only surfaces; without this the model happily offers them ("Soll ich dir
+ * ein Sharepic machen?") and the deterministic router gates read as abrupt.
+ */
+function formatPlatformContext(platform: string | undefined): string {
+  if (platform === 'app') {
+    return `
+
+## PLATTFORMKONTEXT: APP
+
+Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
+- Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
+- Biete diese Funktionen nicht von dir aus an`;
+  }
+  return '';
+}
+
 /** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
   'edit_current_doc',
@@ -947,6 +966,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
+  const platformContext = formatPlatformContext(state.clientPlatform);
 
   const intentGuidance =
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
@@ -987,7 +1007,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1019,7 +1039,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
