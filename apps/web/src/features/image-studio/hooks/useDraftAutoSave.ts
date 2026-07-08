@@ -88,12 +88,19 @@ export const useDraftAutoSave = (): void => {
 
       if (storeState.autoSavedShareToken) {
         // UPDATE existing
-        await refs.updateImageShare({
-          shareToken: storeState.autoSavedShareToken,
-          title,
-          metadata: metadata ?? undefined,
-          imageBase64: imageSrc,
-        });
+        try {
+          await refs.updateImageShare({
+            shareToken: storeState.autoSavedShareToken,
+            title,
+            metadata: metadata ?? undefined,
+            imageBase64: imageSrc,
+          });
+        } catch (updateError) {
+          // Dead token (share deleted/evicted) — drop it so the next attempt
+          // creates a fresh share instead of failing forever.
+          refs.setAutoSavedShareToken(null);
+          throw updateError;
+        }
       } else {
         // CREATE new
         const share = await refs.createImageShare({

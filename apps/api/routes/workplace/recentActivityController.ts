@@ -228,10 +228,13 @@ export async function fetchRecentImages(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
+  // Include drafts: canvas autosave only ever writes status='draft' (nothing
+  // promotes to 'ready' without an explicit publish), so a ready-only filter
+  // would permanently hide autosaved creations from this surface.
   const rows = await db.query(
     `SELECT id, share_token, title, thumbnail_path, status, created_at
     FROM shared_media
-    WHERE user_id = $1 AND media_type = 'image' AND status = 'ready'
+    WHERE user_id = $1 AND media_type = 'image' AND status IN ('ready', 'draft')
     ORDER BY created_at DESC
     LIMIT $2`,
     [userId, limit]
@@ -252,7 +255,13 @@ export async function fetchRecentImages(
     date: row.created_at,
     type: 'image' as const,
     href: `/share/${row.share_token}`,
-    thumbnailUrl: row.thumbnail_path ? `/api/share/${row.share_token}/thumbnail` : undefined,
+    // Fresh shares have thumbnail_path=null until the async variants pass
+    // finishes — fall back to the on-demand preview route so the tile isn't
+    // blank. ?w=400 hits the pre-generated variant widths (200/400/800) and
+    // the thumbs/ disk cache instead of streaming the full-size original.
+    thumbnailUrl: row.thumbnail_path
+      ? `/api/share/${row.share_token}/thumbnail`
+      : `/api/share/${row.share_token}/preview?w=400&fmt=webp`,
     deleteEndpoint: `/api/share/${row.share_token}`,
   }));
 }
