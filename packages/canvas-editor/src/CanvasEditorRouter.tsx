@@ -139,6 +139,8 @@ export interface ControllableCanvasWrapperProps {
    * existing share by token should pass it through here.
    */
   initialShareToken?: string | null;
+  /** Reports auto-save share tokens to the host (see CanvasEditorProps). */
+  onAutoSaveShareToken?: (token: string) => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -160,6 +162,7 @@ export function ControllableCanvasWrapper({
   chromeRight,
   onInvitePeople,
   initialShareToken,
+  onAutoSaveShareToken,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -456,6 +459,7 @@ export function ControllableCanvasWrapper({
             chromeRight={chromeRight}
             onInvitePeople={onInvitePeople}
             initialShareToken={initialShareToken}
+            onAutoSaveShareToken={onAutoSaveShareToken}
           />
         );
 
