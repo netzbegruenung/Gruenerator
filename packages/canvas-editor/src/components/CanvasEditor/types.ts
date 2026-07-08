@@ -10,6 +10,13 @@ export interface CanvasEditorProps {
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
+  /**
+   * Fired with the rendered image whenever the user downloads the current
+   * page. Unlike onExport (a flow-level "done" callback with host side
+   * effects), this is a pure observation hook — e.g. collab hosts reuse the
+   * download image as a fresh document thumbnail.
+   */
+  onDownload?: (base64: string) => void;
   callbacks?: Record<string, (val: unknown) => void>;
   maxPages?: number;
   /** Pre-populated pages — overrides single-page initialization when provided */

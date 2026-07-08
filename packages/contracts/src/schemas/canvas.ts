@@ -50,6 +50,15 @@ export const canvasDocumentSchema = z.object({
 
 export type CanvasDocument = z.infer<typeof canvasDocumentSchema>;
 
+/**
+ * List rows omit `initial_state`: the full canvas JSONB (all pages/elements)
+ * would make GET /api/canvas scale with total canvas count while list
+ * consumers only render metadata cards.
+ */
+export const canvasListItemSchema = canvasDocumentSchema.omit({ initial_state: true });
+
+export type CanvasListItem = z.infer<typeof canvasListItemSchema>;
+
 // ── Request bodies ─────────────────────────────────────────────────────────
 
 export const createCanvasBodySchema = z.object({
@@ -101,7 +110,7 @@ export type ResizeCanvasBody = z.infer<typeof resizeCanvasBodySchema>;
 
 // ── Response wrappers ──────────────────────────────────────────────────────
 
-export const canvasListResponseSchema = z.array(canvasDocumentSchema);
+export const canvasListResponseSchema = z.array(canvasListItemSchema);
 
 export const canvasMessageResponseSchema = z.object({
   message: z.string(),
