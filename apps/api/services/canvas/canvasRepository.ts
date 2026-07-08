@@ -11,7 +11,7 @@
  * legacy controllers carried.
  */
 
-import { type CanvasDocument } from '@gruenerator/contracts';
+import { type CanvasDocument, type CanvasListItem } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 import { type PoolClient } from 'pg';
 
@@ -24,7 +24,7 @@ import {
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
 
-const CANVAS_SUBTYPE = 'canvas';
+export const CANVAS_SUBTYPE = 'canvas';
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
 
 const db = getPostgresInstance();
@@ -58,13 +58,42 @@ type CanvasJoinedRow = Pick<
     | 'format'
   > & { creator_name: string | null };
 
-/** Explicit column list shared by list + get so the response stays honest. */
-const CANVAS_SELECT_COLUMNS = `
+/**
+ * List projection: everything except `initial_state` — the full canvas JSONB
+ * would make the list response scale with total canvas count for metadata-only
+ * consumers.
+ */
+const CANVAS_LIST_SELECT_COLUMNS = `
   cd.id, cd.title, cd.created_by, cd.created_at, cd.updated_at,
   cd.permissions, cd.is_public, cd.share_mode,
   cdoc.template_type, cdoc.base_template_id, cdoc.thumbnail_url,
-  cdoc.page_count, cdoc.initial_state, cdoc.format,
+  cdoc.page_count, cdoc.format,
   p.display_name AS creator_name
+`;
+
+/** Full column list for single-document reads (get/create/clone). */
+const CANVAS_SELECT_COLUMNS = `${CANVAS_LIST_SELECT_COLUMNS}, cdoc.initial_state`;
+
+/**
+ * Canonical ACL predicate for canvas documents: owned, directly shared, or
+ * group-shared. Parameter slots: $1 = document_subtype, $2/$3 = userId.
+ * Shared with the workplace recent-activity feed so the two surfaces can't
+ * drift on who sees which canvases.
+ */
+export const CANVAS_ACCESS_WHERE = `
+  cd.document_subtype = $1
+  AND cd.is_deleted = false
+  AND (
+    cd.created_by = $2
+    OR cd.permissions ? $3::text
+    OR cd.id IN (
+      SELECT gcs.content_id::uuid
+      FROM group_content_shares gcs
+      INNER JOIN group_memberships gm
+        ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+      WHERE gcs.content_type = 'collaborative_documents'
+    )
+  )
 `;
 
 /** node-postgres returns `Date` for timestamptz; the contract serializes ISO strings. */
@@ -96,8 +125,8 @@ function toAccessSubject(row: {
   };
 }
 
-/** Map a joined row to the API contract type. */
-function rowToCanvasDocument(row: CanvasJoinedRow): CanvasDocument {
+/** Map a joined list row (no initial_state) to the API contract type. */
+function rowToCanvasListItem(row: Omit<CanvasJoinedRow, 'initial_state'>): CanvasListItem {
   return {
     id: row.id,
     title: row.title,
@@ -113,40 +142,31 @@ function rowToCanvasDocument(row: CanvasJoinedRow): CanvasDocument {
     base_template_id: row.base_template_id,
     thumbnail_url: row.thumbnail_url,
     page_count: row.page_count,
-    initial_state: row.initial_state,
     format: row.format,
     ...(row.share_mode ? { share_mode: row.share_mode as CanvasDocument['share_mode'] } : {}),
     ...(row.creator_name != null ? { creator_name: row.creator_name } : {}),
   };
 }
 
+/** Map a fully joined row to the API contract type. */
+function rowToCanvasDocument(row: CanvasJoinedRow): CanvasDocument {
+  return { ...rowToCanvasListItem(row), initial_state: row.initial_state };
+}
+
 // ── Reads ──────────────────────────────────────────────────────────────────
 
-export async function listCanvases(userId: string): Promise<CanvasDocument[]> {
+export async function listCanvases(userId: string): Promise<CanvasListItem[]> {
   const rows = (await db.query(
-    `SELECT ${CANVAS_SELECT_COLUMNS}
+    `SELECT ${CANVAS_LIST_SELECT_COLUMNS}
      FROM collaborative_documents cd
      INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
      LEFT JOIN profiles p ON cd.created_by = p.id
-     WHERE
-       cd.document_subtype = $1
-       AND cd.is_deleted = false
-       AND (
-         cd.created_by = $2
-         OR cd.permissions ? $3::text
-         OR cd.id IN (
-           SELECT gcs.content_id::uuid
-           FROM group_content_shares gcs
-           INNER JOIN group_memberships gm
-             ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
-           WHERE gcs.content_type = 'collaborative_documents'
-         )
-       )
+     WHERE ${CANVAS_ACCESS_WHERE}
      ORDER BY cd.updated_at DESC`,
     [CANVAS_SUBTYPE, userId, userId]
-  )) as CanvasJoinedRow[];
+  )) as Omit<CanvasJoinedRow, 'initial_state'>[];
 
-  return rows.map(rowToCanvasDocument);
+  return rows.map(rowToCanvasListItem);
 }
 
 type GetResult =

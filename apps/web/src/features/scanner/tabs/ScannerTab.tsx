@@ -3,43 +3,34 @@
  * Extracts the existing scanner logic into a separate tab component
  */
 
-import { FeatureToggle, IconButton, IconButtonRow } from '@gruenerator/ui';
+import {
+  scannerExtractResponseSchema,
+  type OcrProvider,
+  type ScannerExtractResponse,
+} from '@gruenerator/contracts';
+import { FeatureToggle } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import { HiX } from 'react-icons/hi';
-import {
-  PiCamera,
-  PiCheckSquare,
-  PiKanban,
-  PiNotePencil,
-  PiScan,
-  PiUploadSimple,
-  PiX,
-} from 'react-icons/pi';
+import { PiCamera, PiNotePencil, PiScan, PiUploadSimple, PiX } from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
 
-import DisplaySection from '../../../components/common/ContentDisplay/DisplaySection';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
-import { useContentActions } from '../../../hooks/useContentActions';
+import { extractHTMLContent } from '../../../components/utils/contentExtractor';
 import useResponsive from '../../../hooks/useResponsive';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { cn } from '../../../utils/cn';
 import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
 
 const CameraScanner = lazy(() => import('../CameraScanner'));
 
-interface ScannerResult {
-  text: string;
-  pageCount: number;
-  method: string;
-  fileInfo: {
-    originalname: string;
-    size: number;
-    mimetype: string;
-  };
-}
+type ScannerState = 'upload' | 'ready' | 'processing' | 'error';
 
-type ScannerState = 'upload' | 'ready' | 'processing' | 'success' | 'error';
+// Handwriting must force Mistral: Docling can't read handwritten scans and the
+// backend default (env.OCR_PROVIDER) is Docling in production, so relying on the
+// default silently routed handwriting to Docling → near-empty documents.
+const OCR_PROVIDER_FOR_HANDWRITING: OcrProvider = 'mistral';
+const OCR_PROVIDER_FOR_PRINT: OcrProvider = 'docling';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.docx', '.pptx'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -51,46 +42,18 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const COMPONENT_NAME = 'scanner';
-
-interface ScannerTabProps {
-  onProcessingChange?: (isProcessing: boolean) => void;
-  onResultsChange?: (hasResults: boolean) => void;
-}
-
-const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) => {
+const ScannerTab = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [scannerState, setScannerState] = useState<ScannerState>('upload');
+  const [processingLabel, setProcessingLabel] = useState('Text wird extrahiert …');
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ScannerResult | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [useHandwriting, setUseHandwriting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const { isMobileView } = useResponsive(768);
-
-  const setGeneratedText = useGeneratedTextStore((state) => state.setGeneratedText);
-  const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
-
-  const getContent = useCallback(() => {
-    const stored = useGeneratedTextStore.getState().getGeneratedText(COMPONENT_NAME);
-    if (typeof stored === 'string') return stored;
-    if (stored && typeof stored === 'object' && 'content' in stored)
-      return String(stored.content ?? '');
-    return result?.text || '';
-  }, [result]);
-  const getTitle = useCallback(
-    () => (selectedFiles.length === 1 ? selectedFiles[0].name.replace(/\.[^.]+$/, '') : 'Scanner'),
-    [selectedFiles]
-  );
-  const { handleOpenInDocs, handleCreateTodoList, handleCreateBoard, actionLoading } =
-    useContentActions({ getContent, getTitle });
-
-  useEffect(() => {
-    onProcessingChange?.(scannerState === 'processing');
-    onResultsChange?.(scannerState === 'success');
-  }, [scannerState, onProcessingChange, onResultsChange]);
+  const navigate = useNavigate();
 
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -116,7 +79,6 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     }
     setSelectedFiles((prev) => [...prev, ...valid]);
     setError(null);
-    setResult(null);
     setScannerState('ready');
   }, []);
 
@@ -124,7 +86,6 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     setSelectedFiles((prev) => {
       const next = prev.filter((_, i) => i !== index);
       if (next.length === 0) {
-        setResult(null);
         setError(null);
         setScannerState('upload');
       }
@@ -137,6 +98,8 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     if (files && files.length > 0) {
       handleFileSelect(Array.from(files));
     }
+    // Reset the input so selecting the same file again still fires onChange.
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -190,34 +153,27 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     [handleFileSelect]
   );
 
-  const handleClearFile = () => {
-    setSelectedFiles([]);
-    setResult(null);
-    setError(null);
-    setScannerState('upload');
-    clearGeneratedText(COMPONENT_NAME);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
   const handleExtract = async () => {
     if (selectedFiles.length === 0) return;
 
     setScannerState('processing');
+    setProcessingLabel('Text wird extrahiert …');
     setError(null);
 
     try {
-      const results: ScannerResult[] = [];
+      const texts: string[] = [];
       let totalPages = 0;
+
+      const provider: OcrProvider = useHandwriting
+        ? OCR_PROVIDER_FOR_HANDWRITING
+        : OCR_PROVIDER_FOR_PRINT;
 
       for (const file of selectedFiles) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const url = useHandwriting ? '/scanner/extract' : '/scanner/extract?provider=docling';
-        const response = await apiClient.post<ScannerResult & { success: boolean; error?: string }>(
-          url,
+        const response = await apiClient.post<unknown>(
+          `/scanner/extract?provider=${provider}`,
           formData,
           {
             headers: {
@@ -226,42 +182,49 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
           }
         );
 
-        if (response.data.success) {
-          totalPages += response.data.pageCount;
-          if (totalPages > MAX_PAGES) {
-            setError(
-              `Seitenlimit überschritten: maximal ${MAX_PAGES} Seiten erlaubt (${totalPages} Seiten erkannt).`
-            );
-            setScannerState('error');
-            return;
-          }
-          results.push(response.data);
-        } else {
-          setError(response.data.error ?? `Fehler bei "${file.name}"`);
+        const parsed: ScannerExtractResponse = scannerExtractResponseSchema.parse(response.data);
+        if (!parsed.success) {
+          setError(parsed.error || `Fehler bei "${file.name}"`);
           setScannerState('error');
           return;
         }
+
+        totalPages += parsed.pageCount;
+        if (totalPages > MAX_PAGES) {
+          setError(
+            `Seitenlimit überschritten: maximal ${MAX_PAGES} Seiten erlaubt (${totalPages} Seiten erkannt).`
+          );
+          setScannerState('error');
+          return;
+        }
+        texts.push(parsed.text);
       }
 
       const combinedText =
-        results.length === 1
-          ? results[0].text
-          : results.map((r, i) => `**${selectedFiles[i].name}**\n\n${r.text}`).join('\n\n---\n\n');
+        texts.length === 1
+          ? texts[0]
+          : texts.map((text, i) => `**${selectedFiles[i].name}**\n\n${text}`).join('\n\n---\n\n');
 
-      const combinedResult: ScannerResult = {
-        text: combinedText,
-        pageCount: totalPages,
-        method: results[0].method,
-        fileInfo: results[0].fileInfo,
-      };
+      if (!combinedText.trim()) {
+        setError('Es konnte kein Text aus den Dateien extrahiert werden.');
+        setScannerState('error');
+        return;
+      }
 
-      setResult(combinedResult);
-      setGeneratedText(COMPONENT_NAME, combinedText, {
-        title:
-          selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} Dateien`,
-        contentType: 'scanner',
+      // Hand off directly to a document: convert to HTML, create the doc, then open it.
+      setProcessingLabel('Dokument wird erstellt …');
+      const title =
+        selectedFiles.length === 1
+          ? selectedFiles[0].name.replace(/\.[^.]+$/, '')
+          : `${selectedFiles.length} Dateien`;
+      const html = await extractHTMLContent(combinedText);
+      const docResponse = await apiClient.post<{ documentId: string }>('/docs/from-export', {
+        content: html,
+        title,
+        documentType: 'blank',
       });
-      setScannerState('success');
+
+      void navigate(`/docs/${docResponse.data.documentId}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } }; message?: string };
       setError(error.response?.data?.error || error.message || 'Fehler bei der Textextraktion');
@@ -270,7 +233,6 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
   };
 
   const isProcessing = scannerState === 'processing';
-  const hasResult = scannerState === 'success' && result;
 
   return (
     <div
@@ -335,7 +297,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
                 }}
               >
                 <div className="flex flex-col items-center gap-sm">
-                  <AnimatedUploadIcon isDragOver={isDragOver} hasFile={false} />
+                  <AnimatedUploadIcon isDragOver={isDragOver} />
                 </div>
               </motion.div>
             )}
@@ -343,7 +305,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
         )}
 
         {/* Ready State - Files Selected */}
-        {scannerState === 'ready' && selectedFiles.length > 0 && (
+        {selectedFiles.length > 0 && scannerState !== 'processing' && (
           <motion.div
             key="ready-state"
             initial={{ opacity: 0, y: 20 }}
@@ -355,7 +317,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             <div className="flex flex-col gap-sm">
               {selectedFiles.map((file, index) => (
                 <div
-                  key={`${file.name}-${index}`}
+                  key={`${file.name}-${file.size}-${file.lastModified}`}
                   className="flex items-center gap-md rounded-lg border border-grey-200 bg-background p-md dark:border-grey-700 max-md:px-md max-md:py-sm"
                 >
                   <AnimatedFileIcon isVisible />
@@ -431,68 +393,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
             exit={{ opacity: 0 }}
             className="flex items-center justify-center px-xl py-2xl max-md:px-md max-md:py-xl"
           >
-            <p className="m-0 text-base text-grey-500">Text wird extrahiert...</p>
-          </motion.div>
-        )}
-
-        {/* Success State - Results with DisplaySection */}
-        {hasResult && (
-          <motion.div
-            key="results-state"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="flex w-full flex-col gap-md"
-          >
-            <div className="flex items-center gap-sm py-sm">
-              {selectedFiles.length > 1 && (
-                <>
-                  <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">
-                    {selectedFiles.length} Dateien
-                  </span>
-                  <span className="text-xs text-grey-400">·</span>
-                </>
-              )}
-              <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">
-                {result.pageCount} Seite{result.pageCount !== 1 ? 'n' : ''}
-              </span>
-              <span className="text-xs text-grey-400">·</span>
-              <span className="text-[0.8125rem] font-medium uppercase tracking-[0.04em] text-grey-500">
-                {result.text.length.toLocaleString()} Zeichen
-              </span>
-            </div>
-
-            <DisplaySection
-              title={
-                selectedFiles.length === 1
-                  ? selectedFiles[0].name
-                  : `${selectedFiles.length} Dateien`
-              }
-              value={result.text}
-              componentName={COMPONENT_NAME}
-              useMarkdown={true}
-              showUndoControls={true}
-              showRedoControls={true}
-              showResetButton={true}
-              onReset={handleClearFile}
-            />
-
-            <IconButtonRow gap="lg" padding="sm">
-              <IconButton
-                icon={<PiCheckSquare />}
-                label="Aufgabenliste"
-                onClick={handleCreateTodoList}
-                disabled={!!actionLoading}
-                size="sm"
-              />
-              <IconButton
-                icon={<PiKanban />}
-                label="Board"
-                onClick={handleCreateBoard}
-                disabled={!!actionLoading}
-                size="sm"
-              />
-            </IconButtonRow>
+            <p className="m-0 text-base text-grey-500">{processingLabel}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -514,7 +415,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
               className="flex shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-xxs text-error opacity-70 transition-all hover:scale-105 hover:bg-error/10 hover:opacity-100 active:scale-95"
               onClick={() => {
                 setError(null);
-                if (selectedFiles.length === 0) setScannerState('upload');
+                setScannerState(selectedFiles.length === 0 ? 'upload' : 'ready');
               }}
               aria-label="Fehlermeldung schließen"
             >

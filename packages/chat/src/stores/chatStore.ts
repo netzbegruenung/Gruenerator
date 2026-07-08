@@ -11,6 +11,8 @@ import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/reso
 import { useArtifactLiveStore } from './artifactLiveStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
+import { useLastComputeStore } from './lastComputeStore';
+import { useComputeExportStore } from './computeExportStore';
 import { usePythonFileStore } from './pythonFileStore';
 import type { ChatApiClient } from '../context/ChatContext';
 
@@ -104,8 +106,13 @@ interface AgentState {
    *  when a skill mention is inserted; cleared on agent change / new thread.
    *  Sent to backend so it appends only the relevant skill's prompt fragment. */
   activeSkillMention: string | null;
+  /** Transient (not persisted): set by restoreSelectedAgent so the
+   *  AgentSwitchListener skips its new-thread reset for agent changes that
+   *  come from a thread deep link rather than a user-initiated switch. */
+  suppressAgentSwitchReset: boolean;
   setActiveSkillMention: (mention: string | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
+  restoreSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: SelectedModel) => void;
   setCurrentThread: (threadId: string | null) => void;
@@ -176,10 +183,18 @@ export const useAgentStore = create<AgentState>()(
       customRoleName: null,
       customEnabledTools: null,
       activeSkillMention: null,
+      suppressAgentSwitchReset: false,
 
       setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId, activeSkillMention: null }),
+
+      restoreSelectedAgent: (agentId) =>
+        set({
+          selectedAgentId: agentId,
+          activeSkillMention: null,
+          suppressAgentSwitchReset: true,
+        }),
 
       resetThreadContext: () =>
         set({
@@ -239,6 +254,10 @@ export const useAgentStore = create<AgentState>()(
         // Tabular files attached for the in-browser interpreter are session-
         // scoped too — an old thread's Excel/CSV must not leak into the new one.
         usePythonFileStore.getState().clear();
+        // Same for the last spreadsheet computation forwarded to the model.
+        useLastComputeStore.getState().clear();
+        // And for the interpreter's output files (download-chip byte stash).
+        useComputeExportStore.getState().clear();
       },
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),

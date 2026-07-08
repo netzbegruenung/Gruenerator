@@ -12,6 +12,8 @@ import {
   extractTitleFromHtml,
 } from '../../services/tiptap/contentConverter.js';
 
+import { COLLAB_SUBTYPES } from './constants.js';
+
 const router = Router();
 const db = getPostgresInstance();
 
@@ -51,16 +53,23 @@ router.post(
 
       const finalTitle = title || `${documentTitle} - ${new Date().toLocaleDateString('de-DE')}`;
 
+      // Preserve the caller's document type as the subtype, but only if it is a
+      // resolvable subtype — the resolve endpoint filters by COLLAB_SUBTYPES, so an
+      // unknown value would make the freshly-created doc 404. Matches createDocument.
+      const subtype =
+        documentType && COLLAB_SUBTYPES.includes(documentType) ? documentType : 'blank';
+
       // Create document in database
       const result = await db.query(
         `INSERT INTO collaborative_documents
           (title, content, created_by, last_edited_by, document_subtype, is_public, permissions)
-         VALUES ($1, $2, $3, $3, 'blank', false, $4)
+         VALUES ($1, $2, $3, $3, $4, false, $5)
          RETURNING *`,
         [
           finalTitle,
           sanitizedContent,
           userId,
+          subtype,
           JSON.stringify({
             [userId]: {
               level: 'owner',

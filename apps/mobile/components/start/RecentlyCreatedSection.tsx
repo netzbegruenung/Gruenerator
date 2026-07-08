@@ -13,7 +13,7 @@ import { DocPreview } from '../common/DocPreview';
 const WEB_ORIGIN = 'https://gruenerator.eu';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation' | 'canvas';
 
 interface RecentItem {
   id: string;
@@ -35,6 +35,7 @@ const TYPE_ICONS: Record<RecentItemType, IoniconsIconName> = {
   video: 'videocam-outline',
   text: 'create-outline',
   presentation: 'easel-outline',
+  canvas: 'image-outline',
 };
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
@@ -44,6 +45,7 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   video: 'Ohne Titel',
   text: 'Ohne Titel',
   presentation: 'Neue Präsentation',
+  canvas: 'Neuer Canvas',
 };
 
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
@@ -121,7 +123,7 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
             : null;
           const hasThumb =
             !!thumbUri &&
-            (item.type === 'image' || item.type === 'video') &&
+            (item.type === 'image' || item.type === 'video' || item.type === 'canvas') &&
             !failedThumbs.has(key);
           const docContent = item.type === 'doc' && item.content ? item.content : null;
           return (

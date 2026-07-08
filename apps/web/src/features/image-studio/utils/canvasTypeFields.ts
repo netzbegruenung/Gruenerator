@@ -73,10 +73,6 @@ export const CANVAS_TYPE_FIELDS = {
     fields: ['eventTitle', 'beschreibung', 'weekday', 'date', 'time', 'locationName', 'address'],
     image: { key: 'imageSrc', source: 'upload', required: true },
   },
-  [IMAGE_STUDIO_TYPES.VERANSTALTUNG_PLAKAT]: {
-    fields: ['eventTitle', 'beschreibung', 'weekday', 'date', 'time', 'locationName', 'address'],
-    image: { key: 'imageSrc', source: 'upload', required: true },
-  },
   [IMAGE_STUDIO_TYPES.SIMPLE]: {
     fields: ['headline', 'subtext'],
     image: { key: 'imageSrc', source: 'upload', required: true },

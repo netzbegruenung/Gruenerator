@@ -5,6 +5,8 @@
  * Uses the direct search functions from the chat agents module.
  */
 
+import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
@@ -14,6 +16,14 @@ import {
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
+import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
+import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
+import {
+  type BtEnrichedResult,
+  type BtDrucksache,
+  type BtSpeech,
+} from '../../../../services/bundestag/types.js';
 import {
   searchExamples,
   type ExampleKind,
@@ -61,6 +71,264 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
+
+// ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
+const AW_VOTE_LABELS: Record<string, string> = {
+  yes: 'Ja',
+  no: 'Nein',
+  abstain: 'Enthaltung',
+  no_show: 'nicht abgestimmt',
+};
+
+function awVoteLabel(vote: string): string {
+  return AW_VOTE_LABELS[vote] ?? vote;
+}
+
+function awEuro(amount: number | null): string | null {
+  if (amount == null) return null;
+  return `${amount.toLocaleString('de-DE', { maximumFractionDigits: 0 })} €`;
+}
+
+/**
+ * Flatten the compact enrichment result into ranked SearchResult[] for the
+ * respond node. Everything here is already trimmed by the client — this only
+ * formats German prose and assigns relevance; no raw API shapes leak through.
+ */
+function buildAbgeordnetenwatchResults(enriched: AwEnrichedResult): SearchResult[] {
+  const results: SearchResult[] = [];
+
+  if (enriched.kind === 'person' && enriched.person) {
+    const { politician, mandate, topicVotes, recentVotes, sideJobs } = enriched.person;
+    results.push({
+      source: 'abgeordnetenwatch',
+      title: politician.party ? `${politician.name} (${politician.party})` : politician.name,
+      content: mandate
+        ? `Mandat: ${mandate.parliamentPeriod}${mandate.fraction ? ` · Fraktion: ${mandate.fraction}` : ''}`
+        : 'Kein aktuelles Mandat gefunden.',
+      url: politician.url,
+      relevance: 1,
+    });
+
+    const seenPolls = new Set<number>();
+    const pushVote = (v: (typeof recentVotes)[number], relevance: number) => {
+      if (seenPolls.has(v.pollId)) return;
+      seenPolls.add(v.pollId);
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Abstimmung: ${v.pollLabel}`,
+        content: `Stimme: ${awVoteLabel(v.vote)}${v.fraction ? ` · Fraktion: ${v.fraction}` : ''}`,
+        url: v.url || politician.url,
+        relevance,
+      });
+    };
+    topicVotes.forEach((v) => pushVote(v, 0.95));
+    recentVotes.forEach((v) => pushVote(v, 0.6));
+
+    sideJobs.forEach((s, i) => {
+      const parts = [
+        s.organization,
+        s.incomeLevel != null ? `Einkommensstufe ${s.incomeLevel}/10` : null,
+        awEuro(s.income),
+        s.interval,
+        s.year,
+      ].filter(Boolean);
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Nebentätigkeit: ${s.label}`,
+        content: parts.join(' · ') || 'Keine weiteren Angaben.',
+        url: politician.url,
+        relevance: 0.7 - i * 0.01,
+      });
+    });
+  } else if (enriched.kind === 'poll') {
+    const { tally, relatedPolls } = enriched;
+    if (tally) {
+      const fractionLine = tally.byFraction
+        .slice(0, 6)
+        .map((f) => `${f.fraction}: Ja ${f.yes}/Nein ${f.no}`)
+        .join('; ');
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Abstimmung: ${tally.label}`,
+        content:
+          `Ergebnis: ${tally.accepted == null ? 'unbekannt' : tally.accepted ? 'angenommen' : 'abgelehnt'}` +
+          ` · Ja ${tally.total.yes}, Nein ${tally.total.no}, Enthaltung ${tally.total.abstain}, nicht abgestimmt ${tally.total.no_show}.` +
+          (fractionLine ? ` Nach Fraktion: ${fractionLine}.` : ''),
+        url: tally.url,
+        relevance: 1,
+      });
+    }
+    (relatedPolls ?? []).forEach((p, i) => {
+      if (tally && p.pollId === tally.pollId) return;
+      results.push({
+        source: 'abgeordnetenwatch',
+        title: `Abstimmung: ${p.label}`,
+        content: [p.date, p.intro].filter(Boolean).join(' · ') || 'Namentliche Abstimmung.',
+        url: p.url,
+        relevance: 0.6 - i * 0.02,
+      });
+    });
+  }
+
+  if (enriched.notes.length > 0) {
+    results.push({
+      source: 'abgeordnetenwatch',
+      title: 'Hinweis',
+      content: enriched.notes.join(' '),
+      relevance: 0.2,
+    });
+  }
+
+  if (results.length === 0) {
+    results.push({
+      source: 'abgeordnetenwatch',
+      title: 'Keine Daten gefunden',
+      content:
+        'Zu dieser Anfrage konnten bei Abgeordnetenwatch keine passenden Abgeordneten oder Abstimmungen gefunden werden.',
+      relevance: 0.2,
+    });
+  }
+
+  return results;
+}
+
+// ── Bundestag (DIP) → SearchResult mapping ────────────────────────────────────
+// dipSearchUrl / btpPdfUrl link helpers are shared with the BundestagCard via
+// @gruenerator/contracts (imported at the top of this file).
+function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
+  const content =
+    [d.titel, d.datum, d.urheber.length > 0 ? `Urheber: ${d.urheber.join(', ')}` : null]
+      .filter(Boolean)
+      .join(' · ') || 'Bundestagsdrucksache.';
+  return {
+    source: 'bundestag',
+    title: `Drucksache ${d.dokumentnummer}${d.drucksachetyp ? ` · ${d.drucksachetyp}` : ''}`,
+    content,
+    url: d.pdfUrl ?? dipSearchUrl(d.dokumentnummer || d.titel),
+    relevance,
+  };
+}
+
+function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchResult {
+  const url = btpPdfUrl(s.protokollNummer, s.herausgeber);
+  return {
+    source: 'bundestag',
+    title,
+    content: `${s.excerpt}${s.protokollNummer ? ` — Plenarprotokoll ${s.protokollNummer}` : ''}`,
+    url: url ?? dipSearchUrl(s.topTitle ?? s.speaker),
+    relevance,
+  };
+}
+
+/**
+ * Flatten the compact enrichment result into ranked SearchResult[] for the
+ * respond node. Everything here is already trimmed by the client — this only
+ * formats German prose and assigns relevance; no raw DIP shapes leak through.
+ */
+function buildBundestagResults(enriched: BtEnrichedResult): SearchResult[] {
+  const results: SearchResult[] = [];
+
+  if (enriched.kind === 'person' && enriched.person) {
+    const { person, aktivitaeten, speeches } = enriched.person;
+    results.push({
+      source: 'bundestag',
+      title: person.fraktion ? `${person.name} (${person.fraktion})` : person.name,
+      content:
+        person.wahlperiode != null
+          ? `MdB · Wahlperiode ${person.wahlperiode}`
+          : 'Mitglied des Bundestags (DIP-Eintrag).',
+      url: dipSearchUrl(person.name),
+      relevance: 1,
+    });
+    speeches.forEach((s, i) => {
+      const title = `Rede: ${s.topTitle ?? 'Plenardebatte'}${s.date ? ` (${s.date})` : ''}`;
+      results.push(btSpeechResult(s, title, 0.9 - i * 0.02));
+    });
+    aktivitaeten.forEach((a, i) => {
+      const details = [a.datum, a.dokumentnummer ? `Dokument ${a.dokumentnummer}` : null]
+        .filter(Boolean)
+        .join(' · ');
+      results.push({
+        source: 'bundestag',
+        title: `Aktivität: ${a.typ ? `${a.typ}: ` : ''}${a.titel}`,
+        content: details || 'Parlamentarische Aktivität.',
+        relevance: 0.6 - i * 0.01,
+      });
+    });
+  } else if (enriched.kind === 'document' && enriched.document) {
+    const { drucksache, siblings, vorgang } = enriched.document;
+    results.push(btDrucksacheResult(drucksache, 1));
+    if (vorgang) {
+      const details = [
+        `Stand: ${vorgang.beratungsstand ?? 'unbekannt'}`,
+        vorgang.vorgangstyp,
+        vorgang.datum,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      results.push({
+        source: 'bundestag',
+        title: `Verfahren: ${vorgang.titel}`,
+        content: details,
+        url: dipSearchUrl(vorgang.titel),
+        relevance: 0.8,
+      });
+    }
+    siblings.forEach((d) => results.push(btDrucksacheResult(d, 0.7)));
+  } else if (enriched.kind === 'topic' && enriched.topic) {
+    enriched.topic.hits.forEach((h, i) => {
+      const fallbackDetails = [h.dokumentnummer ? `Dokument ${h.dokumentnummer}` : null, h.date]
+        .filter(Boolean)
+        .join(' · ');
+      results.push({
+        source: 'bundestag',
+        title: `${h.entityType ?? h.docType}: ${h.title}`,
+        content: h.abstract ?? (fallbackDetails || 'Treffer im DIP.'),
+        url: dipSearchUrl(h.dokumentnummer || h.title),
+        relevance: 0.9 - i * 0.03,
+      });
+    });
+    enriched.topic.speeches.forEach((s, i) => {
+      const title = `Rede von ${s.speaker}${s.party ? ` (${s.party})` : ''}${s.date ? `, ${s.date}` : ''}`;
+      results.push(btSpeechResult(s, title, 0.85 - i * 0.02));
+    });
+    // DIP-title-search fallback results (semantic layer empty/unavailable)
+    enriched.topic.documents.forEach((d, i) => results.push(btDrucksacheResult(d, 0.8 - i * 0.02)));
+    enriched.topic.vorgaenge.forEach((v, i) => {
+      const details = [`Stand: ${v.beratungsstand ?? 'unbekannt'}`, v.vorgangstyp, v.datum]
+        .filter(Boolean)
+        .join(' · ');
+      results.push({
+        source: 'bundestag',
+        title: `Verfahren: ${v.titel}`,
+        content: details,
+        url: dipSearchUrl(v.titel),
+        relevance: 0.7 - i * 0.02,
+      });
+    });
+  }
+
+  if (enriched.notes.length > 0) {
+    results.push({
+      source: 'bundestag',
+      title: 'Hinweis',
+      content: enriched.notes.join(' '),
+      relevance: 0.2,
+    });
+  }
+
+  if (results.length === 0) {
+    results.push({
+      source: 'bundestag',
+      title: 'Keine Daten gefunden',
+      content:
+        'Im Dokumentations- und Informationssystem des Bundestags (DIP) wurden zu dieser Anfrage keine passenden Dokumente, Reden oder Abgeordneten gefunden.',
+      relevance: 0.2,
+    });
+  }
+
+  return results;
+}
 
 /**
  * Return default Qdrant collections based on user locale.
@@ -470,6 +738,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let searchedCollections: string[] = [];
     let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
+    let bundestagResult: BtEnrichedResult | null = null;
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -981,6 +1250,63 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       //   break;
       // }
 
+      case 'abgeordnetenwatch': {
+        // German MP transparency data (votes, Nebentätigkeiten, roll-calls) via
+        // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
+        // here only via a forced @abgeordnetenwatch mention, since the classifier
+        // downgrades AT) return a graceful decline instead of empty data.
+        if (state.userLocale === 'de-AT') {
+          results = [
+            {
+              source: 'abgeordnetenwatch',
+              title: 'Nur für Deutschland verfügbar',
+              content:
+                'Abgeordnetenwatch erfasst nur deutsche Parlamente (Bundestag/Landtage). Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              relevance: 1,
+            },
+          ];
+          citations = buildCitations(results);
+          break;
+        }
+        const enriched = await getEnrichedPoliticianService().search(searchQuery || '');
+        results = buildAbgeordnetenwatchResults(enriched);
+        log.info(
+          `[Search] Abgeordnetenwatch (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+        );
+        citations = buildCitations(results);
+        break;
+      }
+
+      case 'bundestag': {
+        // Official Bundestag documents (Drucksachen, Plenarreden, Gesetzgebung)
+        // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
+        // here only via a forced @bundestag mention, since the classifier
+        // downgrades AT) return a graceful decline instead of empty data.
+        if (state.userLocale === 'de-AT') {
+          results = [
+            {
+              source: 'bundestag',
+              title: 'Nur für Deutschland verfügbar',
+              content:
+                'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              relevance: 1,
+            },
+          ];
+          citations = buildCitations(results);
+          break;
+        }
+        const enriched = await getBundestagEnrichedService().search(searchQuery || '');
+        // Stash the structured result for the dedicated BundestagCard; the flat
+        // `results` below stay for text grounding + inline citations.
+        bundestagResult = enriched;
+        results = buildBundestagResults(enriched);
+        log.info(
+          `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
+        );
+        citations = buildCitations(results);
+        break;
+      }
+
       case 'web': {
         // Web search with query expansion and content crawling
         const query = truncateQuery(searchQuery || '');
@@ -1107,13 +1433,19 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       case 'pressemitteilung_examples':
+      case 'social_post': // combined post grounds its text half on social examples
       case 'examples': {
         // Build kinds from intent + secondaryIntent. The dual SearchIntent
         // surface stays so postResponseService picks the right tool name (and
         // therefore the right UI card); the *data fetch* is unified.
         const kinds: ExampleKind[] = [];
         if (intent === 'pressemitteilung_examples') kinds.push('press');
-        if (intent === 'examples' || state.secondaryIntent === 'examples') kinds.push('social');
+        if (
+          intent === 'examples' ||
+          intent === 'social_post' ||
+          state.secondaryIntent === 'examples'
+        )
+          kinds.push('social');
 
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
@@ -1147,7 +1479,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           kinds,
           ...(country && { country }),
           ...(lvScope !== undefined && { lvScope }),
-          ...(state.platform && { platform: state.platform }),
+          // Qdrant's social_media_examples has only these two platforms —
+          // twitter/linkedin prompts get unfiltered examples instead.
+          ...((state.platform === 'instagram' || state.platform === 'facebook') && {
+            platform: state.platform,
+          }),
           ...(agentConfig.toolRestrictions?.examplesCollection != null && {
             examplesCollection: agentConfig.toolRestrictions.examplesCollection,
           }),
@@ -1224,6 +1560,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       researchMeta,
       examplesResult,
+      bundestagResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {

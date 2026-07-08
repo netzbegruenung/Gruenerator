@@ -186,6 +186,7 @@
     "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
     "build:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts",
     "watch:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts --watch",
+    "generate:mcp-agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/generate-mcp-agents.ts && pnpm exec prettier --write ../../services/mcp/src/prompts/agents.generated.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
@@ -193,6 +194,7 @@
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/core": "workspace:*",
+    "@gruenerator/query": "workspace:*",
     "@ts-rest/core": "^3.52.1",
     "axios": "^1.17.0",
     "clsx": "^2.1.1",

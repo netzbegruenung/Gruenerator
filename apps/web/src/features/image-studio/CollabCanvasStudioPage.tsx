@@ -15,7 +15,10 @@ import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
+
+import type { InitialPageDef } from '@gruenerator/canvas-editor';
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +40,14 @@ function CollabCanvasStudioContent() {
     },
     enabled: !!id,
   });
+
+  const initialPages = useMemo((): InitialPageDef[] | undefined => {
+    const pages = canvas?.initial_state.pages;
+    if (!Array.isArray(pages) || pages.length === 0) return undefined;
+    return (pages as Array<{ configId: string; state: Record<string, unknown> }>)
+      .filter((p) => typeof p?.configId === 'string' && p.state != null)
+      .map((p) => ({ configId: p.configId as InitialPageDef['configId'], state: p.state }));
+  }, [canvas]);
 
   const canEdit = useMemo(() => {
     if (!canvas || !user) return false;
@@ -95,6 +106,20 @@ function CollabCanvasStudioContent() {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
 
+  // Every download already renders the full-res image, so it doubles as a
+  // fresh gallery thumbnail. Only the list key is invalidated — the open
+  // document's ['canvas', id] query must not refetch (it would race the
+  // optimistic title rename).
+  const handleDownload = useCallback(
+    (base64: string) => {
+      if (!id || !canEdit) return;
+      updateCanvasThumbnail(id, base64)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] }))
+        .catch((err) => console.warn('[CollabCanvasStudioPage] thumbnail refresh failed:', err));
+    },
+    [id, canEdit, queryClient]
+  );
+
   const handleCancel = useCallback(() => {
     void navigate('/studio');
   }, [navigate]);
@@ -103,17 +128,6 @@ function CollabCanvasStudioContent() {
 
   const isLive = collab.isSynced && collab.isConnected;
   const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
-
-  console.log('[CanvasCollab][CollabCanvasStudioPage] render', {
-    docId: id,
-    isLoading,
-    hasCanvas: !!canvas,
-    canvasType: canvas?.template_type,
-    hasYdoc: !!collab.ydoc,
-    isSynced: collab.isSynced,
-    isConnected: collab.isConnected,
-    isLive,
-  });
 
   const chromeCenter = canvas ? (
     <div className="flex items-center gap-sm min-w-0">
@@ -159,7 +173,9 @@ function CollabCanvasStudioContent() {
           <MasterCanvasEditor
             type={canvas.template_type}
             initialState={canvas.initial_state}
+            initialPages={initialPages}
             onExport={handleExport}
+            onDownload={handleDownload}
             onCancel={handleCancel}
             collaborative={
               collab.ydoc

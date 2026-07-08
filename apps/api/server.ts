@@ -31,6 +31,7 @@ import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { createAIService, type AIService } from './services/ai/aiService.js';
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
+import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
@@ -278,6 +279,10 @@ async function startWorker(): Promise<void> {
 
   // Reminds card watchers about cards due today/tomorrow (idempotent via reminded_at).
   startCardDueReminderWorker();
+
+  // Fires due board schedules (recurring KI-Spalte runs) → enqueues agent tasks.
+  // Cluster-safe: the claim advances next_run_at under FOR UPDATE SKIP LOCKED.
+  startBoardScheduleWorker();
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression
@@ -596,13 +601,21 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = isHttpError(err) ? err.status : 500;
 
-    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
-      path: req.path,
-      method: req.method,
-      statusCode,
-      errorCode: (err as NodeJS.ErrnoException).code,
-      stack: err.stack,
-    });
+    // 4xx are client errors (malformed JSON body, bad params, …) — noise at ERROR
+    // level. Log them compactly at warn without a stack; reserve ERROR + stack for 5xx.
+    if (statusCode >= 400 && statusCode < 500) {
+      log.warn(
+        `[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path} (${statusCode})`
+      );
+    } else {
+      log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
+        path: req.path,
+        method: req.method,
+        statusCode,
+        errorCode: (err as NodeJS.ErrnoException).code,
+        stack: err.stack,
+      });
+    }
 
     if (req.path.startsWith('/api/auth/v2/')) {
       log.error(`[BetterAuth] Error on ${req.path}: ${err.message}`, {

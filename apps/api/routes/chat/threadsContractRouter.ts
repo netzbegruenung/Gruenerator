@@ -18,7 +18,15 @@ import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
 
-import { getThreadSettings, updateThreadSettings } from './services/threadPersistenceService.js';
+import {
+  deleteThreadAttachmentVectors,
+  getThreadTabularFiles,
+} from './services/attachmentPersistenceService.js';
+import {
+  getThreadSettings,
+  insertThreadWithSlugRetry,
+  updateThreadSettings,
+} from './services/threadPersistenceService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -61,7 +69,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id, COALESCE(t.tags, '[]'::jsonb) as tags,
+                t.notebook_collection_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -99,6 +107,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
         tags: (row.tags as string[]) ?? [],
+        slugSuffix: (row.slug_suffix as string) ?? null,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -124,6 +133,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
         tags: t.tags,
+        slugSuffix: t.slugSuffix,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
@@ -148,11 +158,19 @@ export const threadsContractRouter = s.router(threadsContract, {
       const { title, agentId, threadType } = args.body;
 
       const postgres = getPostgresInstance();
-      const result = await postgres.query(
-        `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, user_id, agent_id, title, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
-        [userId, agentId || 'gruenerator-universal', title ?? null, threadType || 'chat']
+      const result = await insertThreadWithSlugRetry((slugSuffix) =>
+        postgres.query(
+          `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
+          [
+            userId,
+            agentId || 'gruenerator-universal',
+            title ?? null,
+            threadType || 'chat',
+            slugSuffix,
+          ]
+        )
       );
 
       const thread = result[0];
@@ -163,6 +181,7 @@ export const threadsContractRouter = s.router(threadsContract, {
           userId: thread.user_id as string,
           agentId: thread.agent_id as string,
           title: (thread.title as string) ?? null,
+          slugSuffix: (thread.slug_suffix as string) ?? null,
           createdAt: (thread.created_at as Date).toISOString(),
           updatedAt: (thread.updated_at as Date).toISOString(),
         },
@@ -267,6 +286,10 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (existingThreads[0].user_id !== userId) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
+
+      // Drop orphaned Qdrant vectors of embedded attachments BEFORE the CASCADE
+      // removes the rows we read document_ids from. Best-effort (won't throw).
+      await deleteThreadAttachmentVectors(threadId, userId);
 
       await postgres.query(`DELETE FROM chat_threads WHERE id = $1`, [threadId]);
 
@@ -407,6 +430,31 @@ export const threadsContractRouter = s.router(threadsContract, {
     } catch (error) {
       log.error('Error generating thread title:', error);
       return { status: 500 as const, body: { error: 'Failed to generate title' } };
+    }
+  },
+
+  getTabularFiles: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { threadId } = args.params;
+
+      const postgres = getPostgresInstance();
+      const threads = await postgres.query(
+        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        [threadId]
+      );
+      if (threads.length === 0) {
+        return { status: 404 as const, body: { error: 'Thread not found' } };
+      }
+      if (threads[0].user_id !== userId) {
+        return { status: 403 as const, body: { error: 'Forbidden' } };
+      }
+
+      const files = await getThreadTabularFiles(threadId, userId);
+      return { status: 200 as const, body: { files } };
+    } catch (error) {
+      log.error('Error fetching tabular files:', error);
+      return { status: 500 as const, body: { error: 'Failed to fetch tabular files' } };
     }
   },
 });

@@ -34,6 +34,8 @@ export const chatThreads = pgTable(
     doc_id: uuid('doc_id'),
     // Auto-generated + user-editable topic tags for sidebar filtering/search.
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    // Stable 6-char key for Notion-style thread URLs (/chat/<titel>-<suffix>).
+    slug_suffix: text('slug_suffix'),
   },
   (t) => [index('idx_chat_threads_tags').using('gin', t.tags)]
 );
@@ -60,6 +62,12 @@ export const chatThreadAttachments = pgTable('chat_thread_attachments', {
   is_image: boolean('is_image').default(false),
   extracted_text: text('extracted_text'),
   summary: text('summary'),
+  // Raw file bytes (base64) for tabular attachments only — lets the in-browser
+  // pandas interpreter be rehydrated after a thread reload / on another device.
+  file_data: text('file_data'),
+  // Qdrant document id when a large prose doc was chunked+embedded — follow-up
+  // turns retrieve it via RAG instead of re-injecting its truncated full text.
+  document_id: uuid('document_id'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

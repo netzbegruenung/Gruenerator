@@ -16,6 +16,9 @@ const KEY_PAGES = 'pages';
 const KEY_STATE = 'state';
 const KEY_ID = 'id';
 const KEY_CONFIG_ID = 'configId';
+// Authoritative-seed watermark; MUST match YDOC_KEYS.seeded in
+// packages/canvas-editor/src/collab/ydocKeys.ts.
+const KEY_SEEDED = '_seeded';
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
 
@@ -213,8 +216,11 @@ export function applyPatchToDoc(
 
     // Never-opened doc: seed the FULL state first so a later studio open
     // (which only seeds when the map is empty) doesn't half-seed the form.
+    // The `_seeded` watermark marks this as an authoritative server seed so
+    // the client never fills defaults over it (useYjsFormState guard).
     if (formState.size === 0 && pages.length === 0 && seedState) {
       for (const [k, v] of Object.entries(seedState)) formState.set(k, v);
+      formState.set(KEY_SEEDED, true);
     }
 
     for (const [k, v] of Object.entries(patch)) formState.set(k, v);

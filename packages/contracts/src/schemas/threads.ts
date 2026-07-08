@@ -22,6 +22,7 @@ export const threadSchema = z.object({
   threadType: z.string(),
   notebookCollectionId: z.string().nullable(),
   tags: z.array(z.string()).default([]),
+  slugSuffix: z.string().nullable(),
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),
@@ -56,6 +57,7 @@ export const createThreadResponseSchema = z.object({
   userId: z.string(),
   agentId: z.string(),
   title: z.string().nullable(),
+  slugSuffix: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -86,4 +88,16 @@ export const errorResponseSchema = z.object({
 
 export const successResponseSchema = z.object({
   success: z.literal(true),
+});
+
+/** Raw bytes (base64) of a thread's tabular attachments, used to rehydrate the
+ *  in-browser pandas interpreter after a reload. */
+export const tabularFileSchema = z.object({
+  name: z.string(),
+  mimeType: z.string(),
+  data: z.string(),
+});
+
+export const tabularFilesResponseSchema = z.object({
+  files: z.array(tabularFileSchema),
 });

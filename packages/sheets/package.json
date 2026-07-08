@@ -1,0 +1,40 @@
+{
+  "name": "@gruenerator/sheets",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gruenerator/contracts": "workspace:*",
+    "@univerjs/core": "0.25.1",
+    "@univerjs/preset-sheets-core": "0.25.1",
+    "@univerjs/preset-sheets-drawing": "0.25.1",
+    "@univerjs/presets": "0.25.1",
+    "@univerjs/themes": "0.25.1",
+    "recharts": "3.8.1",
+    "yjs": "^13.6.31"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

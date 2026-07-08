@@ -1,0 +1,44 @@
+{
+  "name": "@gruenerator/query",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./filters": {
+      "development": "./src/filters/index.ts",
+      "types": "./src/filters/index.ts",
+      "import": "./dist/filters/index.js",
+      "default": "./dist/filters/index.js"
+    },
+    "./vector": {
+      "development": "./src/vector/index.ts",
+      "types": "./src/vector/index.ts",
+      "import": "./dist/vector/index.js",
+      "default": "./dist/vector/index.js"
+    },
+    "./text": {
+      "development": "./src/text/index.ts",
+      "types": "./src/text/index.ts",
+      "import": "./dist/text/index.js",
+      "default": "./dist/text/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0"
+  }
+}

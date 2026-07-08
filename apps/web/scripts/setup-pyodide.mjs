@@ -24,16 +24,25 @@ import { mkdir, copyFile, writeFile, access } from 'node:fs/promises';
 // detection map in packages/chat/src/lib/pyodidePackages.ts.
 // NOTE: only packages bundled in pyodide-lock.json can be vendored offline via
 // the BFS below. seaborn is still absent from this Pyodide version's lock.
-const PACKAGES = ['pandas', 'matplotlib', 'scipy', 'sympy', 'scikit-learn'];
+// `micropip` is needed at runtime to install the spreadsheet-engine wheels
+// (openpyxl/xlrd) that aren't in pyodide-lock.json. It's a Pyodide-distribution
+// package, so include it here to vendor its wheel — otherwise the worker's
+// `loadPackage(['micropip'])` 404s ("Failed to fetch micropip") and every .xlsx
+// run fails at the "loading packages" step.
+const PACKAGES = ['pandas', 'matplotlib', 'scipy', 'sympy', 'scikit-learn', 'micropip'];
 
 // Pure-Python packages NOT in pyodide-lock.json (so the BFS can't resolve them),
 // vendored as direct PyPI wheels instead. Installed at runtime via micropip from
 // our own /pyodide/ origin (deps disabled) — never fetched from PyPI in-browser,
 // so the offline/no-CDN guarantee holds. openpyxl (+ its only dep et_xmlfile)
-// gives pandas the .xlsx engine; the worker installs it lazily on Excel uploads.
+// gives pandas the .xlsx engine; xlrd gives the legacy .xls engine (no deps).
+// The worker installs each lazily, only for the format actually uploaded.
+// (.ods is intentionally omitted: odfpy publishes no wheel, only an sdist, so it
+// can't be micropip-installed offline — .ods falls back to document extraction.)
 const PYPI_WHEELS = [
   'https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl',
   'https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl',
+  'https://files.pythonhosted.org/packages/1a/62/c8d562e7766786ba6587d09c5a8ba9f718ed3fa8af7f4553e8f91c36f302/xlrd-2.0.2-py2.py3-none-any.whl',
 ];
 
 // Core files loadPyodide() fetches from indexURL at runtime (the JS loader

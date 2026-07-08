@@ -3,17 +3,16 @@ import {
   getVisibleSystemAgentsForLocale,
   type Agent,
 } from '@gruenerator/shared/agents';
-import { Badge, Button, CardGrid, Tabs, TabsContent, TabsList, TabsTrigger } from '@gruenerator/ui';
+import { Button, CardGrid } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import {
   PiArrowLeft,
-  PiBookOpenText,
   PiChatCircleText,
+  PiInfo,
   PiPencilSimple,
   PiShareNetwork,
   PiStar,
   PiStarFill,
-  PiWrench,
 } from 'react-icons/pi';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -27,48 +26,15 @@ import { relatedAgents, useAgentBySlug } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
 import PageContainer from '@/components/common/PageContainer';
+import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs uppercase tracking-wide text-foreground-muted">{label}</dt>
-      <dd className="m-0 text-sm text-foreground">{value}</dd>
-    </div>
-  );
-}
+type TabKey = 'overview' | 'start' | 'caps' | 'related';
 
-function CapabilityList({
-  icon: Icon,
-  title,
-  items,
-}: {
-  icon: typeof PiWrench;
-  title: string;
-  items: string[];
-}) {
-  if (items.length === 0) return null;
-  return (
-    <div>
-      <h3 className="mb-sm flex items-center gap-xs text-base font-semibold text-foreground-heading">
-        <Icon className="h-4 w-4 text-secondary-600" />
-        {title}
-      </h3>
-      <div className="flex flex-wrap gap-xs">
-        {items.map((item) => (
-          <span
-            key={item}
-            className="rounded-md bg-hover-alt px-sm py-1 text-sm text-foreground dark:bg-grey-800"
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
+const ICON_BTN =
+  'flex h-10 w-10 items-center justify-center rounded-xl text-foreground-muted transition-colors hover:bg-hover-alt hover:text-primary-700 dark:hover:text-primary-300';
 
 function AgentDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -80,6 +46,8 @@ function AgentDetailPage() {
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
   const [shareOpen, setShareOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [tab, setTab] = useState<TabKey>('overview');
 
   // Ownership: the caller's own agents come from useUserAgents(). Only owners
   // get the share dialog; everyone else gets a plain copy-link.
@@ -96,7 +64,7 @@ function AgentDetailPage() {
 
   if (isLoading) {
     return (
-      <PageContainer maxWidth="lg">
+      <PageContainer maxWidth="sm">
         <p className="text-foreground-muted">Lädt…</p>
       </PageContainer>
     );
@@ -104,7 +72,7 @@ function AgentDetailPage() {
 
   if (!agent) {
     return (
-      <PageContainer maxWidth="lg" title="Agent*in nicht gefunden">
+      <PageContainer maxWidth="sm" title="Agent*in nicht gefunden">
         <div className="text-center">
           <Button asChild variant="brand">
             <Link to="/agentura">Zurück zur Agentura</Link>
@@ -125,6 +93,13 @@ function AgentDetailPage() {
     knowledge.push(agent.toolRestrictions.defaultCollection);
   for (const c of agent.toolRestrictions?.allowedCollections ?? []) knowledge.push(c);
 
+  const details: { label: string; value: string }[] = [
+    { label: 'Modell', value: agent.model },
+    { label: 'Anbieter', value: agent.provider },
+    { label: 'Werkzeuge', value: String(tools.length) },
+    { label: 'Wissensbasis', value: knowledge.length > 0 ? 'Ja' : 'Nein' },
+  ];
+
   const handleShare = () => {
     if (isOwnAgent) {
       setShareOpen(true);
@@ -133,81 +108,103 @@ function AgentDetailPage() {
     }
   };
 
+  const tabDefs: { key: TabKey; label: string }[] = [
+    { key: 'overview', label: 'Übersicht' },
+    { key: 'start', label: 'Gesprächsbeginn' },
+    { key: 'caps', label: 'Fähigkeiten' },
+    ...(related.length > 0 ? [{ key: 'related' as const, label: 'Verwandte' }] : []),
+  ];
+
   return (
-    <PageContainer maxWidth="lg">
+    <PageContainer maxWidth="sm">
       <Link
         to="/agentura"
-        className="mb-md inline-flex items-center gap-xs text-sm text-foreground-muted transition-colors hover:text-foreground"
+        className="mb-xl inline-flex items-center gap-xs text-sm font-semibold text-foreground-muted transition-colors hover:text-primary-700 dark:hover:text-primary-300"
       >
         <PiArrowLeft className="h-4 w-4" />
         Agentura
       </Link>
 
-      <header className="mb-lg flex flex-col gap-md sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-md">
-          <span
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg text-3xl text-secondary-600"
-            style={{ backgroundColor: agent.backgroundColor || 'transparent' }}
-          >
-            {isUserAgent && agent.iconKey ? (
-              <PhosphorIcon name={agent.iconKey} className="text-3xl" />
-            ) : (
-              <Icon className="text-3xl" />
-            )}
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-sm">
-              <h1 className="m-0 text-2xl font-semibold text-foreground-heading">{agent.title}</h1>
-              <Badge variant="secondary">Agent</Badge>
-            </div>
-            {agent.author && (
-              <p className="m-0 mt-0.5 text-sm text-foreground-muted">von {agent.author}</p>
-            )}
-            {agent.tags.length > 0 && (
-              <div className="mt-sm flex flex-wrap gap-xs">
-                {agent.tags.map((tag) => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-xs">
-          <Button variant="brand" onClick={() => navigate(`/agents/${chatSlug}`)}>
-            <PiChatCircleText />
-            Im Chat öffnen
-          </Button>
-          {isUserAgent && (
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Bearbeiten"
-              onClick={() => navigate(`/agents/${agent.identifier}/edit`)}
-            >
-              <PiPencilSimple />
-            </Button>
+      <header className="mb-md flex items-center gap-md">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-secondary-600/10 text-3xl text-secondary-700 dark:text-secondary-300">
+          {isUserAgent && agent.iconKey ? (
+            <PhosphorIcon name={agent.iconKey} className="text-3xl" />
+          ) : (
+            <Icon className="text-3xl" />
           )}
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-            onClick={() => toggleAgentFavorite(agent.identifier)}
-          >
-            {isFavorite ? <PiStarFill /> : <PiStar />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={isOwnAgent ? 'Teilen' : 'Link kopieren'}
-            onClick={handleShare}
-          >
-            <PiShareNetwork />
-          </Button>
+        </span>
+        <div className="min-w-0">
+          <h1 className="m-0 text-2xl font-bold leading-tight tracking-tight text-foreground-heading">
+            {agent.title}
+          </h1>
+          <p className="m-0 mt-1 text-sm text-foreground-muted">
+            Agent{agent.author ? ` · von ${agent.author}` : ''}
+          </p>
         </div>
       </header>
+
+      <div className="mb-lg flex flex-wrap items-center gap-xs">
+        <Button variant="brand" onClick={() => navigate(`/agents/${chatSlug}`)}>
+          <PiChatCircleText />
+          Im Chat öffnen
+        </Button>
+        <div className="mx-1 h-6 w-px bg-grey-200 dark:bg-grey-700" />
+        {isUserAgent && (
+          <button
+            type="button"
+            className={ICON_BTN}
+            aria-label="Bearbeiten"
+            onClick={() => navigate(`/agents/${agent.identifier}/edit`)}
+          >
+            <PiPencilSimple className="h-[18px] w-[18px]" />
+          </button>
+        )}
+        <button
+          type="button"
+          className={ICON_BTN}
+          aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+          onClick={() => toggleAgentFavorite(agent.identifier)}
+        >
+          {isFavorite ? (
+            <PiStarFill className="h-[18px] w-[18px] text-secondary-600" />
+          ) : (
+            <PiStar className="h-[18px] w-[18px]" />
+          )}
+        </button>
+        <button
+          type="button"
+          className={ICON_BTN}
+          aria-label={isOwnAgent ? 'Teilen' : 'Link kopieren'}
+          onClick={handleShare}
+        >
+          <PiShareNetwork className="h-[18px] w-[18px]" />
+        </button>
+        <button
+          type="button"
+          className={`${ICON_BTN} ${showInfo ? 'bg-hover-alt text-primary-700 dark:text-primary-300' : ''}`}
+          aria-label="Technische Details"
+          aria-pressed={showInfo}
+          onClick={() => setShowInfo((v) => !v)}
+        >
+          <PiInfo className="h-[18px] w-[18px]" />
+        </button>
+      </div>
+
+      {showInfo && (
+        <div className="mb-lg max-w-[360px] rounded-lg border border-grey-200 bg-background-alt/40 px-md dark:border-grey-700">
+          {details.map((d, i) => (
+            <div
+              key={d.label}
+              className={`flex items-center justify-between py-sm ${
+                i < details.length - 1 ? 'border-b border-grey-100 dark:border-grey-800' : ''
+              }`}
+            >
+              <span className="text-sm text-foreground-muted">{d.label}</span>
+              <span className="text-sm font-semibold text-foreground">{d.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {isOwnAgent && (
         <ShareAgentModal
@@ -217,62 +214,80 @@ function AgentDetailPage() {
         />
       )}
 
-      <dl className="mb-lg grid grid-cols-2 gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700 sm:grid-cols-4">
-        <Fact label="Modell" value={agent.model} />
-        <Fact label="Anbieter" value={agent.provider} />
-        <Fact label="Tools" value={String(tools.length)} />
-        <Fact label="Wissen" value={knowledge.length > 0 ? 'Ja' : 'Nein'} />
-      </dl>
+      <UnderlineTabs tabs={tabDefs} value={tab} onChange={setTab} className="mb-lg" />
 
-      <Tabs defaultValue="overview">
-        <TabsList className="mb-lg">
-          <TabsTrigger value="overview">Übersicht</TabsTrigger>
-          <TabsTrigger value="capabilities">Fähigkeiten</TabsTrigger>
-          {related.length > 0 && <TabsTrigger value="related">Verwandte</TabsTrigger>}
-        </TabsList>
+      {tab === 'overview' && (
+        <div className="max-w-[640px] text-base leading-relaxed text-foreground">
+          <Markdown fallback={<p>{agent.description}</p>}>{agent.description}</Markdown>
+        </div>
+      )}
 
-        <TabsContent value="overview">
-          <div className="flex flex-col gap-lg">
-            <Markdown fallback={<p>{agent.description}</p>}>{agent.description}</Markdown>
-            <div>
-              <h2 className="mb-sm text-lg font-semibold text-foreground-heading">
-                So fängt das Gespräch an
-              </h2>
-              <ExamplePreview agent={agent} />
-            </div>
+      {tab === 'start' && (
+        <div>
+          <h2 className="mb-md text-base font-bold text-foreground-heading">
+            So fängt das Gespräch an
+          </h2>
+          <ExamplePreview agent={agent} />
+        </div>
+      )}
+
+      {tab === 'caps' && (
+        <div className="flex flex-col gap-lg">
+          <div>
+            <h2 className="mb-sm text-base font-bold text-foreground-heading">Werkzeuge</h2>
+            {tools.length > 0 ? (
+              <div className="flex flex-col gap-xs">
+                {tools.map((t) => (
+                  <div
+                    key={t}
+                    className="rounded-lg border border-grey-200 px-md py-sm text-sm text-foreground dark:border-grey-700"
+                  >
+                    {t}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="m-0 text-sm text-foreground-muted">Keine Werkzeuge hinterlegt.</p>
+            )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="capabilities">
-          <div className="flex flex-col gap-lg">
-            <CapabilityList icon={PiWrench} title="Werkzeuge" items={tools} />
-            <CapabilityList icon={PiBookOpenText} title="Wissensquellen" items={knowledge} />
-            {tools.length === 0 && knowledge.length === 0 && (
-              <p className="text-sm text-foreground-muted">
-                Diese*r Agent*in nutzt keine zusätzlichen Werkzeuge oder Wissensquellen.
+          <div>
+            <h2 className="mb-sm text-base font-bold text-foreground-heading">Wissensbasis</h2>
+            {knowledge.length > 0 ? (
+              <div className="flex flex-wrap gap-xs">
+                {knowledge.map((k) => (
+                  <span
+                    key={k}
+                    className="rounded-md bg-hover-alt px-sm py-1 text-sm text-foreground dark:bg-grey-800"
+                  >
+                    {k}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="m-0 text-sm text-foreground-muted">
+                Keine Wissensbasis hinterlegt — der Agent arbeitet mit dem Modell und seinen
+                Werkzeugen.
               </p>
             )}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        {related.length > 0 && (
-          <TabsContent value="related">
-            <CardGrid columns="auto" gap="md">
-              {related.map((other) => (
-                <AgentCard
-                  key={other.identifier}
-                  agent={other}
-                  onSelect={(a) =>
-                    navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(a.identifier))}`)
-                  }
-                  isFavorite={agentFavorites.includes(other.identifier)}
-                  onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
-                />
-              ))}
-            </CardGrid>
-          </TabsContent>
-        )}
-      </Tabs>
+      {tab === 'related' && related.length > 0 && (
+        <CardGrid columns="auto" gap="md">
+          {related.map((other) => (
+            <AgentCard
+              key={other.identifier}
+              agent={other}
+              onSelect={(a) =>
+                navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(a.identifier))}`)
+              }
+              isFavorite={agentFavorites.includes(other.identifier)}
+              onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
+            />
+          ))}
+        </CardGrid>
+      )}
     </PageContainer>
   );
 }
