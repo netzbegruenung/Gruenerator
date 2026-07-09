@@ -17,6 +17,10 @@ interface UseDocSuggestionsResult {
  * Reactive list of open track-changes suggestions in the document. Recomputes
  * (debounced) on editor content changes — including remote ones, so collaborators'
  * suggestions appear — and on suggestion-metadata changes.
+ *
+ * Runs an O(doc) scan, so mount it only where the full list is needed (the
+ * suggestions sidebar, which is only open when the feature is active). For a
+ * cheap badge count use `suggestionMetaCount` + `observeSuggestionMeta` instead.
  */
 export function useDocSuggestions(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

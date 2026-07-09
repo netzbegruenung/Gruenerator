@@ -6,9 +6,10 @@ import {
 import type * as Y from 'yjs';
 
 import {
+  collectNewSuggestionIds,
   generateSuggestionId,
   isSuggestionModeEnabled,
-  recordSuggestionAttribution,
+  writeSuggestionAttribution,
   type SuggestionUser,
 } from './suggestionMode';
 
@@ -29,15 +30,39 @@ import {
  */
 export interface SuggestChangesOptions {
   ydoc: Y.Doc;
-  /** Awareness user for attribution; null while awareness hasn't populated. */
+  /** Local user for attribution; null until awareness resolves the identity. */
   getUser: () => SuggestionUser | null;
+  /** Subscribe to identity changes so deferred attributions can flush; returns unsubscribe. */
+  subscribeUser: (cb: () => void) => () => void;
   /** True while AI suggestions are pending on a forked Y.Doc — we hand off then. */
   isAiForked: () => boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function SuggestChangesExtension(opts: SuggestChangesOptions): (ctx: any) => any {
-  const { ydoc, getUser, isAiForked } = opts;
+// BlockNote's extensions array is typed `ExtensionFactoryInstance` (a `(ctx) => Extension`
+// factory). We ignore ctx and return the extension object; the array is `any[]` at the
+// call site, and this is the one genuine BlockNote-boundary cast.
+type ExtensionFactoryInstance = () => {
+  key: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tiptapExtensions: any[];
+  mount?: () => () => void;
+};
+
+export function SuggestChangesExtension(opts: SuggestChangesOptions): ExtensionFactoryInstance {
+  const { ydoc, getUser, subscribeUser, isAiForked } = opts;
+
+  // Ids whose author wasn't resolved at edit time (awareness not yet populated).
+  // Flushed on the next edit or on the next identity change — so a suggestion is
+  // never left permanently unattributed.
+  const pendingIds = new Set<number>();
+  const flushPending = () => {
+    if (pendingIds.size === 0) return;
+    const user = getUser();
+    if (!user) return;
+    const ids = [...pendingIds];
+    pendingIds.clear();
+    writeSuggestionAttribution(ydoc, ids, user);
+  };
 
   const tiptapExtension = Extension.create({
     name: 'grueneratorSuggestChanges',
@@ -71,16 +96,32 @@ export function SuggestChangesExtension(opts: SuggestChangesOptions): (ctx: any)
         return;
       }
 
-      const tracked = transformToSuggestionTransaction(tr, state, generateSuggestionId);
+      let tracked;
+      try {
+        tracked = transformToSuggestionTransaction(tr, state, generateSuggestionId);
+      } catch (err) {
+        // Never drop the user's edit: fall back to applying it untracked rather
+        // than swallowing the transaction if the transform ever throws.
+        // eslint-disable-next-line no-console
+        console.error('[SuggestChanges] transform failed; applying edit untracked', err);
+        next(tr);
+        return;
+      }
       next(tracked);
 
-      const user = getUser();
-      if (user) recordSuggestionAttribution(ydoc, tracked, user);
+      const newIds = collectNewSuggestionIds(ydoc, tracked);
+      if (newIds.length > 0) {
+        const user = getUser();
+        if (user) writeSuggestionAttribution(ydoc, newIds, user);
+        else for (const id of newIds) pendingIds.add(id);
+      }
+      flushPending();
     },
   });
 
   return () => ({
     key: 'gruenerator-suggest-changes',
     tiptapExtensions: [tiptapExtension],
+    mount: () => subscribeUser(flushPending),
   });
 }
