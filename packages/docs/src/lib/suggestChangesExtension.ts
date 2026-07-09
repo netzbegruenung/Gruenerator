@@ -3,15 +3,46 @@ import {
   suggestChangesKey,
   transformToSuggestionTransaction,
 } from '@handlewithcare/prosemirror-suggest-changes';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import type { DecorationSet } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
 import {
+  buildSuggestionDecorations,
   collectNewSuggestionIds,
   generateSuggestionId,
   isSuggestionModeEnabled,
+  observeSuggestionMeta,
   writeSuggestionAttribution,
   type SuggestionUser,
 } from './suggestionMode';
+
+// Per-author suggestion tinting. Cached in plugin state and rebuilt only on doc
+// change or when the attribution map changes (an author color arriving) — never
+// on plain selection moves.
+const decorationKey = new PluginKey<DecorationSet>('gruenerator-suggest-decorations');
+
+function suggestionDecorationsPlugin(ydoc: Y.Doc): Plugin<DecorationSet> {
+  return new Plugin<DecorationSet>({
+    key: decorationKey,
+    state: {
+      init: (_config, state) => buildSuggestionDecorations(state.doc, ydoc),
+      apply: (tr, old) =>
+        tr.docChanged || tr.getMeta(decorationKey)
+          ? buildSuggestionDecorations(tr.doc, ydoc)
+          : old.map(tr.mapping, tr.doc),
+    },
+    props: {
+      decorations: (state) => decorationKey.getState(state),
+    },
+    view: (editorView) => {
+      const unsubscribe = observeSuggestionMeta(ydoc, () => {
+        editorView.dispatch(editorView.state.tr.setMeta(decorationKey, true));
+      });
+      return { destroy: unsubscribe };
+    },
+  });
+}
 
 /**
  * Word-like track-changes interception for the BlockNote editor.
@@ -45,6 +76,7 @@ type ExtensionFactoryInstance = () => {
   key: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tiptapExtensions: any[];
+  prosemirrorPlugins?: Plugin[];
   mount?: () => () => void;
 };
 
@@ -122,6 +154,7 @@ export function SuggestChangesExtension(opts: SuggestChangesOptions): ExtensionF
   return () => ({
     key: 'gruenerator-suggest-changes',
     tiptapExtensions: [tiptapExtension],
+    prosemirrorPlugins: [suggestionDecorationsPlugin(ydoc)],
     mount: () => subscribeUser(flushPending),
   });
 }

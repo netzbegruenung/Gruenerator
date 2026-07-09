@@ -1,6 +1,6 @@
 import type { Mark, Node as PMNode } from 'prosemirror-model';
 import type { EditorState, Transaction } from 'prosemirror-state';
-import type { EditorView } from 'prosemirror-view';
+import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
 /**
@@ -243,4 +243,62 @@ export function findSuggestionMarkEl(view: EditorView, id: number): HTMLElement 
 /** Cheap count of attributed suggestions — the Y.Map size, no doc scan. */
 export function suggestionMetaCount(ydoc: Y.Doc): number {
   return ydoc.getMap<SuggestionMeta>(SUGGESTIONS_MAP).size;
+}
+
+// Only accept palette-style hex before injecting into an inline style string —
+// the color originates from another peer's awareness state (untrusted).
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+/**
+ * Per-author tint + block-level markers for suggestion marks, reusing the same
+ * scan/id logic as everything else. Each author's insertions and deletions are
+ * tinted with their color (Word semantics: kind is conveyed by underline vs.
+ * strikethrough, not color); unattributed marks fall back to the CSS default.
+ * A whole textblock that is entirely one kind gets a `data-node-*` marker.
+ */
+export function buildSuggestionDecorations(doc: PMNode, ydoc: Y.Doc): DecorationSet {
+  const map = ydoc.getMap<SuggestionMeta>(SUGGESTIONS_MAP);
+  const decorations: Decoration[] = [];
+
+  doc.descendants((node, pos) => {
+    if (node.isTextblock && node.childCount > 0) {
+      const kinds = new Set<SuggestionKind>();
+      let allMarked = true;
+      node.forEach((child) => {
+        let childHasKind = false;
+        for (const mark of child.marks) {
+          if (isSuggestionMarkName(mark.type.name)) {
+            kinds.add(mark.type.name);
+            childHasKind = true;
+          }
+        }
+        if (!childHasKind) allMarked = false;
+      });
+      if (allMarked && kinds.size === 1) {
+        const kind = [...kinds][0];
+        if (kind === 'insertion' || kind === 'deletion') {
+          decorations.push(
+            Decoration.node(pos, pos + node.nodeSize, { [`data-node-${kind}`]: 'true' })
+          );
+        }
+      }
+    }
+
+    if (node.isText) {
+      for (const mark of node.marks) {
+        const id = readSuggestionMarkId(mark);
+        if (id == null) continue;
+        const color = map.get(String(id))?.color;
+        if (color && HEX_COLOR.test(color)) {
+          decorations.push(
+            Decoration.inline(pos, pos + node.nodeSize, { style: `--suggest-color:${color}` })
+          );
+        }
+        break;
+      }
+    }
+    return true;
+  });
+
+  return DecorationSet.create(doc, decorations);
 }
