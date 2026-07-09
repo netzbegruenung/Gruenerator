@@ -31,6 +31,7 @@ const SYSTEM: Record<BelegTyp, string> = {
   bahn: 'Du extrahierst Daten aus einem Bahnticket / einer DB-Rechnung.',
   oepnv: 'Du extrahierst Daten aus einem ÖPNV-Ticket.',
   miete: 'Du extrahierst Daten aus einer Mietwagen-/Carsharing-Rechnung.',
+  taxi: 'Du extrahierst Daten aus einer Taxi-Quittung.',
   hotel:
     'Du extrahierst Daten aus einer Hotelrechnung. Achte besonders darauf, ob das Frühstück als "Business-Package"/"Servicepauschale" (businessPackage=true) oder separat als "Frühstück" (businessPackage=false) ausgewiesen ist.',
   sonstiges: 'Du extrahierst Daten aus einem Beleg (z.B. Teilnahmebeitrag, Parkgebühr).',

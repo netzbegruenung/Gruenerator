@@ -1,5 +1,7 @@
 import { type ReactNode } from 'react';
 
+export { eur } from './utils/format';
+
 const inputCls =
   'w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20';
 
@@ -203,6 +205,3 @@ export function Button({
     </button>
   );
 }
-
-export const eur = (n: number) =>
-  `${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;

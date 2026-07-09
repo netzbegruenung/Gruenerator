@@ -112,8 +112,13 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
   }
 
   const taxi = state.fahrt.taxi;
-  if (taxi && taxi.betrag > 0 && !taxi.begruendung.trim()) {
-    push('error', 'fahrt.taxi.begruendung', 'Taxifahrten sind schriftlich zu begründen (Ausnahmefall).');
+  if (taxi && taxi.betrag > 0) {
+    if (!taxi.begruendung.trim()) {
+      push('error', 'fahrt.taxi.begruendung', 'Taxifahrten sind schriftlich zu begründen (Ausnahmefall).');
+    }
+    if (!taxi.belegVorhanden) {
+      push('warn', 'fahrt.taxi', 'Taxikosten angegeben, aber keine Quittung hochgeladen (Pflicht).');
+    }
   }
 
   // ── Übernachtung (rule d) ──────────────────────────────────────────────────
