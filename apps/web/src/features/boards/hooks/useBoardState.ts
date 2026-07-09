@@ -170,59 +170,87 @@ export const useBoardState = (
 
   /**
    * Called by kibo-ui Kanban after a drag-and-drop.
-   * Receives the full rows array with updated group assignments.
-   * We diff against current state and apply column (group) changes.
+   * `newRows` is the dragged view's rows in their new visual order, each carrying
+   * its (possibly changed) group assignment. We persist BOTH the new order and any
+   * column change: rows outside the dragged view (hidden groups, archived, filtered
+   * out) keep their slots, and the dragged slots are refilled in the new order.
+   * Only the group cell is written onto each moved row, so a concurrent remote edit
+   * to a card's other cells isn't clobbered.
    */
   const onDragReorder = useCallback(
     (newRows: Row[], groupByFieldId: string): RecurringSpawn[] => {
-      const oldRows = yRows.toJSON() as Row[];
-      const oldById = new Map(oldRows.map((r, i) => [r.id, { row: r, index: i }]));
       const spawned: RecurringSpawn[] = [];
 
       ydoc.transact(() => {
+        const oldRows = yRows.toJSON() as Row[];
+        const oldById = new Map(oldRows.map((r) => [r.id, r]));
+        // Only ids that actually exist in the doc — a stray/new id would desync the
+        // slot-refill below (fewer slots than newRows entries).
+        const subsetIds = new Set(newRows.filter((r) => oldById.has(r.id)).map((r) => r.id));
+
+        // Refill the dragged slots in their new order; leave every other row in place.
+        let ptr = 0;
+        const merged = oldRows.map((row) => {
+          if (!subsetIds.has(row.id)) return row;
+          let next = newRows[ptr++];
+          while (next && !subsetIds.has(next.id)) next = newRows[ptr++];
+          if (!next) return row;
+          const current = oldById.get(next.id) ?? next;
+          const newGroup = next.cells[groupByFieldId];
+          if (current.cells[groupByFieldId] === newGroup) return current;
+          return { ...current, cells: { ...current.cells, [groupByFieldId]: newGroup } };
+        });
+
+        // Recurring cards that just entered "done" spawn the next occurrence in todo.
+        const clones: Row[] = [];
         for (const newRow of newRows) {
           const old = oldById.get(newRow.id);
           if (!old) continue;
-          const oldGroup = old.row.cells[groupByFieldId];
+          const oldGroup = old.cells[groupByFieldId];
           const newGroup = newRow.cells[groupByFieldId];
           if (oldGroup === newGroup) continue;
 
-          const currentRows = yRows.toJSON() as Row[];
-          const idx = currentRows.findIndex((r) => r.id === newRow.id);
-          if (idx !== -1) {
-            yRows.delete(idx, 1);
-            yRows.insert(Math.min(idx, yRows.length), [newRow]);
-          }
-
-          // Recurring card moved into "done" → spawn the next occurrence in todo.
-          const recurrence = old.row.cells[FIELD_IDS.RECURRENCE];
+          const recurrence = old.cells[FIELD_IDS.RECURRENCE];
           if (
             groupByFieldId === FIELD_IDS.STATUS &&
             newGroup === DONE_STATUS_ID &&
             oldGroup !== DONE_STATUS_ID &&
             isRecurrencePattern(recurrence)
           ) {
-            const dueDate = computeNextDueDate(old.row.cells[FIELD_IDS.DUE_DATE], recurrence);
+            const dueDate = computeNextDueDate(old.cells[FIELD_IDS.DUE_DATE], recurrence);
             const newId = `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            const clone: Row = {
+            clones.push({
               id: newId,
               cells: {
-                ...old.row.cells,
+                ...old.cells,
                 [FIELD_IDS.STATUS]: TODO_STATUS_ID,
                 [FIELD_IDS.DUE_DATE]: dueDate,
-                ...(FIELD_IDS.COMMENTS in old.row.cells ? { [FIELD_IDS.COMMENTS]: '[]' } : {}),
+                ...(FIELD_IDS.COMMENTS in old.cells ? { [FIELD_IDS.COMMENTS]: '[]' } : {}),
               },
-              createdBy: old.row.createdBy,
+              createdBy: old.createdBy,
               createdAt: new Date().toISOString(),
-              ...(old.row.icon ? { icon: old.row.icon } : {}),
-              ...(old.row.coverColor ? { coverColor: old.row.coverColor } : {}),
-              ...(old.row.coverImageUrl ? { coverImageUrl: old.row.coverImageUrl } : {}),
+              ...(old.icon ? { icon: old.icon } : {}),
+              ...(old.coverColor ? { coverColor: old.coverColor } : {}),
+              ...(old.coverImageUrl ? { coverImageUrl: old.coverImageUrl } : {}),
               // archivedAt intentionally omitted (the new occurrence is active).
-            };
-            yRows.push([clone]);
+            });
             spawned.push({ rowId: newId, dueDate });
           }
         }
+
+        const finalRows = clones.length ? [...merged, ...clones] : merged;
+
+        // Skip the rewrite when nothing moved (only order + group cell can change here).
+        const unchanged =
+          finalRows.length === oldRows.length &&
+          finalRows.every(
+            (r, i) =>
+              r.id === oldRows[i].id && r.cells[groupByFieldId] === oldRows[i].cells[groupByFieldId]
+          );
+        if (unchanged) return;
+
+        yRows.delete(0, yRows.length);
+        yRows.insert(0, finalRows);
       });
 
       return spawned;
