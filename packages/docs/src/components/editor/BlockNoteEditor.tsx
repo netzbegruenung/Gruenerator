@@ -55,6 +55,10 @@ import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
 import { EditorDictationButton } from './EditorDictationButton';
+import { SuggestionPopover } from './SuggestionPopover';
+import { isDocAIForked } from '../../lib/aiExtension';
+import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
+import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
 
 export interface BlockNoteEditorProps {
@@ -238,6 +242,11 @@ const BlockNoteEditorInner = ({
     canEdit: editable,
   });
 
+  // When track changes is on, the AI editing surface is suppressed: AI writes the
+  // same suggestion marks on a forked doc and its accept applies ALL of them, so
+  // the two must not run at once (mutual exclusion, see suggestChangesExtension).
+  const { enabled: suggestionModeEnabled } = useSuggestionMode(ydoc, documentId);
+
   const aiApiUrl = `${adapter.getApiBaseUrl()}/docs/ai`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -277,8 +286,34 @@ const BlockNoteEditorInner = ({
       );
     }
 
+    // Word-like track changes. Only meaningful with a synced Y.Doc — the mode
+    // flag and suggestion attribution both live in it. Reads the awareness user
+    // live so attribution stays correct if identity resolves after mount, and
+    // hands off while AI suggestions occupy the same marks on a forked doc.
+    if (ydoc) {
+      exts.push(
+        SuggestChangesExtension({
+          ydoc,
+          getUser: () => {
+            const u = provider?.awareness?.getLocalState()?.user as CollaborationUser | undefined;
+            return u ? { id: u.id, name: u.name, color: u.color } : null;
+          },
+          isAiForked: () => isDocAIForked(documentId),
+        })
+      );
+    }
+
     return exts;
-  }, [showComments, threadStore, resolveUsers, aiApiUrl, documentId, collaborationOptions]);
+  }, [
+    showComments,
+    threadStore,
+    resolveUsers,
+    aiApiUrl,
+    documentId,
+    collaborationOptions,
+    ydoc,
+    provider,
+  ]);
 
   const editor = useCreateBlockNote(
     {
@@ -420,10 +455,10 @@ const BlockNoteEditorInner = ({
     () => (
       <FormattingToolbar>
         {toolbarItems}
-        <AIToolbarButton />
+        {!suggestionModeEnabled && <AIToolbarButton />}
       </FormattingToolbar>
     ),
-    [toolbarItems]
+    [toolbarItems, suggestionModeEnabled]
   );
 
   if (!editor) {
@@ -451,7 +486,7 @@ const BlockNoteEditorInner = ({
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
               {toolbarItems}
-              {!isTouchDevice && <AIToolbarButton />}
+              {!isTouchDevice && !suggestionModeEnabled && <AIToolbarButton />}
             </FormattingToolbar>
           ) : (
             <FormattingToolbarController formattingToolbar={formattingToolbar} />
@@ -464,7 +499,10 @@ const BlockNoteEditorInner = ({
               triggerCharacter="/"
               getItems={async (query) =>
                 filterSuggestionItems(
-                  [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
+                  [
+                    ...getDefaultReactSlashMenuItems(editor),
+                    ...(suggestionModeEnabled ? [] : getAISlashMenuItems(editor)),
+                  ],
                   query
                 )
               }
@@ -474,6 +512,9 @@ const BlockNoteEditorInner = ({
             triggerCharacter="@"
             getItems={async (query) => getMentionMenuItems(editor, query)}
           />
+          {ydoc && !hideFormattingToolbar && (
+            <SuggestionPopover editor={editor} ydoc={ydoc} canEdit={editable} />
+          )}
           {commentsPortalTarget &&
             showComments &&
             threadStore &&
