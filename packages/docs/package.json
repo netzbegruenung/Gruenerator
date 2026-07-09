@@ -28,7 +28,8 @@
     "./editor-styles": "./src/components/editor/BlockNoteEditor.css"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@blocknote/core": "^0.51.4",
@@ -55,7 +56,8 @@
     "@types/lodash.throttle": "^4.1.9",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "@gruenerator/shared": "workspace:*",

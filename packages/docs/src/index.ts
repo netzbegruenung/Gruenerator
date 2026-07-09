@@ -100,6 +100,8 @@ export {
   setSuggestionMode,
   hasPendingSuggestions,
   collectSuggestions,
+  observeSuggestionMeta,
+  suggestionMetaCount,
   type DocSuggestion,
   type SuggestionKind,
   type SuggestionMeta,

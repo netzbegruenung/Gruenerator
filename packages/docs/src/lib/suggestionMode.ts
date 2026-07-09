@@ -1,5 +1,6 @@
-import type { Node as PMNode } from 'prosemirror-model';
+import type { Mark, Node as PMNode } from 'prosemirror-model';
 import type { EditorState, Transaction } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
 /**
@@ -23,6 +24,13 @@ export type SuggestionKind = (typeof SUGGESTION_MARK_NAMES)[number];
 
 function isSuggestionMarkName(name: string): name is SuggestionKind {
   return (SUGGESTION_MARK_NAMES as readonly string[]).includes(name);
+}
+
+/** A suggestion mark's numeric id, or null if the mark isn't one / has no valid id. */
+function readSuggestionMarkId(mark: Mark): number | null {
+  if (!isSuggestionMarkName(mark.type.name)) return null;
+  const id: unknown = mark.attrs.id;
+  return typeof id === 'number' && Number.isFinite(id) ? id : null;
 }
 
 export interface SuggestionUser {
@@ -71,17 +79,14 @@ export function generateSuggestionId(): number {
 }
 
 /**
- * Record author/timestamp for any suggestion id introduced by `trackedTr` that
- * isn't attributed yet (first-writer-wins). Scans only the transaction's changed
- * range in the resulting doc — O(edit), not O(doc).
+ * The suggestion ids introduced by `trackedTr` that aren't attributed yet.
+ * Scans only the transaction's changed range in the resulting doc — O(edit),
+ * not O(doc). Returned so the caller can attribute now (author known) or defer
+ * (author not yet resolved) without re-scanning.
  */
-export function recordSuggestionAttribution(
-  ydoc: Y.Doc,
-  trackedTr: Transaction,
-  user: SuggestionUser
-): void {
+export function collectNewSuggestionIds(ydoc: Y.Doc, trackedTr: Transaction): number[] {
   const maps = trackedTr.mapping.maps;
-  if (maps.length === 0) return;
+  if (maps.length === 0) return [];
 
   // Conservative bounding range of all changes, mapped forward to final coords.
   let from = Infinity;
@@ -98,7 +103,7 @@ export function recordSuggestionAttribution(
       to = Math.max(to, e);
     });
   });
-  if (!Number.isFinite(from) || to <= from) return;
+  if (!Number.isFinite(from) || to <= from) return [];
 
   const doc = trackedTr.doc;
   const clampedFrom = Math.max(0, from);
@@ -108,20 +113,30 @@ export function recordSuggestionAttribution(
 
   doc.nodesBetween(clampedFrom, clampedTo, (node) => {
     for (const mark of node.marks) {
-      if (!isSuggestionMarkName(mark.type.name)) continue;
-      const id = mark.attrs.id as number | null;
-      if (id == null) continue;
-      if (!suggestionsMap.has(String(id))) newIds.add(id);
+      const id = readSuggestionMarkId(mark);
+      if (id != null && !suggestionsMap.has(String(id))) newIds.add(id);
     }
     return true;
   });
 
-  if (newIds.size === 0) return;
+  return [...newIds];
+}
+
+/**
+ * Write author/timestamp for the given suggestion ids (first-writer-wins). Skips
+ * ids already attributed — safe to call repeatedly, e.g. when flushing a queue
+ * of ids whose author only resolved after the edit.
+ */
+export function writeSuggestionAttribution(
+  ydoc: Y.Doc,
+  ids: readonly number[],
+  user: SuggestionUser
+): void {
+  if (ids.length === 0) return;
+  const suggestionsMap = ydoc.getMap<SuggestionMeta>(SUGGESTIONS_MAP);
   const createdAt = Date.now();
   ydoc.transact(() => {
-    for (const id of newIds) {
-      // Re-check inside the transaction: a concurrent local edit may have
-      // recorded it between the scan and here.
+    for (const id of ids) {
       if (suggestionsMap.has(String(id))) continue;
       suggestionsMap.set(String(id), {
         userId: user.id,
@@ -140,9 +155,9 @@ export function collectSuggestions(doc: PMNode, ydoc: Y.Doc): DocSuggestion[] {
 
   doc.descendants((node, pos) => {
     for (const mark of node.marks) {
-      if (!isSuggestionMarkName(mark.type.name)) continue;
-      const id = mark.attrs.id as number | null;
+      const id = readSuggestionMarkId(mark);
       if (id == null) continue;
+      const kind = mark.type.name as SuggestionKind;
 
       let entry = byId.get(id);
       if (!entry) {
@@ -155,7 +170,7 @@ export function collectSuggestions(doc: PMNode, ydoc: Y.Doc): DocSuggestion[] {
         };
         byId.set(id, entry);
       }
-      if (!entry.kinds.includes(mark.type.name)) entry.kinds.push(mark.type.name);
+      if (!entry.kinds.includes(kind)) entry.kinds.push(kind);
       entry.from = Math.min(entry.from, pos);
       if (node.isText && node.text) {
         entry.excerpt = (entry.excerpt + node.text).slice(0, 120);
@@ -208,14 +223,24 @@ export function observeSuggestionMeta(ydoc: Y.Doc, cb: () => void): () => void {
  */
 export function getSuggestionIdAtSelection(state: EditorState): number | null {
   const { $from } = state.selection;
-  const candidates = [...$from.marks()];
+  const candidates: Mark[] = [...$from.marks()];
   if ($from.nodeBefore) candidates.push(...$from.nodeBefore.marks);
   if ($from.nodeAfter) candidates.push(...$from.nodeAfter.marks);
   for (const mark of candidates) {
-    if (isSuggestionMarkName(mark.type.name)) {
-      const id = mark.attrs.id as number | null;
-      if (id != null) return id;
-    }
+    const id = readSuggestionMarkId(mark);
+    if (id != null) return id;
   }
   return null;
+}
+
+/** The rendered DOM element for a suggestion mark id, or null if not in view. */
+export function findSuggestionMarkEl(view: EditorView, id: number): HTMLElement | null {
+  return view.dom.querySelector<HTMLElement>(
+    `ins[data-id="${id}"], del[data-id="${id}"], [data-type="modification"][data-id="${id}"]`
+  );
+}
+
+/** Cheap count of attributed suggestions — the Y.Map size, no doc scan. */
+export function suggestionMetaCount(ydoc: Y.Doc): number {
+  return ydoc.getMap<SuggestionMeta>(SUGGESTIONS_MAP).size;
 }

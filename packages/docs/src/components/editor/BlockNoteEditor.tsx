@@ -88,6 +88,12 @@ interface CollaborationUser {
   color: string;
 }
 
+function isCollaborationUser(value: unknown): value is CollaborationUser {
+  if (typeof value !== 'object' || value === null) return false;
+  const u = value as Record<string, unknown>;
+  return typeof u.id === 'string' && typeof u.name === 'string' && typeof u.color === 'string';
+}
+
 function subscribeToTheme(callback: () => void) {
   const observer = new MutationObserver(callback);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -207,8 +213,8 @@ const BlockNoteEditorInner = ({
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
 
-    const localState = provider.awareness.getLocalState();
-    return (localState?.user as CollaborationUser) || null;
+    const user = provider.awareness.getLocalState()?.user;
+    return isCollaborationUser(user) ? user : null;
   }, [provider?.awareness]);
 
   const fragment = useMemo(() => {
@@ -295,8 +301,16 @@ const BlockNoteEditorInner = ({
         SuggestChangesExtension({
           ydoc,
           getUser: () => {
-            const u = provider?.awareness?.getLocalState()?.user as CollaborationUser | undefined;
-            return u ? { id: u.id, name: u.name, color: u.color } : null;
+            const user = provider?.awareness?.getLocalState()?.user;
+            return isCollaborationUser(user)
+              ? { id: user.id, name: user.name, color: user.color }
+              : null;
+          },
+          subscribeUser: (cb) => {
+            const awareness = provider?.awareness;
+            if (!awareness) return () => {};
+            awareness.on('change', cb);
+            return () => awareness.off('change', cb);
           },
           isAiForked: () => isDocAIForked(documentId),
         })

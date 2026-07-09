@@ -5,11 +5,11 @@ import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { FiCheck, FiX } from 'react-icons/fi';
 import type { BlockNoteEditor } from '@blocknote/core';
 import type { Command } from 'prosemirror-state';
-import type { EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
 import {
   deleteSuggestionMeta,
+  findSuggestionMarkEl,
   getSuggestionIdAtSelection,
   type SuggestionMeta,
 } from '../../lib/suggestionMode';
@@ -19,12 +19,6 @@ interface SuggestionPopoverProps {
   editor: BlockNoteEditor<any, any, any>;
   ydoc: Y.Doc | null | undefined;
   canEdit: boolean;
-}
-
-function findMarkElement(view: EditorView, id: number): HTMLElement | null {
-  return view.dom.querySelector<HTMLElement>(
-    `ins[data-id="${id}"], del[data-id="${id}"], [data-type="modification"][data-id="${id}"]`
-  );
 }
 
 /**
@@ -46,22 +40,24 @@ export function SuggestionPopover({ editor, ydoc, canEdit }: SuggestionPopoverPr
   useEffect(() => {
     if (!editor || !ydoc) return;
 
+    const close = () => {
+      setActiveId(null);
+      setMeta(null);
+      refs.setReference(null);
+    };
+
     const recompute = () => {
       const view = editor.prosemirrorView;
-      if (!view) {
-        setActiveId(null);
-        refs.setReference(null);
-        return;
-      }
+      if (!view) return close();
       const id = getSuggestionIdAtSelection(view.state);
+      if (id == null) return close();
+      // Only open once we've anchored to a real element — otherwise floating-ui
+      // would pin the card to (0,0) with a null reference.
+      const el = findSuggestionMarkEl(view, id);
+      if (!el) return close();
+      setMeta(ydoc.getMap<SuggestionMeta>('suggestions').get(String(id)) ?? null);
       setActiveId(id);
-      if (id != null) {
-        setMeta(ydoc.getMap<SuggestionMeta>('suggestions').get(String(id)) ?? null);
-        refs.setReference(findMarkElement(view, id));
-      } else {
-        setMeta(null);
-        refs.setReference(null);
-      }
+      refs.setReference(el);
     };
 
     const unsubSelection = editor.onSelectionChange(recompute);
