@@ -133,6 +133,26 @@ function EditorContent() {
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
 
+  // Reliable identity for track-changes attribution — the auth user (or guest),
+  // the same source the assistant chat uses for the display name. Passed to the
+  // editor so suggestions aren't left "Unbekannt" when Yjs awareness is empty.
+  const suggestionAuthor = useMemo(() => {
+    if (user) {
+      return {
+        id: String(user.id),
+        name: user.display_name || user.email || 'Unbekannt',
+      };
+    }
+    if (guestIdentity) {
+      return {
+        id: guestIdentity.guestId,
+        name: guestIdentity.guestName,
+        color: guestIdentity.guestColor,
+      };
+    }
+    return null;
+  }, [user, guestIdentity]);
+
   const API_BASE = useMemo(() => adapter.getApiBaseUrl(), [adapter]);
 
   const { data: docData, isLoading: docIsLoading } = useQuery<Document | null>({
@@ -704,7 +724,7 @@ function EditorContent() {
                             }}
                           >
                             <FiEdit3 />
-                            <span className="flex-1">Änderungen nachverfolgen</span>
+                            <span className="flex-1">Änderungen nachverfolgen (Experimentell)</span>
                             {suggestionModeEnabled && (
                               <FiCheck className="!h-4 !w-4 text-primary-600" />
                             )}
@@ -815,6 +835,7 @@ function EditorContent() {
               editable={isEditable}
               commentsPortalTarget={commentsPortalTarget}
               onEditorReady={handleEditorReady}
+              localUser={suggestionAuthor}
             />
           ) : (
             <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
