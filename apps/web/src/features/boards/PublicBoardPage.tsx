@@ -107,7 +107,12 @@ function PublicBoardContent() {
           <LazyExcalidrawBoard ydoc={ydoc} provider={provider} isSynced={isSynced} />
         </Suspense>
       ) : (
-        <PublicKanbanContent ydoc={ydoc} isSynced={isSynced} provider={provider} />
+        <PublicKanbanContent
+          ydoc={ydoc}
+          isSynced={isSynced}
+          provider={provider}
+          boardTitle={board.title}
+        />
       )}
     </div>
   );
@@ -119,10 +124,12 @@ function PublicKanbanContent({
   ydoc,
   isSynced,
   provider,
+  boardTitle,
 }: {
   ydoc: Doc;
   isSynced: boolean;
   provider: HocuspocusProvider | null;
+  boardTitle: string;
 }) {
   const boardState = useBoardState(ydoc, isSynced, null);
   const [activeViewId] = useState('view-kanban-default');
@@ -148,6 +155,7 @@ function PublicKanbanContent({
       updateField={noop}
       removeField={noop}
       currentUserId=""
+      boardTitle={boardTitle}
       provider={provider}
     />
   );
