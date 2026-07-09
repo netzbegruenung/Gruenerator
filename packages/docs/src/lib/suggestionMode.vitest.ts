@@ -16,7 +16,6 @@ import {
   generateSuggestionId,
   getSuggestionIdAtSelection,
   hasPendingSuggestions,
-  suggestionMetaCount,
   type SuggestionMeta,
 } from './suggestionMode';
 
@@ -104,16 +103,6 @@ describe('generateSuggestionId', () => {
       expect(id).toBeGreaterThanOrEqual(1);
       expect(id).toBeLessThan(0x7fffffff);
     }
-  });
-});
-
-describe('suggestionMetaCount', () => {
-  it('reflects the Y.Map size', () => {
-    const ydoc = new Y.Doc();
-    expect(suggestionMetaCount(ydoc)).toBe(0);
-    ydoc.getMap('suggestions').set('1', {});
-    ydoc.getMap('suggestions').set('2', {});
-    expect(suggestionMetaCount(ydoc)).toBe(2);
   });
 });
 

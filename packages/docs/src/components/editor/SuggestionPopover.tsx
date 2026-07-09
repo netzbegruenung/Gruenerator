@@ -11,6 +11,7 @@ import {
   deleteSuggestionMeta,
   findSuggestionMarkEl,
   getSuggestionIdAtSelection,
+  observeSuggestionMeta,
   type SuggestionMeta,
 } from '../../lib/suggestionMode';
 
@@ -62,11 +63,15 @@ export function SuggestionPopover({ editor, ydoc, canEdit }: SuggestionPopoverPr
 
     const unsubSelection = editor.onSelectionChange(recompute);
     const unsubChange = editor.onChange(recompute);
+    // Re-read when attribution metadata changes (author/color arriving, remote
+    // updates) so the open card refreshes without needing a reselect.
+    const unsubMeta = observeSuggestionMeta(ydoc, recompute);
     recompute();
 
     return () => {
       unsubSelection?.();
       unsubChange?.();
+      unsubMeta();
     };
   }, [editor, ydoc, refs]);
 
