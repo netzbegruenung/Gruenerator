@@ -5,6 +5,7 @@ import * as Y from 'yjs';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildSuggestionDecorations,
   collectSuggestions,
   generateSuggestionId,
   getSuggestionIdAtSelection,
@@ -107,5 +108,39 @@ describe('suggestionMetaCount', () => {
     ydoc.getMap('suggestions').set('1', {});
     ydoc.getMap('suggestions').set('2', {});
     expect(suggestionMetaCount(ydoc)).toBe(2);
+  });
+});
+
+describe('buildSuggestionDecorations', () => {
+  const attributed = (id: number, color: string): Y.Doc => {
+    const ydoc = new Y.Doc();
+    ydoc.getMap<SuggestionMeta>('suggestions').set(String(id), {
+      userId: 'u',
+      name: 'A',
+      color,
+      createdAt: 0,
+    });
+    return ydoc;
+  };
+
+  it('tints an attributed suggestion with one inline decoration', () => {
+    const doc = para(schema.text('Hallo '), insertion('neu', 42));
+    expect(buildSuggestionDecorations(doc, attributed(42, '#FF6B6B')).find()).toHaveLength(1);
+  });
+
+  it('does not tint an unattributed suggestion', () => {
+    const doc = para(schema.text('Hallo '), insertion('neu', 42));
+    expect(buildSuggestionDecorations(doc, new Y.Doc()).find()).toHaveLength(0);
+  });
+
+  it('rejects an unsafe (non-hex) color before injecting it into a style', () => {
+    const doc = para(schema.text('Hallo '), insertion('neu', 42));
+    const ydoc = attributed(42, 'red; background:url(evil)');
+    expect(buildSuggestionDecorations(doc, ydoc).find()).toHaveLength(0);
+  });
+
+  it('marks a whole-block insertion with a node decoration plus the inline tint', () => {
+    const doc = para(insertion('all', 9));
+    expect(buildSuggestionDecorations(doc, attributed(9, '#4ECDC4')).find()).toHaveLength(2);
   });
 });

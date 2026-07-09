@@ -519,30 +519,34 @@
 }
 
 /* Track changes (Änderungsmodus) — insertion/deletion suggestion marks.
-   Override xl-ai's global ins/del styling (its AI-review blue) with our
-   green/red scheme, scoped to the editor content. */
+   Override xl-ai's global ins/del styling (its AI-review blue). `--suggest-color`
+   is set per author by the suggestion decorations plugin; the green/red values
+   are the fallback for not-yet-attributed marks. Kind is conveyed by underline
+   vs. strikethrough, so per-author color works for both (Word semantics). */
 .blocknote-editor-content ins[data-id] {
-  color: var(--primary-700, #1a7f37);
+  color: var(--suggest-color, var(--primary-700, #1a7f37));
   background-color: rgba(26, 127, 55, 0.1);
   text-decoration: underline;
+  text-decoration-color: var(--suggest-color, var(--primary-700, #1a7f37));
   text-decoration-thickness: 1px;
 }
 
 .blocknote-editor-content del[data-id] {
-  color: #c0392b;
+  color: var(--suggest-color, #c0392b);
   background-color: rgba(192, 57, 43, 0.08);
   text-decoration: line-through;
+  text-decoration-color: var(--suggest-color, #c0392b);
 }
 
 .blocknote-editor-content ins[data-id][data-inline='false'] {
   display: block;
-  border-left: 3px solid var(--primary-600, #268758);
+  border-left: 3px solid var(--suggest-color, var(--primary-600, #268758));
   padding-left: 8px;
 }
 
 .blocknote-editor-content del[data-id][data-inline='false'] {
   display: block;
-  border-left: 3px solid #c0392b;
+  border-left: 3px solid var(--suggest-color, #c0392b);
   padding-left: 8px;
 }
 
@@ -551,12 +555,26 @@
   border-radius: 2px;
 }
 
+/* Whole-block insertion / deletion (every child marked) — from node decorations. */
+.blocknote-editor-content [data-node-insertion='true'] {
+  border-left: 3px solid var(--primary-600, #268758);
+  padding-left: 8px;
+}
+
+.blocknote-editor-content [data-node-deletion='true'] {
+  border-left: 3px solid #c0392b;
+  padding-left: 8px;
+  opacity: 0.7;
+}
+
 [data-theme='dark'] .blocknote-editor-content ins[data-id] {
-  color: #4ade80;
+  color: var(--suggest-color, #4ade80);
   background-color: rgba(74, 222, 128, 0.12);
+  text-decoration-color: var(--suggest-color, #4ade80);
 }
 
 [data-theme='dark'] .blocknote-editor-content del[data-id] {
-  color: #f87171;
+  color: var(--suggest-color, #f87171);
   background-color: rgba(248, 113, 113, 0.12);
+  text-decoration-color: var(--suggest-color, #f87171);
 }
