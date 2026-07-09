@@ -10,24 +10,19 @@ import {
   Button,
 } from '@gruenerator/ui';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
-import {
-  applySuggestion,
-  applySuggestions,
-  revertSuggestion,
-  revertSuggestions,
-  selectSuggestion,
-} from '@handlewithcare/prosemirror-suggest-changes';
 import { useCallback, useState } from 'react';
 import { FiCheck, FiEdit3, FiPlusCircle, FiTrash2, FiX } from 'react-icons/fi';
 import type { BlockNoteEditor } from '@blocknote/core';
-import type { Command } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
 import { useDocSuggestions } from '../../hooks/useDocSuggestions';
 import {
-  clearSuggestionMeta,
-  deleteSuggestionMeta,
-  findSuggestionMarkEl,
+  acceptAllSuggestions,
+  acceptSuggestionById,
+  jumpToSuggestion,
+  rejectAllSuggestions,
+  rejectSuggestionById,
   type DocSuggestion,
   type SuggestionKind,
 } from '../../lib/suggestionMode';
@@ -59,21 +54,19 @@ export function SuggestionsSidebar({ editor, ydoc, canEdit }: SuggestionsSidebar
   const [confirmAll, setConfirmAll] = useState<'accept' | 'reject' | null>(null);
 
   const runOne = useCallback(
-    (id: number, make: (id: number) => Command) => {
+    (id: number, action: (view: EditorView, ydoc: Y.Doc, id: number) => void) => {
       const view = editor.prosemirrorView;
       if (!view || !ydoc) return;
-      make(id)(view.state, view.dispatch);
-      deleteSuggestionMeta(ydoc, [id]);
+      action(view, ydoc, id);
     },
     [editor, ydoc]
   );
 
   const runAll = useCallback(
-    (command: Command) => {
+    (action: (view: EditorView, ydoc: Y.Doc) => void) => {
       const view = editor.prosemirrorView;
       if (!view || !ydoc) return;
-      command(view.state, view.dispatch);
-      clearSuggestionMeta(ydoc);
+      action(view, ydoc);
     },
     [editor, ydoc]
   );
@@ -82,9 +75,7 @@ export function SuggestionsSidebar({ editor, ydoc, canEdit }: SuggestionsSidebar
     (s: DocSuggestion) => {
       const view = editor.prosemirrorView;
       if (!view) return;
-      selectSuggestion(s.id)(view.state, view.dispatch);
-      view.focus();
-      findSuggestionMarkEl(view, s.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      jumpToSuggestion(view, s.id);
     },
     [editor]
   );
@@ -157,13 +148,13 @@ export function SuggestionsSidebar({ editor, ydoc, canEdit }: SuggestionsSidebar
                   {canEdit && (
                     <div className="mt-1.5 flex gap-2 pl-[calc(1.75rem+var(--spacing-sm,0.5rem))]">
                       <button
-                        onClick={() => runOne(s.id, applySuggestion)}
+                        onClick={() => runOne(s.id, acceptSuggestionById)}
                         className="text-xs font-medium text-primary-600 hover:underline"
                       >
                         Annehmen
                       </button>
                       <button
-                        onClick={() => runOne(s.id, revertSuggestion)}
+                        onClick={() => runOne(s.id, rejectSuggestionById)}
                         className="text-xs font-medium text-grey-500 hover:underline dark:text-grey-400"
                       >
                         Ablehnen
@@ -193,7 +184,7 @@ export function SuggestionsSidebar({ editor, ydoc, canEdit }: SuggestionsSidebar
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                runAll(confirmAll === 'accept' ? applySuggestions : revertSuggestions);
+                runAll(confirmAll === 'accept' ? acceptAllSuggestions : rejectAllSuggestions);
                 setConfirmAll(null);
               }}
             >
