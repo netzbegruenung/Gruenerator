@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react';
-import { applySuggestion, revertSuggestion } from '@handlewithcare/prosemirror-suggest-changes';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { FiCheck, FiX } from 'react-icons/fi';
 import type { BlockNoteEditor } from '@blocknote/core';
-import type { Command } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
 import {
-  deleteSuggestionMeta,
+  acceptSuggestionById,
   findSuggestionMarkEl,
   getSuggestionIdAtSelection,
   observeSuggestionMeta,
+  rejectSuggestionById,
   type SuggestionMeta,
 } from '../../lib/suggestionMode';
 
@@ -75,13 +75,12 @@ export function SuggestionPopover({ editor, ydoc, canEdit }: SuggestionPopoverPr
     };
   }, [editor, ydoc, refs]);
 
-  const runCommand = useCallback(
-    (make: (id: number) => Command) => {
+  const runAction = useCallback(
+    (action: (view: EditorView, ydoc: Y.Doc, id: number) => void) => {
       if (activeId == null || !ydoc) return;
       const view = editor.prosemirrorView;
       if (!view) return;
-      make(activeId)(view.state, view.dispatch);
-      deleteSuggestionMeta(ydoc, [activeId]);
+      action(view, ydoc, activeId);
       setActiveId(null);
       view.focus();
     },
@@ -114,14 +113,14 @@ export function SuggestionPopover({ editor, ydoc, canEdit }: SuggestionPopoverPr
       {canEdit && (
         <div className="mt-2.5 flex gap-2">
           <button
-            onClick={() => runCommand(applySuggestion)}
+            onClick={() => runAction(acceptSuggestionById)}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary-600 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700 [&_svg]:h-3.5 [&_svg]:w-3.5"
           >
             <FiCheck />
             Annehmen
           </button>
           <button
-            onClick={() => runCommand(revertSuggestion)}
+            onClick={() => runAction(rejectSuggestionById)}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-grey-200 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-grey-100 dark:border-grey-700 dark:hover:bg-grey-800 [&_svg]:h-3.5 [&_svg]:w-3.5"
           >
             <FiX />

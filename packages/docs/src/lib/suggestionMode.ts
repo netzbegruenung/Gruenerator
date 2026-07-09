@@ -1,3 +1,10 @@
+import {
+  applySuggestion,
+  applySuggestions,
+  revertSuggestion,
+  revertSuggestions,
+  selectSuggestion,
+} from '@handlewithcare/prosemirror-suggest-changes';
 import type { Fragment, Mark, Node as PMNode } from 'prosemirror-model';
 import type { EditorState, Transaction } from 'prosemirror-state';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
@@ -236,6 +243,37 @@ export function findSuggestionMarkEl(view: EditorView, id: number): HTMLElement 
   return view.dom.querySelector<HTMLElement>(
     `ins[data-id="${id}"], del[data-id="${id}"], [data-type="modification"][data-id="${id}"]`
   );
+}
+
+// Accept/reject helpers — one home for the "run the suggest-changes command, then
+// drop its now-orphaned attribution" pair, so every surface (popover, sidebar, and
+// the mobile bridge) stays consistent instead of re-implementing the two-step dance.
+
+export function acceptSuggestionById(view: EditorView, ydoc: Y.Doc, id: number): void {
+  applySuggestion(id)(view.state, view.dispatch);
+  deleteSuggestionMeta(ydoc, [id]);
+}
+
+export function rejectSuggestionById(view: EditorView, ydoc: Y.Doc, id: number): void {
+  revertSuggestion(id)(view.state, view.dispatch);
+  deleteSuggestionMeta(ydoc, [id]);
+}
+
+export function acceptAllSuggestions(view: EditorView, ydoc: Y.Doc): void {
+  applySuggestions(view.state, view.dispatch);
+  clearSuggestionMeta(ydoc);
+}
+
+export function rejectAllSuggestions(view: EditorView, ydoc: Y.Doc): void {
+  revertSuggestions(view.state, view.dispatch);
+  clearSuggestionMeta(ydoc);
+}
+
+/** Move the selection onto a suggestion and scroll its mark into view. */
+export function jumpToSuggestion(view: EditorView, id: number): void {
+  selectSuggestion(id)(view.state, view.dispatch);
+  view.focus();
+  findSuggestionMarkEl(view, id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 // Only accept palette-style hex before injecting into an inline style string —
