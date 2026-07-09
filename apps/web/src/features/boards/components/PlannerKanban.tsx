@@ -171,7 +171,7 @@ const ColumnBoard = memo(function ColumnBoard({
   }, [statusField, groupId]);
 
   return (
-    <KanbanBoard id={groupId}>
+    <KanbanBoard id={groupId} draggable={isRealColumn}>
       <KanbanHeader>
         <ColumnHeader
           column={column}
@@ -628,6 +628,26 @@ export function PlannerKanban({
     [statusField, updateField, hiddenGroupIds]
   );
 
+  // Drag reorder: `reordered` is the visible columns in their new order. Refill only
+  // the visible option slots in the full options array — hidden options keep theirs.
+  const handleColumnReorder = useCallback(
+    (reordered: { id: string }[]) => {
+      if (!statusField) return;
+      const options = (statusField.typeOptions.options ?? []) as SelectOption[];
+      const optionById = new Map(options.map((o) => [o.id, o]));
+      const newOrderIds = reordered.map((c) => c.id).filter((id) => optionById.has(id));
+      const visibleIds = new Set(newOrderIds);
+      let vptr = 0;
+      const newOptions = options.map((o) =>
+        visibleIds.has(o.id) ? (optionById.get(newOrderIds[vptr++]) ?? o) : o
+      );
+      updateField(statusField.id, {
+        typeOptions: { ...statusField.typeOptions, options: newOptions },
+      });
+    },
+    [statusField, updateField]
+  );
+
   // index/total are over *visible* columns so can-move flags match what's shown.
   const optionMeta = useMemo(() => {
     const options = (statusField?.typeOptions.options as SelectOption[] | undefined) ?? [];
@@ -660,6 +680,7 @@ export function PlannerKanban({
         columns={columns}
         data={items}
         onDataChange={handleDataChange}
+        onColumnReorder={handleColumnReorder}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
