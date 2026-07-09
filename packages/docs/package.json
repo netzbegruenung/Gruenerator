@@ -42,6 +42,7 @@
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
+    "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
     "@hocuspocus/provider": "^4.1.2",
     "@react-pdf/renderer": "^4.5.1",
     "ai": "^6.0.202",
