@@ -15,8 +15,6 @@ import {
   useDocUndoState,
   useSuggestionMode,
   hasPendingSuggestions,
-  observeSuggestionMeta,
-  suggestionMetaCount,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -265,13 +263,14 @@ function EditorContent() {
     ydoc,
     id ?? ''
   );
-  // Cheap synced badge count (Y.Map size, no doc scan) — the full O(doc) list is
-  // computed only inside SuggestionsSidebar when the panel is open.
-  const suggestionCount = useSyncExternalStore(
-    useCallback((onChange) => (ydoc ? observeSuggestionMeta(ydoc, onChange) : () => {}), [ydoc]),
-    () => (ydoc ? suggestionMetaCount(ydoc) : 0),
-    () => 0
-  );
+  // Track changes is surfaced entirely through the suggestions sidebar (no
+  // separate toolbar button): toggling the mode opens/closes the sidebar in one
+  // step, so the two stay coupled without a reactive effect.
+  const toggleSuggestions = useCallback(() => {
+    const willEnable = !suggestionModeEnabled;
+    toggleSuggestionMode();
+    setActiveSidebar(willEnable ? 'suggestions' : null);
+  }, [suggestionModeEnabled, toggleSuggestionMode]);
 
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
@@ -639,22 +638,6 @@ function EditorContent() {
                 </button>
               )}
 
-              {!isGuest && (suggestionModeEnabled || suggestionCount > 0) && (
-                <button
-                  className={`glass-btn relative ${effectivePanel === 'suggestions' ? 'active' : ''}`}
-                  onClick={() => togglePanel('suggestions')}
-                  aria-label="Änderungen"
-                  title="Änderungen"
-                >
-                  <FiEdit3 />
-                  {suggestionCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[0.625rem] font-medium text-white">
-                      {suggestionCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
               <button
                 ref={actionsButtonRef}
                 className="glass-btn"
@@ -720,7 +703,7 @@ function EditorContent() {
                             }
                             onClick={() => {
                               setShowActionsMenu(false);
-                              toggleSuggestionMode();
+                              toggleSuggestions();
                             }}
                           >
                             <FiEdit3 />
@@ -893,7 +876,9 @@ function EditorContent() {
                 </button>
               )}
               <button
-                onClick={() => setActiveSidebar(null)}
+                onClick={() =>
+                  effectivePanel === 'suggestions' ? toggleSuggestions() : setActiveSidebar(null)
+                }
                 className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
                 aria-label="Seitenleiste schließen"
               >
