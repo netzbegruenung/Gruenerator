@@ -14,8 +14,9 @@ import {
   usePendingDocAI,
   useDocUndoState,
   useSuggestionMode,
-  useDocSuggestions,
   hasPendingSuggestions,
+  observeSuggestionMeta,
+  suggestionMetaCount,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -244,7 +245,13 @@ function EditorContent() {
     ydoc,
     id ?? ''
   );
-  const { count: suggestionCount } = useDocSuggestions(editor, ydoc);
+  // Cheap synced badge count (Y.Map size, no doc scan) — the full O(doc) list is
+  // computed only inside SuggestionsSidebar when the panel is open.
+  const suggestionCount = useSyncExternalStore(
+    useCallback((onChange) => (ydoc ? observeSuggestionMeta(ydoc, onChange) : () => {}), [ydoc]),
+    () => (ydoc ? suggestionMetaCount(ydoc) : 0),
+    () => 0
+  );
 
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
@@ -307,17 +314,17 @@ function EditorContent() {
 
   // Exporters render suggestion marks as normal text (deletions would leak,
   // insertions lose their pending status), so block export while any are open.
+  // The message is actionable only for editors; viewers (who can't resolve
+  // suggestions) get a plain statement instead of a dead-end instruction.
   const exportBlockedBySuggestions = useCallback(() => {
-    if (editor && hasPendingSuggestions(editor.prosemirrorView.state.doc)) {
-      void import('sonner').then(({ toast }) =>
-        toast.error(
-          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
-        )
-      );
-      return true;
-    }
-    return false;
-  }, [editor]);
+    const view = editor?.prosemirrorView;
+    if (!view || !hasPendingSuggestions(view.state.doc)) return false;
+    const message = canEdit
+      ? 'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+      : 'Das Dokument enthält offene Änderungsvorschläge und kann derzeit nicht exportiert werden.';
+    void import('sonner').then(({ toast }) => toast.error(message));
+    return true;
+  }, [editor, canEdit]);
 
   const handleExport = useCallback(async () => {
     if (!docData || !editor) return;
@@ -389,7 +396,8 @@ function EditorContent() {
   const handleSaveToWolke = useCallback(
     async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
       if (!docData || !editor) throw new Error('Editor not ready');
-      if (hasPendingSuggestions(editor.prosemirrorView.state.doc)) {
+      const view = editor.prosemirrorView;
+      if (view && hasPendingSuggestions(view.state.doc)) {
         throw new Error(
           'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
         );

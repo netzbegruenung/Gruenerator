@@ -53,6 +53,9 @@ export async function invokeDocumentAI(opts: {
 
   // Track changes and AI editing share the same suggestion marks; running AI
   // while the mode is on would let its accept-all swallow human suggestions.
+  // This is one half of a two-way lock: the other half (useSuggestionMode.toggle)
+  // refuses to enable the mode while an AI review is forked. The mode flag lives
+  // in the ydoc, so a null ydoc here means the mode cannot be on — safe to skip.
   const ydoc = useEditorStore.getState().getDocContext(opts.documentId)?.ydoc;
   if (ydoc && isSuggestionModeEnabled(ydoc)) {
     void import('sonner').then(({ toast }) =>

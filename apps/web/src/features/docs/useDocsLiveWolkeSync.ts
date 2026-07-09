@@ -49,7 +49,8 @@ export function useDocsLiveWolkeSync({ editor, docData, canEdit }: UseDocsLiveWo
       if (!dirtyRef.current || inFlightRef.current) return;
       // Don't push a DOCX with pending suggestion marks to Wolke — deletions
       // would leak as normal text. Wait until they're resolved (stays dirty).
-      if (hasPendingSuggestions(editor.prosemirrorView.state.doc)) {
+      const view = editor.prosemirrorView;
+      if (view && hasPendingSuggestions(view.state.doc)) {
         console.debug('[DocsLiveWolkeSync] skipped — pending suggestions', { reason });
         return;
       }

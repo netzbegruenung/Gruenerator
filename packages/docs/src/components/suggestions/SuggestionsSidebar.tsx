@@ -27,6 +27,7 @@ import { useDocSuggestions } from '../../hooks/useDocSuggestions';
 import {
   clearSuggestionMeta,
   deleteSuggestionMeta,
+  findSuggestionMarkEl,
   type DocSuggestion,
   type SuggestionKind,
 } from '../../lib/suggestionMode';
@@ -83,10 +84,7 @@ export function SuggestionsSidebar({ editor, ydoc, canEdit }: SuggestionsSidebar
       if (!view) return;
       selectSuggestion(s.id)(view.state, view.dispatch);
       view.focus();
-      const el = view.dom.querySelector<HTMLElement>(
-        `ins[data-id="${s.id}"], del[data-id="${s.id}"], [data-type="modification"][data-id="${s.id}"]`
-      );
-      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      findSuggestionMarkEl(view, s.id)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     },
     [editor]
   );
