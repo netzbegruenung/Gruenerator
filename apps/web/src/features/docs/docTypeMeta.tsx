@@ -1,0 +1,125 @@
+import { type FC, type SVGProps } from 'react';
+
+/**
+ * The four Office content kinds and their brand accents, shared by the docs
+ * homepage composer badge and the Vorlagen modal cards. Colors are fixed to the
+ * Claude "Grünerator Office" design and read on their tinted chip background in
+ * both themes, so they are intentionally not theme-swapped.
+ */
+export type DocKind = 'doc' | 'board' | 'sheet' | 'pres';
+
+type IconComp = FC<SVGProps<SVGSVGElement>>;
+
+const DocIcon: IconComp = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6" />
+  </svg>
+);
+
+const BoardIcon: IconComp = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="3" y="3" width="6" height="18" rx="1" />
+    <rect x="10" y="3" width="6" height="12" rx="1" />
+    <rect x="17" y="3" width="4" height="7" rx="1" />
+  </svg>
+);
+
+const SheetIcon: IconComp = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 9h18M3 15h18M9 3v18" />
+  </svg>
+);
+
+const PresIcon: IconComp = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M2 3h20" />
+    <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
+    <path d="m7 21 5-5 5 5" />
+  </svg>
+);
+
+export interface DocTypeMeta {
+  kind: DocKind;
+  label: string;
+  color: string;
+  bg: string;
+  Icon: IconComp;
+}
+
+export const DOC_TYPE_META: Record<DocKind, DocTypeMeta> = {
+  doc: { kind: 'doc', label: 'Dokument', color: '#4C8A6E', bg: '#E7F1EA', Icon: DocIcon },
+  board: { kind: 'board', label: 'Board', color: '#C0863B', bg: '#F8F0E1', Icon: BoardIcon },
+  sheet: { kind: 'sheet', label: 'Tabelle', color: '#3F82A6', bg: '#E6F0F5', Icon: SheetIcon },
+  pres: { kind: 'pres', label: 'Präsentation', color: '#7E5AA8', bg: '#EFE8F6', Icon: PresIcon },
+};
+
+export const DOC_KIND_ORDER: DocKind[] = ['doc', 'board', 'sheet', 'pres'];
+
+/** collaborative_documents subtype → homepage kind. */
+export function subtypeToKind(subtype: string | null | undefined): DocKind {
+  switch (subtype) {
+    case 'sheets':
+      return 'sheet';
+    case 'presentations':
+      return 'pres';
+    case 'boards':
+      return 'board';
+    default:
+      return 'doc';
+  }
+}
+
+// Keyword buckets ported verbatim from the design's `detect()` — the regex/keyword
+// classifier that turns a free-text create prompt into a target content kind.
+const KIND_KEYWORDS: Record<Exclude<DocKind, 'doc'>, string[]> = {
+  board: [
+    'board', 'kanban', 'aufgabe', 'task', 'spalte', 'planen', 'planung', 'organisier',
+    'to-do', 'todo', 'ablauf', 'phasen', 'backlog', 'sprint',
+  ],
+  pres: [
+    'präsentation', 'praesentation', 'präsi', 'praesi', 'slide', 'folie', 'vortrag',
+    'pitch', 'deck', 'keynote', 'vorstellen', 'präsentier', 'praesentier',
+  ],
+  sheet: [
+    'tabelle', 'liste', 'budget', 'haushalt', 'mitglieder', 'kalkul', 'excel', 'zahlen',
+    'summe', 'daten', 'kassen', 'einnahmen', 'ausgaben', 'statistik', 'tracker',
+  ],
+};
+
+/** Detect the content kind a create prompt is asking for. Defaults to `doc`. */
+export function detectDocType(text: string): DocKind {
+  const t = text.toLowerCase();
+  if (!t.trim()) return 'doc';
+  if (KIND_KEYWORDS.board.some((k) => t.includes(k))) return 'board';
+  if (KIND_KEYWORDS.pres.some((k) => t.includes(k))) return 'pres';
+  if (KIND_KEYWORDS.sheet.some((k) => t.includes(k))) return 'sheet';
+  return 'doc';
+}
+
+// Imperative openers that mark an input as a *create prompt* rather than a search term.
+const CREATE_INTENT_RE =
+  /^\s*(schreib|erstell|entwirf|entwerfe|verfass|formulier|generier|mach|plan|bau|leg\s|entwickel|gestalt|konzipier|drafte?)/i;
+
+/**
+ * Does this input read as a create instruction (→ prompt mode) vs a lookup
+ * (→ search mode)? True when it opens with an imperative verb or is a full
+ * phrase (≥ 5 words). The caller additionally forces prompt mode when the live
+ * search yields nothing.
+ */
+export function detectPromptIntent(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (CREATE_INTENT_RE.test(trimmed)) return true;
+  return trimmed.split(/\s+/).length >= 5;
+}
+
+export const PROMPT_EXAMPLES: string[] = [
+  'Schreibe eine Pressemitteilung zum Hitzeschutz …',
+  'Erstelle ein Kampagnen-Board für den Wahlkampf …',
+  'Tabelle: Haushaltsplan des Kreisverbands …',
+  'Präsentation: unseren Kreisverband vorstellen …',
+  'Entwirf einen Antrag zur Verkehrswende …',
+  '… oder tippe, um zu suchen',
+];
