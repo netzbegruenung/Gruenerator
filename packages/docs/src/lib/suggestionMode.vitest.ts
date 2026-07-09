@@ -1,4 +1,8 @@
-import { addSuggestionMarks } from '@handlewithcare/prosemirror-suggest-changes';
+import {
+  addSuggestionMarks,
+  suggestChanges,
+  transformToSuggestionTransaction,
+} from '@handlewithcare/prosemirror-suggest-changes';
 import { Fragment, type Node as PMNode, Schema, Slice } from 'prosemirror-model';
 import { EditorState, TextSelection } from 'prosemirror-state';
 import { AddMarkStep, ReplaceStep } from 'prosemirror-transform';
@@ -138,6 +142,24 @@ describe('collectNewSuggestionIds', () => {
     ydoc.getMap('suggestions').set('5', { userId: 'u', name: 'A', color: '#fff', createdAt: 0 });
     const tr = state.tr.step(new AddMarkStep(1, 6, schema.marks.deletion.create({ id: 5 })));
     expect(collectNewSuggestionIds(ydoc, tr)).toEqual([]);
+  });
+
+  // End-to-end against the REAL library transform (not hand-built steps), which
+  // is the exact output the editor middleware runs on.
+  it('collects the id from a real transformed DELETION', () => {
+    const doc = para(schema.text('hello world'));
+    const state = EditorState.create({ doc, plugins: [suggestChanges()] });
+    const deleteTr = state.tr.delete(1, 6);
+    const tracked = transformToSuggestionTransaction(deleteTr, state, () => 42);
+    expect(collectNewSuggestionIds(new Y.Doc(), tracked)).toContain(42);
+  });
+
+  it('collects the id from a real transformed INSERTION', () => {
+    const doc = para(schema.text('hello'));
+    const state = EditorState.create({ doc, plugins: [suggestChanges()] });
+    const insertTr = state.tr.insertText('X', 3);
+    const tracked = transformToSuggestionTransaction(insertTr, state, () => 77);
+    expect(collectNewSuggestionIds(new Y.Doc(), tracked)).toContain(77);
   });
 });
 
