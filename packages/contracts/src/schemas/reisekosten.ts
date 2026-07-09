@@ -19,7 +19,7 @@ export const fahrzeugTypSchema = z.enum(['pkw', 'motorrad']);
 
 export const uebernachtungModusSchema = z.enum(['lv_bezahlt', 'beleg', 'pauschal']);
 
-export const belegTypSchema = z.enum(['bahn', 'oepnv', 'miete', 'hotel', 'sonstiges']);
+export const belegTypSchema = z.enum(['bahn', 'oepnv', 'miete', 'taxi', 'hotel', 'sonstiges']);
 
 export const reiseartSchema = z.enum(['bahn', 'oepnv', 'kfz', 'miete', 'taxi', 'sonstiges']);
 
@@ -75,7 +75,7 @@ export const fahrtSchema = z.object({
   oepnv: belegPositionSchema.nullable(),
   kfz: kfzSchema.nullable(),
   miete: mieteSchema.nullable(),
-  taxi: z.object({ betrag: z.number(), begruendung: z.string() }).nullable(),
+  taxi: z.object({ betrag: z.number(), begruendung: z.string(), belegVorhanden: z.boolean() }).nullable(),
   sonstiges: z.object({ betrag: z.number(), beschreibung: z.string() }).nullable(),
 });
 
