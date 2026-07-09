@@ -33,6 +33,10 @@ export { ShareModal } from './components/permissions/ShareModal';
 // Components — Version History
 export { VersionHistory } from './components/version/VersionHistory';
 
+// Components — Track Changes (Änderungsmodus)
+export { SuggestionsSidebar } from './components/suggestions/SuggestionsSidebar';
+export { SuggestionPopover } from './components/editor/SuggestionPopover';
+
 // Components — Common
 export { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -52,6 +56,8 @@ export {
 } from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
 export { usePendingDocAI } from './hooks/usePendingDocAI';
+export { useSuggestionMode } from './hooks/useSuggestionMode';
+export { useDocSuggestions } from './hooks/useDocSuggestions';
 export {
   useDocUndoState,
   getDocUndoFlags,
@@ -89,6 +95,15 @@ export {
   MAX_FILE_SIZE,
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
+export {
+  isSuggestionModeEnabled,
+  setSuggestionMode,
+  hasPendingSuggestions,
+  collectSuggestions,
+  type DocSuggestion,
+  type SuggestionKind,
+  type SuggestionMeta,
+} from './lib/suggestionMode';
 export {
   invokeDocumentAI,
   isDocAIInvocationInFlight,

@@ -10,8 +10,12 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  SuggestionsSidebar,
   usePendingDocAI,
   useDocUndoState,
+  useSuggestionMode,
+  useDocSuggestions,
+  hasPendingSuggestions,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -36,12 +40,14 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  FiCheck,
   FiChevronDown,
   FiClock,
   FiCloud,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
+  FiEdit3,
   FiMessageCircle,
   FiMessageSquare,
   FiMoreVertical,
@@ -80,13 +86,14 @@ const DocsChatPanel = lazyWithRetry(() =>
   import('./DocsChatPanel').then((m) => ({ default: m.DocsChatPanel }))
 );
 
-type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions';
+type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions' | 'suggestions';
 
 const SIDEBAR_TITLES: Record<SidebarPanel, string> = {
   chat: 'Chat',
   'legacy-chat': 'Älterer Chat',
   comments: 'Kommentare',
   versions: 'Versionen',
+  suggestions: 'Änderungen',
 };
 
 function EditorFAB({
@@ -233,6 +240,12 @@ function EditorContent() {
     () => 0
   );
 
+  const { enabled: suggestionModeEnabled, toggle: toggleSuggestionMode } = useSuggestionMode(
+    ydoc,
+    id ?? ''
+  );
+  const { count: suggestionCount } = useDocSuggestions(editor, ydoc);
+
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
     provider,
@@ -292,8 +305,23 @@ function EditorContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showActionsMenu]);
 
+  // Exporters render suggestion marks as normal text (deletions would leak,
+  // insertions lose their pending status), so block export while any are open.
+  const exportBlockedBySuggestions = useCallback(() => {
+    if (editor && hasPendingSuggestions(editor.prosemirrorView.state.doc)) {
+      void import('sonner').then(({ toast }) =>
+        toast.error(
+          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+        )
+      );
+      return true;
+    }
+    return false;
+  }, [editor]);
+
   const handleExport = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
@@ -310,12 +338,13 @@ function EditorContent() {
       console.error('Export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
   // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
   const handleExportPDF = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
       const { pdf } = await import('@react-pdf/renderer');
@@ -335,10 +364,11 @@ function EditorContent() {
       console.error('PDF export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('PDF-Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
       const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
@@ -354,11 +384,16 @@ function EditorContent() {
       console.error('ODT export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('ODT-Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   const handleSaveToWolke = useCallback(
     async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
       if (!docData || !editor) throw new Error('Editor not ready');
+      if (hasPendingSuggestions(editor.prosemirrorView.state.doc)) {
+        throw new Error(
+          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+        );
+      }
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
       const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
@@ -576,6 +611,22 @@ function EditorContent() {
                 </button>
               )}
 
+              {!isGuest && (suggestionModeEnabled || suggestionCount > 0) && (
+                <button
+                  className={`glass-btn relative ${effectivePanel === 'suggestions' ? 'active' : ''}`}
+                  onClick={() => togglePanel('suggestions')}
+                  aria-label="Änderungen"
+                  title="Änderungen"
+                >
+                  <FiEdit3 />
+                  {suggestionCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[0.625rem] font-medium text-white">
+                      {suggestionCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
               <button
                 ref={actionsButtonRef}
                 className="glass-btn"
@@ -630,6 +681,27 @@ function EditorContent() {
                           <FiClock />
                           Versionshistorie
                         </button>
+                        {canEdit && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            disabled={hasPendingAIChanges}
+                            title={
+                              hasPendingAIChanges
+                                ? 'Während einer KI-Überprüfung nicht verfügbar'
+                                : undefined
+                            }
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              toggleSuggestionMode();
+                            }}
+                          >
+                            <FiEdit3 />
+                            <span className="flex-1">Änderungen nachverfolgen</span>
+                            {suggestionModeEnabled && (
+                              <FiCheck className="!h-4 !w-4 text-primary-600" />
+                            )}
+                          </button>
+                        )}
                         {wolkeConnected && (
                           <button
                             className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
@@ -840,6 +912,10 @@ function EditorContent() {
                   }
                 }}
               />
+            )}
+
+            {effectivePanel === 'suggestions' && editor && (
+              <SuggestionsSidebar editor={editor} ydoc={ydoc} canEdit={isEditable} />
             )}
           </aside>
         )}
