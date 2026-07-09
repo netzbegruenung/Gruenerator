@@ -11,10 +11,85 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
 
-import type { SearchIntent, ClassificationResult } from '../types.js';
+import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph:Classifier');
+
+// ── Combined social post (EXPERIMENTAL) ─────────────────────────────────────
+// Shared by the heuristic fast-path and the classifier's dedicated branches so
+// escape hatches and platform detection can't drift between tiers.
+
+/**
+ * "nur den Text" / "ohne Sharepic" / "nur der Wortlaut" — user wants the caption
+ * only. Compound "-text" nouns ("Posttext", "Beitragstext", "Social-Media-Text")
+ * and `wortlaut`/`bildunterschrift` are unambiguously text-only, so they escape
+ * even without a "nur"; a bare "Text" stays combined (it often means the post's
+ * text, not text-instead-of-graphic) and needs a "nur"/"reine" qualifier.
+ */
+export const SOCIAL_TEXT_ONLY_PATTERN =
+  /\b(nur|bloß|bloss|lediglich|reine[rn]?)\s+(den\s+|einen\s+|die\s+)?(post-?|caption-?)?(text|wortlaut|caption)\b|\b(post|beitrag|social[-\s]?media|caption)s{0,2}[-\s]?text\b|\b(wortlaut|bildunterschrift)\b|\bohne\s+(sharepic|grafik|bild)\b/i;
+
+/** "nur ein Sharepic" / "ohne Text" — user wants the graphic only. */
+export const SHAREPIC_ONLY_PATTERN =
+  /\bnur\s+(ein\s+)?(sharepic|spruchbild|zitatbild|grafik)\b|\bohne\s+(post-?|caption-?)?text\b/i;
+
+/** Explicit sharepic wording keeps routing to the shipped sharepic-only flow. */
+export const SHAREPIC_NOUN_PATTERN =
+  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
+
+/**
+ * "Post MIT Sharepic" / "inkl. Sharepic" is the explicit combined ask — the
+ * sharepic noun here is inclusion, not exclusion, so it must NOT act as a
+ * sharepic-only escape.
+ */
+export const SHAREPIC_INCLUSION_PATTERN =
+  /\b(mit|inkl\w*\.?|und|plus|samt)\s+(dazu\s+)?(ein(em)?\s+)?(passende[mn]?\s+)?(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|grafik)\b/i;
+
+const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
+const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
+// Mastodon/Bluesky share Twitter's 280-char budget (see prompts/social.json).
+const TWITTER_PLATFORM_PATTERN = /\b(twitter|tweets?|tweete\w*|x-?post|bluesky|mastodon)\b/i;
+const LINKEDIN_PLATFORM_PATTERN = /\blinked-?in\b/i;
+
+/**
+ * Platform hint from the user prompt. Null = no platform named (generic).
+ * Instagram/Facebook win over Twitter/LinkedIn to preserve the pre-existing
+ * two-platform detection order.
+ */
+export function detectSocialPlatform(text: string): SocialTextPlatform | null {
+  if (INSTAGRAM_PLATFORM_PATTERN.test(text)) return 'instagram';
+  if (FACEBOOK_PLATFORM_PATTERN.test(text)) return 'facebook';
+  if (TWITTER_PLATFORM_PATTERN.test(text)) return 'twitter';
+  if (LINKEDIN_PLATFORM_PATTERN.test(text)) return 'linkedin';
+  return null;
+}
+
+/** Creation verb: user wants a post WRITTEN, not examples shown. */
+export const SOCIAL_CREATE_VERB_PATTERN =
+  /\b(erstell|schreib|mach|generier|verfass|formulier|entwirf|entwerf|bastel|produzier|dichte|tweete)\w*/i;
+
+/** Bare noun-phrase prompts ("Instagram-Post zu Tempo 30") carry no verb. */
+export const SOCIAL_BARE_NOUN_PATTERN =
+  /^\s*(bitte\s+)?(ein(en)?\s+)?((insta(gram)?|facebook|fb|linkedin|twitter|x|tiktok)[-\s]?)?(post(ing)?|beitrag|tweet|reels?|caption|social[-\s]?media[-\s]?post)\b/i;
+
+/** Question-shaped messages must not trigger post creation. */
+export const SOCIAL_META_QUESTION_PATTERN = /^\s*(wie|was|wer|warum|wieso|welche|wann|wo)\b/i;
+
+/**
+ * Escape hatches for a message that would otherwise route to `social_post`:
+ * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
+ * exclusionary sharepic wording keeps the shipped sharepic-only flow.
+ * Inclusion phrasing ("Post mit Sharepic") stays combined — it is the most
+ * explicit combined ask there is.
+ */
+export function resolveSocialPostEscape(text: string): 'examples' | 'sharepic' | null {
+  if (SOCIAL_TEXT_ONLY_PATTERN.test(text)) return 'examples';
+  if (SHAREPIC_ONLY_PATTERN.test(text)) return 'sharepic';
+  if (SHAREPIC_INCLUSION_PATTERN.test(text)) return null;
+  if (SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
+  return null;
+}
 
 /**
  * Keywords for fuzzy matching in heuristic fallback.
@@ -27,6 +102,8 @@ export const INTENT_KEYWORDS: Record<
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
+    | 'create_sheet'
+    | 'create_presentation'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
@@ -39,6 +116,8 @@ export const INTENT_KEYWORDS: Record<
     | 'artifact'
     // compute is detected by dedicated count/math/unit/date patterns, not keywords.
     | 'compute'
+    // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
+    | 'social_post'
   >,
   string[]
 > = {
@@ -56,6 +135,18 @@ export const INTENT_KEYWORDS: Record<
     'nebentätigkeiten',
     'nebeneinkünfte',
     'namentliche abstimmung',
+  ],
+  bundestag: [
+    'drucksache',
+    'bt-drs',
+    'plenarprotokoll',
+    'plenardebatte',
+    'bundestagsdebatte',
+    'bundestagsrede',
+    'gesetzentwurf',
+    'kleine anfrage',
+    'große anfrage',
+    'gesetzgebungsverfahren',
   ],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
@@ -309,7 +400,7 @@ export function isTabularComputeQuestion(text: string): boolean {
   // 'zähl' must not fire inside 'erzähl'. Noun stems may sit inside German
   // compounds (jahresumsatz, gesamtgewinn), so they match anywhere.
   const wordStart =
-    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|top ?\d|wie ?viel|pro\s+\w+)/i;
+    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|meist|häufigst|beste[rns]?\b|top ?\d|ausreißer|quartil|pivot|prognos|wie ?viel|pro\s+\w+)/i;
   const nounStem = /(umsatz|gewinn|erlös|gesamtsumme|gesamtwert|höchst|niedrigst)/i;
   return wordStart.test(text) || nounStem.test(text);
 }
@@ -351,8 +442,11 @@ export function heuristicClassify(
   // spelling variants ("spruchbild", "zitatbild"). The specific variant
   // (zitat/dreizeilen/info) is resolved later in the execution path from the same
   // text — here we only need to route to the sharepic intent.
-  const sharepicKeywords = /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
-  if (sharepicKeywords.test(q)) {
+  // "Post MIT Sharepic" is a combined ask — let the social_post rule below
+  // take it instead of the sharepic-only fast path.
+  const sharepicIsInclusion =
+    SHAREPIC_INCLUSION_PATTERN.test(q) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(q);
+  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion) {
     return {
       intent: 'sharepic',
       searchQuery: null,
@@ -395,6 +489,22 @@ export function heuristicClassify(
       intent: 'save_as_doc',
       searchQuery: null,
       reasoning: 'Save as document request detected',
+      confidence: 0.9,
+    };
+  }
+
+  // High confidence (0.9): Presentation-deck creation. create_presentation lives
+  // only in the LLM prompt, and the intermediate classifier model is unreliable
+  // on this newer intent — so an explicit "erstelle eine Präsentation über X"
+  // was falling back to a prose slide outline instead of building a deck.
+  // Fast-path the unambiguous phrasing (creation verb + deck noun).
+  const presentationCreatePattern =
+    /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
+  if (presentationCreatePattern.test(q)) {
+    return {
+      intent: 'create_presentation',
+      searchQuery: null,
+      reasoning: 'Presentation creation request detected',
       confidence: 0.9,
     };
   }
@@ -539,6 +649,27 @@ export function heuristicClassify(
       searchQuery: userContent,
       reasoning: 'Person query routed to web search',
       confidence: 0.78,
+    };
+  }
+
+  // Medium confidence (0.80): social media requests. Creation verbs route to
+  // the EXPERIMENTAL combined post (text + sharepic) unless an escape hatch
+  // ("nur Text", "nur Sharepic") applies; browse verbs ("zeig mir Beispiele")
+  // keep the examples flow. Meta-questions never create.
+  if (
+    /\b(social\s*media|post|tweet|instagram)\b/i.test(q) &&
+    SOCIAL_CREATE_VERB_PATTERN.test(q) &&
+    !/\b(beispiel|vorlage)\b/i.test(q) &&
+    !SOCIAL_META_QUESTION_PATTERN.test(q)
+  ) {
+    const escape = resolveSocialPostEscape(q);
+    return {
+      intent: escape ?? 'social_post',
+      searchQuery: userContent,
+      reasoning: escape
+        ? `Social media creation with "${escape}" escape hatch`
+        : 'Social media post creation (combined text + sharepic)',
+      confidence: 0.8,
     };
   }
 

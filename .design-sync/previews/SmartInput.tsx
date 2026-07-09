@@ -14,8 +14,17 @@ const options = [
   { value: 'demokratie', label: 'Demokratie & Beteiligung' },
 ];
 
-const wrap: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 360 };
-const label: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 'var(--foreground, #18181b)' };
+const wrap: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  maxWidth: 360,
+};
+const label: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: 'var(--foreground, #18181b)',
+};
 
 // Idle: placeholder only.
 export function LeeresFeld() {

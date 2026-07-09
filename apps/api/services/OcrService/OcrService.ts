@@ -7,6 +7,8 @@
 import { createRequire } from 'module';
 import path from 'path';
 
+import { type OcrProvider } from '@gruenerator/contracts';
+
 import { env } from '../../config/env.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -187,7 +189,7 @@ export class OCRService {
    */
   async extractTextFromDocument(
     filePath: string,
-    preferredProvider?: string
+    preferredProvider?: OcrProvider
   ): Promise<DocumentExtractionResult> {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();

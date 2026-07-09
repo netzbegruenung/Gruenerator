@@ -15,12 +15,17 @@ export const COLLAB_SUBTYPES = [
   'tabelle',
   'boards',
   'canvas',
+  'sheets',
+  'presentations',
 ];
 
 /** @deprecated Use COLLAB_SUBTYPES instead */
 export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
 
-/** Document-only subtypes (excludes boards and canvas, which have their own listing endpoints). */
+/**
+ * Document-only subtypes (excludes boards and canvas, which have their own
+ * listing endpoints). Sheets stay in on purpose: they share the /docs list.
+ */
 export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards' && s !== 'canvas');
 
 /** Marker for permissions auto-granted when a user visits an 'authenticated' share link */

@@ -3,7 +3,7 @@
  * Caches embeddings and search results with TTL
  */
 
-import { normalizeQuery } from '@gruenerator/shared/utils';
+import { normalizeQuery } from '@gruenerator/query/text';
 
 // Cache configuration
 const CACHE_CONFIG = {

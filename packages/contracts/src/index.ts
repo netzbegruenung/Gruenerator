@@ -26,6 +26,8 @@ export {
   researchContract,
   chatGraphContract,
   boardsContract,
+  sheetsContract,
+  presentationsContract,
   boardCommentsContract,
   boardAgentContract,
   boardActivityContract,
@@ -80,8 +82,12 @@ export * from './schemas/search.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/socialPost.js';
+export * from './schemas/bundestag.js';
 export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
+export * from './schemas/sheets.js';
+export * from './schemas/presentations.js';
 export * from './schemas/boardComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
@@ -128,3 +134,13 @@ export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
 export * from './schemas/richtext.js';
 export * from './schemas/reisekosten.js';
+
+// Sheets (Univer) collab schema + pure formatting helpers — Univer-free, shared
+// by the editor package and the API.
+export * from './sheetsYdoc.js';
+
+// Presentations (reveal.js) collab schema + pure formatting helpers —
+// reveal-free, shared by the editor package and the API.
+export * from './presentationsYdoc.js';
+
+export * from './schemas/scanner.js';
