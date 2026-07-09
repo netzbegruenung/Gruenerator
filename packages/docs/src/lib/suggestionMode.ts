@@ -1,5 +1,11 @@
 import type { Mark, Node as PMNode } from 'prosemirror-model';
 import type { EditorState, Transaction } from 'prosemirror-state';
+import {
+  AddMarkStep,
+  AddNodeMarkStep,
+  ReplaceAroundStep,
+  ReplaceStep,
+} from 'prosemirror-transform';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
@@ -80,44 +86,32 @@ export function generateSuggestionId(): number {
 
 /**
  * The suggestion ids introduced by `trackedTr` that aren't attributed yet.
- * Scans only the transaction's changed range in the resulting doc — O(edit),
- * not O(doc). Returned so the caller can attribute now (author known) or defer
- * (author not yet resolved) without re-scanning.
+ *
+ * Reads ids straight off the tracked steps rather than from changed-position
+ * ranges: the library tracks a deletion purely as an `addMark` (an AddMarkStep,
+ * whose position map is empty), so a range-based scan would miss every deletion
+ * and leave it unattributed ("Unbekannt"). Insertions carry the mark on the
+ * inserted slice instead. Cheap — steps and their slices are small.
  */
 export function collectNewSuggestionIds(ydoc: Y.Doc, trackedTr: Transaction): number[] {
-  const maps = trackedTr.mapping.maps;
-  if (maps.length === 0) return [];
-
-  // Conservative bounding range of all changes, mapped forward to final coords.
-  let from = Infinity;
-  let to = 0;
-  maps.forEach((stepMap, i) => {
-    stepMap.forEach((_oldStart, _oldEnd, newStart, newEnd) => {
-      let s = newStart;
-      let e = newEnd;
-      for (let j = i + 1; j < maps.length; j++) {
-        s = maps[j].map(s, -1);
-        e = maps[j].map(e, 1);
-      }
-      from = Math.min(from, s);
-      to = Math.max(to, e);
-    });
-  });
-  if (!Number.isFinite(from) || to <= from) return [];
-
-  const doc = trackedTr.doc;
-  const clampedFrom = Math.max(0, from);
-  const clampedTo = Math.min(doc.content.size, to);
   const suggestionsMap = ydoc.getMap<SuggestionMeta>(SUGGESTIONS_MAP);
   const newIds = new Set<number>();
 
-  doc.nodesBetween(clampedFrom, clampedTo, (node) => {
-    for (const mark of node.marks) {
-      const id = readSuggestionMarkId(mark);
-      if (id != null && !suggestionsMap.has(String(id))) newIds.add(id);
+  const consider = (mark: Mark) => {
+    const id = readSuggestionMarkId(mark);
+    if (id != null && !suggestionsMap.has(String(id))) newIds.add(id);
+  };
+
+  for (const step of trackedTr.steps) {
+    if (step instanceof AddMarkStep || step instanceof AddNodeMarkStep) {
+      consider(step.mark);
+    } else if (step instanceof ReplaceStep || step instanceof ReplaceAroundStep) {
+      step.slice.content.descendants((node) => {
+        node.marks.forEach(consider);
+        return true;
+      });
     }
-    return true;
-  });
+  }
 
   return [...newIds];
 }
