@@ -227,6 +227,8 @@ interface PlannerKanbanProps {
   onUpdateView?: (viewId: string, updates: Partial<BoardView>) => void;
   currentUserId: string;
   boardId?: string;
+  /** Board name — passed through to the card detail panel breadcrumb. */
+  boardTitle?: string;
   provider?: HocuspocusProvider | null;
   // Grünerator-Spalten (AI columns) are expert-only; gates creation + run buttons.
   expertMode?: boolean;
@@ -251,6 +253,7 @@ export function PlannerKanban({
   onUpdateView,
   currentUserId,
   boardId,
+  boardTitle,
   provider,
   expertMode = false,
   deepLinkRow,
@@ -827,6 +830,7 @@ export function PlannerKanban({
         onDuplicate={(rowId) => duplicateRow(rowId, currentUserId)}
         onUpdateField={updateField}
         boardId={boardId}
+        boardTitle={boardTitle}
         currentUserId={currentUserId}
         currentUserName={userName}
         currentUserAvatarRobotId={userAvatarRobotId}
