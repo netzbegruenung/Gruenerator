@@ -12,15 +12,30 @@ import {
   BlockNoteEditor,
   useDocumentChat,
   useDocsAdapter,
+  useDocSuggestions,
   invokeDocumentAI,
   acceptDocumentAI,
   rejectDocumentAI,
   getDocUndoFlags,
+  isSuggestionModeEnabled,
+  setSuggestionMode,
+  observeSuggestionMode,
+  acceptSuggestionById,
+  rejectSuggestionById,
+  acceptAllSuggestions,
+  rejectAllSuggestions,
+  jumpToSuggestion,
   type DocsAdapter,
   type UndoableEditor,
 } from '@gruenerator/docs/mobile';
 import { type DOMProps } from 'expo/dom';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+
+import type { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
+import type { EditorView } from 'prosemirror-view';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyEditor = BlockNoteEditorCore<any, any, any>;
 
 // --- Base64 <-> ArrayBuffer helpers for the WebSocket bridge ---
 
@@ -251,6 +266,10 @@ interface DocEditorDOMProps {
   onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
   onAiReviewPendingChange?: (pending: boolean) => void;
   onAiAcceptFailed?: () => void;
+  // Track-changes (Änderungsmodus): mode flag + open-suggestion list, bridged to
+  // native so the 3-dot menu reflects the mode and the review sheet lists changes.
+  onSuggestionModeChange?: (enabled: boolean) => void;
+  onSuggestionsChange?: (json: string) => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
   wsSend?: (b64: string) => Promise<void>;
@@ -307,6 +326,8 @@ function EditorContent({
   onDocSnapshotChange,
   onSlashChange,
   onUndoRedoStateChange,
+  onSuggestionModeChange,
+  onSuggestionsChange,
 }: {
   documentId: string;
   userId: string;
@@ -323,6 +344,8 @@ function EditorContent({
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
   onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
+  onSuggestionModeChange?: (enabled: boolean) => void;
+  onSuggestionsChange?: (json: string) => void;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -355,10 +378,29 @@ function EditorContent({
 
   // Editor instance ref for formatting operations
   const editorRef = useRef<unknown>(null);
+  // Editor as state too, so the track-changes suggestions hook re-subscribes once
+  // the editor is ready (a ref alone wouldn't trigger the hook's effect).
+  const [editorInstance, setEditorInstance] = useState<AnyEditor | null>(null);
 
   const handleEditorReady = useCallback((editor: unknown) => {
     editorRef.current = editor;
+    setEditorInstance(editor as AnyEditor);
   }, []);
+
+  // Track-changes attribution: like the docs assistant chat, prefer the reliable
+  // auth identity over Yjs awareness (which can be empty at edit time).
+  const localUser = useMemo(() => ({ id: userId, name: userName }), [userId, userName]);
+
+  // Doc-wide Änderungsmodus flag, synced via the Y.Doc `meta` map.
+  const suggestionModeEnabled = useSyncExternalStore(
+    useCallback((cb: () => void) => (ydoc ? observeSuggestionMode(ydoc, cb) : () => {}), [ydoc]),
+    () => (ydoc ? isSuggestionModeEnabled(ydoc) : false),
+    () => false
+  );
+
+  // Only scan the doc for suggestions while the mode is on (the O(doc) scan is
+  // wasted otherwise); passing null clears the list.
+  const { suggestions } = useDocSuggestions(suggestionModeEnabled ? editorInstance : null, ydoc);
 
   // Stable refs for callbacks — prevents re-firing effects when callback identity changes
   const onChatMessagesChangeRef = useRef(onChatMessagesChange);
@@ -381,6 +423,68 @@ function EditorContent({
   onSlashChangeRef.current = onSlashChange;
   const onUndoRedoStateChangeRef = useRef(onUndoRedoStateChange);
   onUndoRedoStateChangeRef.current = onUndoRedoStateChange;
+  const onSuggestionModeChangeRef = useRef(onSuggestionModeChange);
+  onSuggestionModeChangeRef.current = onSuggestionModeChange;
+  const onSuggestionsChangeRef = useRef(onSuggestionsChange);
+  onSuggestionsChangeRef.current = onSuggestionsChange;
+
+  // Bridge the track-changes mode flag to native (drives the 3-dot menu state).
+  useEffect(() => {
+    onSuggestionModeChangeRef.current?.(suggestionModeEnabled);
+  }, [suggestionModeEnabled]);
+
+  // Bridge the open-suggestion list to native (drives the review sheet).
+  useEffect(() => {
+    onSuggestionsChangeRef.current?.(JSON.stringify(suggestions));
+  }, [suggestions]);
+
+  // Handle track-changes actions dispatched from native (mode toggle + accept/
+  // reject) against the live editor view + Y.Doc.
+  useEffect(() => {
+    const withView = (fn: (view: EditorView) => void) => {
+      const view = (editorRef.current as { prosemirrorView?: EditorView } | null)?.prosemirrorView;
+      if (view) fn(view);
+    };
+
+    const handleMode = (e: Event) => {
+      if (!ydoc) return;
+      const enabled = (e as CustomEvent<{ enabled: boolean }>).detail?.enabled;
+      if (typeof enabled === 'boolean') setSuggestionMode(ydoc, enabled);
+    };
+    const handleAccept = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (ydoc && typeof id === 'number') withView((v) => acceptSuggestionById(v, ydoc, id));
+    };
+    const handleReject = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (ydoc && typeof id === 'number') withView((v) => rejectSuggestionById(v, ydoc, id));
+    };
+    const handleAcceptAll = () => {
+      if (ydoc) withView((v) => acceptAllSuggestions(v, ydoc));
+    };
+    const handleRejectAll = () => {
+      if (ydoc) withView((v) => rejectAllSuggestions(v, ydoc));
+    };
+    const handleSelect = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (typeof id === 'number') withView((v) => jumpToSuggestion(v, id));
+    };
+
+    window.addEventListener('suggestion-mode', handleMode);
+    window.addEventListener('suggestion-accept', handleAccept);
+    window.addEventListener('suggestion-reject', handleReject);
+    window.addEventListener('suggestion-accept-all', handleAcceptAll);
+    window.addEventListener('suggestion-reject-all', handleRejectAll);
+    window.addEventListener('suggestion-select', handleSelect);
+    return () => {
+      window.removeEventListener('suggestion-mode', handleMode);
+      window.removeEventListener('suggestion-accept', handleAccept);
+      window.removeEventListener('suggestion-reject', handleReject);
+      window.removeEventListener('suggestion-accept-all', handleAcceptAll);
+      window.removeEventListener('suggestion-reject-all', handleRejectAll);
+      window.removeEventListener('suggestion-select', handleSelect);
+    };
+  }, [ydoc]);
 
   // Subscribe to editor selection changes → send active styles to native
   useEffect(() => {
@@ -671,6 +775,7 @@ function EditorContent({
             useStaticFormattingToolbar={false}
             hideFormattingToolbar={true}
             showDictationButton={false}
+            localUser={localUser}
             onEditorReady={handleEditorReady}
           />
         ) : (
@@ -816,6 +921,22 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
       window.dispatchEvent(
         new CustomEvent('slash-select', { detail: { blockType, props: blockProps } })
       );
+    } else if (props.pendingAction.type === 'set-suggestion-mode') {
+      const enabled = (props.pendingAction as { type: string; enabled: boolean }).enabled;
+      window.dispatchEvent(new CustomEvent('suggestion-mode', { detail: { enabled } }));
+    } else if (props.pendingAction.type === 'accept-suggestion') {
+      const id = (props.pendingAction as { type: string; id: number }).id;
+      window.dispatchEvent(new CustomEvent('suggestion-accept', { detail: { id } }));
+    } else if (props.pendingAction.type === 'reject-suggestion') {
+      const id = (props.pendingAction as { type: string; id: number }).id;
+      window.dispatchEvent(new CustomEvent('suggestion-reject', { detail: { id } }));
+    } else if (props.pendingAction.type === 'accept-all-suggestions') {
+      window.dispatchEvent(new CustomEvent('suggestion-accept-all'));
+    } else if (props.pendingAction.type === 'reject-all-suggestions') {
+      window.dispatchEvent(new CustomEvent('suggestion-reject-all'));
+    } else if (props.pendingAction.type === 'select-suggestion') {
+      const id = (props.pendingAction as { type: string; id: number }).id;
+      window.dispatchEvent(new CustomEvent('suggestion-select', { detail: { id } }));
     }
   }, [props.pendingAction, props.actionCounter]);
 
@@ -876,6 +997,20 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     [props.onUndoRedoStateChange]
   );
 
+  const handleSuggestionModeChange = useCallback(
+    (enabled: boolean) => {
+      props.onSuggestionModeChange?.(enabled);
+    },
+    [props.onSuggestionModeChange]
+  );
+
+  const handleSuggestionsChange = useCallback(
+    (json: string) => {
+      props.onSuggestionsChange?.(json);
+    },
+    [props.onSuggestionsChange]
+  );
+
   return (
     <DocsProvider adapter={adapter}>
       <EditorContent
@@ -894,6 +1029,8 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onDocSnapshotChange={handleDocSnapshotChange}
         onSlashChange={props.onSlashChange}
         onUndoRedoStateChange={handleUndoRedoStateChange}
+        onSuggestionModeChange={handleSuggestionModeChange}
+        onSuggestionsChange={handleSuggestionsChange}
       />
     </DocsProvider>
   );
