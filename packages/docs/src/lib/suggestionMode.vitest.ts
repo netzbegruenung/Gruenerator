@@ -1,11 +1,13 @@
 import { addSuggestionMarks } from '@handlewithcare/prosemirror-suggest-changes';
-import { type Node as PMNode, Schema } from 'prosemirror-model';
+import { Fragment, type Node as PMNode, Schema, Slice } from 'prosemirror-model';
 import { EditorState, TextSelection } from 'prosemirror-state';
+import { AddMarkStep, ReplaceStep } from 'prosemirror-transform';
 import * as Y from 'yjs';
 import { describe, expect, it } from 'vitest';
 
 import {
   buildSuggestionDecorations,
+  collectNewSuggestionIds,
   collectSuggestions,
   generateSuggestionId,
   getSuggestionIdAtSelection,
@@ -108,6 +110,34 @@ describe('suggestionMetaCount', () => {
     ydoc.getMap('suggestions').set('1', {});
     ydoc.getMap('suggestions').set('2', {});
     expect(suggestionMetaCount(ydoc)).toBe(2);
+  });
+});
+
+describe('collectNewSuggestionIds', () => {
+  it('collects the id of a deletion tracked as an AddMarkStep (empty position map)', () => {
+    // Regression: deletions are marked, not removed, so their step has no changed
+    // range — a range-based scan misses them and leaves them "Unbekannt".
+    const doc = para(schema.text('hello'));
+    const state = EditorState.create({ doc });
+    const tr = state.tr.step(new AddMarkStep(1, 6, schema.marks.deletion.create({ id: 5 })));
+    expect(collectNewSuggestionIds(new Y.Doc(), tr)).toEqual([5]);
+  });
+
+  it('collects the id of an insertion carried on the inserted slice', () => {
+    const doc = para(schema.text('hello'));
+    const state = EditorState.create({ doc });
+    const marked = schema.text('X', [schema.marks.insertion.create({ id: 8 })]);
+    const tr = state.tr.step(new ReplaceStep(1, 1, new Slice(Fragment.from(marked), 0, 0)));
+    expect(collectNewSuggestionIds(new Y.Doc(), tr)).toEqual([8]);
+  });
+
+  it('skips ids already attributed', () => {
+    const doc = para(schema.text('hello'));
+    const state = EditorState.create({ doc });
+    const ydoc = new Y.Doc();
+    ydoc.getMap('suggestions').set('5', { userId: 'u', name: 'A', color: '#fff', createdAt: 0 });
+    const tr = state.tr.step(new AddMarkStep(1, 6, schema.marks.deletion.create({ id: 5 })));
+    expect(collectNewSuggestionIds(ydoc, tr)).toEqual([]);
   });
 });
 
