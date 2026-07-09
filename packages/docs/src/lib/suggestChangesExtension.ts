@@ -139,8 +139,11 @@ export function SuggestChangesExtension(opts: SuggestChangesOptions): ExtensionF
         next(tr);
         return;
       }
-      next(tracked);
 
+      // Write attribution BEFORE applying the transaction: next() synchronously
+      // fires the editor's change/selection listeners (the popover opens from
+      // there), so the metadata must already be in the map or the first popover
+      // render reads nothing and shows "Unbekannt".
       const newIds = collectNewSuggestionIds(ydoc, tracked);
       if (newIds.length > 0) {
         const user = getUser();
@@ -148,6 +151,8 @@ export function SuggestChangesExtension(opts: SuggestChangesOptions): ExtensionF
         else for (const id of newIds) pendingIds.add(id);
       }
       flushPending();
+
+      next(tracked);
     },
   });
 

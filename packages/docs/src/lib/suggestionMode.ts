@@ -238,11 +238,6 @@ export function findSuggestionMarkEl(view: EditorView, id: number): HTMLElement 
   );
 }
 
-/** Cheap count of attributed suggestions — the Y.Map size, no doc scan. */
-export function suggestionMetaCount(ydoc: Y.Doc): number {
-  return ydoc.getMap<SuggestionMeta>(SUGGESTIONS_MAP).size;
-}
-
 // Only accept palette-style hex before injecting into an inline style string —
 // the color originates from another peer's awareness state (untrusted).
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
