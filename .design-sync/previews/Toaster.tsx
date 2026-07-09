@@ -21,13 +21,5 @@ export function Notifications() {
     });
   }, []);
 
-  return (
-    <Toaster
-      position="top-center"
-      richColors
-      expand
-      visibleToasts={3}
-      duration={1000000}
-    />
-  );
+  return <Toaster position="top-center" richColors expand visibleToasts={3} duration={1000000} />;
 }

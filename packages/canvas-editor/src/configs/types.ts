@@ -295,14 +295,10 @@ export type CanvasConfigId =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
-  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'slider'
   | 'freeform'
-  | 'pres-title'
-  | 'pres-image'
-  | 'pres-content'
   | 'profilbild';
 
 /** A page in a heterogeneous multi-page document */

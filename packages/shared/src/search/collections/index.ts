@@ -1,7 +1,10 @@
 /**
- * Collection Configuration Module
+ * Collection type vocabulary for Qdrant vector search.
  *
- * Exports collection configurations and utilities for Qdrant vector search.
+ * The runtime collection registry now lives in the backend
+ * (`apps/api/config/systemCollectionsConfig.ts`) as the single source of truth;
+ * the MCP fetches it at runtime (`services/mcp/src/catalog.ts`). Only the shared
+ * type vocabulary + Landesverband registries remain here.
  */
 
 // Types
@@ -29,16 +32,3 @@ export {
   type FilterableFieldName,
   type ValueLabelsFor,
 } from './landesverbandSources.js';
-
-// Config and utilities
-export {
-  COLLECTIONS,
-  COLLECTION_KEYS,
-  getCollection,
-  getQdrantCollectionName,
-  isValidCollectionKey,
-  getFilterableFields,
-  getCollectionsWithField,
-  getDefaultSearchCollections,
-  buildCollectionDefaultFilter,
-} from './config.js';

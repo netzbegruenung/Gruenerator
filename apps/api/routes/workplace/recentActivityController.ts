@@ -3,7 +3,10 @@ import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { CANVAS_ACCESS_WHERE, CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
 import { createLogger } from '../../utils/logger.js';
+import { getSharedMediaService } from '../share/shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -20,6 +23,14 @@ const DOCS_SUBTYPES = [
   'redaktionsplan',
   'checkliste',
   'einladung',
+  // Spreadsheet-style docs (created via chat "save as Tabelle"). They open at
+  // /docs/:id like any doc; the frontend renders a grid preview off
+  // documentType === 'tabelle' instead of the prose excerpt.
+  'tabelle',
+  // Univer spreadsheets and reveal.js decks: they too open at /docs/:id (the
+  // route dispatches on subtype) so they surface as `type: 'doc'`.
+  'sheets',
+  'presentations',
 ];
 
 const SUBTYPE_EMOJI: Record<string, string> = {
@@ -31,13 +42,16 @@ const SUBTYPE_EMOJI: Record<string, string> = {
   redaktionsplan: '📅',
   checkliste: '☑️',
   einladung: '✉️',
+  tabelle: '📊',
+  sheets: '📊',
+  presentations: '🎬',
 };
 
 export interface RecentActivityItem {
   id: string;
   title: string;
   date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
+  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
   href: string;
   emoji?: string | undefined;
   boardType?: 'kanban' | 'whiteboard' | undefined;
@@ -56,13 +70,13 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : 12;
 
-    const [docs, boards, images, reelProjects, texts, presentations] = await Promise.all([
+    const [docs, boards, images, reelProjects, texts, canvases] = await Promise.all([
       fetchRecentDocs(userId, limit),
       fetchRecentBoards(userId, limit),
       fetchRecentImages(userId, limit),
       fetchRecentReelProjects(userId, limit),
       fetchRecentTexts(userId, limit),
-      fetchRecentPresentations(userId, limit),
+      fetchRecentCanvases(userId, limit),
     ]);
 
     const items: RecentActivityItem[] = [
@@ -71,7 +85,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
       ...images,
       ...reelProjects,
       ...texts,
-      ...presentations,
+      ...canvases,
     ];
 
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -216,31 +230,33 @@ export async function fetchRecentImages(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
-  const rows = await db.query(
-    `SELECT id, share_token, title, thumbnail_path, status, created_at
-    FROM shared_media
-    WHERE user_id = $1 AND media_type = 'image' AND status = 'ready'
-    ORDER BY created_at DESC
-    LIMIT $2`,
-    [userId, limit]
-  );
+  // Status policy lives in the service (USER_VISIBLE_SHARE_STATUSES) — this
+  // surface shows everything the user's own galleries show, drafts included.
+  let rows;
+  try {
+    const service = await getSharedMediaService();
+    rows = await service.getUserShares(userId, 'image', USER_VISIBLE_SHARE_STATUSES, limit);
+  } catch (error) {
+    // Degrade to an empty strip instead of failing the whole Promise.all'd
+    // /recent-activity response (the media service adds an fs dependency the
+    // old raw query didn't have).
+    log.error('Failed to fetch recent images:', error);
+    return [];
+  }
 
-  return (
-    rows as Array<{
-      id: string;
-      share_token: string;
-      title: string;
-      thumbnail_path: string | null;
-      status: string;
-      created_at: string;
-    }>
-  ).map((row) => ({
+  return rows.map((row) => ({
     id: row.share_token,
     title: row.title || 'Ohne Titel',
-    date: row.created_at,
+    date: row.created_at.toISOString(),
     type: 'image' as const,
     href: `/share/${row.share_token}`,
-    thumbnailUrl: row.thumbnail_path ? `/api/share/${row.share_token}/thumbnail` : undefined,
+    // Fresh shares have thumbnail_path=null until the async variants pass
+    // finishes — fall back to the on-demand preview route so the tile isn't
+    // blank. ?w=400 hits the pre-generated variant widths (200/400/800) and
+    // the thumbs/ disk cache instead of streaming the full-size original.
+    thumbnailUrl: row.thumbnail_path
+      ? `/api/share/${row.share_token}/thumbnail`
+      : `/api/share/${row.share_token}/preview?w=400&fmt=webp`,
     deleteEndpoint: `/api/share/${row.share_token}`,
   }));
 }
@@ -332,26 +348,26 @@ export async function fetchRecentTexts(
   });
 }
 
-export async function fetchRecentPresentations(
+export async function fetchRecentCanvases(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
   const rows = await db.query(
     `SELECT
-      cp.id, cp.title, cp.updated_at, cp.user_id,
+      cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url,
       p.display_name as creator_name,
       CASE
-        WHEN cp.user_id = $1 THEN 'owner'
-        WHEN cp.permissions ? $2::text THEN 'direct'
+        WHEN cd.created_by = $2 THEN 'owner'
+        WHEN cd.permissions ? $3::text THEN 'direct'
+        ELSE 'group'
       END AS access_type
-    FROM collaborative_presentations cp
-    LEFT JOIN profiles p ON cp.user_id = p.id
-    WHERE
-      cp.user_id = $1
-      OR cp.permissions ? $2::text
-    ORDER BY cp.updated_at DESC
-    LIMIT $3`,
-    [userId, userId, limit]
+    FROM collaborative_documents cd
+    INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+    LEFT JOIN profiles p ON cd.created_by = p.id
+    WHERE ${CANVAS_ACCESS_WHERE}
+    ORDER BY cd.updated_at DESC
+    LIMIT $4`,
+    [CANVAS_SUBTYPE, userId, userId, limit]
   );
 
   return (
@@ -359,20 +375,21 @@ export async function fetchRecentPresentations(
       id: string;
       title: string;
       updated_at: string;
-      user_id: string;
-      creator_name: string;
+      created_by: string;
+      thumbnail_url: string | null;
+      creator_name: string | null;
       access_type: string;
     }>
   ).map((row) => ({
     id: row.id,
-    title: row.title || 'Neue Präsentation',
+    title: row.title || 'Neuer Canvas',
     date: row.updated_at,
-    type: 'presentation' as const,
-    href: `/docs/presentation/${row.id}`,
-    emoji: '🎬',
-    creatorName: row.creator_name,
+    type: 'canvas' as const,
+    href: `/studio/canvas/${row.id}`,
+    thumbnailUrl: row.thumbnail_url ?? undefined,
+    creatorName: row.creator_name ?? undefined,
     accessType: row.access_type,
-    deleteEndpoint: `/api/presentations/${row.id}`,
+    deleteEndpoint: `/api/canvas/${row.id}`,
   }));
 }
 

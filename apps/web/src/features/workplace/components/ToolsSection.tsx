@@ -75,11 +75,11 @@ const MAIN_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'scanner')!,
   },
   {
-    id: 'reisekosten',
-    title: 'Fahrtkosten abrechnen',
-    description: 'Reisekostenformular mit Belegprüfung',
-    path: '/reisekosten',
-    icon: getIcon('navigation', 'reisekosten')!,
+    id: 'zeichenzaehler',
+    title: 'Zeichenzähler',
+    description: 'Zeichen, Wörter & Social-Limits zählen',
+    path: '/zeichenzaehler',
+    icon: getIcon('navigation', 'zeichenzaehler')!,
   },
   {
     id: 'transkription',

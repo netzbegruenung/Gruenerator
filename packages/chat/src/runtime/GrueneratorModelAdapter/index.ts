@@ -6,6 +6,7 @@ import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
+import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
 import { streamErrorMessage } from '../streamErrorMessage';
 
@@ -45,6 +46,19 @@ export type {
 // at most one client_tool interrupt per turn, but a misbehaving server must
 // never be able to keep the browser executing forever.
 const MAX_CLIENT_TOOL_ROUNDS = 3;
+
+/**
+ * A 401/403 on the stream or a resume means the session died mid-turn. This is
+ * a raw `fetch` path with no axios interceptor, so route it through the app's
+ * `onUnauthorized` (probe → redirect on a dead session) — otherwise the user is
+ * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
+ * message and no way back to login until a manual reload.
+ */
+function routeUnauthorized(response: Response): void {
+  if (response.status === 401 || response.status === 403) {
+    useChatConfigStore.getState().onUnauthorized?.();
+  }
+}
 
 /**
  * Run-then-answer continuation: while the stream ended in a `client_tool`
@@ -94,6 +108,7 @@ async function* runClientToolResumes(params: {
       signal: params.abortSignal,
     });
     if (!resumeResponse.ok) {
+      routeUnauthorized(resumeResponse);
       const errorData = await resumeResponse.json().catch(() => ({}));
       throw new Error(
         (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -125,7 +140,23 @@ export function createGrueneratorModelAdapter(
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
       const { messages, abortSignal } = options;
-      const config = getConfig();
+      const baseConfig = getConfig();
+      // Per-run thread binding: the runtime passes the owning thread's remoteId.
+      // Prefer it over the store's currentThreadId, which can lag on rapid
+      // thread switches; a fresh thread has no remoteId snapshot yet, so fall
+      // back to the store id that initialize() just set.
+      //
+      // BUT assistant-ui's *local* runtime (editor sidebars: docs/sheets/boards/
+      // presentations via useLocalRuntime) reports the local thread-list sentinel
+      // "__DEFAULT_ID__" as unstable_threadId. That is not a real thread — letting
+      // it override would make contextProviders.get(threadId) miss (providers are
+      // registered under the real getChatThread id), so currentDocument never
+      // reaches the backend and edit_current_doc never classifies. Ignore it.
+      const runtimeThreadId =
+        options.unstable_threadId && options.unstable_threadId !== '__DEFAULT_ID__'
+          ? options.unstable_threadId
+          : null;
+      const config = runtimeThreadId ? { ...baseConfig, threadId: runtimeThreadId } : baseConfig;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
       // This is where addResult() writes the user's answer for human tool calls.
@@ -158,6 +189,7 @@ export function createGrueneratorModelAdapter(
           });
 
           if (!resumeResponse.ok) {
+            routeUnauthorized(resumeResponse);
             const errorData = await resumeResponse.json().catch(() => ({}));
             throw new Error(
               (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
@@ -339,9 +371,11 @@ export function createGrueneratorModelAdapter(
       let documentIds: string[] = [];
       let textIds: string[] = [];
       let boardIds: string[] = [];
+      let sheetIds: string[] = [];
       let docMentionIds: string[] = [];
       let wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'] = [];
       let connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'] = [];
+      const webpageUrls: string[] = [];
       let hasDocumentChat = false;
       if (isChatMode)
         for (let i = formattedMessages.length - 1; i >= 0; i--) {
@@ -365,6 +399,7 @@ export function createGrueneratorModelAdapter(
             documentIds = parsed.documentIds;
             textIds = parsed.textIds;
             boardIds = parsed.boardIds;
+            sheetIds = parsed.sheetIds;
             docMentionIds = parsed.docMentionIds;
             wolkeFiles = parsed.wolkeFiles;
             connectFiles = parsed.connectFiles;
@@ -397,6 +432,7 @@ export function createGrueneratorModelAdapter(
         const seenCollab = new Set(docMentionIds);
         const seenWolke = new Set(wolkeFiles.map((f) => `${f.shareLinkId}:${f.path}`));
         const seenConnect = new Set(connectFiles.map((f) => `${f.provider}:${f.fileId}`));
+        const seenWeb = new Set(webpageUrls);
         type GruenMentionData =
           | { kind: 'collab'; id: string; slug: string; title: string }
           | {
@@ -405,7 +441,8 @@ export function createGrueneratorModelAdapter(
               sourceType: 'notebook' | 'document' | 'text';
             }
           | { kind: 'wolke'; shareLinkId: string; path: string; name: string }
-          | { kind: 'connect'; provider: string; fileId: string; name: string; mimeType?: string };
+          | { kind: 'connect'; provider: string; fileId: string; name: string; mimeType?: string }
+          | { kind: 'webpage'; url: string; name: string };
         const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
           .attachments;
         for (const att of attachments) {
@@ -452,6 +489,11 @@ export function createGrueneratorModelAdapter(
                   name: data.name,
                   ...(data.mimeType ? { mimeType: data.mimeType } : {}),
                 });
+              }
+            } else if (data.kind === 'webpage') {
+              if (!seenWeb.has(data.url)) {
+                seenWeb.add(data.url);
+                webpageUrls.push(data.url);
               }
             }
           }
@@ -546,6 +588,12 @@ export function createGrueneratorModelAdapter(
             ? endpoints.notebookStream
             : endpoints.chatStream;
 
+      // Consume the one-shot regenerate / edit-resubmit signal set by the message
+      // action UI. Scoped to this thread; a no-op for a normal send.
+      const runSignals = useChatConfigStore
+        .getState()
+        .consumeRunSignals(config.threadId ?? undefined);
+
       const requestBody = buildRequestBody({
         effectiveMode,
         formattedMessages,
@@ -558,9 +606,13 @@ export function createGrueneratorModelAdapter(
         documentIds,
         textIds,
         boardIds,
+        sheetIds,
         docMentionIds,
         wolkeFiles,
         connectFiles,
+        webpageUrls,
+        regenerate: runSignals.regenerate,
+        replaceFromMessageId: runSignals.replaceFromMessageId,
         mergedDocChatIds,
         hasDocumentChat,
         injectedCurrentDocument,
@@ -572,6 +624,10 @@ export function createGrueneratorModelAdapter(
           if (!active) return null;
           const { variantId, canvasId, canvasType } = active;
           return { variantId, canvasId, canvasType };
+        })(),
+        currentSocialPost: (() => {
+          const active = useSocialPostLiveStore.getState().activePost;
+          return active ? { postId: active.postId } : null;
         })(),
         currentReel: (() => {
           const active = useReelLiveStore.getState().activeReel;
@@ -595,6 +651,7 @@ export function createGrueneratorModelAdapter(
       }
 
       if (!response.ok) {
+        routeUnauthorized(response);
         yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
         return;
       }

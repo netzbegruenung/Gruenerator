@@ -57,6 +57,7 @@ import {
   PiArrowRight,
   PiBrain,
   PiTextAlignLeftFill,
+  PiTextAa,
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
@@ -148,7 +149,8 @@ export type NavigationIconName =
   | 'research'
   | 'desk'
   | 'transkription'
-  | 'monitor';
+  | 'monitor'
+  | 'zeichenzaehler';
 
 /**
  * Action icon names
@@ -266,6 +268,7 @@ export const ICONS: IconRegistry = {
     desk: PiDesktop,
     transkription: HiMicrophone,
     monitor: PiChartBar,
+    zeichenzaehler: PiTextAa,
   },
 
   actions: {

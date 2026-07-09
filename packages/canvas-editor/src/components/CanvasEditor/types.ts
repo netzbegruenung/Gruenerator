@@ -10,6 +10,13 @@ export interface CanvasEditorProps {
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
+  /**
+   * Fired with the rendered image whenever the user downloads the current
+   * page. Unlike onExport (a flow-level "done" callback with host side
+   * effects), this is a pure observation hook — e.g. collab hosts reuse the
+   * download image as a fresh document thumbnail.
+   */
+  onDownload?: (base64: string) => void;
   callbacks?: Record<string, (val: unknown) => void>;
   maxPages?: number;
   /** Pre-populated pages — overrides single-page initialization when provided */
@@ -47,6 +54,12 @@ export interface CanvasEditorProps {
    * the first save after a page reload creates a new draft instead of updating.
    */
   initialShareToken?: string | null;
+  /**
+   * Called when the auto-save creates or adopts a share token. Hosts use this
+   * to remember the token across editor remounts (and to keep their own save
+   * paths updating the same share instead of creating duplicate drafts).
+   */
+  onAutoSaveShareToken?: (token: string) => void;
 }
 
 export interface PageWrapperProps {
@@ -78,6 +91,8 @@ export interface PageWrapperProps {
   ) => void;
   mobileBridge?: MobileBridgeProps;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
+  /** See CanvasEditorProps.onAutoSaveShareToken. */
+  onAutoSaveShareToken?: (token: string) => void;
   /**
    * Per-page collaborative binding. The page Y.Map under which `layers` and
    * `config` are stored. Set on every page in collab mode (one Y.Map per page).

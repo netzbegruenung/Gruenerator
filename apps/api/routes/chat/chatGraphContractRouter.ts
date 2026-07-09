@@ -36,12 +36,15 @@ import { extractChartFromResponse, emitConfirmAction } from './services/confirmA
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
 import {
   handleBoardCreation,
+  handleSheetCreation,
+  handlePresentationCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { extractTextContent } from './services/messageHelpers.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
+import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import {
   buildReelContextBlock,
@@ -68,8 +71,13 @@ import {
   isSharepicTopicMissing,
   type PriorSharepic,
 } from './services/sharepicVariantHelpers.js';
+import {
+  handleSocialPostTextEdit,
+  isSocialTextEditInstruction,
+} from './services/socialPostEditService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
+import { createMessage, touchThread } from './services/threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -124,6 +132,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
         currentSharepic: rawCurrentSharepic,
+        currentSocialPost: rawCurrentSocialPost,
         currentReel: rawCurrentReel,
         reelUpload: rawReelUpload,
       } = args.body;
@@ -193,6 +202,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
+      }
+
+      // @bundestag hard-pins the DIP document/speech intent — same rules as
+      // @abgeordnetenwatch above (not in TOOL_PRIORITY, DE-only source).
+      const bundestagForced = !!forcedTools?.includes('bundestag');
+      if (bundestagForced && initialState.userLocale !== 'de-AT') {
+        classifiedState.intent = 'bundestag';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = extractTextContent(lastUserMessage.content).trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
       }
 
       if (forcedTools && forcedTools.length > 0) {
@@ -283,6 +308,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           currentReel: rawCurrentReel ?? null,
           reelUpload: rawReelUpload,
           userLocale: initialState.userLocale || 'de-DE',
+          clientPlatform: initialState.clientPlatform,
           aiWorkerPool,
           startTime: initialState.startTime,
           ...(classifiedState.classificationTimeMs != null && {
@@ -319,6 +345,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             currentReel: rawCurrentReel ?? null,
             reelUpload: null,
             userLocale: initialState.userLocale || 'de-DE',
+            clientPlatform: initialState.clientPlatform,
             aiWorkerPool,
             startTime: initialState.startTime,
             ...(classifiedState.classificationTimeMs != null && {
@@ -326,6 +353,56 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             }),
           });
           if (handled) return { status: 200 as const, body: undefined };
+        }
+      }
+
+      // === App gate: sharepic UI is web-only ===
+      // The app renders neither sharepic_complete nor the combined-post card,
+      // so these turns would generate into the void. Placed before the edit/
+      // refinement branches and BOTH HITL interrupts — an interrupt stored
+      // with a sharepic intent would resume past this gate (resumePipeline
+      // has no platform check). social_post degrades to its text-only
+      // sibling intent instead of a redirect: the post text is a plain chat
+      // answer the app renders fine.
+      if (initialState.clientPlatform === 'app') {
+        if (
+          classifiedState.secondaryIntent === 'sharepic' ||
+          classifiedState.secondaryIntent === 'social_post'
+        ) {
+          classifiedState.secondaryIntent = null;
+        }
+        if (classifiedState.intent === 'social_post') {
+          classifiedState.intent = 'examples';
+          log.info('[ChatGraph] social_post on app — downgraded to examples (text-only post)');
+        }
+        if (classifiedState.intent === 'sharepic') {
+          log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
+          const redirectText = APP_REDIRECT_TEXTS.sharepic;
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          sse.send('text_delta', { text: redirectText });
+          sse.send('done', {
+            threadId: actualThreadId ?? null,
+            citations: [],
+            metadata: {
+              intent: classifiedState.intent,
+              searchCount: 0,
+              totalTimeMs: Date.now() - initialState.startTime,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+          if (actualThreadId) {
+            try {
+              await createMessage(actualThreadId, 'assistant', redirectText, {
+                intent: 'sharepic',
+              });
+              await touchThread(actualThreadId);
+            } catch (err) {
+              log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
+            }
+          }
+          sse.end();
+          return { status: 200 as const, body: undefined };
         }
       }
 
@@ -352,13 +429,55 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
       }
 
+      // === Social post TEXT edit (EXPERIMENTAL) ===
+      // "Mach den Text knackiger" on a thread with a combined post edits the
+      // PROSE, not the graphic. Must run BEFORE the sharepic edit branch: its
+      // EDIT_NOUN_PATTERN contains `text`, so it would hijack these
+      // instructions. Precedence: a plain Sharepic-Modus (rawCurrentSharepic
+      // WITHOUT an activated post) wins — but when the user activated the
+      // combined post (rawCurrentSocialPost, which may set both), text-ish
+      // instructions edit the post and sharepic-noun instructions still fall
+      // through to the sharepic path. Declines (returns false) when the
+      // thread has no editable post. Skipped on the app, which can't render
+      // the combined-post card or its update events.
+      if (
+        initialState.clientPlatform !== 'app' &&
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced &&
+        (rawCurrentSocialPost != null || rawCurrentSharepic == null)
+      ) {
+        const editText = ((extractTextContent(lastUserMessage.content) as string) || '').trim();
+        if (editText && isSocialTextEditInstruction(editText)) {
+          const handled = await handleSocialPostTextEdit({
+            sse,
+            req,
+            threadId: actualThreadId,
+            userId,
+            instruction: editText,
+            postId: rawCurrentSocialPost?.postId ?? null,
+            aiWorkerPool,
+            startTime: initialState.startTime,
+            ...(classifiedState.classificationTimeMs != null && {
+              classificationTimeMs: classifiedState.classificationTimeMs,
+            }),
+          });
+          if (handled) return { status: 200 as const, body: undefined };
+        }
+      }
+
       // === Sharepic edit: full NL editing of an existing chat sharepic ===
       // "Zeile 2 kürzer", "Balken nach oben", "anderes Hintergrundbild" on a
       // sharepic the thread already produced. Applies structured operations to
       // the (lazily minted) canvas document and updates the card in place —
       // see sharepicEditService. Falls through to the legacy text-regeneration
-      // refinement below when no editable target exists.
+      // refinement below when no editable target exists. Skipped on the app,
+      // which can't render sharepic updates — edit-y phrases there run through
+      // the normal pipeline instead.
       if (
+        initialState.clientPlatform !== 'app' &&
         actualThreadId &&
         lastUserMessage &&
         imageAttachments.length === 0 &&
@@ -417,6 +536,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // or non-editable template).
       let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
       if (
+        initialState.clientPlatform !== 'app' &&
         actualThreadId &&
         lastUserMessage &&
         imageAttachments.length === 0 &&
@@ -578,31 +698,40 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         'summary',
         'compare',
       ]);
-      if (
+      const isTabularCompute =
         computeOverridableIntents.has(classifiedState.intent) &&
+        isTabularComputeQuestion(lastUserText);
+      // Chart requests over an attached table compute their values FIRST —
+      // without this the model invents the aggregation (beta: the category
+      // split in the bar chart was fabricated). Intent stays 'chart'; the
+      // resumed respond step builds the chart JSON from BERECHNUNGSERGEBNIS.
+      const isTabularChart = classifiedState.intent === 'chart';
+      if (
+        (isTabularCompute || isTabularChart) &&
         classifiedState.hasTabularAttachment &&
         !forcedTools?.length &&
-        isTabularComputeQuestion(lastUserText) &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
         const { pythonCode } = await pandasComputeNode(classifiedState);
         if (pythonCode) {
           log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
-          // The resumed respond step should use the compute-mode guidance even
-          // when the classifier had picked a different intent — and the client
-          // already received the original intent event, so send a corrective
-          // one before the tool card appears.
-          classifiedState.intent = 'compute';
+          if (!isTabularChart) {
+            // The resumed respond step should use the compute-mode guidance
+            // even when the classifier had picked a different intent — and the
+            // client already received the original intent event, so send a
+            // corrective one before the tool card appears.
+            classifiedState.intent = 'compute';
+            sse.send('intent', {
+              intent: 'compute',
+              message: getIntentMessage('compute'),
+              reasoning: 'Tabellen-Berechnung erkannt',
+            });
+          }
           // Stashed for the error-correction round: if the client reports a
           // failed execution, the resume handler regenerates with this code +
           // the error message in context.
           classifiedState.pandasLastCode = pythonCode;
-          sse.send('intent', {
-            intent: 'compute',
-            message: getIntentMessage('compute'),
-            reasoning: 'Tabellen-Berechnung erkannt',
-          });
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {
@@ -688,6 +817,39 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (created) return { status: 200 as const, body: undefined };
       }
 
+      // === Handle @sheet-erstellen tool / create_sheet intent ===
+      if (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet') {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handleSheetCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
+      // === Handle @praesentation-erstellen tool / create_presentation intent ===
+      if (
+        forcedTools?.includes('praesentation-erstellen') ||
+        classifiedState.intent === 'create_presentation'
+      ) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handlePresentationCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
       // === Handle share_doc intent ===
       if (classifiedState.intent === 'share_doc' && actualThreadId) {
         const handled = await handleShareDoc({
@@ -766,20 +928,40 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 2: Search or Image Generation ===
-      const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
-        classifiedState,
-        sse,
-        forcedTool,
-        ...(enabledTools != null && { enabledTools }),
-        imageAttachments,
-        req,
-        threadId: actualThreadId ?? null,
-        ...(sharepicRefinement && { sharepicRefinement }),
-      });
+      const { finalState, generatedImage, sharepicVariants, socialPost } =
+        await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool,
+          ...(enabledTools != null && { enabledTools }),
+          imageAttachments,
+          req,
+          threadId: actualThreadId ?? null,
+          ...(sharepicRefinement && { sharepicRefinement }),
+        });
 
       // === Stage 3: Response generation ===
       let fullText: string | null;
-      if (finalState.intent === 'sharepic') {
+      if (finalState.intent === 'social_post') {
+        // Combined post (EXPERIMENTAL): both halves were already produced +
+        // streamed in Stage 2 (social_post_complete / sharepic_complete).
+        // Fixed confirmation like the sharepic branch — no extra LLM call.
+        const hasText = socialPost != null;
+        const n = sharepicVariants.length;
+        fullText =
+          hasText && n > 0
+            ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
+              `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
+            : hasText
+              ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
+                `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
+              : n > 0
+                ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                  `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
+                : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text: fullText });
+      } else if (finalState.intent === 'sharepic') {
         // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
         // Skip the LLM — with the still-vague topic it asks clarifying questions over the
         // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
@@ -990,6 +1172,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState,
         generatedImage,
         sharepicVariants,
+        socialPost,
         isNewThread,
         lastUserMessage: lastUserMessage as ModelMessage,
         processedMeta,

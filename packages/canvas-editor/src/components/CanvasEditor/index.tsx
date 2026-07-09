@@ -27,12 +27,7 @@ import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } fr
 
 import { Skeleton } from '@gruenerator/ui';
 
-import {
-  usePageManager,
-  useMultiPageExport,
-  usePresentationExport,
-  usePageThumbnails,
-} from '../../hooks';
+import { usePageManager, useMultiPageExport, usePageThumbnails } from '../../hooks';
 import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { CanvasEditorLayout } from '../../layouts';
 import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
@@ -92,12 +87,6 @@ const pageLoadingIndicator = (
 );
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  console.log('[AutoSave][CanvasEditor] outer render', {
-    initialConfigId: props.initialConfigId,
-    initialShareToken: props.initialShareToken ?? null,
-    collaborative: !!props.collaborative,
-    mobileBridge: !!props.mobileBridge,
-  });
   return (
     <AutoSaveStoreProvider initialShareToken={props.initialShareToken ?? null}>
       <CanvasEditorInner {...props} />
@@ -110,6 +99,7 @@ function CanvasEditorInner({
   initialProps,
   onExport,
   onCancel,
+  onDownload,
   callbacks = {},
   maxPages = 10,
   initialPages,
@@ -121,8 +111,13 @@ function CanvasEditorInner({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onAutoSaveShareToken,
 }: CanvasEditorProps) {
   const autoSaveStoreApi = useAutoSaveStoreApi();
+  // Note: onAutoSaveShareToken is threaded down to useCanvasAutoSave (via
+  // PageWrapper → GenericCanvas) instead of a store subscription here — a
+  // subscription dies with the unmount, losing tokens that resolve after the
+  // editor closes (flush save, in-flight save) and re-creating duplicates.
   const isMobileBridge = Boolean(mobileBridge);
   const isExternalSidebar = externalSidebar && !isMobileBridge;
 
@@ -226,9 +221,6 @@ function CanvasEditorInner({
     [collaborative, getPageYMap]
   );
 
-  // Detect presentation mode from initial config
-  const isPresentationMode = initialConfigId.startsWith('pres-');
-
   // Multi-page export hook
   const {
     exportAllPages,
@@ -238,17 +230,8 @@ function CanvasEditorInner({
     error: multiExportError,
   } = useMultiPageExport({
     canvasRefs,
-    canvasType: isPresentationMode ? 'presentation' : 'heterogeneous',
+    canvasType: 'sharepic',
   });
-
-  // Presentation-specific export (PPTX + PDF)
-  const {
-    exportAsPptx,
-    exportAsPdf,
-    isExporting: isPresentationExporting,
-    exportProgress: presentationExportProgress,
-    error: presentationExportError,
-  } = usePresentationExport(pages, canvasRefs);
 
   // Stable callback using functional pattern (Rule 5.5)
   const handleExport = useCallback(
@@ -420,9 +403,10 @@ function CanvasEditorInner({
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        onDownload?.(dataUrl);
       }
     },
-    [currentPageIndex, canvasRefsRef]
+    [currentPageIndex, canvasRefsRef, onDownload]
   );
 
   // Get active page data for shared sidebar
@@ -680,13 +664,9 @@ function CanvasEditorInner({
       pageCount,
       onDownloadAllZip: downloadAllAsZip,
       onShareAllPages: shareAllPages,
-      isMultiExporting: isMultiExporting || isPresentationExporting,
-      exportProgress: isPresentationExporting
-        ? { current: presentationExportProgress.current, total: presentationExportProgress.total }
-        : exportProgress,
-      exportError: presentationExportError ?? multiExportError,
-      onDownloadPptx: isPresentationMode ? exportAsPptx : undefined,
-      onDownloadPdf: isPresentationMode ? exportAsPdf : undefined,
+      isMultiExporting,
+      exportProgress,
+      exportError: multiExportError,
     }),
     [
       pageCount,
@@ -696,13 +676,7 @@ function CanvasEditorInner({
       exportProgress,
       currentPageIndex,
       canvasRefsRef,
-      isPresentationMode,
-      isPresentationExporting,
-      presentationExportProgress,
-      presentationExportError,
       multiExportError,
-      exportAsPptx,
-      exportAsPdf,
       handleCaptureCanvas,
       handleCaptureCanvasForAi,
     ]
@@ -975,6 +949,7 @@ function CanvasEditorInner({
                 multiPageExport={index === 0 ? multiPageExportProps : undefined}
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                onAutoSaveShareToken={onAutoSaveShareToken}
                 mobileBridge={isActive ? mobileBridge : undefined}
                 pageCollaborative={pageCollaborativeAt(index, page.id, isActive)}
               />

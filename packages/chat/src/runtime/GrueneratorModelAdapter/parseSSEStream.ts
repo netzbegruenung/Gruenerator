@@ -2,6 +2,7 @@ import {
   triggerDocEditSchema,
   triggerBoardActionSchema,
   isCanvasTemplateType,
+  chatStreamEventSchemas,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
@@ -13,6 +14,7 @@ import { useAgentStore } from '../../stores/chatStore';
 import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
+import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -120,9 +122,11 @@ export async function* parseSSEStream(
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
+  let receivedSocialPostData: import('@gruenerator/contracts').SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: ActiveArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
+  let receivedBundestagData: import('@gruenerator/contracts').BundestagPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -189,9 +193,11 @@ export async function* parseSSEStream(
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
+    if (receivedSocialPostData) custom.socialPostData = receivedSocialPostData;
     if (receivedChartData) custom.chartData = receivedChartData;
     if (receivedArtifactData) custom.artifactData = receivedArtifactData;
     if (receivedComputeData) custom.computeData = receivedComputeData;
+    if (receivedBundestagData) custom.bundestagData = receivedBundestagData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -237,8 +243,28 @@ export async function* parseSSEStream(
     buffer = lines.pop() || '';
 
     for (const line of lines) {
-      const { event, data } = parseSSELine(line, currentEvent);
-      if (!event || !data) continue;
+      const { event, data: rawData } = parseSSELine(line, currentEvent);
+      if (!event || !rawData) continue;
+
+      // Contract gate: every known event is validated against its wire
+      // schema BEFORE the switch — the `as` casts below therefore assert on
+      // schema-checked data instead of trusting the stream blindly. A
+      // malformed event is dropped with a warning; unknown event names pass
+      // through untouched (forward compatibility).
+      const eventSchema = chatStreamEventSchemas[event];
+      let data: unknown = rawData;
+      if (eventSchema) {
+        const gate = eventSchema.safeParse(rawData);
+        if (!gate.success) {
+          console.warn(
+            `[GrueneratorModelAdapter] Dropping malformed "${event}" event:`,
+            gate.error.issues[0],
+            rawData
+          );
+          continue;
+        }
+        data = gate.data;
+      }
 
       switch (event) {
         case 'thread_created': {
@@ -262,7 +288,8 @@ export async function* parseSSEStream(
           };
           let stage: ProgressStage = 'searching';
           if (intent === 'direct' || intent === 'artifact') stage = 'generating';
-          else if (intent === 'image' || intent === 'sharepic') stage = 'generating_image';
+          else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
+            stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
           transitionStep(stage);
           currentProgress = { stage, message, intent, reasoning };
@@ -453,6 +480,15 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'bundestag': {
+          const { bundestag } = data as {
+            bundestag?: import('@gruenerator/contracts').BundestagPayload;
+          };
+          if (bundestag) receivedBundestagData = bundestag;
+          yield buildResult();
+          break;
+        }
+
         case 'sharepic_complete': {
           const payload = data as {
             message: string;
@@ -495,6 +531,39 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'social_post_complete': {
+          const payload = data as {
+            message: string;
+            post?: import('@gruenerator/contracts').SocialPostPayload;
+            error?: string;
+          };
+          if (!payload.error && payload.post) {
+            receivedSocialPostData = payload.post;
+            useSocialPostLiveStore.getState().upsertEntry(payload.post);
+          }
+          // Text half only — the sharepic half drives the stage transitions
+          // via its own sharepic_complete; don't flip to error here when just
+          // the text failed (the card shows the degradation).
+          yield buildResult();
+          break;
+        }
+
+        case 'social_post_updated': {
+          const payload = data as {
+            postId: string;
+            post: import('@gruenerator/contracts').SocialPostPayload;
+            summary: string;
+          };
+          useSocialPostLiveStore.getState().upsertEntry(payload.post);
+          break;
+        }
+
+        case 'social_post_edit_error': {
+          const { error } = data as { postId?: string; error: string };
+          console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
+          break;
+        }
+
         case 'sharepic_minted': {
           const { variantId, canvasId } = data as { variantId: string; canvasId: string };
           useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
@@ -502,16 +571,9 @@ export async function* parseSSEStream(
         }
 
         case 'sharepic_updated': {
-          const payload = data as {
-            variantId: string;
-            canvasId: string;
-            version: number;
-            canvasType: string;
-            /** Single sharepics send `state`, decks send `pages` instead. */
-            state?: Record<string, unknown>;
-            pages?: Array<Record<string, unknown>>;
-            summary: string;
-          };
+          // Validated by the contract gate above — canvasType is guaranteed
+          // canonical, so junk template types can never enter the live store.
+          const payload = data as import('@gruenerator/contracts').SharepicUpdatedEvent;
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,

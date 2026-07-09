@@ -7,7 +7,12 @@ import { seedYjsStateSafe } from './seedYjsState.js';
 
 const log = createLogger('DocGeneration');
 
-const DOC_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards');
+// Subtypes the HTML document generator may pick — excludes kinds whose
+// content is not BlockNote HTML (boards/sheets/presentations seed their own
+// Y.Doc layouts).
+const DOC_SUBTYPES = COLLAB_SUBTYPES.filter(
+  (s) => s !== 'boards' && s !== 'sheets' && s !== 'presentations'
+);
 
 export const DOCUMENT_GENERATION_PROMPT = `Du bist ein Dokument-Assistent für die Grünen. Erstelle ein vollständiges Dokument basierend auf der Beschreibung.
 

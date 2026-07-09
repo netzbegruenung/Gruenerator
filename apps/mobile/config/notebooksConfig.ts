@@ -60,6 +60,7 @@ const NOTEBOOK_IONICONS = {
   'oesterreich-notebook': 'globe',
   'kommunalwiki-notebook': 'scale',
   'gruenblog-notebook': 'newspaper',
+  'abgeordnetenwatch-notebook': 'checkbox',
   'boell-stiftung-notebook': 'bulb',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
@@ -116,6 +117,7 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'oesterreich-notebook': ['oesterreich-gruene-system'],
   'kommunalwiki-notebook': ['kommunalwiki-system'],
   'gruenblog-notebook': ['gruenblog-system'],
+  'abgeordnetenwatch-notebook': ['abgeordnetenwatch-system'],
   'boell-stiftung-notebook': ['boell-stiftung-system'],
 } satisfies Record<NotebookId, string[]>;
 
