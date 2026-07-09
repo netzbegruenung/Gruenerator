@@ -1,11 +1,5 @@
-import type { Mark, Node as PMNode } from 'prosemirror-model';
+import type { Fragment, Mark, Node as PMNode } from 'prosemirror-model';
 import type { EditorState, Transaction } from 'prosemirror-state';
-import {
-  AddMarkStep,
-  AddNodeMarkStep,
-  ReplaceAroundStep,
-  ReplaceStep,
-} from 'prosemirror-transform';
 import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 import type * as Y from 'yjs';
 
@@ -102,11 +96,21 @@ export function collectNewSuggestionIds(ydoc: Y.Doc, trackedTr: Transaction): nu
     if (id != null && !suggestionsMap.has(String(id))) newIds.add(id);
   };
 
+  // Discriminate steps by `toJSON().stepType` (a stable string) rather than
+  // `instanceof`: a bundler can end up with two copies of prosemirror-transform,
+  // and a cross-copy instanceof would silently return false — dropping all
+  // attribution and reintroducing the "Unbekannt" bug in production only.
   for (const step of trackedTr.steps) {
-    if (step instanceof AddMarkStep || step instanceof AddNodeMarkStep) {
-      consider(step.mark);
-    } else if (step instanceof ReplaceStep || step instanceof ReplaceAroundStep) {
-      step.slice.content.descendants((node) => {
+    const view = step as unknown as {
+      toJSON: () => { stepType?: string };
+      mark?: Mark;
+      slice?: { content: Fragment };
+    };
+    const stepType = view.toJSON().stepType;
+    if (stepType === 'addMark' || stepType === 'addNodeMark') {
+      if (view.mark) consider(view.mark);
+    } else if (stepType === 'replace' || stepType === 'replaceAround') {
+      view.slice?.content.descendants((node) => {
         node.marks.forEach(consider);
         return true;
       });

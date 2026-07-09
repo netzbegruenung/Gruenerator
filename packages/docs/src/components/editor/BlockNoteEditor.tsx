@@ -80,6 +80,19 @@ export interface BlockNoteEditorProps {
    * and drive dictation via the OS recognizer + an insert-text bridge instead.
    */
   showDictationButton?: boolean;
+  /**
+   * The local user's reliable identity (from auth / guest), used to attribute
+   * track-changes suggestions. Preferred over Yjs awareness, which can be
+   * unpopulated at the moment an edit is dispatched — the same reason the docs
+   * assistant chat takes the display name from the auth user, not awareness.
+   */
+  localUser?: SuggestionAuthor | null;
+}
+
+interface SuggestionAuthor {
+  id: string;
+  name: string;
+  color?: string;
 }
 
 interface CollaborationUser {
@@ -146,6 +159,7 @@ const BlockNoteEditorInner = ({
   useStaticFormattingToolbar = false,
   hideFormattingToolbar = false,
   showDictationButton = true,
+  localUser,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, setDocContext, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
@@ -157,6 +171,10 @@ const BlockNoteEditorInner = ({
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Read live in the attribution closure so identity resolving after mount still
+  // applies, without churning the editor.
+  const localUserRef = useRef(localUser);
+  localUserRef.current = localUser;
 
   const scrollSelectionIntoView = useCallback(() => {
     const sel = window.getSelection();
@@ -301,9 +319,22 @@ const BlockNoteEditorInner = ({
         SuggestChangesExtension({
           ydoc,
           getUser: () => {
-            const user = provider?.awareness?.getLocalState()?.user;
-            return isCollaborationUser(user)
-              ? { id: user.id, name: user.name, color: user.color }
+            const awarenessUser = provider?.awareness?.getLocalState()?.user;
+            const awarenessColor = isCollaborationUser(awarenessUser)
+              ? awarenessUser.color
+              : undefined;
+            // Reliable id + name from auth; awareness only supplies the color
+            // (to match the user's cursor color), with a neutral fallback.
+            const local = localUserRef.current;
+            if (local) {
+              return {
+                id: local.id,
+                name: local.name,
+                color: local.color ?? awarenessColor ?? '#9ca3af',
+              };
+            }
+            return isCollaborationUser(awarenessUser)
+              ? { id: awarenessUser.id, name: awarenessUser.name, color: awarenessUser.color }
               : null;
           },
           subscribeUser: (cb) => {
