@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { ClientPlatform, CurrentBoard } from '@gruenerator/contracts';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -47,6 +47,8 @@ export interface ChatConfig {
   fetch?: (url: string, options?: RequestInit) => Promise<Response>;
   /** Called on 401. Default: redirect to /login */
   onUnauthorized?: () => void;
+  /** Client shell sent with chat requests; unset means 'web'. */
+  platform?: ClientPlatform;
   /** API endpoint overrides (all have defaults matching current paths) */
   endpoints?: {
     chatStream?: string;
@@ -259,6 +261,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchReelProject?: ChatConfig['fetchReelProject'];
   fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
   onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
+  platform?: ChatConfig['platform'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -382,6 +385,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchReelProject: config?.fetchReelProject,
       fetchReelAutoProgress: config?.fetchReelAutoProgress,
       onOpenReelStudio: config?.onOpenReelStudio,
+      platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },

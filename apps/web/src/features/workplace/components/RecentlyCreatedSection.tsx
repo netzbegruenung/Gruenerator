@@ -43,6 +43,7 @@ interface RecentItem {
   deleteEndpoint?: string;
   content?: string;
   documentType?: string;
+  blurhash?: string;
 }
 
 // Shared type vocabulary: every card surfaces the same eucalyptus-tinted badge
@@ -267,6 +268,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
           <SharedMediaImage
             shareToken={item.id}
             alt={item.title || FALLBACK_TITLES[item.type]}
+            blurhash={item.blurhash}
             sizes="(max-width: 768px) 50vw, 280px"
             className="h-full w-full object-cover"
           />
