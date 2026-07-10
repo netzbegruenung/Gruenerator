@@ -36,7 +36,10 @@ import path from 'node:path';
 import { Mistral } from '@mistralai/mistralai';
 
 import { env } from './config/env.js';
-import { getSourcesByLandesverband, loadLandesverbandContacts } from './config/landesverbaendeConfig.js';
+import {
+  getSourcesByLandesverband,
+  loadLandesverbandContacts,
+} from './config/landesverbaendeConfig.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { getAbgeordnetenwatchScraperService } from './services/scrapers/implementations/AbgeordnetenwatchScraper/index.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';

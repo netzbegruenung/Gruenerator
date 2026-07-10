@@ -1,0 +1,96 @@
+name: Report CI Failures
+
+# Watches the unattended/scheduled workflows (nobody is looking at a 2 AM cron)
+# and opens ONE tracking issue when one fails. PR/push CI is deliberately excluded —
+# the author already sees those, so auto-issuing them would be spam.
+#
+# Dedup: at most one OPEN issue per workflow (label `ci-failure` + exact title match).
+# While that issue is open, further failures of the same workflow are ignored — so an
+# hourly job that keeps failing produces one issue, not one per hour. Close the issue
+# once fixed; the next failure opens a fresh one.
+
+on:
+  workflow_run:
+    workflows:
+      - Content Sync
+      - Weekly Desktop Release
+      - Docs Freshness Check
+      - Monitor Refresh
+      - Monthly Notebook Keyword Snapshots
+      - Nightly Notebook NLP Enrichment
+      - Daily Offboarding
+      - Monthly PR-Agent Insights
+      - Social Media Sync
+      - Hourly Wolke Watch
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  # Serialize per watched workflow so two near-simultaneous failures can't both
+  # pass the "does an issue already exist?" check and open duplicates.
+  group: ci-failure-report-${{ github.event.workflow_run.name }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open a tracking issue (once) for the failed workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          LABEL: ci-failure
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          EVENT: ${{ github.event.workflow_run.event }}
+        run: |
+          set -euo pipefail
+          TITLE="CI failure: ${WF_NAME}"
+          export TITLE
+
+          # Ensure the label exists (idempotent).
+          gh label create "$LABEL" --repo "$REPO" \
+            --color B60205 --description "Automated CI failure report" \
+            --force >/dev/null 2>&1 || true
+
+          # Dedup: skip if an open issue with this exact title already tracks it.
+          EXISTING=$(gh issue list --repo "$REPO" --state open --label "$LABEL" --limit 200 \
+            --json number,title \
+            --jq 'map(select(.title == env.TITLE)) | .[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            echo "Open issue #$EXISTING already tracks '$WF_NAME' failures — nothing to do."
+            exit 0
+          fi
+
+          # Pull the failed-step logs for context (Actions masks secrets as ***).
+          # cat the file into the body (never via shell expansion) so log lines
+          # containing \$( ) or backticks can't be interpreted.
+          if ! gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null \
+              | tail -n 200 > failed-logs.txt || [ ! -s failed-logs.txt ]; then
+            echo "(Failed-step logs were unavailable — see the run for details.)" > failed-logs.txt
+          fi
+
+          {
+            printf '%s\n\n' "The **${WF_NAME}** workflow failed and no one may be watching it."
+            printf -- '- **Run:** %s\n' "$RUN_URL"
+            printf -- '- **Branch:** `%s`\n' "$BRANCH"
+            printf -- '- **Triggered by:** `%s`\n\n' "$EVENT"
+            printf '<details><summary>Last 200 lines of the failed step(s)</summary>\n\n'
+            printf '```text\n'
+            cat failed-logs.txt
+            printf '\n```\n\n</details>\n\n'
+            printf '%s\n' "_Opened automatically. Only one issue is created per workflow — while this stays open, repeated failures (including hourly ones) are ignored. **Close it once fixed** and the next failure opens a fresh one._"
+          } > issue-body.md
+
+          gh issue create --repo "$REPO" \
+            --title "$TITLE" \
+            --label "$LABEL" \
+            --body-file issue-body.md

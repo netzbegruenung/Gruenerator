@@ -1,3 +1,4 @@
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { getAvailableClientTools } from '../clientTools';
 
@@ -196,6 +197,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
       const available = getAvailableClientTools();
       return available.length > 0 ? available : undefined;
     })(),
+    platform: useChatConfigStore.getState().platform,
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
