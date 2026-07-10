@@ -139,3 +139,22 @@ export const presentationErrorResponseSchema = z.object({
   error: z.string(),
   details: z.string().optional(),
 });
+
+/**
+ * Request body for POST /api/presentations/generate — a direct, non-chat
+ * generator that produces a full deck from a natural-language description and
+ * returns the created presentation document (Y.Doc seeded server-side).
+ * Mirrors POST /api/docs/generate and POST /api/boards/generate.
+ */
+export const generatePresentationBodySchema = z.object({
+  description: z.string(),
+});
+
+export type GeneratePresentationBody = z.infer<typeof generatePresentationBodySchema>;
+
+export const generatePresentationResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+
+export type GeneratePresentationResponse = z.infer<typeof generatePresentationResponseSchema>;
