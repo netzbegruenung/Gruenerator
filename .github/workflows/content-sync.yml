@@ -136,7 +136,7 @@ jobs:
           WRAP_FLAGS="--id landesverband-${{ matrix.lv }} --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary-lv-${{ matrix.lv }}.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
@@ -207,7 +207,7 @@ jobs:
           WRAP_FLAGS="--id ${{ matrix.source }} --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary-source-${{ matrix.source }}.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
@@ -438,7 +438,7 @@ jobs:
           WRAP_FLAGS="--id $WRAP_ID --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
