@@ -23,6 +23,7 @@ import {
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
+import { likeContainsPattern } from '../../utils/sqlLike.js';
 
 export const CANVAS_SUBTYPE = 'canvas';
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
@@ -164,6 +165,30 @@ export async function listCanvases(userId: string): Promise<CanvasListItem[]> {
      WHERE ${CANVAS_ACCESS_WHERE}
      ORDER BY cd.updated_at DESC`,
     [CANVAS_SUBTYPE, userId, userId]
+  )) as Omit<CanvasJoinedRow, 'initial_state'>[];
+
+  return rows.map(rowToCanvasListItem);
+}
+
+/**
+ * Title search for the unified `/api/global-search` endpoint. Reuses
+ * `CANVAS_ACCESS_WHERE` so search visibility can't drift from `listCanvases`.
+ */
+export async function searchCanvases(
+  userId: string,
+  query: string,
+  limit: number
+): Promise<CanvasListItem[]> {
+  const rows = (await db.query(
+    `SELECT ${CANVAS_LIST_SELECT_COLUMNS}
+     FROM collaborative_documents cd
+     INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+     LEFT JOIN profiles p ON cd.created_by = p.id
+     WHERE ${CANVAS_ACCESS_WHERE}
+       AND cd.title ILIKE $4
+     ORDER BY cd.updated_at DESC
+     LIMIT $5`,
+    [CANVAS_SUBTYPE, userId, userId, likeContainsPattern(query), limit]
   )) as Omit<CanvasJoinedRow, 'initial_state'>[];
 
   return rows.map(rowToCanvasListItem);
