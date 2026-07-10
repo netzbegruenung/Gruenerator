@@ -11,14 +11,30 @@ export type DocKind = 'doc' | 'board' | 'sheet' | 'pres';
 type IconComp = FC<SVGProps<SVGSVGElement>>;
 
 const DocIcon: IconComp = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
     <path d="M14 2v6h6" />
   </svg>
 );
 
 const BoardIcon: IconComp = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
     <rect x="3" y="3" width="6" height="18" rx="1" />
     <rect x="10" y="3" width="6" height="12" rx="1" />
     <rect x="17" y="3" width="4" height="7" rx="1" />
@@ -26,14 +42,30 @@ const BoardIcon: IconComp = (props) => (
 );
 
 const SheetIcon: IconComp = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <path d="M3 9h18M3 15h18M9 3v18" />
   </svg>
 );
 
 const PresIcon: IconComp = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...props}>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
     <path d="M2 3h20" />
     <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
     <path d="m7 21 5-5 5 5" />
@@ -75,16 +107,52 @@ export function subtypeToKind(subtype: string | null | undefined): DocKind {
 // classifier that turns a free-text create prompt into a target content kind.
 const KIND_KEYWORDS: Record<Exclude<DocKind, 'doc'>, string[]> = {
   board: [
-    'board', 'kanban', 'aufgabe', 'task', 'spalte', 'planen', 'planung', 'organisier',
-    'to-do', 'todo', 'ablauf', 'phasen', 'backlog', 'sprint',
+    'board',
+    'kanban',
+    'aufgabe',
+    'task',
+    'spalte',
+    'planen',
+    'planung',
+    'organisier',
+    'to-do',
+    'todo',
+    'ablauf',
+    'phasen',
+    'backlog',
+    'sprint',
   ],
   pres: [
-    'präsentation', 'praesentation', 'präsi', 'praesi', 'slide', 'folie', 'vortrag',
-    'pitch', 'deck', 'keynote', 'vorstellen', 'präsentier', 'praesentier',
+    'präsentation',
+    'praesentation',
+    'präsi',
+    'praesi',
+    'slide',
+    'folie',
+    'vortrag',
+    'pitch',
+    'deck',
+    'keynote',
+    'vorstellen',
+    'präsentier',
+    'praesentier',
   ],
   sheet: [
-    'tabelle', 'liste', 'budget', 'haushalt', 'mitglieder', 'kalkul', 'excel', 'zahlen',
-    'summe', 'daten', 'kassen', 'einnahmen', 'ausgaben', 'statistik', 'tracker',
+    'tabelle',
+    'liste',
+    'budget',
+    'haushalt',
+    'mitglieder',
+    'kalkul',
+    'excel',
+    'zahlen',
+    'summe',
+    'daten',
+    'kassen',
+    'einnahmen',
+    'ausgaben',
+    'statistik',
+    'tracker',
   ],
 };
 

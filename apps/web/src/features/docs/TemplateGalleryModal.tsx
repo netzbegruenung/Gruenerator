@@ -75,7 +75,15 @@ function BlankCard({ kind, onSelect }: { kind: DocKind; onSelect: () => void }) 
       className="group text-left rounded-[14px] border border-dashed border-[#E7EDE9] bg-[#FBFCFB] p-4 shadow-[0_1px_2px_rgba(31,63,51,.04)] transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-[#9DBDAE] hover:shadow-[0_12px_26px_rgba(95,133,117,.15)] dark:border-grey-600 dark:bg-grey-800/60"
     >
       <span className="mb-[34px] flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#EEF3EF] text-[#5C6B63] dark:bg-grey-700 dark:text-grey-300">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.9}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-[18px] w-[18px]"
+        >
           <path d="M12 5v14" />
           <path d="M5 12h14" />
         </svg>
@@ -173,9 +181,7 @@ export default function TemplateGalleryModal({
 
   const blankKind: DocKind = tab === 'all' ? 'doc' : tab;
   const entries: Entry[] =
-    tab === 'all'
-      ? [...byKind.doc, ...byKind.board, ...byKind.sheet, ...byKind.pres]
-      : byKind[tab];
+    tab === 'all' ? [...byKind.doc, ...byKind.board, ...byKind.sheet, ...byKind.pres] : byKind[tab];
 
   return (
     <div
@@ -205,7 +211,15 @@ export default function TemplateGalleryModal({
             aria-label="Schließen"
             className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F4F1] text-[#5C6B63] transition-colors hover:bg-[#E4EAE5] dark:bg-grey-700 dark:text-grey-300 dark:hover:bg-grey-600"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />
             </svg>
