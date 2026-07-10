@@ -1,5 +1,5 @@
 import { TypingAnimation } from '@gruenerator/ui';
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { FiCloud, FiCornerDownLeft, FiGrid, FiSearch, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -75,6 +75,15 @@ export function DocsComposer({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The blur→close timer outlives the input when a route change unmounts the
+  // composer mid-blur; clear it so it can't fire on an unmounted tree.
+  useEffect(
+    () => () => {
+      if (blurTimer.current) clearTimeout(blurTimer.current);
+    },
+    []
+  );
 
   const query = q.trim();
   const detectedKind = detectDocType(query);
@@ -161,7 +170,12 @@ export function DocsComposer({
     (!hasResults || /import|datei|wolke|hochlad|upload|\.(xlsx|csv|docx|pdf)/.test(lcQuery));
   const importOptions: Option[] = (showImports ? importDefs : []).map((d) => ({
     key: `import-${d.kind}`,
-    onSelect: () => onImport(d.kind),
+    // Close first — the import dialog is modal, and the dropdown would otherwise
+    // stay mounted behind it (the row's onMouseDown keeps the input focused).
+    onSelect: () => {
+      setOpen(false);
+      onImport(d.kind);
+    },
     render: () => (
       <div className="flex items-center gap-3 text-[#5C6B63] dark:text-grey-300">
         <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#F1F4F1] dark:bg-grey-700">
