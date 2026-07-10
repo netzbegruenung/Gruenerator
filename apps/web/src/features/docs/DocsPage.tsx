@@ -1,15 +1,16 @@
 import {
-  CreateDocumentFAB,
   DocsProvider,
   useDocsAdapter,
   useDocuments,
   useCreateDocument,
   useDeleteDocument,
   useUpdateDocument,
+  useGenerateDocument,
   templates,
   type TemplateType,
 } from '@gruenerator/docs';
 import { instantiateUserTemplate, type UserTemplateSummary } from '@gruenerator/shared';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,116 +23,43 @@ import {
   Button,
   CardGrid,
   DismissableBanner,
-  DropdownMenuItem,
-  ResponsiveMenu,
-  ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import {
-  lazy,
-  memo,
-  Suspense,
-  useCallback,
-  useDeferredValue,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import {
-  FiChevronDown,
-  FiChevronUp,
-  FiCloud,
-  FiFile,
-  FiGrid,
-  FiPlus,
-  FiSearch,
-  FiUpload,
-  FiUsers,
-  FiX,
-} from 'react-icons/fi';
+import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
-import { getBoardTemplate } from '../boards/boardTemplates';
-import { getPresentationTemplate } from '../presentations/presentationTemplates';
-import { getSheetTemplate } from '../sheets/sheetTemplates';
+import { useFirstName } from '../../hooks/useFirstName';
+import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
+import {
+  getPresentationTemplate,
+  presentationTemplates,
+} from '../presentations/presentationTemplates';
+import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
+import {
+  DocsComposer,
+  type ComposerItem,
+  type ComposerTemplate,
+  type ImportKind,
+} from './DocsComposer';
+import { subtypeToKind, type DocKind } from './docTypeMeta';
 import { DocumentCard } from './DocumentCard';
-import { TemplateCarousel } from './TemplateCarousel';
 
 import type { Board } from '../boards/types';
 
 const LazyShareModal = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
 );
-const LazyTemplatePicker = lazy(() =>
-  import('@gruenerator/docs').then((m) => ({ default: m.TemplatePicker }))
-);
+const LazyTemplateGalleryModal = lazy(() => import('./TemplateGalleryModal'));
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
 const LazySheetImportDialog = lazy(() => import('../sheets/SheetImportDialog'));
 const LazyWolkeImportModal = lazy(() => import('./WolkeImportModal'));
-
-const ImportMenu = memo(function ImportMenu({
-  onShowImportDialog,
-  onShowSheetImport,
-  onShowWolkeImport,
-}: {
-  onShowImportDialog: () => void;
-  onShowSheetImport: () => void;
-  onShowWolkeImport: () => void;
-}) {
-  const desktopContent = (
-    <>
-      <DropdownMenuItem onClick={onShowImportDialog}>
-        <FiUpload size={16} />
-        Datei importieren…
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onShowSheetImport}>
-        <FiGrid size={16} />
-        Tabelle importieren…
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onShowWolkeImport}>
-        <FiCloud size={16} />
-        Aus Wolke importieren…
-      </DropdownMenuItem>
-    </>
-  );
-
-  const mobileContent = (
-    <>
-      <ResponsiveMenuItem icon={<FiUpload size={16} />} onClick={onShowImportDialog}>
-        Datei importieren…
-      </ResponsiveMenuItem>
-      <ResponsiveMenuItem icon={<FiGrid size={16} />} onClick={onShowSheetImport}>
-        Tabelle importieren…
-      </ResponsiveMenuItem>
-      <ResponsiveMenuItem icon={<FiCloud size={16} />} onClick={onShowWolkeImport}>
-        Aus Wolke importieren…
-      </ResponsiveMenuItem>
-    </>
-  );
-
-  return (
-    <ResponsiveMenu
-      trigger={
-        <Button variant="outline" className="max-sm:h-9 max-sm:w-9 max-sm:p-0 max-sm:rounded-full">
-          <FiUpload size={16} />
-          <span className="max-sm:hidden">Importieren</span>
-        </Button>
-      }
-      dropdownSide="bottom"
-      dropdownAlign="end"
-      sheetTitle="Importieren"
-      desktopContent={desktopContent}
-      mobileContent={mobileContent}
-    />
-  );
-});
 
 type UnifiedItem =
   | {
@@ -150,7 +78,7 @@ type UnifiedItem =
     }
   | { kind: 'board'; data: Board; sortKey: number };
 
-// Personal documents collapse to this many rows; "Mehr anzeigen" reveals the rest
+// Personal documents collapse to this many rows; "Alle anzeigen" reveals the rest
 // so the group sections below stay reachable without scrolling past a long grid.
 const COLLAPSED_ROWS = 2;
 
@@ -181,11 +109,13 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
 function DocumentsContent() {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
+  const firstName = useFirstName();
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
+  const generateDocumentMutation = useGenerateDocument();
 
   const {
     boards,
@@ -193,14 +123,15 @@ function DocumentsContent() {
     createBoard,
     deleteBoard,
     updateBoard,
+    generateBoard,
   } = useBoardsTyped();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearch = useDeferredValue(searchQuery);
   const [showGallery, setShowGallery] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSheetImport, setShowSheetImport] = useState(false);
   const [showWolkeImport, setShowWolkeImport] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -210,15 +141,10 @@ function DocumentsContent() {
   const isLoading = docsLoading || boardsLoading;
 
   const { personalItems, groupDocsByGroup, hasAnyItems } = useMemo(() => {
-    const query = deferredSearch.trim().toLowerCase();
-    const matchesSearch = (title: string) => !query || title.toLowerCase().includes(query);
-
     const personal: UnifiedItem[] = [];
     const groupMap = new Map<string, { groupName: string; docs: UnifiedItem[] }>();
 
     for (const doc of documents) {
-      if (!matchesSearch(doc.title)) continue;
-
       const item: UnifiedItem = {
         kind: 'document',
         data: doc,
@@ -242,7 +168,6 @@ function DocumentsContent() {
     }
 
     for (const board of boards) {
-      if (!matchesSearch(board.title)) continue;
       personal.push({
         kind: 'board',
         data: board,
@@ -264,9 +189,7 @@ function DocumentsContent() {
       groupDocsByGroup: sortedGroups,
       hasAnyItems: documents.length > 0 || boards.length > 0,
     };
-  }, [documents, boards, deferredSearch]);
-
-  const hasFilteredResults = personalItems.length > 0 || groupDocsByGroup.length > 0;
+  }, [documents, boards]);
 
   const personalGridRef = useRef<HTMLDivElement>(null);
   const personalColumns = useGridColumns(personalGridRef);
@@ -470,60 +393,167 @@ function DocumentsContent() {
     [adapter, navigate]
   );
 
+  // Composer → AI-generate the detected kind. Docs/boards have dedicated
+  // one-shot generators (useGenerateDocument / boards.generate); sheets and
+  // presentations use the direct /api/{sheets,presentations}/generate endpoints
+  // (Y.Doc seeded server-side, so the editor opens fully populated).
+  const handleComposerCreate = useCallback(
+    async (kind: DocKind, prompt: string) => {
+      const description = prompt.trim();
+      // Ref, not the `creating` state: Enter and the send button can both fire
+      // before React re-renders, and a stale closure would let both through.
+      if (!description || creatingRef.current) return;
+      creatingRef.current = true;
+      setCreating(true);
+      try {
+        if (kind === 'doc') {
+          const doc = await generateDocumentMutation.mutateAsync(description);
+          navigate(`/docs/${doc.id}`);
+        } else if (kind === 'board') {
+          const data = await generateBoard.mutateAsync(description);
+          navigate(
+            `/boards/${data.board.id}`,
+            data.generatedStructure
+              ? { state: { generatedStructure: data.generatedStructure } }
+              : {}
+          );
+        } else if (kind === 'sheet') {
+          const res = await getContractsClient().sheets.generate({ body: { description } });
+          if (res.status !== 201) throw new Error(`Sheet generation failed (${res.status})`);
+          navigate(`/docs/${res.body.id}`);
+        } else {
+          const res = await getContractsClient().presentations.generate({ body: { description } });
+          if (res.status !== 201) throw new Error(`Presentation generation failed (${res.status})`);
+          navigate(`/docs/${res.body.id}`);
+        }
+      } catch (err) {
+        console.error('Composer create failed:', err);
+      } finally {
+        // Always release: on success we navigate away, but if the route resolves
+        // back to /docs the composer would otherwise stay disabled forever.
+        creatingRef.current = false;
+        setCreating(false);
+      }
+    },
+    [generateDocumentMutation, generateBoard, navigate]
+  );
+
+  const handleComposerTemplate = useCallback(
+    (kind: DocKind, id: string) => {
+      if (kind === 'doc') void handleTemplateSelect(id as TemplateType);
+      else if (kind === 'board') handleCreateBoardFromTemplate(id);
+      else if (kind === 'sheet') void handleCreateSheetFromTemplate(id);
+      else void handleCreatePresentationFromTemplate(id);
+    },
+    [
+      handleTemplateSelect,
+      handleCreateBoardFromTemplate,
+      handleCreateSheetFromTemplate,
+      handleCreatePresentationFromTemplate,
+    ]
+  );
+
+  const handleComposerImport = useCallback((kind: ImportKind) => {
+    if (kind === 'file') setShowImportDialog(true);
+    else if (kind === 'sheet') setShowSheetImport(true);
+    else setShowWolkeImport(true);
+  }, []);
+
+  const composerItems: ComposerItem[] = useMemo(() => {
+    const docItems = documents.map((d) => ({
+      id: d.id,
+      title: d.title,
+      kind: subtypeToKind(d.document_subtype),
+      openPath: `/docs/${d.id}`,
+      sortKey: new Date(d.updated_at).getTime(),
+    }));
+    const boardItems = boards.map((b) => ({
+      id: b.id,
+      title: b.title,
+      kind: 'board' as const,
+      openPath: `/boards/${b.id}`,
+      sortKey: new Date(b.updated_at).getTime(),
+    }));
+    return [...docItems, ...boardItems]
+      .sort((a, b) => b.sortKey - a.sortKey)
+      .map(({ sortKey: _sortKey, ...rest }) => rest);
+  }, [documents, boards]);
+
+  const composerTemplates: ComposerTemplate[] = useMemo(
+    () => [
+      ...templates
+        .filter((t) => t.id !== 'blank')
+        .map((t) => ({
+          key: `doc-${t.id}`,
+          kind: 'doc' as const,
+          id: t.id,
+          title: t.name,
+          description: t.description,
+        })),
+      ...boardTemplates.map((t) => ({
+        key: `board-${t.id}`,
+        kind: 'board' as const,
+        id: t.id,
+        title: t.name,
+        description: t.description,
+      })),
+      ...sheetTemplates.map((t) => ({
+        key: `sheet-${t.id}`,
+        kind: 'sheet' as const,
+        id: t.id,
+        title: t.name,
+        description: t.description,
+      })),
+      ...presentationTemplates.map((t) => ({
+        key: `pres-${t.id}`,
+        kind: 'pres' as const,
+        id: t.id,
+        title: t.name,
+        description: t.description,
+      })),
+    ],
+    []
+  );
+
   return (
     <>
-      <div className="mb-md mt-md flex items-center gap-sm">
-        <h1 className="m-0 shrink-0 text-2xl font-semibold text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif]">
-          Dokumente
+      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
+        <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
+          {firstName
+            ? `Willkommen im neuen Grünerator KI-Office, ${firstName}`
+            : 'Willkommen im neuen Grünerator KI-Office'}
         </h1>
-        <div className="relative min-w-0 flex-1 max-w-[500px] mx-auto">
-          <FiSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-grey-400" />
-          <input
-            type="text"
-            placeholder="Durchsuchen…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              aria-label="Suche zurücksetzen"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-grey-400 hover:bg-grey-100 hover:text-grey-600 dark:hover:bg-grey-800"
-            >
-              <FiX size={14} />
-            </button>
-          )}
-        </div>
-        <ImportMenu
-          onShowImportDialog={() => setShowImportDialog(true)}
-          onShowSheetImport={() => setShowSheetImport(true)}
-          onShowWolkeImport={() => setShowWolkeImport(true)}
+
+        <DocsComposer
+          items={composerItems}
+          templates={composerTemplates}
+          isGenerating={creating}
+          onGenerate={handleComposerCreate}
+          onSelectTemplate={handleComposerTemplate}
+          onImport={handleComposerImport}
         />
+
+        <div className="mt-[18px] text-center">
+          <button
+            type="button"
+            onClick={() => setShowGallery(true)}
+            className="text-[13.5px] font-semibold text-[#4C8A6E] transition-colors hover:text-[#3E7A5F]"
+          >
+            oder wähle aus einer Vorlage
+          </button>
+        </div>
       </div>
 
       <DismissableBanner
         storageKey="gruenerator_docs_experimental_warning_dismissed"
         variant="warning"
-        className="mb-md"
+        className="mb-md mt-lg"
       >
         <strong>Experimentelles Feature</strong> — Diese Funktion befindet sich noch in der
         Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
       </DismissableBanner>
 
       <main>
-        <TemplateCarousel
-          onTemplateSelect={handleTemplateSelect}
-          onShowGallery={() => setShowGallery(true)}
-          onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
-          onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
-          onCreateSheet={() => void handleCreateSheet()}
-          onCreateSheetFromTemplate={handleCreateSheetFromTemplate}
-          onCreatePresentation={() => void handleCreatePresentation()}
-          onCreatePresentationFromTemplate={handleCreatePresentationFromTemplate}
-          onUserTemplateSelect={handleUserTemplateSelect}
-        />
-
         {isLoading ? (
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -544,14 +574,13 @@ function DocumentsContent() {
               Erstes Dokument erstellen
             </Button>
           </div>
-        ) : !hasFilteredResults ? (
-          <p className="py-12 text-center text-grey-500 dark:text-grey-400">
-            Keine Ergebnisse gefunden.
-          </p>
         ) : (
           <>
             {personalItems.length > 0 && (
               <>
+                <div className="mb-sm mt-xl flex items-baseline gap-3">
+                  <h2 className="text-base font-extrabold text-foreground">Zuletzt bearbeitet</h2>
+                </div>
                 <div
                   ref={personalGridRef}
                   className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]"
@@ -589,7 +618,7 @@ function DocumentsContent() {
                       ) : (
                         <>
                           <FiChevronDown size={16} />
-                          Mehr anzeigen ({hiddenPersonalCount})
+                          Alle anzeigen ({hiddenPersonalCount})
                         </>
                       )}
                     </Button>
@@ -625,16 +654,21 @@ function DocumentsContent() {
         )}
       </main>
 
-      <CreateDocumentFAB
-        onCreateBlank={() => handleTemplateSelect('blank')}
-        onShowGallery={() => setShowGallery(true)}
-      />
-
       {showGallery && (
         <Suspense fallback={null}>
-          <LazyTemplatePicker
-            onSelect={handleTemplateSelect}
+          <LazyTemplateGalleryModal
             onClose={() => setShowGallery(false)}
+            onCreateBlank={(kind) => {
+              if (kind === 'doc') void handleTemplateSelect('blank');
+              else if (kind === 'board') handleCreateBoard('kanban');
+              else if (kind === 'sheet') void handleCreateSheet();
+              else void handleCreatePresentation();
+            }}
+            onSelectDocTemplate={(id) => void handleTemplateSelect(id)}
+            onSelectBoardTemplate={handleCreateBoardFromTemplate}
+            onSelectSheetTemplate={(id) => void handleCreateSheetFromTemplate(id)}
+            onSelectPresentationTemplate={(id) => void handleCreatePresentationFromTemplate(id)}
+            onSelectUserTemplate={handleUserTemplateSelect}
           />
         </Suspense>
       )}
@@ -705,9 +739,9 @@ const DocsPage = () => (
 
 const DocsPageFallback = () => (
   <PageContainer maxWidth="lg" noPadTop>
-    <div className="mb-md">
-      <h1 className="m-0 text-2xl font-semibold text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif]">
-        Dokumente
+    <div className="mx-auto max-w-[860px] px-4 pt-10">
+      <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] max-sm:text-2xl">
+        Grünerator KI-Office
       </h1>
     </div>
   </PageContainer>
