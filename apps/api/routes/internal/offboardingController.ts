@@ -96,34 +96,46 @@ router.post('/run-sync', requireAdmin, async (req: AdminRequest, res: Response):
  * Check the status of the offboarding service configuration
  */
 router.get('/status', requireAdmin, async (req: AdminRequest, res: Response): Promise<void> => {
+  const config = {
+    apiBaseUrl: env.GRUENE_API_BASEURL || 'https://app.gruene.de',
+    hasAuthentication: !!(
+      env.GRUENE_API_KEY ||
+      (env.GRUENE_API_USERNAME && env.GRUENE_API_PASSWORD)
+    ),
+  };
+
   try {
     OffboardingService.validateConfig();
-
-    res.json({
-      status: 'ready',
-      message: 'Offboarding service is properly configured',
-      config: {
-        apiBaseUrl: env.GRUENE_API_BASEURL || 'https://app.gruene.de',
-        hasAuthentication: !!(
-          env.GRUENE_API_KEY ||
-          (env.GRUENE_API_USERNAME && env.GRUENE_API_PASSWORD)
-        ),
-      },
-    });
   } catch (error) {
     const err = error as Error;
-    res.status(500).json({
-      status: 'error',
-      message: err.message,
-      config: {
-        apiBaseUrl: env.GRUENE_API_BASEURL || 'https://app.gruene.de',
-        hasAuthentication: !!(
-          env.GRUENE_API_KEY ||
-          (env.GRUENE_API_USERNAME && env.GRUENE_API_PASSWORD)
-        ),
-      },
-    });
+    res.status(500).json({ status: 'error', message: err.message, apiReachable: false, config });
+    return;
   }
+
+  // Env-var presence alone does not prove the Grüne API accepts our credentials.
+  // Probe a real authenticated call so a stale/rejected key or an unreachable API
+  // is reported here (loudly, with the upstream message) instead of silently
+  // failing every run-sync — the daily cron reads this to fail with a clear reason.
+  try {
+    await new OffboardingService().probeConnectivity();
+  } catch (error) {
+    const err = error as Error;
+    log.error('Offboarding connectivity probe failed:', err.message);
+    res.status(502).json({
+      status: 'error',
+      message: `Grüne API unreachable or unauthorized: ${err.message}`,
+      apiReachable: false,
+      config,
+    });
+    return;
+  }
+
+  res.json({
+    status: 'ready',
+    message: 'Offboarding service is configured and the Grüne API is reachable',
+    apiReachable: true,
+    config,
+  });
 });
 
 /**

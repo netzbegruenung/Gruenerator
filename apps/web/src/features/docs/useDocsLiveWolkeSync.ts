@@ -1,3 +1,4 @@
+import { hasPendingSuggestions } from '@gruenerator/docs';
 import { uploadToWolke } from '@gruenerator/wolke';
 import { useEffect, useRef } from 'react';
 
@@ -46,6 +47,13 @@ export function useDocsLiveWolkeSync({ editor, docData, canEdit }: UseDocsLiveWo
 
     const flush = async (reason: 'blur' | 'shortcut') => {
       if (!dirtyRef.current || inFlightRef.current) return;
+      // Don't push a DOCX with pending suggestion marks to Wolke — deletions
+      // would leak as normal text. Wait until they're resolved (stays dirty).
+      const view = editor.prosemirrorView;
+      if (view && hasPendingSuggestions(view.state.doc)) {
+        console.debug('[DocsLiveWolkeSync] skipped — pending suggestions', { reason });
+        return;
+      }
       inFlightRef.current = true;
       try {
         const { DOCXExporter, docxDefaultSchemaMappings } =

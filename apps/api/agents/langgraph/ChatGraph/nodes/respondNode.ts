@@ -592,6 +592,10 @@ Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
  * client auto-runs the emitted block and shows the result — so the model must
  * emit a properly language-tagged ```python block and must NOT tell the user to
  * click "Run" or apologise that it can't execute (both were happening).
+ *
+ * Forks on `clientCanRunPython`: clients without the run_python client tool
+ * (mobile/voice) instead get guidance to derive the answer from the document
+ * context — never a code block that would silently do nothing there.
  */
 export function formatTabularComputeGuidance(state: ChatGraphState): string {
   if (!state.hasTabularAttachment) return '';
@@ -606,6 +610,21 @@ export function formatTabularComputeGuidance(state: ChatGraphState): string {
 ## TABELLENDATEN — ERGEBNIS LIEGT BEREITS VOR
 
 Die Berechnung über die angehängte Tabelle wurde bereits per Code ausgeführt (siehe BERECHNUNGSERGEBNIS unten). Übernimm die Werte EXAKT und formuliere eine kurze, klare Antwort. Gib KEINEN Code-Block aus und rechne NICHT selbst nach.`;
+  }
+  // Client cannot execute Python (mobile/voice declare no run_python client
+  // tool). The pandas guidance below would produce a dead "wird automatisch
+  // ausgeführt" code block on those clients — steer the model to derive the
+  // answer from the attached document context instead.
+  if (!state.clientCanRunPython) {
+    return `
+
+## TABELLENDATEN — OHNE CODE-AUSFÜHRUNG RECHNEN
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät steht KEIN Python-Interpreter zur Verfügung — Code-Blöcke werden hier NICHT ausgeführt.
+- Gib KEINEN ausführbaren Code-Block aus und behaupte NIEMALS, dass Code automatisch ausgeführt wird.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im angehängten Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
   return `
 
@@ -701,6 +720,25 @@ Der Nutzer ist in Österreich. Beachte:
 - "Die Grünen" bezieht sich auf Die Grünen – Die Grüne Alternative (Österreich), nicht auf Bündnis 90/Die Grünen (Deutschland)
 - Verwende österreichische Begriffe wenn passend (z.B. "Landeshauptmann" statt "Ministerpräsident")
 - Politische Referenzen beziehen sich auf österreichische Politik, sofern nicht anders angegeben`;
+  }
+  return '';
+}
+
+/**
+ * Platform context for the system prompt. The mobile app can't render several
+ * web-only surfaces; without this the model happily offers them ("Soll ich dir
+ * ein Sharepic machen?") and the deterministic router gates read as abrupt.
+ */
+function formatPlatformContext(platform: string | undefined): string {
+  if (platform === 'app') {
+    return `
+
+## PLATTFORMKONTEXT: APP
+
+Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
+- Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
+- Biete diese Funktionen nicht von dir aus an`;
   }
   return '';
 }
@@ -947,6 +985,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
+  const platformContext = formatPlatformContext(state.clientPlatform);
 
   const intentGuidance =
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
@@ -987,7 +1026,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1019,7 +1058,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
