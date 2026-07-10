@@ -1,78 +1,39 @@
-<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>XXL-Testsommer 2026 · Grünerator</title>
-<meta name="description" content="Vier große Neuerungen sind reif zum Ausprobieren: Sharepics, Tabellen &amp; Präsentationen, eigene Agent*innen und die Mac-App. Die Basis testet, wir hören zu.">
-<meta name="robots" content="index,follow">
-<link rel="icon" href="/favicon.ico">
-<meta property="og:type" content="website">
-<meta property="og:title" content="XXL-Testsommer 2026 · Grünerator">
-<meta property="og:description" content="Vier große Neuerungen zum Ausprobieren. Die Basis testet, wir hören zu — bis zum Herbst läuft alles rund.">
-<meta property="og:image" content="/og-image.png">
-<meta name="twitter:card" content="summary_large_image">
-<style>
-  @font-face{font-family:'Raleway';src:url('/fonts/Raleway-Bold.woff2') format('woff2'),url('/fonts/Raleway-Bold.woff') format('woff');font-weight:700 900;font-style:normal;font-display:swap;}
-  @font-face{font-family:'PT Sans';src:url('/fonts/PTSans-Regular.woff2') format('woff2'),url('/fonts/PTSans-Regular.woff') format('woff');font-weight:400;font-style:normal;font-display:swap;}
-  @font-face{font-family:'PT Sans';src:url('/fonts/PTSans-Bold.woff2') format('woff2'),url('/fonts/PTSans-Bold.woff') format('woff');font-weight:700;font-style:normal;font-display:swap;}
-  /* Reset (entspricht dem Grünerator-UI-Basis-Reset) */
-  body,h1,h2,h3,h4,h5,h6,p,ol,ul{margin:0;padding:0;}
-  ol,ul{list-style:none;}
-  img{max-width:100%;height:auto;}
-  button,input,select,textarea{margin:0;font-family:inherit;font-size:inherit;line-height:inherit;}
-</style>
-<style>
+// Auto-generierter Inhalt der XXL-Testsommer-Landingpage.
+// Design 1:1 aus dem Claude-Design-Projekt (Strand-Scroll-Szene) übernommen.
+// Verhalten (Reveal, Fortschritt, Sonnen-Parallax, Formular) lebt in TestsommerPage.tsx.
 
-  :root{
-    --black:#000000; --white:#ffffff;
-    --primary-50:#F0F8F4; --primary-100:#D8F0E6; --primary-200:#B1E0C9; --primary-300:#8AC9B0;
-    --primary-400:#6BAA91; --primary-500:#52907A; --primary-600:#316049; --primary-700:#285040;
-    --primary-800:#1F3F33; --primary-900:#1A332A; --primary-950:#123624;
-    --secondary-500:#6A9583; --secondary-600:#5F8575; --secondary-700:#445F54;
-    --grey-50:#f9f9f9; --grey-100:#efefef; --grey-200:#dcdcdc; --grey-300:#bdbdbd; --grey-400:#989898;
-    --grey-500:#7c7c7c; --grey-600:#656565; --grey-700:#525252; --grey-800:#3a3a3a; --grey-900:#2e2e2e;
-    --shadow-sm:0 2px 8px rgba(0,0,0,0.05); --shadow-md:0 4px 12px rgba(0,0,0,0.08);
-    --shadow-lg:0 6px 16px rgba(0,0,0,0.12); --shadow-xl:0 8px 24px rgba(0,0,0,0.15);
-    color-scheme: light;
-  }
-  *{box-sizing:border-box;}
-  ul{list-style:none;}
-  /* hover / focus (converted from DS style-hover/style-focus) */
-  a[href="#tracks"]:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(11,161,221,0.46);}
-  #fb-form button[type="submit"]:hover{background:var(--accent-dark);}
-  #fb-form input:focus,#fb-form textarea:focus,#fb-form select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-50);}
-  /* responsive: stack the panel grids + form columns */
-  @media (max-width:880px){
-    [style*="0.86fr 1.14fr"]{grid-template-columns:1fr !important;gap:34px !important;padding:36px !important;}
-  }
-  @media (max-width:600px){
-    [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr !important;}
-  }
-  @media (prefers-reduced-motion: reduce){
-    [style*="animation"]{animation:none !important;}
-  }
+export const TESTSOMMER_STYLES = `.ts-scope{
+  --black:#000000;--white:#ffffff;
+  --primary-50:#F0F8F4;--primary-100:#D8F0E6;--primary-200:#B1E0C9;--primary-300:#8AC9B0;--primary-400:#6BAA91;--primary-500:#52907A;--primary-600:#316049;--primary-700:#285040;--primary-800:#1F3F33;--primary-900:#1A332A;--primary-950:#123624;
+  --secondary-500:#6A9583;--secondary-600:#5F8575;--secondary-700:#445F54;
+  --grey-50:#f9f9f9;--grey-100:#efefef;--grey-200:#dcdcdc;--grey-300:#bdbdbd;--grey-400:#989898;--grey-500:#7c7c7c;--grey-600:#656565;--grey-700:#525252;--grey-800:#3a3a3a;--grey-900:#2e2e2e;
+  --shadow-sm:0 2px 8px rgba(0,0,0,0.05);--shadow-md:0 4px 12px rgba(0,0,0,0.08);--shadow-lg:0 6px 16px rgba(0,0,0,0.12);--shadow-xl:0 8px 24px rgba(0,0,0,0.15);
+  --accent:#0BA1DD;--accent-dark:#0987ba;--accent-50:#E8F6FD;--accent-100:#CBEBF9;--accent-200:#A6DDF4;
+  font-family:'PT Sans', system-ui, -apple-system, sans-serif;
+  color:var(--grey-800); background:#ffffff; min-height:100vh; overflow-x:hidden; position:relative;
+}
+.ts-scope *{box-sizing:border-box;}
+.ts-scope a{color:var(--accent);text-decoration:none;}
+.ts-scope a:hover{color:var(--accent-dark);}
+.ts-scope a[href="#tracks"]:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(11,161,221,0.46);}
+.ts-scope #fb-form button[type="submit"]:hover{background:var(--accent-dark);}
+.ts-scope #fb-form input:focus,.ts-scope #fb-form textarea:focus,.ts-scope #fb-form select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-50);}
+@media (max-width:880px){.ts-scope [style*="0.86fr 1.14fr"]{grid-template-columns:1fr !important;gap:34px !important;padding:36px !important;}}
+@media (max-width:600px){.ts-scope [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr !important;}}
+@media (prefers-reduced-motion: reduce){.ts-scope [style*="animation"]{animation:none !important;}}
+@keyframes gr-spin{to{transform:rotate(360deg);}}
+@keyframes gr-spin-slow{to{transform:rotate(360deg);}}
+@keyframes gr-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+@keyframes gr-glow{0%,100%{opacity:.55;transform:scale(1);}50%{opacity:.9;transform:scale(1.04);}}
+@keyframes gr-drift{from{transform:translateX(0);}to{transform:translateX(40px);}}
+@keyframes gr-drift2{from{transform:translateX(0);}to{transform:translateX(-34px);}}
+@keyframes gr-wave{from{transform:translateX(0);}to{transform:translateX(-90px);}}
+@keyframes gr-wave2{from{transform:translateX(0);}to{transform:translateX(70px);}}
+@keyframes gr-bob{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-7px) rotate(-1deg);}}
+@keyframes gr-glide{0%{transform:translate(0,0);}50%{transform:translate(30px,-14px);}100%{transform:translate(0,0);}}
+@keyframes gr-scrollcue{0%{transform:translateY(0);opacity:1;}70%{transform:translateY(10px);opacity:0;}100%{opacity:0;}}`;
 
-:root { --accent: #0BA1DD; --accent-dark: #0987ba; --accent-50: #E8F6FD; --accent-100: #CBEBF9; --accent-200: #A6DDF4; }
-  html { scroll-behavior: smooth; }
-  body { margin: 0; background: #ffffff; color: var(--grey-800); }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { color: var(--accent-dark); }
-  @keyframes gr-spin { to { transform: rotate(360deg); } }
-  @keyframes gr-spin-slow { to { transform: rotate(360deg); } }
-  @keyframes gr-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
-  @keyframes gr-glow { 0%,100% { opacity: .55; transform: scale(1); } 50% { opacity: .9; transform: scale(1.04); } }
-  @keyframes gr-drift { from { transform: translateX(0); } to { transform: translateX(40px); } }
-  @keyframes gr-drift2 { from { transform: translateX(0); } to { transform: translateX(-34px); } }
-  @keyframes gr-wave { from { transform: translateX(0); } to { transform: translateX(-90px); } }
-  @keyframes gr-wave2 { from { transform: translateX(0); } to { transform: translateX(70px); } }
-  @keyframes gr-bob { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-7px) rotate(-1deg); } }
-  @keyframes gr-glide { 0% { transform: translate(0,0); } 50% { transform: translate(30px,-14px); } 100% { transform: translate(0,0); } }
-  @keyframes gr-scrollcue { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(10px); opacity: 0; } 100% { opacity: 0; } }
-</style>
-</head>
-<body>
-<div id="dc-root" style="font-family: 'PT Sans', system-ui, sans-serif; overflow-x: hidden; position: relative;">
+export const TESTSOMMER_MARKUP = `<div id="dc-root" style="font-family: 'PT Sans', system-ui, sans-serif; overflow-x: hidden; position: relative;">
 
   <div style="position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--accent); z-index: 60;" id="dc-progress"></div>
 
@@ -552,33 +513,4 @@
     </div>
   </footer>
 
-</div>
-<script>
-(function(){
-  var root=document.getElementById('dc-root');
-  var progress=document.getElementById('dc-progress');
-  var sun=document.getElementById('dc-sun');
-  var nodes=root?root.querySelectorAll('[data-reveal]'):[];
-  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function reveal(n){n.style.opacity='1';n.style.transform='none';}
-  if(reduce){[].forEach.call(nodes,reveal);}
-  else if('IntersectionObserver' in window){
-    [].forEach.call(nodes,function(n){if(n.getBoundingClientRect().top<window.innerHeight*0.92)reveal(n);});
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){reveal(e.target);io.unobserve(e.target);}});},{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-    [].forEach.call(nodes,function(n){io.observe(n);});
-  } else {[].forEach.call(nodes,reveal);}
-  function onScroll(){
-    var doc=document.documentElement;
-    var max=(doc.scrollHeight-doc.clientHeight)||1;
-    var y=window.scrollY||doc.scrollTop||0;
-    if(progress)progress.style.width=Math.min(100,(y/max)*100)+'%';
-    if(sun&&!reduce)sun.style.transform='translateY('+(y*0.28)+'px) scale('+(1-Math.min(0.18,y/4200))+')';
-  }
-  window.addEventListener('scroll',onScroll,{passive:true});
-  onScroll();
-  var form=document.getElementById('fb-form');
-  if(form){form.addEventListener('submit',function(e){e.preventDefault();var w=document.getElementById('fb-form-wrap'),s=document.getElementById('fb-sent-wrap');if(w)w.style.display='none';if(s)s.style.display='';window.scrollTo({top:document.getElementById('feedback').getBoundingClientRect().top+window.scrollY-40,behavior:'smooth'});});}
-})();
-</script>
-</body>
-</html>
+</div>`;
