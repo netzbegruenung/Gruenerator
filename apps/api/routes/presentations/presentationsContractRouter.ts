@@ -11,6 +11,7 @@ import { presentationsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { checkDocumentWriteAccess } from '../docs/documentAccess.js';
@@ -48,6 +49,55 @@ export const presentationsContractRouter = s.router(presentationsContract, {
         status: 500 as const,
         body: {
           error: 'Failed to generate presentation operations',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  generate: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const description = args.body.description.trim();
+      if (description.length < 3) {
+        return {
+          status: 400 as const,
+          body: { error: 'Description is required (min 3 characters)' },
+        };
+      }
+
+      const {
+        PRESENTATION_GENERATION_PROMPT,
+        parsePresentationStructure,
+        createPresentationDocument,
+      } = await import('../../services/presentations/PresentationGenerationService.js');
+
+      const genResult = await getAIWorkerPool(args.req).processRequest(
+        {
+          type: 'doc_generation',
+          systemPrompt: PRESENTATION_GENERATION_PROMPT,
+          messages: [{ role: 'user', content: description }],
+          options: { temperature: 0.4, max_tokens: 4000 },
+        },
+        args.req
+      );
+
+      const structure =
+        genResult.success && genResult.content
+          ? parsePresentationStructure(genResult.content)
+          : null;
+      if (!structure) {
+        return { status: 500 as const, body: { error: 'Failed to generate presentation' } };
+      }
+
+      const presentation = await createPresentationDocument(structure, userId);
+      return { status: 201 as const, body: { id: presentation.id, title: presentation.title } };
+    } catch (error) {
+      log.error('[Presentations Contract] Error generating presentation:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to generate presentation',
           details: error instanceof Error ? error.message : String(error),
         },
       };
