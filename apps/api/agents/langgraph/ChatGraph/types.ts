@@ -24,6 +24,7 @@ import type {
   ComputePayload,
   SocialPostPayload,
   SearchIntent,
+  ClientPlatform,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -42,6 +43,8 @@ export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | '
  * Austrian users (de-AT) get Austrian collections, German users (de-DE) get German defaults.
  */
 export type UserLocale = 'de-DE' | 'de-AT';
+
+export type { ClientPlatform };
 
 /**
  * Intent classification for routing to appropriate search tools.
@@ -316,6 +319,13 @@ export interface ChatGraphInput {
    */
   hasTabularAttachment?: boolean | undefined;
   /**
+   * True when the requesting client declared the run_python client tool
+   * (clientTools includes 'run_python') — i.e. it can execute the pandas code
+   * respondNode may steer the model to emit. Mobile/voice send no clientTools,
+   * so their tabular guidance must not promise code execution.
+   */
+  clientCanRunPython?: boolean | undefined;
+  /**
    * A spreadsheet result the client already computed in the browser (Pyodide).
    * Injected via formatComputedResultContext so the model treats it as ground
    * truth on follow-up turns instead of re-deriving it.
@@ -357,6 +367,7 @@ export interface ChatGraphInput {
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   userLocale?: UserLocale | undefined;
+  clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
@@ -378,6 +389,8 @@ export interface ChatGraphState {
   enabledTools: Record<string, boolean>;
   aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
+  /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
+  clientPlatform: ClientPlatform;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays
@@ -389,6 +402,7 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  clientCanRunPython: boolean;
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];

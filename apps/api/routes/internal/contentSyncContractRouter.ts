@@ -209,7 +209,9 @@ async function runScopedLandesverband(
   const hasChanges = result.stored + result.updated + result.errors > 0;
   if (!opts.dryRun) {
     if (!hasChanges) {
-      log.info(`Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email`);
+      log.info(
+        `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email`
+      );
     } else {
       const { env } = await import('../../config/env.js');
       const emailTo =
