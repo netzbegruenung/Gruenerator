@@ -8,6 +8,7 @@ import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
+import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import type {
   SharedMediaRow,
@@ -869,7 +870,7 @@ class SharedMediaService {
 
       if (search) {
         query += ` AND (title ILIKE $${paramIndex} OR alt_text ILIKE $${paramIndex})`;
-        params.push(`%${search}%`);
+        params.push(likeContainsPattern(search));
         paramIndex++;
       }
 

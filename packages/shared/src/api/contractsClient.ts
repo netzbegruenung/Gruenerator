@@ -22,6 +22,7 @@ import {
   recentValuesContract,
   itemUsageContract,
   searchContract,
+  globalSearchContract,
   researchContract,
   boardsContract,
   sheetsContract,
@@ -174,6 +175,7 @@ const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
@@ -218,6 +220,7 @@ export interface ContractsClient {
   recentValues: ReturnType<typeof _recentValuesClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   search: ReturnType<typeof _searchClient>;
+  globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
   sheets: ReturnType<typeof _sheetsClient>;
@@ -279,6 +282,7 @@ export function getContractsClient(): ContractsClient {
     recentValues: _recentValuesClient(),
     itemUsage: _itemUsageClient(),
     search: _searchClient(),
+    globalSearch: _globalSearchClient(),
     research: _researchClient(),
     boards: _boardsClient(),
     sheets: _sheetsClient(),

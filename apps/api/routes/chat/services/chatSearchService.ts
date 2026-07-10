@@ -7,6 +7,8 @@
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { likeContainsPattern } from '../../../utils/sqlLike.js';
+import { toIsoString } from '../../../utils/toIsoString.js';
 
 import type { ChatSearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -22,6 +24,12 @@ export interface ChatSearchOptions {
   endDate?: Date;
   /** Filter to threads carrying at least one of these tags. */
   tags?: string[];
+  /**
+   * Restrict to threads the user owns or was explicitly shared. Without it,
+   * every `is_public` thread in the system matches — right for agent context
+   * and the in-chat search, wrong for a personal "my content" search.
+   */
+  ownedOnly?: boolean;
 }
 
 /**
@@ -60,7 +68,15 @@ export async function searchChatHistory(
   query: string,
   options: ChatSearchOptions = {}
 ): Promise<ChatSearchResult[]> {
-  const { threadType, limit = 5, excludeThreadId, startDate, endDate, tags } = options;
+  const {
+    threadType,
+    limit = 5,
+    excludeThreadId,
+    startDate,
+    endDate,
+    tags,
+    ownedOnly = false,
+  } = options;
   const db = getPostgresInstance();
 
   const params: unknown[] = [userId];
@@ -71,9 +87,8 @@ export async function searchChatHistory(
   // and no title would be silently excluded despite matching the tag.
   let textClause = '';
   if (query.trim().length > 0) {
-    const searchPattern = `%${query.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
     textClause = `AND (m.content ILIKE $${paramIdx} OR t.title ILIKE $${paramIdx})`;
-    params.push(searchPattern);
+    params.push(likeContainsPattern(query));
     paramIdx++;
   }
 
@@ -121,6 +136,7 @@ export async function searchChatHistory(
       t.id AS thread_id,
       t.title AS thread_title,
       t.agent_id,
+      t.slug_suffix AS thread_slug_suffix,
       t.updated_at AS thread_updated_at,
       m.content AS message_content,
       m.role AS message_role,
@@ -130,7 +146,7 @@ export async function searchChatHistory(
     WHERE (
       t.user_id = $1
       OR t.permissions ? $1::text
-      OR t.is_public = true
+      ${ownedOnly ? '' : 'OR t.is_public = true'}
     )
     AND m.role IN ('user', 'assistant')
     ${textClause}
@@ -145,14 +161,16 @@ export async function searchChatHistory(
   `;
 
   try {
+    // node-postgres hands back `Date` for timestamptz columns.
     interface ChatSearchRow {
       thread_id: string;
       thread_title: string | null;
       agent_id: string;
-      thread_updated_at: string;
+      thread_slug_suffix: string | null;
+      thread_updated_at: Date | string;
       message_content: string | null;
       message_role: string;
-      matched_at: string;
+      matched_at: Date | string;
     }
     const rows = (await db.query(sql, params)) as ChatSearchRow[];
 
@@ -166,11 +184,12 @@ export async function searchChatHistory(
       results.push({
         threadId: row.thread_id,
         threadTitle: row.thread_title,
+        threadSlugSuffix: row.thread_slug_suffix,
         agentId: row.agent_id,
         snippet: extractSnippet(row.message_content || row.thread_title || '', query),
         messageRole: row.message_role as 'user' | 'assistant',
-        matchedAt: row.matched_at,
-        threadUpdatedAt: row.thread_updated_at,
+        matchedAt: toIsoString(row.matched_at),
+        threadUpdatedAt: toIsoString(row.thread_updated_at),
       });
 
       if (results.length >= limit) break;
