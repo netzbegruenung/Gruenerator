@@ -605,7 +605,7 @@ async function startWorker(): Promise<void> {
     // level. Log them compactly at warn without a stack; reserve ERROR + stack for 5xx.
     if (statusCode >= 400 && statusCode < 500) {
       log.warn(
-        `[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path} (${statusCode})`,
+        `[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path} (${statusCode})`
       );
     } else {
       log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {

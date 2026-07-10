@@ -28,7 +28,8 @@
     "./editor-styles": "./src/components/editor/BlockNoteEditor.css"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@blocknote/core": "^0.51.4",
@@ -42,6 +43,7 @@
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
+    "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
     "@hocuspocus/provider": "^4.1.2",
     "@react-pdf/renderer": "^4.5.1",
     "ai": "^6.0.202",
@@ -54,7 +56,8 @@
     "@types/lodash.throttle": "^4.1.9",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "@gruenerator/shared": "workspace:*",

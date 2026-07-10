@@ -6,6 +6,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Popover,
   PopoverContent,
@@ -17,16 +20,18 @@ import {
 } from '@gruenerator/ui';
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
+  FiActivity,
+  FiAlignLeft,
   FiCheck,
   FiTrash2,
   FiCalendar,
   FiRepeat,
   FiTag,
   FiMessageSquare,
-  FiFileText,
   FiPlus,
   FiUser,
   FiMoreHorizontal,
+  FiMove,
   FiCopy,
   FiArchive,
   FiX,
@@ -46,11 +51,10 @@ import { LABEL_COLORS } from '../utils/boardDefaults';
 import { RECURRENCE_OPTIONS } from '../utils/recurrence';
 
 import { CardActivity } from './CardActivity';
-import { CardAgentDocuments } from './CardAgentDocuments';
-import { CardAttachments } from './CardAttachments';
 import { CardChecklists } from './CardChecklists';
 import { CardComments } from './CardComments';
 import { CardDescription } from './CardDescription';
+import { CardFiles } from './CardFiles';
 import { MemberPicker } from './MemberPicker';
 
 import type {
@@ -63,7 +67,6 @@ import type {
   ChecklistGroup,
 } from '../types';
 
-import { CollabDocPicker } from '@/components/common/CollabDocPicker';
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
 
@@ -104,7 +107,7 @@ function EmojiPicker({ value, onChange }: { value?: string; onChange: (emoji: st
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center justify-center w-9 h-9 mt-0.5 shrink-0 rounded-md text-lg hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border border-dashed border-grey-200 dark:border-grey-700 cursor-pointer transition-colors"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-primary-600 text-2xl leading-none text-white shadow-sm transition-transform hover:scale-105 cursor-pointer"
           title="Icon wählen"
         >
           {value || '😀'}
@@ -152,6 +155,8 @@ interface CardDetailPanelProps {
   onDuplicate?: (rowId: string) => void;
   onUpdateField: (fieldId: string, updates: Partial<Field>) => void;
   boardId?: string;
+  /** Board name — first breadcrumb segment above the card title. */
+  boardTitle?: string;
   currentUserId?: string;
   currentUserName?: string;
   currentUserAvatarRobotId?: number;
@@ -172,6 +177,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   onDuplicate,
   onUpdateField,
   boardId,
+  boardTitle,
   currentUserId = '',
   currentUserName = '',
   currentUserAvatarRobotId = 1,
@@ -193,6 +199,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [assignees, setAssignees] = useState<CardAssignee[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
+  // Activity timeline is collapsed by default; the footer button toggles it.
+  const [showActivity, setShowActivity] = useState(false);
   // Tracks which (row, open) the local form state was last synced from; see the
   // render-time sync below.
   const [syncedToken, setSyncedToken] = useState<string | null>(null);
@@ -210,6 +218,19 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const labelOptions = useMemo(
     () => (labelsField?.typeOptions.options ?? []) as SelectOption[],
     [labelsField]
+  );
+
+  // Status column — powers the breadcrumb (current column name) and the
+  // "Karte verschieben" submenu (moving = writing the STATUS cell).
+  const statusField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.STATUS), [fields]);
+  const statusOptions = useMemo(
+    () => (statusField?.typeOptions.options ?? []) as SelectOption[],
+    [statusField]
+  );
+  const currentStatusId = row?.cells[FIELD_IDS.STATUS] as string | undefined;
+  const columnName = useMemo(
+    () => statusOptions.find((o) => o.id === currentStatusId)?.name,
+    [statusOptions, currentStatusId]
   );
 
   // Keyboard navigation: ArrowLeft → prev card, ArrowRight → next card
@@ -243,6 +264,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     setDueDate((row.cells[FIELD_IDS.DUE_DATE] as string) || '');
     setRecurrence((row.cells[FIELD_IDS.RECURRENCE] as string) || '');
     setSelectedLabelIds((row.cells[FIELD_IDS.LABELS] ?? []) as string[]);
+    setShowActivity(false);
     let docs: LinkedDoc[] = [];
     try {
       const raw = row.cells[FIELD_IDS.LINKED_DOCS];
@@ -254,6 +276,12 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     setAssignees(parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]));
     setChecklists(parseChecklists(row.cells[FIELD_IDS.CHECKLIST]));
   }
+
+  // The title autosaves on blur; until then it can differ from the persisted
+  // cell — surfaced as the "Nicht gespeichert" footer hint.
+  const isDirty = row
+    ? title.trim() !== ((row.cells[FIELD_IDS.TITLE] as string) || '').trim()
+    : false;
 
   const handleTitleBlur = useCallback(() => {
     if (!row) return;
@@ -417,6 +445,16 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     onOpenChange(false);
   }, [row, onDuplicate, onOpenChange]);
 
+  // "Karte verschieben" — writing the STATUS cell moves the card to that column.
+  const moveToColumn = useCallback(
+    (statusId: string) => {
+      if (!row) return;
+      onUpdateCell(row.id, FIELD_IDS.STATUS, statusId);
+      recordActivity.mutate({ type: 'card_moved' });
+    },
+    [row, onUpdateCell, recordActivity]
+  );
+
   const handleDiscussInChat = useCallback(() => {
     if (!row) return;
     let text = `Ich möchte diese Aufgabe besprechen:\n\n**${title}**`;
@@ -429,6 +467,12 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     void navigate('/chat');
   }, [row, title, description, dueDate, onOpenChange, navigate]);
 
+  // Cancel discards the unsaved (un-blurred) title and closes without persisting.
+  const handleCancel = useCallback(() => {
+    if (row) setTitle((row.cells[FIELD_IDS.TITLE] as string) || '');
+    onOpenChange(false);
+  }, [row, onOpenChange]);
+
   const handleSave = useCallback(() => {
     if (!row) return;
     onUpdateCell(row.id, FIELD_IDS.TITLE, title.trim() || (row.cells[FIELD_IDS.TITLE] as string));
@@ -440,55 +484,63 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
   if (!row) return null;
 
+  const propertyRow = 'flex gap-3 px-3.5 py-2.5 min-h-[52px]';
+  const propertyLabel =
+    'flex items-center gap-2 w-[108px] shrink-0 text-[13px] font-semibold text-grey-500 dark:text-grey-400';
+  const sectionHeading = 'flex items-center gap-2 text-[13px] font-bold text-foreground';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="sm:max-w-[28rem] p-0 flex flex-col"
+        className="sm:max-w-[29.5rem] p-0 flex flex-col gap-0"
         showCloseButton={false}
       >
-        {row.coverColor && (
-          <div className="h-2 shrink-0" style={{ backgroundColor: row.coverColor }} />
-        )}
-        <div
-          className="flex-1 overflow-y-auto"
-          style={{ paddingBottom: 'var(--mobile-keyboard-offset, 0px)' }}
-        >
-          {/* Title kept for screen readers only. */}
-          <SheetTitle className="sr-only">Karte bearbeiten</SheetTitle>
+        {/* Title kept for screen readers only. */}
+        <SheetTitle className="sr-only">Karte bearbeiten</SheetTitle>
 
-          {/* Title row doubles as the header: emoji + editable title + the
-              nav/actions/close controls, so no separate header bar is needed. */}
-          <div className="px-4 pt-4 pb-2 sm:px-6">
-            <div className="flex items-start gap-2">
+        {/* ============ FIXED HEADER ============ */}
+        <div className="shrink-0">
+          {row.coverColor && <div className="h-2" style={{ backgroundColor: row.coverColor }} />}
+          <div className="border-b border-grey-200 dark:border-grey-700 px-4 pt-4 pb-3.5 sm:px-5">
+            <div className="flex items-start gap-3">
               <EmojiPicker
                 value={row.icon}
                 onChange={(icon) => onUpdateRow(row.id, { icon: icon || undefined })}
               />
-              <textarea
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.currentTarget.blur();
-                  }
-                }}
-                rows={1}
-                className="flex-1 min-w-0 text-xl font-bold bg-transparent border-none outline-none text-foreground-heading resize-none leading-snug pt-1"
-                placeholder="Kartentitel"
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = `${target.scrollHeight}px`;
-                }}
-              />
+              <div className="min-w-0 flex-1 pt-px">
+                {(boardTitle || columnName) && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-grey-400">
+                    {boardTitle && <span className="truncate">{boardTitle}</span>}
+                    {boardTitle && columnName && <span className="opacity-50">›</span>}
+                    {columnName && <span className="truncate">{columnName}</span>}
+                  </div>
+                )}
+                <textarea
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={handleTitleBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  rows={1}
+                  className="mt-0.5 w-full min-w-0 resize-none border-none bg-transparent text-xl font-bold leading-snug text-foreground-heading outline-none"
+                  placeholder="Kartentitel"
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
+                />
+              </div>
               <div className="flex items-center gap-0.5 shrink-0 -mr-1 sm:-mr-2">
                 {onPrevCard && (
                   <button
                     onClick={onPrevCard}
-                    className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                    className="flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-[10px] text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                     title="Vorherige Karte (←)"
                     aria-label="Vorherige Karte"
                   >
@@ -498,7 +550,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 {onNextCard && (
                   <button
                     onClick={onNextCard}
-                    className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                    className="flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-[10px] text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                     title="Nächste Karte (→)"
                     aria-label="Nächste Karte"
                   >
@@ -508,13 +560,72 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                      className="flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-[10px] text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                       title="Aktionen"
                     >
-                      <FiMoreHorizontal size={16} />
+                      <FiMoreHorizontal size={18} />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuContent align="end" className="w-60">
+                    {/* Titelfarbe — sets/clears the card cover accent colour. */}
+                    <div className="px-2 pb-1.5 pt-1.5">
+                      <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-grey-400">
+                        Titelfarbe
+                      </div>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        <button
+                          onClick={() => onUpdateRow(row.id, { coverColor: undefined })}
+                          className={cn(
+                            'flex h-6 items-center justify-center rounded-lg border border-grey-200 dark:border-grey-600 bg-transparent text-grey-400 cursor-pointer transition-transform hover:scale-110',
+                            !row.coverColor && 'ring-2 ring-primary-500'
+                          )}
+                          title="Keine"
+                          aria-label="Keine Farbe"
+                        >
+                          <FiX size={13} />
+                        </button>
+                        {LABEL_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() =>
+                              onUpdateRow(row.id, {
+                                coverColor: row.coverColor === color ? undefined : color,
+                              })
+                            }
+                            className={cn(
+                              'h-6 rounded-lg border-none cursor-pointer transition-transform hover:scale-110',
+                              row.coverColor === color && 'ring-2 ring-primary-500'
+                            )}
+                            style={{ backgroundColor: color }}
+                            title="Farbe setzen"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    {boardId && statusOptions.length > 0 && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <FiMove className="mr-2" size={13} />
+                          Karte verschieben
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-48">
+                          {statusOptions.map((opt) => (
+                            <DropdownMenuItem
+                              key={opt.id}
+                              disabled={opt.id === currentStatusId}
+                              onClick={() => moveToColumn(opt.id)}
+                            >
+                              <span
+                                className="mr-2 h-2.5 w-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: opt.color }}
+                              />
+                              {opt.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
                     {onDuplicate && (
                       <DropdownMenuItem onClick={handleDuplicate}>
                         <FiCopy className="mr-2" size={13} />
@@ -570,51 +681,28 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 </DropdownMenu>
                 <button
                   onClick={() => onOpenChange(false)}
-                  className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                  className="flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-[10px] text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                   title="Schließen"
                   aria-label="Schließen"
                 >
-                  <span className="text-lg leading-none">&times;</span>
+                  <FiX size={18} />
                 </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="px-4 sm:px-6 pb-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-grey-400 mr-1">Cover</span>
-              {/* None — clears the cover color (highlighted when no cover set). */}
-              <button
-                onClick={() => onUpdateRow(row.id, { coverColor: undefined })}
-                className={cn(
-                  'flex h-3 w-5 items-center justify-center rounded-sm border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-125 bg-transparent',
-                  !row.coverColor && 'ring-2 ring-primary-500 ring-offset-1'
-                )}
-                title="Kein Cover"
-                aria-label="Kein Cover"
-              >
-                <FiX size={9} className="text-grey-400" />
-              </button>
-              {LABEL_COLORS.map((color) => (
-                <button
-                  key={color}
-                  onClick={() =>
-                    onUpdateRow(row.id, {
-                      coverColor: row.coverColor === color ? undefined : color,
-                    })
-                  }
-                  className={cn(
-                    'w-5 h-3 rounded-sm border-none cursor-pointer transition-transform hover:scale-125',
-                    row.coverColor === color && 'ring-2 ring-primary-500 ring-offset-1'
-                  )}
-                  style={{ backgroundColor: color }}
-                  title={row.coverColor === color ? 'Cover entfernen' : 'Cover setzen'}
-                />
-              ))}
+        {/* ============ SCROLLABLE BODY ============ */}
+        <div
+          className="flex-1 overflow-y-auto flex flex-col gap-5 px-4 py-4 sm:px-5"
+          style={{ paddingBottom: 'var(--mobile-keyboard-offset, 1rem)' }}
+        >
+          {/* Beschreibung */}
+          <section className="flex flex-col gap-2">
+            <div className={sectionHeading}>
+              <FiAlignLeft size={16} />
+              Beschreibung
             </div>
-          </div>
-
-          <div className="px-4 pb-4 sm:px-6">
             <CardDescription
               value={description}
               onSave={(md) => {
@@ -622,150 +710,193 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 if (row) onUpdateCell(row.id, FIELD_IDS.DESCRIPTION, md);
               }}
             />
-          </div>
+          </section>
 
-          {/* Labels — surfaced directly under the description, above the field list */}
-          <div className="px-4 pb-4 sm:px-6">
-            <div className="flex flex-row">
-              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
-                <FiTag className="inline mr-1.5" size={13} />
-                Labels
-              </p>
-              <div className="flex-1">
-                {/* Assigned labels — explicit removable chips (always available). */}
-                {selectedLabels.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {selectedLabels.map((lbl) => (
-                      <span
-                        key={lbl.id}
-                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
-                        style={{ backgroundColor: lbl.color }}
-                      >
-                        {lbl.name}
-                        <button
-                          onClick={() => removeLabel(lbl.id)}
-                          className="flex items-center justify-center bg-transparent border-none cursor-pointer p-1.5 sm:p-0.5 -mr-1 text-white/80 hover:text-white"
-                          title="Label entfernen"
-                          aria-label={`Label ${lbl.name} entfernen`}
-                        >
-                          <FiX size={13} />
-                        </button>
-                      </span>
-                    ))}
+          {/* Details — Zuständig / Termin / Labels in one property block */}
+          <section className="flex flex-col gap-2">
+            <div className={sectionHeading}>Details</div>
+            <div className="overflow-hidden rounded-xl border border-grey-200 bg-background dark:border-grey-700 divide-y divide-grey-200 dark:divide-grey-700">
+              {/* Zuständig */}
+              {boardId && (
+                <div className={propertyRow}>
+                  <div className={cn(propertyLabel, 'pt-1')}>
+                    <FiUser size={16} />
+                    Zuständig
                   </div>
-                )}
-                <div className="flex gap-1.5 items-center">
-                  <input
-                    value={newLabelText}
-                    onChange={(e) => setNewLabelText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addNewLabel();
-                      }
-                    }}
-                    placeholder="Neues Label..."
-                    className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
-                  />
-                  <div className="flex gap-2 sm:gap-1">
-                    {colorPickerOpen ? (
-                      <>
-                        {/* None — neutral/colorless label (first option, "undo"). */}
-                        <button
-                          onClick={() => {
-                            setSelectedLabelColor(NEUTRAL_LABEL_COLOR);
-                            setColorPickerOpen(false);
-                          }}
-                          className="flex h-7 w-7 sm:h-5 sm:w-5 items-center justify-center rounded-full border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-110 bg-transparent"
-                          style={{
-                            outline:
-                              selectedLabelColor === NEUTRAL_LABEL_COLOR
-                                ? '2px solid currentColor'
-                                : 'none',
-                            outlineOffset: '2px',
-                          }}
-                          title="Keine Farbe"
-                          aria-label="Keine Farbe"
-                        >
-                          <FiX size={11} className="text-grey-400" />
-                        </button>
-                        {LABEL_COLORS.slice(0, 5).map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => {
-                              setSelectedLabelColor(color);
-                              setColorPickerOpen(false);
-                            }}
-                            className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
-                            style={{
-                              backgroundColor: color,
-                              outline:
-                                selectedLabelColor === color ? '2px solid currentColor' : 'none',
-                              outlineOffset: '2px',
-                            }}
-                          />
+                  <div className="flex-1">
+                    {assignees.length > 0 && (
+                      <div className="mb-1.5 flex flex-wrap gap-1.5">
+                        {assignees.map((a) => (
+                          <span
+                            key={`${a.id}-${a.name}`}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 pl-1 pr-1.5 py-0.5"
+                          >
+                            {a.agentId ? (
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">
+                                <PhosphorIcon name="PiSparkle" className="h-4 w-4" />
+                              </span>
+                            ) : (
+                              <RobotAvatar
+                                robotId={a.avatarRobotId ?? 1}
+                                displayName={a.name}
+                                sizePx={20}
+                                className="w-5 h-5 shrink-0"
+                                alt=""
+                              />
+                            )}
+                            <span className="text-xs text-foreground truncate max-w-[120px]">
+                              {a.name}
+                            </span>
+                            <button
+                              onClick={() => removeAssignee(a.id, a.name)}
+                              className="flex items-center justify-center text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-2 sm:p-0.5"
+                              title="Entfernen"
+                            >
+                              <FiX size={13} />
+                            </button>
+                          </span>
                         ))}
-                      </>
-                    ) : selectedLabelColor === NEUTRAL_LABEL_COLOR ? (
-                      <button
-                        onClick={() => setColorPickerOpen(true)}
-                        className="flex h-7 w-7 sm:h-5 sm:w-5 items-center justify-center rounded-full border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-110 bg-transparent"
-                        title="Farbe wählen"
-                        aria-label="Farbe wählen"
-                      >
-                        <FiX size={11} className="text-grey-400" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setColorPickerOpen(true)}
-                        className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
-                        style={{ backgroundColor: selectedLabelColor }}
-                        title="Farbe wählen"
-                        aria-label="Farbe wählen"
-                      />
+                      </div>
                     )}
+                    <MemberPicker
+                      boardId={boardId}
+                      onSelect={handleAssigneeToggle}
+                      selectedIds={assignees.map((a) => a.id).filter(Boolean)}
+                      multiple
+                    >
+                      <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-1 sm:py-0">
+                        <FiPlus size={12} />
+                        {assignees.length > 0 ? 'Person hinzufügen' : 'Person zuweisen'}
+                      </button>
+                    </MemberPicker>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              )}
 
-          <div className="border-t border-grey-200 dark:border-grey-700 px-4 py-4 space-y-4 sm:px-6">
-            {/* Assignees — available whenever the card has a board context */}
-            {boardId && (
-              <div className="flex flex-row">
-                <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
-                  <FiUser className="inline mr-1.5" size={13} />
-                  Zuständig
-                </p>
+              {/* Termin — due date + recurrence. Recurrence lives inside the date
+                  popover because it's a property of the due date: completing the card
+                  spawns the next occurrence relative to it. */}
+              <div className={cn(propertyRow, 'items-center')}>
+                <div className={propertyLabel}>
+                  <FiCalendar size={16} />
+                  Termin
+                </div>
                 <div className="flex-1">
-                  {assignees.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-1.5">
-                      {assignees.map((a) => (
-                        <span
-                          key={`${a.id}-${a.name}`}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 pl-1 pr-1.5 py-0.5 group/assignee"
-                        >
-                          {a.agentId ? (
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-primary-600 dark:text-primary-400">
-                              <PhosphorIcon name="PiSparkle" className="h-4 w-4" />
-                            </span>
-                          ) : (
-                            <RobotAvatar
-                              robotId={a.avatarRobotId ?? 1}
-                              displayName={a.name}
-                              sizePx={20}
-                              className="w-5 h-5 shrink-0"
-                              alt=""
-                            />
-                          )}
-                          <span className="text-xs text-foreground truncate max-w-[120px]">
-                            {a.name}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        data-empty={!dueDate}
+                        className="inline-flex items-center gap-2 rounded-lg border border-grey-200 dark:border-grey-700 bg-grey-100/60 dark:bg-grey-800/60 px-2.5 py-1.5 text-[13.5px] font-semibold text-foreground outline-none hover:border-primary-500 transition-colors cursor-pointer data-[empty=true]:font-normal data-[empty=true]:text-grey-400 dark:data-[empty=true]:text-grey-300"
+                      >
+                        <FiCalendar size={14} />
+                        <span>
+                          {dueDate
+                            ? new Date(dueDate).toLocaleDateString('de-DE', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                              })
+                            : 'Datum wählen'}
+                        </span>
+                        {recurrence && (
+                          <span className="flex items-center gap-1 text-grey-400 dark:text-grey-300">
+                            <span className="text-grey-300 dark:text-grey-600">·</span>
+                            <FiRepeat size={12} />
+                            {RECURRENCE_OPTIONS.find((o) => o.id === recurrence)?.name}
                           </span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dueDate ? new Date(dueDate) : undefined}
+                        onSelect={(date) => {
+                          if (!row) return;
+                          const iso = date
+                            ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+                            : '';
+                          setDueDate(iso);
+                          onUpdateCell(row.id, FIELD_IDS.DUE_DATE, iso || null);
+                          recordActivity.mutate({
+                            type: 'due_changed',
+                            payload: { dueDate: iso || null },
+                          });
+                        }}
+                      />
+                      {/* Recurrence — when set, completing the card spawns the next occurrence */}
+                      <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2.5">
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-grey-500 dark:text-grey-100 mb-1.5">
+                          <FiRepeat size={12} />
+                          Wiederholung
+                        </label>
+                        <select
+                          value={recurrence}
+                          onChange={(e) => {
+                            if (!row) return;
+                            const value = e.target.value;
+                            setRecurrence(value);
+                            onUpdateCell(row.id, FIELD_IDS.RECURRENCE, value || null);
+                          }}
+                          className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 focus:border-primary-500 transition-colors cursor-pointer"
+                        >
+                          <option value="">Nicht wiederkehrend</option>
+                          {RECURRENCE_OPTIONS.map((opt) => (
+                            <option key={opt.id} value={opt.id}>
+                              {opt.name}
+                            </option>
+                          ))}
+                        </select>
+                        {recurrence && (
+                          <p className="text-xs text-grey-400 dark:text-grey-300 mt-1.5 m-0">
+                            Beim Abschließen wird automatisch eine neue Karte mit nächstem
+                            Fälligkeitsdatum erstellt.
+                          </p>
+                        )}
+                      </div>
+                      {dueDate && (
+                        <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2">
                           <button
-                            onClick={() => removeAssignee(a.id, a.name)}
-                            className="flex items-center justify-center text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-2 sm:p-0.5"
-                            title="Entfernen"
+                            onClick={() => {
+                              if (!row) return;
+                              setDueDate('');
+                              onUpdateCell(row.id, FIELD_IDS.DUE_DATE, null);
+                            }}
+                            className="text-xs text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer py-2 sm:py-0"
+                          >
+                            Datum entfernen
+                          </button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  {dueDate && new Date(dueDate) < new Date(new Date().toDateString()) && (
+                    <p className="text-xs text-red-500 mt-1 m-0">Überfällig</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Labels */}
+              <div className={propertyRow}>
+                <div className={cn(propertyLabel, 'pt-1')}>
+                  <FiTag size={16} />
+                  Labels
+                </div>
+                <div className="flex-1">
+                  {selectedLabels.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {selectedLabels.map((lbl) => (
+                        <span
+                          key={lbl.id}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                          style={{ backgroundColor: lbl.color }}
+                        >
+                          {lbl.name}
+                          <button
+                            onClick={() => removeLabel(lbl.id)}
+                            className="flex items-center justify-center bg-transparent border-none cursor-pointer p-1.5 sm:p-0.5 -mr-1 text-white/80 hover:text-white"
+                            title="Label entfernen"
+                            aria-label={`Label ${lbl.name} entfernen`}
                           >
                             <FiX size={13} />
                           </button>
@@ -773,224 +904,163 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       ))}
                     </div>
                   )}
-                  <MemberPicker
-                    boardId={boardId}
-                    onSelect={handleAssigneeToggle}
-                    selectedIds={assignees.map((a) => a.id).filter(Boolean)}
-                    multiple
-                  >
-                    <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-2 sm:py-0">
-                      <FiPlus size={12} />
-                      {assignees.length > 0 ? 'Person hinzufügen' : 'Person zuweisen'}
-                    </button>
-                  </MemberPicker>
-                </div>
-              </div>
-            )}
-
-            {/* Termin — due date + recurrence. Recurrence lives inside the date
-                popover because it's a property of the due date: completing the card
-                spawns the next occurrence relative to it. */}
-            <div className="flex flex-row">
-              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
-                <FiCalendar className="inline mr-1.5" size={13} />
-                Termin
-              </p>
-              <div className="flex-1">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      data-empty={!dueDate}
-                      className="flex items-center gap-2 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 transition-colors cursor-pointer data-[empty=true]:text-grey-400 dark:data-[empty=true]:text-grey-300"
-                    >
-                      <FiCalendar size={13} />
-                      <span>
-                        {dueDate
-                          ? new Date(dueDate).toLocaleDateString('de-DE', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric',
-                            })
-                          : 'Datum wählen'}
-                      </span>
-                      {recurrence && (
-                        <span className="flex items-center gap-1 text-grey-400 dark:text-grey-300">
-                          <span className="text-grey-300 dark:text-grey-600">·</span>
-                          <FiRepeat size={12} />
-                          {RECURRENCE_OPTIONS.find((o) => o.id === recurrence)?.name}
-                        </span>
-                      )}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dueDate ? new Date(dueDate) : undefined}
-                      onSelect={(date) => {
-                        if (!row) return;
-                        const iso = date
-                          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-                          : '';
-                        setDueDate(iso);
-                        onUpdateCell(row.id, FIELD_IDS.DUE_DATE, iso || null);
-                        recordActivity.mutate({
-                          type: 'due_changed',
-                          payload: { dueDate: iso || null },
-                        });
+                  <div className="flex gap-1.5 items-center">
+                    <input
+                      value={newLabelText}
+                      onChange={(e) => setNewLabelText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addNewLabel();
+                        }
                       }}
+                      placeholder="Neues Label..."
+                      className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
                     />
-                    {/* Recurrence — when set, completing the card spawns the next occurrence */}
-                    <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2.5">
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-grey-500 dark:text-grey-100 mb-1.5">
-                        <FiRepeat size={12} />
-                        Wiederholung
-                      </label>
-                      <select
-                        value={recurrence}
-                        onChange={(e) => {
-                          if (!row) return;
-                          const value = e.target.value;
-                          setRecurrence(value);
-                          onUpdateCell(row.id, FIELD_IDS.RECURRENCE, value || null);
-                        }}
-                        className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 focus:border-primary-500 transition-colors cursor-pointer"
-                      >
-                        <option value="">Nicht wiederkehrend</option>
-                        {RECURRENCE_OPTIONS.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.name}
-                          </option>
-                        ))}
-                      </select>
-                      {recurrence && (
-                        <p className="text-xs text-grey-400 dark:text-grey-300 mt-1.5 m-0">
-                          Beim Abschließen wird automatisch eine neue Karte mit nächstem
-                          Fälligkeitsdatum erstellt.
-                        </p>
+                    <div className="flex gap-2 sm:gap-1">
+                      {colorPickerOpen ? (
+                        <>
+                          {/* None — neutral/colorless label (first option, "undo"). */}
+                          <button
+                            onClick={() => {
+                              setSelectedLabelColor(NEUTRAL_LABEL_COLOR);
+                              setColorPickerOpen(false);
+                            }}
+                            className="flex h-7 w-7 sm:h-5 sm:w-5 items-center justify-center rounded-full border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-110 bg-transparent"
+                            style={{
+                              outline:
+                                selectedLabelColor === NEUTRAL_LABEL_COLOR
+                                  ? '2px solid currentColor'
+                                  : 'none',
+                              outlineOffset: '2px',
+                            }}
+                            title="Keine Farbe"
+                            aria-label="Keine Farbe"
+                          >
+                            <FiX size={11} className="text-grey-400" />
+                          </button>
+                          {LABEL_COLORS.slice(0, 5).map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => {
+                                setSelectedLabelColor(color);
+                                setColorPickerOpen(false);
+                              }}
+                              className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
+                              style={{
+                                backgroundColor: color,
+                                outline:
+                                  selectedLabelColor === color ? '2px solid currentColor' : 'none',
+                                outlineOffset: '2px',
+                              }}
+                            />
+                          ))}
+                        </>
+                      ) : selectedLabelColor === NEUTRAL_LABEL_COLOR ? (
+                        <button
+                          onClick={() => setColorPickerOpen(true)}
+                          className="flex h-7 w-7 sm:h-5 sm:w-5 items-center justify-center rounded-full border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-110 bg-transparent"
+                          title="Farbe wählen"
+                          aria-label="Farbe wählen"
+                        >
+                          <FiX size={11} className="text-grey-400" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setColorPickerOpen(true)}
+                          className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
+                          style={{ backgroundColor: selectedLabelColor }}
+                          title="Farbe wählen"
+                          aria-label="Farbe wählen"
+                        />
                       )}
                     </div>
-                    {dueDate && (
-                      <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2">
-                        <button
-                          onClick={() => {
-                            if (!row) return;
-                            setDueDate('');
-                            onUpdateCell(row.id, FIELD_IDS.DUE_DATE, null);
-                          }}
-                          className="text-xs text-red-500 hover:text-red-600 bg-transparent border-none cursor-pointer py-2 sm:py-0"
-                        >
-                          Datum entfernen
-                        </button>
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-                {dueDate && new Date(dueDate) < new Date(new Date().toDateString()) && (
-                  <p className="text-xs text-red-500 mt-1 m-0">Überfällig</p>
-                )}
-              </div>
-            </div>
-
-            {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
-                Expert-only; renders nothing unless the card's status column carries an aiTask. */}
-            {expertMode && <AgentRunButton boardId={boardId} row={row} fields={fields} />}
-
-            {/* Linked documents */}
-            <div className="flex flex-row items-start">
-              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-0.5">
-                <FiFileText className="inline mr-1.5" size={13} />
-                Dokumente
-              </p>
-              <div className="flex-1">
-                {linkedDocs.length > 0 && (
-                  <div className="flex flex-col gap-1.5 mb-2">
-                    {linkedDocs.map((doc) => (
-                      <div key={doc.id} className="flex items-center gap-1.5 group">
-                        <a
-                          href={`/docs/${doc.id}`}
-                          className="text-sm text-primary-600 dark:text-primary-400 hover:underline truncate flex-1"
-                        >
-                          {doc.title}
-                        </a>
-                        <button
-                          onClick={() => removeLinkedDoc(doc.id)}
-                          className="sm:opacity-0 sm:group-hover:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity text-xs p-2 sm:p-0"
-                          title="Entfernen"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
                   </div>
-                )}
-                <CollabDocPicker onSelect={addLinkedDoc} excludeIds={linkedDocs.map((d) => d.id)}>
-                  <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-2 sm:py-0">
-                    <FiPlus size={12} />
-                    Verknüpfen
-                  </button>
-                </CollabDocPicker>
+                </div>
               </div>
             </div>
+          </section>
 
-            {/* Checklists */}
-            <CardChecklists
-              groups={checklists}
-              currentUserId={currentUserId}
-              boardId={boardId}
-              onChange={handleChecklistChange}
-            />
+          {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
+              Expert-only; renders nothing unless the card's status column carries an aiTask. */}
+          {expertMode && <AgentRunButton boardId={boardId} row={row} fields={fields} />}
 
-            {/* Attachments */}
-            {boardId && (
-              <CardAttachments
-                boardId={boardId}
-                cardId={row.id}
-                onCoverChange={handleCoverImageChange}
-              />
-            )}
+          {/* Checklists */}
+          <CardChecklists
+            groups={checklists}
+            currentUserId={currentUserId}
+            boardId={boardId}
+            onChange={handleChecklistChange}
+          />
 
-            {/* Grünerator-Dokumente — agent-created docs (renders only when ≥1 exists) */}
-            {boardId && <CardAgentDocuments boardId={boardId} cardId={row.id} />}
-          </div>
+          {/* Dateien — Grünerator-Dokumente + verknüpfte Dokumente + Anhänge, vereint */}
+          <CardFiles
+            boardId={boardId}
+            cardId={row.id}
+            linkedDocs={linkedDocs}
+            onAddLinkedDoc={addLinkedDoc}
+            onRemoveLinkedDoc={removeLinkedDoc}
+            onCoverChange={handleCoverImageChange}
+          />
 
-          {/* Comments */}
-          {row && (
+          {/* Comments — full-bleed: it brings its own border-t + horizontal padding */}
+          <div className="-mx-4 sm:-mx-5">
             <CardComments
               cardId={row.id}
               currentUserId={currentUserId}
               currentUserName={currentUserName}
               currentUserAvatarRobotId={currentUserAvatarRobotId}
             />
-          )}
+          </div>
 
-          {/* Activity timeline */}
-          {boardId && <CardActivity boardId={boardId} cardId={row.id} />}
+          {/* Activity timeline — toggled from the footer */}
+          {boardId && showActivity && (
+            <div className="-mx-4 sm:-mx-5">
+              <CardActivity boardId={boardId} cardId={row.id} />
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-grey-200 dark:border-grey-700 px-4 py-3 sm:px-6">
-          <div className="flex gap-1">
+        {/* ============ FIXED FOOTER ============ */}
+        <div className="shrink-0 flex items-center gap-1 border-t border-grey-200 dark:border-grey-700 px-3 py-2.5 sm:px-4">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-10 sm:size-9"
+            onClick={handleDiscussInChat}
+            title="Im Chat besprechen"
+          >
+            <FiMessageSquare size={16} />
+          </Button>
+          {boardId && (
             <Button
               variant="ghost"
               size="icon-sm"
-              className="size-11 sm:size-8"
-              onClick={handleDiscussInChat}
-              title="Im Chat besprechen"
+              className={cn('size-10 sm:size-9', showActivity && 'text-primary-600')}
+              onClick={() => setShowActivity((v) => !v)}
+              title="Aktivität"
             >
-              <FiMessageSquare size={15} />
+              <FiActivity size={16} />
             </Button>
-            {boardId && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-11 sm:size-8"
-                onClick={() => toggleSubscription.mutate(!isWatching)}
-                title={isWatching ? 'Nicht mehr beobachten' : 'Karte beobachten'}
-              >
-                {isWatching ? <FiEyeOff size={15} /> : <FiEye size={15} />}
-              </Button>
-            )}
-          </div>
-          <Button size="sm" className="h-11 sm:h-8" onClick={handleSave}>
+          )}
+          {boardId && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-10 sm:size-9"
+              onClick={() => toggleSubscription.mutate(!isWatching)}
+              title={isWatching ? 'Nicht mehr beobachten' : 'Karte beobachten'}
+            >
+              {isWatching ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+            </Button>
+          )}
+          <span className="ml-auto mr-1 text-xs text-grey-400">
+            {isDirty ? 'Nicht gespeichert' : 'Gespeichert'}
+          </span>
+          <Button variant="ghost" size="sm" className="h-10 sm:h-9" onClick={handleCancel}>
+            Abbrechen
+          </Button>
+          <Button size="sm" className="h-10 sm:h-9" onClick={handleSave}>
             <FiCheck className="mr-1.5" size={13} />
             Speichern
           </Button>

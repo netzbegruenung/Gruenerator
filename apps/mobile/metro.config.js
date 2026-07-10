@@ -37,8 +37,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
-// Critical for pnpm: follow symlinks
-config.resolver.unstable_enableSymlinks = true;
+// NOTE: pnpm symlink resolution is on by default in Metro (RN 0.86 / SDK 57) —
+// the former `config.resolver.unstable_enableSymlinks = true` override is now
+// redundant and flagged by expo-doctor ("Expected undefined"), so it's removed.
 
 // Specify export conditions for React Native.
 // 'development' matches the `development` condition in workspace packages
