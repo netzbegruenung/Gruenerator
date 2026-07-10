@@ -181,11 +181,21 @@ export function detectPromptIntent(text: string): boolean {
   return trimmed.split(/\s+/).length >= 5;
 }
 
+// Only the four kinds this composer actually creates. Naming concrete Textsorten
+// ("Pressemitteilung", "Antrag") misleads — those belong to the text generators.
 export const PROMPT_EXAMPLES: string[] = [
-  'Schreibe eine Pressemitteilung zum Hitzeschutz …',
-  'Erstelle ein Kampagnen-Board für den Wahlkampf …',
-  'Tabelle: Haushaltsplan des Kreisverbands …',
-  'Präsentation: unseren Kreisverband vorstellen …',
-  'Entwirf einen Antrag zur Verkehrswende …',
+  'Erstelle ein Dokument zum Hitzeschutz …',
+  'Erstelle ein Board für die Kampagnenplanung …',
+  'Erstelle eine Tabelle für den Haushalt …',
+  'Erstelle eine Präsentation für den Kreisverband …',
   '… oder tippe, um zu suchen',
+];
+
+/** Same rotation, trimmed to fit the composer pill on phone widths. */
+export const PROMPT_EXAMPLES_SHORT: string[] = [
+  'Dokument erstellen …',
+  'Board erstellen …',
+  'Tabelle erstellen …',
+  'Präsentation erstellen …',
+  '… oder tippen zum Suchen',
 ];
