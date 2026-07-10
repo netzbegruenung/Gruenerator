@@ -131,6 +131,7 @@ function DocumentsContent() {
   const [showSheetImport, setShowSheetImport] = useState(false);
   const [showWolkeImport, setShowWolkeImport] = useState(false);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -399,7 +400,10 @@ function DocumentsContent() {
   const handleComposerCreate = useCallback(
     async (kind: DocKind, prompt: string) => {
       const description = prompt.trim();
-      if (!description || creating) return;
+      // Ref, not the `creating` state: Enter and the send button can both fire
+      // before React re-renders, and a stale closure would let both through.
+      if (!description || creatingRef.current) return;
+      creatingRef.current = true;
       setCreating(true);
       try {
         if (kind === 'doc') {
@@ -407,9 +411,12 @@ function DocumentsContent() {
           navigate(`/docs/${doc.id}`);
         } else if (kind === 'board') {
           const data = await generateBoard.mutateAsync(description);
-          navigate(`/boards/${data.board.id}`, {
-            state: { generatedStructure: data.generatedStructure ?? undefined },
-          });
+          navigate(
+            `/boards/${data.board.id}`,
+            data.generatedStructure
+              ? { state: { generatedStructure: data.generatedStructure } }
+              : {}
+          );
         } else if (kind === 'sheet') {
           const res = await getContractsClient().sheets.generate({ body: { description } });
           if (res.status !== 201) throw new Error(`Sheet generation failed (${res.status})`);
@@ -421,10 +428,14 @@ function DocumentsContent() {
         }
       } catch (err) {
         console.error('Composer create failed:', err);
+      } finally {
+        // Always release: on success we navigate away, but if the route resolves
+        // back to /docs the composer would otherwise stay disabled forever.
+        creatingRef.current = false;
         setCreating(false);
       }
     },
-    [creating, generateDocumentMutation, generateBoard, navigate]
+    [generateDocumentMutation, generateBoard, navigate]
   );
 
   const handleComposerTemplate = useCallback(

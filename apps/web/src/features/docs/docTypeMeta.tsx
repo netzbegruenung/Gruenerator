@@ -87,8 +87,6 @@ export const DOC_TYPE_META: Record<DocKind, DocTypeMeta> = {
   pres: { kind: 'pres', label: 'Präsentation', color: '#7E5AA8', bg: '#EFE8F6', Icon: PresIcon },
 };
 
-export const DOC_KIND_ORDER: DocKind[] = ['doc', 'board', 'sheet', 'pres'];
-
 /** collaborative_documents subtype → homepage kind. */
 export function subtypeToKind(subtype: string | null | undefined): DocKind {
   switch (subtype) {
