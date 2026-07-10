@@ -1,4 +1,4 @@
-import { TypingAnimation } from '@gruenerator/ui';
+import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { FiCloud, FiCornerDownLeft, FiGrid, FiSearch, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   DOC_TYPE_META,
   PROMPT_EXAMPLES,
+  PROMPT_EXAMPLES_SHORT,
   detectDocType,
   detectPromptIntent,
   type DocKind,
@@ -71,6 +72,7 @@ export function DocsComposer({
   onImport,
 }: DocsComposerProps) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -113,7 +115,7 @@ export function DocsComposer({
     key: 'create',
     onSelect: runCreate,
     render: () => (
-      <div className="flex items-center gap-3">
+      <div className="flex w-full min-w-0 items-center gap-3">
         <TypeChip kind={detectedKind} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold text-[#22382E] dark:text-foreground">
@@ -132,7 +134,7 @@ export function DocsComposer({
     key: `item-${it.kind}-${it.id}`,
     onSelect: () => navigate(it.openPath),
     render: () => (
-      <div className="flex items-center gap-3">
+      <div className="flex w-full min-w-0 items-center gap-3">
         <TypeChip kind={it.kind} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
@@ -148,7 +150,7 @@ export function DocsComposer({
     key: `tpl-${t.key}`,
     onSelect: () => onSelectTemplate(t.kind, t.id),
     render: () => (
-      <div className="flex items-center gap-3">
+      <div className="flex w-full min-w-0 items-center gap-3">
         <TypeChip kind={t.kind} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
@@ -177,11 +179,11 @@ export function DocsComposer({
       onImport(d.kind);
     },
     render: () => (
-      <div className="flex items-center gap-3 text-[#5C6B63] dark:text-grey-300">
+      <div className="flex w-full min-w-0 items-center gap-3 text-[#5C6B63] dark:text-grey-300">
         <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#F1F4F1] dark:bg-grey-700">
           {d.icon}
         </span>
-        <div className="text-sm font-medium">{d.label}</div>
+        <div className="min-w-0 flex-1 truncate text-sm font-medium">{d.label}</div>
       </div>
     ),
   }));
@@ -211,11 +213,11 @@ export function DocsComposer({
 
   return (
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#9DBDAE] focus-within:shadow-[0_0_0_4px_rgba(95,133,117,.12),0_4px_22px_rgba(31,63,51,.07)] dark:border-grey-700 dark:bg-grey-800">
+      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#9DBDAE] focus-within:shadow-[0_0_0_4px_rgba(95,133,117,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
         <div className="relative min-w-0 flex-1">
           {query.length === 0 && (
             <TypingAnimation
-              words={PROMPT_EXAMPLES}
+              words={isMobile ? PROMPT_EXAMPLES_SHORT : PROMPT_EXAMPLES}
               loop
               className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-[#9AA8A1]"
               typeSpeed={45}
@@ -243,17 +245,20 @@ export function DocsComposer({
 
         {query.length > 0 && (
           <span
-            className="flex flex-none items-center gap-1.5 rounded-full px-[11px] py-[5px] text-[12.5px] font-bold"
+            // Narrow phones: drop the word, keep the coloured type icon — the
+            // label ("Präsentation") otherwise squeezes the input to nothing.
+            className="flex flex-none items-center gap-1.5 rounded-full px-[11px] py-[5px] text-[12.5px] font-bold max-[420px]:px-1.5"
             style={{
               background: DOC_TYPE_META[detectedKind].bg,
               color: DOC_TYPE_META[detectedKind].color,
             }}
+            aria-label={DOC_TYPE_META[detectedKind].label}
           >
             {(() => {
               const Icon = DOC_TYPE_META[detectedKind].Icon;
               return <Icon className="h-[13px] w-[13px]" />;
             })()}
-            {DOC_TYPE_META[detectedKind].label}
+            <span className="max-[420px]:hidden">{DOC_TYPE_META[detectedKind].label}</span>
           </span>
         )}
 
@@ -286,7 +291,7 @@ export function DocsComposer({
 
       {showDropdown && (
         <div
-          className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[360px] overflow-y-auto rounded-2xl border border-[#E1E9E4] bg-white p-1.5 shadow-[0_20px_50px_rgba(31,63,51,.18)] dark:border-grey-700 dark:bg-grey-800"
+          className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[360px] overflow-y-auto overflow-x-hidden rounded-2xl border border-[#E1E9E4] bg-white p-1.5 shadow-[0_20px_50px_rgba(31,63,51,.18)] dark:border-grey-700 dark:bg-grey-800"
           onMouseDown={(e) => {
             // keep focus so the input's blur→close doesn't fire before the click
             e.preventDefault();
@@ -304,7 +309,7 @@ export function DocsComposer({
               type="button"
               onMouseEnter={() => setActive(i)}
               onClick={opt.onSelect}
-              className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left transition-colors ${
+              className={`flex w-full min-w-0 items-center rounded-xl px-3 py-2.5 text-left transition-colors ${
                 i === clampedActive
                   ? 'bg-[#F2F6F3] dark:bg-grey-700/60'
                   : 'hover:bg-[#F2F6F3] dark:hover:bg-grey-700/60'
