@@ -30,3 +30,29 @@ export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards' &
 
 /** Marker for permissions auto-granted when a user visits an 'authenticated' share link */
 export const GRANTED_BY_SHARE_LINK = 'auto:share_link';
+
+/**
+ * Canonical read-visibility predicate for `collaborative_documents` (aliased
+ * `cd`): owned, directly shared, or group-shared. Shared by the docs list and
+ * the global-search docs query so the two can't drift on who sees which
+ * document. Takes placeholder names rather than fixed `$n` slots because the
+ * two callers number their parameters differently.
+ */
+export function docsAccessWhere(subtypesParam: string, userParam: string): string {
+  return `
+    cd.document_subtype = ANY(${subtypesParam}::text[])
+    AND cd.is_deleted = false
+    AND (
+      cd.created_by = ${userParam}
+      OR cd.permissions ? ${userParam}::text
+      OR cd.id IN (
+        SELECT gcs.content_id::uuid
+        FROM group_content_shares gcs
+        INNER JOIN group_memberships gm
+          ON gm.group_id = gcs.group_id AND gm.user_id = ${userParam} AND gm.is_active = TRUE
+        WHERE gcs.content_type = 'collaborative_documents'
+          AND (gcs.permissions->>'read')::boolean IS NOT FALSE
+      )
+    )
+  `;
+}
