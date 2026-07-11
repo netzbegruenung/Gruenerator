@@ -161,7 +161,6 @@ const KITransparenz = lazy(
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
-const NotebookRootPage = lazy(() => import('../features/notebook/components/NotebooksIndexPage'));
 const NotebookResolverPage = lazy(() =>
   import('../features/notebook/components/NotebookResolver').then((m) => ({
     default: m.NotebookResolver,
@@ -209,7 +208,12 @@ const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArch
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
-const OfficeListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
+const OfficeListRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/workplace/arbeiten') })
+);
+const WissenRedirect = lazy(() =>
+  Promise.resolve({ default: createRedirect('/workplace/wissen') })
+);
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const CollabCanvasStudioPage = lazy(
@@ -222,7 +226,6 @@ const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/Monitor
 const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
 const MonitorFeedPage = lazy(() => import('../features/monitor/pages/MonitorFeedPage'));
 const ExperimentsIndexPage = lazy(() => import('../features/experiments/ExperimentsIndexPage'));
-const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const CollabDocRoute = lazy(() => import('../features/docs/CollabDocRoute'));
 const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
 const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
@@ -244,7 +247,6 @@ export const GrueneratorenBundle = {
   ImageGallery: ImageGallery,
   Search: Search,
   Oparl: OparlPage,
-  NotebookRoot: NotebookRootPage,
   NotebookResolver: NotebookResolverPage,
   DocumentView: DocumentViewPage,
   VorlagenListe: VorlagenGallery,
@@ -270,7 +272,12 @@ const standardRoutes: RouteConfig[] = [
   { path: '/startseite', component: Startseite, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  { path: '/workplace', component: WorkplacePage },
+  // Workplace home with three tab routes (Chat / Arbeiten / Wissen). sidebarOnly
+  // for all three so the tab row keeps its position; Wissen additionally needs
+  // the h-dvh flex chain for the embedded notebook chat surface.
+  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  { path: '/workplace/arbeiten', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  { path: '/workplace/wissen', component: WorkplacePage, layoutMode: 'sidebarOnly' },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
   // stays available so existing agents remain usable.
@@ -372,12 +379,9 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
-  {
-    path: '/notebooks',
-    component: GrueneratorenBundle.NotebookRoot,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
+  // Notebook overview now lives in the workplace "Wissen" tab; detail routes
+  // below keep their canonical /notebooks/:idOrSlug URLs.
+  { path: '/notebooks', component: WissenRedirect },
   // Explicit routes must come BEFORE the catch-all /notebooks/:idOrSlug so they
   // win the match — react-router resolves by listed order for path-level conflicts.
   {
@@ -566,7 +570,9 @@ const standardRoutes: RouteConfig[] = [
   // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
   // `:category` routes below) are all prod-visible. Creation is a public research
   // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
-  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  // Studio landing is folded into the workplace "Arbeiten" tab; the creation
+  // wizard (/studio/:category…), gallery, video and canvas routes stay.
+  { path: '/studio', component: OfficeListRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
@@ -585,8 +591,8 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Office: overview and editor
-  { path: '/office', component: DocsPage, layoutMode: 'sidebarOnly' },
+  // Office overview lives in the workplace "Arbeiten" tab; the editor stays.
+  { path: '/office', component: OfficeListRedirect },
   // Dispatches to the BlockNote or Univer editor by document_subtype.
   { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
   // Legacy /docs URLs → /office
