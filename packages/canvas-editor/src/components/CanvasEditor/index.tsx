@@ -865,8 +865,11 @@ function CanvasEditorInner({
 
   // Selection-driven formatting controls live outside the menu bar: a floating
   // card over the canvas (desktop) and a fixed row above the tab bar (mobile).
-  // Only render when the canvas has reported selection state and no AI
-  // suggestion is overriding the toolbar.
+  // Render only when the canvas has reported an actual element selection (not
+  // merely because delete-page is available on a multi-page doc — page ops live
+  // in the page toolbar / thumbnail strip). The delete-page action still rides
+  // along in the bar while an element is selected. Only one of the two bars is
+  // mounted per viewport to avoid a hidden duplicate React tree.
   const contextControlsProps =
     !isMobileBridge && toolbarState
       ? {
@@ -881,14 +884,13 @@ function CanvasEditorInner({
   const hasContextControls =
     contextControlsProps !== null &&
     (contextControlsProps.selectedElement !== null ||
-      contextControlsProps.activeFloatingModule !== null ||
-      Boolean(contextControlsProps.onDelete));
+      contextControlsProps.activeFloatingModule !== null);
   const contextBarElement =
-    contextControlsProps && hasContextControls ? (
+    contextControlsProps && hasContextControls && !isMobileWeb ? (
       <ContextToolbar {...contextControlsProps} />
     ) : null;
   const mobileContextBarElement =
-    contextControlsProps && hasContextControls ? (
+    contextControlsProps && hasContextControls && isMobileWeb ? (
       <MobileContextBar {...contextControlsProps} />
     ) : null;
 
