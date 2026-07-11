@@ -1,12 +1,13 @@
 import { type FC, type SVGProps } from 'react';
 
 /**
- * The four Office content kinds and their brand accents, shared by the docs
+ * The Office content kinds and their brand accents, shared by the docs
  * homepage composer badge and the Vorlagen modal cards. Colors are fixed to the
  * Claude "Grünerator Office" design and read on their tinted chip background in
  * both themes, so they are intentionally not theme-swapped.
+ * `sharepic` routes into the image-studio canvas flow instead of a document.
  */
-export type DocKind = 'doc' | 'board' | 'sheet' | 'pres';
+export type DocKind = 'doc' | 'board' | 'sheet' | 'pres' | 'sharepic';
 
 type IconComp = FC<SVGProps<SVGSVGElement>>;
 
@@ -80,11 +81,34 @@ export interface DocTypeMeta {
   Icon: IconComp;
 }
 
+const SharepicIcon: IconComp = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.9}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" />
+  </svg>
+);
+
 export const DOC_TYPE_META: Record<DocKind, DocTypeMeta> = {
   doc: { kind: 'doc', label: 'Dokument', color: '#4C8A6E', bg: '#E7F1EA', Icon: DocIcon },
   board: { kind: 'board', label: 'Board', color: '#C0863B', bg: '#F8F0E1', Icon: BoardIcon },
   sheet: { kind: 'sheet', label: 'Tabelle', color: '#3F82A6', bg: '#E6F0F5', Icon: SheetIcon },
   pres: { kind: 'pres', label: 'Präsentation', color: '#7E5AA8', bg: '#EFE8F6', Icon: PresIcon },
+  sharepic: {
+    kind: 'sharepic',
+    label: 'Sharepic',
+    color: '#C25C7B',
+    bg: '#F8E9EF',
+    Icon: SharepicIcon,
+  },
 };
 
 /** collaborative_documents subtype → homepage kind. */
@@ -104,6 +128,18 @@ export function subtypeToKind(subtype: string | null | undefined): DocKind {
 // Keyword buckets ported verbatim from the design's `detect()` — the regex/keyword
 // classifier that turns a free-text create prompt into a target content kind.
 const KIND_KEYWORDS: Record<Exclude<DocKind, 'doc'>, string[]> = {
+  sharepic: [
+    'sharepic',
+    'share-pic',
+    'zitat',
+    'kachel',
+    'instagram',
+    'insta',
+    'bildpost',
+    'post-bild',
+    'störer',
+    'stoerer',
+  ],
   board: [
     'board',
     'kanban',
@@ -154,10 +190,13 @@ const KIND_KEYWORDS: Record<Exclude<DocKind, 'doc'>, string[]> = {
   ],
 };
 
-/** Detect the content kind a create prompt is asking for. Defaults to `doc`. */
-export function detectDocType(text: string): DocKind {
+/** Detect the content kind a create prompt is asking for. Defaults to `doc`.
+ * Sharepic detection is opt-in — the canvas creation flow is feature-gated
+ * (SHOW_SHAREPIC_STUDIO, not for de-AT). */
+export function detectDocType(text: string, allowSharepic = false): DocKind {
   const t = text.toLowerCase();
   if (!t.trim()) return 'doc';
+  if (allowSharepic && KIND_KEYWORDS.sharepic.some((k) => t.includes(k))) return 'sharepic';
   if (KIND_KEYWORDS.board.some((k) => t.includes(k))) return 'board';
   if (KIND_KEYWORDS.pres.some((k) => t.includes(k))) return 'pres';
   if (KIND_KEYWORDS.sheet.some((k) => t.includes(k))) return 'sheet';

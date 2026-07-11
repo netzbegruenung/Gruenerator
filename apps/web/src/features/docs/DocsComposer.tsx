@@ -35,6 +35,8 @@ interface DocsComposerProps {
   items: ComposerItem[];
   templates: ComposerTemplate[];
   isGenerating: boolean;
+  /** Offer sharepic detection/creation (gated: SHOW_SHAREPIC_STUDIO, not de-AT). */
+  sharepicEnabled?: boolean;
   onGenerate: (kind: DocKind, prompt: string) => void;
   onSelectTemplate: (kind: DocKind, id: string) => void;
   onImport: (kind: ImportKind) => void;
@@ -67,6 +69,7 @@ export function DocsComposer({
   items,
   templates,
   isGenerating,
+  sharepicEnabled = false,
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -88,7 +91,7 @@ export function DocsComposer({
   );
 
   const query = q.trim();
-  const detectedKind = detectDocType(query);
+  const detectedKind = detectDocType(query, sharepicEnabled);
 
   const lcQuery = query.toLowerCase();
   const matchedItems = lcQuery
