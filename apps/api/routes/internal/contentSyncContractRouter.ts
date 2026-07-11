@@ -11,9 +11,15 @@
  * Middleware is applied at the prefix in routes.ts, not here:
  *   - /api/internal/content-sync/* → requireAdminToken
  */
+import { randomUUID } from 'node:crypto';
+
 import {
   contentSyncContract,
+  contentSyncJobStatusSchema,
   contentSyncSourceSchema,
+  type ContentSyncFailure,
+  type ContentSyncJobStatus,
+  type ContentSyncResult,
   type ContentSyncSource,
 } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
@@ -26,6 +32,7 @@ import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
 import type { Application } from 'express';
 
@@ -261,6 +268,110 @@ async function runScopedLandesverband(
   };
 }
 
+const JOB_TTL_SECONDS = 3 * 60 * 60;
+
+const jobKey = (jobId: string): string => `content-sync:job:${jobId}`;
+
+/**
+ * setCachedJson swallows Redis errors, but a lost job write means CI polls a
+ * phantom job (404s) or a forever-'running' one until its timeout — so verify
+ * by read-back and retry before giving up.
+ */
+async function persistJobStatus(job: ContentSyncJobStatus): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    await setCachedJson(jobKey(job.jobId), job, JOB_TTL_SECONDS);
+    if (await getCachedJson(jobKey(job.jobId), contentSyncJobStatusSchema)) return true;
+  }
+  return false;
+}
+
+type SyncOutcome =
+  | { status: 200; body: ContentSyncResult }
+  | { status: 500; body: ContentSyncFailure };
+
+/**
+ * The full sync run, shared by the synchronous and background paths. Owns
+ * releasing the `runningSync` lock (the caller acquires it so the 409 check
+ * stays race-free before responding).
+ */
+async function executeSyncRun(
+  sourceId: ContentSyncSource,
+  lockKey: string,
+  opts: RunOpts,
+  landesverband: string | undefined,
+  runUrl: string | undefined,
+  fallbackEmail: string | undefined
+): Promise<SyncOutcome> {
+  const startTime = Date.now();
+
+  try {
+    log.info(`Content sync started: ${lockKey}`);
+
+    let name: string;
+    let timeoutMs: number;
+    let runPromise: Promise<SyncResult>;
+
+    if (sourceId === 'landesverbaende' && landesverband) {
+      name = `Landesverband ${landesverband}`;
+      timeoutMs = 50 * 60 * 1000;
+      runPromise = runScopedLandesverband(landesverband, opts, runUrl, fallbackEmail);
+    } else {
+      const source = await loadSource(sourceId);
+      await source.init();
+      name = source.name;
+      timeoutMs = source.timeoutMs;
+      runPromise = source.run(opts);
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(`Timeout after ${Math.round(timeoutMs / 60000)} minutes`)),
+        timeoutMs
+      );
+    });
+
+    const result = await Promise.race([runPromise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+
+    await persistRecordedEvents();
+
+    const durationMs = Date.now() - startTime;
+
+    log.info(
+      `Content sync completed: ${lockKey} — stored=${result.stored} updated=${result.updated} skipped=${result.skipped} errors=${result.errors} (${Math.round(durationMs / 1000)}s)`
+    );
+
+    return {
+      status: 200,
+      body: {
+        success: true,
+        sourceId,
+        name,
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        errors: result.errors,
+        fetchErrors: result.fetchErrors ?? 0,
+        durationMs,
+      },
+    };
+  } catch (error) {
+    const err = toError(error);
+    const durationMs = Date.now() - startTime;
+    // Articles indexed before the failure are real — keep their events.
+    await persistRecordedEvents();
+    log.error(`Content sync failed: ${lockKey} — ${err.message}`);
+    return {
+      status: 500,
+      body: { success: false, sourceId, error: err.message, durationMs },
+    };
+  } finally {
+    runningSync.delete(lockKey);
+  }
+}
+
 const s = initServer();
 
 export const contentSyncContractRouter = s.router(contentSyncContract, {
@@ -271,6 +382,7 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
       recent = false,
       forceUpdate = false,
       dryRun = false,
+      background = false,
       runUrl,
       fallbackEmail,
     } = body ?? {};
@@ -281,80 +393,59 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
     if (runningSync.has(lockKey)) {
       return { status: 409 as const, body: { error: `Sync already running for: ${lockKey}` } };
     }
+    runningSync.add(lockKey);
 
-    const startTime = Date.now();
+    const opts: RunOpts = { forceUpdate, recent, dryRun };
 
-    try {
-      runningSync.add(lockKey);
-      log.info(`Content sync started: ${lockKey}`);
+    // Background mode exists because full runs (LV BE/HE nightly) outlive the
+    // reverse proxy's ~5 min timeout: the job state lives in Redis so polls
+    // can hit any cluster worker, while the scrape itself stays in this one.
+    if (background) {
+      const jobId = randomUUID();
+      const startedAt = new Date().toISOString();
 
-      let name: string;
-      let timeoutMs: number;
-      let runPromise: Promise<SyncResult>;
-
-      if (sourceId === 'landesverbaende' && landesverband) {
-        name = `Landesverband ${landesverband}`;
-        timeoutMs = 50 * 60 * 1000;
-        runPromise = runScopedLandesverband(
-          landesverband,
-          { forceUpdate, recent, dryRun },
-          runUrl,
-          fallbackEmail
-        );
-      } else {
-        const source = await loadSource(sourceId);
-        await source.init();
-        name = source.name;
-        timeoutMs = source.timeoutMs;
-        runPromise = source.run({ forceUpdate, recent, dryRun });
+      if (!(await persistJobStatus({ jobId, sourceId, status: 'running', startedAt }))) {
+        runningSync.delete(lockKey);
+        return {
+          status: 500 as const,
+          body: {
+            success: false as const,
+            sourceId,
+            error: 'Job store unavailable (Redis write failed)',
+            durationMs: 0,
+          },
+        };
       }
 
-      let timeoutId: ReturnType<typeof setTimeout>;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(
-          () => reject(new Error(`Timeout after ${Math.round(timeoutMs / 60000)} minutes`)),
-          timeoutMs
-        );
-      });
+      void executeSyncRun(sourceId, lockKey, opts, landesverband, runUrl, fallbackEmail)
+        .then(async (outcome) => {
+          const persisted = await persistJobStatus({
+            jobId,
+            sourceId,
+            status: outcome.status === 200 ? 'completed' : 'failed',
+            startedAt,
+            result: outcome.body,
+          });
+          if (!persisted) {
+            log.error(`Failed to persist final status for background sync job ${jobId}`);
+          }
+        })
+        .catch((error) => {
+          log.error(`Background sync job ${jobId} crashed: ${toError(error).message}`);
+        });
 
-      const result = await Promise.race([runPromise, timeoutPromise]);
-      clearTimeout(timeoutId!);
-
-      await persistRecordedEvents();
-
-      const durationMs = Date.now() - startTime;
-
-      log.info(
-        `Content sync completed: ${lockKey} — stored=${result.stored} updated=${result.updated} skipped=${result.skipped} errors=${result.errors} (${Math.round(durationMs / 1000)}s)`
-      );
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true as const,
-          sourceId,
-          name,
-          stored: result.stored,
-          updated: result.updated,
-          skipped: result.skipped,
-          errors: result.errors,
-          fetchErrors: result.fetchErrors ?? 0,
-          durationMs,
-        },
-      };
-    } catch (error) {
-      const err = toError(error);
-      const durationMs = Date.now() - startTime;
-      // Articles indexed before the failure are real — keep their events.
-      await persistRecordedEvents();
-      log.error(`Content sync failed: ${lockKey} — ${err.message}`);
-      return {
-        status: 500 as const,
-        body: { success: false as const, sourceId, error: err.message, durationMs },
-      };
-    } finally {
-      runningSync.delete(lockKey);
+      return { status: 202 as const, body: { accepted: true as const, jobId, sourceId } };
     }
+
+    return executeSyncRun(sourceId, lockKey, opts, landesverband, runUrl, fallbackEmail);
+  },
+
+  getSyncJob: async ({ params }) => {
+    const job = await getCachedJson(jobKey(params.jobId), contentSyncJobStatusSchema);
+    if (!job) {
+      return { status: 404 as const, body: { error: `Unknown or expired job: ${params.jobId}` } };
+    }
+    return { status: 200 as const, body: job };
   },
 
   listSources: async () => {
