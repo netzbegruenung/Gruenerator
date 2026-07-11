@@ -145,7 +145,10 @@ export function ShareDropdown({
       }}
     >
       <PopoverTrigger asChild>
-        <Button variant="brand" size="sm" className="ml-auto rounded-lg">
+        <Button
+          size="sm"
+          className="ml-auto h-9 rounded-full bg-white px-4 font-extrabold text-[var(--editor-green-deep)] hover:bg-white/90 max-canvas-mobile:h-8 max-canvas-mobile:px-2.5"
+        >
           <IoShareOutline className="size-4" />
           <span className="max-canvas-mobile:hidden">Teilen</span>
         </Button>
