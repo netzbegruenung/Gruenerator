@@ -27,10 +27,10 @@ export interface IconsSectionProps {
 }
 
 const RECOMMENDED_ICON_IDS = [
-  'ph:flower-tulip',
-  'ph:heart-fill',
-  'ph:sparkle-fill',
-  'ph:star-fill',
+  'tabler:flower',
+  'tabler:heart-filled',
+  'tabler:sparkles',
+  'tabler:star-filled',
 ];
 
 export function IconsSection({
