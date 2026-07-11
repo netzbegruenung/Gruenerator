@@ -78,7 +78,11 @@ const LegacyGeneratorSlugRedirect = lazy(() =>
 );
 const DocumentToOfficeRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
-  return createElement(Navigate, { to: `/office/${id || ''}`, replace: true });
+  const { search, hash } = useLocation();
+  return createElement(Navigate, {
+    to: { pathname: `/office/${id || ''}`, search, hash },
+    replace: true,
+  });
 };
 const DocumentToOfficeRedirect = lazy(() =>
   Promise.resolve({ default: DocumentToOfficeRedirectComponent })
