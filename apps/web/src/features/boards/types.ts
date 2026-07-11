@@ -10,6 +10,7 @@
 import {
   type BoardContent,
   type BoardDocument,
+  type BoardPreview,
   type BoardField,
   type BoardRow,
   type BoardState,
@@ -48,11 +49,16 @@ type BoardContentHolder = { content?: BoardContent | null };
 function parseContent(board: BoardContentHolder): {
   is_archived?: boolean;
   board_type?: BoardType;
+  preview?: BoardPreview;
 } {
   if (!board.content) return {};
   if (typeof board.content !== 'string') return board.content;
   try {
-    return JSON.parse(board.content) as { is_archived?: boolean; board_type?: BoardType };
+    return JSON.parse(board.content) as {
+      is_archived?: boolean;
+      board_type?: BoardType;
+      preview?: BoardPreview;
+    };
   } catch {
     // Rows in `collaborative_documents` with subtype='boards' occasionally carry
     // non-JSON content (e.g. BlockNote XHTML "<blockgroup>…") when the docs
@@ -64,6 +70,11 @@ function parseContent(board: BoardContentHolder): {
 
 export function getBoardType(board: BoardContentHolder): BoardType {
   return parseContent(board).board_type ?? 'kanban';
+}
+
+/** Card-preview snapshot (kanban columns / whiteboard notes) written by Hocuspocus. */
+export function getBoardPreview(board: BoardContentHolder): BoardPreview | null {
+  return parseContent(board).preview ?? null;
 }
 
 export function isBoardArchived(board: BoardContentHolder): boolean {
