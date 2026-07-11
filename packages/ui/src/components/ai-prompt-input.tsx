@@ -204,7 +204,7 @@ export const AIPromptInput = React.memo(function AIPromptInput({
           className={cn(
             'flex items-center gap-1 pl-2 pr-2 py-1.5 min-h-[3.75rem]',
             !transparent &&
-              'rounded-full border border-grey-200 dark:border-grey-700 bg-background-pure shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 transition-shadow'
+              'rounded-full border border-grey-200 dark:border-grey-700 bg-background-pure shadow-md focus-within:shadow-lg transition-shadow'
           )}
         >
           {leading}

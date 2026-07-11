@@ -771,10 +771,11 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root
         className={cn(
-          'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow focus-within:border-primary/30 dark:bg-surface',
+          'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
+          // Design v2: the pill keeps its resting border/shadow on focus.
           isPill
-            ? 'rounded-full shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 dark:shadow-sm'
-            : 'rounded-3xl shadow-lg focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
+            ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
+            : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
           isMistral && !isPill ? 'border-[#003399]' : 'border-border'
