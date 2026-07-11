@@ -5,6 +5,7 @@ import {
   BookOpen,
   ExternalLink,
   FileSearch,
+  LayoutTemplate,
   Library,
   MessageSquare,
   Paperclip,
@@ -46,11 +47,20 @@ import {
 } from '../../lib/useScopedAgentState';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
 
+export interface ComposerPreset {
+  key: string;
+  title: string;
+  text: string;
+}
+
 interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
   onOpenFileBrowser: () => void;
   onUploadFile: () => void;
   onOpenSkillsPage?: () => void;
+  /** Surface-specific prompt presets shown as a "Vorlagen" submenu. */
+  presets?: ComposerPreset[];
+  onApplyPreset?: (text: string) => void;
   /** Include the thread-mode section (Chat / Rollen) and make the Notebooks
    * submenu switch the thread mode instead of inserting a mention.
    * Replaces the former standalone ToolToggles menu. */
@@ -67,6 +77,8 @@ export const PlusMenu = memo(function PlusMenu({
   onOpenFileBrowser,
   onUploadFile,
   onOpenSkillsPage,
+  presets,
+  onApplyPreset,
   includeModes = false,
   onNavigate,
   firstName,
@@ -159,30 +171,46 @@ export const PlusMenu = memo(function PlusMenu({
         <MessageSquare className="h-3.5 w-3.5" />
         Chat
       </DropdownMenuItem>
-      {hasRoles ? (
-        roles.map((role, i) => {
-          const isActive = threadMode === 'eigener' && role.systemPrompt === customSystemPrompt;
-          return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className={threadMode === 'eigener' ? activeClass : ''}>
+          <Settings className="h-3.5 w-3.5" />
+          <span className="flex-1 truncate">
+            {threadMode === 'eigener' ? eigenerBadgeLabel : 'Rollen'}
+          </span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+          {hasRoles ? (
+            roles.map((role, i) => {
+              const isActive = threadMode === 'eigener' && role.systemPrompt === customSystemPrompt;
+              return (
+                <DropdownMenuItem
+                  key={`role-${i}`}
+                  onSelect={() => selectRole(i)}
+                  className={isActive ? activeClass : ''}
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="flex-1 truncate">{role.rolle}</span>
+                </DropdownMenuItem>
+              );
+            })
+          ) : (
             <DropdownMenuItem
-              key={`role-${i}`}
-              onSelect={() => selectRole(i)}
-              className={isActive ? activeClass : ''}
+              disabled={!hasCustomPrompt}
+              onSelect={selectEigener}
+              className={threadMode === 'eigener' ? activeClass : ''}
             >
               <Settings className="h-3.5 w-3.5" />
-              <span className="flex-1 truncate">{role.rolle}</span>
+              <span className="flex-1">Eigener Chat</span>
             </DropdownMenuItem>
-          );
-        })
-      ) : (
-        <DropdownMenuItem
-          disabled={!hasCustomPrompt}
-          onSelect={selectEigener}
-          className={threadMode === 'eigener' ? activeClass : ''}
-        >
-          <Settings className="h-3.5 w-3.5" />
-          <span className="flex-1">Eigener Chat</span>
-        </DropdownMenuItem>
-      )}
+          )}
+          {onNavigate && (
+            <>
+              <DropdownMenuSeparator />
+              {rolesEntry}
+            </>
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
       <DropdownMenuSeparator />
     </>
   ) : null;
@@ -219,6 +247,22 @@ export const PlusMenu = memo(function PlusMenu({
           )}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
+
+      {presets && presets.length > 0 && onApplyPreset && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            Vorlagen
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+            {presets.map((preset) => (
+              <DropdownMenuItem key={preset.key} onClick={() => onApplyPreset(preset.text)}>
+                {preset.title}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
 
       <DropdownMenuSub>
         <DropdownMenuSubTrigger
@@ -289,22 +333,6 @@ export const PlusMenu = memo(function PlusMenu({
           {rolesEntry}
         </>
       )}
-
-      {showModes && !hasRoles && !hasCustomPrompt && onNavigate && (
-        <>
-          <DropdownMenuSeparator />
-          <div className="px-2 py-1.5">
-            <button
-              type="button"
-              className="flex items-center gap-1 text-[11px] font-medium text-primary-600 transition-colors hover:text-primary-500"
-              onClick={() => onNavigate('/dein-gruenerator')}
-            >
-              <Settings className="h-3 w-3" />
-              Rollen einrichten
-            </button>
-          </div>
-        </>
-      )}
     </>
   );
 
@@ -338,6 +366,14 @@ export const PlusMenu = memo(function PlusMenu({
               onClick={() => handleMobileAction(selectEigener)}
             >
               {eigenerBadgeLabel}
+            </ResponsiveMenuItem>
+          )}
+          {onNavigate && (
+            <ResponsiveMenuItem
+              icon={<Settings />}
+              onClick={() => handleMobileAction(() => onNavigate('/dein-gruenerator'))}
+            >
+              Rollen einrichten
             </ResponsiveMenuItem>
           )}
         </ResponsiveMenuSection>
@@ -389,6 +425,20 @@ export const PlusMenu = memo(function PlusMenu({
           </ResponsiveMenuItem>
         )}
       </ResponsiveMenuSection>
+
+      {presets && presets.length > 0 && onApplyPreset && (
+        <ResponsiveMenuSection title="Vorlagen">
+          {presets.map((preset) => (
+            <ResponsiveMenuItem
+              key={preset.key}
+              icon={<LayoutTemplate />}
+              onClick={() => handleMobileAction(() => onApplyPreset(preset.text))}
+            >
+              {preset.title}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
 
       <ResponsiveMenuSection title="Notebooks">
         {notebookMentionables.map((notebook) => {

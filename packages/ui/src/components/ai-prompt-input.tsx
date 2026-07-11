@@ -28,7 +28,8 @@ export interface AIPromptInputProps {
   disabled?: boolean;
   /** Example pills rendered inline in the toolbar row when the input is empty */
   examples?: AIPromptInputExample[];
-  /** Renders inside the input border, bottom-left (e.g. FeatureIcons, dropdowns) */
+  /** Renders inside the input border, bottom-left (e.g. FeatureIcons, dropdowns).
+   * In the pill variant this sits inline right of the input. */
   toolbar?: ReactNode;
   /** Renders outside the input border */
   footer?: ReactNode;
@@ -42,6 +43,14 @@ export interface AIPromptInputProps {
   canSubmit?: boolean;
   /** Speech-to-text hook; omit to disable dictation (the mic button hides side effects to a no-op). */
   useDictation?: UseDictation;
+  /** 'card' (default): textarea with toolbar row below. 'pill': slim
+   * single-row rounded-full composer; `leading` sits left of the input,
+   * `toolbar` right of it, `belowRow` renders under the pill. */
+  variant?: 'card' | 'pill';
+  /** Pill variant: controls left of the input (mode dropdown, upload slot). */
+  leading?: ReactNode;
+  /** Pill variant: row under the pill (reference chips, size inputs, badges). */
+  belowRow?: ReactNode;
 }
 
 function ActionButton({
@@ -153,13 +162,16 @@ export const AIPromptInput = React.memo(function AIPromptInput({
   inputAreaOverride,
   canSubmit,
   useDictation = useNoDictation,
+  variant = 'card',
+  leading,
+  belowRow,
 }: AIPromptInputProps) {
   const { isDictating, toggle: toggleDictation } = useDictation({
     onTranscript: (text) => onChange(text),
   });
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         onSubmit();
@@ -172,6 +184,73 @@ export const AIPromptInput = React.memo(function AIPromptInput({
   const isEmpty = value.trim().length < 3;
   const showInlineExamples =
     !noTextInput && isEmpty && !isLoading && examples && examples.length > 0;
+
+  const actionButton = (
+    <ActionButton
+      isEmpty={isEmpty}
+      isDictating={isDictating}
+      isLoading={isLoading}
+      onDictate={toggleDictation}
+      onSubmit={onSubmit}
+      noTextInput={noTextInput}
+      canSubmitOverride={canSubmit}
+    />
+  );
+
+  if (variant === 'pill') {
+    return (
+      <div className={cn('w-full max-w-[680px] mx-auto', className)}>
+        <div
+          className={cn(
+            'flex items-center gap-1 pl-2 pr-2 py-1.5 min-h-[3.75rem]',
+            !transparent &&
+              'rounded-full border border-grey-200 dark:border-grey-700 bg-background-pure shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 transition-shadow'
+          )}
+        >
+          {leading}
+          {noTextInput ? (
+            <div className="flex-1 min-w-0 px-1.5">{inputAreaOverride}</div>
+          ) : (
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={disabled || isLoading}
+              className="flex-1 w-full min-w-0 text-[15px] outline-none placeholder:text-grey-400 bg-transparent border-none px-1.5 py-2"
+            />
+          )}
+          {toolbar}
+          {actionButton}
+        </div>
+
+        {(belowRow || showInlineExamples) && (
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
+            {belowRow}
+            {showInlineExamples &&
+              examples.map((example) => (
+                <button
+                  key={example.label}
+                  type="button"
+                  onClick={() => onChange(example.text)}
+                  disabled={disabled}
+                  className={pillClass}
+                >
+                  {example.label}
+                </button>
+              ))}
+          </div>
+        )}
+
+        {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+
+        {footer && (
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">{footer}</div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn('w-full max-w-[680px] mx-auto', className)}>
@@ -214,15 +293,7 @@ export const AIPromptInput = React.memo(function AIPromptInput({
                 </button>
               ))}
           </div>
-          <ActionButton
-            isEmpty={isEmpty}
-            isDictating={isDictating}
-            isLoading={isLoading}
-            onDictate={toggleDictation}
-            onSubmit={onSubmit}
-            noTextInput={noTextInput}
-            canSubmitOverride={canSubmit}
-          />
+          {actionButton}
         </div>
       </div>
 

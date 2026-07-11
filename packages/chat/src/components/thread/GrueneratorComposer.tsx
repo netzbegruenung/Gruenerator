@@ -35,7 +35,7 @@ import type {
   CanvaDesignToken,
   VorlageToken,
 } from '../../lib/mentionables';
-import { PlusMenu } from './PlusMenu';
+import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { registerDocumentSlug } from '../../lib/documentMentionables';
@@ -63,6 +63,9 @@ interface GrueneratorComposerProps {
    * implicit thread mode. */
   modelPickerThreadModeOverride?: ThreadMode;
   insideAgent?: boolean;
+  /** Surface-specific prompt presets, shown as a "Vorlagen" submenu in the
+   * plus menu (e.g. the workplace example prompts). */
+  presets?: ComposerPreset[];
   /** 'card' (default): textarea with toolbar row below. 'pill': slim
    * single-row composer — plus menu, input, model picker and send inline —
    * that grows with the textarea (workplace hero). */
@@ -239,6 +242,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showModelPicker = true,
   modelPickerThreadModeOverride,
   insideAgent = false,
+  presets,
   variant = 'card',
   slots,
   requireProfileHydration = false,
@@ -701,6 +705,20 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
   }, []);
 
+  const handleApplyPreset = useCallback(
+    (text: string) => {
+      composerRuntime.setText(text);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.setSelectionRange(text.length, text.length);
+          textarea.focus();
+        }
+      });
+    },
+    [composerRuntime]
+  );
+
   const isPill = variant === 'pill';
 
   const hiddenUploadButton = (
@@ -717,6 +735,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       includeModes={showToolToggles}
       insideAgent={insideAgent}
       firstName={firstName ?? null}
+      {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
       {...(onNavigate ? { onNavigate, onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
     />
   ) : null;
@@ -754,7 +773,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         className={cn(
           'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow focus-within:border-primary/30 dark:bg-surface',
           isPill
-            ? 'rounded-[26px] shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 dark:shadow-sm'
+            ? 'rounded-full shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 dark:shadow-sm'
             : 'rounded-3xl shadow-lg focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
