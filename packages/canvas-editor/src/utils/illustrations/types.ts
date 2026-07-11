@@ -47,7 +47,7 @@ export interface SvgDef {
   id: string;
   name: string;
   filename: string;
-  source: 'undraw' | 'opendoodles';
+  source: 'undraw' | 'opendoodles' | 'illlustrations';
   tags: string[];
   category?: string;
 }
@@ -55,7 +55,7 @@ export interface SvgDef {
 export interface SvgInstance {
   id: string;
   illustrationId: string;
-  source: 'undraw' | 'opendoodles';
+  source: 'undraw' | 'opendoodles' | 'illlustrations';
   x: number;
   y: number;
   scale: number;
