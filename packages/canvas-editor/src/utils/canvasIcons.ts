@@ -1,10 +1,17 @@
 /**
- * Canvas icon utilities powered by the Iconify API.
+ * Canvas icon utilities powered by the bundled Tabler icon set.
  *
- * Icons are fetched from a self-hosted Iconify API instance.
- * SVG data is fetched on demand and cached as base64 data URLs
- * for rendering on the Konva canvas.
+ * Icons come from `@iconify-json/tabler` (offline IconifyJSON) — no network
+ * calls. The ~2 MB icon data is lazy-imported the first time the picker or a
+ * canvas icon needs it, so it lands in its own chunk. SVGs are generated
+ * locally via `@iconify/utils`, colorized, and cached as base64 data URLs for
+ * rendering on the Konva canvas.
  */
+
+import { addCollection } from '@iconify/react';
+import { getIconData, iconToSVG } from '@iconify/utils';
+
+import { type IconifyJSON } from '@iconify-json/tabler';
 
 export interface CanvasIcon {
   id: string;
@@ -22,18 +29,34 @@ export interface IconDef {
   library: string;
 }
 
-let iconifyApiUrl = '';
+const TABLER_PREFIX = 'tabler';
+const TABLER_LIBRARY = 'Tabler';
 
-export function setIconifyApiUrl(url: string) {
-  iconifyApiUrl = url.replace(/\/$/, '');
+/** Strip the `tabler:` prefix (if present) to get the bare icon name. */
+function toIconName(iconId: string): string {
+  const colon = iconId.indexOf(':');
+  return colon === -1 ? iconId : iconId.slice(colon + 1);
 }
 
-export function getIconifyApiUrl(): string {
-  return iconifyApiUrl;
-}
+// ---------------------------------------------------------------------------
+// Tabler data loading (lazy dynamic import, registered with @iconify/react)
+// ---------------------------------------------------------------------------
 
-function getApiUrl(): string | null {
-  return iconifyApiUrl || null;
+let tablerData: IconifyJSON | null = null;
+let tablerPromise: Promise<IconifyJSON> | null = null;
+
+function loadTablerData(): Promise<IconifyJSON> {
+  if (tablerData) return Promise.resolve(tablerData);
+  if (tablerPromise) return tablerPromise;
+
+  tablerPromise = import('@iconify-json/tabler').then(({ icons }) => {
+    tablerData = icons;
+    // Register so <Icon icon="tabler:..."> in the sidebar renders offline.
+    addCollection(icons);
+    return icons;
+  });
+
+  return tablerPromise;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,18 +67,6 @@ let iconsList: IconDef[] | null = null;
 let iconsMap: Record<string, IconDef> | null = null;
 let loadPromise: Promise<IconDef[]> | null = null;
 
-interface CollectionInfo {
-  name: string;
-  total: number;
-  author: { name: string };
-  category?: string;
-}
-
-interface CollectionIcons {
-  prefix: string;
-  icons: Record<string, unknown>;
-}
-
 const formatName = (str: string) =>
   str
     .split('-')
@@ -63,60 +74,25 @@ const formatName = (str: string) =>
     .join(' ');
 
 /**
- * Load icon metadata from the Iconify API.
- * Fetches collection list, then icon names for each collection.
- * Only loads names — SVG data is fetched on demand.
+ * Build the browsable icon catalog from the bundled Tabler set.
+ * Only names are exposed here — SVG data is generated on demand.
  */
 export function loadAllIcons(): Promise<IconDef[]> {
   if (iconsList) return Promise.resolve(iconsList);
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
-    const api = getApiUrl();
-    if (!api) {
-      iconsList = [];
-      iconsMap = {};
-      return iconsList;
-    }
-    const res = await fetch(`${api}/collections`);
-    const collections: Record<string, CollectionInfo> = await res.json();
+    const data = await loadTablerData();
 
-    const prefixes = Object.keys(collections);
-
-    // Fetch icon names for all collections in parallel (batched)
-    const BATCH_SIZE = 20;
+    const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
     const map: Record<string, IconDef> = {};
     const list: IconDef[] = [];
 
-    for (let i = 0; i < prefixes.length; i += BATCH_SIZE) {
-      const batch = prefixes.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(
-        batch.map(async (prefix) => {
-          try {
-            const r = await fetch(`${api}/collection?prefix=${prefix}`);
-            const data = await r.json();
-            // The API returns uncategorized icons or categorized icons
-            const iconNames: string[] = data.uncategorized ?? [];
-            if (data.categories) {
-              for (const names of Object.values(data.categories)) {
-                iconNames.push(...(names as string[]));
-              }
-            }
-            return { prefix, names: iconNames, library: collections[prefix].name };
-          } catch {
-            return { prefix, names: [] as string[], library: prefix };
-          }
-        })
-      );
-
-      for (const { prefix, names, library } of results) {
-        for (const name of names) {
-          const id = `${prefix}:${name}`;
-          const def: IconDef = { id, name: formatName(name), library };
-          map[id] = def;
-          list.push(def);
-        }
-      }
+    for (const name of names) {
+      const id = `${TABLER_PREFIX}:${name}`;
+      const def: IconDef = { id, name: formatName(name), library: TABLER_LIBRARY };
+      map[id] = def;
+      list.push(def);
     }
 
     list.sort((a, b) => a.name.localeCompare(b.name));
@@ -137,15 +113,15 @@ export function getIconMapSync(): Record<string, IconDef> | null {
 }
 
 // ---------------------------------------------------------------------------
-// SVG data URL generation (fetches SVG from API on demand)
+// SVG data URL generation (renders Tabler SVG locally on demand)
 // ---------------------------------------------------------------------------
 
 const dataUrlCache = new Map<string, string>();
 const pendingFetches = new Map<string, Promise<string | null>>();
 
 /**
- * Fetch an icon's SVG from the Iconify API, apply color, and return as a base64 data URL.
- * Results are cached to avoid redundant fetches.
+ * Render a Tabler icon to a colorized base64 SVG data URL.
+ * Results are cached to avoid redundant work.
  */
 export async function generateIconDataUrl(
   iconId: string,
@@ -156,24 +132,23 @@ export async function generateIconDataUrl(
   const cached = dataUrlCache.get(cacheKey);
   if (cached) return cached;
 
-  // Deduplicate in-flight requests for the same icon+size+color
+  // Deduplicate in-flight work for the same icon+size+color
   const pending = pendingFetches.get(cacheKey);
   if (pending) return pending;
 
   const promise = (async () => {
     try {
-      const api = getApiUrl();
-      if (!api) return null;
-      const encodedColor = encodeURIComponent(color);
-      const url = `${api}/${iconId}.svg?height=${size}&color=${encodedColor}`;
-      const res = await fetch(url);
-      if (!res.ok) return null;
+      const data = await loadTablerData();
+      const iconData = getIconData(data, toIconName(iconId));
+      if (!iconData) return null;
 
-      let svgText = await res.text();
-      // Ensure xmlns is present for data URL usage
-      if (!svgText.includes('xmlns=')) {
-        svgText = svgText.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
-      }
+      const rendered = iconToSVG(iconData, { height: size });
+      const attributes = Object.entries(rendered.attributes)
+        .map(([key, value]) => `${key}="${value}"`)
+        .join(' ');
+      // Tabler icons use currentColor for stroke/fill — bake the color in.
+      const body = rendered.body.replace(/currentColor/g, color);
+      const svgText = `<svg xmlns="http://www.w3.org/2000/svg" ${attributes}>${body}</svg>`;
 
       const dataUrl = `data:image/svg+xml;base64,${btoa(svgText)}`;
       dataUrlCache.set(cacheKey, dataUrl);
@@ -190,8 +165,8 @@ export async function generateIconDataUrl(
 }
 
 /**
- * Synchronous data URL lookup. Returns cached value or null if not yet fetched.
- * Use generateIconDataUrl() to trigger the fetch.
+ * Synchronous data URL lookup. Returns cached value or null if not yet built.
+ * Use generateIconDataUrl() to trigger generation.
  */
 export function getIconDataUrlSync(
   iconId: string,
@@ -202,7 +177,7 @@ export function getIconDataUrlSync(
 }
 
 // ---------------------------------------------------------------------------
-// Search (delegates to Iconify API search endpoint)
+// Search (local filter over the bundled catalog)
 // ---------------------------------------------------------------------------
 
 export interface IconSearchResult {
@@ -211,27 +186,15 @@ export interface IconSearchResult {
 }
 
 export async function searchIcons(query: string, limit: number = 64): Promise<IconSearchResult> {
-  if (!query.trim()) return { icons: [], total: 0 };
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return { icons: [], total: 0 };
 
-  try {
-    const api = getApiUrl();
-    const res = await fetch(`${api}/search?query=${encodeURIComponent(query)}&limit=${limit}`);
-    const data = await res.json();
+  const all = await loadAllIcons();
+  const matches = all.filter(
+    (icon) => icon.name.toLowerCase().includes(trimmed) || icon.id.includes(trimmed)
+  );
 
-    const icons: IconDef[] = (data.icons ?? []).map((id: string) => {
-      const [prefix, ...nameParts] = id.split(':');
-      const name = nameParts.join(':');
-      return {
-        id,
-        name: formatName(name),
-        library: prefix,
-      };
-    });
-
-    return { icons, total: data.total ?? icons.length };
-  } catch {
-    return { icons: [], total: 0 };
-  }
+  return { icons: matches.slice(0, limit), total: matches.length };
 }
 
 // ---------------------------------------------------------------------------
