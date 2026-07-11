@@ -1,14 +1,6 @@
-import { Suspense, lazy } from 'react';
-
-import PageContainer from '../../../components/common/PageContainer';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useAuthStore } from '../../../stores/authStore';
 import CreatorSection from '../components/CreatorSection';
-import ToolsSection, { FavoritesSection } from '../components/ToolsSection';
-
-// Below-the-fold — deferred so the greeting + chat composer paint first
-// (pulls heavy deps: image-studio Lightbox + ShareMediaModal).
-const RecentlyCreatedSection = lazy(() => import('../components/RecentlyCreatedSection'));
 
 function pickStable<T>(options: readonly T[], seed: number): T {
   return options[seed % options.length] as T;
@@ -71,16 +63,17 @@ function getGreeting(locale: string | null | undefined, firstName: string | null
   return firstName ? `${template}, ${firstName}` : template;
 }
 
+// Minimal chat hero per the design: greeting + composer, nothing else — the
+// recents/tools sections live in the Arbeiten tab.
 const WorkplaceChatTab = () => {
   const firstName = useFirstName();
   const locale = useAuthStore((state) => state.locale);
-  const isAustrian = locale === 'de-AT';
 
   const pride = isPrideMonth();
 
   return (
-    <PageContainer maxWidth="lg">
-      <div className="text-center mb-lg pt-md">
+    <div className="mx-auto w-full max-w-5xl px-4">
+      <div className="text-center mb-lg">
         <h1
           className={`text-4xl max-md:text-2xl font-extrabold tracking-tight text-balance mb-xs ${
             pride ? 'inline-block w-fit bg-clip-text text-transparent' : 'text-foreground-heading'
@@ -98,24 +91,10 @@ const WorkplaceChatTab = () => {
         </h1>
       </div>
 
-      <div className="max-w-3xl mx-auto mb-xl">
+      <div className="max-w-3xl mx-auto">
         <CreatorSection />
       </div>
-
-      <Suspense fallback={null}>
-        <RecentlyCreatedSection />
-      </Suspense>
-
-      <section className="mb-xl">
-        <ToolsSection />
-      </section>
-
-      {!isAustrian && (
-        <section className="mb-xl">
-          <FavoritesSection />
-        </section>
-      )}
-    </PageContainer>
+    </div>
   );
 };
 
