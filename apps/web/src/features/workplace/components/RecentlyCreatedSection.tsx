@@ -188,7 +188,9 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   }
 
   let body: React.ReactNode;
-  if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
+  if (isSlidesPreview(item)) {
+    body = <SlidesPreviewBody />;
+  } else if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
       <>
@@ -206,8 +208,6 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
     );
   } else if (item.type === 'board') {
     body = <BoardPreviewBody boardType={item.boardType} />;
-  } else if (isSlidesPreview(item)) {
-    body = <SlidesPreviewBody />;
   } else {
     body = <PlaceholderBars />;
   }
