@@ -49,12 +49,18 @@ function loadTablerData(): Promise<IconifyJSON> {
   if (tablerData) return Promise.resolve(tablerData);
   if (tablerPromise) return tablerPromise;
 
-  tablerPromise = import('@iconify-json/tabler').then(({ icons }) => {
-    tablerData = icons;
-    // Register so <Icon icon="tabler:..."> in the sidebar renders offline.
-    addCollection(icons);
-    return icons;
-  });
+  tablerPromise = import('@iconify-json/tabler')
+    .then(({ icons }) => {
+      tablerData = icons;
+      // Register so <Icon icon="tabler:..."> in the sidebar renders offline.
+      addCollection(icons);
+      return icons;
+    })
+    .catch((err) => {
+      // Don't cache a rejected chunk load — clear it so a later call retries.
+      tablerPromise = null;
+      throw err;
+    });
 
   return tablerPromise;
 }
@@ -81,7 +87,7 @@ export function loadAllIcons(): Promise<IconDef[]> {
   if (iconsList) return Promise.resolve(iconsList);
   if (loadPromise) return loadPromise;
 
-  loadPromise = (async () => {
+  const promise = (async () => {
     const data = await loadTablerData();
 
     const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
@@ -101,7 +107,14 @@ export function loadAllIcons(): Promise<IconDef[]> {
     return list;
   })();
 
-  return loadPromise;
+  loadPromise = promise;
+  // If the underlying load fails, clear the cache so callers (e.g. React Query
+  // retries) can re-attempt instead of getting the same rejected promise.
+  promise.catch(() => {
+    if (loadPromise === promise) loadPromise = null;
+  });
+
+  return promise;
 }
 
 export function getIconsSync(): IconDef[] | null {
@@ -190,8 +203,11 @@ export async function searchIcons(query: string, limit: number = 64): Promise<Ic
   if (!trimmed) return { icons: [], total: 0 };
 
   const all = await loadAllIcons();
+  // Match the bare icon name (e.g. "heart-filled"), NOT the full id — every id
+  // shares the "tabler:" prefix, so matching the id would return the whole
+  // catalog for any query that is a substring of "tabler:".
   const matches = all.filter(
-    (icon) => icon.name.toLowerCase().includes(trimmed) || icon.id.includes(trimmed)
+    (icon) => icon.name.toLowerCase().includes(trimmed) || toIconName(icon.id).includes(trimmed)
   );
 
   return { icons: matches.slice(0, limit), total: matches.length };
