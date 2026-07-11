@@ -38,6 +38,7 @@
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@hocuspocus/provider": "^4.1.2",
+    "@iconify-json/flowbite": "^1.2.7",
     "@iconify-json/tabler": "^1.2.35",
     "@iconify/react": "^6.0.2",
     "@iconify/utils": "^3.1.3",
