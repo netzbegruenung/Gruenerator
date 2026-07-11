@@ -1,18 +1,4 @@
-import { useComposerRuntime } from '@assistant-ui/react';
-import { agentsList, type AgentListItem } from '@gruenerator/chat';
-import {
-  DropdownMenuItem,
-  ResponsiveMenu,
-  ResponsiveMenuItem,
-  ResponsiveMenuSection,
-} from '@gruenerator/ui';
-import { ChevronDown, LayoutTemplate } from 'lucide-react';
-import React, { memo, useCallback, useState } from 'react';
-
-import { cn } from '@/utils/cn';
-
-const TRIGGER_CLASS =
-  'flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-foreground-muted transition-colors hover:text-foreground hover:bg-grey-100 active:bg-grey-200 dark:hover:bg-grey-800 dark:active:bg-grey-700';
+import { agentsList, type AgentListItem, type ComposerPreset } from '@gruenerator/chat';
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
   presse:
@@ -48,64 +34,8 @@ function buildPresetText(agent: AgentListItem): string {
   return seed ? `/${agent.mention} ${seed}` : `/${agent.mention} `;
 }
 
-const SkillPresetRow: React.FC = memo(() => {
-  const composerRuntime = useComposerRuntime();
-  const [open, setOpen] = useState(false);
-
-  const handleSelect = useCallback(
-    (agent: AgentListItem) => {
-      composerRuntime.setText(buildPresetText(agent));
-      setOpen(false);
-    },
-    [composerRuntime]
-  );
-
-  const desktopContent = (
-    <>
-      {agentsList.map((agent) => (
-        <DropdownMenuItem
-          key={agent.identifier}
-          onSelect={() => handleSelect(agent)}
-          className="py-1.5"
-        >
-          <span className="text-sm font-medium leading-tight">{agent.title}</span>
-        </DropdownMenuItem>
-      ))}
-    </>
-  );
-
-  const mobileContent = (
-    <ResponsiveMenuSection title="Vorlage">
-      {agentsList.map((agent) => (
-        <ResponsiveMenuItem key={agent.identifier} onClick={() => handleSelect(agent)}>
-          <span className="font-medium">{agent.title}</span>
-        </ResponsiveMenuItem>
-      ))}
-    </ResponsiveMenuSection>
-  );
-
-  return (
-    <ResponsiveMenu
-      open={open}
-      onOpenChange={setOpen}
-      sheetTitle="Vorlage wählen"
-      dropdownAlign="start"
-      dropdownClassName="min-w-[12rem] max-w-[90vw]"
-      trigger={
-        <button type="button" className={TRIGGER_CLASS} aria-label="Vorlage wählen">
-          <LayoutTemplate className="size-4 sm:hidden" />
-          <span className="max-sm:hidden">Vorlage</span>
-          <ChevronDown
-            className={cn('size-3 transition-transform max-sm:hidden', open && 'rotate-180')}
-          />
-        </button>
-      }
-      desktopContent={desktopContent}
-      mobileContent={mobileContent}
-    />
-  );
-});
-
-SkillPresetRow.displayName = 'SkillPresetRow';
-
-export default SkillPresetRow;
+export const WORKPLACE_PRESETS: ComposerPreset[] = agentsList.map((agent) => ({
+  key: agent.identifier,
+  title: agent.title,
+  text: buildPresetText(agent),
+}));
