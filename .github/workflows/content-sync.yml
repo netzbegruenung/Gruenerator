@@ -124,13 +124,10 @@ jobs:
             --arg fallbackEmail "$CONTENT_SYNC_EMAIL" \
             '{landesverband: $lv, recent: $recent, forceUpdate: $force, dryRun: $dryRun, runUrl: $runUrl, fallbackEmail: $fallbackEmail}')
 
-          echo "POST $CONTENT_SYNC_API_URL/api/internal/content-sync/source/landesverbaende ($BODY)"
-          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
-            "$CONTENT_SYNC_API_URL/api/internal/content-sync/source/landesverbaende" \
-            -H "x-admin-token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
-            -d "$BODY" --max-time 3300)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+          # Trigger as a background job and poll — full runs outlive the
+          # reverse proxy's ~5 min timeout, so a synchronous call 504s.
+          HTTP_CODE=$(.github/scripts/content-sync-request.sh landesverbaende "$BODY" /tmp/sync-response.json)
+          RESPONSE_BODY=$(cat /tmp/sync-response.json)
           echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
 
           WRAP_FLAGS="--id landesverband-${{ matrix.lv }} --http-code $HTTP_CODE"
@@ -195,13 +192,8 @@ jobs:
           BODY=$(jq -nc --argjson force $FORCE --argjson dryRun $DRY_RUN \
             '{forceUpdate: $force, dryRun: $dryRun}')
 
-          echo "POST $CONTENT_SYNC_API_URL/api/internal/content-sync/source/${{ matrix.source }} ($BODY)"
-          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
-            "$CONTENT_SYNC_API_URL/api/internal/content-sync/source/${{ matrix.source }}" \
-            -H "x-admin-token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
-            -d "$BODY" --max-time 3300)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+          HTTP_CODE=$(.github/scripts/content-sync-request.sh "${{ matrix.source }}" "$BODY" /tmp/sync-response.json)
+          RESPONSE_BODY=$(cat /tmp/sync-response.json)
           echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
 
           WRAP_FLAGS="--id ${{ matrix.source }} --http-code $HTTP_CODE"
@@ -426,13 +418,10 @@ jobs:
             BODY=$(jq -nc --argjson force $FORCE --argjson dryRun $DRY_RUN '{forceUpdate: $force, dryRun: $dryRun}')
           fi
 
-          echo "POST $CONTENT_SYNC_API_URL/api/internal/content-sync/source/$SOURCE_PATH ($BODY)"
-          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
-            "$CONTENT_SYNC_API_URL/api/internal/content-sync/source/$SOURCE_PATH" \
-            -H "x-admin-token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
-            -d "$BODY" --max-time 7000)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+          # Manual single-source runs (e.g. abgeordnetenwatch full backfill)
+          # can run long — allow the poll loop the job's full 120 min budget.
+          HTTP_CODE=$(POLL_TIMEOUT_SECONDS=7000 .github/scripts/content-sync-request.sh "$SOURCE_PATH" "$BODY" /tmp/sync-response.json)
+          RESPONSE_BODY=$(cat /tmp/sync-response.json)
           echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
 
           WRAP_FLAGS="--id $WRAP_ID --http-code $HTTP_CODE"
