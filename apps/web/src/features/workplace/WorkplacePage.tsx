@@ -248,7 +248,7 @@ const WorkplacePage = () => {
       <PageContainer maxWidth="lg">
         <div className="text-center mb-lg pt-md">
           <h1
-            className={`text-4xl max-md:text-2xl font-semibold mb-xs ${
+            className={`text-4xl max-md:text-2xl font-extrabold tracking-tight text-balance mb-xs ${
               pride ? 'inline-block w-fit bg-clip-text text-transparent' : 'text-foreground-heading'
             }`}
             style={

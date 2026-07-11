@@ -1,5 +1,4 @@
 import type { AIPromptInputExample, SettingConfig } from '@gruenerator/ui';
-import type { ReactNode } from 'react';
 
 /** Instruction profile used to seed the generator system prompt. */
 export type InstructionType =
@@ -56,11 +55,4 @@ export interface ModeDefinition {
   defaults?: ModeState;
   /** Build extra fields to pass to submit() from current state */
   buildSubmitFields?: (prompt: string, state: ModeState) => Record<string, unknown>;
-}
-
-export interface ModeGroupEntry {
-  id: string;
-  label: string;
-  icon?: ReactNode;
-  submodes?: string[];
 }
