@@ -10,15 +10,20 @@ kostenlos für private **und kommerzielle** Nutzung freigegeben. Ein herzliches
 Dankeschön an die Künstler:innen und Communities, die diese Werke offen
 zugänglich machen. 💚
 
-Insgesamt stehen im Editor **rund 7.200 Icons** und **2.195 Illustrationen** zur
-Verfügung.
+Insgesamt stehen im Editor **rund 17.000 Icons** und **2.195 Illustrationen**
+zur Verfügung.
 
 ## Icons
 
-| Sammlung           | Urheber:in             | Anzahl | Lizenz | Quelle                                                                                                     |
-| ------------------ | ---------------------- | ------ | ------ | ---------------------------------------------------------------------------------------------------------- |
-| **Tabler Icons**   | Paweł Kuna & Community | ~6.400 | MIT    | [tabler.io/icons](https://tabler.io/icons) · [GitHub](https://github.com/tabler/tabler-icons)              |
-| **Flowbite Icons** | Themesberg             | ~800   | MIT    | [flowbite.com/icons](https://flowbite.com/icons/) · [GitHub](https://github.com/themesberg/flowbite-icons) |
+| Sammlung            | Urheber:in             | Anzahl | Lizenz     | Quelle                                                                                                     |
+| ------------------- | ---------------------- | ------ | ---------- | ---------------------------------------------------------------------------------------------------------- |
+| **Tabler Icons**    | Paweł Kuna & Community | ~6.100 | MIT        | [tabler.io/icons](https://tabler.io/icons) · [GitHub](https://github.com/tabler/tabler-icons)              |
+| **Remix Icon**      | Remix Design           | ~3.200 | Apache 2.0 | [remixicon.com](https://remixicon.com/)                                                                    |
+| **Bootstrap Icons** | Bootstrap              | ~2.100 | MIT        | [icons.getbootstrap.com](https://icons.getbootstrap.com/)                                                  |
+| **Lucide**          | Lucide Contributors    | ~1.800 | ISC        | [lucide.dev](https://lucide.dev/)                                                                          |
+| **Iconoir**         | Luca Burgio            | ~1.700 | MIT        | [iconoir.com](https://iconoir.com/)                                                                        |
+| **Heroicons**       | Tailwind Labs          | ~1.300 | MIT        | [heroicons.com](https://heroicons.com/)                                                                    |
+| **Flowbite Icons**  | Themesberg             | ~800   | MIT        | [flowbite.com/icons](https://flowbite.com/icons/) · [GitHub](https://github.com/themesberg/flowbite-icons) |
 
 Die Icons sind lokal gebündelt (`@iconify-json/*`) und funktionieren vollständig
 offline; jede Sammlung wird als eigener Lazy-Chunk nachgeladen.
