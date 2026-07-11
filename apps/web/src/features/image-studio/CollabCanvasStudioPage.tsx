@@ -121,7 +121,7 @@ function CollabCanvasStudioContent() {
   );
 
   const handleCancel = useCallback(() => {
-    void navigate('/studio');
+    void navigate('/workplace/arbeiten');
   }, [navigate]);
 
   const collaborators = useCollaborators(collab.provider);

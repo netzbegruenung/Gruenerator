@@ -28,8 +28,6 @@ import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState
 import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
@@ -553,7 +551,7 @@ function DocumentsContent() {
         Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
       </DismissableBanner>
 
-      <main>
+      <section>
         {isLoading ? (
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -652,7 +650,7 @@ function DocumentsContent() {
             ))}
           </>
         )}
-      </main>
+      </section>
 
       {showGallery && (
         <Suspense fallback={null}>
@@ -727,27 +725,12 @@ function DocumentsContent() {
   );
 }
 
-const DocsPage = () => (
+/** Office start page without route chrome — embedded by the workplace
+ * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth. */
+export const DocsHome = () => (
   <ErrorBoundary>
-    <PageContainer maxWidth="lg" noPadTop className="max-md:pt-lg">
-      <DocsProvider adapter={webAppDocsAdapter}>
-        <DocumentsContent />
-      </DocsProvider>
-    </PageContainer>
+    <DocsProvider adapter={webAppDocsAdapter}>
+      <DocumentsContent />
+    </DocsProvider>
   </ErrorBoundary>
 );
-
-const DocsPageFallback = () => (
-  <PageContainer maxWidth="lg" noPadTop>
-    <div className="mx-auto max-w-[860px] px-4 pt-10">
-      <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] max-sm:text-2xl">
-        Grünerator KI-Office
-      </h1>
-    </div>
-  </PageContainer>
-);
-
-export default withAuthRequired(DocsPage, {
-  title: 'Dokumente',
-  fallback: <DocsPageFallback />,
-});
