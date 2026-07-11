@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useFirstName } from '../../../hooks/useFirstName';
 
-import SkillPresetRow from './SkillPresetRow';
+import { WORKPLACE_PRESETS } from './workplacePresets';
 
 import { cn } from '@/utils/cn';
 
@@ -89,7 +89,7 @@ const ChatInnerReady: React.FC = () => {
         variant="pill"
         onNavigate={handleNavigate}
         firstName={firstName}
-        toolbarExtra={<SkillPresetRow />}
+        presets={WORKPLACE_PRESETS}
         requireProfileHydration
       />
     </ThreadPrimitive.Root>
