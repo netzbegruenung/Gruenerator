@@ -382,7 +382,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             'sidebar fixed top-0 left-0 h-dvh z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
             // Desktop (non-Tauri) — frosted glass
             !isDesktop &&
-              'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl border-r border-grey-200/60 dark:border-grey-800/60',
+              'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl',
             !isDesktop && sidebarExpanded && 'md:w-[260px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
