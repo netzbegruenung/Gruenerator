@@ -112,7 +112,8 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
       });
       if (!response.ok) throw new Error('Export fehlgeschlagen');
       const data = (await response.json()) as { documentId?: string };
-      if (data.documentId) window.open(`/docs/${data.documentId}`, '_blank', 'noopener,noreferrer');
+      if (data.documentId)
+        window.open(`/office/${data.documentId}`, '_blank', 'noopener,noreferrer');
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Export fehlgeschlagen');
     } finally {

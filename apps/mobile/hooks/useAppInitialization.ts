@@ -7,6 +7,7 @@ import { initializeApiClient } from '../services/api';
 import { configureAuthStore, checkAuthStatus } from '../services/auth';
 import { registerForPushNotifications } from '../services/pushNotifications';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import { actionUrlToRoute } from '../utils/actionUrl';
 
 export function useAppInitialization() {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -60,7 +61,7 @@ export function useAppInitialization() {
       const data = response.notification.request.content.data as Record<string, unknown>;
       if (data?.action_url && typeof data.action_url === 'string') {
         try {
-          void router.push(data.action_url as never);
+          void router.push(actionUrlToRoute(data.action_url) as never);
         } catch {
           /* navigation may fail */
         }

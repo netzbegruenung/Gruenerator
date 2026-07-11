@@ -13,6 +13,7 @@ import {
 
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
 import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { actionUrlToRoute } from '../../utils/actionUrl';
 
 const TYPE_ICONS: Record<string, IoniconsIconName> = {
   document_shared: 'document-text-outline',
@@ -67,7 +68,7 @@ export function NotificationList({ onNavigate }: Props) {
       if (notification.action_url) {
         onNavigate?.();
         try {
-          router.push(notification.action_url as never);
+          router.push(actionUrlToRoute(notification.action_url) as never);
         } catch {
           /* navigation may fail */
         }

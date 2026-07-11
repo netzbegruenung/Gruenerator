@@ -210,7 +210,7 @@ router.post(
             type: 'group_content_shared',
             title: 'Dokument geteilt',
             body: `${sharerName} hat „${docTitle}" geteilt`,
-            actionUrl: `/docs/${id}`,
+            actionUrl: `/office/${id}`,
             metadata: {
               documentId: id,
               groupId: group_id,
