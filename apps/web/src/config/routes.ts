@@ -76,12 +76,12 @@ const LegacyGeneratorSlugRedirectComponent: FC<Record<string, unknown>> = () => 
 const LegacyGeneratorSlugRedirect = lazy(() =>
   Promise.resolve({ default: LegacyGeneratorSlugRedirectComponent })
 );
-const DocumentToDocsRedirectComponent: FC<Record<string, unknown>> = () => {
+const DocumentToOfficeRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
-  return createElement(Navigate, { to: `/docs/${id || ''}`, replace: true });
+  return createElement(Navigate, { to: `/office/${id || ''}`, replace: true });
 };
-const DocumentToDocsRedirect = lazy(() =>
-  Promise.resolve({ default: DocumentToDocsRedirectComponent })
+const DocumentToOfficeRedirect = lazy(() =>
+  Promise.resolve({ default: DocumentToOfficeRedirectComponent })
 );
 const ImageStudioCategoryRedirectComponent: FC<Record<string, unknown>> = () => {
   const { category } = useParams();
@@ -205,7 +205,7 @@ const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArch
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
-const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
+const OfficeListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const CollabCanvasStudioPage = lazy(
@@ -481,7 +481,7 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
   { path: '/notebook/:id', component: LegacyNotebookIdRedirect },
-  { path: '/document/:id', component: DocumentToDocsRedirect },
+  { path: '/document/:id', component: DocumentToOfficeRedirect },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/reel/beta', component: SubtitlerBetaPage },
@@ -581,11 +581,14 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Docs: overview and editor
-  { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
+  // Office: overview and editor
+  { path: '/office', component: DocsPage, layoutMode: 'sidebarOnly' },
   // Dispatches to the BlockNote or Univer editor by document_subtype.
-  { path: '/docs/:id', component: CollabDocRoute, layoutMode: 'immersive' },
-  { path: '/boards', component: BoardsListRedirect },
+  { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
+  // Legacy /docs URLs → /office
+  { path: '/docs', component: OfficeListRedirect },
+  { path: '/docs/:id', component: DocumentToOfficeRedirect },
+  { path: '/boards', component: OfficeListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
