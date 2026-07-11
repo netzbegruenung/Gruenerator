@@ -1,13 +1,18 @@
 /**
- * Client-side index of navigable features and agents — matched without a
+ * Client-side index of navigable features, tools and agents — matched without a
  * network round-trip so the palette has something to show on the first
  * keystroke, while the server categories are still in flight.
+ *
+ * Ordered so the curated tool catalog (with synonyms) wins the dedup over the
+ * plainer nav-derived entries pointing at the same path.
  */
 import { getAgentSlug, getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
 import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
 import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
+
+import { getToolCatalog } from './toolCatalog';
 
 import type { IconType } from '../../config/icons';
 import type { Agent } from '@gruenerator/shared/agents';
@@ -27,6 +32,7 @@ export interface FeatureHit {
   /** Precomputed so matching doesn't re-fold the whole index per keystroke. */
   normalizedTitle: string;
   normalizedSubtitle: string;
+  normalizedKeywords: string[];
 }
 
 function normalize(value: string): string {
@@ -45,6 +51,7 @@ interface FeatureSource {
   subtitle: string | null;
   path: string;
   icon?: IconType | ComponentType | null;
+  keywords?: string[];
 }
 
 export function buildFeatureIndex({
@@ -67,8 +74,13 @@ export function buildFeatureIndex({
       icon: source.icon,
       normalizedTitle: normalize(source.title),
       normalizedSubtitle: source.subtitle ? normalize(source.subtitle) : '',
+      normalizedKeywords: (source.keywords ?? []).map(normalize),
     });
   };
+
+  for (const tool of getToolCatalog(import.meta.env.DEV)) {
+    push(tool);
+  }
 
   for (const item of Object.values(getDirectMenuItems({ isAustrian }))) {
     if (!item.path) continue;
@@ -116,20 +128,28 @@ export function buildFeatureIndex({
   return hits;
 }
 
+/**
+ * Score tiers: title prefix (0) → title substring (1) → keyword hit (2) →
+ * description substring (3). A keyword match ranks above a description-only
+ * hit so a deliberate synonym ("video" → Reel) beats an incidental mention.
+ */
+function scoreHit(hit: FeatureHit, needle: string): number {
+  if (hit.normalizedTitle.startsWith(needle)) return 0;
+  if (hit.normalizedTitle.includes(needle)) return 1;
+  if (hit.normalizedKeywords.some((k) => k.startsWith(needle))) return 2;
+  if (hit.normalizedSubtitle.includes(needle)) return 3;
+  if (hit.normalizedKeywords.some((k) => k.includes(needle))) return 3;
+  return -1;
+}
+
 export function matchFeatures(index: FeatureHit[], query: string, limit = 6): FeatureHit[] {
   const needle = normalize(query.trim());
   if (needle.length === 0) return [];
 
   const scored: Array<{ hit: FeatureHit; score: number }> = [];
   for (const hit of index) {
-    // Prefix beats mid-title beats description-only.
-    let score = -1;
-    if (hit.normalizedTitle.startsWith(needle)) score = 0;
-    else if (hit.normalizedTitle.includes(needle)) score = 1;
-    else if (hit.normalizedSubtitle.includes(needle)) score = 2;
-    if (score < 0) continue;
-
-    scored.push({ hit, score });
+    const score = scoreHit(hit, needle);
+    if (score >= 0) scored.push({ hit, score });
   }
 
   return scored
