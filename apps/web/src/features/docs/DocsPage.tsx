@@ -1,3 +1,4 @@
+import { isCanvasTemplateType } from '@gruenerator/contracts';
 import {
   DocsProvider,
   useDocsAdapter,
@@ -29,9 +30,14 @@ import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons
 import { useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
+import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
+import { useAuthStore } from '../../stores/authStore';
+import useImageStudioStore from '../../stores/imageStudioStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
+import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
 import {
   getPresentationTemplate,
   presentationTemplates,
@@ -104,10 +110,15 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
   return columns;
 }
 
-function DocumentsContent() {
+function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
   const firstName = useFirstName();
+  const locale = useAuthStore((s) => s.locale);
+  const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
+  // Sharepic creation routes into the canvas editor — a research preview
+  // (SHOW_SHAREPIC_STUDIO); AT users create via the external bildgenerator.
+  const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
@@ -404,7 +415,30 @@ function DocumentsContent() {
       creatingRef.current = true;
       setCreating(true);
       try {
-        if (kind === 'doc') {
+        if (kind === 'sharepic') {
+          // Same flow as the /studio landing prompt: classify the prompt into a
+          // sharepic template (or KI image), pre-fill the canvas store, and open
+          // the matching creation flow.
+          const result = await generateSharepicFromPrompt(description);
+          if (!result.success) {
+            console.error('[DocsPage] sharepic generation failed:', result.error);
+            return;
+          }
+          if (result.isKiType) {
+            void navigate('/imagine/pure-create');
+            return;
+          }
+          if (!isCanvasTemplateType(result.type)) {
+            console.warn('[DocsPage] non-canonical sharepic type:', result.type);
+            return;
+          }
+          loadFromAIGeneration(
+            result.type,
+            result.data as unknown as Record<string, string>,
+            result.selectedImage
+          );
+          void navigate(`/studio/templates/${result.type}`);
+        } else if (kind === 'doc') {
           const doc = await generateDocumentMutation.mutateAsync(description);
           navigate(`/office/${doc.id}`);
         } else if (kind === 'board') {
@@ -433,7 +467,7 @@ function DocumentsContent() {
         setCreating(false);
       }
     },
-    [generateDocumentMutation, generateBoard, navigate]
+    [generateDocumentMutation, generateBoard, loadFromAIGeneration, navigate]
   );
 
   const handleComposerTemplate = useCallback(
@@ -441,6 +475,7 @@ function DocumentsContent() {
       if (kind === 'doc') void handleTemplateSelect(id as TemplateType);
       else if (kind === 'board') handleCreateBoardFromTemplate(id);
       else if (kind === 'sheet') void handleCreateSheetFromTemplate(id);
+      else if (kind === 'sharepic') void navigate(`/studio/templates/${id}`);
       else void handleCreatePresentationFromTemplate(id);
     },
     [
@@ -448,6 +483,7 @@ function DocumentsContent() {
       handleCreateBoardFromTemplate,
       handleCreateSheetFromTemplate,
       handleCreatePresentationFromTemplate,
+      navigate,
     ]
   );
 
@@ -509,8 +545,17 @@ function DocumentsContent() {
         title: t.name,
         description: t.description,
       })),
+      ...(sharepicEnabled
+        ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES).map((t) => ({
+            key: `sharepic-${t.id}`,
+            kind: 'sharepic' as const,
+            id: t.id,
+            title: t.label,
+            description: t.description ?? 'Sharepic-Vorlage',
+          }))
+        : []),
     ],
-    []
+    [sharepicEnabled]
   );
 
   return (
@@ -526,6 +571,7 @@ function DocumentsContent() {
           items={composerItems}
           templates={composerTemplates}
           isGenerating={creating}
+          sharepicEnabled={sharepicEnabled}
           onGenerate={handleComposerCreate}
           onSelectTemplate={handleComposerTemplate}
           onImport={handleComposerImport}
@@ -552,7 +598,38 @@ function DocumentsContent() {
       </DismissableBanner>
 
       <section>
-        {isLoading ? (
+        {!showRecents ? (
+          // Embedded in the Arbeiten tab, where the workplace "Zuletzt" feed is
+          // THE recents section — only the group shares (not covered there)
+          // keep rendering.
+          groupDocsByGroup.length > 0 && (
+            <>
+              {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
+                <div key={groupId} className="mt-xl">
+                  <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
+                    <FiUsers size={14} />
+                    {groupName}
+                  </h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
+                    {docs.map((item) => {
+                      if (item.kind !== 'document') return null;
+                      return (
+                        <DocumentCard
+                          key={`doc-${item.data.id}-${groupId}`}
+                          doc={item.data}
+                          adapter={adapter}
+                          onDelete={handleDeleteDoc}
+                          onRename={handleRenameDoc}
+                          onShare={setShareDoc}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>
+          )
+        ) : isLoading ? (
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
@@ -660,6 +737,7 @@ function DocumentsContent() {
               if (kind === 'doc') void handleTemplateSelect('blank');
               else if (kind === 'board') handleCreateBoard('kanban');
               else if (kind === 'sheet') void handleCreateSheet();
+              else if (kind === 'sharepic') void navigate('/studio/templates');
               else void handleCreatePresentation();
             }}
             onSelectDocTemplate={(id) => void handleTemplateSelect(id)}
@@ -667,6 +745,8 @@ function DocumentsContent() {
             onSelectSheetTemplate={(id) => void handleCreateSheetFromTemplate(id)}
             onSelectPresentationTemplate={(id) => void handleCreatePresentationFromTemplate(id)}
             onSelectUserTemplate={handleUserTemplateSelect}
+            sharepicEnabled={sharepicEnabled}
+            onSelectSharepicTemplate={(id) => void navigate(`/studio/templates/${id}`)}
           />
         </Suspense>
       )}
@@ -726,11 +806,12 @@ function DocumentsContent() {
 }
 
 /** Office start page without route chrome — embedded by the workplace
- * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth. */
+ * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth
+ * and renders the workplace "Zuletzt" feed as THE recents section. */
 export const DocsHome = () => (
   <ErrorBoundary>
     <DocsProvider adapter={webAppDocsAdapter}>
-      <DocumentsContent />
+      <DocumentsContent showRecents={false} />
     </DocsProvider>
   </ErrorBoundary>
 );
