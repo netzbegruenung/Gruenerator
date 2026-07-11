@@ -537,7 +537,7 @@ const GroupInfoSection = memo(
                 items: sharedContent.collabDocs,
                 contentType: 'collaborative_documents',
                 icon: HiOutlineDocumentText,
-                getLink: (item) => `/docs/${item.id}`,
+                getLink: (item) => `/office/${item.id}`,
               },
               {
                 label: 'Boards',

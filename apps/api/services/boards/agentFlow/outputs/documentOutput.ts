@@ -31,5 +31,5 @@ export const documentOutput: OutputExecutor = async (ctx) => {
     ctx.task.requested_by
   );
 
-  return { documentUrl: `/docs/${doc.id}`, documentId: doc.id };
+  return { documentUrl: `/office/${doc.id}`, documentId: doc.id };
 };

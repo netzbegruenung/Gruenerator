@@ -77,14 +77,14 @@ export const webAppDocsAdapter: DocsAdapter = {
     window.location.href = buildLoginUrl(currentPath);
   },
 
-  getDocumentUrl: (id) => `/docs/${id}`,
+  getDocumentUrl: (id) => `/office/${id}`,
 
   navigateToDocument: (id) => {
-    window.location.href = `/docs/${id}`;
+    window.location.href = `/office/${id}`;
   },
 
   navigateToHome: () => {
-    window.location.href = '/docs';
+    window.location.href = '/office';
   },
 
   getCurrentUserDisplayName: () => useAuthStore.getState().user?.display_name ?? null,

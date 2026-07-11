@@ -151,7 +151,7 @@ export async function fetchRecentDocs(
     title: row.title || 'Unbenanntes Dokument',
     date: row.updated_at,
     type: 'doc' as const,
-    href: `/docs/${row.id}`,
+    href: `/office/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
     ...(row.content != null && { content: row.content }),

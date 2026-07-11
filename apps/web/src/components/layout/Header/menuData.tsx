@@ -84,11 +84,11 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
 
   items.docs = {
     id: 'docs',
-    path: '/docs',
-    title: 'Dokumente und Boards',
-    description: 'Dokumente & Präsentationen',
+    path: '/office',
+    title: 'Office',
+    description: 'Dokumente, Tabellen & Präsentationen',
     icon: getIcon('navigation', 'docs'),
-    activePaths: ['/docs'],
+    activePaths: ['/office', '/docs'],
   };
 
   items.notebooks = {
