@@ -17,11 +17,22 @@ export function workplaceTabFromPathname(pathname: string): WorkplaceTab {
   return 'chat';
 }
 
-const WorkplaceTabs = memo(
-  ({ active, className }: { active: WorkplaceTab; className?: string }) => (
-    <nav
-      aria-label="Workplace-Bereiche"
-      className={cn('flex items-center justify-center gap-1.5 pt-4', className)}
+// Design "tabbar": fixed glass pill centered at the top — frosted container,
+// active tab as a white pill with a soft shadow.
+const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => (
+  <nav
+    aria-label="Workplace-Bereiche"
+    className="pointer-events-none fixed left-0 right-0 top-4 z-40 flex justify-center"
+  >
+    <div
+      role="tablist"
+      className={cn(
+        'pointer-events-auto inline-flex gap-0.5 rounded-full p-[3px]',
+        'border border-white/50 bg-[rgba(246,246,244,.6)]',
+        'backdrop-blur-[16px] backdrop-saturate-[1.6]',
+        'shadow-[0_4px_20px_rgba(31,63,51,.10),inset_0_1px_0_rgba(255,255,255,.6)]',
+        'dark:border-white/10 dark:bg-grey-900/60 dark:shadow-[0_4px_20px_rgba(0,0,0,.35)]'
+      )}
     >
       {TABS.map((tab) => {
         const isActive = tab.id === active;
@@ -30,22 +41,24 @@ const WorkplaceTabs = memo(
             key={tab.id}
             to={tab.path}
             replace
+            role="tab"
+            aria-selected={isActive}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'rounded-full px-4 py-2 text-sm font-semibold transition-colors select-none',
+              'select-none rounded-full px-4 py-1 text-[13.5px] font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
               isActive
-                ? 'bg-primary-50 text-primary-800 dark:bg-primary-500/10 dark:text-primary-300'
-                : 'text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-400 dark:hover:bg-grey-800'
+                ? 'bg-white font-semibold text-primary-800 shadow-[0_1px_2px_rgba(0,0,0,.10),0_1px_6px_rgba(0,0,0,.05)] dark:bg-grey-800 dark:text-primary-300'
+                : 'text-grey-600 hover:text-foreground dark:text-grey-400 dark:hover:text-grey-200'
             )}
           >
             {tab.label}
           </Link>
         );
       })}
-    </nav>
-  )
-);
+    </div>
+  </nav>
+));
 WorkplaceTabs.displayName = 'WorkplaceTabs';
 
 export default WorkplaceTabs;

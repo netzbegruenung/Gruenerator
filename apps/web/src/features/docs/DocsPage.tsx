@@ -518,8 +518,8 @@ function DocumentsContent() {
       <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
         <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
           {firstName
-            ? `Willkommen im neuen Grünerator KI-Office, ${firstName}`
-            : 'Willkommen im neuen Grünerator KI-Office'}
+            ? `Willkommen im Grünerator Workplace, ${firstName}`
+            : 'Willkommen im Grünerator Workplace'}
         </h1>
 
         <DocsComposer
