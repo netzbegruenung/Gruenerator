@@ -15,7 +15,7 @@ export function MobileContextBar(props: ContextControlsProps) {
   if (hasPendingAiSuggestion) return null;
 
   return (
-    <div className="hidden max-canvas-mobile:flex fixed inset-x-0 bottom-[var(--mobile-tab-bar-height)] z-[110] items-center gap-1.5 overflow-x-auto border-t border-[var(--editor-border)] bg-[var(--editor-surface)] px-2.5 py-2">
+    <div className="hidden max-canvas-mobile:flex fixed inset-x-0 bottom-[var(--mobile-tab-bar-height)] z-[98] items-center gap-1.5 overflow-x-auto border-t border-[var(--editor-border)] bg-[var(--editor-surface)] px-2.5 py-2">
       <ContextControls {...props} />
     </div>
   );
