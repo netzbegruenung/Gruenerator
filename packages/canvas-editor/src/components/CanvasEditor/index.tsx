@@ -393,12 +393,16 @@ function CanvasEditorInner({
   }, [currentPageIndex, canvasRefsRef]);
 
   const handleDownload = useCallback(
-    (format: 'png' | 'jpeg' = 'png', pixelRatio = 2) => {
+    (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 2, transparent = false) => {
       const ref = canvasRefsRef.current[currentPageIndex];
       if (!ref?.current) return;
-      const dataUrl = ref.current.toDataURL({ format, pixelRatio });
+      const dataUrl = ref.current.toDataURL({
+        format,
+        pixelRatio,
+        includeBackground: !transparent,
+      });
       if (dataUrl) {
-        const ext = format === 'jpeg' ? 'jpg' : 'png';
+        const ext = format === 'jpeg' ? 'jpg' : format;
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = `gruenerator-seite-${currentPageIndex + 1}.${ext}`;

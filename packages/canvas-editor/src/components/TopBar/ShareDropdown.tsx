@@ -17,11 +17,11 @@ import { IoShareOutline } from 'react-icons/io5';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { waitForAutoSave } from '../../stores/waitForAutoSave';
 
-import { DownloadSection } from './DownloadSection';
+import { DownloadSection, type CanvasDownloadChoice } from './DownloadSection';
 
 export interface ShareDropdownProps {
   onCaptureCanvas: () => Promise<string | null>;
-  onDownload: (format: 'png' | 'jpeg', pixelRatio: number) => void;
+  onDownload: (format: CanvasDownloadChoice, pixelRatio: number, transparent: boolean) => void;
   onNavigateToGallery: () => void;
   canvasText: string;
   canvasType: string;

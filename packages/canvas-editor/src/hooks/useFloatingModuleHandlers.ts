@@ -4,6 +4,16 @@ import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { FloatingModuleState } from './useFloatingModuleState';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig } from '../configs/types';
+import type { GradientFill } from '../utils/gradientFill';
+
+/** Partial shadow patch shared by shape/text/user-image update actions. */
+export interface ShadowPatch {
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+}
 
 /**
  * Floating Module Handlers - Handlers for floating toolbar interactions
@@ -32,6 +42,10 @@ export interface UseFloatingModuleHandlersOptions<
 export interface UseFloatingModuleHandlersResult {
   handleColorSelect: (color: string) => void;
   handleOpacityChange: (id: string, opacity: number, type: string) => void;
+  handleShadowChange: (id: string, patch: ShadowPatch, type: string) => void;
+  handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
+  handleBlurChange: (id: string, blur: number) => void;
+  handleGradientSelect: (gradient: GradientFill | null) => void;
 }
 
 /**
@@ -50,7 +64,8 @@ export function useFloatingModuleHandlers<
 
       if (activeFloatingModule.type === 'shape') {
         if (actions.updateShape) {
-          actions.updateShape(activeFloatingModule.data.id, { fill: color });
+          // Picking a solid color clears any gradient fill.
+          actions.updateShape(activeFloatingModule.data.id, { fill: color, fillGradient: null });
         }
       } else if (activeFloatingModule.type === 'icon') {
         if (actions.updateIcon) {
@@ -73,7 +88,7 @@ export function useFloatingModuleHandlers<
         const additionalTexts = state.additionalTexts ?? [];
         if (additionalTexts.find((t) => t.id === id)) {
           if (actions.updateAdditionalText) {
-            actions.updateAdditionalText(id, { fill: color });
+            actions.updateAdditionalText(id, { fill: color, fillGradient: null });
           }
           return;
         }
@@ -176,13 +191,70 @@ export function useFloatingModuleHandlers<
         if (actions.updateBalken) {
           actions.updateBalken(id, { opacity });
         }
+      } else if (type === 'user-image') {
+        if (actions.updateUserImage) {
+          actions.updateUserImage(id, { opacity });
+        }
       }
     },
     [actions, config.elements, state, setState, debouncedSaveToHistory]
   );
 
+  const handleShadowChange = useCallback(
+    (id: string, patch: ShadowPatch, type: string) => {
+      if (type === 'shape') {
+        actions.updateShape?.(id, patch);
+      } else if (type === 'user-image') {
+        actions.updateUserImage?.(id, patch);
+      } else if (type === 'text') {
+        const additionalTexts = state.additionalTexts ?? [];
+        if (additionalTexts.find((t) => t.id === id)) {
+          actions.updateAdditionalText?.(id, patch);
+        }
+      }
+    },
+    [actions, state]
+  );
+
+  const handleOutlineChange = useCallback(
+    (id: string, patch: { stroke?: string; strokeWidth?: number }) => {
+      const additionalTexts = state.additionalTexts ?? [];
+      if (additionalTexts.find((t) => t.id === id)) {
+        actions.updateAdditionalText?.(id, patch);
+      }
+    },
+    [actions, state]
+  );
+
+  const handleBlurChange = useCallback(
+    (id: string, blur: number) => {
+      actions.updateUserImage?.(id, { blur });
+    },
+    [actions]
+  );
+
+  const handleGradientSelect = useCallback(
+    (gradient: GradientFill | null) => {
+      if (!activeFloatingModule) return;
+      const id = activeFloatingModule.data.id;
+      if (activeFloatingModule.type === 'shape') {
+        actions.updateShape?.(id, { fillGradient: gradient });
+      } else if (activeFloatingModule.type === 'text') {
+        const additionalTexts = state.additionalTexts ?? [];
+        if (additionalTexts.find((t) => t.id === id)) {
+          actions.updateAdditionalText?.(id, { fillGradient: gradient });
+        }
+      }
+    },
+    [activeFloatingModule, actions, state]
+  );
+
   return {
     handleColorSelect,
     handleOpacityChange,
+    handleShadowChange,
+    handleOutlineChange,
+    handleBlurChange,
+    handleGradientSelect,
   };
 }

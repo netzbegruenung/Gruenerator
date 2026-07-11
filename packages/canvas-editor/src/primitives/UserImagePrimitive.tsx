@@ -6,11 +6,11 @@
  * width/height directly (already scaled during creation).
  */
 
+import Konva from 'konva';
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import type { UserImageInstance } from '../utils/userImageUtils';
-import type Konva from 'konva';
 
 export interface UserImagePrimitiveProps {
   userImage: UserImageInstance;
@@ -30,8 +30,11 @@ function UserImagePrimitiveInner({
   draggable = true,
 }: UserImagePrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
+  const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
+
+  const blur = userImage.blur ?? 0;
 
   useEffect(() => {
     const img = new window.Image();
@@ -50,6 +53,18 @@ function UserImagePrimitiveInner({
       transformerRef.current.getLayer()?.batchDraw();
     }
   }, [isSelected]);
+
+  // Konva filters (Blur) require the node to be cached first.
+  useEffect(() => {
+    const node = imageRef.current;
+    if (!node || !image) return;
+    if (blur > 0) {
+      node.cache();
+    } else {
+      node.clearCache();
+    }
+    node.getLayer()?.batchDraw();
+  }, [image, blur, userImage.width, userImage.height]);
 
   if (!image) return null;
 
@@ -93,7 +108,19 @@ function UserImagePrimitiveInner({
           onTransformEnd(node.x(), node.y(), newWidth, newHeight, newRotation);
         }}
       >
-        <Image image={image} width={width} height={height} />
+        <Image
+          ref={imageRef}
+          image={image}
+          width={width}
+          height={height}
+          filters={blur > 0 ? [Konva.Filters.Blur] : undefined}
+          blurRadius={blur}
+          shadowColor={userImage.shadowColor}
+          shadowBlur={userImage.shadowBlur}
+          shadowOffsetX={userImage.shadowOffsetX}
+          shadowOffsetY={userImage.shadowOffsetY}
+          shadowOpacity={userImage.shadowOpacity}
+        />
 
         {isSelected && (
           <Rect
@@ -137,6 +164,12 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
   if (prev.opacity !== next.opacity) return false;
+  if (prev.blur !== next.blur) return false;
+  if (prev.shadowColor !== next.shadowColor) return false;
+  if (prev.shadowBlur !== next.shadowBlur) return false;
+  if (prev.shadowOffsetX !== next.shadowOffsetX) return false;
+  if (prev.shadowOffsetY !== next.shadowOffsetY) return false;
+  if (prev.shadowOpacity !== next.shadowOpacity) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
