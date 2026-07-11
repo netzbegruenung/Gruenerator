@@ -1,11 +1,11 @@
 /**
- * Canvas icon utilities powered by the bundled Tabler icon set.
+ * Canvas icon utilities powered by bundled Iconify icon sets.
  *
- * Icons come from `@iconify-json/tabler` (offline IconifyJSON) — no network
- * calls. The ~2 MB icon data is lazy-imported the first time the picker or a
- * canvas icon needs it, so it lands in its own chunk. SVGs are generated
- * locally via `@iconify/utils`, colorized, and cached as base64 data URLs for
- * rendering on the Konva canvas.
+ * Icons come from local `@iconify-json/*` sets (Tabler, Flowbite) — no network
+ * calls. Each set's data is lazy-imported the first time the picker or a canvas
+ * icon needs it, so each lands in its own chunk. SVGs are generated locally via
+ * `@iconify/utils`, colorized, and cached as base64 data URLs for rendering on
+ * the Konva canvas.
  */
 
 import { addCollection } from '@iconify/react';
@@ -29,40 +29,65 @@ export interface IconDef {
   library: string;
 }
 
-const TABLER_PREFIX = 'tabler';
-const TABLER_LIBRARY = 'Tabler';
+// ---------------------------------------------------------------------------
+// Bundled icon sets. `load` uses a literal import() so the bundler can
+// code-split each set into its own lazy chunk. To add a set, append here.
+// ---------------------------------------------------------------------------
 
-/** Strip the `tabler:` prefix (if present) to get the bare icon name. */
-function toIconName(iconId: string): string {
-  const colon = iconId.indexOf(':');
-  return colon === -1 ? iconId : iconId.slice(colon + 1);
+interface IconSet {
+  prefix: string;
+  library: string;
+  load: () => Promise<{ icons: IconifyJSON }>;
 }
 
+const ICON_SETS: IconSet[] = [
+  { prefix: 'tabler', library: 'Tabler', load: () => import('@iconify-json/tabler') },
+  { prefix: 'flowbite', library: 'Flowbite', load: () => import('@iconify-json/flowbite') },
+];
+
+/** Split a `prefix:name` id; unprefixed ids default to the first set. */
+function splitIconId(iconId: string): { prefix: string; name: string } {
+  const colon = iconId.indexOf(':');
+  if (colon === -1) return { prefix: ICON_SETS[0].prefix, name: iconId };
+  return { prefix: iconId.slice(0, colon), name: iconId.slice(colon + 1) };
+}
+
+const toIconName = (iconId: string) => splitIconId(iconId).name;
+
 // ---------------------------------------------------------------------------
-// Tabler data loading (lazy dynamic import, registered with @iconify/react)
+// Per-set data loading (lazy dynamic import, registered with @iconify/react)
 // ---------------------------------------------------------------------------
 
-let tablerData: IconifyJSON | null = null;
-let tablerPromise: Promise<IconifyJSON> | null = null;
+const setData = new Map<string, IconifyJSON>();
+const setPromises = new Map<string, Promise<IconifyJSON>>();
 
-function loadTablerData(): Promise<IconifyJSON> {
-  if (tablerData) return Promise.resolve(tablerData);
-  if (tablerPromise) return tablerPromise;
+function loadIconSet(set: IconSet): Promise<IconifyJSON> {
+  const existing = setData.get(set.prefix);
+  if (existing) return Promise.resolve(existing);
+  const pending = setPromises.get(set.prefix);
+  if (pending) return pending;
 
-  tablerPromise = import('@iconify-json/tabler')
+  const promise = set
+    .load()
     .then(({ icons }) => {
-      tablerData = icons;
-      // Register so <Icon icon="tabler:..."> in the sidebar renders offline.
+      setData.set(set.prefix, icons);
+      // Register so <Icon icon="prefix:..."> in the sidebar renders offline.
       addCollection(icons);
       return icons;
     })
     .catch((err) => {
       // Don't cache a rejected chunk load — clear it so a later call retries.
-      tablerPromise = null;
+      setPromises.delete(set.prefix);
       throw err;
     });
 
-  return tablerPromise;
+  setPromises.set(set.prefix, promise);
+  return promise;
+}
+
+function loadSetByPrefix(prefix: string): Promise<IconifyJSON> | null {
+  const set = ICON_SETS.find((s) => s.prefix === prefix);
+  return set ? loadIconSet(set) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,7 +105,7 @@ const formatName = (str: string) =>
     .join(' ');
 
 /**
- * Build the browsable icon catalog from the bundled Tabler set.
+ * Build the browsable icon catalog from all bundled sets.
  * Only names are exposed here — SVG data is generated on demand.
  */
 export function loadAllIcons(): Promise<IconDef[]> {
@@ -88,17 +113,21 @@ export function loadAllIcons(): Promise<IconDef[]> {
   if (loadPromise) return loadPromise;
 
   const promise = (async () => {
-    const data = await loadTablerData();
+    const loaded = await Promise.all(
+      ICON_SETS.map(async (set) => ({ set, data: await loadIconSet(set) }))
+    );
 
-    const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
     const map: Record<string, IconDef> = {};
     const list: IconDef[] = [];
 
-    for (const name of names) {
-      const id = `${TABLER_PREFIX}:${name}`;
-      const def: IconDef = { id, name: formatName(name), library: TABLER_LIBRARY };
-      map[id] = def;
-      list.push(def);
+    for (const { set, data } of loaded) {
+      const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
+      for (const name of names) {
+        const id = `${set.prefix}:${name}`;
+        const def: IconDef = { id, name: formatName(name), library: set.library };
+        map[id] = def;
+        list.push(def);
+      }
     }
 
     list.sort((a, b) => a.name.localeCompare(b.name));
@@ -151,15 +180,18 @@ export async function generateIconDataUrl(
 
   const promise = (async () => {
     try {
-      const data = await loadTablerData();
-      const iconData = getIconData(data, toIconName(iconId));
+      const { prefix, name } = splitIconId(iconId);
+      const setPromise = loadSetByPrefix(prefix);
+      if (!setPromise) return null;
+      const data = await setPromise;
+      const iconData = getIconData(data, name);
       if (!iconData) return null;
 
       const rendered = iconToSVG(iconData, { height: size });
       const attributes = Object.entries(rendered.attributes)
         .map(([key, value]) => `${key}="${value}"`)
         .join(' ');
-      // Tabler icons use currentColor for stroke/fill — bake the color in.
+      // Iconify sets use currentColor for stroke/fill — bake the color in.
       const body = rendered.body.replace(/currentColor/g, color);
       const svgText = `<svg xmlns="http://www.w3.org/2000/svg" ${attributes}>${body}</svg>`;
 

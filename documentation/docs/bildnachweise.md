@@ -10,17 +10,18 @@ kostenlos für private **und kommerzielle** Nutzung freigegeben. Ein herzliches
 Dankeschön an die Künstler:innen und Communities, die diese Werke offen
 zugänglich machen. 💚
 
-Insgesamt stehen im Editor **rund 6.200 Icons** und **2.195 Illustrationen** zur
+Insgesamt stehen im Editor **rund 7.200 Icons** und **2.195 Illustrationen** zur
 Verfügung.
 
 ## Icons
 
-| Sammlung         | Urheber:in             | Anzahl | Lizenz | Quelle                                                                                        |
-| ---------------- | ---------------------- | ------ | ------ | --------------------------------------------------------------------------------------------- |
-| **Tabler Icons** | Paweł Kuna & Community | ~6.200 | MIT    | [tabler.io/icons](https://tabler.io/icons) · [GitHub](https://github.com/tabler/tabler-icons) |
+| Sammlung           | Urheber:in             | Anzahl | Lizenz | Quelle                                                                                                     |
+| ------------------ | ---------------------- | ------ | ------ | ---------------------------------------------------------------------------------------------------------- |
+| **Tabler Icons**   | Paweł Kuna & Community | ~6.400 | MIT    | [tabler.io/icons](https://tabler.io/icons) · [GitHub](https://github.com/tabler/tabler-icons)              |
+| **Flowbite Icons** | Themesberg             | ~800   | MIT    | [flowbite.com/icons](https://flowbite.com/icons/) · [GitHub](https://github.com/themesberg/flowbite-icons) |
 
-Die Icons sind lokal gebündelt (`@iconify-json/tabler`) und funktionieren
-vollständig offline.
+Die Icons sind lokal gebündelt (`@iconify-json/*`) und funktionieren vollständig
+offline; jede Sammlung wird als eigener Lazy-Chunk nachgeladen.
 
 ## Illustrationen
 
