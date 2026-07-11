@@ -22,9 +22,9 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   share_doc: 'share-social-outline',
 };
 
-/** `/document/<id>` (API canonical) or `/docs/<id>` (web route) → document id. */
+/** `/document/<id>` (API canonical) or `/office/<id>` / legacy `/docs/<id>` (web routes) → document id. */
 function documentIdFromUrl(url: string): string | null {
-  const match = url.match(/^\/(?:document|docs)\/([^/?#]+)/);
+  const match = url.match(/^\/(?:document|docs|office)\/([^/?#]+)/);
   return match ? match[1] : null;
 }
 

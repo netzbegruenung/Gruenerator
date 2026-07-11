@@ -308,7 +308,7 @@ function DocumentsContent() {
         // SPA navigation (not adapter.navigateToDocument, which reloads and
         // drops nav-state): the seed workbook rides `location.state` into the
         // Univer editor, which applies it on first open.
-        navigate(`/docs/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
+        navigate(`/office/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
       } catch (err) {
         console.error('Failed to create sheet from template:', err);
       }
@@ -338,7 +338,7 @@ function DocumentsContent() {
           documentSubtype: 'presentations',
         });
         // SPA navigation carries the seed slides via nav-state into the editor.
-        navigate(`/docs/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
+        navigate(`/office/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
       } catch (err) {
         console.error('Failed to create presentation from template:', err);
       }
@@ -408,7 +408,7 @@ function DocumentsContent() {
       try {
         if (kind === 'doc') {
           const doc = await generateDocumentMutation.mutateAsync(description);
-          navigate(`/docs/${doc.id}`);
+          navigate(`/office/${doc.id}`);
         } else if (kind === 'board') {
           const data = await generateBoard.mutateAsync(description);
           navigate(
@@ -420,11 +420,11 @@ function DocumentsContent() {
         } else if (kind === 'sheet') {
           const res = await getContractsClient().sheets.generate({ body: { description } });
           if (res.status !== 201) throw new Error(`Sheet generation failed (${res.status})`);
-          navigate(`/docs/${res.body.id}`);
+          navigate(`/office/${res.body.id}`);
         } else {
           const res = await getContractsClient().presentations.generate({ body: { description } });
           if (res.status !== 201) throw new Error(`Presentation generation failed (${res.status})`);
-          navigate(`/docs/${res.body.id}`);
+          navigate(`/office/${res.body.id}`);
         }
       } catch (err) {
         console.error('Composer create failed:', err);
@@ -464,7 +464,7 @@ function DocumentsContent() {
       id: d.id,
       title: d.title,
       kind: subtypeToKind(d.document_subtype),
-      openPath: `/docs/${d.id}`,
+      openPath: `/office/${d.id}`,
       sortKey: new Date(d.updated_at).getTime(),
     }));
     const boardItems = boards.map((b) => ({

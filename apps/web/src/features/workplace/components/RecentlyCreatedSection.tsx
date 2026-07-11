@@ -637,7 +637,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       try {
         const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
         const { documentId } = res.data as { documentId: string };
-        void navigate(`/docs/${documentId}`);
+        void navigate(`/office/${documentId}`);
       } catch {
         // fallback to old editor
         void navigate(`/texte/texteditor?textId=${textId}`);

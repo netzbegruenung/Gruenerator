@@ -224,7 +224,7 @@ const ScannerTab = () => {
         documentType: 'blank',
       });
 
-      void navigate(`/docs/${docResponse.data.documentId}`);
+      void navigate(`/office/${docResponse.data.documentId}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } }; message?: string };
       setError(error.response?.data?.error || error.message || 'Fehler bei der Textextraktion');

@@ -34,7 +34,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
         title,
         documentType: 'transkription',
       });
-      window.open(`/docs/${res.data.documentId}`, '_blank', 'noopener,noreferrer');
+      window.open(`/office/${res.data.documentId}`, '_blank', 'noopener,noreferrer');
     } finally {
       setActionLoading(null);
     }
@@ -55,7 +55,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
         title: `Aufgaben — ${title}`,
         documentType: 'checkliste',
       });
-      window.open(`/docs/${docRes.data.documentId}`, '_blank', 'noopener,noreferrer');
+      window.open(`/office/${docRes.data.documentId}`, '_blank', 'noopener,noreferrer');
     } finally {
       setActionLoading(null);
     }

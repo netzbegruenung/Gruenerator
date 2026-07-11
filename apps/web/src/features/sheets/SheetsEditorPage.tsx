@@ -158,7 +158,7 @@ function SheetsEditorContent() {
         <span className="text-foreground-heading font-medium">{docData.title || 'Tabelle'}</span>
         <span>Diese Tabelle erfordert eine Anmeldung.</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
         >
           Anmelden
@@ -173,7 +173,7 @@ function SheetsEditorContent() {
         <span>Tabelle nicht gefunden oder nicht öffentlich</span>
         {isGuest && (
           <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+            href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
             className="text-secondary-600 underline"
           >
             Anmelden
@@ -188,7 +188,7 @@ function SheetsEditorContent() {
       <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
         <span>{getAuthErrorMessage(authError) || 'Verbindung zur Tabelle fehlgeschlagen.'}</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="text-secondary-600 underline"
         >
           Anmelden
@@ -202,7 +202,7 @@ function SheetsEditorContent() {
       <EditorTopBar
         title={docData.title}
         connectionStatus={connectionStatus}
-        onBack={isGuest ? undefined : () => navigate('/docs')}
+        onBack={isGuest ? undefined : () => navigate('/office')}
         editable={isEditable}
         onTitleChange={handleTitleChange}
         rightActions={
@@ -212,7 +212,7 @@ function SheetsEditorContent() {
                 guestName={guestIdentity.guestName}
                 guestColor={guestIdentity.guestColor}
                 guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
               />
             )}
             {!isGuest && !canEdit && (
