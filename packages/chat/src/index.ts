@@ -207,7 +207,6 @@ export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './compone
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ChatThreadRouting, type ChatThreadRoutingProps } from './components/ChatThreadRouting';
-export { ToolToggles } from './components/ToolToggles';
 export { MarkdownContent } from './components/MarkdownContent';
 export { CitationMarkdownText } from './components/message-parts/CitationMarkdownText';
 export { ToolCallUI } from './components/ToolCallUI';
