@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft } from 'react-icons/pi';
+import { PiArrowLeft, PiTextT } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { cn } from '../../../utils/cn';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
+import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 
@@ -19,7 +20,7 @@ export interface ToolsSectionProps {
   onJumpToUploads?: () => void;
 }
 
-type ToolView = 'browse' | 'remove-bg' | 'ai-create' | 'ai-edit' | 'qr-code';
+type ToolView = 'browse' | 'remove-bg' | 'ai-create' | 'ai-edit' | 'qr-code' | 'gradient-text';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -129,6 +130,16 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
+    {
+      id: 'gradient-text',
+      label: 'Verlaufstext erstellen',
+      icon: PiTextT,
+      iconColor: 'text-primary-600 dark:text-primary-300',
+      hoverShadow:
+        'group-hover:shadow-sm group-hover:shadow-primary-600/15 dark:group-hover:shadow-primary-300/15',
+      ring: 'focus-visible:ring-primary-600',
+      available: true,
+    },
   ];
 
   const availableCards = cards.filter((c) => c.available);
@@ -161,6 +172,7 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'qr-code' && <QRCodeTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'gradient-text' && <GradientTextTool onJumpToUploads={onJumpToUploads} />}
     </div>
   );
 }
