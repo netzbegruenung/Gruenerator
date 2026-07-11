@@ -85,7 +85,8 @@ interface GrueneratorComposerProps {
   requireProfileHydration?: boolean;
 }
 
-const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
+const ROUND_BTN_BASE =
+  'flex items-center justify-center rounded-full transition-[background-color,color,transform,opacity]';
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
 function SearchDepthToggleSlot() {
@@ -115,7 +116,7 @@ function SendButton({ requireProfileHydration }: { requireProfileHydration?: boo
 
   return (
     <ComposerPrimitive.Send
-      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white disabled:opacity-30`}
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
       aria-label="Nachricht senden"
     >
       <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
@@ -127,7 +128,7 @@ function CancelButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Cancel
-      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white`}
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white hover:bg-error/90 active:scale-95`}
       aria-label="Abbrechen"
     >
       <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
@@ -139,7 +140,7 @@ function DictateButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Dictate
-      className={`${roundBtnSize(isCompact)} flex items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800`}
+      className={`${roundBtnSize(isCompact)} flex items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground active:bg-grey-200 dark:hover:bg-grey-800 dark:active:bg-grey-700`}
       aria-label="Diktat starten"
     >
       <Mic className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
@@ -151,7 +152,7 @@ function StopDictationButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.StopDictation
-      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white animate-pulse`}
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white animate-pulse hover:bg-error/90`}
       aria-label="Diktat beenden"
     >
       <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
