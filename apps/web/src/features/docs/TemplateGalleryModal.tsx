@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { boardTemplates } from '../boards/boardTemplates';
+import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
 import { presentationTemplates } from '../presentations/presentationTemplates';
 import { sheetTemplates } from '../sheets/sheetTemplates';
 
@@ -18,11 +19,14 @@ interface TemplateGalleryModalProps {
   onSelectSheetTemplate: (id: string) => void;
   onSelectPresentationTemplate: (id: string) => void;
   onSelectUserTemplate: (tpl: UserTemplateSummary) => void;
+  /** Show the Sharepics tab (gated: SHOW_SHAREPIC_STUDIO, not de-AT). */
+  sharepicEnabled?: boolean;
+  onSelectSharepicTemplate?: (id: string) => void;
 }
 
 type TabKey = 'all' | DocKind;
 
-const TABS: Array<{ key: TabKey; label: string }> = [
+const BASE_TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'all', label: 'Alle' },
   { key: 'doc', label: 'Dokumente' },
   { key: 'board', label: 'Boards' },
@@ -30,11 +34,16 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'pres', label: 'Präsentationen' },
 ];
 
+const SHAREPIC_TAB = { key: 'sharepic', label: 'Sharepics' } as const;
+
 interface Entry {
   key: string;
   kind: DocKind;
   title: string;
   description: string;
+  /** Rendered image header instead of the icon chip (sharepic templates). */
+  previewImage?: string;
+  previewImageFallback?: string;
   onSelect: () => void;
 }
 
@@ -45,14 +54,26 @@ function TemplateCard({ entry }: { entry: Entry }) {
     <button
       type="button"
       onClick={entry.onSelect}
-      className="group text-left rounded-[14px] border border-[#E7EDE9] bg-white p-4 shadow-[0_1px_2px_rgba(31,63,51,.04)] transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-[#9DBDAE] hover:shadow-[0_12px_26px_rgba(95,133,117,.15)] dark:border-grey-700 dark:bg-grey-800"
+      className="group flex flex-col text-left rounded-[14px] border border-[#E7EDE9] bg-white p-4 shadow-[0_1px_2px_rgba(31,63,51,.04)] transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-[#9DBDAE] hover:shadow-[0_12px_26px_rgba(95,133,117,.15)] dark:border-grey-700 dark:bg-grey-800"
     >
-      <span
-        className="mb-[34px] flex h-9 w-9 items-center justify-center rounded-[10px]"
-        style={{ background: meta.bg, color: meta.color }}
-      >
-        <Icon className="h-[18px] w-[18px]" />
-      </span>
+      {entry.previewImage ? (
+        <picture className="mb-3 block overflow-hidden rounded-[10px] border border-[#F1F4F1] dark:border-grey-700">
+          <source srcSet={entry.previewImage} type="image/webp" />
+          <img
+            src={entry.previewImageFallback ?? entry.previewImage}
+            alt=""
+            loading="lazy"
+            className="aspect-square w-full object-cover"
+          />
+        </picture>
+      ) : (
+        <span
+          className="mb-[34px] flex h-9 w-9 items-center justify-center rounded-[10px]"
+          style={{ background: meta.bg, color: meta.color }}
+        >
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+      )}
       <div className="text-sm font-bold text-[#22382E] dark:text-foreground">{entry.title}</div>
       <div className="mt-[3px] text-xs leading-snug text-[#9AA8A1]">{entry.description}</div>
     </button>
@@ -67,7 +88,9 @@ function BlankCard({ kind, onSelect }: { kind: DocKind; onSelect: () => void }) 
         ? 'Leeres Board'
         : kind === 'sheet'
           ? 'Leere Tabelle'
-          : 'Leere Präsentation';
+          : kind === 'sharepic'
+            ? 'Alle Sharepic-Vorlagen'
+            : 'Leere Präsentation';
   return (
     <button
       type="button"
@@ -102,8 +125,11 @@ export default function TemplateGalleryModal({
   onSelectSheetTemplate,
   onSelectPresentationTemplate,
   onSelectUserTemplate,
+  sharepicEnabled = false,
+  onSelectSharepicTemplate,
 }: TemplateGalleryModalProps) {
   const [tab, setTab] = useState<TabKey>('all');
+  const tabs = sharepicEnabled ? [...BASE_TABS, SHAREPIC_TAB] : BASE_TABS;
 
   const { data: userTemplates = [] } = useQuery<UserTemplateSummary[]>({
     queryKey: ['user-templates', 'docs-and-boards'],
@@ -172,16 +198,32 @@ export default function TemplateGalleryModal({
     onSelect: select(() => onSelectUserTemplate(t)),
   }));
 
+  const sharepicEntries: Entry[] =
+    sharepicEnabled && onSelectSharepicTemplate
+      ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES).map((t) => ({
+          key: `sharepic-${t.id}`,
+          kind: 'sharepic' as const,
+          title: t.label,
+          description: t.description ?? 'Sharepic-Vorlage',
+          ...(t.previewImage && { previewImage: t.previewImage }),
+          ...(t.previewImageFallback && { previewImageFallback: t.previewImageFallback }),
+          onSelect: select(() => onSelectSharepicTemplate(t.id)),
+        }))
+      : [];
+
   const byKind: Record<DocKind, Entry[]> = {
     doc: [...docEntries, ...userEntries.filter((e) => e.kind === 'doc')],
     board: [...boardEntries, ...userEntries.filter((e) => e.kind === 'board')],
     sheet: sheetEntries,
     pres: presEntries,
+    sharepic: sharepicEntries,
   };
 
   const blankKind: DocKind = tab === 'all' ? 'doc' : tab;
   const entries: Entry[] =
-    tab === 'all' ? [...byKind.doc, ...byKind.board, ...byKind.sheet, ...byKind.pres] : byKind[tab];
+    tab === 'all'
+      ? [...byKind.doc, ...byKind.board, ...byKind.sheet, ...byKind.pres, ...byKind.sharepic]
+      : byKind[tab];
 
   return (
     <div
@@ -227,7 +269,7 @@ export default function TemplateGalleryModal({
         </div>
 
         <div className="flex flex-wrap gap-1.5 px-[26px] pt-[14px]">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
