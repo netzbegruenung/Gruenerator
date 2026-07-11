@@ -27,6 +27,12 @@ ios/
 *.ipa
 *.apk
 
+# Vendored agent skill reference docs
+.agents/
+
+# Vendored pyodide runtime assets
+apps/web/public/pyodide/
+
 # Misc
 *.lock
 *.log
