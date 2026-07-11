@@ -6,43 +6,51 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
 import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
 
+import { cn } from '@/utils/cn';
+
 // Each tab is its own chunk so the default Chat tab paints without pulling
 // office/docs or the notebook chat surface.
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 const WissenTab = lazy(() => import('./tabs/WissenTab'));
 
+// Per-tab page tints from the design (light mode only; dark keeps the theme
+// background). Chat gets the warm radial glow behind the centered hero.
+const TAB_BACKGROUND: Record<string, string> = {
+  chat: 'bg-[#FEFCF5] [background-image:radial-gradient(88%_58%_at_50%_52%,rgba(233,214,150,.5)_0%,rgba(233,214,150,.18)_40%,rgba(255,255,255,0)_74%)] dark:bg-transparent dark:[background-image:none]',
+  arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
+  wissen: 'bg-[#FEFDF9] dark:bg-transparent',
+};
+
 const WorkplacePage = () => {
   const { pathname } = useLocation();
   const tab = workplaceTabFromPathname(pathname);
 
-  // Wissen embeds the notebook chat surface, which sizes itself against a
-  // bounded parent — give it the full-height flex chain (sidebarOnly layout
-  // provides an h-dvh app content column).
-  if (tab === 'wissen') {
-    return (
-      <ErrorBoundary>
-        <div className="flex h-full min-h-0 flex-col">
-          <WorkplaceTabs active="wissen" className="shrink-0" />
-          <div className="min-h-0 flex-1">
+  return (
+    <ErrorBoundary>
+      <WorkplaceTabs active={tab} />
+      <div className={cn('flex h-full min-h-0 flex-col', TAB_BACKGROUND[tab])}>
+        {tab === 'chat' ? (
+          // Minimal chat hero, vertically centered in the viewport (design:
+          // the chat panel is a flex column with justify-center).
+          <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh] pt-16">
+            <WorkplaceChatTab />
+          </div>
+        ) : tab === 'wissen' ? (
+          // The notebook chat surface sizes itself against a bounded parent —
+          // full-height flex chain (sidebarOnly layout provides h-dvh).
+          <div className="min-h-0 flex-1 pt-14">
             <Suspense fallback={null}>
               <WissenTab />
             </Suspense>
           </div>
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
-  return (
-    <ErrorBoundary>
-      <WorkplaceTabs active={tab} />
-      {tab === 'chat' ? (
-        <WorkplaceChatTab />
-      ) : (
-        <Suspense fallback={null}>
-          <ArbeitenTab />
-        </Suspense>
-      )}
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto pt-14">
+            <Suspense fallback={null}>
+              <ArbeitenTab />
+            </Suspense>
+          </div>
+        )}
+      </div>
     </ErrorBoundary>
   );
 };
