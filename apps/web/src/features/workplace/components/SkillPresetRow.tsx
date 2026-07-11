@@ -6,7 +6,7 @@ import {
   ResponsiveMenuItem,
   ResponsiveMenuSection,
 } from '@gruenerator/ui';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, LayoutTemplate } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 
 import { cn } from '@/utils/cn';
@@ -93,8 +93,11 @@ const SkillPresetRow: React.FC = memo(() => {
       dropdownClassName="min-w-[12rem] max-w-[90vw]"
       trigger={
         <button type="button" className={TRIGGER_CLASS} aria-label="Vorlage wählen">
-          <span>Vorlage</span>
-          <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
+          <LayoutTemplate className="size-4 sm:hidden" />
+          <span className="max-sm:hidden">Vorlage</span>
+          <ChevronDown
+            className={cn('size-3 transition-transform max-sm:hidden', open && 'rotate-180')}
+          />
         </button>
       }
       desktopContent={desktopContent}
