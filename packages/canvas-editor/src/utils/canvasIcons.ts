@@ -43,6 +43,11 @@ interface IconSet {
 const ICON_SETS: IconSet[] = [
   { prefix: 'tabler', library: 'Tabler', load: () => import('@iconify-json/tabler') },
   { prefix: 'flowbite', library: 'Flowbite', load: () => import('@iconify-json/flowbite') },
+  { prefix: 'lucide', library: 'Lucide', load: () => import('@iconify-json/lucide') },
+  { prefix: 'heroicons', library: 'Heroicons', load: () => import('@iconify-json/heroicons') },
+  { prefix: 'iconoir', library: 'Iconoir', load: () => import('@iconify-json/iconoir') },
+  { prefix: 'bi', library: 'Bootstrap Icons', load: () => import('@iconify-json/bi') },
+  { prefix: 'ri', library: 'Remix Icon', load: () => import('@iconify-json/ri') },
 ];
 
 /** Split a `prefix:name` id; unprefixed ids default to the first set. */
