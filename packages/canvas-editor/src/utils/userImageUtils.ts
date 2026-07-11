@@ -9,6 +9,14 @@ export interface UserImageInstance {
   rotation: number;
   scale: number;
   opacity: number;
+  /** Gaussian blur radius in px; omit/0 for no blur. */
+  blur?: number;
+  /** Drop shadow (Konva shadow* props); omit for no shadow. */
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
 }
 
 const TARGET_MAX_DIMENSION = 300;

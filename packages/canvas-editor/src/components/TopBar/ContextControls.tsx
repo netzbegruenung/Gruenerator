@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 
-import { FONT_COLORS } from '../../utils/shapes';
+import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 
+import { FloatingBlurControl } from './modules/FloatingBlurControl';
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
+import { FloatingGradientControl } from './modules/FloatingGradientControl';
 import { FloatingLayerControls } from './modules/FloatingLayerControls';
 import { FloatingOpacityControl } from './modules/FloatingOpacityControl';
+import { FloatingOutlineControl } from './modules/FloatingOutlineControl';
+import { FloatingShadowControl } from './modules/FloatingShadowControl';
 
 import { type AlignmentDirection } from '../Toolbar';
 import { type FloatingModuleState } from '../../hooks/useFloatingModuleState';
+import { type ShadowPatch } from '../../hooks/useFloatingModuleHandlers';
+import { type GradientFill } from '../../utils/gradientFill';
 
 export interface ContextControlsProps {
   selectedElement: string | null;
@@ -21,6 +27,10 @@ export interface ContextControlsProps {
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
     handleAlign?: (direction: AlignmentDirection) => void;
+    handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
+    handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
+    handleBlurChange?: (id: string, blur: number) => void;
+    handleGradientSelect?: (gradient: GradientFill | null) => void;
   };
   onDelete?: () => void;
 }
@@ -161,6 +171,71 @@ export function ContextControls({
           </svg>
         </button>
       </div>
+    );
+  }
+
+  const type = activeFloatingModule?.type;
+  // Only instance-backed text (additionalTexts) stores effect fields; config
+  // template texts route through state keys and don't support these controls.
+  const isEffectText = type === 'text' && !!activeFloatingModule?.data.isInstanceText;
+  // Stroke-only shapes (lines/arrows) render no fill area, so a gradient fill
+  // would be a dead control on them.
+  const isFillableShape =
+    type === 'shape' && !STROKE_ONLY_SHAPES.has(String(activeFloatingModule?.data.type));
+
+  if ((isFillableShape || isEffectText) && activeFloatingModule && handlers.handleGradientSelect) {
+    groups.push(
+      <FloatingGradientControl
+        key="gradient"
+        currentColor={activeFloatingModule.data.fill ?? '#000000'}
+        gradient={activeFloatingModule.data.fillGradient ?? null}
+        onChange={(gradient) => handlers.handleGradientSelect!(gradient)}
+      />
+    );
+  }
+
+  if (isEffectText && activeFloatingModule && handlers.handleOutlineChange) {
+    groups.push(
+      <FloatingOutlineControl
+        key="outline"
+        stroke={activeFloatingModule.data.stroke}
+        strokeWidth={activeFloatingModule.data.strokeWidth}
+        onChange={(patch) => handlers.handleOutlineChange!(activeFloatingModule.data.id, patch)}
+      />
+    );
+  }
+
+  if (
+    (type === 'shape' || isEffectText || type === 'user-image') &&
+    activeFloatingModule &&
+    handlers.handleShadowChange
+  ) {
+    groups.push(
+      <FloatingShadowControl
+        key="shadow"
+        shadowColor={activeFloatingModule.data.shadowColor}
+        shadowBlur={activeFloatingModule.data.shadowBlur}
+        shadowOffsetX={activeFloatingModule.data.shadowOffsetX}
+        shadowOffsetY={activeFloatingModule.data.shadowOffsetY}
+        shadowOpacity={activeFloatingModule.data.shadowOpacity}
+        onChange={(patch) =>
+          handlers.handleShadowChange!(
+            activeFloatingModule.data.id,
+            patch,
+            activeFloatingModule.type
+          )
+        }
+      />
+    );
+  }
+
+  if (type === 'user-image' && activeFloatingModule && handlers.handleBlurChange) {
+    groups.push(
+      <FloatingBlurControl
+        key="blur"
+        blur={activeFloatingModule.data.blur ?? 0}
+        onBlurChange={(val) => handlers.handleBlurChange!(activeFloatingModule.data.id, val)}
+      />
     );
   }
 
