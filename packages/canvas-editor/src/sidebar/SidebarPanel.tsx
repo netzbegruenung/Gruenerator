@@ -64,7 +64,7 @@ export function SidebarPanel({
           'transition-[transform,opacity] duration-200 ease-out z-[101]',
           /* Desktop: left side panel next to tab bar, below the green menu bar */
           'canvas-mobile:top-[var(--editor-topbar-height)] canvas-mobile:bottom-0 canvas-mobile:right-auto canvas-mobile:w-[348px] canvas-mobile:max-w-[348px] canvas-mobile:min-w-0 canvas-mobile:pt-0 canvas-mobile:overflow-visible canvas-mobile:border-r canvas-mobile:border-[var(--editor-border)]',
-          'canvas-mobile:left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width,64px))]',
+          'canvas-mobile:left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width,76px))]',
           /* Mobile: bottom sheet — sits above the 60px tab bar */
           'max-canvas-mobile:overflow-hidden max-canvas-mobile:top-auto max-canvas-mobile:right-0 max-canvas-mobile:bottom-[var(--mobile-tab-bar-height,60px)] max-canvas-mobile:left-0 max-canvas-mobile:w-full max-canvas-mobile:max-w-full max-canvas-mobile:min-w-0 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px))] max-canvas-mobile:pt-0 max-canvas-mobile:rounded-t-2xl max-canvas-mobile:shadow-[0_-4px_24px_rgba(0,0,0,0.12)] max-canvas-mobile:z-[99]',
           'max-canvas-mobile:translate-y-0'
