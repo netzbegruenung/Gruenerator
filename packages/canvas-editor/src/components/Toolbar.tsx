@@ -1,70 +1,32 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo } from 'react';
 
 import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
-import { FONT_COLORS } from '../utils/shapes';
 
 import { TopBar } from './TopBar/TopBar';
 import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
 import { FloatingAiSuggestionBanner } from './TopBar/modules/FloatingAiSuggestionBanner';
-import { FloatingColorPicker } from './TopBar/modules/FloatingColorPicker';
-import { FloatingFontSizeControl } from './TopBar/modules/FloatingFontSizeControl';
 import { FloatingHistoryControls } from './TopBar/modules/FloatingHistoryControls';
-import { FloatingLayerControls } from './TopBar/modules/FloatingLayerControls';
-import { FloatingOpacityControl } from './TopBar/modules/FloatingOpacityControl';
-
-import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
 
 /**
- * Toolbar - Top bar with contextual controls
+ * Toolbar — the green menu bar (3a/3b design).
  *
- * Renders a full-width toolbar above the canvas with:
- * - History controls (undo/redo)
- * - Layer controls (move up/down)
- * - Element-specific controls (color, opacity, font size)
- * - Optional delete button (for multi-page mode)
- * - Optional page indicator (for multi-page navigation)
+ * Holds only the file-level chrome: host slots (title, presence), undo/redo,
+ * and the Share button. The selection-driven formatting controls live in the
+ * floating ContextToolbar (desktop) / MobileContextBar (mobile) — see
+ * ContextControls.tsx.
  */
-
-/**
- * Page navigation info for multi-page mode.
- * When provided, shows a page indicator with prev/next controls.
- */
-export interface PageInfo {
-  /** Current page index (0-based) */
-  current: number;
-  /** Total number of pages */
-  total: number;
-  /** Navigate to previous page */
-  onPrev: () => void;
-  /** Navigate to next page */
-  onNext: () => void;
-  /** Optional: Navigate to specific page */
-  onGoTo?: (index: number) => void;
-}
 
 export type AlignmentDirection = 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom';
 
 interface ToolbarProps {
-  selectedElement: string | null;
-  activeFloatingModule: FloatingModuleState | null;
   canUndo: boolean;
   canRedo: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
   handlers: {
     undo: () => void;
     redo: () => void;
-    handleMoveLayer: (direction: 'up' | 'down') => void;
-    handleColorSelect: (color: string) => void;
-    handleOpacityChange: (id: string, opacity: number, type: string) => void;
-    handleFontSizeChange: (id: string, size: number) => void;
-    handleAlign?: (direction: AlignmentDirection) => void;
   };
-  onDelete?: () => void;
   /** Share dropdown props — when provided, renders the share button in the top-right */
   shareProps?: ShareDropdownProps;
-  /** Optional page info for multi-page navigation */
-  pageInfo?: PageInfo;
   /** Host-supplied content rendered at the very left of the bar (in-flow). */
   chromeLeft?: React.ReactNode;
   /** Host-supplied content rendered absolute-centered inside the bar (e.g. doc title, sync badge). */
@@ -75,42 +37,16 @@ interface ToolbarProps {
 
 export const Toolbar = memo(
   ({
-    selectedElement,
-    activeFloatingModule,
     canUndo,
     canRedo,
-    canMoveUp,
-    canMoveDown,
     handlers,
-    onDelete,
     shareProps,
-    pageInfo,
     chromeLeft,
     chromeCenter,
     chromeRight,
   }: ToolbarProps) => {
-    const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
-    const [isMobile, setIsMobile] = useState(
-      typeof window !== 'undefined' && window.innerWidth < 900
-    );
     const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
 
-    useEffect(() => {
-      const handleResize = () => setIsMobile(window.innerWidth < 900);
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    // On mobile, hide other controls when color picker is expanded
-    const shouldHideOtherControls = isMobile && isColorPickerExpanded;
-
-    // Override mode: when an AI suggestion is pending, replace the normal
-    // toolbar contents with the accept/revert banner. Keeps the user's eye on
-    // the canvas with a single clear decision. We pass the toolbar's `undo`
-    // handler directly — that's the per-page canvas's undo (via the imperative
-    // ref), which hits the correct inner store. Selecting `s.undo` from
-    // `useCanvasStoreSelector` here would fall through to the singleton store
-    // (no history) since this component is outside the per-page provider.
     const rightCluster =
       chromeRight || shareProps ? (
         <div className="ml-auto flex items-center gap-sm">
@@ -125,6 +61,9 @@ export const Toolbar = memo(
       </div>
     ) : null;
 
+    // Override mode: when an AI suggestion is pending, replace the toolbar
+    // contents with the accept/revert banner. `handlers.undo` is the per-page
+    // canvas's undo (via the imperative ref), hitting the correct inner store.
     if (hasPendingAiSuggestion) {
       return (
         <TopBar visible={true}>
@@ -140,252 +79,13 @@ export const Toolbar = memo(
       <TopBar visible={true}>
         {chromeLeft}
         {centerSlot}
-        {!shouldHideOtherControls && onDelete && (
-          <>
-            <button
-              className="size-8 max-canvas-mobile:size-11 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 dark:hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
-              onClick={() => {
-                if (window.confirm('Seite wirklich löschen?')) {
-                  onDelete();
-                }
-              }}
-              title="Seite löschen"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-            </button>
-            <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-          </>
-        )}
-
-        {!shouldHideOtherControls && (
-          <FloatingHistoryControls
-            onUndo={handlers.undo}
-            onRedo={handlers.redo}
-            canUndo={canUndo}
-            canRedo={canRedo}
-          />
-        )}
-
-        {!shouldHideOtherControls && selectedElement && (
-          <>
-            <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-            <FloatingLayerControls
-              onMoveUp={() => handlers.handleMoveLayer('up')}
-              onMoveDown={() => handlers.handleMoveLayer('down')}
-              canMoveUp={canMoveUp}
-              canMoveDown={canMoveDown}
-            />
-            {handlers.handleAlign && activeFloatingModule?.type === 'text' && (
-              <>
-                <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-                <div className="flex items-center gap-0.5">
-                  <button
-                    className="size-7 max-canvas-mobile:size-10 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
-                    onClick={() => handlers.handleAlign!('left')}
-                    title="Links ausrichten"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    >
-                      <line x1="4" y1="4" x2="4" y2="20" />
-                      <rect x="8" y="6" width="12" height="4" rx="1" />
-                      <rect x="8" y="14" width="8" height="4" rx="1" />
-                    </svg>
-                  </button>
-                  <button
-                    className="size-7 max-canvas-mobile:size-10 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
-                    onClick={() => handlers.handleAlign!('center-h')}
-                    title="Horizontal zentrieren"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    >
-                      <line x1="12" y1="2" x2="12" y2="22" />
-                      <rect x="4" y="6" width="16" height="4" rx="1" />
-                      <rect x="6" y="14" width="12" height="4" rx="1" />
-                    </svg>
-                  </button>
-                  <button
-                    className="size-7 max-canvas-mobile:size-10 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:bg-hover-alt hover:text-primary-600"
-                    onClick={() => handlers.handleAlign!('center-v')}
-                    title="Vertikal zentrieren"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    >
-                      <line x1="2" y1="12" x2="22" y2="12" />
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="6" width="4" height="12" rx="1" />
-                    </svg>
-                  </button>
-                </div>
-              </>
-            )}
-          </>
-        )}
-
-        {activeFloatingModule && (
-          <>
-            {!shouldHideOtherControls && (
-              <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-            )}
-
-            {activeFloatingModule.type === 'text' && (
-              <>
-                <FloatingColorPicker
-                  currentColor={activeFloatingModule.data.fill || '#000000'}
-                  onColorSelect={handlers.handleColorSelect}
-                  isExpanded={isColorPickerExpanded}
-                  onExpandChange={setIsColorPickerExpanded}
-                  colors={FONT_COLORS}
-                />
-                {!shouldHideOtherControls && (
-                  <>
-                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-                    <FloatingFontSizeControl
-                      fontSize={activeFloatingModule.data.fontSize ?? 16}
-                      onFontSizeChange={(size) =>
-                        handlers.handleFontSizeChange(activeFloatingModule.data.id, size)
-                      }
-                    />
-                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-                    <FloatingOpacityControl
-                      opacity={activeFloatingModule.data.opacity ?? 1}
-                      onOpacityChange={(val) =>
-                        handlers.handleOpacityChange(activeFloatingModule.data.id, val, 'text')
-                      }
-                    />
-                  </>
-                )}
-              </>
-            )}
-
-            {activeFloatingModule.type === 'image' && (
-              <>
-                {activeFloatingModule.data.fill !== undefined && (
-                  <>
-                    <FloatingColorPicker
-                      currentColor={activeFloatingModule.data.fill || '#FFFFFF'}
-                      onColorSelect={handlers.handleColorSelect}
-                      isExpanded={isColorPickerExpanded}
-                      onExpandChange={setIsColorPickerExpanded}
-                    />
-                    {!shouldHideOtherControls && (
-                      <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-                    )}
-                  </>
-                )}
-                {!shouldHideOtherControls && (
-                  <FloatingOpacityControl
-                    opacity={activeFloatingModule.data.opacity ?? 1}
-                    onOpacityChange={(val) =>
-                      handlers.handleOpacityChange(activeFloatingModule.data.id, val, 'image')
-                    }
-                  />
-                )}
-              </>
-            )}
-
-            {(activeFloatingModule.type === 'shape' ||
-              activeFloatingModule.type === 'icon' ||
-              activeFloatingModule.type === 'illustration' ||
-              activeFloatingModule.type === 'asset') && (
-              <>
-                <FloatingColorPicker
-                  currentColor={
-                    activeFloatingModule.type === 'shape'
-                      ? (activeFloatingModule.data.fill ?? '#000000')
-                      : (activeFloatingModule.data.color ?? '#000000')
-                  }
-                  onColorSelect={handlers.handleColorSelect}
-                  isExpanded={isColorPickerExpanded}
-                  onExpandChange={setIsColorPickerExpanded}
-                />
-                {!shouldHideOtherControls && (
-                  <>
-                    <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-                    <FloatingOpacityControl
-                      opacity={activeFloatingModule.data.opacity ?? 1}
-                      onOpacityChange={(val) =>
-                        handlers.handleOpacityChange(
-                          activeFloatingModule.data.id,
-                          val,
-                          activeFloatingModule.type as 'shape' | 'icon' | 'illustration' | 'asset'
-                        )
-                      }
-                    />
-                  </>
-                )}
-              </>
-            )}
-
-            {activeFloatingModule.type === 'background' && (
-              <>
-                {activeFloatingModule.data.fill !== undefined && (
-                  <>
-                    <FloatingColorPicker
-                      currentColor={activeFloatingModule.data.fill || '#FFFFFF'}
-                      onColorSelect={handlers.handleColorSelect}
-                      isExpanded={isColorPickerExpanded}
-                      onExpandChange={setIsColorPickerExpanded}
-                    />
-                    {!shouldHideOtherControls && (
-                      <div className="w-px h-5 bg-grey-200 dark:bg-grey-700 mx-1 max-canvas-mobile:h-6 max-canvas-mobile:mx-1" />
-                    )}
-                  </>
-                )}
-                {!shouldHideOtherControls && (
-                  <FloatingOpacityControl
-                    opacity={activeFloatingModule.data.opacity ?? 1}
-                    onOpacityChange={(val) =>
-                      handlers.handleOpacityChange(activeFloatingModule.data.id, val, 'background')
-                    }
-                  />
-                )}
-              </>
-            )}
-
-            {activeFloatingModule.type === 'balken' && !shouldHideOtherControls && (
-              <FloatingOpacityControl
-                opacity={activeFloatingModule.data.opacity ?? 1}
-                onOpacityChange={(val) =>
-                  handlers.handleOpacityChange(activeFloatingModule.data.id, val, 'balken')
-                }
-              />
-            )}
-          </>
-        )}
-
+        <FloatingHistoryControls
+          onUndo={handlers.undo}
+          onRedo={handlers.redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onDark
+        />
         {rightCluster}
       </TopBar>
     );
