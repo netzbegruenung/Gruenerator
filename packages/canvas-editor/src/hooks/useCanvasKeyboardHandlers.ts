@@ -352,6 +352,96 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
 
       // Ignore if typing in input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.target as HTMLElement | null)?.isContentEditable) return;
+
+      // ARROW KEYS — nudge selected element (1px, Shift = 10px)
+      const NUDGE_DELTAS: Record<string, [number, number]> = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+      };
+      if (e.key in NUDGE_DELTAS) {
+        const [ux, uy] = NUDGE_DELTAS[e.key];
+        const step = e.shiftKey ? 10 : 1;
+        const dx = ux * step;
+        const dy = uy * step;
+
+        const shape = currentState.shapeInstances?.find((s) => s.id === selectedElement);
+        if (shape && currentActions.updateShape) {
+          e.preventDefault();
+          currentActions.updateShape(selectedElement, { x: shape.x + dx, y: shape.y + dy });
+          return;
+        }
+        const text = currentState.additionalTexts?.find((t) => t.id === selectedElement);
+        if (text && currentActions.updateAdditionalText) {
+          e.preventDefault();
+          currentActions.updateAdditionalText(selectedElement, { x: text.x + dx, y: text.y + dy });
+          return;
+        }
+        const ill = currentState.illustrationInstances?.find((i) => i.id === selectedElement);
+        if (ill && currentActions.updateIllustration) {
+          e.preventDefault();
+          currentActions.updateIllustration(selectedElement, { x: ill.x + dx, y: ill.y + dy });
+          return;
+        }
+        const asset = currentState.assetInstances?.find((a) => a.id === selectedElement);
+        if (asset && currentActions.updateAsset) {
+          e.preventDefault();
+          currentActions.updateAsset(selectedElement, { x: asset.x + dx, y: asset.y + dy });
+          return;
+        }
+        const frame = currentState.frameInstances?.find((f) => f.id === selectedElement);
+        if (frame && currentActions.updateFrame) {
+          e.preventDefault();
+          currentActions.updateFrame(selectedElement, { x: frame.x + dx, y: frame.y + dy });
+          return;
+        }
+        const pillBadge = currentState.pillBadgeInstances?.find((p) => p.id === selectedElement);
+        if (pillBadge && currentActions.updatePillBadge) {
+          e.preventDefault();
+          currentActions.updatePillBadge(selectedElement, {
+            x: pillBadge.x + dx,
+            y: pillBadge.y + dy,
+          });
+          return;
+        }
+        const circleBadge = currentState.circleBadgeInstances?.find(
+          (c) => c.id === selectedElement
+        );
+        if (circleBadge && currentActions.updateCircleBadge) {
+          e.preventDefault();
+          currentActions.updateCircleBadge(selectedElement, {
+            x: circleBadge.x + dx,
+            y: circleBadge.y + dy,
+          });
+          return;
+        }
+        const userImage = currentState.userImageInstances?.find((u) => u.id === selectedElement);
+        if (userImage && currentActions.updateUserImage) {
+          e.preventDefault();
+          currentActions.updateUserImage(selectedElement, {
+            x: userImage.x + dx,
+            y: userImage.y + dy,
+          });
+          return;
+        }
+        const icon = currentState.iconStates?.[selectedElement];
+        if (icon && currentActions.updateIcon) {
+          e.preventDefault();
+          currentActions.updateIcon(selectedElement, { x: icon.x + dx, y: icon.y + dy });
+          return;
+        }
+        const balken = currentState.balkenInstances?.find((b) => b.id === selectedElement);
+        if (balken && currentActions.updateBalken) {
+          e.preventDefault();
+          currentActions.updateBalken(selectedElement, {
+            offset: { x: (balken.offset?.x ?? 0) + dx, y: (balken.offset?.y ?? 0) + dy },
+          });
+          return;
+        }
+        return;
+      }
 
       // ENTER — open file picker for selected frame
       if (e.key === 'Enter' && currentActions.setFrameImage) {

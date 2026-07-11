@@ -71,6 +71,8 @@ import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
+import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
+import type { GradientFill } from '../utils/gradientFill';
 import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
@@ -133,9 +135,10 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
 
 export interface GenericCanvasRef {
   toDataURL: (options?: {
-    format?: 'png' | 'jpeg';
+    format?: 'png' | 'jpeg' | 'webp';
     pixelRatio?: number;
     quality?: number;
+    includeBackground?: boolean;
   }) => string | undefined;
   captureCanvas: () => Promise<string | null>;
   /** Lightweight JPEG capture for sending the canvas to vision models. */
@@ -159,6 +162,10 @@ export interface GenericCanvasRef {
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
   handleAlign?: (direction: AlignmentDirection) => void;
+  handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
+  handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
+  handleBlurChange?: (id: string, blur: number) => void;
+  handleGradientSelect?: (gradient: GradientFill | null) => void;
 }
 
 // Generic component with forwardRef - uses type assertion pattern for TypeScript compatibility
@@ -535,6 +542,11 @@ function GenericCanvasWithRef<
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
       handleAlign,
+      handleShadowChange: (id, patch, type) =>
+        bridgeRef.current?.handleShadowChange(id, patch, type),
+      handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
+      handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
+      handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
     }),
     [state, actions, store, undo, redo, elementHandlers.handleFontSizeChange, handleAlign]
   );

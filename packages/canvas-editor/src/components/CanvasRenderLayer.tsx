@@ -464,6 +464,14 @@ function CanvasRenderLayerInner<
           fontFamily={textItem.fontFamily}
           fontStyle={textItem.fontStyle || 'normal'}
           fill={textItem.fill}
+          stroke={textItem.stroke}
+          strokeWidth={textItem.strokeWidth}
+          shadowColor={textItem.shadowColor}
+          shadowBlur={textItem.shadowBlur}
+          shadowOffsetX={textItem.shadowOffsetX}
+          shadowOffsetY={textItem.shadowOffsetY}
+          shadowOpacity={textItem.shadowOpacity}
+          fillGradient={textItem.fillGradient}
           align="left"
           opacity={textItem.opacity ?? 1}
           rotation={textItem.rotation || 0}

@@ -124,17 +124,36 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         if (!stage) return undefined;
 
         const format = options.format || 'png';
-        const mimeType: string = `image/${format}`;
+        const mimeType = `image/${format}` as 'image/png' | 'image/jpeg' | 'image/webp';
 
         // Compensate for display scaling: if stage is rendered at 0.5x scale,
         // we need 2x pixelRatio to get 1:1 output resolution
         const effectivePixelRatio = (options.pixelRatio ?? 1) / displayScale;
 
-        return stage.toDataURL({
-          pixelRatio: effectivePixelRatio,
-          mimeType: mimeType as 'image/png' | 'image/jpeg',
-          quality: options.quality,
-        });
+        // includeBackground === false → transparent export: hide the background
+        // node(s) for the capture, then restore. JPEG has no alpha, so the flag
+        // is a no-op there (the DownloadSection UI only offers it for PNG/WebP).
+        const hideBackground = options.includeBackground === false && format !== 'jpeg';
+        const backgroundNodes = hideBackground
+          ? stage.find('.canvas-background').filter((node) => node.visible())
+          : [];
+
+        const capture = () =>
+          stage.toDataURL({
+            pixelRatio: effectivePixelRatio,
+            mimeType,
+            quality: options.quality,
+          });
+
+        if (backgroundNodes.length === 0) return capture();
+        backgroundNodes.forEach((node) => node.hide());
+        stage.draw();
+        try {
+          return capture();
+        } finally {
+          backgroundNodes.forEach((node) => node.show());
+          stage.draw();
+        }
       },
       [displayScale]
     );
