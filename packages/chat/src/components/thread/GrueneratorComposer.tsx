@@ -737,7 +737,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       maxRows={isPill ? 6 : isCompact ? 4 : 8}
       className={
         isPill
-          ? 'min-h-0 w-full min-w-0 flex-1 resize-none self-center bg-transparent px-1.5 py-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
+          ? 'min-h-0 w-full min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-foreground outline-none placeholder:text-foreground-muted/60'
           : isCompact
             ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
             : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
@@ -836,7 +836,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           ))}
 
         {isPill ? (
-          <div className="flex items-end gap-0.5 px-1.5 py-1">
+          <div className="flex items-center gap-0.5 px-1.5 py-1">
             {hiddenUploadButton}
             {plusMenuNode}
             {composerInput}
