@@ -1,6 +1,8 @@
+import { type BoardPreview } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import React, { memo } from 'react';
 
+import { parseSlidesPreview } from '../../utils/parseSlidesPreview';
 import { parseTablePreview } from '../../utils/parseTablePreview';
 
 // Schematic card previews shared by the Workplace "Zuletzt" section and the
@@ -40,33 +42,74 @@ const WHITEBOARD_NOTES = [
   { id: 'wb-f', tint: 'bg-primary-50 dark:bg-primary-900/30' },
 ];
 
-export const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboard' }) => {
-  if (boardType === 'whiteboard') {
+export const BoardPreviewBody = memo(
+  ({
+    boardType,
+    preview,
+  }: {
+    boardType?: 'kanban' | 'whiteboard';
+    preview?: BoardPreview | null;
+  }) => {
+    if (boardType === 'whiteboard') {
+      const notes = preview?.notes ?? [];
+      return (
+        <div className="grid h-full grid-cols-3 grid-rows-2 gap-2" aria-hidden>
+          {WHITEBOARD_NOTES.map((note, idx) => (
+            <div key={note.id} className={cn('overflow-hidden rounded-[5px] p-1.5', note.tint)}>
+              {notes[idx] ? (
+                <span className="line-clamp-3 block text-[9px] leading-tight text-grey-700 dark:text-grey-200">
+                  {notes[idx]}
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    const columns = preview?.columns?.length ? preview.columns : null;
+    if (columns) {
+      return (
+        <div className="flex gap-2.5" aria-hidden>
+          {columns.map((col, idx) => (
+            <div key={`${col.name}-${idx}`} className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-1">
+                <span className="truncate text-[9px] font-semibold uppercase tracking-wide text-secondary-700 dark:text-secondary-300">
+                  {col.name}
+                </span>
+                <span className="shrink-0 text-[9px] text-grey-400 dark:text-grey-500">
+                  {col.count}
+                </span>
+              </div>
+              {Array.from({ length: Math.min(col.count, 3) }, (_, i) => (
+                <div
+                  key={`${col.name}-${idx}-${i}`}
+                  className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     return (
-      <div className="grid h-full grid-cols-3 grid-rows-2 gap-2" aria-hidden>
-        {WHITEBOARD_NOTES.map((note) => (
-          <div key={note.id} className={cn('rounded-[5px]', note.tint)} />
+      <div className="flex gap-2.5" aria-hidden>
+        {KANBAN_COLUMNS.map((col) => (
+          <div key={col.id} className="flex flex-1 flex-col gap-1.5">
+            <div className="h-2 rounded-[3px] bg-secondary-300 dark:bg-secondary-600" />
+            {Array.from({ length: col.cards }, (_, i) => (
+              <div
+                key={`${col.id}-${i}`}
+                className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
+              />
+            ))}
+          </div>
         ))}
       </div>
     );
   }
-
-  return (
-    <div className="flex gap-2.5" aria-hidden>
-      {KANBAN_COLUMNS.map((col) => (
-        <div key={col.id} className="flex flex-1 flex-col gap-1.5">
-          <div className="h-2 rounded-[3px] bg-secondary-300 dark:bg-secondary-600" />
-          {Array.from({ length: col.cards }, (_, i) => (
-            <div
-              key={`${col.id}-${i}`}
-              className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-});
+);
 BoardPreviewBody.displayName = 'BoardPreviewBody';
 
 // Spreadsheet preview: a schematic grid (A/B/C column headers + numbered row
@@ -151,28 +194,58 @@ export const TablePreviewBody = memo(({ content }: { content?: string }) => {
 TablePreviewBody.displayName = 'TablePreviewBody';
 
 // Presentation preview: a large title slide over a filmstrip of three slide
-// thumbnails. Slide data lives in the Y.Doc (reveal deck), so this is always a
-// schematic — same visual language as the board/table schematics.
+// thumbnails. Renders the real slide titles when `content` carries the
+// server-written preview list, else the bar schematic.
 const FILMSTRIP_SLIDES = ['slide-1', 'slide-2', 'slide-3'];
 
-export const SlidesPreviewBody = memo(() => (
-  <div className="flex h-full flex-col gap-2" aria-hidden>
-    <div className="flex flex-1 flex-col justify-center gap-2 rounded-md border border-grey-200 bg-white px-4 dark:border-grey-700/60 dark:bg-grey-900/40">
-      <div className="h-2.5 w-1/2 rounded-full bg-secondary-300 dark:bg-secondary-600" />
-      <div className="h-1.5 w-4/5 rounded-full bg-grey-200 dark:bg-grey-700/60" />
-      <div className="h-1.5 w-2/3 rounded-full bg-grey-200 dark:bg-grey-700/60" />
+export const SlidesPreviewBody = memo(({ content }: { content?: string }) => {
+  const { titles, total } = content
+    ? parseSlidesPreview(content)
+    : { titles: [] as string[], total: 0 };
+  const [deckTitle, ...restTitles] = titles;
+  const hiddenCount = Math.max(0, total - 1 - FILMSTRIP_SLIDES.length);
+
+  return (
+    <div className="flex h-full flex-col gap-2" aria-hidden>
+      <div className="flex flex-1 flex-col justify-center gap-2 rounded-md border border-grey-200 bg-white px-4 dark:border-grey-700/60 dark:bg-grey-900/40">
+        {deckTitle ? (
+          <p className="m-0 line-clamp-2 text-[13px] font-bold leading-snug text-grey-800 dark:text-grey-100">
+            {deckTitle}
+          </p>
+        ) : (
+          <div className="h-2.5 w-1/2 rounded-full bg-secondary-300 dark:bg-secondary-600" />
+        )}
+        <div className="h-1.5 w-4/5 rounded-full bg-grey-200 dark:bg-grey-700/60" />
+        <div className="h-1.5 w-2/3 rounded-full bg-grey-200 dark:bg-grey-700/60" />
+      </div>
+      <div className="flex gap-2">
+        {FILMSTRIP_SLIDES.map((id, idx) => {
+          const isLast = idx === FILMSTRIP_SLIDES.length - 1;
+          const title = restTitles[idx];
+          return (
+            <div
+              key={id}
+              className="flex h-9 min-w-0 flex-1 flex-col justify-center gap-1 rounded-[5px] border border-grey-200 bg-white px-2 dark:border-grey-700/60 dark:bg-grey-900/40"
+            >
+              {isLast && hiddenCount > 0 ? (
+                <span className="text-center text-[9px] font-semibold text-grey-400 dark:text-grey-500">
+                  +{hiddenCount + 1}
+                </span>
+              ) : title ? (
+                <span className="line-clamp-2 text-[8px] leading-tight text-grey-600 dark:text-grey-300">
+                  {title}
+                </span>
+              ) : (
+                <>
+                  <div className="h-1 w-2/3 rounded-full bg-secondary-200 dark:bg-secondary-700" />
+                  <div className="h-1 w-full rounded-full bg-grey-100 dark:bg-grey-700/50" />
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
-    <div className="flex gap-2">
-      {FILMSTRIP_SLIDES.map((id) => (
-        <div
-          key={id}
-          className="flex h-9 flex-1 flex-col justify-center gap-1 rounded-[5px] border border-grey-200 bg-white px-2 dark:border-grey-700/60 dark:bg-grey-900/40"
-        >
-          <div className="h-1 w-2/3 rounded-full bg-secondary-200 dark:bg-secondary-700" />
-          <div className="h-1 w-full rounded-full bg-grey-100 dark:bg-grey-700/50" />
-        </div>
-      ))}
-    </div>
-  </div>
-));
+  );
+});
 SlidesPreviewBody.displayName = 'SlidesPreviewBody';

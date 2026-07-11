@@ -156,7 +156,7 @@ export const DocumentCard = memo(function DocumentCard({
           </>
         ) : isSlides ? (
           <div className="h-full p-4">
-            <SlidesPreviewBody />
+            <SlidesPreviewBody content={doc.content} />
           </div>
         ) : preview ? (
           <div className="flex flex-col gap-1.5 px-3.5 pt-4 text-left">
