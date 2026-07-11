@@ -14,7 +14,6 @@ import { RiVoiceAiFill } from 'react-icons/ri';
 import { cn } from '@gruenerator/ui';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore, type ThreadMode } from '../../stores/chatStore';
-import { ToolToggles } from '../ToolToggles';
 import { SearchDepthToggle } from '../SearchDepthToggle';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { ComposerAttachments } from '../assistant-ui/attachment';
@@ -64,6 +63,10 @@ interface GrueneratorComposerProps {
    * implicit thread mode. */
   modelPickerThreadModeOverride?: ThreadMode;
   insideAgent?: boolean;
+  /** 'card' (default): textarea with toolbar row below. 'pill': slim
+   * single-row composer — plus menu, input, model picker and send inline —
+   * that grows with the textarea (workplace hero). */
+  variant?: 'card' | 'pill';
   /** Render-prop slots for surface-specific UI. */
   slots?: {
     /** Above the input — selection chips, contextual hints. */
@@ -235,6 +238,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showModelPicker = true,
   modelPickerThreadModeOverride,
   insideAgent = false,
+  variant = 'card',
   slots,
   requireProfileHydration = false,
 }: GrueneratorComposerProps) {
@@ -696,11 +700,61 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
   }, []);
 
+  const isPill = variant === 'pill';
+
+  const hiddenUploadButton = (
+    <ComposerPrimitive.AddAttachment asChild>
+      <button ref={uploadRef} className="hidden" aria-hidden="true" />
+    </ComposerPrimitive.AddAttachment>
+  );
+
+  const plusMenuNode = showPlusMenu ? (
+    <PlusMenu
+      onInsertMention={handleSelect}
+      onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
+      onUploadFile={handlePlusMenuUpload}
+      includeModes={showToolToggles}
+      insideAgent={insideAgent}
+      firstName={firstName ?? null}
+      {...(onNavigate ? { onNavigate, onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
+    />
+  ) : null;
+
+  const modelPickerNode = showModelPicker ? (
+    <ModelPicker
+      {...(modelPickerThreadModeOverride && {
+        threadModeOverride: modelPickerThreadModeOverride,
+      })}
+    />
+  ) : null;
+
+  const composerInput = (
+    <ComposerPrimitive.Input
+      ref={textareaRef}
+      autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
+      placeholder={placeholder}
+      minRows={1}
+      maxRows={isPill ? 6 : isCompact ? 4 : 8}
+      className={
+        isPill
+          ? 'min-h-0 w-full min-w-0 flex-1 resize-none self-center bg-transparent px-1.5 py-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
+          : isCompact
+            ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
+            : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
+      }
+      onChange={showMentions ? handleChange : undefined}
+      onKeyDown={showMentions ? handleKeyDown : undefined}
+    />
+  );
+
   return (
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root
         className={cn(
-          'composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md',
+          'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow focus-within:border-primary/30 dark:bg-surface',
+          isPill
+            ? 'rounded-[26px] shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 dark:shadow-sm'
+            : 'rounded-3xl shadow-lg focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           isMistral ? 'border-[#003399]' : 'border-border'
         )}
       >
@@ -779,64 +833,45 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             />
           ))}
 
-        <ComposerPrimitive.Input
-          ref={textareaRef}
-          autoFocus={
-            typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches
-          }
-          placeholder={placeholder}
-          minRows={1}
-          maxRows={isCompact ? 4 : 8}
-          className={
-            isCompact
-              ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
-              : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
-          }
-          onChange={showMentions ? handleChange : undefined}
-          onKeyDown={showMentions ? handleKeyDown : undefined}
-        />
-
-        <div className="flex items-center justify-between px-2 pb-1">
-          <div className="flex items-center gap-0.5">
-            <ComposerPrimitive.AddAttachment asChild>
-              <button ref={uploadRef} className="hidden" aria-hidden="true" />
-            </ComposerPrimitive.AddAttachment>
-            {showPlusMenu && (
-              <PlusMenu
-                onInsertMention={handleSelect}
-                onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
-                onUploadFile={handlePlusMenuUpload}
-                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
-              />
-            )}
-            {showToolToggles && (
-              <ToolToggles
-                onNavigate={onNavigate}
-                firstName={firstName}
-                insideAgent={insideAgent}
-              />
-            )}
+        {isPill ? (
+          <div className="flex items-end gap-0.5 px-1.5 py-1">
+            {hiddenUploadButton}
+            {plusMenuNode}
+            {composerInput}
             {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
-          </div>
-          <div className="flex items-center gap-0.5">
-            {showModelPicker && (
-              <ModelPicker
-                {...(modelPickerThreadModeOverride && {
-                  threadModeOverride: modelPickerThreadModeOverride,
-                })}
-              />
-            )}
-            {/* TODO: re-enable when realtime voice agent is ready for users
-            <ComposerVoiceToggle />
-            */}
+            {modelPickerNode}
             {slots?.sendAdornment}
             <ComposerButtons
               isRunning={isRunning}
               requireProfileHydration={requireProfileHydration}
             />
           </div>
-        </div>
+        ) : (
+          <>
+            {composerInput}
+
+            <div className="flex items-center justify-between px-2 pb-1">
+              <div className="flex items-center gap-0.5">
+                {hiddenUploadButton}
+                {plusMenuNode}
+                {showToolToggles && <SearchDepthToggleSlot />}
+                {toolbarExtra}
+              </div>
+              <div className="flex items-center gap-0.5">
+                {modelPickerNode}
+                {/* TODO: re-enable when realtime voice agent is ready for users
+                <ComposerVoiceToggle />
+                */}
+                {slots?.sendAdornment}
+                <ComposerButtons
+                  isRunning={isRunning}
+                  requireProfileHydration={requireProfileHydration}
+                />
+              </div>
+            </div>
+          </>
+        )}
         {slots?.belowInput}
       </ComposerPrimitive.Root>
       <p
