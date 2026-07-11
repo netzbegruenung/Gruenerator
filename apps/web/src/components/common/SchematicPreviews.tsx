@@ -5,11 +5,11 @@ import React, { memo } from 'react';
 import { parseSlidesPreview } from '../../utils/parseSlidesPreview';
 import { parseTablePreview } from '../../utils/parseTablePreview';
 
-// Schematic card previews shared by the Workplace "Zuletzt" section and the
-// Office overview. Boards, Univer sheets and presentations keep their real
-// data in Yjs (loaded only inside the editors), so list cards render a
-// type-faithful schematic instead of a live excerpt; legacy 'tabelle' docs
-// carry an HTML <table> in `content` and get their real leading cells.
+// Card preview bodies shared by the Workplace "Zuletzt" section and the
+// Office overview. Each renders real data when available — table cells and
+// slide titles from the server-maintained `content` preview, board columns /
+// note texts from the board's content metadata — and falls back to a
+// type-faithful schematic while no preview has been written yet.
 
 // Stylised placeholder for content-less documents: one eucalyptus "title" bar
 // over greyed body bars — reads as a document outline instead of an empty plate.
@@ -114,9 +114,9 @@ BoardPreviewBody.displayName = 'BoardPreviewBody';
 
 // Spreadsheet preview: a schematic grid (A/B/C column headers + numbered row
 // gutter) filled with the table's real leading cells when the content carries
-// an HTML <table>, else faint placeholder bars. Univer sheets have no HTML
-// content, so they always show the schematic — which still reads as a
-// spreadsheet at a glance, distinct from the prose plate a plain doc shows.
+// an HTML <table> — legacy 'tabelle' docs store one directly, Univer sheets
+// get one written by the Hocuspocus preview pipeline. Faint placeholder bars
+// until a preview exists.
 const COLUMN_LETTERS = ['A', 'B', 'C', 'D'];
 const TABLE_PLACEHOLDER_ROWS = 4;
 
