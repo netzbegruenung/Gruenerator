@@ -77,6 +77,37 @@ export const SOCIAL_BARE_NOUN_PATTERN =
 export const SOCIAL_META_QUESTION_PATTERN = /^\s*(wie|was|wer|warum|wieso|welche|wann|wo)\b/i;
 
 /**
+ * Above this length the message likely carries pasted reference material
+ * (Beschluss, Doku-Seite). Nouns inside a paste ("Sharepics", "Instagram")
+ * describe content, they are not the user's ask — noun-triggered fast paths
+ * stand down so the LLM tier can separate instruction from material.
+ */
+export const NOUN_TRIGGER_MAX_LENGTH = 500;
+
+// Hoisted 'g' copy for matchAll (which clones internally, so sharing is safe).
+const SOCIAL_CREATE_VERB_PATTERN_G = new RegExp(SOCIAL_CREATE_VERB_PATTERN.source, 'gi');
+
+/**
+ * True when `nounPattern` matches within `window` chars of a creation verb.
+ * Guards verb+noun rules against pairing the instruction's verb ("schreibe …")
+ * with a noun hundreds of chars away inside pasted material.
+ */
+export function nounNearCreateVerb(text: string, nounPattern: RegExp, window = 120): boolean {
+  // Nouns are the rare token — bail before the verb scan for the common case.
+  if (!nounPattern.test(text)) return false;
+  const verbIndices = [...text.matchAll(SOCIAL_CREATE_VERB_PATTERN_G)].map((m) => m.index ?? 0);
+  if (verbIndices.length === 0) return false;
+  for (const noun of text.matchAll(new RegExp(nounPattern.source, 'gi'))) {
+    const nounIndex = noun.index ?? 0;
+    if (verbIndices.some((v) => Math.abs(nounIndex - v) <= window)) return true;
+  }
+  return false;
+}
+
+/** Trigger nouns for the heuristic social rules below (narrower than the classifier's SOCIAL_NOUN_PATTERN). */
+const SOCIAL_TRIGGER_NOUN_PATTERN = /\b(social\s*media|post|tweet|instagram)\b/i;
+
+/**
  * Escape hatches for a message that would otherwise route to `social_post`:
  * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
  * exclusionary sharepic wording keeps the shipped sharepic-only flow.
@@ -336,6 +367,29 @@ export function looksMultiTopic(query: string): boolean {
   return leftWords.length >= 2 && rightWords.length >= 2;
 }
 
+// Unit conversion needs a TARGET unit after the preposition — a bare
+// "in"/"als" matches everyday German ("Tempo 30 in der Innenstadt",
+// "35 °C in Berlin") and hijacked post creation into compute. "in" is also
+// not a source unit (inches are never written "30 in" in German). The unit
+// boundary is `(?![a-zäöüß0-9])`, not `\b` — JS \b is ASCII-only, so `fuß\b`
+// before a space can never match. Module scope: new RegExp compiles per
+// call, unlike regex literals.
+const UNIT_ALTERNATION =
+  '(?:mm|cm|m|km|zoll|inch(?:es)?|ft|feet|fu(?:ß|ss)|yd|mi|miles?|meilen?|meter|kilometer|mg|g|kg|t|gramm|kilogramm|lbs?|pfund|oz|s|min|h|std|sekunden?|minuten?|stunden?|tage?|kb|mb|gb|tb|°?[cf]|grad|celsius|fahrenheit|kelvin)';
+const UNIT_CONVERT_PATTERN = new RegExp(
+  `\\b\\d+(?:[.,]\\d+)?\\s*(${UNIT_ALTERNATION})(?![a-zäöüß0-9])[\\s\\S]*?\\b(?:in|to|nach|als)\\s+(${UNIT_ALTERNATION})(?![a-zäöüß0-9])`,
+  'i'
+);
+
+/**
+ * "2 Grad Erwärmung, gemessen in Grad Celsius" repeats one unit — that is
+ * prose, not a conversion ask. A real conversion names two different units.
+ */
+export function isUnitConversion(text: string): boolean {
+  const m = UNIT_CONVERT_PATTERN.exec(text);
+  return !!m && m[1].toLowerCase() !== m[2].toLowerCase();
+}
+
 /**
  * Heuristic result with confidence score.
  * Used to decide whether to skip LLM classification.
@@ -414,6 +468,13 @@ export function heuristicClassify(
 ): HeuristicResult {
   const q = userContent.toLowerCase();
 
+  // Long messages likely embed pasted reference material — keyword-triggered
+  // fast paths below defer to the LLM instead of firing on words inside the
+  // paste ("Das Diagramm zeigt…", "Protokoll erstellen", "Sharepics", …).
+  // Deliberately NOT applied to compute: counting words/chars of a pasted
+  // text is compute's primary use case.
+  const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
+
   // High confidence (0.95): Greetings and thanks at start of message
   if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)/i.test(q.trim())) {
     return {
@@ -446,10 +507,14 @@ export function heuristicClassify(
   // (zitat/dreizeilen/info) is resolved later in the execution path from the same
   // text — here we only need to route to the sharepic intent.
   // "Post MIT Sharepic" is a combined ask — let the social_post rule below
-  // take it instead of the sharepic-only fast path.
+  // take it instead of the sharepic-only fast path. Long-paste messages fall
+  // through entirely: "Sharepics" inside pasted material (a docs page, a
+  // Beschluss) describes content, and even verb proximity is no signal there
+  // ("… hilft beim Erstellen … Alt-Texte für Sharepics"). The LLM prompt
+  // knows the sharepic intent, so genuine long sharepic asks still route.
   const sharepicIsInclusion =
     SHAREPIC_INCLUSION_PATTERN.test(q) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(q);
-  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion) {
+  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion && !isLongPaste) {
     return {
       intent: 'sharepic',
       searchQuery: null,
@@ -463,7 +528,7 @@ export function heuristicClassify(
     /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster)\b/i;
   const imageKeywordsAlt =
     /\b(bild|grafik|illustration|foto|poster).{0,20}(erstell|generier|erzeug|mach)\b/i;
-  if (imageKeywords.test(q) || imageKeywordsAlt.test(q)) {
+  if (!isLongPaste && (imageKeywords.test(q) || imageKeywordsAlt.test(q))) {
     return {
       intent: 'image',
       searchQuery: null,
@@ -484,9 +549,10 @@ export function heuristicClassify(
     /\bmach[etn]*\b.{0,15}\b(dokument|protokoll|notiz|checkliste)\s+daraus\b/i;
 
   if (
-    (saveAsBarePattern.test(q) && saveImperative.test(q)) ||
-    docWithVerbPattern.test(q) ||
-    machDarausPattern.test(q)
+    !isLongPaste &&
+    ((saveAsBarePattern.test(q) && saveImperative.test(q)) ||
+      docWithVerbPattern.test(q) ||
+      machDarausPattern.test(q))
   ) {
     return {
       intent: 'save_as_doc',
@@ -503,7 +569,7 @@ export function heuristicClassify(
   // Fast-path the unambiguous phrasing (creation verb + deck noun).
   const presentationCreatePattern =
     /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
-  if (presentationCreatePattern.test(q)) {
+  if (!isLongPaste && presentationCreatePattern.test(q)) {
     return {
       intent: 'create_presentation',
       searchQuery: null,
@@ -514,6 +580,7 @@ export function heuristicClassify(
 
   // High confidence (0.88): Share document with group
   if (
+    !isLongPaste &&
     /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i.test(
       q
     )
@@ -529,7 +596,7 @@ export function heuristicClassify(
   // High confidence (0.85): Summary requests — unambiguous patterns
   const summaryKeywords =
     /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
-  if (summaryKeywords.test(q)) {
+  if (!isLongPaste && summaryKeywords.test(q)) {
     return {
       intent: 'summary',
       searchQuery: null,
@@ -547,7 +614,10 @@ export function heuristicClassify(
     /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
   const dataVisualizePattern = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
 
-  if ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q)) {
+  if (
+    !isLongPaste &&
+    ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q))
+  ) {
     return {
       intent: 'chart',
       searchQuery: userContent,
@@ -563,7 +633,7 @@ export function heuristicClassify(
     /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
   const artifactCreateImperative =
     /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
-  if (artifactNoun.test(q) && artifactCreateImperative.test(q)) {
+  if (!isLongPaste && artifactNoun.test(q) && artifactCreateImperative.test(q)) {
     return {
       intent: 'artifact',
       searchQuery: userContent,
@@ -581,14 +651,12 @@ export function heuristicClassify(
   const pureExpr = /^(?=[\s\S]*[+\-*/%^×÷])[\s\d().,+\-*/%^×÷]+[=?]?$/;
   const mathPattern =
     /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne|wie\s?viel\s+(ist|sind|macht)|was\s+(ist|sind|ergibt)\s+\d)/i;
-  const unitConvert =
-    /\b\d+([.,]\d+)?\s*(mm|cm|m|km|in|ft|yd|mi|meilen|mg|g|kg|t|lb|pfund|oz|s|min|h|std|tage?|kb|mb|gb|tb|°?[cf]|celsius|fahrenheit|kelvin)\b[\s\S]*\b(in|to|nach|als)\b/i;
   const dateMath = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
   if (
     countPattern.test(userContent) ||
     pureExpr.test(userContent.trim()) ||
     mathPattern.test(q) ||
-    unitConvert.test(q) ||
+    isUnitConversion(q) ||
     dateMath.test(q)
   ) {
     return {
@@ -602,7 +670,7 @@ export function heuristicClassify(
   // High confidence (0.90): Explicit web search request
   const explicitWebSearch =
     /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
-  if (explicitWebSearch.test(q)) {
+  if (!isLongPaste && explicitWebSearch.test(q)) {
     return {
       intent: 'web',
       searchQuery: userContent,
@@ -612,7 +680,7 @@ export function heuristicClassify(
   }
 
   // High confidence (0.88): Explicit research request
-  if (/\b(recherchiere|recherche|recherchier)\b/.test(q)) {
+  if (!isLongPaste && /\b(recherchiere|recherche|recherchier)\b/.test(q)) {
     return {
       intent: 'research',
       searchQuery: userContent,
@@ -658,10 +726,12 @@ export function heuristicClassify(
   // Medium confidence (0.80): social media requests. Creation verbs route to
   // the EXPERIMENTAL combined post (text + sharepic) unless an escape hatch
   // ("nur Text", "nur Sharepic") applies; browse verbs ("zeig mir Beispiele")
-  // keep the examples flow. Meta-questions never create.
+  // keep the examples flow. Meta-questions never create. Verb and noun must
+  // sit close together — "schreibe eine Produktvorstellung … [Paste erwähnt
+  // Instagram]" is not a post ask.
   if (
-    /\b(social\s*media|post|tweet|instagram)\b/i.test(q) &&
-    SOCIAL_CREATE_VERB_PATTERN.test(q) &&
+    !isLongPaste &&
+    nounNearCreateVerb(q, SOCIAL_TRIGGER_NOUN_PATTERN) &&
     !/\b(beispiel|vorlage)\b/i.test(q) &&
     !SOCIAL_META_QUESTION_PATTERN.test(q)
   ) {
@@ -678,7 +748,8 @@ export function heuristicClassify(
 
   // Medium confidence (0.80): Examples/social media — platform keyword + any action verb
   if (
-    /\b(beispiel|vorlage|social\s*media|post|tweet|instagram)\b/i.test(q) &&
+    !isLongPaste &&
+    (/\b(beispiel|vorlage)\b/i.test(q) || SOCIAL_TRIGGER_NOUN_PATTERN.test(q)) &&
     /\b(zeig|such|find|erstell|schreib|mach|generier)[etn]*/i.test(q)
   ) {
     return {
@@ -695,7 +766,7 @@ export function heuristicClassify(
     /\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) &&
     !/\b(recherch|such|find|info)\b/i.test(q);
 
-  if (isCreativeTask && userContent.length > 500) {
+  if (isCreativeTask && isLongPaste) {
     return {
       intent: 'direct',
       searchQuery: null,

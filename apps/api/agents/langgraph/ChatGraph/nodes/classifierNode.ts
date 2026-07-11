@@ -35,7 +35,8 @@ import {
   HEURISTIC_CONFIDENCE_THRESHOLD,
   detectSocialPlatform,
   resolveSocialPostEscape,
-  SOCIAL_CREATE_VERB_PATTERN,
+  nounNearCreateVerb,
+  NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
   SOCIAL_META_QUESTION_PATTERN,
   SHAREPIC_NOUN_PATTERN,
@@ -689,18 +690,23 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     // EXPERIMENTAL combined social post — for ALL users, not just
     // content-creation agents: a social-post creation request yields text +
-    // sharepic variants in one turn. Requires a creation verb or a bare
-    // noun-phrase shape ("Instagram-Post zu Tempo 30"); questions and
-    // example-browsing never create. Explicit sharepic wording ("Sharepic
-    // für Instagram") keeps the shipped sharepic-only flow, "nur Text" the
-    // examples flow — both via resolveSocialPostEscape. PM prompts keep
-    // their own routes (handled above for agents, LLM tier otherwise).
+    // sharepic variants in one turn. Requires a bare noun-phrase shape
+    // ("Instagram-Post zu Tempo 30", ^-anchored, so valid even before a long
+    // paste) or a creation verb NEAR a social noun in a short message —
+    // "schreibe eine Produktvorstellung … [Paste erwähnt Instagram]" must not
+    // pair the instruction's verb with a noun inside pasted material.
+    // Questions and example-browsing never create. Explicit sharepic wording
+    // ("Sharepic für Instagram") keeps the shipped sharepic-only flow, "nur
+    // Text" the examples flow — both via resolveSocialPostEscape. PM prompts
+    // keep their own routes (handled above for agents, LLM tier otherwise).
+    const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
     const looksLikeSocialCreation =
       SOCIAL_NOUN_PATTERN.test(userContent) &&
       !PM_NOUN_PATTERN.test(userContent) &&
       !SOCIAL_META_QUESTION_PATTERN.test(userContent) &&
       !looksLikeMetaQuestion &&
-      (SOCIAL_CREATE_VERB_PATTERN.test(userContent) || SOCIAL_BARE_NOUN_PATTERN.test(userContent));
+      (SOCIAL_BARE_NOUN_PATTERN.test(userContent) ||
+        (!isLongPaste && nounNearCreateVerb(userContent, SOCIAL_NOUN_PATTERN)));
     if (looksLikeSocialCreation && userContent.length >= 10) {
       if (
         SHAREPIC_NOUN_PATTERN.test(userContent) &&
@@ -864,6 +870,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     return {
       intent: classification.intent,
       secondaryIntent: classification.secondaryIntent || null,
+      // The LLM JSON schema carries no platform field — recover it here so
+      // social asks that miss the fast path (long paste, verbose phrasing)
+      // still get the platform-specific composer rubric.
+      platform: classification.intent === 'social_post' ? detectSocialPlatform(userContent) : null,
       searchSources: llmSearchSources,
       searchQuery: classification.searchQuery?.slice(0, 500) || null,
       subQueries: classification.subQueries || null,
