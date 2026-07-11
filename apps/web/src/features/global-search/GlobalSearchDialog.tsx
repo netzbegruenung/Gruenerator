@@ -1,13 +1,13 @@
 /**
  * Global search palette (Cmd/Ctrl+K, or the sidebar entry under Workplace).
  *
- * Features and agents match client-side and render on the first keystroke;
- * chats, documents, sharepics, images and notebooks arrive from the single
- * `/api/global-search` request.
+ * Features, tools and agents match client-side and render on the first
+ * keystroke; chats, documents, sharepics, images and notebooks arrive from the
+ * single `/api/global-search` request.
  *
  * `shouldFilter={false}`: cmdk's built-in filter would re-filter server hits
  * against the raw input and drop anything matched on content rather than
- * title — the backend already decided what matches.
+ * title — matching is decided by matchFeatures and the backend.
  */
 import { type GlobalSearchItem } from '@gruenerator/contracts';
 import {
@@ -26,6 +26,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { getIcon } from '../../config/icons';
 import { useUserAgents } from '../agents/api';
 
 import { buildFeatureIndex, matchFeatures } from './featureIndex';
@@ -44,6 +45,8 @@ interface GlobalSearchDialogProps {
 /** Stable reference: a `= []` default would rebuild the index on every render. */
 const NO_AGENTS: Agent[] = [];
 
+const NewChatIcon = getIcon('actions', 'edit');
+
 const CATEGORY_LABELS: Record<string, string> = {
   chats: 'Chats',
   docs: 'Dokumente',
@@ -52,22 +55,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   notebooks: 'Notebooks',
 };
 
+// A roomy, monochrome row — the shared shape for every palette entry.
+const ROW = 'gap-3 rounded-xl px-3 py-2.5';
+const ICON_CHIP =
+  'flex size-9 flex-none items-center justify-center rounded-lg bg-hover-alt text-muted-foreground';
+
 function ResultRow({ item, onSelect }: { item: GlobalSearchItem; onSelect: () => void }) {
   return (
-    <CommandItem value={`${item.type}:${item.id}`} onSelect={onSelect}>
+    <CommandItem value={`${item.type}:${item.id}`} onSelect={onSelect} className={ROW}>
       {item.thumbnailUrl ? (
         // Desktop app runs on a tauri:// origin — a bare /api path would 404.
         <img
           src={resolveApiAssetUrl(item.thumbnailUrl)}
           alt=""
-          className="size-8 shrink-0 rounded object-cover"
+          className="size-9 flex-none rounded-lg object-cover"
           loading="lazy"
         />
       ) : (
-        <span className="size-8 shrink-0 rounded bg-grey-100 dark:bg-grey-800" aria-hidden="true" />
+        <span className={ICON_CHIP} aria-hidden="true" />
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm">{item.title}</span>
+        <span className="block truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle && (
           <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
         )}
@@ -114,37 +122,55 @@ export default function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchD
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="overflow-hidden p-0" showCloseButton={false}>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="sr-only">
           <DialogTitle>Suche</DialogTitle>
           <DialogDescription>
-            Durchsuche Funktionen, Chats, Dokumente, Sharepics, Bilder und Notebooks.
+            Durchsuche Funktionen, Tools, Chats, Dokumente, Sharepics, Bilder und Notebooks.
           </DialogDescription>
         </DialogHeader>
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Alles durchsuchen …"
-            value={input}
-            onValueChange={setInput}
-            autoFocus
-          />
-          <CommandList>
-            {tooShort ? (
-              <CommandEmpty>Mindestens {MIN_QUERY_LENGTH} Zeichen eingeben.</CommandEmpty>
-            ) : !hasResults ? (
-              <CommandEmpty>{isSearching ? 'Suche läuft …' : 'Keine Treffer.'}</CommandEmpty>
-            ) : null}
+        {/* Tall, borderless input with no leading glyph — the × is DialogContent's own. */}
+        <Command
+          shouldFilter={false}
+          className="[&_[data-slot=command-input]]:text-base [&_[data-slot=command-input-wrapper]]:h-16 [&_[data-slot=command-input-wrapper]]:px-5 [&_[data-slot=command-input-wrapper]>svg]:hidden"
+        >
+          <CommandInput placeholder="Suchen …" value={input} onValueChange={setInput} autoFocus />
+          <CommandList className="max-h-[min(70vh,32rem)] scroll-py-2 p-2">
+            <CommandGroup>
+              <CommandItem value="__new-chat" onSelect={() => go('/chat')} className={ROW}>
+                <span className={ICON_CHIP}>
+                  {NewChatIcon && <NewChatIcon aria-hidden="true" className="size-[18px]" />}
+                </span>
+                <span className="text-sm font-medium text-foreground">Neuer Chat</span>
+              </CommandItem>
+            </CommandGroup>
+
+            {!tooShort && !hasResults && (
+              <CommandEmpty className="py-10">
+                {isSearching ? 'Suche läuft …' : 'Keine Treffer.'}
+              </CommandEmpty>
+            )}
 
             {featureHits.length > 0 && (
-              <CommandGroup heading="Funktionen">
+              <CommandGroup heading="Funktionen & Tools">
                 {featureHits.map((hit) => (
-                  <CommandItem key={hit.key} value={hit.key} onSelect={() => go(hit.path)}>
-                    {hit.icon ? (
-                      <hit.icon aria-hidden="true" className="size-4 shrink-0" />
-                    ) : (
-                      <span className="size-4 shrink-0" aria-hidden="true" />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-sm">{hit.title}</span>
+                  <CommandItem
+                    key={hit.key}
+                    value={hit.key}
+                    onSelect={() => go(hit.path)}
+                    className={ROW}
+                  >
+                    <span className={ICON_CHIP}>
+                      {hit.icon && <hit.icon aria-hidden="true" className="size-[18px]" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-foreground">{hit.title}</span>
+                      {hit.subtitle && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {hit.subtitle}
+                        </span>
+                      )}
+                    </span>
                   </CommandItem>
                 ))}
               </CommandGroup>
