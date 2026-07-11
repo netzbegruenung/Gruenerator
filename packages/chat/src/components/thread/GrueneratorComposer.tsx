@@ -755,7 +755,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           isPill
             ? 'rounded-[26px] shadow-md focus-within:shadow-lg focus-within:ring-4 focus-within:ring-primary/10 dark:shadow-sm'
             : 'rounded-3xl shadow-lg focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
-          isMistral ? 'border-[#003399]' : 'border-border'
+          // The Mistral brand border reads as a focus ring on the slim pill —
+          // card layout only.
+          isMistral && !isPill ? 'border-[#003399]' : 'border-border'
         )}
       >
         <ComposerPrimitive.Quote
