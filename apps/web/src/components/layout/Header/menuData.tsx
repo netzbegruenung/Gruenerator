@@ -39,6 +39,9 @@ export interface MenuItemType {
   items?: MenuItemType[];
   badge?: BadgeType;
   activePaths?: string[];
+  /** Exact-match highlights (no prefix logic) — for parent entries whose
+   * subpaths belong to sibling entries (e.g. /workplace vs. /workplace/wissen). */
+  exactActivePaths?: string[];
   /**
    * Query-param requirements for the item to be considered active. Useful when
    * multiple sidebar entries share the same path (e.g. /chat?agent=X vs.
@@ -67,24 +70,18 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
-  };
-
-  items.docs = {
-    id: 'docs',
-    path: '/office',
-    title: 'Office',
-    description: 'Dokumente, Tabellen & Präsentationen',
-    icon: getIcon('navigation', 'docs'),
-    activePaths: ['/office', '/docs'],
+    // Exact tab paths only — a /workplace prefix would also claim the Wissen
+    // tab, which the dedicated entry below highlights.
+    exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
   };
 
   items.notebooks = {
     id: 'notebooks',
-    path: '/notebooks',
-    title: 'Notebooks',
+    path: '/workplace/wissen',
+    title: 'Wissen',
     description: 'Suche, Wissensmanagement & Dokumentenrecherche',
     icon: SlNotebook,
-    activePaths: ['/notebooks', '/notebook'],
+    activePaths: ['/workplace/wissen', '/notebooks', '/notebook'],
   };
 
   if (import.meta.env.DEV) {
@@ -97,17 +94,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
       activePaths: ['/sites'],
     };
   }
-
-  // Studio is prod-visible (gallery + Imagine + Reel). The canvas-based sharepic
-  // creation behind it is a public research preview gated by SHOW_SHAREPIC_STUDIO.
-  items.studio = {
-    id: 'studio',
-    path: '/studio',
-    title: 'Studio',
-    description: 'Sharepics, KI-Bilder und Videos',
-    icon: getIcon('navigation', 'sharepic'),
-    activePaths: ['/studio'],
-  };
 
   return items;
 };

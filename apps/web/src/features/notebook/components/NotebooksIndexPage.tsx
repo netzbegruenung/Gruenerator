@@ -479,6 +479,9 @@ function NotebooksIndexPage() {
   );
 }
 
+/** Unwrapped variant for embedding (workplace "Wissen" tab — auth-gated route). */
+export { NotebooksIndexPage as NotebooksIndexContent };
+
 export default withAuthRequired(NotebooksIndexPage, {
   title: 'Notebooks',
 });

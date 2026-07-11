@@ -103,10 +103,19 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   }, [isOpen, close, toggle]);
 
   const isActive = useCallback(
-    (path: string, activePaths?: string[], activeQuery?: Record<string, string>) => {
-      const pathMatches = activePaths
-        ? activePaths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
-        : location.pathname === path;
+    (
+      path: string,
+      activePaths?: string[],
+      activeQuery?: Record<string, string>,
+      exactActivePaths?: string[]
+    ) => {
+      const pathMatches =
+        (exactActivePaths?.some((p) => location.pathname === p) ?? false) ||
+        (activePaths
+          ? activePaths.some(
+              (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+            )
+          : location.pathname === path);
       if (!pathMatches) return false;
       if (!activeQuery) {
         // Plain path match: if other entries claim a query param on this path,
@@ -220,12 +229,24 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                         : handleLinkClick(item.path!, item.title)
                     }
                     className={menuLinkClass(
-                      isActive(item.path!, item.activePaths, item.activeQuery),
+                      isActive(
+                        item.path!,
+                        item.activePaths,
+                        item.activeQuery,
+                        item.exactActivePaths
+                      ),
                       false,
                       !sidebarExpanded
                     )}
                     aria-current={
-                      isActive(item.path!, item.activePaths, item.activeQuery) ? 'page' : undefined
+                      isActive(
+                        item.path!,
+                        item.activePaths,
+                        item.activeQuery,
+                        item.exactActivePaths
+                      )
+                        ? 'page'
+                        : undefined
                     }
                     type="button"
                   >
