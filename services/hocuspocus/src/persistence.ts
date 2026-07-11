@@ -523,6 +523,38 @@ export class PostgresPersistence {
     }
   }
 
+  /**
+   * Boot-safe variant of the full backfill: only sheets/presentations whose
+   * `content` preview was never written and boards whose metadata lacks a
+   * preview. Idempotent — once previews exist the query matches nothing, so
+   * this runs on every start without the HOCUSPOCUS_BACKFILL_PREVIEWS flag.
+   */
+  async backfillMissingTypedPreviews(): Promise<void> {
+    try {
+      const docs = await this.db(
+        `SELECT id FROM collaborative_documents
+         WHERE is_deleted = false
+           AND (
+             (document_subtype IN ('sheets', 'presentations') AND COALESCE(content, '') = '')
+             OR (document_subtype = 'boards' AND COALESCE(content, '') NOT LIKE '%"preview"%')
+           )
+         LIMIT 500`,
+        []
+      );
+      if (docs.length === 0) return;
+
+      log.info(`[Backfill] ${docs.length} documents without typed preview — extracting`);
+      let updated = 0;
+      for (const doc of docs) {
+        const result = await this.extractContentPreview(doc.id as string);
+        if (result) updated++;
+      }
+      log.info(`[Backfill] Typed previews: ${updated}/${docs.length} regenerated`);
+    } catch (error) {
+      log.error(`[Backfill] Failed to backfill typed previews: ${error}`);
+    }
+  }
+
   async backfillAllPreviews(): Promise<void> {
     try {
       const docs = await this.db(`SELECT id FROM collaborative_documents WHERE is_deleted = false`);
