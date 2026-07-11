@@ -136,14 +136,14 @@ function CollabCanvasStudioContent() {
         title={canvas.title}
         editable={canEdit}
         onTitleChange={handleTitleChange}
-        className="text-sm font-medium text-foreground-heading truncate"
-        editableClassName="cursor-pointer rounded px-1 -mx-1 hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-        inputClassName="text-sm font-medium text-foreground-heading bg-transparent border border-secondary-400 dark:border-secondary-600 rounded px-1 -mx-1 outline-none w-64 max-w-full"
+        className="text-[14.5px] font-bold text-white truncate"
+        editableClassName="cursor-pointer rounded px-1.5 -mx-1.5 hover:bg-white/15 transition-colors"
+        inputClassName="text-[14.5px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
         ariaLabel="Canvas-Titel bearbeiten"
       />
       {!isLive && (
         <span
-          className="size-2 rounded-full bg-red-500 shrink-0"
+          className="size-2 rounded-full bg-amber-300 shrink-0"
           title={offlineReason}
           aria-label={offlineReason}
           role="status"
@@ -168,7 +168,7 @@ function CollabCanvasStudioContent() {
 
   return (
     <WebCanvasEditorProvider>
-      <div className="relative flex flex-col h-dvh bg-background">
+      <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
         <div className="flex-1 min-h-0">
           <MasterCanvasEditor
             type={canvas.template_type}

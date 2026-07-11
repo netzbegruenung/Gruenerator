@@ -48,15 +48,15 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
       type="button"
       onClick={onClick}
       className={cn(
-        'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
+        'group flex flex-col items-center gap-2.5 cursor-pointer bg-transparent border-none p-0 rounded-xl',
         'focus-visible:outline-none focus-visible:ring-2',
         ring
       )}
     >
       <div
         className={cn(
-          'flex items-center justify-center size-20 rounded-full bg-transparent',
-          'transition-[box-shadow] duration-200 ease-out',
+          'flex items-center justify-center w-full aspect-[1.15] rounded-xl bg-[var(--editor-tile)] border border-[var(--editor-border)]',
+          'transition-[background-color,border-color] duration-200 ease-out group-hover:border-[var(--editor-accent)] group-hover:bg-[var(--editor-active-soft)]',
           hoverShadow
         )}
       >
@@ -91,7 +91,9 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
           )}
         </span>
       </div>
-      <span className="text-xs text-foreground text-center leading-tight max-w-20">{label}</span>
+      <span className="text-[13px] font-semibold text-[var(--editor-text)] text-center leading-tight">
+        {label}
+      </span>
     </button>
   );
 }
@@ -385,7 +387,7 @@ export function BrowseView(props: BrowseViewProps) {
 
             {availableCategories.length > 0 && (
               <div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-center">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-[22px]">
                   {availableCategories.map((card) => (
                     <CategoryIconButton
                       key={card.id}

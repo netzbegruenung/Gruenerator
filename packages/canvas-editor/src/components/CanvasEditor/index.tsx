@@ -41,6 +41,8 @@ import { getCategoryForTemplate } from '../../utils/templateRegistry';
 
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
+import { ContextToolbar } from '../TopBar/ContextToolbar';
+import { MobileContextBar } from '../TopBar/MobileContextBar';
 import { AddPageButton } from '../TemplatePickerFlyout';
 
 import { wrapCallbacksWithPageSync } from '../../collab/wrapCallbacksWithPageSync';
@@ -851,20 +853,44 @@ function CanvasEditorInner({
     !isMobileBridge && (toolbarState !== null || chromeLeft || chromeCenter || chromeRight);
   const toolbarElement = showToolbar ? (
     <Toolbar
-      selectedElement={toolbarState?.selectedElement ?? null}
-      activeFloatingModule={toolbarState?.activeFloatingModule ?? null}
       canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
       canRedo={(toolbarState?.canRedo ?? false) || canRedoPageOp}
-      canMoveUp={toolbarState?.canMoveUp ?? false}
-      canMoveDown={toolbarState?.canMoveDown ?? false}
       handlers={toolbarHandlers}
-      onDelete={toolbarState ? toolbarOnDelete : undefined}
       shareProps={toolbarState ? toolbarShareProps : undefined}
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}
     />
   ) : null;
+
+  // Selection-driven formatting controls live outside the menu bar: a floating
+  // card over the canvas (desktop) and a fixed row above the tab bar (mobile).
+  // Only render when the canvas has reported selection state and no AI
+  // suggestion is overriding the toolbar.
+  const contextControlsProps =
+    !isMobileBridge && toolbarState
+      ? {
+          selectedElement: toolbarState.selectedElement ?? null,
+          activeFloatingModule: toolbarState.activeFloatingModule ?? null,
+          canMoveUp: toolbarState.canMoveUp ?? false,
+          canMoveDown: toolbarState.canMoveDown ?? false,
+          handlers: toolbarHandlers,
+          onDelete: toolbarOnDelete,
+        }
+      : null;
+  const hasContextControls =
+    contextControlsProps !== null &&
+    (contextControlsProps.selectedElement !== null ||
+      contextControlsProps.activeFloatingModule !== null ||
+      Boolean(contextControlsProps.onDelete));
+  const contextBarElement =
+    contextControlsProps && hasContextControls ? (
+      <ContextToolbar {...contextControlsProps} />
+    ) : null;
+  const mobileContextBarElement =
+    contextControlsProps && hasContextControls ? (
+      <MobileContextBar {...contextControlsProps} />
+    ) : null;
 
   const showPageNavigator = !isMobileBridge && pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
@@ -875,7 +901,7 @@ function CanvasEditorInner({
   const categoryFilter = currentTemplateId ? getCategoryForTemplate(currentTemplateId) : undefined;
 
   const bottomBar = showPageNavigator ? (
-    <div className="canvas-bottom-bar flex items-stretch bg-white/85 dark:bg-[rgba(20,20,20,0.78)] backdrop-blur-[12px] border-t border-black/[0.06] dark:border-white/[0.08]">
+    <div className="canvas-bottom-bar flex items-stretch bg-[var(--editor-surface)] border-t border-[var(--editor-border)]">
       <div className="flex-1 min-w-0">
         <PageThumbnailStrip
           pages={pages}
@@ -891,7 +917,7 @@ function CanvasEditorInner({
           templateFilter={categoryFilter}
         />
       </div>
-      <div className="shrink-0 flex items-center border-l border-black/[0.06] dark:border-white/[0.08]">
+      <div className="shrink-0 flex items-center border-l border-[var(--editor-border)]">
         <CanvasMetaBar
           pageCount={pageCount}
           currentPageIndex={currentPageIndex}
@@ -909,11 +935,13 @@ function CanvasEditorInner({
         tabBar={tabBar}
         actions={null}
         toolbar={toolbarElement}
+        contextBar={contextBarElement}
         bottomBar={bottomBar}
         hideMobileChrome={isMobileBridge}
         externalSidebar={isExternalSidebar}
         subsectionBar={webSubsectionBar}
       >
+        {mobileContextBarElement}
         <div
           ref={pagesContainerRef}
           className={cn(
