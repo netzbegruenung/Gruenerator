@@ -1,3 +1,4 @@
+import { type BoardPreview } from '@gruenerator/contracts';
 import {
   CardActionsMenu,
   CardGrid,
@@ -41,6 +42,7 @@ interface RecentItem {
   href: string;
   emoji?: string;
   boardType?: 'kanban' | 'whiteboard';
+  preview?: BoardPreview;
   thumbnailUrl?: string;
   duration?: number;
   creatorName?: string;
@@ -189,7 +191,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
 
   let body: React.ReactNode;
   if (isSlidesPreview(item)) {
-    body = <SlidesPreviewBody />;
+    body = <SlidesPreviewBody content={item.content} />;
   } else if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
@@ -207,7 +209,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
       </>
     );
   } else if (item.type === 'board') {
-    body = <BoardPreviewBody boardType={item.boardType} />;
+    body = <BoardPreviewBody boardType={item.boardType} preview={item.preview} />;
   } else {
     body = <PlaceholderBars />;
   }
