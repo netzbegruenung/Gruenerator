@@ -32,10 +32,10 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
       return;
     }
     if (outcome.status === 'confirmed' && outcome.url) {
-      // /document/<id> is the API's canonical path; the web docs route is /docs/<id>.
+      // /document/<id> is the API's canonical path; the web office route is /office/<id>.
       setResultUrl(
         outcome.url.startsWith('/document/')
-          ? `/docs/${outcome.url.replace('/document/', '')}`
+          ? `/office/${outcome.url.replace('/document/', '')}`
           : outcome.url
       );
     }

@@ -30,7 +30,7 @@ const EditorSkeleton = () => (
 );
 
 /**
- * `/docs/:id` dispatcher: resolves the document once (same query key the
+ * `/office/:id` dispatcher: resolves the document once (same query key the
  * editor pages use, so React Query dedupes) and mounts the matching editor —
  * BlockNote for text docs, Univer for `document_subtype === 'sheets'`,
  * reveal.js for `'presentations'`. Keeps the editors in separate lazy chunks.
