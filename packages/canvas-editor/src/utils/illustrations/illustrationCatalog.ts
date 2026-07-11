@@ -8,6 +8,7 @@
  * editor bundle.
  */
 
+import { ILLLUSTRATIONS } from './illlustrations';
 import { KAWAII_ILLUSTRATIONS } from './kawaii';
 import { OPENDOODLES } from './opendoodles';
 import { UNDRAW_ALL } from './undrawAll';
@@ -17,9 +18,10 @@ import type { IllustrationDef, SvgDef } from './types';
 export const ALL_ILLUSTRATIONS: IllustrationDef[] = [
   ...KAWAII_ILLUSTRATIONS,
   ...OPENDOODLES,
+  ...ILLLUSTRATIONS,
   ...UNDRAW_ALL,
 ];
 
-export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [...OPENDOODLES, ...UNDRAW_ALL];
+export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [...OPENDOODLES, ...ILLLUSTRATIONS, ...UNDRAW_ALL];
 
 export { UNDRAW_ALL };
