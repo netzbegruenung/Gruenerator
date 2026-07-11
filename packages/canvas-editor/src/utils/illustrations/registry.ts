@@ -16,6 +16,7 @@ import type {
   KawaiiIllustrationType,
 } from './types';
 
+import { GOPHERS } from './gophers';
 import { ILLLUSTRATIONS } from './illlustrations';
 import { KAWAII_ILLUSTRATIONS } from './kawaii';
 import { OPENDOODLES } from './opendoodles';
@@ -56,18 +57,22 @@ export async function loadIlllustrations(): Promise<SvgDef[]> {
   return ILLLUSTRATIONS;
 }
 
+export async function loadGophers(): Promise<SvgDef[]> {
+  return GOPHERS;
+}
+
 export async function loadUndrawIllustrations(): Promise<SvgDef[]> {
   return UNDRAW_FEATURED;
 }
 
 export async function getAllIllustrations(): Promise<IllustrationDef[]> {
   const undrawAll = await loadUndrawAll();
-  return [...KAWAII_ILLUSTRATIONS, ...OPENDOODLES, ...ILLLUSTRATIONS, ...undrawAll];
+  return [...KAWAII_ILLUSTRATIONS, ...OPENDOODLES, ...ILLLUSTRATIONS, ...GOPHERS, ...undrawAll];
 }
 
 export async function getAllSvgIllustrations(): Promise<SvgDef[]> {
   const undrawAll = await loadUndrawAll();
-  return [...OPENDOODLES, ...ILLLUSTRATIONS, ...undrawAll];
+  return [...OPENDOODLES, ...ILLLUSTRATIONS, ...GOPHERS, ...undrawAll];
 }
 
 // =============================================================================
@@ -113,7 +118,8 @@ export async function createIllustration(
     svgDef &&
     (svgDef.source === 'undraw' ||
       svgDef.source === 'opendoodles' ||
-      svgDef.source === 'illlustrations')
+      svgDef.source === 'illlustrations' ||
+      svgDef.source === 'gophers')
   ) {
     const svg = svgDef as SvgDef;
     return {
@@ -176,4 +182,4 @@ export const searchSvgIllustrations = searchIllustrations;
 // Re-export the small static source arrays for direct access if needed.
 // The full undraw catalog is intentionally NOT re-exported here — sync
 // consumers use illustrationCatalog.ts so the data stays in a lazy chunk.
-export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED, ILLLUSTRATIONS };
+export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED, ILLLUSTRATIONS, GOPHERS };

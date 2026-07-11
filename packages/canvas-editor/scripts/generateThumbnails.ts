@@ -15,6 +15,7 @@ const SOURCES = [
   { name: 'undraw', dir: path.join(WEB_PUBLIC, 'undraw') },
   { name: 'opendoodles', dir: path.join(WEB_PUBLIC, 'opendoodles') },
   { name: 'illlustrations', dir: path.join(WEB_PUBLIC, 'illlustrations') },
+  { name: 'gophers', dir: path.join(WEB_PUBLIC, 'gophers') },
 ];
 
 const THUMB_SIZE = 128;
