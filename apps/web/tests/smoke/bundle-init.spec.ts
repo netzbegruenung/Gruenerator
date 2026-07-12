@@ -37,6 +37,8 @@ const ROUTES = [
   '/experiments/monitor',
   '/chat',
   '/workplace',
+  '/workplace/arbeiten',
+  '/workplace/wissen',
   '/settings',
 ];
 

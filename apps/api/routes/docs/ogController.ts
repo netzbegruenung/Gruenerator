@@ -82,7 +82,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       const fallbackHtml = buildOgHtml(
         'Grünerator',
         'KI-Assistent für grüne Politik',
-        `${WEB_BASE_URL}/docs/${encodeURIComponent(id)}`,
+        `${WEB_BASE_URL}/office/${encodeURIComponent(id)}`,
         `${WEB_BASE_URL}/og-image.png`
       );
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -127,7 +127,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       }
     }
 
-    const url = `${WEB_BASE_URL}/docs/${encodeURIComponent(id)}`;
+    const url = `${WEB_BASE_URL}/office/${encodeURIComponent(id)}`;
     const imageUrl = `${WEB_BASE_URL}/og-image.png`;
     const html = buildOgHtml(doc.title || 'Grünerator Docs', previewText, url, imageUrl);
 

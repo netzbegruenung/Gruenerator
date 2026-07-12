@@ -138,7 +138,7 @@ export const CardFiles = memo(function CardFiles({
                 </span>
                 <div className="min-w-0 flex-1">
                   <a
-                    href={`/docs/${doc.id}`}
+                    href={`/office/${doc.id}`}
                     className="block truncate text-[13.5px] font-semibold text-foreground no-underline hover:underline"
                   >
                     {doc.title}

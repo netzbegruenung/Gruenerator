@@ -2,6 +2,8 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  generatePresentationBodySchema,
+  generatePresentationResponseSchema,
   presentationAiRequestBodySchema,
   presentationAiResponseSchema,
   presentationErrorResponseSchema,
@@ -34,5 +36,21 @@ export const presentationsContract = c.router({
       500: presentationErrorResponseSchema,
     },
     summary: 'Generate presentation operations from a natural-language request',
+  },
+  /**
+   * POST /api/presentations/generate
+   * Direct, non-chat generator: build a full deck from a description, create
+   * the presentation document and seed its Y.Doc. Returns the new id/title.
+   */
+  generate: {
+    method: 'POST',
+    path: '/api/presentations/generate',
+    body: generatePresentationBodySchema,
+    responses: {
+      201: generatePresentationResponseSchema,
+      400: presentationErrorResponseSchema,
+      500: presentationErrorResponseSchema,
+    },
+    summary: 'Generate a complete presentation from a description',
   },
 });

@@ -75,7 +75,7 @@ export default function SheetImportDialog({ open, onOpenChange }: SheetImportDia
         // SPA navigation (not a hard redirect): the parsed workbook rides
         // `location.state` into the Univer editor, which seeds it on first open.
         // The bridge forces the workbook id to the documentId for collab.
-        navigate(`/docs/${newDoc.id}`, {
+        navigate(`/office/${newDoc.id}`, {
           state: { sheetTemplate: workbook as Partial<IWorkbookData> },
         });
       } catch (err) {

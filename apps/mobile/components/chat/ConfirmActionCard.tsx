@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
 import { colors, spacing, borderRadius } from '../../theme';
+import { documentIdFromUrl } from '../../utils/actionUrl';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
@@ -21,12 +22,6 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   modify_board: 'grid-outline',
   share_doc: 'share-social-outline',
 };
-
-/** `/document/<id>` (API canonical) or `/docs/<id>` (web route) → document id. */
-function documentIdFromUrl(url: string): string | null {
-  const match = url.match(/^\/(?:document|docs)\/([^/?#]+)/);
-  return match ? match[1] : null;
-}
 
 export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData; theme: Theme }) {
   const router = useRouter();

@@ -232,7 +232,7 @@ export function mentionsImageNoun(text: string): boolean {
 // the LLM's job. Only add stems for verbs frequent enough to justify
 // bypassing the LLM call.
 export const DOC_MODIFY_PATTERN =
-  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
+  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
 
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.
@@ -472,8 +472,9 @@ export function heuristicClassify(
   // text is compute's primary use case.
   const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
 
-  // High confidence (0.95): Greetings and thanks at start of message
-  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)/i.test(q.trim())) {
+  // High confidence (0.95): Greetings and thanks at start of message.
+  // \b is required: without it "Hier unser Protokoll …" matches ^hi.
+  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)\b/i.test(q.trim())) {
     return {
       intent: 'direct',
       searchQuery: null,

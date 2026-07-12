@@ -113,6 +113,7 @@ function CanvasEditorInner({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onCollabSnapshot,
   onAutoSaveShareToken,
 }: CanvasEditorProps) {
   const autoSaveStoreApi = useAutoSaveStoreApi();
@@ -391,6 +392,61 @@ function CanvasEditorInner({
     if (!ref?.current) return null;
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
+
+  // Collab mode has no shared_media autosave, so the host's document thumbnail
+  // only refreshed on download — edits persisted via Yjs but the gallery card
+  // kept showing the old state. Capture after local edits settle (and on tab
+  // hide) and hand the render to the host. Refs keep the ydoc listener stable
+  // across page switches.
+  const snapshotFnsRef = useRef({ capture: handleCaptureCanvas, notify: onCollabSnapshot });
+  snapshotFnsRef.current = { capture: handleCaptureCanvas, notify: onCollabSnapshot };
+  const collabYdoc = collaborative?.ydoc;
+  useEffect(() => {
+    if (!collabYdoc || !snapshotFnsRef.current.notify) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastSent: string | null = null;
+
+    const snapshot = () => {
+      timer = null;
+      void snapshotFnsRef.current.capture().then((dataUrl) => {
+        if (dataUrl && dataUrl !== lastSent) {
+          lastSent = dataUrl;
+          snapshotFnsRef.current.notify?.(dataUrl);
+        }
+      });
+    };
+
+    const onUpdate = (
+      _update: Uint8Array,
+      _origin: unknown,
+      _doc: unknown,
+      transaction: { local: boolean }
+    ) => {
+      if (!transaction.local) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(snapshot, 4000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && timer) {
+        clearTimeout(timer);
+        snapshot();
+      }
+    };
+
+    collabYdoc.on('update', onUpdate);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      collabYdoc.off('update', onUpdate);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (timer) {
+        clearTimeout(timer);
+        // Best effort — captureStageImage no-ops when the stage is already gone.
+        snapshot();
+      }
+    };
+  }, [collabYdoc]);
 
   const handleDownload = useCallback(
     (format: 'png' | 'jpeg' = 'png', pixelRatio = 2) => {
