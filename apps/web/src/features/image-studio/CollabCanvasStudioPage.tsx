@@ -14,6 +14,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
+import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
@@ -136,6 +137,12 @@ function CollabCanvasStudioContent() {
 
   const isLive = collab.isSynced && collab.isConnected;
   const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
+
+  // No isSynced gate: runTour polls for visible anchors anyway, and the tour
+  // should also appear when collab sync is slow.
+  useTourAutostart('canvas', !isLoading && !!canvas && canEdit, () => {
+    void import('../tours/canvasTour').then((m) => m.startCanvasTour());
+  });
 
   const chromeCenter = canvas ? (
     <div className="flex items-center gap-sm min-w-0">

@@ -182,7 +182,10 @@ export function SlideThumbnailList({
   };
 
   return (
-    <div className="flex h-full w-[190px] min-w-[190px] flex-col gap-3 overflow-y-auto border-r border-[#E2E8E4] dark:border-grey-700 bg-[#EFF3F0] dark:bg-grey-900 p-[14px]">
+    <div
+      data-tour="presentations-slides"
+      className="flex h-full w-[190px] min-w-[190px] flex-col gap-3 overflow-y-auto border-r border-[#E2E8E4] dark:border-grey-700 bg-[#EFF3F0] dark:bg-grey-900 p-[14px]"
+    >
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={slides.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           {slides.map((slide, index) => (

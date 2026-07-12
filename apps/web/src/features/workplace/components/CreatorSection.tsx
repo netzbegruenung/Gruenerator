@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { isWorkplaceTourDone } from '../tour/tourState';
+import { isTourDone } from '../../tours/tourState';
 
 import ChatInner from './ChatInner';
 
@@ -41,13 +41,13 @@ const CreatorSection: React.FC = memo(() => {
         <button
           type="button"
           onClick={() =>
-            void import('../tour/workplaceTour').then((m) =>
+            void import('../../tours/workplaceTour').then((m) =>
               m.startWorkplaceTour((path) => void navigate(path))
             )
           }
           className="text-[13.5px] font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
         >
-          {isWorkplaceTourDone() ? 'Tour erneut starten' : 'Tour starten'}
+          {isTourDone('workplace') ? 'Tour erneut starten' : 'Tour starten'}
         </button>
       </div>
     </div>

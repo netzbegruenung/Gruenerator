@@ -99,7 +99,10 @@ export function CanvasEditorLayout({
             </span>
           </div>
         )}
-        <div className="canvas-editor-layout__canvas flex-1 min-h-0 flex flex-col w-full max-w-full p-sm max-canvas-mobile:flex-1 max-canvas-mobile:p-0">
+        <div
+          data-tour="canvas-stage"
+          className="canvas-editor-layout__canvas flex-1 min-h-0 flex flex-col w-full max-w-full p-sm max-canvas-mobile:flex-1 max-canvas-mobile:p-0"
+        >
           {children}
         </div>
       </div>
