@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { Icon } from '@iconify/react';
 
@@ -6,7 +6,7 @@ import { Skeleton } from '@gruenerator/ui';
 
 import { useIconCatalog } from '../../hooks/useIconCatalog';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
-import { type IconDef } from '../../utils/canvasIcons';
+import { getIconSets, DEFAULT_ICON_SET, type IconDef } from '../../utils/canvasIcons';
 import {
   CARD_GRID,
   CARD_CHECK_SMALL,
@@ -33,6 +33,8 @@ const RECOMMENDED_ICON_IDS = [
   'tabler:star-filled',
 ];
 
+const ICON_SETS = getIconSets();
+
 export function IconsSection({
   selectedIcons,
   onIconToggle,
@@ -41,22 +43,23 @@ export function IconsSection({
   searchQuery = '',
 }: IconsSectionProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const { data: allIcons = [], isLoading: iconsLoading } = useIconCatalog();
+  const [activeSet, setActiveSet] = useState(DEFAULT_ICON_SET);
+  const { data: allIcons = [], isLoading: iconsLoading } = useIconCatalog(activeSet);
 
-  const recommendedIcons = useMemo(
-    () =>
-      RECOMMENDED_ICON_IDS.map((id) => allIcons.find((icon) => icon.id === id)).filter(
-        Boolean
-      ) as IconDef[],
-    [allIcons]
-  );
+  const recommendedIcons = useMemo(() => {
+    const preferred = RECOMMENDED_ICON_IDS.map((id) =>
+      allIcons.find((icon) => icon.id === id)
+    ).filter(Boolean) as IconDef[];
+    // Non-default sets have no curated recommendations — show their first few.
+    return preferred.length > 0 ? preferred : allIcons.slice(0, 4);
+  }, [allIcons]);
 
   const {
     visibleIcons,
     hasMore,
     loadMore,
     isLoading: paginationLoading,
-  } = usePaginatedIcons(isExpanded, searchQuery);
+  } = usePaginatedIcons(isExpanded, searchQuery, activeSet);
 
   const hasSearch = searchQuery.trim().length > 0;
 
@@ -97,47 +100,67 @@ export function IconsSection({
     [selectedIcons, onIconToggle, maxSelections]
   );
 
-  if (iconsLoading) {
-    return (
-      <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+  // Set selector — only in the full browse view (not the collapsed recommended
+  // strip, and not while searching, which already spans all sets).
+  const showSetSelector = isExpanded && !hasSearch;
+
+  return (
+    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+      {showSetSelector && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {ICON_SETS.map((set) => (
+            <button
+              key={set.prefix}
+              type="button"
+              onClick={() => setActiveSet(set.prefix)}
+              className={cn(
+                'px-2 py-1 rounded-full text-xs transition-colors',
+                set.prefix === activeSet
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-grey-100 dark:bg-grey-800 text-grey-600 dark:text-grey-300 hover:bg-grey-200 dark:hover:bg-grey-700'
+              )}
+            >
+              {set.library}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {iconsLoading ? (
         <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
           {Array.from({ length: 12 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))}
         </div>
-      </div>
-    );
-  }
+      ) : (
+        <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
+          {icons.map((icon) => {
+            if (!icon) return null;
+            const isSelected = selectedIcons.includes(icon.id);
+            const isDisabled = !isSelected && selectedIcons.length >= maxSelections;
 
-  return (
-    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
-      <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
-        {icons.map((icon) => {
-          if (!icon) return null;
-          const isSelected = selectedIcons.includes(icon.id);
-          const isDisabled = !isSelected && selectedIcons.length >= maxSelections;
-
-          return (
-            <button
-              key={icon.id}
-              type="button"
-              className={cn(SELECTABLE_CARD, isDisabled && SELECTABLE_CARD_DISABLED)}
-              onClick={() => handleIconClick(icon.id)}
-              title={icon.name}
-              disabled={isDisabled}
-            >
-              <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
-                <Icon icon={icon.id} width={30} height={30} />
-                {isSelected && (
-                  <span className={CARD_CHECK_SMALL}>
-                    <FaCheck size={8} />
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={icon.id}
+                type="button"
+                className={cn(SELECTABLE_CARD, isDisabled && SELECTABLE_CARD_DISABLED)}
+                onClick={() => handleIconClick(icon.id)}
+                title={icon.name}
+                disabled={isDisabled}
+              >
+                <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
+                  <Icon icon={icon.id} width={30} height={30} />
+                  {isSelected && (
+                    <span className={CARD_CHECK_SMALL}>
+                      <FaCheck size={8} />
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {(isExpanded || hasSearch) && paginationLoading && (
         <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]', 'mt-2')}>
