@@ -286,6 +286,12 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   zitat: 'zitat_pure',
   dreizeilen: 'dreizeilen',
   info: 'info',
+  // Österreich (de-AT) variants map back to the same generation types; the
+  // result is re-localized to the -at canvasType via toVariant(userLocale).
+  'zitat-pure-at': 'zitat_pure',
+  'zitat-at': 'zitat_pure',
+  'dreizeilen-at': 'dreizeilen',
+  'info-at': 'info',
 };
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
@@ -325,21 +331,24 @@ function buildRefinementRequest(
   }
 
   if (genType === 'info') {
-    const header = str(p.header);
+    // AT info stores headline/accent/body; DE info stores header/(subheader)/body.
+    const header = str(p.header) || str(p.headline);
+    const accent = str(p.accent);
     const body = str(p.body);
+    const combined = [header, accent, body].filter(Boolean).join(' ');
     return {
       type: 'info',
       body: {
-        text: `${header} ${body}`.trim(),
-        subject: `${header} ${body}`.trim(),
-        details: `Überarbeite diesen Infotext wie folgt: ${instruction}. Bestehender Text — Überschrift: "${header}", Inhalt: "${body}". Behalte Thema und Kernaussage bei.`,
+        text: combined,
+        subject: combined,
+        details: `Überarbeite diesen Infotext wie folgt: ${instruction}. Bestehender Text — Überschrift: "${[header, accent].filter(Boolean).join(' ')}", Inhalt: "${body}". Behalte Thema und Kernaussage bei.`,
         count: 1,
       },
     };
   }
 
-  // dreizeilen
-  const lines = [p.line1, p.line2, p.line3].map(str).filter(Boolean).join(' / ');
+  // dreizeilen (AT stores the middle line under `accent` instead of `line2`)
+  const lines = [p.line1, p.line2 ?? p.accent, p.line3].map(str).filter(Boolean).join(' / ');
   return {
     type: 'dreizeilen',
     body: {

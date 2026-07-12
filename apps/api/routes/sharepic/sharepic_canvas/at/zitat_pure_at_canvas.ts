@@ -40,6 +40,12 @@ function render(quote: string, name: string, backgroundColor: string): Buffer {
   const margin = 75;
   const maxWidth = CANVAS.width - margin * 2;
 
+  const quoteMarkSize = 120;
+  const gapMarkToText = 20;
+  const gapQuoteToName = 60;
+  const top = 120;
+  const available = CANVAS.height - 100 - top;
+
   // Dynamic quote font size (mirror DE zitat-pure scaling)
   let quoteFontSize = 81;
   ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
@@ -49,16 +55,26 @@ function render(quote: string, name: string, backgroundColor: string): Buffer {
     ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
     lines = wrapText(ctx, quote, maxWidth);
   }
+
+  const blockHeight = (fs: number, n: number): number =>
+    quoteMarkSize +
+    gapMarkToText +
+    n * fs * 1.2 +
+    gapQuoteToName +
+    Math.min(Math.round(fs * 0.5), 42);
+
+  // Shrink-to-fit: a long quote (esp. after the ≤5-line enlarge) must not run
+  // off the canvas — step the font down until the block fits the available area.
+  while (quoteFontSize > 50 && blockHeight(quoteFontSize, lines.length) > available) {
+    quoteFontSize -= 3;
+    ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
+    lines = wrapText(ctx, quote, maxWidth);
+  }
+
   const lineHeight = quoteFontSize * 1.2;
-  const quoteMarkSize = 120;
-  const gapMarkToText = 20;
-  const gapQuoteToName = 60;
   const nameFontSize = Math.min(Math.round(quoteFontSize * 0.5), 42);
 
-  const totalHeight =
-    quoteMarkSize + gapMarkToText + lines.length * lineHeight + gapQuoteToName + nameFontSize;
-  const top = 120;
-  const available = CANVAS.height - 100 - top;
+  const totalHeight = blockHeight(quoteFontSize, lines.length);
   const startY = top + Math.max(0, (available - totalHeight) / 2);
 
   // Quote mark (white, text-drawn)

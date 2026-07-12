@@ -18,9 +18,8 @@ import {
   AT_BRAND,
   CANVAS,
   registerAtFonts,
-  loadAtLogo,
-  wrapText,
-  drawLines,
+  drawHeadlineStack,
+  drawAtLogo,
 } from './atCanvasShared.js';
 
 const log = createLogger('dreizeilen_at_canv');
@@ -35,11 +34,6 @@ interface Body {
   backgroundColor?: string;
 }
 
-const MARGIN_X = 90;
-const MARGIN_TOP = 210;
-const MAX_WIDTH = CANVAS.width - MARGIN_X * 2;
-const GAP = 18;
-
 async function render(
   line1: string,
   line2: string,
@@ -49,39 +43,20 @@ async function render(
   registerAtFonts();
   const canvas: Canvas = createCanvas(CANVAS.width, CANVAS.height);
   const ctx: Ctx = canvas.getContext('2d');
-  const lh = AT_BRAND.lineHeightFactor;
 
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
 
-  let y = MARGIN_TOP;
-
-  const drawWhite = (text: string) => {
-    if (!text) return;
-    ctx.fillStyle = AT_BRAND.textOnDark;
-    ctx.font = `104px ${AT_BRAND.fonts.headline}`;
-    const lines = wrapText(ctx, text, MAX_WIDTH);
-    y = drawLines(ctx, lines, MARGIN_X, y, 104 * lh) + GAP;
-  };
-  const drawAccent = (text: string) => {
-    if (!text) return;
-    ctx.fillStyle = AT_BRAND.accent;
-    ctx.font = `italic 104px ${AT_BRAND.fonts.quoteEmphasis}`;
-    const lines = wrapText(ctx, text, MAX_WIDTH);
-    y = drawLines(ctx, lines, MARGIN_X, y, 104 * lh) + GAP;
-  };
-
-  drawWhite(line1);
-  drawAccent(line2);
-  drawWhite(line3);
-
-  // Logo (white one-bar, bottom-left)
-  const logo = await loadAtLogo();
-  const lw = 300;
-  const lhgt = lw * (logo.height / logo.width);
-  ctx.drawImage(logo, MARGIN_X, CANVAS.height - lhgt - 60, lw, lhgt);
+  drawHeadlineStack(
+    ctx,
+    [
+      { text: line1, kind: 'headline' },
+      { text: line2, kind: 'accent' },
+      { text: line3, kind: 'headline' },
+    ],
+    'left'
+  );
+  await drawAtLogo(ctx, 'left');
 
   return canvas.toBuffer('image/png');
 }

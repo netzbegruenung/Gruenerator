@@ -77,12 +77,12 @@ async function render(imageBuffer: Buffer, quote: string, name: string): Promise
   ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
   const afterQuoteY = drawLines(ctx, lines, margin, quoteY, lineHeight);
 
-  // Name (yellow)
+  // Name (yellow). Gap mirrors calculateZitatLayout (author.gapFromQuoteRatio 1.33).
   if (name) {
     const nameFontSize = Math.round(quoteFontSize * 0.67);
     ctx.fillStyle = AT_BRAND.accent;
     ctx.font = `${nameFontSize}px ${AT_BRAND.fonts.body}`;
-    ctx.fillText(name, margin, afterQuoteY + Math.round(quoteFontSize * 0.5));
+    ctx.fillText(name, margin, afterQuoteY + Math.round(quoteFontSize * 1.33));
   }
 
   return canvas.toBuffer('image/png');
