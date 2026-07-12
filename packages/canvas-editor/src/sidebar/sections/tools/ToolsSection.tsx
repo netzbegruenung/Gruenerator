@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft, PiTextT, PiDropSimpleFill, PiPath, PiChartBar } from 'react-icons/pi';
+import { PiArrowLeft, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { cn } from '../../../utils/cn';
@@ -9,21 +9,17 @@ import { cn } from '../../../utils/cn';
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
 import { BlobCreatorTool } from './BlobCreatorTool';
-import { ChartInsertTool } from './ChartInsertTool';
 import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 import { TextPathCreatorTool } from './TextPathCreatorTool';
 
-import type { ChartType } from '../../../utils/chartUtils';
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
 export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
   onJumpToUploads?: () => void;
-  /** When present, enables the "Diagramm" tool which inserts a chart element. */
-  onInsertChart?: (chartType: ChartType) => void;
   /** Places a generated image (by durable URL) straight onto the canvas. */
   onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
@@ -36,8 +32,7 @@ type ToolView =
   | 'qr-code'
   | 'gradient-text'
   | 'blob'
-  | 'text-path'
-  | 'chart';
+  | 'text-path';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -103,11 +98,7 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
   );
 }
 
-export function ToolsSection({
-  onJumpToUploads,
-  onInsertChart,
-  onPlaceImageUrl,
-}: ToolsSectionProps) {
+export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionProps) {
   const { removeBackgroundFromImage, generateAiImage, editAiImage } = useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
 
@@ -180,16 +171,6 @@ export function ToolsSection({
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
-    {
-      id: 'chart',
-      label: 'Diagramm einfügen',
-      icon: PiChartBar,
-      iconColor: 'text-secondary-600 dark:text-secondary-300',
-      hoverShadow:
-        'group-hover:shadow-sm group-hover:shadow-secondary-600/15 dark:group-hover:shadow-secondary-300/15',
-      ring: 'focus-visible:ring-primary-600',
-      available: !!onInsertChart,
-    },
   ];
 
   const availableCards = cards.filter((c) => c.available);
@@ -233,7 +214,6 @@ export function ToolsSection({
       {activeView === 'text-path' && (
         <TextPathCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
       )}
-      {activeView === 'chart' && onInsertChart && <ChartInsertTool onInsertChart={onInsertChart} />}
     </div>
   );
 }

@@ -11,11 +11,10 @@ import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
-import type { ChartInstance, ChartType } from '../utils/chartUtils';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { UserImageInstance } from '../utils/userImageUtils';
 
 interface ActionsWithChart {
-  addChart?: (chartType: ChartType) => void;
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
   addUserImageFromUrl?: (url: string, fileName: string) => void;
@@ -77,7 +76,6 @@ export const toolsSectionEntry = defineCommonSection({
   propsFactory: (_state, actions): ToolsSectionProps => {
     const a = actions as ActionsWithChart;
     const props: ToolsSectionProps = {};
-    if (a.addChart) props.onInsertChart = a.addChart;
     // Tools place their generated image straight onto the canvas (durable URL).
     if (a.addUserImageFromUrl) props.onPlaceImageUrl = a.addUserImageFromUrl;
     return props;
