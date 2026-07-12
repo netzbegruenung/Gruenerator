@@ -3,12 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { PiPath } from 'react-icons/pi';
 
 import { BRAND_COLORS } from '../../../utils/shapes';
-import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { useToolImagePlacement } from './useToolImagePlacement';
 
 export interface TextPathCreatorToolProps {
   onJumpToUploads?: () => void;
+  onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
 const FONT_FAMILY = '"GrueneTypeNeue", "ArvoGruen", sans-serif';
@@ -85,8 +86,11 @@ async function renderTextPath(
   return dataUrl;
 }
 
-export function TextPathCreatorTool({ onJumpToUploads }: TextPathCreatorToolProps) {
-  const { upload, isUploading } = useUserUploads();
+export function TextPathCreatorTool({
+  onJumpToUploads,
+  onPlaceImageUrl,
+}: TextPathCreatorToolProps) {
+  const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
   const [variant, setVariant] = useState<PathVariant>(VARIANTS[0]);
@@ -124,15 +128,7 @@ export function TextPathCreatorTool({ onJumpToUploads }: TextPathCreatorToolProp
       if (!dataUrl) throw new Error('Vorschau konnte nicht erzeugt werden.');
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], `pfadtext_${Date.now()}.png`, { type: 'image/png' });
-      const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
-
-      const objectUrl = URL.createObjectURL(file);
-      setSuccess({
-        thumbnailUrl: objectUrl,
-        itemName: item.originalFilename ?? item.title ?? file.name,
-        onJumpToUploads,
-      });
+      setSuccess(await finish(file));
       setValue('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Fehler beim Erstellen des Pfadtextes';
@@ -140,7 +136,7 @@ export function TextPathCreatorTool({ onJumpToUploads }: TextPathCreatorToolProp
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, variant.data, fontSize, color, upload, onJumpToUploads]);
+  }, [trimmed, variant.data, fontSize, color, finish]);
 
   return (
     <ToolPanel
@@ -223,7 +219,7 @@ export function TextPathCreatorTool({ onJumpToUploads }: TextPathCreatorToolProp
           </label>
         </div>
       }
-      actionLabel="Pfadtext zu Uploads hinzufügen"
+      actionLabel={onPlaceImageUrl ? 'Pfadtext einfügen' : 'Pfadtext zu Uploads hinzufügen'}
       actionIcon={PiPath}
       canSubmit={!!trimmed}
       isBusy={disabled}

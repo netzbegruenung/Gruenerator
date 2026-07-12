@@ -2,12 +2,13 @@ import { useCallback, useState } from 'react';
 import { PiTextT } from 'react-icons/pi';
 
 import { BRAND_COLORS } from '../../../utils/shapes';
-import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { useToolImagePlacement } from './useToolImagePlacement';
 
 export interface GradientTextToolProps {
   onJumpToUploads?: () => void;
+  onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
 // High-res render so the placed image stays crisp when scaled on the canvas.
@@ -98,8 +99,8 @@ async function renderGradientTextPng(
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
-export function GradientTextTool({ onJumpToUploads }: GradientTextToolProps) {
-  const { upload, isUploading } = useUserUploads();
+export function GradientTextTool({ onJumpToUploads, onPlaceImageUrl }: GradientTextToolProps) {
+  const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
 
   const [value, setValue] = useState('');
   const [color1, setColor1] = useState(DEFAULT_COLOR_1);
@@ -122,15 +123,7 @@ export function GradientTextTool({ onJumpToUploads }: GradientTextToolProps) {
       if (!blob) throw new Error('PNG-Konvertierung fehlgeschlagen');
 
       const file = new File([blob], `verlaufstext_${Date.now()}.png`, { type: 'image/png' });
-      const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
-
-      const objectUrl = URL.createObjectURL(file);
-      setSuccess({
-        thumbnailUrl: objectUrl,
-        itemName: item.originalFilename ?? item.title ?? file.name,
-        onJumpToUploads,
-      });
+      setSuccess(await finish(file));
       setValue('');
     } catch (err) {
       const message =
@@ -139,7 +132,7 @@ export function GradientTextTool({ onJumpToUploads }: GradientTextToolProps) {
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, color1, color2, angle, upload, onJumpToUploads]);
+  }, [trimmed, color1, color2, angle, finish]);
 
   const disabled = isBusy || isUploading;
   const previewText = trimmed || 'Verlaufstext';
@@ -193,7 +186,7 @@ export function GradientTextTool({ onJumpToUploads }: GradientTextToolProps) {
           </label>
         </div>
       }
-      actionLabel="Verlaufstext zu Uploads hinzufügen"
+      actionLabel={onPlaceImageUrl ? 'Verlaufstext einfügen' : 'Verlaufstext zu Uploads hinzufügen'}
       actionIcon={PiTextT}
       canSubmit={!!trimmed}
       isBusy={disabled}
