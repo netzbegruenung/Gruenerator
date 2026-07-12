@@ -413,6 +413,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       {/* Desktop: fixed aside */}
       {(!isMobile || isDesktop) && (
         <aside
+          data-tour="app-sidebar"
           className={cn(
             'sidebar fixed top-0 left-0 h-dvh z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
             // Desktop (non-Tauri) — frosted glass
