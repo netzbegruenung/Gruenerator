@@ -66,7 +66,9 @@ async function buildInitialState(
   if (!config) return initial;
 
   for (const field of config.fields) {
-    initial[field] = state[field] ?? '';
+    // Dynamic store-field access: `fields` is a closed CanvasFormField set but
+    // AT-only fields (e.g. 'accent') aren't declared on ImageStudioState.
+    initial[field] = (state as unknown as Record<string, unknown>)[field] ?? '';
   }
 
   if (config.image) {

@@ -73,6 +73,17 @@ export const SYSTEM_ASSETS = {
       label: 'Anführungszeichen',
     },
   },
+  // Österreich (de-AT) — reduziertes Ein-Balken-Logo "G DIE GRÜNEN" (CI 2026)
+  logoAt: {
+    weiss: {
+      src: '/gruene-at-logo-weiss.png',
+      label: 'Die Grünen (weiß)',
+    },
+    gruen: {
+      src: '/gruene-at-logo-gruen.png',
+      label: 'Die Grünen (grün)',
+    },
+  },
   arrow: {
     src: '/arrow_right.svg',
     label: 'Pfeil rechts',
@@ -107,6 +118,20 @@ export const ALL_ASSETS: UniversalAsset[] = [
     label: SYSTEM_ASSETS.sunflower.green.label,
     category: 'decoration',
     tags: ['blume', 'flower', 'grün', 'green', 'natur', 'pflanze'],
+  },
+  {
+    id: 'gruene-at-logo-weiss',
+    src: SYSTEM_ASSETS.logoAt.weiss.src,
+    label: SYSTEM_ASSETS.logoAt.weiss.label,
+    category: 'decoration',
+    tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'weiß', 'weiss', 'marke'],
+  },
+  {
+    id: 'gruene-at-logo-gruen',
+    src: SYSTEM_ASSETS.logoAt.gruen.src,
+    label: SYSTEM_ASSETS.logoAt.gruen.label,
+    category: 'decoration',
+    tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'grün', 'gruen', 'marke'],
   },
   {
     id: 'quote-mark',
