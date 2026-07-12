@@ -1,3 +1,4 @@
+import { parseInitialPages } from '@gruenerator/canvas-editor';
 import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { shareApi, type ShareImageMetadata } from '@gruenerator/shared/share';
 
@@ -171,6 +172,11 @@ export function isRestorableSharepicType(type: string | null): boolean {
   return !!type && RESTORABLE_SHAREPIC_TYPES.has(type);
 }
 
+/** Deck saves carry their full page states — restorable regardless of type. */
+export function isRestorableDeckContent(content?: Record<string, unknown>): boolean {
+  return Array.isArray(content?.pages) && content.pages.length > 0;
+}
+
 interface PersistedGalleryEditSession {
   pathname: string;
   shareToken: string;
@@ -256,7 +262,10 @@ export async function restoreGalleryEditSession(pathname: string): Promise<Galle
       content?: Record<string, unknown>;
       styling?: GalleryEditData['styling'];
     };
-    if (!isRestorableSharepicType(metadata.sharepicType ?? null)) {
+    if (
+      !isRestorableSharepicType(metadata.sharepicType ?? null) &&
+      !isRestorableDeckContent(metadata.content)
+    ) {
       clearGalleryEditSession();
       return null;
     }
@@ -316,6 +325,14 @@ export async function loadGalleryEditData(
     if (styling.veranstaltungFieldFontSizes)
       formData.veranstaltungFieldFontSizes = styling.veranstaltungFieldFontSizes;
   }
+
+  // Deck saves: the pages array is the authoritative content — hand it to the
+  // editor as initialPages (TemplateResultStep) instead of per-field mapping.
+  // Always assigned: the store merges partial form data, and a stale deck
+  // from a previously opened draft must not leak into a non-deck session.
+  formData.deckPages = isRestorableDeckContent(content)
+    ? (parseInitialPages(content!.pages) ?? null)
+    : null;
 
   if (content) {
     // Normalize sharepicType to lowercase for comparison (handles both legacy and modern formats)
