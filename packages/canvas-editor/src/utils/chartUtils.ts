@@ -106,12 +106,16 @@ function makeId(): string {
   return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Round charts default to legend-on/grid-off; cartesian charts the inverse. */
+export const isRoundChartType = (chartType: ChartType): boolean =>
+  chartType === 'pie' || chartType === 'donut';
+
 export function createChartInstance(
   chartType: ChartType,
   canvasWidth: number,
   canvasHeight: number
 ): ChartInstance {
-  const isRound = chartType === 'pie' || chartType === 'donut';
+  const isRound = isRoundChartType(chartType);
   return {
     id: makeId(),
     x: canvasWidth / 2 - CHART_DEFAULT_WIDTH / 2,
