@@ -56,6 +56,61 @@ export function createUserImageInstance(
   return createUserImageInstanceFromUrl(objectUrl, file.name, canvasWidth, canvasHeight);
 }
 
+/** Longest-edge cap for uploaded rasters — plenty for sharepic export sizes. */
+const UPLOAD_MAX_DIMENSION = 2560;
+const UPLOAD_WEBP_QUALITY = 0.9;
+
+/**
+ * Downscale large raster images before upload. Phone photos (4000px, several MB)
+ * otherwise stall both the upload and the durable re-fetch, even though the
+ * canvas only ever displays them at a few hundred px. Skips small images, SVGs
+ * and GIFs (animation); encodes WebP (keeps alpha) at high quality. Returns the
+ * original file unchanged on any failure.
+ */
+export async function downscaleImageForUpload(file: File): Promise<File> {
+  if (
+    !file.type.startsWith('image/') ||
+    file.type === 'image/svg+xml' ||
+    file.type === 'image/gif'
+  ) {
+    return file;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const maxDim = Math.max(bitmap.width, bitmap.height);
+    if (maxDim <= UPLOAD_MAX_DIMENSION) {
+      bitmap.close();
+      return file;
+    }
+
+    const scale = UPLOAD_MAX_DIMENSION / maxDim;
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/webp', UPLOAD_WEBP_QUALITY)
+    );
+    if (!blob || blob.size >= file.size) return file;
+
+    const name = file.name.replace(/\.[^.]+$/, '') + '.webp';
+    return new File([blob], name, { type: 'image/webp' });
+  } catch {
+    return file;
+  }
+}
+
 export function createUserImageInstanceFromUrl(
   url: string,
   fileName: string,
