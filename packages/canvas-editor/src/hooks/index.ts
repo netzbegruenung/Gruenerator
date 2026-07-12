@@ -17,13 +17,6 @@ export { useImageCoverFit } from './useImageCoverFit';
 export type { CoverFitDimensions } from './useImageCoverFit';
 export * from './useCanvasBackgroundLock';
 
-export { useMultiPageCanvas } from './useMultiPageCanvas';
-export type {
-  PageState,
-  UseMultiPageCanvasOptions,
-  UseMultiPageCanvasReturn,
-} from './useMultiPageCanvas';
-
 export { useFloatingModuleState } from './useFloatingModuleState';
 export type { FloatingModuleState, UseFloatingModuleStateOptions } from './useFloatingModuleState';
 
@@ -64,7 +57,7 @@ export type {
   ExportProgress,
 } from './useMultiPageExport';
 
-export { usePageManager } from './usePageManager';
+export { usePageManager, parseInitialPages } from './usePageManager';
 export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';
 
 export { usePageThumbnails } from './usePageThumbnails';

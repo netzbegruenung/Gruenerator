@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { PiArrowUp, PiArrowDown, PiCopy, PiTrash } from 'react-icons/pi';
+import { PiArrowUp, PiArrowDown, PiCopy, PiSwap, PiTrash } from 'react-icons/pi';
 
 const iconBtn =
   'size-[30px] rounded-lg border-none bg-transparent cursor-pointer flex items-center justify-center text-[var(--editor-text-muted)] transition-[background-color,color] duration-150 hover:bg-[var(--editor-canvas-hover)] hover:text-[var(--editor-text)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--editor-text-muted)]';
@@ -11,6 +11,7 @@ interface PageToolbarProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDuplicate: () => void;
+  onChangeTemplate?: () => void;
   onDelete?: () => void;
 }
 
@@ -21,6 +22,7 @@ export const PageToolbar = memo(function PageToolbar({
   onMoveUp,
   onMoveDown,
   onDuplicate,
+  onChangeTemplate,
   onDelete,
 }: PageToolbarProps) {
   if (pageCount <= 1) return null;
@@ -64,6 +66,12 @@ export const PageToolbar = memo(function PageToolbar({
       <button className={iconBtn} onClick={onDuplicate} title="Seite duplizieren" type="button">
         <PiCopy size={14} />
       </button>
+
+      {onChangeTemplate && (
+        <button className={iconBtn} onClick={onChangeTemplate} title="Vorlage ändern" type="button">
+          <PiSwap size={14} />
+        </button>
+      )}
 
       {onDelete && (
         <button
