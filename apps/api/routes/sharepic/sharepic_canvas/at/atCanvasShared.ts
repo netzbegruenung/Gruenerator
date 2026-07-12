@@ -46,6 +46,7 @@ export const HEADLINE = {
 } as const;
 
 const LOGO_WEISS_PATH = path.resolve(__dirname, '../../../../public/gruene-at-logo-weiss.png');
+const QUOTE_WHITE_PATH = path.resolve(__dirname, '../../../../public/quote-white.svg');
 
 export function registerAtFonts(): void {
   registerFonts();
@@ -56,6 +57,14 @@ let logoPromise: Promise<Image> | null = null;
 export async function loadAtLogo(): Promise<Image> {
   if (!logoPromise) logoPromise = loadImage(LOGO_WEISS_PATH);
   return logoPromise;
+}
+
+// White quote mark — the same asset the konva zitat configs reference
+// (SYSTEM_ASSETS.quote.white). Decoded once and reused across requests.
+let quoteWhitePromise: Promise<Image> | null = null;
+export async function loadAtQuoteWhite(): Promise<Image> {
+  if (!quoteWhitePromise) quoteWhitePromise = loadImage(QUOTE_WHITE_PATH);
+  return quoteWhitePromise;
 }
 
 /** Draw the white one-bar logo at its canonical position (align controls x). */

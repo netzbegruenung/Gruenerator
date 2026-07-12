@@ -14,7 +14,7 @@ import {
 import { isValidHexColor } from '../../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import { AT_BRAND, CANVAS, registerAtFonts, wrapText, drawLines } from './atCanvasShared.js';
+import { AT_BRAND, CANVAS, registerAtFonts, wrapText, loadAtQuoteWhite } from './atCanvasShared.js';
 
 const log = createLogger('zitat_pure_at_canv');
 const router: Router = Router();
@@ -26,7 +26,10 @@ interface Body {
   backgroundColor?: string;
 }
 
-function render(quote: string, name: string, backgroundColor: string): Buffer {
+// Geometry mirrors calculateZitatPureLayout (canvas-editor zitatPureLayout.ts),
+// the source of truth the konva editor renders from — so server ↔ Studio stay
+// pixel-close. Centred variant: quote mark, quote and name are all centre-aligned.
+async function render(quote: string, name: string, backgroundColor: string): Promise<Buffer> {
   registerAtFonts();
   const canvas: Canvas = createCanvas(CANVAS.width, CANVAS.height);
   const ctx: Ctx = canvas.getContext('2d');
@@ -38,60 +41,49 @@ function render(quote: string, name: string, backgroundColor: string): Buffer {
   ctx.textBaseline = 'top';
 
   const margin = 75;
-  const maxWidth = CANVAS.width - margin * 2;
+  const maxWidth = CANVAS.width - margin * 2; // 930
 
-  const quoteMarkSize = 120;
+  const quoteMarkSize = 100;
   const gapMarkToText = 20;
   const gapQuoteToName = 60;
-  const top = 120;
-  const available = CANVAS.height - 100 - top;
+  const topBoundary = 120;
+  const availableHeight = CANVAS.height - 100 - topBoundary; // 1130
 
-  // Dynamic quote font size (mirror DE zitat-pure scaling)
+  // Dynamic quote/name font sizes — mirror calculateDynamicFontSize: a quote of
+  // ≤5 lines is enlarged (and its name with it) up to the CI caps.
   let quoteFontSize = 81;
+  let nameFontSize = 35;
   ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
   let lines = wrapText(ctx, quote, maxWidth);
   if (lines.length <= 5) {
     quoteFontSize = Math.min(Math.round(quoteFontSize * 1.2), 97);
-    ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
-    lines = wrapText(ctx, quote, maxWidth);
-  }
-
-  const blockHeight = (fs: number, n: number): number =>
-    quoteMarkSize +
-    gapMarkToText +
-    n * fs * 1.2 +
-    gapQuoteToName +
-    Math.min(Math.round(fs * 0.5), 42);
-
-  // Shrink-to-fit: a long quote (esp. after the ≤5-line enlarge) must not run
-  // off the canvas — step the font down until the block fits the available area.
-  while (quoteFontSize > 50 && blockHeight(quoteFontSize, lines.length) > available) {
-    quoteFontSize -= 3;
+    nameFontSize = Math.min(Math.round(nameFontSize * 1.2), 42);
     ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
     lines = wrapText(ctx, quote, maxWidth);
   }
 
   const lineHeight = quoteFontSize * 1.2;
-  const nameFontSize = Math.min(Math.round(quoteFontSize * 0.5), 42);
+  const quoteTextHeight = lines.length * lineHeight;
+  const totalContentHeight =
+    quoteMarkSize + gapMarkToText + quoteTextHeight + gapQuoteToName + nameFontSize;
+  const contentStartY = topBoundary + (availableHeight - totalContentHeight) / 2;
+  const quoteMarkY = Math.max(topBoundary, contentStartY);
+  const quoteY = quoteMarkY + quoteMarkSize + gapMarkToText;
 
-  const totalHeight = blockHeight(quoteFontSize, lines.length);
-  const startY = top + Math.max(0, (available - totalHeight) / 2);
+  // Quote mark (white SVG, centred) — same asset the konva config draws.
+  const mark = await loadAtQuoteWhite();
+  ctx.drawImage(mark, cx - quoteMarkSize / 2, quoteMarkY, quoteMarkSize, quoteMarkSize);
 
-  // Quote mark (white, text-drawn)
+  // Quote (white Gotham, centred)
   ctx.fillStyle = AT_BRAND.textOnDark;
-  ctx.font = `${quoteMarkSize}px ${AT_BRAND.fonts.headline}`;
-  ctx.fillText('“', cx, startY);
-
-  // Quote (white, Gotham, centred)
   ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
-  const quoteY = startY + quoteMarkSize + gapMarkToText;
-  const afterQuoteY = drawLines(ctx, lines, cx, quoteY, lineHeight);
+  lines.forEach((line, i) => ctx.fillText(line, cx, quoteY + i * lineHeight));
 
-  // Name (yellow)
+  // Name (yellow) — a clean gapQuoteToName below the quote block (authorY).
   if (name) {
     ctx.fillStyle = AT_BRAND.accent;
     ctx.font = `${nameFontSize}px ${AT_BRAND.fonts.body}`;
-    ctx.fillText(name, cx, afterQuoteY + gapQuoteToName - lineHeight + quoteFontSize * 0.2);
+    ctx.fillText(name, cx, quoteY + quoteTextHeight + gapQuoteToName);
   }
 
   return canvas.toBuffer('image/png');
@@ -105,7 +97,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       return;
     }
     const bg = isValidHexColor(backgroundColor) ? backgroundColor! : AT_BRAND.primary;
-    const raw = render(quote.trim(), (name ?? '').trim(), bg);
+    const raw = await render(quote.trim(), (name ?? '').trim(), bg);
     const optimized = await optimizeCanvasBuffer(raw);
     res.json({ image: bufferToBase64(optimized) });
   } catch (err) {
