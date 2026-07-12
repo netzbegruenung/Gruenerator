@@ -198,6 +198,13 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
 
   canvas: { width: CANVAS_SIZE, height: CANVAS_SIZE },
 
+  multiPage: {
+    enabled: true,
+    maxPages: 10,
+    heterogeneous: true,
+    defaultNewPageState: {},
+  },
+
   ai: profilbildAiCapabilities,
 
   tabs: [

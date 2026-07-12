@@ -29,7 +29,7 @@ import {
   applyCanvasStatePatch,
   applyDeckChanges,
   getCurrentCanvasState,
-  seedCanvasFormState,
+  seedCanvasPages,
   type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
@@ -304,8 +304,8 @@ export async function mintCanvasForVariant(args: {
     template_type: canvasType,
     initial_state: initialState,
   });
-  // Authoritative server-side Yjs seed (full state + `_seeded` watermark).
-  await seedCanvasFormState(canvas.id, initialState);
+  // Authoritative server-side Yjs seed (full state + pagesSeeded watermark).
+  await seedCanvasPages(canvas.id, canvasType, initialState);
   await bindThreadCanvas(threadId, variantId, canvas.id, canvasType);
   await insertCanvasVersion({
     canvasId: canvas.id,

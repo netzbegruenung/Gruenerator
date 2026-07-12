@@ -1,4 +1,9 @@
-import { useCanvasCollaboration, MasterCanvasEditor } from '@gruenerator/canvas-editor';
+import {
+  useCanvasCollaboration,
+  MasterCanvasEditor,
+  parseInitialPages,
+  type InitialPageDef,
+} from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -19,8 +24,6 @@ import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
-
-import type { InitialPageDef } from '@gruenerator/canvas-editor';
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
@@ -43,13 +46,10 @@ function CollabCanvasStudioContent() {
     enabled: !!id,
   });
 
-  const initialPages = useMemo((): InitialPageDef[] | undefined => {
-    const pages = canvas?.initial_state.pages;
-    if (!Array.isArray(pages) || pages.length === 0) return undefined;
-    return (pages as Array<{ configId: string; state: Record<string, unknown> }>)
-      .filter((p) => typeof p?.configId === 'string' && p.state != null)
-      .map((p) => ({ configId: p.configId as InitialPageDef['configId'], state: p.state }));
-  }, [canvas]);
+  const initialPages = useMemo(
+    (): InitialPageDef[] | undefined => parseInitialPages(canvas?.initial_state.pages),
+    [canvas]
+  );
 
   const canEdit = useMemo(() => {
     if (!canvas || !user) return false;
