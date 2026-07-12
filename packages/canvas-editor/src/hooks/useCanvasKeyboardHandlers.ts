@@ -152,6 +152,24 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             };
           }
 
+          const chart = prev.chartInstances?.find((c) => c.id === selectedElement);
+          if (chart) {
+            return {
+              ...prev,
+              chartInstances: [
+                ...(prev.chartInstances ?? []),
+                {
+                  ...chart,
+                  id: newId,
+                  x: chart.x + offset,
+                  y: chart.y + offset,
+                  data: chart.data.map((d) => ({ ...d })),
+                  colors: [...chart.colors],
+                },
+              ],
+            };
+          }
+
           return prev;
         });
 
@@ -426,6 +444,12 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
           });
           return;
         }
+        const chartN = currentState.chartInstances?.find((c) => c.id === selectedElement);
+        if (chartN && currentActions.updateChart) {
+          e.preventDefault();
+          currentActions.updateChart(selectedElement, { x: chartN.x + dx, y: chartN.y + dy });
+          return;
+        }
         const icon = currentState.iconStates?.[selectedElement];
         if (icon && currentActions.updateIcon) {
           e.preventDefault();
@@ -534,6 +558,14 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         if (currentState.userImageInstances?.find((u) => u.id === selectedElement)) {
           if (currentActions.removeUserImage) {
             currentActions.removeUserImage(selectedElement);
+            setSelectedElement(null);
+            return;
+          }
+        }
+
+        if (currentState.chartInstances?.find((c) => c.id === selectedElement)) {
+          if (currentActions.removeChart) {
+            currentActions.removeChart(selectedElement);
             setSelectedElement(null);
             return;
           }
