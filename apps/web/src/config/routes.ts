@@ -579,7 +579,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
   // Collaborative canvas — must come before /studio/:category so the literal
   // "canvas" segment matches first instead of being interpreted as a category.
-  { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'immersive' },
   {
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,
