@@ -27,6 +27,9 @@ export const uploadsTab: SidebarTab = {
 
 interface ActionsWithUploads {
   addUserImageFromUrl?: (url: string, fileName: string) => void;
+  placeUserImageFromFile?: (file: File) => Promise<string>;
+  updateUserImage?: (id: string, partial: { src?: string }) => void;
+  removeUserImage?: (id: string) => void;
 }
 
 /**
@@ -43,7 +46,15 @@ export const uploadsSectionEntry = defineCommonSection({
   component: UploadsSection,
   propsFactory: (_state, actions): UploadsSectionProps => {
     const a = actions as ActionsWithUploads;
-    return a.addUserImageFromUrl ? { onPlaceFromUrl: a.addUserImageFromUrl } : {};
+    const props: UploadsSectionProps = {};
+    if (a.addUserImageFromUrl) props.onPlaceFromUrl = a.addUserImageFromUrl;
+    if (a.placeUserImageFromFile) props.onPlaceLocalFile = a.placeUserImageFromFile;
+    if (a.updateUserImage) {
+      const update = a.updateUserImage;
+      props.onSwapPlacedUrl = (id, url) => update(id, { src: url });
+    }
+    if (a.removeUserImage) props.onRemovePlaced = a.removeUserImage;
+    return props;
   },
 });
 

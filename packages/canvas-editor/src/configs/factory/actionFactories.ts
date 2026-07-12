@@ -679,7 +679,33 @@ export function createUserImageActions<TState extends { userImageInstances: User
         }
       );
     },
+    /**
+     * Place a freshly-picked file instantly via a local blob preview (dimensions
+     * read locally, no network) and return the new instance id. The caller
+     * uploads in the background and calls `updateUserImage(id, { src })` to swap
+     * the blob for the durable URL — mirrors the optimistic background path.
+     */
+    placeUserImageFromFile: (file: File): Promise<string> => {
+      const objectUrl = URL.createObjectURL(file);
+      return createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then(
+        (instance) => {
+          setState((prev) => ({
+            ...prev,
+            userImageInstances: [...prev.userImageInstances, instance],
+          }));
+          saveToHistory(getState());
+          return instance.id;
+        }
+      );
+    },
     updateUserImage: (id: string, partial: Partial<UserImageInstance>) => {
+      // Free the optimistic blob once it's swapped for a durable URL.
+      if (partial.src) {
+        const prevInstance = getState().userImageInstances.find((u) => u.id === id);
+        if (prevInstance?.src.startsWith('blob:') && prevInstance.src !== partial.src) {
+          URL.revokeObjectURL(prevInstance.src);
+        }
+      }
       setState((prev) => ({
         ...prev,
         userImageInstances: prev.userImageInstances.map((u) =>
