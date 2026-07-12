@@ -206,11 +206,8 @@ export function ContextControls({
     );
   }
 
-  if (
-    (type === 'shape' || isEffectText || type === 'user-image') &&
-    activeFloatingModule &&
-    handlers.handleShadowChange
-  ) {
+  // Images edit their shadow inside the "Bearbeiten" panel, not the context bar.
+  if ((type === 'shape' || isEffectText) && activeFloatingModule && handlers.handleShadowChange) {
     groups.push(
       <FloatingShadowControl
         key="shadow"

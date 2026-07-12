@@ -3,14 +3,15 @@ import { Layer, Line, Stage } from 'react-konva';
 import { PiShuffle, PiDropSimpleFill } from 'react-icons/pi';
 
 import { BRAND_COLORS } from '../../../utils/shapes';
-import { useUserUploads } from '../../UserUploadsProvider';
 
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { useToolImagePlacement } from './useToolImagePlacement';
 
 import type Konva from 'konva';
 
 export interface BlobCreatorToolProps {
   onJumpToUploads?: () => void;
+  onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
 const STAGE_SIZE = 220;
@@ -109,8 +110,8 @@ function LabeledRange({
   );
 }
 
-export function BlobCreatorTool({ onJumpToUploads }: BlobCreatorToolProps) {
-  const { upload, isUploading } = useUserUploads();
+export function BlobCreatorTool({ onJumpToUploads, onPlaceImageUrl }: BlobCreatorToolProps) {
+  const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
   const stageRef = useRef<Konva.Stage>(null);
 
   const [seed, setSeed] = useState<number[]>(randomSeed);
@@ -142,22 +143,14 @@ export function BlobCreatorTool({ onJumpToUploads }: BlobCreatorToolProps) {
       const dataUrl = stage.toDataURL({ mimeType: 'image/png', pixelRatio: EXPORT_PIXEL_RATIO });
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], `blob_${Date.now()}.png`, { type: 'image/png' });
-      const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
-
-      const objectUrl = URL.createObjectURL(file);
-      setSuccess({
-        thumbnailUrl: objectUrl,
-        itemName: item.originalFilename ?? item.title ?? file.name,
-        onJumpToUploads,
-      });
+      setSuccess(await finish(file));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Fehler beim Erstellen des Blobs';
       setError(message);
     } finally {
       setIsBusy(false);
     }
-  }, [upload, onJumpToUploads]);
+  }, [finish]);
 
   return (
     <ToolPanel
@@ -202,7 +195,7 @@ export function BlobCreatorTool({ onJumpToUploads }: BlobCreatorToolProps) {
           />
         </div>
       }
-      actionLabel="Blob zu Uploads hinzufügen"
+      actionLabel={onPlaceImageUrl ? 'Blob einfügen' : 'Blob zu Uploads hinzufügen'}
       actionIcon={PiDropSimpleFill}
       canSubmit={!disabled}
       isBusy={disabled}

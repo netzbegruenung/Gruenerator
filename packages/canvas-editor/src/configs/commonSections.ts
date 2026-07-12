@@ -18,6 +18,7 @@ interface ActionsWithChart {
   addChart?: (chartType: ChartType) => void;
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string) => void;
 }
 
 interface ActionsWithUserImage {
@@ -64,7 +65,11 @@ export const toolsSectionEntry = defineCommonSection({
   component: ToolsSection,
   propsFactory: (_state, actions): ToolsSectionProps => {
     const a = actions as ActionsWithChart;
-    return a.addChart ? { onInsertChart: a.addChart } : {};
+    const props: ToolsSectionProps = {};
+    if (a.addChart) props.onInsertChart = a.addChart;
+    // Tools place their generated image straight onto the canvas (durable URL).
+    if (a.addUserImageFromUrl) props.onPlaceImageUrl = a.addUserImageFromUrl;
+    return props;
   },
 });
 
