@@ -81,6 +81,8 @@ export interface PageWrapperProps {
   onDelete: (id: string) => void;
   onMovePage: (id: string, direction: 'up' | 'down') => void;
   onDuplicatePage: (id: string) => void;
+  /** Opens the template picker in replace mode for this page ("Vorlage ändern"). */
+  onChangeTemplate?: (id: string) => void;
   onExport: (base64: string) => void;
   onCancel: () => void;
   callbacks: Record<string, (val: unknown) => void>;
@@ -101,10 +103,15 @@ export interface PageWrapperProps {
   /** See CanvasEditorProps.onAutoSaveShareToken. */
   onAutoSaveShareToken?: (token: string) => void;
   /**
-   * Per-page collaborative binding. The page Y.Map under which `layers` and
-   * `config` are stored. Set on every page in collab mode (one Y.Map per page).
+   * Per-page (single-page) gallery autosave. Explicit because the page always
+   * has a Y.Map binding now — presence of the binding no longer implies collab.
    */
-  pageCollaborative?: {
+  autoSave?: boolean;
+  /**
+   * Per-page Y.Map binding for layers/config/state. Set on every page in both
+   * modes; `provider` is only present in collab mode.
+   */
+  pageBinding?: {
     pageYMap: import('yjs').Map<unknown>;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */

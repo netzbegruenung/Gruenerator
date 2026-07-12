@@ -43,9 +43,10 @@ import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileContextBar } from '../TopBar/MobileContextBar';
-import { AddPageButton } from '../TemplatePickerFlyout';
+import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
-import { wrapCallbacksWithPageSync } from '../../collab/wrapCallbacksWithPageSync';
+import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
+import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { PageWrapper } from './PageWrapper';
 import { useMobileWebViewport } from './hooks/useMobileWebViewport';
 import { usePageRefs } from './hooks/usePageRefs';
@@ -54,7 +55,7 @@ import { usePageScrollSync } from './hooks/usePageScrollSync';
 import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
 import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 
-import type { CanvasEditorProps } from './types';
+import type { CanvasEditorProps, PageWrapperProps } from './types';
 import type { ToolbarStateReport } from '../GenericCanvas';
 import type { CanvasConfigId } from '../../configs/types';
 import type { MobileSubsectionBridgeValue } from '../../sidebar/MobileSubsectionBridgeContext';
@@ -139,6 +140,7 @@ function CanvasEditorInner({
     duplicatePage,
     movePage,
     removePage,
+    setPageConfig,
     currentPageIndex,
     setCurrentPageIndex,
     canAddMore,
@@ -146,6 +148,7 @@ function CanvasEditorInner({
     getConfigForPage,
     getPageYMap,
     updatePageState,
+    pagesDoc,
     undoPageOp,
     redoPageOp,
     canUndoPageOp,
@@ -161,20 +164,35 @@ function CanvasEditorInner({
   // Store loaded configs for rendering
   const loadedConfigs = useLoadedConfigs({ pages, getConfigForPage });
 
-  // Collab mode: template-field callbacks dual-write into the page's `state`
-  // Y.Map so other clients (useYjsPageStateSync) and reloads see the edits —
-  // the host's own callback chain only persists them to root formState.
-  const collabPageCallbacks = useMemo(() => {
-    if (!collaborative) return null;
-    const map = new Map<string, Record<string, (val: unknown) => void>>();
-    for (const page of pages) {
-      map.set(
-        page.id,
-        wrapCallbacksWithPageSync(callbacks, (partial) => updatePageState(page.id, partial))
+  // Template-field callbacks dual-write into the page's `state` map so other
+  // clients (useYjsPageStateSync), page duplication and reloads see the
+  // edits. Wrappers are identity-stable per page id and resolve the host
+  // callbacks + writer at call time — the host rebuilds its callbacks object
+  // every render, and memoizing on it would re-render every PageWrapper per
+  // keystroke.
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
+  const updatePageStateRef = useRef(updatePageState);
+  updatePageStateRef.current = updatePageState;
+  const pageCallbacksCacheRef = useRef(new Map<string, Record<string, (val: unknown) => void>>());
+  const getCallbacksForPage = useCallback((pageId: string) => {
+    const cache = pageCallbacksCacheRef.current;
+    let wrapped = cache.get(pageId);
+    if (!wrapped) {
+      wrapped = createPageSyncedCallbacks(
+        () => callbacksRef.current,
+        (partial) => updatePageStateRef.current(pageId, partial)
       );
+      cache.set(pageId, wrapped);
     }
-    return map;
-  }, [collaborative, callbacks, pages, updatePageState]);
+    return wrapped;
+  }, []);
+  useEffect(() => {
+    const ids = new Set(pages.map((p) => p.id));
+    for (const id of pageCallbacksCacheRef.current.keys()) {
+      if (!ids.has(id)) pageCallbacksCacheRef.current.delete(id);
+    }
+  }, [pages]);
 
   // Sidebar state - ONE shared sidebar for all pages
   // In mobile bridge mode, activeTab is controlled by native via mobileBridge.activeTab
@@ -207,19 +225,35 @@ function CanvasEditorInner({
   // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
   useZoomGestures(pagesContainerRef, setZoom);
 
-  const pageCollaborativeAt = useCallback(
-    (index: number, pageId?: string, isActivePage?: boolean) => {
-      if (!collaborative) return undefined;
+  // Every page binds its layers/config to its page Y.Map — in collab mode
+  // that syncs to peers, in local mode it makes duplicate/move/undo carry
+  // the full page content (the Y.Doc is the single source of truth).
+  // Bindings are identity-cached per page: a fresh object per render would
+  // defeat PageWrapper's memo for the whole deck on every parent render.
+  const pageBindingCacheRef = useRef(
+    new Map<string, NonNullable<PageWrapperProps['pageBinding']>>()
+  );
+  const pageBindingAt = useCallback(
+    (index: number, pageId: string, isActivePage: boolean) => {
       const pageYMap = getPageYMap(index);
-      return pageYMap
-        ? {
-            pageYMap,
-            isSynced: collaborative.isSynced,
-            provider: collaborative.provider ?? null,
-            pageId: pageId ?? null,
-            publishSelection: isActivePage ?? false,
-          }
-        : undefined;
+      if (!pageYMap) return undefined;
+      const publishSelection = collaborative ? isActivePage : false;
+      const isSynced = collaborative ? collaborative.isSynced : true;
+      const provider = collaborative?.provider ?? null;
+      const cache = pageBindingCacheRef.current;
+      const cached = cache.get(pageId);
+      if (
+        cached &&
+        cached.pageYMap === pageYMap &&
+        cached.isSynced === isSynced &&
+        cached.provider === provider &&
+        cached.publishSelection === publishSelection
+      ) {
+        return cached;
+      }
+      const next = { pageYMap, isSynced, provider, pageId, publishSelection };
+      cache.set(pageId, next);
+      return next;
     },
     [collaborative, getPageYMap]
   );
@@ -265,6 +299,27 @@ function CanvasEditorInner({
     },
     [addPage]
   );
+
+  // "Vorlage ändern" — convert an existing page to another template.
+  const [templateChangePageId, setTemplateChangePageId] = useState<string | null>(null);
+  const handleOpenTemplateChange = useCallback((pageId: string) => {
+    setTemplateChangePageId(pageId);
+  }, []);
+  const handleCloseTemplateChange = useCallback(() => {
+    setTemplateChangePageId(null);
+  }, []);
+  const handleSelectTemplateChange = useCallback(
+    (configId: CanvasConfigId) => {
+      if (templateChangePageId) void setPageConfig(templateChangePageId, configId);
+      setTemplateChangePageId(null);
+    },
+    [templateChangePageId, setPageConfig]
+  );
+  const templateChangePage = useMemo(() => {
+    if (templateChangePageId === null) return null;
+    const index = pages.findIndex((p) => p.id === templateChangePageId);
+    return index >= 0 ? { index, configId: pages[index].configId } : null;
+  }, [templateChangePageId, pages]);
 
   // Sidebar handlers - functional setState (Rule 5.5)
   const handleTabClick = useCallback(
@@ -392,6 +447,22 @@ function CanvasEditorInner({
     if (!ref?.current) return null;
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
+
+  // The ONLY gallery autosave in this editor, for any page count — a
+  // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
+  // disabled below (autoSave={false}); its legacy per-type metadata shape
+  // stays read-only for old drafts.
+  const captureFirstPage = useCallback(async () => {
+    const ref = canvasRefsRef.current[0];
+    return ref?.current ? await ref.current.captureCanvas() : null;
+  }, [canvasRefsRef]);
+  useDeckAutoSave({
+    ydoc: pagesDoc,
+    enabled: !collaborative && !isMobileBridge,
+    deckType: pages[0]?.configId ?? initialConfigId,
+    captureImage: captureFirstPage,
+    onShareToken: onAutoSaveShareToken,
+  });
 
   // Collab mode has no shared_media autosave, so the host's document thumbnail
   // only refreshed on download — edits persisted via Yjs but the gallery card
@@ -682,7 +753,13 @@ function CanvasEditorInner({
 
   // Share all pages via native share (Web Share API with multiple files)
   const shareAllPages = useCallback(async () => {
-    const dataUrls = await exportAllPages();
+    let dataUrls: string[];
+    try {
+      dataUrls = await exportAllPages();
+    } catch (error) {
+      console.error('[CanvasEditor] share-all export failed:', error);
+      return;
+    }
     if (dataUrls.length === 0) return;
 
     const files = await Promise.all(
@@ -1036,18 +1113,32 @@ function CanvasEditorInner({
                 onDelete={removePage}
                 onMovePage={movePage}
                 onDuplicatePage={duplicatePage}
+                onChangeTemplate={handleOpenTemplateChange}
                 onExport={handleExport}
                 onCancel={onCancel}
-                callbacks={collabPageCallbacks?.get(page.id) ?? callbacks}
+                callbacks={getCallbacksForPage(page.id)}
                 multiPageExport={index === 0 ? multiPageExportProps : undefined}
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
                 onAutoSaveShareToken={onAutoSaveShareToken}
+                autoSave={false}
                 mobileBridge={isActive ? mobileBridge : undefined}
-                pageCollaborative={pageCollaborativeAt(index, page.id, isActive)}
+                pageBinding={pageBindingAt(index, page.id, isActive)}
               />
             );
           })}
+
+          {templateChangePage && (
+            <TemplatePickerFlyout
+              isOpen
+              mode="replace"
+              anchorRef={pageDomRefsRef.current[templateChangePage.index]}
+              onSelectTemplate={handleSelectTemplateChange}
+              onClose={handleCloseTemplateChange}
+              currentTemplateId={templateChangePage.configId}
+              templateFilter={categoryFilter}
+            />
+          )}
 
           {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
           {canAddMore && !showPageNavigator && (

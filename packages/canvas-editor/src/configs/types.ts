@@ -328,8 +328,6 @@ export interface HeterogeneousPage {
   configId: CanvasConfigId;
   /** Runtime state - config interprets this based on its state type */
   state: Record<string, unknown>;
-  /** Order index for sorting */
-  order: number;
 }
 
 /** Multi-page configuration options */
