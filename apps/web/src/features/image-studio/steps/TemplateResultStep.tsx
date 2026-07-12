@@ -1,4 +1,4 @@
-import { ControllableCanvasWrapper } from '@gruenerator/canvas-editor';
+import { ControllableCanvasWrapper, SHARE_ORIGINAL_IMAGE_SRC } from '@gruenerator/canvas-editor';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useShareStore } from '@gruenerator/shared/share';
 import { Button } from '@gruenerator/ui';
@@ -25,7 +25,6 @@ import { useTemplateResultAutoSave } from '../hooks/useTemplateResultAutoSave';
 import {
   persistGalleryEditSession,
   clearGalleryEditSession,
-  isRestorableSharepicType,
 } from '../services/editingSessionService';
 import { buildPreviewValues } from '../utils/templateResultUtils';
 import {
@@ -99,6 +98,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     editTitle,
     uploadedImage,
     selectedImage,
+    deckPages,
   } = useImageStudioStore();
 
   const { autoSaveStatus } = useAutoSaveStore();
@@ -223,16 +223,16 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
 
   // Bridge the canvas editor's per-instance auto-save token into the app:
   // remounts (edit → image view → edit) seed the same share and the app-level
-  // autosave hooks update it instead of creating a duplicate draft. The
-  // session is persisted for reload-restore only for types whose metadata
-  // loadGalleryEditData can faithfully map back — others would restore blank.
+  // autosave hooks update it instead of creating a duplicate draft. New saves
+  // always carry the lossless deck shape (content.pages), so every canvas
+  // type is reload-restorable now.
   const handleAutoSaveShareToken = useCallback(
     (token: string) => {
       useAutoSaveStore.getState().setAutoSavedShareToken(token);
       updateFormData({ editShareToken: token });
-      if (isRestorableSharepicType(type)) persistGalleryEditSession(token);
+      persistGalleryEditSession(token);
     },
-    [updateFormData, type]
+    [updateFormData]
   );
 
   const handleCanvasCancel = useCallback(() => {
@@ -275,6 +275,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
       selectedImage: null,
       generatedImageSrc: null,
       searchTerms: [],
+      deckPages: null,
     });
 
     // Get first step from type config
@@ -304,6 +305,25 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     };
   }, [uploadedImage, uploadedImageUrl]);
 
+  // Gallery drafts restore all pages at once (a single-page save is a
+  // one-page deck). Pages whose background was persisted into the share's
+  // original-image slot carry a marker — substitute the re-fetched original
+  // (loadGalleryEditData downloads it into uploadedImage).
+  const restoredDeckPages = useMemo(() => {
+    if (!deckPages || deckPages.length === 0) return undefined;
+    if (!uploadedImageUrl) return deckPages;
+    return deckPages.map((page) => {
+      const needsOriginal =
+        page.state.currentImageSrc === SHARE_ORIGINAL_IMAGE_SRC ||
+        page.state.imageSrc === SHARE_ORIGINAL_IMAGE_SRC;
+      if (!needsOriginal) return page;
+      return {
+        ...page,
+        state: { ...page.state, currentImageSrc: uploadedImageUrl, imageSrc: uploadedImageUrl },
+      };
+    });
+  }, [deckPages, uploadedImageUrl]);
+
   const renderCanvasEditor = useCallback(() => {
     if (!type) return null;
 
@@ -321,6 +341,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -336,6 +357,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -350,6 +372,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -364,6 +387,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -384,6 +408,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -399,6 +424,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -410,6 +436,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             initialState={{}}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -437,6 +464,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     locationName,
     address,
     uploadedImageUrl,
+    restoredDeckPages,
     handleCanvasExport,
     handleCanvasCancel,
     handleAutoSaveShareToken,

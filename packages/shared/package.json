@@ -15,6 +15,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./reisekosten": {
+      "development": "./src/reisekosten/index.ts",
+      "types": "./src/reisekosten/index.ts",
+      "import": "./dist/reisekosten/index.js",
+      "default": "./dist/reisekosten/index.js"
+    },
     "./stores": {
       "development": "./src/stores/index.ts",
       "types": "./src/stores/index.ts",
@@ -189,7 +195,8 @@
     "generate:mcp-agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/generate-mcp-agents.ts && pnpm exec prettier --write ../../services/mcp/src/prompts/agents.generated.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "cross-env NODE_OPTIONS=--conditions=development npx vitest run"
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",

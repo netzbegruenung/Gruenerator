@@ -118,6 +118,12 @@ export interface CanvasEditorServices {
   assetBaseUrl?: string;
 
   /**
+   * Brand locale of the signed-in user. Locale-scoped assets (AT vs DE logos,
+   * Balken) are filtered by this; defaults to 'de-DE' when omitted.
+   */
+  userLocale?: 'de-DE' | 'de-AT';
+
+  /**
    * Optional AI-suggestions hook factory. When provided, templates that
    * register the `AiSection` will render the prompt UI; otherwise the
    * section shows a "not configured" hint and never calls a backend.

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
 import type { StockImageAttribution } from './common/imageSourceTypes';
-import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
@@ -111,10 +110,10 @@ export interface ControllableCanvasWrapperProps {
   /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
   externalMobileMode?: boolean;
   /**
-   * When provided, the editor enters collaborative mode: layers/config/formState
-   * are bound to the supplied Y.Doc. The local initialState is used only as a
-   * seed when the Y.Doc is empty; subsequent changes flow through Y.Doc and
-   * onStateChange is suppressed to prevent fighting Yjs updates.
+   * When provided, the editor enters collaborative mode: pages (state,
+   * layers, config) are bound to the supplied Y.Doc. The local initialState
+   * is used only as a seed when the Y.Doc is empty; subsequent changes flow
+   * through the Y.Doc and onStateChange is suppressed.
    */
   collaborative?: {
     ydoc: Y.Doc;
@@ -177,47 +176,10 @@ export function ControllableCanvasWrapper({
   const prevInitialStateRef = useRef<CanvasState>(initialState);
   const readyFiredRef = useRef(false);
 
-  // Strip `pages` — slider deck page defs live in the `pages` Y.Array, not
-  // formState. Without this, initialState for a slider deck writes a stale
-  // multi-KB pages blob into the formState Y.Map that is never read back.
-  const formStateFallback = useMemo((): Record<string, unknown> => {
-    const { pages: _, ...rest } = initialState as Record<string, unknown>;
-    return rest;
-  }, [initialState]);
-
-  const { formState: yFormState, updateFormState } = useYjsFormState({
-    ydoc: collaborative?.ydoc ?? null,
-    isSynced: collaborative?.isSynced ?? false,
-    fallback: formStateFallback,
-  });
-
-  const effectiveState = isCollab ? yFormState : internalState;
-
-  // One-shot heal for docs from before template callbacks dual-wrote into
-  // pages[i].state: their text edits live only in root formState, while the
-  // mounted page renders from the stale page seed. Copy differing formState
-  // values into the page state map (single-page docs only — for multi-page
-  // docs formState mixes the last edits of ALL pages and can't be attributed).
-  // The non-local origin lets useYjsPageStateSync apply the values to the
-  // already-mounted canvas as well.
-  const healedRef = useRef(false);
-  useEffect(() => {
-    if (!collaborative?.ydoc || !collaborative.isSynced || healedRef.current) return;
-    healedRef.current = true;
-    const ydoc = collaborative.ydoc;
-    const pagesArr = ydoc.getArray<Y.Map<unknown>>('pages');
-    const formState = ydoc.getMap<unknown>('formState');
-    if (pagesArr.length !== 1 || formState.size === 0) return;
-    const stateY = pagesArr.get(0).get('state');
-    if (!(stateY instanceof Y.Map)) return;
-    ydoc.transact(() => {
-      formState.forEach((value, key) => {
-        if ((stateY as Y.Map<unknown>).get(key) !== value) {
-          (stateY as Y.Map<unknown>).set(key, value);
-        }
-      });
-    }, 'canvas-form-state-heal');
-  }, [collaborative?.ydoc, collaborative?.isSynced]);
+  // In collab mode `initialState` is only a seed — pages in the Y.Doc are the
+  // single source of truth (legacy root-formState docs are healed on open by
+  // pagesDoc.foldLegacyFormStateIntoFirstPage).
+  const effectiveState = internalState;
 
   // Load config dynamically when type changes (for config-driven canvases)
   // Now includes 'zitat' and 'dreizeilen' for unified multi-page support
@@ -275,15 +237,15 @@ export function ControllableCanvasWrapper({
 
   const handlePartChange = useCallback(
     (change: Partial<CanvasState>) => {
-      if (isCollab) {
-        updateFormState(change);
-        return;
-      }
+      // Collab persistence happens through the per-page dual-write in
+      // CanvasEditor (wrapped callbacks → pages[i].state Y.Map); there is no
+      // root-level bucket to update anymore.
+      if (isCollab) return;
       const newState = { ...internalState, ...change };
       setInternalState(newState);
       onStateChange?.(newState);
     },
-    [internalState, onStateChange, isCollab, updateFormState]
+    [internalState, onStateChange, isCollab]
   );
 
   // Create callbacks object for GenericCanvas

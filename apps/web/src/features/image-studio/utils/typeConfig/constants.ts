@@ -31,6 +31,13 @@ export const IMAGE_STUDIO_TYPES = {
   SLIDER: 'slider',
   FREEFORM: 'freeform',
 
+  // Österreich (de-AT) template variants
+  INFO_AT: 'info-at',
+  ZITAT_AT: 'zitat-at',
+  ZITAT_PURE_AT: 'zitat-pure-at',
+  DREIZEILEN_AT: 'dreizeilen-at',
+  FREEFORM_AT: 'freeform-at',
+
   // KI types (FLUX API-based)
   GREEN_EDIT: 'green-edit',
   ALLY_MAKER: 'ally-maker',
@@ -78,6 +85,11 @@ export const URL_TYPE_MAP: Record<string, ImageStudioType> = {
   profilbild: IMAGE_STUDIO_TYPES.PROFILBILD,
   slider: IMAGE_STUDIO_TYPES.SLIDER,
   freeform: IMAGE_STUDIO_TYPES.FREEFORM,
+  'info-at': IMAGE_STUDIO_TYPES.INFO_AT,
+  'zitat-at': IMAGE_STUDIO_TYPES.ZITAT_AT,
+  'zitat-pure-at': IMAGE_STUDIO_TYPES.ZITAT_PURE_AT,
+  'dreizeilen-at': IMAGE_STUDIO_TYPES.DREIZEILEN_AT,
+  'freeform-at': IMAGE_STUDIO_TYPES.FREEFORM_AT,
   'green-edit': IMAGE_STUDIO_TYPES.GREEN_EDIT,
   'ally-maker': IMAGE_STUDIO_TYPES.ALLY_MAKER,
   'universal-edit': IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT,

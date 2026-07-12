@@ -46,11 +46,15 @@ import {
 } from '../../../utils/illustrations/registry';
 import { assertNever } from '../../../utils/shapes';
 import { CARD_GRID, SELECTABLE_CARD } from '../../sidebarStyles';
+import { ChartTypePreview } from '../DiagrammeSection';
+import { getShapeVariant } from '../FormenSection';
+import { IllustrationThumb } from '../IllustrationThumb';
 
 import { PREVIEW_COMPONENTS } from './constants';
 
 import type React from 'react';
 import type { SearchResult } from './useAssetSearch';
+import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiDef, SvgDef } from '../../../utils/illustrations/types';
 import type { ShapeType } from '../../../utils/shapes';
@@ -90,7 +94,8 @@ export function SearchInput({
 export interface SearchResultsGridProps {
   results: SearchResult[];
   onAddAsset?: (assetId: string) => void;
-  onAddShape?: (type: ShapeType) => void;
+  onAddShape?: (type: ShapeType, color?: string) => void;
+  onAddChart?: (chartType: ChartType) => void;
   onAddIllustration?: (id: string) => void;
   onAddFrame?: (clipType: FrameClipType) => void;
   selectedIcons?: string[];
@@ -102,6 +107,7 @@ export function SearchResultsGrid({
   results,
   onAddAsset,
   onAddShape,
+  onAddChart,
   onAddIllustration,
   onAddFrame,
   selectedIcons = [],
@@ -135,16 +141,40 @@ export function SearchResultsGrid({
 
         if (result.type === 'shape' && result.shapeDef && onAddShape) {
           const shape = result.shapeDef;
+          const variant = getShapeVariant(shape.id);
           return (
             <button
               key={`shape-${result.id}`}
               className={SELECTABLE_CARD}
-              onClick={() => onAddShape(shape.id)}
+              onClick={() => onAddShape(shape.id, variant.color)}
               type="button"
               title={shape.name}
             >
-              <div className="flex items-center justify-center w-full h-full relative text-secondary-600 dark:text-secondary-300">
+              <div
+                className={cn(
+                  'flex items-center justify-center w-full h-full relative',
+                  variant.darkPreviewClass
+                )}
+                style={{ color: variant.color }}
+              >
                 <ShapeSearchPreview type={shape.id} />
+              </div>
+            </button>
+          );
+        }
+
+        if (result.type === 'chart' && result.chartTypeDef && onAddChart) {
+          const def = result.chartTypeDef;
+          return (
+            <button
+              key={`chart-${result.id}`}
+              className={SELECTABLE_CARD}
+              onClick={() => onAddChart(def.id)}
+              type="button"
+              title={`${def.name} einfügen`}
+            >
+              <div className="flex items-center justify-center w-full h-full relative">
+                <ChartTypePreview type={def.id} size={32} />
               </div>
             </button>
           );
@@ -204,18 +234,7 @@ export function SearchResultsGrid({
                 title={ill.name}
               >
                 <div className="flex items-center justify-center w-full h-full aspect-square [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain">
-                  <img
-                    src={getIllustrationThumbPath(ill as SvgDef, assetBaseUrl)}
-                    alt={ill.name}
-                    loading="lazy"
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      if (!img.dataset.fallback) {
-                        img.dataset.fallback = '1';
-                        img.src = getIllustrationPath(ill as SvgDef, assetBaseUrl);
-                      }
-                    }}
-                  />
+                  <IllustrationThumb def={ill as SvgDef} />
                 </div>
               </button>
             );

@@ -6,8 +6,10 @@ import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { BalkenInstance } from '../primitives';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { FrameInstance } from '../utils/frameUtils';
+import type { GradientFill } from '../utils/gradientFill';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { ShapeInstance } from '../utils/shapes';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 /**
  * Floating Module State - Determines active floating toolbar module
@@ -26,13 +28,30 @@ export interface FloatingModuleState {
     | 'asset'
     | 'background'
     | 'balken'
-    | 'frame';
+    | 'frame'
+    | 'user-image';
   data: {
     id: string;
     fontSize?: number;
     opacity?: number;
     fill?: string;
     color?: string;
+    // Effect controls (outline / shadow / blur / gradient)
+    stroke?: string;
+    strokeWidth?: number;
+    shadowColor?: string;
+    shadowBlur?: number;
+    shadowOffsetX?: number;
+    shadowOffsetY?: number;
+    shadowOpacity?: number;
+    blur?: number;
+    fillGradient?: GradientFill | null;
+    /**
+     * True only for instance-backed text (additionalTexts), which stores effect
+     * fields directly. Config-declared template texts route through state keys
+     * and don't support outline/shadow/gradient, so their controls are hidden.
+     */
+    isInstanceText?: boolean;
     [key: string]: unknown;
   };
 }
@@ -81,7 +100,16 @@ function floatingModuleEqual(
     a.data.fontSize === b.data.fontSize &&
     a.data.opacity === b.data.opacity &&
     a.data.fill === b.data.fill &&
-    a.data.color === b.data.color
+    a.data.color === b.data.color &&
+    a.data.stroke === b.data.stroke &&
+    a.data.strokeWidth === b.data.strokeWidth &&
+    a.data.shadowColor === b.data.shadowColor &&
+    a.data.shadowBlur === b.data.shadowBlur &&
+    a.data.shadowOffsetX === b.data.shadowOffsetX &&
+    a.data.shadowOffsetY === b.data.shadowOffsetY &&
+    a.data.shadowOpacity === b.data.shadowOpacity &&
+    a.data.blur === b.data.blur &&
+    a.data.fillGradient === b.data.fillGradient
   );
 }
 
@@ -261,6 +289,14 @@ export function useFloatingModuleState<
       fontSize?: number;
       opacity?: number;
       fill?: string;
+      stroke?: string;
+      strokeWidth?: number;
+      shadowColor?: string;
+      shadowBlur?: number;
+      shadowOffsetX?: number;
+      shadowOffsetY?: number;
+      shadowOpacity?: number;
+      fillGradient?: GradientFill | null;
     }>(state, 'additionalTexts');
     const additionalText = additionalTexts.find((t) => t.id === selectedElement);
     if (additionalText) {
@@ -268,9 +304,18 @@ export function useFloatingModuleState<
         type: 'text' as const,
         data: {
           id: selectedElement,
+          isInstanceText: true,
           fontSize: additionalText.fontSize,
           opacity: additionalText.opacity ?? 1,
           fill: additionalText.fill,
+          stroke: additionalText.stroke,
+          strokeWidth: additionalText.strokeWidth,
+          shadowColor: additionalText.shadowColor,
+          shadowBlur: additionalText.shadowBlur,
+          shadowOffsetX: additionalText.shadowOffsetX,
+          shadowOffsetY: additionalText.shadowOffsetY,
+          shadowOpacity: additionalText.shadowOpacity,
+          fillGradient: additionalText.fillGradient,
         },
       };
     }
@@ -318,6 +363,16 @@ export function useFloatingModuleState<
       return {
         type: 'asset' as const,
         data: { ...asset, id: selectedElement },
+      };
+    }
+
+    // Check if User Image
+    const userImageInstances = getStateArray<UserImageInstance>(state, 'userImageInstances');
+    const userImage = userImageInstances.find((u) => u.id === selectedElement);
+    if (userImage) {
+      return {
+        type: 'user-image' as const,
+        data: { ...userImage, id: selectedElement, opacity: userImage.opacity ?? 1 },
       };
     }
 

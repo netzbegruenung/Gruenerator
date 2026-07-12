@@ -117,9 +117,9 @@ const StudioGallerySections = () => {
 
   const isAustrianUser = user?.locale === 'de-AT';
 
-  // Canvas cards only lead to the flag-gated editor; AT users create via the
-  // external bildgenerator — skip the fetch entirely in both cases.
-  const canvasesEnabled = SHOW_SHAREPIC_STUDIO && !isAustrianUser;
+  // Canvas cards lead to the flag-gated internal editor for both DE and AT
+  // (AT gets the de-AT template set via audience filtering).
+  const canvasesEnabled = SHOW_SHAREPIC_STUDIO;
   const canvasQuery = useRecentCanvases(canvasesEnabled);
 
   const { sharepicCards, imagineItems } = useMemo(() => {
@@ -246,15 +246,12 @@ const StudioGallerySections = () => {
             title="Sharepics"
             // The title doubles as the entry point to the full Mediathek.
             onTitleClick={() => navigate('/media-library')}
-            // AT keeps its external bildgenerator link; DE creation goes through
-            // the canvas editor, a research preview gated by SHOW_SHAREPIC_STUDIO.
+            // Both DE and AT create through the internal canvas editor (AT gets
+            // the de-AT template set), gated by SHOW_SHAREPIC_STUDIO.
             onCreate={
-              isAustrianUser
-                ? () =>
-                    window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer')
-                : SHOW_SHAREPIC_STUDIO
-                  ? () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null)
-                  : undefined
+              SHOW_SHAREPIC_STUDIO
+                ? () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null)
+                : undefined
             }
             createLabel="Neues Sharepic erstellen"
           />

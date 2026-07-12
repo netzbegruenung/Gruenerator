@@ -123,6 +123,7 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
+const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
 const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
@@ -220,6 +221,7 @@ const CollabCanvasStudioPage = lazy(
   () => import('../features/image-studio/CollabCanvasStudioPage')
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
+const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
 const MonitorUebersichtPage = lazy(() => import('../features/monitor/pages/MonitorUebersichtPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
@@ -270,6 +272,7 @@ const standardRoutes: RouteConfig[] = [
         layoutMode: 'noChrome' as const,
       },
   { path: '/startseite', component: Startseite, public: true, layoutMode: 'noChrome' as const },
+  { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   // Workplace home with three tab routes (Chat / Arbeiten / Wissen). sidebarOnly
@@ -328,6 +331,7 @@ const standardRoutes: RouteConfig[] = [
   // status. Monitor is the first — formerly the dev-only /monitor*, now
   // production-visible at /experiments/monitor*.
   { path: '/experiments', component: ExperimentsIndexPage },
+  { path: '/experiments/reisekosten', component: ReisekostenPage },
   { path: '/experiments/monitor', component: MonitorUebersichtPage },
   { path: '/experiments/monitor/themen', component: MonitorThemenPage },
   { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },
