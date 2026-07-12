@@ -1,7 +1,9 @@
 import { Suspense, lazy } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useAuthStore } from '../../stores/authStore';
+import { useTourAutostart } from '../tours/useTourAutostart';
 
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
 import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
@@ -24,6 +26,13 @@ const TAB_BACKGROUND: Record<string, string> = {
 const WorkplacePage = () => {
   const { pathname } = useLocation();
   const tab = workplaceTabFromPathname(pathname);
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  useTourAutostart('workplace', tab === 'chat' && !!user, () => {
+    void import('../tours/workplaceTour').then((m) =>
+      m.startWorkplaceTour((path) => void navigate(path))
+    );
+  });
 
   return (
     <ErrorBoundary>
@@ -38,7 +47,7 @@ const WorkplacePage = () => {
         ) : tab === 'wissen' ? (
           // The notebook chat surface sizes itself against a bounded parent —
           // full-height flex chain (sidebarOnly layout provides h-dvh).
-          <div className="min-h-0 flex-1 pt-14">
+          <div className="min-h-0 flex-1 pt-14" data-tour="wissen">
             <Suspense fallback={null}>
               <WissenTab />
             </Suspense>
