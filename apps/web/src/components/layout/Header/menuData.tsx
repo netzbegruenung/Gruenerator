@@ -57,6 +57,9 @@ export interface MenuSection {
 // Direct menu items result type
 export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
+/** The sidebar entry that opens the global search palette rather than a route. */
+export const GLOBAL_SEARCH_ITEM_ID = 'globalSearch';
+
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
@@ -67,6 +70,16 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
+  };
+
+  // No `path`: the sidebar opens the global search palette instead of
+  // navigating. Consumers that render nav targets (DesktopHome, featureIndex)
+  // already skip path-less entries.
+  items.globalSearch = {
+    id: GLOBAL_SEARCH_ITEM_ID,
+    title: 'Suche',
+    description: 'Alles durchsuchen',
+    icon: getIcon('ui', 'search'),
   };
 
   items.docs = {
