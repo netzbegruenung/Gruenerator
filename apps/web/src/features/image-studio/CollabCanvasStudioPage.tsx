@@ -5,6 +5,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { PiArrowLeft } from 'react-icons/pi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -154,6 +155,20 @@ function CollabCanvasStudioContent() {
 
   const chromeRight = <PresenceAvatars collaborators={collaborators} compact />;
 
+  // Immersive layout hides the global app sidebar, so this back button is the
+  // way out of the editor — mirrors the docs EditorTopBar back button.
+  const chromeLeft = (
+    <button
+      type="button"
+      onClick={handleCancel}
+      aria-label="Zurück zum Studio"
+      title="Zurück zum Studio"
+      className="flex items-center justify-center size-[34px] max-canvas-mobile:size-8 rounded-[10px] border-none bg-transparent cursor-pointer text-white/90 transition-[background-color,color] duration-200 hover:bg-white/15 hover:text-white"
+    >
+      <PiArrowLeft size={20} />
+    </button>
+  );
+
   if (isLoading || !canvas) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
@@ -182,6 +197,7 @@ function CollabCanvasStudioContent() {
                 ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
                 : undefined
             }
+            chromeLeft={chromeLeft}
             chromeCenter={chromeCenter}
             chromeRight={chromeRight}
             onInvitePeople={() => setShareOpen(true)}
