@@ -6,11 +6,13 @@
  * width/height directly (already scaled during creation).
  */
 
-import Konva from 'konva';
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
+
 import type { UserImageInstance } from '../utils/userImageUtils';
+import type Konva from 'konva';
 
 export interface UserImagePrimitiveProps {
   userImage: UserImageInstance;
@@ -34,8 +36,6 @@ function UserImagePrimitiveInner({
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
-  const blur = userImage.blur ?? 0;
-
   useEffect(() => {
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
@@ -54,17 +54,30 @@ function UserImagePrimitiveInner({
     }
   }, [isSelected]);
 
-  // Konva filters (Blur) require the node to be cached first.
+  // Konva filters require the node to be cached first.
   useEffect(() => {
     const node = imageRef.current;
     if (!node || !image) return;
-    if (blur > 0) {
+    if (hasActiveImageFilters(userImage)) {
       node.cache();
     } else {
       node.clearCache();
     }
     node.getLayer()?.batchDraw();
-  }, [image, blur, userImage.width, userImage.height]);
+  }, [
+    image,
+    userImage.width,
+    userImage.height,
+    userImage.blur,
+    userImage.brightness,
+    userImage.contrast,
+    userImage.saturation,
+    userImage.hue,
+    userImage.temperature,
+    userImage.grayscale,
+    userImage.sepia,
+    userImage.invert,
+  ]);
 
   if (!image) return null;
 
@@ -113,8 +126,13 @@ function UserImagePrimitiveInner({
           image={image}
           width={width}
           height={height}
-          filters={blur > 0 ? [Konva.Filters.Blur] : undefined}
-          blurRadius={blur}
+          filters={getActiveImageFilters(userImage)}
+          blurRadius={userImage.blur ?? 0}
+          brightness={userImage.brightness ?? 0}
+          contrast={userImage.contrast ?? 0}
+          saturation={userImage.saturation ?? 0}
+          hue={userImage.hue ?? 0}
+          temperature={userImage.temperature ?? 0}
           shadowColor={userImage.shadowColor}
           shadowBlur={userImage.shadowBlur}
           shadowOffsetX={userImage.shadowOffsetX}
@@ -165,6 +183,14 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.rotation !== next.rotation) return false;
   if (prev.opacity !== next.opacity) return false;
   if (prev.blur !== next.blur) return false;
+  if (prev.brightness !== next.brightness) return false;
+  if (prev.contrast !== next.contrast) return false;
+  if (prev.saturation !== next.saturation) return false;
+  if (prev.hue !== next.hue) return false;
+  if (prev.temperature !== next.temperature) return false;
+  if (prev.grayscale !== next.grayscale) return false;
+  if (prev.sepia !== next.sepia) return false;
+  if (prev.invert !== next.invert) return false;
   if (prev.shadowColor !== next.shadowColor) return false;
   if (prev.shadowBlur !== next.shadowBlur) return false;
   if (prev.shadowOffsetX !== next.shadowOffsetX) return false;

@@ -17,7 +17,35 @@ export interface UserImageInstance {
   shadowOffsetX?: number;
   shadowOffsetY?: number;
   shadowOpacity?: number;
+  // --- Image adjustments (Konva.Filters); omit/default = no effect ---
+  /** Konva Brighten: -1..1 */
+  brightness?: number;
+  /** Konva Contrast: -100..100 */
+  contrast?: number;
+  /** Konva HSL saturation: -2..10 */
+  saturation?: number;
+  /** Konva HSL hue: 0..360 */
+  hue?: number;
+  /** Color temperature -100..100 (custom warm/cool R/B shift) */
+  temperature?: number;
+  grayscale?: boolean;
+  sepia?: boolean;
+  invert?: boolean;
 }
+
+/** The adjustment fields, for reset / preset helpers. */
+export type ImageAdjustments = Pick<
+  UserImageInstance,
+  | 'blur'
+  | 'brightness'
+  | 'contrast'
+  | 'saturation'
+  | 'hue'
+  | 'temperature'
+  | 'grayscale'
+  | 'sepia'
+  | 'invert'
+>;
 
 const TARGET_MAX_DIMENSION = 300;
 const FALLBACK_WIDTH = 300;
