@@ -15,6 +15,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
+import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
@@ -128,6 +129,11 @@ function CollabCanvasStudioContent() {
 
   const collaborators = useCollaborators(collab.provider);
 
+  const chatDoc = useMemo(
+    () => (id ? { documentId: id, title: canvas?.title ?? null } : null),
+    [id, canvas?.title]
+  );
+
   const isLive = collab.isSynced && collab.isConnected;
   const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
 
@@ -184,36 +190,38 @@ function CollabCanvasStudioContent() {
 
   return (
     <WebCanvasEditorProvider>
-      <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
-        <div className="flex-1 min-h-0">
-          <MasterCanvasEditor
-            type={canvas.template_type}
+      <CanvasChatDocContext.Provider value={chatDoc}>
+        <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
+          <div className="flex-1 min-h-0">
+            <MasterCanvasEditor
+              type={canvas.template_type}
+              initialState={canvas.initial_state}
+              initialPages={initialPages}
+              onExport={handleExport}
+              onDownload={refreshThumbnail}
+              onCollabSnapshot={refreshThumbnail}
+              onCancel={handleCancel}
+              collaborative={
+                collab.ydoc
+                  ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
+                  : undefined
+              }
+              chromeLeft={chromeLeft}
+              chromeCenter={chromeCenter}
+              chromeRight={chromeRight}
+              onInvitePeople={() => setShareOpen(true)}
+            />
+          </div>
+          <ShareCanvasDialog
+            canvasId={canvas.id}
+            canvasType={canvas.template_type}
             initialState={canvas.initial_state}
-            initialPages={initialPages}
-            onExport={handleExport}
-            onDownload={refreshThumbnail}
-            onCollabSnapshot={refreshThumbnail}
-            onCancel={handleCancel}
-            collaborative={
-              collab.ydoc
-                ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
-                : undefined
-            }
-            chromeLeft={chromeLeft}
-            chromeCenter={chromeCenter}
-            chromeRight={chromeRight}
-            onInvitePeople={() => setShareOpen(true)}
+            defaultTitle={canvas.title}
+            open={shareOpen}
+            onOpenChange={setShareOpen}
           />
         </div>
-        <ShareCanvasDialog
-          canvasId={canvas.id}
-          canvasType={canvas.template_type}
-          initialState={canvas.initial_state}
-          defaultTitle={canvas.title}
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-        />
-      </div>
+      </CanvasChatDocContext.Provider>
     </WebCanvasEditorProvider>
   );
 }
