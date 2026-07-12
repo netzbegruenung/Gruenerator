@@ -155,6 +155,13 @@ export const ALL_ASSETS: UniversalAsset[] = [
  */
 export const LOGO_ASSETS: UniversalAsset[] = ALL_ASSETS.filter((a) => a.category === 'decoration');
 
+/** Logos ordered recommended-first — shared by the browse strip and the Logos drill-down. */
+export function sortLogoAssets(recommendedAssetIds: readonly string[]): UniversalAsset[] {
+  const recommended = LOGO_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
+  const others = LOGO_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
+  return [...recommended, ...others];
+}
+
 /**
  * Mapping of canvas types to their recommended (default) assets
  * These appear in the "Empfohlen" section at the top

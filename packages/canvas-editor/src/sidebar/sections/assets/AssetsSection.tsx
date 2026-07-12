@@ -61,7 +61,7 @@ export interface ExtendedAssetsSectionProps {
   onDuplicateBalken?: (id: string) => void;
   shapeInstances?: ShapeInstance[];
   selectedShapeId?: string | null;
-  onAddShape?: (type: ShapeType) => void;
+  onAddShape?: (type: ShapeType, color?: string) => void;
   onUpdateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
   onRemoveShape?: (id: string) => void;
   onDuplicateShape?: (id: string) => void;
@@ -137,10 +137,13 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
     }
   }, [hasIllustrationsFeature]);
 
-  // --- Desktop: Canva-style browse/drill-down ---
+  // --- Desktop: library view (jump bar + category strips) with drill-down ---
+  // canvas-mobile:-m-3 cancels the panel's p-3 (also canvas-mobile-scoped) so
+  // strips bleed to the panel edge; the view fills the panel height and
+  // scrolls internally below search + chips.
   if (!isMobile) {
     return (
-      <div className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:p-sm min-w-[296px]')}>
+      <div className="flex flex-col flex-1 min-h-0 min-w-[296px] canvas-mobile:-m-3">
         <BrowseView search={search} {...props} />
       </div>
     );
