@@ -82,6 +82,10 @@ import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
+import dreizeilenAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_at_canvas.js';
+import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
+import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
+import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
@@ -95,6 +99,7 @@ import sliderCanvasRoute from './routes/sharepic/sharepic_canvas/slider_canvas.j
 import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
 import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
+// Österreich (de-AT) canvas renderers
 import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
 import sharepicClaudeRoute, {
   handleClaudeRequest,
@@ -120,6 +125,7 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
@@ -377,6 +383,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-values', requireAuth);
   mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
+  // ts-rest contract router for /api/reisekosten (Fahrtkosten-Grünerator).
+  // requireAuth at the prefix — all routes handle user-entered expense data.
+  app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
+  mountReisekostenContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
@@ -415,6 +425,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
   app.use('/api/info_canvas', standardMutationLimiter, infoSharepicCanvasRoute);
+  // Österreich (de-AT) canvas renderers
+  app.use('/api/info_at_canvas', standardMutationLimiter, infoAtCanvasRoute);
+  app.use('/api/zitat_at_canvas', standardMutationLimiter, zitatAtCanvasRoute);
+  app.use('/api/zitat_pure_at_canvas', standardMutationLimiter, zitatPureAtCanvasRoute);
+  app.use('/api/dreizeilen_at_canvas', standardMutationLimiter, dreizeilenAtCanvasRoute);
   app.use('/api/imagine_label_canvas', standardMutationLimiter, imagineLabelCanvasRoute);
   // Canvas AI suggestions: dedicated Redis-based rate limit bucket
   // (canvas_ai resource) plus the abuse-prevention IP limiter shared with

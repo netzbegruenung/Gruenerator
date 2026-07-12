@@ -5,6 +5,7 @@ import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { cn } from '../../utils/cn';
+import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
@@ -21,12 +22,6 @@ export interface UploadsSectionProps {
   onSwapPlacedUrl?: (id: string, url: string) => void;
   /** Remove an optimistically-placed instance if its upload fails. */
   onRemovePlaced?: (id: string) => void;
-}
-
-function buildPlacementUrl(item: MediaItem): string | null {
-  if (item.mediaUrl) return item.mediaUrl;
-  if (item.shareToken) return `/api/share/${item.shareToken}/download`;
-  return item.thumbnailUrl;
 }
 
 export function UploadsSection({

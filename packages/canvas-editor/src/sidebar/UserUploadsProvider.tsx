@@ -11,7 +11,7 @@ import {
 import { useMediaLibrary, useMediaUpload } from '@gruenerator/shared/media-library';
 
 import type { ReactNode } from 'react';
-import type { MediaItem } from '@gruenerator/shared/media-library';
+import type { MediaItem, UploadSource } from '@gruenerator/shared/media-library';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -21,7 +21,12 @@ interface UserUploadsContextValue {
   error: string | null;
   search: string;
   setSearch: (value: string) => void;
-  upload: (file: File) => Promise<MediaItem | null>;
+  /**
+   * Uploads to the media library. `uploadSource` defaults to 'upload' (shows in
+   * the Uploads tab); pass 'canvas-element' for tool-generated images that are
+   * placed straight onto the canvas and must stay out of the library.
+   */
+  upload: (file: File, uploadSource?: UploadSource) => Promise<MediaItem | null>;
   deleteFromLibrary: (id: string) => Promise<boolean>;
   isUploading: boolean;
   uploadProgress: number;
@@ -52,8 +57,8 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
   }, [search, library]);
 
   const upload = useCallback(
-    async (file: File): Promise<MediaItem | null> => {
-      const result = await uploader.upload(file, { uploadSource: 'upload' });
+    async (file: File, uploadSource: UploadSource = 'upload'): Promise<MediaItem | null> => {
+      const result = await uploader.upload(file, { uploadSource });
       if (!result) return null;
       return {
         id: result.id,
@@ -64,7 +69,7 @@ export function UserUploadsProvider({ children }: { children: ReactNode }) {
         fileSize: file.size,
         mimeType: file.type,
         altText: null,
-        uploadSource: 'upload',
+        uploadSource,
         originalFilename: file.name,
         downloadCount: 0,
         viewCount: 0,

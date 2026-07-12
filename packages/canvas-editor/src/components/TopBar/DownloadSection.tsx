@@ -7,14 +7,15 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Switch,
 } from '@gruenerator/ui';
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-export type CanvasDownloadChoice = 'png' | 'jpeg';
+export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
 export interface DownloadSectionProps {
-  onDownload: (format: 'png' | 'jpeg', pixelRatio: number) => void;
+  onDownload: (format: CanvasDownloadChoice, pixelRatio: number, transparent: boolean) => void;
   onDownloadAllZip?: () => Promise<void>;
   pageCount: number;
   isMultiExporting?: boolean;
@@ -22,6 +23,7 @@ export interface DownloadSectionProps {
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 2;
+const SCALE_OPTIONS = [1, 2, 3] as const;
 
 export function DownloadSection({
   onDownload,
@@ -31,10 +33,15 @@ export function DownloadSection({
   exportProgress,
 }: DownloadSectionProps) {
   const [choice, setChoice] = useState<CanvasDownloadChoice>('png');
+  const [scale, setScale] = useState<number>(DEFAULT_RASTER_PIXEL_RATIO);
+  const [transparent, setTransparent] = useState(false);
   const [pageSelection, setPageSelection] = useState<'current' | 'all'>('current');
   const [isDownloading, setIsDownloading] = useState(false);
 
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
+  // JPEG has no alpha channel — the transparency toggle is only meaningful for
+  // PNG/WebP.
+  const supportsTransparency = choice !== 'jpeg';
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -43,14 +50,7 @@ export function DownloadSection({
         await onDownloadAllZip();
         return;
       }
-      switch (choice) {
-        case 'png':
-          onDownload('png', DEFAULT_RASTER_PIXEL_RATIO);
-          break;
-        case 'jpeg':
-          onDownload('jpeg', DEFAULT_RASTER_PIXEL_RATIO);
-          break;
-      }
+      onDownload(choice, scale, supportsTransparency && transparent);
     } finally {
       setIsDownloading(false);
     }
@@ -67,9 +67,41 @@ export function DownloadSection({
           <SelectContent position="popper" className="z-[10001]">
             <SelectItem value="png">PNG</SelectItem>
             <SelectItem value="jpeg">JPG</SelectItem>
+            <SelectItem value="webp">WebP</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      {/* Resolution + transparency only apply to single-page export; the
+          multi-page ZIP path renders at fixed settings. */}
+      {pageSelection === 'current' && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-foreground-muted">Auflösung</Label>
+            <Select value={String(scale)} onValueChange={(v) => setScale(Number(v))}>
+              <SelectTrigger size="sm" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="z-[10001]">
+                {SCALE_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    {s}× {s === DEFAULT_RASTER_PIXEL_RATIO ? '(Standard)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {supportsTransparency && (
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-medium text-foreground-muted">
+                Transparenter Hintergrund
+              </Label>
+              <Switch checked={transparent} onCheckedChange={setTransparent} />
+            </div>
+          )}
+        </>
+      )}
 
       {isMultiPage && (
         <div className="flex flex-col gap-1.5">
