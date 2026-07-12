@@ -4,20 +4,17 @@ import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { cn } from '../../utils/cn';
+import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { SidebarHint } from '../components/SidebarHint';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
+import { useImagePlacement } from '../useImagePlacement';
 import { useUserUploads } from '../UserUploadsProvider';
 
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 export interface UploadsSectionProps {
+  /** Places an image (freshly uploaded or an existing library item) onto the canvas. */
   onPlaceFromUrl?: (url: string, fileName: string) => void;
-}
-
-function buildPlacementUrl(item: MediaItem): string | null {
-  if (item.mediaUrl) return item.mediaUrl;
-  if (item.shareToken) return `/api/share/${item.shareToken}/download`;
-  return item.thumbnailUrl;
 }
 
 export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
@@ -28,7 +25,6 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
     error,
     search,
     setSearch,
-    upload,
     deleteFromLibrary,
     isUploading,
     uploadProgress,
@@ -36,16 +32,17 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
     hasMore,
     loadMore,
   } = useUserUploads();
+  const { place } = useImagePlacement(onPlaceFromUrl);
 
   const [isDragOver, setIsDragOver] = useState(false);
 
   const acceptFiles = async (files: FileList | File[]) => {
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue;
-      const result = await upload(file);
-      if (result && onPlaceFromUrl) {
-        const url = buildPlacementUrl(result);
-        if (url) onPlaceFromUrl(url, result.originalFilename ?? result.title ?? file.name);
+      try {
+        await place(file, 'upload');
+      } catch {
+        // Upload failure is surfaced via `uploadError` from the provider.
       }
     }
   };
