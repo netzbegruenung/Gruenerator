@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useEffect, useMemo, useCallback, useRef, useState, memo, lazy, Suspense } from 'react';
 import { type IconType } from 'react-icons';
 import { PiSignIn, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -23,7 +23,12 @@ import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
-import { getDirectMenuItems, getMobileOnlyMenuItems, type MenuItemType } from '../Header/menuData';
+import {
+  GLOBAL_SEARCH_ITEM_ID,
+  getDirectMenuItems,
+  getMobileOnlyMenuItems,
+  type MenuItemType,
+} from '../Header/menuData';
 
 import NewItemDropdown from './NewItemDropdown';
 import SidebarAccount from './SidebarAccount';
@@ -32,6 +37,10 @@ import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
+
+// The Sidebar renders on every route; keep cmdk and the feature index out of
+// the main bundle and off the render path until the palette is actually opened.
+const GlobalSearchDialog = lazy(() => import('../../../features/global-search/GlobalSearchDialog'));
 
 interface SidebarProps {
   isDesktop?: boolean;
@@ -70,6 +79,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
@@ -86,21 +96,28 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     }
   }, [location.pathname]);
 
-  // Keyboard shortcuts: Escape to close, Ctrl/Cmd+B to toggle
+  // Keyboard shortcuts: Escape to close, Ctrl/Cmd+B to toggle, Ctrl/Cmd+K to search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      // Radix dismisses the palette on Escape without stopping propagation, so
+      // without this guard one Escape would also collapse the sidebar.
+      if (e.key === 'Escape' && isOpen && !searchOpen) {
         close();
         return;
       }
       if (e.key === 'b' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         toggle();
+        return;
+      }
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, close, toggle]);
+  }, [isOpen, close, toggle, searchOpen]);
 
   const isActive = useCallback(
     (
@@ -210,7 +227,19 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         {additionalItems.length > 0 && (
           <div className="flex flex-col gap-0 p-0">
             {additionalItems.map((item) =>
-              !item.path ? (
+              item.id === GLOBAL_SEARCH_ITEM_ID ? (
+                <NavTooltip key={item.id} label={item.title} collapsed={!sidebarExpanded}>
+                  <button
+                    onClick={() => setSearchOpen(true)}
+                    className={menuLinkClass(false, false, !sidebarExpanded)}
+                    type="button"
+                    aria-haspopup="dialog"
+                  >
+                    {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
+                    <span className={titleClass}>{item.title}</span>
+                  </button>
+                </NavTooltip>
+              ) : !item.path ? (
                 <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
                   {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
                   <span className={titleClass}>{item.title}</span>
@@ -361,6 +390,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   return (
     <>
+      {searchOpen && (
+        <Suspense fallback={null}>
+          <GlobalSearchDialog open onOpenChange={setSearchOpen} />
+        </Suspense>
+      )}
+
       {/* Mobile: Sheet overlay */}
       {isMobile && !isDesktop && (
         <Sheet open={isOpen} onOpenChange={(open) => (open ? undefined : close())}>

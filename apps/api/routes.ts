@@ -69,6 +69,7 @@ import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
+import { mountGlobalSearchContractRouter } from './routes/search/globalSearchContractRouter.js';
 import {
   searchController as searchRouter,
   webSearchController as webSearchRouter,
@@ -679,6 +680,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // depends on. Activate once streaming is added to the contract.
   app.use('/api/search', publicReadLimiter, searchRouter);
   app.use('/api/analyze', publicReadLimiter, searchRouter);
+  // Unified "search everything" over the caller's own content — unrelated to
+  // the web search above. requireAuth runs on the prefix because
+  // createExpressEndpoints registers handlers directly on the app.
+  app.use('/api/global-search', requireAuth, authenticatedReadLimiter);
+  mountGlobalSearchContractRouter(app);
   app.use('/api/search-graph', requireAuth, standardMutationLimiter, searchGraphRouter);
   // ts-rest contract router — mount before legacy imagePickerRoute
   mountImagePickerContractRouter(app);

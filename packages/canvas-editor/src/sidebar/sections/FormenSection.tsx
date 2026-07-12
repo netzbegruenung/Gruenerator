@@ -533,16 +533,27 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
 const ALL_PALETTE_SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(SHAPE_PREVIEWS);
 const COLLAPSED_COUNT = 6;
 
-/** Index of palette entries grouped by category (computed once at module load). */
-const SHAPES_BY_CATEGORY: Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> = (() => {
+/**
+ * Palette entries grouped by category, computed lazily and memoized on first use.
+ *
+ * Must NOT run at module-init: `CATEGORY_ORDER` (and `getShapeDef`) are imported
+ * from `shapes.ts`, which under production code-splitting can live in a chunk
+ * that initializes AFTER this one. Iterating `CATEGORY_ORDER` at module top-level
+ * then throws "CATEGORY_ORDER is not iterable". Deferring to first render (all
+ * chunks initialized by then) makes this robust to chunk ordering.
+ */
+let shapesByCategoryCache: Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> | null = null;
+function getShapesByCategory(): Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> {
+  if (shapesByCategoryCache) return shapesByCategoryCache;
   const acc = {} as Record<ShapeCategory, ShapeDefinition[]>;
   for (const cat of CATEGORY_ORDER) acc[cat] = [];
   for (const shape of ALL_PALETTE_SHAPES) {
     const def = getShapeDef(shape.id);
     acc[def.category].push(shape);
   }
+  shapesByCategoryCache = acc;
   return acc;
-})();
+}
 
 function shapeMatchesQuery(shape: ShapeDefinition, q: string): boolean {
   const def = getShapeDef(shape.id);
@@ -566,9 +577,10 @@ export function FormenSection({
 
   // Expanded view: grouped by category with subheaders.
   const groupedShapes = useMemo(() => {
+    const shapesByCategory = getShapesByCategory();
     const groups: { category: ShapeCategory; shapes: ReadonlyArray<ShapeDefinition> }[] = [];
     for (const cat of CATEGORY_ORDER) {
-      const all = SHAPES_BY_CATEGORY[cat];
+      const all = shapesByCategory[cat];
       const filtered = q ? all.filter((s) => shapeMatchesQuery(s, q)) : all;
       if (filtered.length > 0) groups.push({ category: cat, shapes: filtered });
     }
