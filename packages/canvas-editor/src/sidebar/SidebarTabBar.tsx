@@ -33,10 +33,10 @@ const TabButton = memo(function TabButton({
     return (
       <button
         className={cn(
-          'flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 mx-0.5 rounded-lg border-none cursor-pointer min-h-[48px] transition-[background-color,color] duration-200 bg-transparent [&>svg]:size-[22px] [&>svg]:shrink-0',
+          'min-w-14 flex flex-col items-center justify-center gap-1 py-1.5 mx-0.5 rounded-[10px] border-none cursor-pointer min-h-[48px] transition-[background-color,color] duration-200 bg-transparent [&>svg]:size-[19px] [&>svg]:shrink-0',
           isActive
-            ? 'bg-[#E8F5EE] text-[#005538] dark:bg-primary-900/40 dark:text-primary-200'
-            : 'text-grey-500 dark:text-grey-400',
+            ? 'bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] font-bold'
+            : 'text-[var(--editor-text-secondary)]',
           isDisabled && 'opacity-40 cursor-not-allowed'
         )}
         onClick={handleClick}
@@ -45,8 +45,8 @@ const TabButton = memo(function TabButton({
         aria-pressed={isActive}
         type="button"
       >
-        <Icon size={22} />
-        <span className="text-[10px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+        <Icon size={19} />
+        <span className="text-[9.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
           {tab.label}
         </span>
       </button>
@@ -56,9 +56,9 @@ const TabButton = memo(function TabButton({
   return (
     <button
       className={cn(
-        'sidebar-tab-bar__tab relative w-[72px] h-14 flex flex-col items-center justify-center gap-0.5 border-none bg-transparent rounded-lg cursor-pointer text-foreground transition-[background-color,color] duration-200 p-1 [&>svg]:size-[22px] [&>svg]:shrink-0 hover:enabled:bg-background-alt disabled:opacity-40 disabled:cursor-not-allowed',
+        'sidebar-tab-bar__tab w-[62px] py-[9px] flex flex-col items-center justify-center gap-1.5 border-none bg-transparent rounded-[10px] cursor-pointer text-[var(--editor-text-secondary)] transition-[background-color,color] duration-200 [&>svg]:size-[21px] [&>svg]:shrink-0 hover:enabled:bg-[var(--editor-surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed',
         isActive &&
-          'sidebar-tab-bar__tab--active bg-background-alt text-[var(--interactive-accent-color)] before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-6 before:bg-[var(--interactive-accent-color)] before:rounded-r'
+          'sidebar-tab-bar__tab--active bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)] font-bold'
       )}
       onClick={handleClick}
       disabled={isDisabled}
@@ -67,8 +67,8 @@ const TabButton = memo(function TabButton({
       title={tab.label}
       type="button"
     >
-      <Icon size={22} />
-      <span className="sidebar-tab-bar__label text-[length:var(--font-size-xxs)] font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+      <Icon size={21} />
+      <span className="sidebar-tab-bar__label text-[10.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
         {tab.label}
       </span>
     </button>
@@ -101,7 +101,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
 
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 w-full flex items-center justify-evenly bg-background border-t border-t-grey-200 dark:border-t-grey-700 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] pt-2 pb-[calc(6px+env(safe-area-inset-bottom))] z-[100] min-h-[var(--mobile-tab-bar-height,60px)]">
+      <div className="fixed bottom-0 left-0 right-0 w-full flex items-center justify-evenly overflow-x-auto bg-[var(--editor-surface)] border-t border-[var(--editor-border)] shadow-[0_-2px_8px_rgba(0,0,0,0.08)] pt-2 pb-[calc(6px+env(safe-area-inset-bottom))] z-[100] min-h-[var(--mobile-tab-bar-height,60px)]">
         {tabs.map((tab) => (
           <TabButton
             key={tab.id}
@@ -119,7 +119,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   return (
     <div
       className={cn(
-        'sidebar-tab-bar flex flex-col items-center justify-center gap-sm shrink-0 w-16 h-full bg-background',
+        'sidebar-tab-bar flex flex-col items-center justify-start gap-1 pt-2 shrink-0 w-[76px] h-full bg-[var(--editor-surface)] border-r border-[var(--editor-border)]',
         isHorizontal && 'flex-row'
       )}
     >
