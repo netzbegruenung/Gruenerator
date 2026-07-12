@@ -30,6 +30,7 @@ export type CanvasFormField =
   | 'header'
   | 'body'
   | 'headline'
+  | 'accent'
   | 'subtext'
   | 'label'
   | 'eventTitle'
@@ -85,6 +86,23 @@ export const CANVAS_TYPE_FIELDS = {
     image: { key: 'transparentImage', source: 'transparent', required: true },
   },
   [IMAGE_STUDIO_TYPES.FREEFORM]: {
+    fields: [],
+  },
+  // Österreich (de-AT) variants
+  [IMAGE_STUDIO_TYPES.INFO_AT]: {
+    fields: ['headline', 'accent', 'body'],
+  },
+  [IMAGE_STUDIO_TYPES.ZITAT_AT]: {
+    fields: ['quote', 'name'],
+    image: { key: 'imageSrc', source: 'upload', required: true },
+  },
+  [IMAGE_STUDIO_TYPES.ZITAT_PURE_AT]: {
+    fields: ['quote', 'name'],
+  },
+  [IMAGE_STUDIO_TYPES.DREIZEILEN_AT]: {
+    fields: ['line1', 'accent', 'line3'],
+  },
+  [IMAGE_STUDIO_TYPES.FREEFORM_AT]: {
     fields: [],
   },
   // `Record<CanvasTemplateType, …>` (NOT Partial) ties these keys to the

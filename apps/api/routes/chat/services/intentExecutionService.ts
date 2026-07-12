@@ -724,6 +724,7 @@ async function runSharepicGeneration(opts: {
         text: messageText,
         ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
         ...(authorName && { authorName }),
+        ...(state.userLocale && { userLocale: state.userLocale }),
       });
     }
 

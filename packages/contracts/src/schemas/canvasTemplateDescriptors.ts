@@ -40,6 +40,12 @@ export const CANVAS_TEMPLATE_TYPES = [
   'slider',
   'profilbild',
   'freeform',
+  // Österreich (de-AT) variants
+  'info-at',
+  'zitat-at',
+  'zitat-pure-at',
+  'dreizeilen-at',
+  'freeform-at',
 ] as const;
 export const canvasTemplateTypeSchema = z.enum(CANVAS_TEMPLATE_TYPES);
 export type CanvasTemplateType = z.infer<typeof canvasTemplateTypeSchema>;
