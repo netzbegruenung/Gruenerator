@@ -360,7 +360,11 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
-    selectedElement?.startsWith('frame-') ? 'frame-settings' : null,
+    selectedElement?.startsWith('chart-')
+      ? 'chart-settings'
+      : selectedElement?.startsWith('frame-')
+        ? 'frame-settings'
+        : null,
 
   sections: {
     image: section({
@@ -556,6 +560,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       pillBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      chartInstances: [],
       userImageInstances: [],
       imageAttribution:
         (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,

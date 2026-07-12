@@ -9,6 +9,7 @@ import { IconPrimitive } from '../primitives/IconPrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { PillBadge } from '../primitives/PillBadge';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
+import { ChartPrimitive } from '../primitives/ChartPrimitive';
 import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
@@ -142,6 +143,14 @@ interface CanvasRenderLayerProps<
       height: number,
       rotation: number
     ) => void;
+    handleChartDragEnd: (id: string, x: number, y: number) => void;
+    handleChartTransformEnd: (
+      id: string,
+      x: number,
+      y: number,
+      scale: number,
+      rotation: number
+    ) => void;
   };
   getSnapTargets: (id: string) => SnapTarget[];
   handleSnapChange: (h: boolean, v: boolean) => void;
@@ -180,6 +189,7 @@ const SelectableCircleBadge = createSelectableWrapper(CircleBadge);
 const SelectablePillBadge = createSelectableWrapper(PillBadge);
 const SelectableCanvasText = createSelectableWrapper(CanvasText);
 const SelectableUserImagePrimitive = createSelectableWrapper(UserImagePrimitive, 'isSelected');
+const SelectableChartPrimitive = createSelectableWrapper(ChartPrimitive, 'isSelected');
 
 function CanvasRenderLayerInner<
   TState extends Record<string, unknown> = Record<string, unknown>,
@@ -442,6 +452,22 @@ function CanvasRenderLayerInner<
           onDragEnd={(x: number, y: number) => handlers.handleUserImageDragEnd(userImage.id, x, y)}
           onTransformEnd={(x: number, y: number, w: number, h: number, r: number) =>
             handlers.handleUserImageTransformEnd(userImage.id, x, y, w, h, r)
+          }
+        />
+      );
+    }
+
+    if (item.type === 'chart') {
+      const chart = item.data;
+      return (
+        <SelectableChartPrimitive
+          key={chart.id}
+          elementId={chart.id}
+          chart={chart}
+          onSelect={() => handlers.handleElementSelect(chart.id)}
+          onDragEnd={(x: number, y: number) => handlers.handleChartDragEnd(chart.id, x, y)}
+          onTransformEnd={(x: number, y: number, s: number, r: number) =>
+            handlers.handleChartTransformEnd(chart.id, x, y, s, r)
           }
         />
       );
