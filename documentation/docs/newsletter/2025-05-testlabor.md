@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 title: 'Mai 2025: Komm ins Testlabor!'
 ---
 

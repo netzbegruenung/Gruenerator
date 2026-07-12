@@ -221,6 +221,7 @@ const CollabCanvasStudioPage = lazy(
   () => import('../features/image-studio/CollabCanvasStudioPage')
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
+const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
 const MonitorUebersichtPage = lazy(() => import('../features/monitor/pages/MonitorUebersichtPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
@@ -271,6 +272,7 @@ const standardRoutes: RouteConfig[] = [
         layoutMode: 'noChrome' as const,
       },
   { path: '/startseite', component: Startseite, public: true, layoutMode: 'noChrome' as const },
+  { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   // Workplace home with three tab routes (Chat / Arbeiten / Wissen). sidebarOnly
