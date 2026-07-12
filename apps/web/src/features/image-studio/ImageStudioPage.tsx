@@ -640,7 +640,11 @@ const ImageStudioPageContent: React.FC = () => {
         <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
           <h2>Fehler beim Laden der Vorlage</h2>
           <p>{cloneError}</p>
-          <Button onClick={() => navigate('/studio')} text="Zurück" icon={<HiArrowLeft />} />
+          <Button
+            onClick={() => navigate('/workplace/arbeiten')}
+            text="Zurück"
+            icon={<HiArrowLeft />}
+          />
         </div>
       </div>
     );

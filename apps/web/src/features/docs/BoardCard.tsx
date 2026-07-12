@@ -3,8 +3,9 @@ import { memo, useCallback } from 'react';
 import { PiKanban, PiPencilLine } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
+import { BoardPreviewBody } from '../../components/common/SchematicPreviews';
 import { formatRelativeDate } from '../../utils/dateFormatter';
-import { type Board, getBoardType } from '../boards/types';
+import { type Board, getBoardPreview, getBoardType } from '../boards/types';
 
 import { CardActionMenu } from './CardActionMenu';
 
@@ -35,8 +36,11 @@ export const BoardCard = memo(function BoardCard({
       )}
       onClick={handleClick}
     >
-      <div className="flex h-48 items-center justify-center border-b border-grey-100 bg-secondary-50 dark:border-grey-700/60 dark:bg-secondary-900/20">
-        <BoardIcon size={32} className="text-secondary-600 dark:text-secondary-400" />
+      <div className="h-48 overflow-hidden border-b border-grey-100 bg-grey-50 p-4 dark:border-grey-700/60 dark:bg-grey-800/40">
+        <BoardPreviewBody
+          boardType={isWhiteboard ? 'whiteboard' : 'kanban'}
+          preview={getBoardPreview(board)}
+        />
       </div>
 
       <div className="flex items-start gap-2 px-3 py-2.5">

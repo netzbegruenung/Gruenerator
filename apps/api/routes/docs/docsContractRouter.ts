@@ -32,7 +32,12 @@ import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
-import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
+import {
+  DOCS_ONLY_SUBTYPES,
+  DOCS_SUBTYPES,
+  GRANTED_BY_SHARE_LINK,
+  docsAccessWhere,
+} from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
 
 import type { CollaborativeDocument } from './types.js';
@@ -340,7 +345,7 @@ export const docsContractRouter = s.router(docsContract, {
             type: 'group_content_shared',
             title: 'Dokument geteilt',
             body: `${sharerName} hat „${docTitle}" geteilt`,
-            actionUrl: `/docs/${id}`,
+            actionUrl: `/office/${id}`,
             metadata: {
               documentId: id,
               groupId: group_id,
@@ -562,20 +567,7 @@ export const docsContractRouter = s.router(docsContract, {
          FROM collaborative_documents cd
          LEFT JOIN profiles p ON cd.created_by = p.id
          LEFT JOIN profiles le ON cd.last_edited_by = le.id
-         WHERE
-          cd.document_subtype = ANY($3::text[])
-          AND cd.is_deleted = false
-          AND (
-            cd.created_by = $1
-            OR cd.permissions ? $1::text
-            OR cd.id IN (
-              SELECT gcs.content_id::uuid
-              FROM group_content_shares gcs
-              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-              WHERE gcs.content_type = 'collaborative_documents'
-                AND (gcs.permissions->>'read')::boolean IS NOT FALSE
-            )
-          )
+         WHERE ${docsAccessWhere('$3', '$1')}
          ORDER BY cd.updated_at DESC
          ${limitClause}`,
         params

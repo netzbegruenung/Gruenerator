@@ -203,7 +203,7 @@ export async function handleSheetCreation(opts: {
       documentId: newSheet.id,
       title: newSheet.title,
       subtype: 'sheets',
-      url: `/docs/${newSheet.id}`,
+      url: `/office/${newSheet.id}`,
     });
 
     log.info(`[ChatGraph] Sheet created: "${newSheet.title}" (${newSheet.id})`);
@@ -229,7 +229,7 @@ export async function handleSheetCreation(opts: {
           documentId: newSheet.id,
           title: newSheet.title,
           subtype: 'sheets',
-          url: `/docs/${newSheet.id}`,
+          url: `/office/${newSheet.id}`,
         },
       });
       await touchThread(actualThreadId);
@@ -311,7 +311,7 @@ export async function handlePresentationCreation(opts: {
       documentId: newPresentation.id,
       title: newPresentation.title,
       subtype: 'presentations',
-      url: `/docs/${newPresentation.id}`,
+      url: `/office/${newPresentation.id}`,
     });
 
     log.info(
@@ -339,7 +339,7 @@ export async function handlePresentationCreation(opts: {
           documentId: newPresentation.id,
           title: newPresentation.title,
           subtype: 'presentations',
-          url: `/docs/${newPresentation.id}`,
+          url: `/office/${newPresentation.id}`,
         },
       });
       await touchThread(actualThreadId);
@@ -449,7 +449,7 @@ export async function generateAndCreateDocument(opts: {
       documentId: newDocId,
       title: docTitle,
       subtype: docSubtype,
-      url: `/docs/${newDocId}`,
+      url: `/office/${newDocId}`,
     });
 
     log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
@@ -479,7 +479,7 @@ export async function generateAndCreateDocument(opts: {
             documentId: newDocId,
             title: docTitle,
             subtype: docSubtype,
-            url: `/docs/${newDocId}`,
+            url: `/office/${newDocId}`,
           },
         });
         await touchThread(actualThreadId);

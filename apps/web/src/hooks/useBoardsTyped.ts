@@ -27,7 +27,11 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
     queryFn: async () => {
       const client = getContractsClient();
       const result = await client.boards.listBoards();
-      if (result.status !== 200) {
+      // ts-rest types the 200 body as Board[] but does not runtime-validate it;
+      // a proxy/legacy backend answering 200 with an error object would
+      // otherwise crash every `.filter` consumer (and the Sidebar's
+      // ErrorBoundary takes the whole page down with it).
+      if (result.status !== 200 || !Array.isArray(result.body)) {
         throw new Error(`Failed to list boards (HTTP ${result.status})`);
       }
       return result.body;
