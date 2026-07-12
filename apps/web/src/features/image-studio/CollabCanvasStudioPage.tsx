@@ -106,11 +106,12 @@ function CollabCanvasStudioContent() {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
 
-  // Every download already renders the full-res image, so it doubles as a
-  // fresh gallery thumbnail. Only the list key is invalidated — the open
+  // Fresh gallery thumbnail from every full-res render: downloads and the
+  // editor's debounced collab snapshots (without the latter, recents kept
+  // showing the pre-edit state). Only the list key is invalidated — the open
   // document's ['canvas', id] query must not refetch (it would race the
   // optimistic title rename).
-  const handleDownload = useCallback(
+  const refreshThumbnail = useCallback(
     (base64: string) => {
       if (!id || !canEdit) return;
       updateCanvasThumbnail(id, base64)
@@ -175,7 +176,8 @@ function CollabCanvasStudioContent() {
             initialState={canvas.initial_state}
             initialPages={initialPages}
             onExport={handleExport}
-            onDownload={handleDownload}
+            onDownload={refreshThumbnail}
+            onCollabSnapshot={refreshThumbnail}
             onCancel={handleCancel}
             collaborative={
               collab.ydoc
