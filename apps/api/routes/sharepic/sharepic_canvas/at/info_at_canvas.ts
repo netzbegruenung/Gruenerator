@@ -18,9 +18,8 @@ import {
   AT_BRAND,
   CANVAS,
   registerAtFonts,
-  loadAtLogo,
-  wrapText,
-  drawLines,
+  drawHeadlineStack,
+  drawAtLogo,
 } from './atCanvasShared.js';
 
 const log = createLogger('info_at_canv');
@@ -34,11 +33,6 @@ interface Body {
   backgroundColor?: string;
 }
 
-const MARGIN_X = 90;
-const MARGIN_TOP = 210;
-const MAX_WIDTH = CANVAS.width - MARGIN_X * 2;
-const GAP = 18;
-
 async function render(
   headline: string,
   accent: string,
@@ -48,43 +42,20 @@ async function render(
   registerAtFonts();
   const canvas: Canvas = createCanvas(CANVAS.width, CANVAS.height);
   const ctx: Ctx = canvas.getContext('2d');
-  const cx = CANVAS.width / 2;
-  const lh = AT_BRAND.lineHeightFactor;
 
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
 
-  let y = MARGIN_TOP;
-
-  // Headline (white Gotham Ultra)
-  ctx.fillStyle = AT_BRAND.textOnDark;
-  ctx.font = `104px ${AT_BRAND.fonts.headline}`;
-  const hLines = wrapText(ctx, headline, MAX_WIDTH);
-  y = drawLines(ctx, hLines, cx, y, 104 * lh) + (hLines.length ? GAP : 0);
-
-  // Accent (yellow Vollkorn italic)
-  if (accent) {
-    ctx.fillStyle = AT_BRAND.accent;
-    ctx.font = `italic 104px ${AT_BRAND.fonts.quoteEmphasis}`;
-    const aLines = wrapText(ctx, accent, MAX_WIDTH);
-    y = drawLines(ctx, aLines, cx, y, 104 * lh) + (aLines.length ? GAP : 0);
-  }
-
-  // Body / subline (white Gotham Book)
-  if (body) {
-    ctx.fillStyle = AT_BRAND.textOnDark;
-    ctx.font = `44px ${AT_BRAND.fonts.body}`;
-    const bLines = wrapText(ctx, body, MAX_WIDTH);
-    drawLines(ctx, bLines, cx, y + 22, 44 * 1.2);
-  }
-
-  // Logo (white one-bar, bottom-centre)
-  const logo = await loadAtLogo();
-  const lw = 300;
-  const lhgt = lw * (logo.height / logo.width);
-  ctx.drawImage(logo, cx - lw / 2, CANVAS.height - lhgt - 60, lw, lhgt);
+  drawHeadlineStack(
+    ctx,
+    [
+      { text: headline, kind: 'headline' },
+      { text: accent, kind: 'accent' },
+      { text: body, kind: 'body' },
+    ],
+    'center'
+  );
+  await drawAtLogo(ctx, 'center');
 
   return canvas.toBuffer('image/png');
 }

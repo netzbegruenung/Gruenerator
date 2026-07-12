@@ -166,32 +166,6 @@ export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
 }
 
 /**
- * Base sharepic types that have a dedicated de-AT variant config.
- * Extend this + add a `${base}-at` config to onboard a template for Austria.
- */
-const AT_VARIANT_BASE_TYPES: readonly CanvasConfigId[] = [
-  'info',
-  'zitat',
-  'zitat-pure',
-  'dreizeilen',
-  'freeform',
-];
-
-/**
- * Resolve the concrete config id for a base sharepic type + locale.
- * `resolveConfigId('info', 'de-AT') === 'info-at'`; DE (or a type without an
- * AT variant) returns the base id unchanged. Single seam consumed by the
- * config loader, the studio picker and the chat sharepic mapping.
- */
-export function resolveConfigId(baseType: CanvasConfigId, locale: BrandLocale): CanvasConfigId {
-  if (locale === 'de-AT' && AT_VARIANT_BASE_TYPES.includes(baseType)) {
-    const atId = `${baseType}-at` as CanvasConfigId;
-    if (atId in TEMPLATE_REGISTRY) return atId;
-  }
-  return baseType;
-}
-
-/**
  * Get the category for a template ID. Returns undefined for unknown ids.
  */
 export function getCategoryForTemplate(configId: CanvasConfigId): TemplateCategory | undefined {

@@ -63,24 +63,44 @@ export interface HeadlineZoneLayout {
   fontSize: number;
 }
 
-/**
- * Stack the provided zones top-down from `margin.top`, wrapping each and
- * advancing by its measured height. Returns the y + fontSize per zone.
- */
-export function calculateHeadlineAtLayout(zones: HeadlineZone[]): HeadlineZoneLayout[] {
-  const cfg = HEADLINE_AT_CONFIG;
-  const results: HeadlineZoneLayout[] = [];
-  let y = cfg.margin.top;
+/** Content must stay above the logo (which sits at logo.y) with some breathing room. */
+const CONTENT_BOTTOM = HEADLINE_AT_CONFIG.logo.y - 40;
+/** Ratio applied to a zone's declared minFontSize floor. */
+const MIN_SCALE = HEADLINE_AT_CONFIG.headline.minFontSize / HEADLINE_AT_CONFIG.headline.fontSize;
 
+/** Stack zones top-down from `margin.top` at a given uniform scale; return per-zone y+fontSize and the block bottom. */
+function stack(
+  zones: HeadlineZone[],
+  scale: number
+): { layout: HeadlineZoneLayout[]; bottom: number } {
+  const cfg = HEADLINE_AT_CONFIG;
+  const layout: HeadlineZoneLayout[] = [];
+  let y = cfg.margin.top;
   for (const zone of zones) {
+    const fontSize = Math.round(zone.fontSize * scale);
     const lines = zone.text
-      ? wrapTextAccurate(zone.text, cfg.maxWidth, zone.fontSize, zone.fontFamily, zone.fontStyle)
-          .length
+      ? wrapTextAccurate(zone.text, cfg.maxWidth, fontSize, zone.fontFamily, zone.fontStyle).length
       : 0;
-    results.push({ y, fontSize: zone.fontSize });
-    const blockHeight = lines * zone.fontSize * cfg.lineHeightRatio;
+    layout.push({ y, fontSize });
+    const blockHeight = lines * fontSize * cfg.lineHeightRatio;
     y += blockHeight + (lines > 0 ? cfg.gapBetweenZones : 0);
   }
+  return { layout, bottom: y };
+}
 
-  return results;
+/**
+ * Stack the provided zones top-down from `margin.top`, shrinking all zones by a
+ * uniform factor (down to minFontSize) so the block never runs past the logo /
+ * canvas edge — mirrors the server renderer's auto-fit. Returns y + fontSize per
+ * zone.
+ */
+export function calculateHeadlineAtLayout(zones: HeadlineZone[]): HeadlineZoneLayout[] {
+  let scale = 1;
+  let result = stack(zones, scale);
+  // Shrink in 4% steps until the block fits above the logo or we hit the floor.
+  while (result.bottom > CONTENT_BOTTOM && scale > MIN_SCALE) {
+    scale = Math.max(MIN_SCALE, scale - 0.04);
+    result = stack(zones, scale);
+  }
+  return result.layout;
 }

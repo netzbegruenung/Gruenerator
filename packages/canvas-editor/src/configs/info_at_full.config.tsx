@@ -28,6 +28,8 @@ import type { ImageElementConfig, LayoutResult, TextElementConfig } from './type
 const AT = getBrandTheme('de-AT');
 const H = HEADLINE_AT_CONFIG;
 const CENTER_X = H.margin.x;
+// Info headline is centred, so the logo sits bottom-centre (matches info_at_canvas).
+const LOGO_CENTER_X = (H.canvas.width - H.logo.width) / 2;
 
 type InfoAtState = ColorTwoTextState<'headline' | 'body'>;
 
@@ -77,7 +79,7 @@ const calculateLayout = (state: InfoAtState): LayoutResult => {
       fontSize: state.customSecondaryFontSize ?? bZone.fontSize,
     },
     logo: {
-      x: H.logo.x,
+      x: LOGO_CENTER_X,
       y: H.logo.y,
       width: H.logo.width,
       height: H.logo.height,
@@ -137,7 +139,7 @@ const bodyElement = createSecondaryText<InfoAtState>({
 const logoElement: ImageElementConfig<InfoAtState> = {
   id: 'logo',
   type: 'image',
-  x: fromLayout('logo', 'x', H.logo.x),
+  x: fromLayout('logo', 'x', LOGO_CENTER_X),
   y: fromLayout('logo', 'y', H.logo.y),
   order: 5,
   width: H.logo.width,

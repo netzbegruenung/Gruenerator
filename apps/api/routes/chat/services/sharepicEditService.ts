@@ -157,7 +157,7 @@ async function setActiveThreadCanvas(threadId: string, variantId: string): Promi
 
 function deriveCanvasTitle(canvasType: string, props: Record<string, unknown>): string {
   const s = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
-  const text = s(props.line1) || s(props.quote) || s(props.header) || '';
+  const text = s(props.line1) || s(props.quote) || s(props.header) || s(props.headline) || '';
   const base = text.length > 60 ? `${text.slice(0, 57)}…` : text;
   return base || 'Sharepic aus dem Chat';
 }
