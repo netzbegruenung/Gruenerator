@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
-import { buildPlacementUrl } from '../../../utils/mediaPlacement';
-import { useUserUploads } from '../../UserUploadsProvider';
+import { useImagePlacement } from '../../useImagePlacement';
 
 import type { ToolPanelSuccess } from './ToolPanel';
 
@@ -13,36 +12,27 @@ interface Options {
 }
 
 /**
- * Shared finish-step for the generator tools: uploads the produced file to the
- * media library (durable URL) and — when `onPlaceImageUrl` is available — places
- * it straight onto the canvas instead of only adding it to Uploads. Returns the
- * `ToolPanelSuccess` to display.
+ * Shared finish-step for the generator tools, built on {@link useImagePlacement}.
+ * When `onPlaceImageUrl` is wired, the produced file is uploaded with the
+ * `canvas-element` source — a durable share URL excluded from the Uploads tab
+ * and Mediathek — and placed straight onto the canvas. Otherwise it falls back
+ * to adding the file to Uploads. Returns the `ToolPanelSuccess` to display.
  */
 export function useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads }: Options) {
-  const { upload, isUploading } = useUserUploads();
+  const { place, isUploading } = useImagePlacement(onPlaceImageUrl);
 
   const finish = useCallback(
     async (file: File): Promise<ToolPanelSuccess> => {
-      const objectUrl = URL.createObjectURL(file);
-
       if (onPlaceImageUrl) {
-        // 'canvas-element': durable share URL, but excluded from the Uploads tab
-        // and Mediathek — tool output lives on the canvas, never in the library.
-        const item = await upload(file, 'canvas-element');
-        if (!item) throw new Error('Upload fehlgeschlagen');
-        const name = item.originalFilename ?? file.name;
-        const url = buildPlacementUrl(item);
-        if (url) onPlaceImageUrl(url, name);
-        return { thumbnailUrl: objectUrl, itemName: name, placedOnCanvas: true };
+        const { name } = await place(file, 'canvas-element');
+        return { thumbnailUrl: URL.createObjectURL(file), itemName: name, placedOnCanvas: true };
       }
 
-      // Fallback (no canvas placement wired): keep the old add-to-Uploads flow.
-      const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
-      const name = item.originalFilename ?? item.title ?? file.name;
-      return { thumbnailUrl: objectUrl, itemName: name, onJumpToUploads };
+      // Fallback (no canvas placement wired): add to the Uploads library.
+      const { name } = await place(file, 'upload');
+      return { thumbnailUrl: URL.createObjectURL(file), itemName: name, onJumpToUploads };
     },
-    [upload, onPlaceImageUrl, onJumpToUploads]
+    [place, onPlaceImageUrl, onJumpToUploads]
   );
 
   return { finish, isUploading };
