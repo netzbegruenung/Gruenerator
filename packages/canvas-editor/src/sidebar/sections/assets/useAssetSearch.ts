@@ -1,8 +1,9 @@
 import { useState, useMemo, useDeferredValue } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { useDebounce } from '../../../hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
-import { getIconsSync, type IconDef } from '../../../utils/canvasIcons';
+import { getIconsSync, loadAllIcons, type IconDef } from '../../../utils/canvasIcons';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_PRESETS } from '../../../utils/frameUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
@@ -50,6 +51,17 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
   const debouncedQuery = useDebounce(searchQuery, 300);
   const deferredQuery = useDeferredValue(debouncedQuery);
 
+  // Browsing loads sets per-tab; a query, however, should search ALL sets. Load
+  // every set once a query is entered, gated so the no-search path stays cheap.
+  const allIconsQuery = useQuery({
+    queryKey: ['canvas', 'icons', 'catalog', '__all__'],
+    queryFn: loadAllIcons,
+    enabled: hasIconsFeature && deferredQuery.trim().length > 0,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+  const allIcons = allIconsQuery.data;
+
   const searchResults = useMemo(() => {
     if (!deferredQuery.trim()) return [];
 
@@ -73,7 +85,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     }
 
     if (hasIconsFeature) {
-      const matchingIcons = filterIcons(getIconsSync() ?? [], query);
+      const matchingIcons = filterIcons(allIcons ?? getIconsSync() ?? [], query);
       for (const icon of matchingIcons.slice(0, 20)) {
         results.push({ type: 'icon', id: icon.id, name: icon.name, iconDef: icon });
       }
@@ -100,7 +112,14 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     }
 
     return results;
-  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasFramesFeature]);
+  }, [
+    deferredQuery,
+    hasAssetsFeature,
+    hasShapesFeature,
+    hasIconsFeature,
+    hasFramesFeature,
+    allIcons,
+  ]);
 
   const hasQuery = searchQuery.trim().length > 0;
   const hasDeferredQuery = deferredQuery.trim().length > 0;

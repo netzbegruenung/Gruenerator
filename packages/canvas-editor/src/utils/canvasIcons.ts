@@ -99,9 +99,20 @@ function loadSetByPrefix(prefix: string): Promise<IconifyJSON> | null {
 // Icon metadata loading (names only, no SVG data)
 // ---------------------------------------------------------------------------
 
-let iconsList: IconDef[] | null = null;
-let iconsMap: Record<string, IconDef> | null = null;
-let loadPromise: Promise<IconDef[]> | null = null;
+/** The set browsed by default when the picker opens (loads eagerly, alone). */
+export const DEFAULT_ICON_SET = ICON_SETS[0].prefix;
+
+/** Lightweight list of available sets for the picker's set selector. */
+export function getIconSets(): { prefix: string; library: string }[] {
+  return ICON_SETS.map(({ prefix, library }) => ({ prefix, library }));
+}
+
+// Per-set catalogs (names only). Each set is built lazily the first time it is
+// browsed, so the picker's first open only pays for the default set.
+const catalogBySet = new Map<string, IconDef[]>();
+const catalogPromises = new Map<string, Promise<IconDef[]>>();
+let syncList: IconDef[] | null = null;
+let syncMap: Record<string, IconDef> | null = null;
 
 const formatName = (str: string) =>
   str
@@ -109,54 +120,77 @@ const formatName = (str: string) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 
-/**
- * Build the browsable icon catalog from all bundled sets.
- * Only names are exposed here — SVG data is generated on demand.
- */
-export function loadAllIcons(): Promise<IconDef[]> {
-  if (iconsList) return Promise.resolve(iconsList);
-  if (loadPromise) return loadPromise;
-
-  const promise = (async () => {
-    const loaded = await Promise.all(
-      ICON_SETS.map(async (set) => ({ set, data: await loadIconSet(set) }))
-    );
-
-    const map: Record<string, IconDef> = {};
-    const list: IconDef[] = [];
-
-    for (const { set, data } of loaded) {
-      const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
-      for (const name of names) {
-        const id = `${set.prefix}:${name}`;
-        const def: IconDef = { id, name: formatName(name), library: set.library };
-        map[id] = def;
-        list.push(def);
-      }
+/** Recompute the combined sync views from all currently-loaded sets. */
+function rebuildSyncViews() {
+  const list: IconDef[] = [];
+  const map: Record<string, IconDef> = {};
+  for (const { prefix } of ICON_SETS) {
+    const catalog = catalogBySet.get(prefix);
+    if (!catalog) continue;
+    for (const def of catalog) {
+      list.push(def);
+      map[def.id] = def;
     }
+  }
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  syncList = list;
+  syncMap = map;
+}
 
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    iconsMap = map;
-    iconsList = list;
-    return list;
-  })();
+/**
+ * Build the browsable catalog for a single set (names only; SVG data is
+ * generated on demand). Cached; a failed load is not cached so it can retry.
+ */
+export function loadIconSetCatalog(prefix: string): Promise<IconDef[]> {
+  const cached = catalogBySet.get(prefix);
+  if (cached) return Promise.resolve(cached);
+  const pending = catalogPromises.get(prefix);
+  if (pending) return pending;
 
-  loadPromise = promise;
-  // If the underlying load fails, clear the cache so callers (e.g. React Query
-  // retries) can re-attempt instead of getting the same rejected promise.
-  promise.catch(() => {
-    if (loadPromise === promise) loadPromise = null;
-  });
+  const set = ICON_SETS.find((s) => s.prefix === prefix);
+  if (!set) return Promise.resolve([]);
 
+  const promise = loadIconSet(set)
+    .then((data) => {
+      const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
+      const list = names.map((name) => ({
+        id: `${set.prefix}:${name}`,
+        name: formatName(name),
+        library: set.library,
+      }));
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      catalogBySet.set(set.prefix, list);
+      rebuildSyncViews();
+      return list;
+    })
+    .catch((err) => {
+      catalogPromises.delete(set.prefix);
+      throw err;
+    });
+
+  catalogPromises.set(set.prefix, promise);
   return promise;
 }
 
+/** Synchronous per-set catalog lookup (null until that set has been loaded). */
+export function getIconSetCatalogSync(prefix: string): IconDef[] | null {
+  return catalogBySet.get(prefix) ?? null;
+}
+
+/**
+ * Load every set and return the combined catalog. Used by cross-set search —
+ * NOT on picker mount, so the common browse path only loads the default set.
+ */
+export function loadAllIcons(): Promise<IconDef[]> {
+  return Promise.all(ICON_SETS.map((s) => loadIconSetCatalog(s.prefix))).then(() => syncList ?? []);
+}
+
 export function getIconsSync(): IconDef[] | null {
-  return iconsList;
+  return syncList;
 }
 
 export function getIconMapSync(): Record<string, IconDef> | null {
-  return iconsMap;
+  return syncMap;
 }
 
 // ---------------------------------------------------------------------------
@@ -305,8 +339,8 @@ export async function buildCanvasIcons(
  */
 export const ALL_ICONS: IconDef[] = new Proxy([] as IconDef[], {
   get(target, prop) {
-    if (iconsList && prop !== 'constructor') {
-      return Reflect.get(iconsList, prop);
+    if (syncList && prop !== 'constructor') {
+      return Reflect.get(syncList, prop);
     }
     return Reflect.get(target, prop);
   },
