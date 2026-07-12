@@ -3,6 +3,7 @@ import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react
 import { applyOperation, type CanvasAiActionsBase } from '../ai/applyOperation';
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
 import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
+import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
 import { buildSharepicText } from './buildSharepicText';
 import { makeSectionDefiner } from './factory/defineSection';
 
@@ -11,11 +12,16 @@ import type { TemplateAiCapabilities } from '../ai/types';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
 import type { ChartInstance, ChartType } from '../utils/chartUtils';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 interface ActionsWithChart {
   addChart?: (chartType: ChartType) => void;
   updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart?: (id: string) => void;
+}
+
+interface ActionsWithUserImage {
+  updateUserImage?: (id: string, partial: Partial<UserImageInstance>) => void;
 }
 
 export const uploadsTab: SidebarTab = {
@@ -86,6 +92,27 @@ export const chartSettingsSectionEntry = defineCommonSection({
   },
 });
 
+/**
+ * Shared image-adjust ("Bearbeiten") panel. Opened explicitly from the context
+ * bar's Bearbeiten button (setActiveTab('image-adjust')), not on selection.
+ */
+export const imageAdjustSectionEntry = defineCommonSection({
+  component: ImageAdjustSection,
+  propsFactory: (state, actions, context) => {
+    const s = state as { userImageInstances?: UserImageInstance[] };
+    const a = actions as ActionsWithUserImage;
+    const selectedId = (context as { selectedElement?: string | null } | undefined)
+      ?.selectedElement;
+    const selectedImage = selectedId
+      ? (s.userImageInstances?.find((u) => u.id === selectedId) ?? null)
+      : null;
+    return {
+      selectedImage,
+      onUpdateImage: a.updateUserImage ?? (() => {}),
+    };
+  },
+});
+
 export const chatTab: SidebarTab = {
   id: 'chat',
   icon: HiChatBubbleLeftRight,
@@ -109,6 +136,7 @@ export function createCommonSectionEntries<TState, TActions extends CanvasAiActi
     uploads: uploadsSectionEntry,
     chat: createChatSection(canvasType, capabilities),
     'chart-settings': chartSettingsSectionEntry,
+    'image-adjust': imageAdjustSectionEntry,
   };
 }
 
