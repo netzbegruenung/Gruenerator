@@ -104,6 +104,7 @@ function createProfilbildInitialState(props: Record<string, unknown>): Profilbil
     circleBadgeInstances: [],
     balkenInstances: [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
     transparentImage,
     backgroundColor,

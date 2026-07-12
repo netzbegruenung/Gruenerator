@@ -1,6 +1,7 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
+import type { GradientFill } from '../utils/gradientFill';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -54,6 +55,18 @@ export interface AdditionalText {
   rotation?: number;
   scale?: number;
   opacity?: number;
+  /** Outline color; omit for no outline. */
+  stroke?: string;
+  /** Outline width in px (only applied when `stroke` is set). */
+  strokeWidth?: number;
+  /** Drop shadow (Konva shadow* props); omit for no shadow. */
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+  /** Linear gradient fill; when set, overrides `fill`. */
+  fillGradient?: GradientFill | null;
 }
 
 /** Text element configuration */
