@@ -166,10 +166,27 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   'zitat-pure': 'Zitat',
   zitat: 'Zitat',
   info: 'Info',
+  'dreizeilen-at': 'Dreizeiler',
+  'zitat-pure-at': 'Zitat',
+  'zitat-at': 'Zitat',
+  'info-at': 'Info',
 };
 
-function mapSharepicTypeToCanvasType(sharepicType: string): CanvasTemplateType {
-  return CANVAS_TYPE_BY_SHAREPIC[sharepicType] ?? 'dreizeilen';
+/** de-AT overrides: base canvas type → Austrian variant. */
+const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
+  dreizeilen: 'dreizeilen-at',
+  'zitat-pure': 'zitat-pure-at',
+  zitat: 'zitat-at',
+  info: 'info-at',
+};
+
+function mapSharepicTypeToCanvasType(
+  sharepicType: string,
+  userLocale?: string
+): CanvasTemplateType {
+  const base = CANVAS_TYPE_BY_SHAREPIC[sharepicType] ?? 'dreizeilen';
+  if (userLocale === 'de-AT') return AT_CANVAS_TYPE[base] ?? base;
+  return base;
 }
 
 interface SharepicResponseShape {
@@ -204,7 +221,9 @@ function buildInitialPropsForType(
       };
     }
     case 'zitat-pure':
-    case 'zitat': {
+    case 'zitat':
+    case 'zitat-pure-at':
+    case 'zitat-at': {
       return {
         quote: sharepic.quote ?? '',
         name: sharepic.name ?? '',
@@ -214,6 +233,23 @@ function buildInitialPropsForType(
       return {
         header: sharepic.header ?? '',
         body: sharepic.body ?? sharepic.subheader ?? '',
+      };
+    }
+    // AT info: headline (white) + accent (gelb, Betonung) + body (subline)
+    case 'info-at': {
+      return {
+        headline: sharepic.header ?? '',
+        accent: sharepic.subheader ?? '',
+        body: sharepic.body ?? '',
+      };
+    }
+    // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
+    case 'dreizeilen-at': {
+      const slogan = sharepic.mainSlogan ?? {};
+      return {
+        line1: slogan.line1 ?? '',
+        accent: slogan.line2 ?? '',
+        line3: slogan.line3 ?? '',
       };
     }
     default:
@@ -240,6 +276,8 @@ interface GenerateVariantsArgs {
    * text plus this instruction (e.g. "verlängern"), instead of starting fresh.
    */
   refinement?: { instruction: string; prior: PriorSharepic } | null;
+  /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
+  userLocale?: string;
 }
 
 /** Maps a stored canvasType back to the generation type used by generateSharepicForChat. */
@@ -314,8 +352,12 @@ function buildRefinementRequest(
 }
 
 /** Map a successful generation result to a frontend SharepicVariant. */
-function toVariant(sharepic: SharepicResponseShape, requestedType: string): SharepicVariant {
-  const canvasType = mapSharepicTypeToCanvasType(sharepic.type ?? requestedType);
+function toVariant(
+  sharepic: SharepicResponseShape,
+  requestedType: string,
+  userLocale?: string
+): SharepicVariant {
+  const canvasType = mapSharepicTypeToCanvasType(sharepic.type ?? requestedType, userLocale);
   return {
     id: randomUUID(),
     canvasType,
@@ -371,7 +413,7 @@ export async function generateSharepicVariants(
       return;
     }
     const sharepic = result.value.content.sharepic as SharepicResponseShape;
-    variants.push(toVariant(sharepic, requestedType));
+    variants.push(toVariant(sharepic, requestedType, args.userLocale));
   });
 
   return variants;
