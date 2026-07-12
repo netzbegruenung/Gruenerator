@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft, PiTextT, PiDropSimpleFill } from 'react-icons/pi';
+import { PiArrowLeft, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { cn } from '../../../utils/cn';
@@ -12,6 +12,7 @@ import { BlobCreatorTool } from './BlobCreatorTool';
 import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
+import { TextPathCreatorTool } from './TextPathCreatorTool';
 
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
@@ -28,7 +29,8 @@ type ToolView =
   | 'ai-edit'
   | 'qr-code'
   | 'gradient-text'
-  | 'blob';
+  | 'blob'
+  | 'text-path';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -158,6 +160,15 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
+    {
+      id: 'text-path',
+      label: 'Pfadtext erstellen',
+      icon: PiPath,
+      iconColor: 'text-tertiary-600 dark:text-tertiary-300',
+      hoverShadow: 'group-hover:shadow-sm',
+      ring: 'focus-visible:ring-primary-600',
+      available: true,
+    },
   ];
 
   const availableCards = cards.filter((c) => c.available);
@@ -192,6 +203,7 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       {activeView === 'qr-code' && <QRCodeTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'gradient-text' && <GradientTextTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'blob' && <BlobCreatorTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'text-path' && <TextPathCreatorTool onJumpToUploads={onJumpToUploads} />}
     </div>
   );
 }
