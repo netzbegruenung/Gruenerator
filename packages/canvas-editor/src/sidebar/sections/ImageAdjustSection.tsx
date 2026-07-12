@@ -16,6 +16,18 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
   const img = selectedImage;
   if (!img) return null;
   const set = (partial: Partial<ImageAdjustments>) => onUpdateImage(img.id, partial);
+  const setShadow = (partial: Partial<UserImageInstance>) => onUpdateImage(img.id, partial);
+  const shadowOn = !!img.shadowColor;
+  const toggleShadow = () =>
+    shadowOn
+      ? setShadow({ shadowColor: undefined, shadowBlur: 0, shadowOpacity: 0 })
+      : setShadow({
+          shadowColor: '#000000',
+          shadowBlur: 8,
+          shadowOffsetX: 4,
+          shadowOffsetY: 4,
+          shadowOpacity: 0.5,
+        });
 
   return (
     <div className="flex flex-col gap-4 p-md w-full min-w-0">
@@ -108,6 +120,74 @@ export function ImageAdjustSection({ selectedImage, onUpdateImage }: ImageAdjust
           max={40}
           step={1}
         />
+      </div>
+
+      {/* Shadow */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className={GROUP_LABEL}>Schatten</span>
+          <button
+            type="button"
+            onClick={toggleShadow}
+            className="text-[11px] font-medium text-primary-600 hover:underline"
+          >
+            {shadowOn ? 'Entfernen' : 'Aktivieren'}
+          </button>
+        </div>
+        {shadowOn && (
+          <>
+            <div className="flex items-center gap-1.5">
+              {['#000000', '#316049', '#40200e', '#1f3a5f'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setShadow({ shadowColor: c })}
+                  title={c}
+                  className="size-6 rounded-full border border-black/10 transition-transform hover:scale-110"
+                  style={{
+                    backgroundColor: c,
+                    outline:
+                      img.shadowColor === c ? '2px solid var(--editor-accent, #005538)' : 'none',
+                    outlineOffset: '2px',
+                  }}
+                />
+              ))}
+            </div>
+            <SidebarSlider
+              label="Weichheit"
+              value={img.shadowBlur ?? 0}
+              onValueChange={(v) => setShadow({ shadowBlur: v })}
+              min={0}
+              max={40}
+              step={1}
+            />
+            <SidebarSlider
+              label="X-Versatz"
+              value={img.shadowOffsetX ?? 0}
+              onValueChange={(v) => setShadow({ shadowOffsetX: v })}
+              min={-40}
+              max={40}
+              step={1}
+            />
+            <SidebarSlider
+              label="Y-Versatz"
+              value={img.shadowOffsetY ?? 0}
+              onValueChange={(v) => setShadow({ shadowOffsetY: v })}
+              min={-40}
+              max={40}
+              step={1}
+            />
+            <SidebarSlider
+              label="Deckkraft"
+              value={img.shadowOpacity ?? 0}
+              onValueChange={(v) => setShadow({ shadowOpacity: v })}
+              min={0}
+              max={1}
+              step={0.05}
+              unit="%"
+            />
+          </>
+        )}
       </div>
 
       {/* Effect toggles */}

@@ -24,6 +24,8 @@ export interface ToolsSectionProps {
   onJumpToUploads?: () => void;
   /** When present, enables the "Diagramm" tool which inserts a chart element. */
   onInsertChart?: (chartType: ChartType) => void;
+  /** Places a generated image (by durable URL) straight onto the canvas. */
+  onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
 type ToolView =
@@ -101,7 +103,11 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
   );
 }
 
-export function ToolsSection({ onJumpToUploads, onInsertChart }: ToolsSectionProps) {
+export function ToolsSection({
+  onJumpToUploads,
+  onInsertChart,
+  onPlaceImageUrl,
+}: ToolsSectionProps) {
   const { removeBackgroundFromImage, generateAiImage, editAiImage } = useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
 
@@ -215,10 +221,18 @@ export function ToolsSection({ onJumpToUploads, onInsertChart }: ToolsSectionPro
       {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'qr-code' && <QRCodeTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'gradient-text' && <GradientTextTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'blob' && <BlobCreatorTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'text-path' && <TextPathCreatorTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'qr-code' && (
+        <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
+      {activeView === 'gradient-text' && (
+        <GradientTextTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
+      {activeView === 'blob' && (
+        <BlobCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
+      {activeView === 'text-path' && (
+        <TextPathCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
       {activeView === 'chart' && onInsertChart && <ChartInsertTool onInsertChart={onInsertChart} />}
     </div>
   );
