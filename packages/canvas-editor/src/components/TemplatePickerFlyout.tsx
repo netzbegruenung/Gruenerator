@@ -7,11 +7,13 @@ import { createPortal } from 'react-dom';
 import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
 
 import {
-  getAllTemplates,
+  getTemplatesForLocale,
+  TEMPLATE_REGISTRY,
   type TemplateCategory,
   type TemplateInfo,
 } from '../utils/templateRegistry';
 
+import { type BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
 
 import { cn } from '../utils/cn';
@@ -89,9 +91,19 @@ export function TemplatePickerFlyout({
     top: 0,
     left: 0,
   });
+  // Audience-gate by the template currently being edited: an AT document only
+  // offers AT templates, a DE document only DE ones — so a locale's CI can't
+  // leak into the other's project. Derived from currentTemplateId (the flyout
+  // has no user-locale context of its own).
+  const currentAudience = currentTemplateId
+    ? (TEMPLATE_REGISTRY[currentTemplateId]?.audience ?? 'de-DE')
+    : 'de-DE';
+  const locale: BrandLocale = currentAudience === 'de-AT' ? 'de-AT' : 'de-DE';
   // 'freeform' is reachable via "Aktuelle Seite duplizieren" — hide it as a
   // distinct picker option so users don't get a redundant entry.
-  const allTemplates = getAllTemplates().filter((t) => t.id !== 'freeform');
+  const allTemplates = getTemplatesForLocale(locale).filter(
+    (t) => t.id !== 'freeform' && t.id !== 'freeform-at'
+  );
   const templates = templateFilter
     ? allTemplates.filter((t) => t.category === templateFilter)
     : allTemplates;
