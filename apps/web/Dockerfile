@@ -163,7 +163,17 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
-    # Everything else (index.html, config.js, manifest.json, SW, illustrations)
+    # Canvas-editor illustration assets (SVGs + PNG thumbnails) served from
+    # /public, so they miss the hashed /assets/ rule. Filenames are stable and
+    # content-immutable (new illustrations get new names, existing bytes are
+    # never overwritten), so caching them immutable turns the picker's many
+    # per-file requests into zero-byte disk-cache hits instead of 304 round-trips.
+    location /illustrations/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Everything else (index.html, config.js, manifest.json, SW)
     # no-cache = store but revalidate via ETag → efficient 304 responses
     location / {
         add_header Cache-Control "no-cache";

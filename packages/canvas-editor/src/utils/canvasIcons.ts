@@ -1,10 +1,17 @@
 /**
- * Canvas icon utilities powered by the Iconify API.
+ * Canvas icon utilities powered by bundled Iconify icon sets.
  *
- * Icons are fetched from a self-hosted Iconify API instance.
- * SVG data is fetched on demand and cached as base64 data URLs
- * for rendering on the Konva canvas.
+ * Icons come from local `@iconify-json/*` sets (Tabler, Flowbite) — no network
+ * calls. Each set's data is lazy-imported the first time the picker or a canvas
+ * icon needs it, so each lands in its own chunk. SVGs are generated locally via
+ * `@iconify/utils`, colorized, and cached as base64 data URLs for rendering on
+ * the Konva canvas.
  */
+
+import { addCollection } from '@iconify/react';
+import { getIconData, iconToSVG } from '@iconify/utils';
+
+import { type IconifyJSON } from '@iconify-json/tabler';
 
 export interface CanvasIcon {
   id: string;
@@ -22,39 +29,85 @@ export interface IconDef {
   library: string;
 }
 
-let iconifyApiUrl = '';
+// ---------------------------------------------------------------------------
+// Bundled icon sets. `load` uses a literal import() so the bundler can
+// code-split each set into its own lazy chunk. To add a set, append here.
+// ---------------------------------------------------------------------------
 
-export function setIconifyApiUrl(url: string) {
-  iconifyApiUrl = url.replace(/\/$/, '');
+interface IconSet {
+  prefix: string;
+  library: string;
+  load: () => Promise<{ icons: IconifyJSON }>;
 }
 
-export function getIconifyApiUrl(): string {
-  return iconifyApiUrl;
+const ICON_SETS: IconSet[] = [
+  { prefix: 'tabler', library: 'Tabler', load: () => import('@iconify-json/tabler') },
+  { prefix: 'flowbite', library: 'Flowbite', load: () => import('@iconify-json/flowbite') },
+  { prefix: 'lucide', library: 'Lucide', load: () => import('@iconify-json/lucide') },
+  { prefix: 'heroicons', library: 'Heroicons', load: () => import('@iconify-json/heroicons') },
+  { prefix: 'iconoir', library: 'Iconoir', load: () => import('@iconify-json/iconoir') },
+  { prefix: 'bi', library: 'Bootstrap Icons', load: () => import('@iconify-json/bi') },
+  { prefix: 'ri', library: 'Remix Icon', load: () => import('@iconify-json/ri') },
+];
+
+/** Split a `prefix:name` id; unprefixed ids default to the first set. */
+function splitIconId(iconId: string): { prefix: string; name: string } {
+  const colon = iconId.indexOf(':');
+  if (colon === -1) return { prefix: ICON_SETS[0].prefix, name: iconId };
+  return { prefix: iconId.slice(0, colon), name: iconId.slice(colon + 1) };
 }
 
-function getApiUrl(): string | null {
-  return iconifyApiUrl || null;
+const toIconName = (iconId: string) => splitIconId(iconId).name;
+
+// ---------------------------------------------------------------------------
+// Per-set data loading (lazy dynamic import, registered with @iconify/react)
+// ---------------------------------------------------------------------------
+
+const setData = new Map<string, IconifyJSON>();
+const setPromises = new Map<string, Promise<IconifyJSON>>();
+
+function loadIconSet(set: IconSet): Promise<IconifyJSON> {
+  const existing = setData.get(set.prefix);
+  if (existing) return Promise.resolve(existing);
+  const pending = setPromises.get(set.prefix);
+  if (pending) return pending;
+
+  const promise = set
+    .load()
+    .then(({ icons }) => {
+      setData.set(set.prefix, icons);
+      // Register so <Icon icon="prefix:..."> in the sidebar renders offline.
+      addCollection(icons);
+      return icons;
+    })
+    .catch((err) => {
+      // Don't cache a rejected chunk load — clear it so a later call retries.
+      setPromises.delete(set.prefix);
+      throw err;
+    });
+
+  setPromises.set(set.prefix, promise);
+  return promise;
+}
+
+function loadSetByPrefix(prefix: string): Promise<IconifyJSON> | null {
+  const set = ICON_SETS.find((s) => s.prefix === prefix);
+  return set ? loadIconSet(set) : null;
 }
 
 // ---------------------------------------------------------------------------
 // Icon metadata loading (names only, no SVG data)
 // ---------------------------------------------------------------------------
 
-let iconsList: IconDef[] | null = null;
-let iconsMap: Record<string, IconDef> | null = null;
-let loadPromise: Promise<IconDef[]> | null = null;
+/** The set browsed by default when the picker opens (loads eagerly, alone). */
+export const DEFAULT_ICON_SET = ICON_SETS[0].prefix;
 
-interface CollectionInfo {
-  name: string;
-  total: number;
-  author: { name: string };
-  category?: string;
-}
-
-interface CollectionIcons {
-  prefix: string;
-  icons: Record<string, unknown>;
-}
+// Per-set catalogs (names only). Each set is built lazily the first time it is
+// browsed, so the picker's first open only pays for the default set.
+const catalogBySet = new Map<string, IconDef[]>();
+const catalogPromises = new Map<string, Promise<IconDef[]>>();
+let syncList: IconDef[] | null = null;
+let syncMap: Record<string, IconDef> | null = null;
 
 const formatName = (str: string) =>
   str
@@ -62,90 +115,89 @@ const formatName = (str: string) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 
+/** Recompute the combined sync views from all currently-loaded sets. */
+function rebuildSyncViews() {
+  const list: IconDef[] = [];
+  const map: Record<string, IconDef> = {};
+  for (const { prefix } of ICON_SETS) {
+    const catalog = catalogBySet.get(prefix);
+    if (!catalog) continue;
+    for (const def of catalog) {
+      list.push(def);
+      map[def.id] = def;
+    }
+  }
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  syncList = list;
+  syncMap = map;
+}
+
 /**
- * Load icon metadata from the Iconify API.
- * Fetches collection list, then icon names for each collection.
- * Only loads names — SVG data is fetched on demand.
+ * Build the browsable catalog for a single set (names only; SVG data is
+ * generated on demand). Cached; a failed load is not cached so it can retry.
+ */
+export function loadIconSetCatalog(prefix: string): Promise<IconDef[]> {
+  const cached = catalogBySet.get(prefix);
+  if (cached) return Promise.resolve(cached);
+  const pending = catalogPromises.get(prefix);
+  if (pending) return pending;
+
+  const set = ICON_SETS.find((s) => s.prefix === prefix);
+  if (!set) return Promise.resolve([]);
+
+  const promise = loadIconSet(set)
+    .then((data) => {
+      const names = [...Object.keys(data.icons), ...Object.keys(data.aliases ?? {})];
+      const list = names.map((name) => ({
+        id: `${set.prefix}:${name}`,
+        name: formatName(name),
+        library: set.library,
+      }));
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      catalogBySet.set(set.prefix, list);
+      rebuildSyncViews();
+      return list;
+    })
+    .catch((err) => {
+      catalogPromises.delete(set.prefix);
+      throw err;
+    });
+
+  catalogPromises.set(set.prefix, promise);
+  return promise;
+}
+
+/** Synchronous per-set catalog lookup (null until that set has been loaded). */
+export function getIconSetCatalogSync(prefix: string): IconDef[] | null {
+  return catalogBySet.get(prefix) ?? null;
+}
+
+/**
+ * Load every set and return the combined catalog. Used by cross-set search —
+ * NOT on picker mount, so the common browse path only loads the default set.
  */
 export function loadAllIcons(): Promise<IconDef[]> {
-  if (iconsList) return Promise.resolve(iconsList);
-  if (loadPromise) return loadPromise;
-
-  loadPromise = (async () => {
-    const api = getApiUrl();
-    if (!api) {
-      iconsList = [];
-      iconsMap = {};
-      return iconsList;
-    }
-    const res = await fetch(`${api}/collections`);
-    const collections: Record<string, CollectionInfo> = await res.json();
-
-    const prefixes = Object.keys(collections);
-
-    // Fetch icon names for all collections in parallel (batched)
-    const BATCH_SIZE = 20;
-    const map: Record<string, IconDef> = {};
-    const list: IconDef[] = [];
-
-    for (let i = 0; i < prefixes.length; i += BATCH_SIZE) {
-      const batch = prefixes.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(
-        batch.map(async (prefix) => {
-          try {
-            const r = await fetch(`${api}/collection?prefix=${prefix}`);
-            const data = await r.json();
-            // The API returns uncategorized icons or categorized icons
-            const iconNames: string[] = data.uncategorized ?? [];
-            if (data.categories) {
-              for (const names of Object.values(data.categories)) {
-                iconNames.push(...(names as string[]));
-              }
-            }
-            return { prefix, names: iconNames, library: collections[prefix].name };
-          } catch {
-            return { prefix, names: [] as string[], library: prefix };
-          }
-        })
-      );
-
-      for (const { prefix, names, library } of results) {
-        for (const name of names) {
-          const id = `${prefix}:${name}`;
-          const def: IconDef = { id, name: formatName(name), library };
-          map[id] = def;
-          list.push(def);
-        }
-      }
-    }
-
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    iconsMap = map;
-    iconsList = list;
-    return list;
-  })();
-
-  return loadPromise;
+  return Promise.all(ICON_SETS.map((s) => loadIconSetCatalog(s.prefix))).then(() => syncList ?? []);
 }
 
 export function getIconsSync(): IconDef[] | null {
-  return iconsList;
+  return syncList;
 }
 
 export function getIconMapSync(): Record<string, IconDef> | null {
-  return iconsMap;
+  return syncMap;
 }
 
 // ---------------------------------------------------------------------------
-// SVG data URL generation (fetches SVG from API on demand)
+// SVG data URL generation (renders Tabler SVG locally on demand)
 // ---------------------------------------------------------------------------
 
 const dataUrlCache = new Map<string, string>();
 const pendingFetches = new Map<string, Promise<string | null>>();
 
 /**
- * Fetch an icon's SVG from the Iconify API, apply color, and return as a base64 data URL.
- * Results are cached to avoid redundant fetches.
+ * Render a Tabler icon to a colorized base64 SVG data URL.
+ * Results are cached to avoid redundant work.
  */
 export async function generateIconDataUrl(
   iconId: string,
@@ -156,24 +208,26 @@ export async function generateIconDataUrl(
   const cached = dataUrlCache.get(cacheKey);
   if (cached) return cached;
 
-  // Deduplicate in-flight requests for the same icon+size+color
+  // Deduplicate in-flight work for the same icon+size+color
   const pending = pendingFetches.get(cacheKey);
   if (pending) return pending;
 
   const promise = (async () => {
     try {
-      const api = getApiUrl();
-      if (!api) return null;
-      const encodedColor = encodeURIComponent(color);
-      const url = `${api}/${iconId}.svg?height=${size}&color=${encodedColor}`;
-      const res = await fetch(url);
-      if (!res.ok) return null;
+      const { prefix, name } = splitIconId(iconId);
+      const setPromise = loadSetByPrefix(prefix);
+      if (!setPromise) return null;
+      const data = await setPromise;
+      const iconData = getIconData(data, name);
+      if (!iconData) return null;
 
-      let svgText = await res.text();
-      // Ensure xmlns is present for data URL usage
-      if (!svgText.includes('xmlns=')) {
-        svgText = svgText.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
-      }
+      const rendered = iconToSVG(iconData, { height: size });
+      const attributes = Object.entries(rendered.attributes)
+        .map(([key, value]) => `${key}="${value}"`)
+        .join(' ');
+      // Iconify sets use currentColor for stroke/fill — bake the color in.
+      const body = rendered.body.replace(/currentColor/g, color);
+      const svgText = `<svg xmlns="http://www.w3.org/2000/svg" ${attributes}>${body}</svg>`;
 
       const dataUrl = `data:image/svg+xml;base64,${btoa(svgText)}`;
       dataUrlCache.set(cacheKey, dataUrl);
@@ -190,8 +244,8 @@ export async function generateIconDataUrl(
 }
 
 /**
- * Synchronous data URL lookup. Returns cached value or null if not yet fetched.
- * Use generateIconDataUrl() to trigger the fetch.
+ * Synchronous data URL lookup. Returns cached value or null if not yet built.
+ * Use generateIconDataUrl() to trigger generation.
  */
 export function getIconDataUrlSync(
   iconId: string,
@@ -202,7 +256,7 @@ export function getIconDataUrlSync(
 }
 
 // ---------------------------------------------------------------------------
-// Search (delegates to Iconify API search endpoint)
+// Search (local filter over the bundled catalog)
 // ---------------------------------------------------------------------------
 
 export interface IconSearchResult {
@@ -211,27 +265,18 @@ export interface IconSearchResult {
 }
 
 export async function searchIcons(query: string, limit: number = 64): Promise<IconSearchResult> {
-  if (!query.trim()) return { icons: [], total: 0 };
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return { icons: [], total: 0 };
 
-  try {
-    const api = getApiUrl();
-    const res = await fetch(`${api}/search?query=${encodeURIComponent(query)}&limit=${limit}`);
-    const data = await res.json();
+  const all = await loadAllIcons();
+  // Match the bare icon name (e.g. "heart-filled"), NOT the full id — every id
+  // shares the "tabler:" prefix, so matching the id would return the whole
+  // catalog for any query that is a substring of "tabler:".
+  const matches = all.filter(
+    (icon) => icon.name.toLowerCase().includes(trimmed) || toIconName(icon.id).includes(trimmed)
+  );
 
-    const icons: IconDef[] = (data.icons ?? []).map((id: string) => {
-      const [prefix, ...nameParts] = id.split(':');
-      const name = nameParts.join(':');
-      return {
-        id,
-        name: formatName(name),
-        library: prefix,
-      };
-    });
-
-    return { icons, total: data.total ?? icons.length };
-  } catch {
-    return { icons: [], total: 0 };
-  }
+  return { icons: matches.slice(0, limit), total: matches.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,8 +334,8 @@ export async function buildCanvasIcons(
  */
 export const ALL_ICONS: IconDef[] = new Proxy([] as IconDef[], {
   get(target, prop) {
-    if (iconsList && prop !== 'constructor') {
-      return Reflect.get(iconsList, prop);
+    if (syncList && prop !== 'constructor') {
+      return Reflect.get(syncList, prop);
     }
     return Reflect.get(target, prop);
   },
