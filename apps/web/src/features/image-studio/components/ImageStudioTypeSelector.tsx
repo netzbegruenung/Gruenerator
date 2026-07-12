@@ -164,11 +164,17 @@ const ImageStudioTypeSelector: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isAustrianUser = user?.locale === 'de-AT';
 
+  const userLocale = user?.locale ?? 'de-DE';
   const categoryConfig = useMemo(() => getCategoryConfig(category || ''), [category]);
   const typesInCategory = useMemo(() => {
     if (!category) return [];
-    return getTypesForCategory(category);
-  }, [category]);
+    // Audience gating: AT users see de-AT (+ 'all') templates, DE users see
+    // de-DE (+ 'all'). Omitted audience defaults to 'de-DE'.
+    return getTypesForCategory(category).filter((t) => {
+      const audience = t.audience ?? 'de-DE';
+      return audience === 'all' || audience === userLocale;
+    });
+  }, [category, userLocale]);
 
   const handleTypeSelect = useCallback(
     (selectedType: string) => {
