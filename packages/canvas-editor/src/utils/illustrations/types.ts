@@ -43,11 +43,20 @@ export interface KawaiiInstance {
 }
 
 // SVG Illustration types
+export type SvgSource =
+  | 'undraw'
+  | 'opendoodles'
+  | 'illlustrations'
+  | 'gophers'
+  | 'transhumans'
+  | 'humaaans'
+  | 'openpeeps';
+
 export interface SvgDef {
   id: string;
   name: string;
   filename: string;
-  source: 'undraw' | 'opendoodles';
+  source: SvgSource;
   tags: string[];
   category?: string;
 }
@@ -55,7 +64,7 @@ export interface SvgDef {
 export interface SvgInstance {
   id: string;
   illustrationId: string;
-  source: 'undraw' | 'opendoodles';
+  source: SvgSource;
   x: number;
   y: number;
   scale: number;

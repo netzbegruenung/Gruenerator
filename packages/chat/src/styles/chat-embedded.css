@@ -421,23 +421,31 @@
 }
 
 @keyframes shimmer-text {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  from { background-position: 100% 0; }
+  to   { background-position: 0% 0; }
 }
 
 .shimmer-text {
-  background: linear-gradient(
-    90deg,
-    var(--color-foreground-muted) 0%,
-    var(--color-foreground) 50%,
-    var(--color-foreground-muted) 100%
-  );
-  background-size: 200% 100%;
+  --shimmer-base: var(--color-foreground-muted);
+  --shimmer-color: var(--color-foreground);
+  --shimmer-spread: calc(3ch + 40px);
+  --shimmer-angle: 20deg;
+  --shimmer-duration: 2s;
+  background-image:
+    linear-gradient(
+      calc(90deg + var(--shimmer-angle)),
+      transparent calc(50% - var(--shimmer-spread) / 2),
+      var(--shimmer-color) 50%,
+      transparent calc(50% + var(--shimmer-spread) / 2)
+    ),
+    linear-gradient(var(--shimmer-base), var(--shimmer-base));
+  background-size: 300% 100%, 100% 100%;
+  background-repeat: no-repeat;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: shimmer-text 2s linear infinite;
+  animation: shimmer-text var(--shimmer-duration) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

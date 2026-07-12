@@ -143,6 +143,32 @@
     --button-primary-color: var(--white);
     --button-border-radius: 8px;
 
+    /* Canva-Layout Editor Surfaces — reuse existing tokens where a flipping
+       equivalent exists; warm-sand literals only where the palette has none.
+       Mirrors packages/canvas-editor/src/styles/variables.css — keep in sync.
+       See packages/canvas-editor/CLAUDE.md */
+    --editor-bg: var(--background-color-sand);       /* neutral-600 → grey-950 */
+    --editor-surface-hover: var(--hover-color-alt);  /* secondary-50 → grey-700 */
+    --editor-text: var(--font-color);                /* grey-800 → neutral-600 */
+    --editor-accent: var(--primary-500);
+    --editor-active-fg: var(--primary-600);
+    --editor-active-bg: var(--primary-100);
+    --editor-active-soft: var(--primary-50);
+    --editor-green-deep: #00553B;                    /* brand deep green — no palette equivalent */
+    --editor-menubar-gradient: linear-gradient(90deg, var(--editor-green-deep) 0%, #3E7D63 55%, #6BA88C 100%);
+    --editor-topbar-height: 56px;
+    --editor-canvas-bg: #EFEDE8;
+    --editor-surface: #FFFFFF;
+    --editor-inset: #FAF9F5;
+    --editor-tile: #F4F2EC;
+    --editor-canvas-hover: #E2E0D9;
+    --editor-border: #E9E7E0;
+    --editor-border-soft: #E4E2DA;
+    --editor-border-strong: #DBD9D0;
+    --editor-text-secondary: #4B4A45;
+    --editor-text-muted: #84827A;
+    --editor-placeholder: #9A988F;
+
     /* Scrollbar variables */
     --scrollbar-track-color: var(--background-color-alt);
     --scrollbar-thumb-color: var(--grey-600);
@@ -329,6 +355,22 @@
     --border-color: var(--grey-700);
     --button-primary-color: var(--white);
 
+    /* Canva-Layout Editor Surfaces — dark overrides (reused tokens inherit) */
+    --editor-active-fg: var(--primary-300);
+    --editor-active-bg: var(--primary-900);
+    --editor-active-soft: var(--primary-950);
+    --editor-canvas-bg: var(--grey-900);
+    --editor-surface: #1e1e1e;
+    --editor-inset: var(--grey-800);
+    --editor-tile: var(--grey-800);
+    --editor-canvas-hover: var(--grey-700);
+    --editor-border: rgba(255, 255, 255, 0.08);
+    --editor-border-soft: rgba(255, 255, 255, 0.10);
+    --editor-border-strong: var(--grey-600);
+    --editor-text-secondary: var(--grey-300);
+    --editor-text-muted: var(--grey-400);
+    --editor-placeholder: var(--grey-500);
+
     /* Scrollbar variables for dark theme */
     --scrollbar-track-color: var(--background-color-alt);
     --scrollbar-thumb-color: var(--neutral-600);
@@ -470,6 +512,22 @@
         --border-color-disabled: var(--grey-600);
         --border-color: var(--grey-700);
         --button-primary-color: var(--white);
+
+        /* Canva-Layout Editor Surfaces — dark overrides (reused tokens inherit) */
+        --editor-active-fg: var(--primary-300);
+        --editor-active-bg: var(--primary-900);
+        --editor-active-soft: var(--primary-950);
+        --editor-canvas-bg: var(--grey-900);
+        --editor-surface: #1e1e1e;
+        --editor-inset: var(--grey-800);
+        --editor-tile: var(--grey-800);
+        --editor-canvas-hover: var(--grey-700);
+        --editor-border: rgba(255, 255, 255, 0.08);
+        --editor-border-soft: rgba(255, 255, 255, 0.10);
+        --editor-border-strong: var(--grey-600);
+        --editor-text-secondary: var(--grey-300);
+        --editor-text-muted: var(--grey-400);
+        --editor-placeholder: var(--grey-500);
 
         /* Scrollbar variables for prefers-color-scheme: dark */
         --scrollbar-track-color: var(--background-color-alt);

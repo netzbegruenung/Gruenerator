@@ -45,7 +45,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
 - **`packages/sites`** — Embedded candidate-site builder (Home / Login / Demo / Edit pages, editor components, stores). Consumed by `apps/web` at `/sites/*` via `apps/web/src/features/sites/`. No standalone shell; auth/apiClient injected via `<SitesProvider>`.
 - **`packages/sites-design`** — Design tokens + presentational components for the site builder (consumed by `packages/sites` and the public candidate sites).
-- **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`.
+- **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`. **Editor UI follows the "Canva-Layout in Grünerator-Grün" design — see `packages/canvas-editor/CLAUDE.md` (mandatory `--editor-*` token layer, no `dark:` utilities, tokens in 4 files).**
 - **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
 - **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md`.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image gen.
