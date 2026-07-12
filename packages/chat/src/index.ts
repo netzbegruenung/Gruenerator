@@ -145,6 +145,7 @@ export { ArtifactPanel } from './components/ArtifactPanel';
 export { composerToolbarButtonClass } from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
+export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillPopover } from './components/thread/SkillPopover';
@@ -207,7 +208,6 @@ export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './compone
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ChatThreadRouting, type ChatThreadRoutingProps } from './components/ChatThreadRouting';
-export { ToolToggles } from './components/ToolToggles';
 export { MarkdownContent } from './components/MarkdownContent';
 export { CitationMarkdownText } from './components/message-parts/CitationMarkdownText';
 export { ToolCallUI } from './components/ToolCallUI';

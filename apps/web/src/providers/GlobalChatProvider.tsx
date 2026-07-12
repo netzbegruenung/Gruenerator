@@ -313,7 +313,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
-          window.open(`/docs/${existingDocId}`, '_blank', 'noopener,noreferrer');
+          window.open(`/office/${existingDocId}`, '_blank', 'noopener,noreferrer');
           return existingDocId;
         }
 
@@ -326,7 +326,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (!response.ok) throw new Error('Document creation failed');
         const data = (await response.json()) as { documentId?: string; title?: string };
         if (data.documentId) {
-          window.open(`/docs/${data.documentId}`, '_blank', 'noopener,noreferrer');
+          window.open(`/office/${data.documentId}`, '_blank', 'noopener,noreferrer');
           return data.documentId;
         }
       },

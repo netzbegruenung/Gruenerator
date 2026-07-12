@@ -150,8 +150,11 @@ export const ModelPicker = memo(function ModelPicker({
   const triggerLabel =
     selectedModel === AUTO_MODEL_ID && resolvedAuto ? (
       <span className="flex flex-col items-start leading-tight">
-        <span className="text-sm font-medium">Automatisch</span>
-        <span className="text-muted-foreground text-xs">→ {resolvedAuto.name}</span>
+        {/* Compact label on narrow screens — the wide two-line label squeezes
+            the composer input into wrapping. */}
+        <span className="text-sm font-medium max-sm:hidden">Automatisch</span>
+        <span className="text-sm font-medium sm:hidden">Auto</span>
+        <span className="text-muted-foreground text-xs max-sm:hidden">→ {resolvedAuto.name}</span>
       </span>
     ) : (
       <span>{current.name}</span>

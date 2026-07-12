@@ -120,10 +120,19 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   }, [isOpen, close, toggle, searchOpen]);
 
   const isActive = useCallback(
-    (path: string, activePaths?: string[], activeQuery?: Record<string, string>) => {
-      const pathMatches = activePaths
-        ? activePaths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
-        : location.pathname === path;
+    (
+      path: string,
+      activePaths?: string[],
+      activeQuery?: Record<string, string>,
+      exactActivePaths?: string[]
+    ) => {
+      const pathMatches =
+        (exactActivePaths?.some((p) => location.pathname === p) ?? false) ||
+        (activePaths
+          ? activePaths.some(
+              (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+            )
+          : location.pathname === path);
       if (!pathMatches) return false;
       if (!activeQuery) {
         // Plain path match: if other entries claim a query param on this path,
@@ -249,12 +258,24 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                         : handleLinkClick(item.path!, item.title)
                     }
                     className={menuLinkClass(
-                      isActive(item.path!, item.activePaths, item.activeQuery),
+                      isActive(
+                        item.path!,
+                        item.activePaths,
+                        item.activeQuery,
+                        item.exactActivePaths
+                      ),
                       false,
                       !sidebarExpanded
                     )}
                     aria-current={
-                      isActive(item.path!, item.activePaths, item.activeQuery) ? 'page' : undefined
+                      isActive(
+                        item.path!,
+                        item.activePaths,
+                        item.activeQuery,
+                        item.exactActivePaths
+                      )
+                        ? 'page'
+                        : undefined
                     }
                     type="button"
                   >
@@ -396,7 +417,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             'sidebar fixed top-0 left-0 h-dvh z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
             // Desktop (non-Tauri) — frosted glass
             !isDesktop &&
-              'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl border-r border-grey-200/60 dark:border-grey-800/60',
+              'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl',
             !isDesktop && sidebarExpanded && 'md:w-[260px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
