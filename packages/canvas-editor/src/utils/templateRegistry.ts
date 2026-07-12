@@ -5,9 +5,13 @@
  * Keeps template metadata in one place for easy maintenance.
  */
 
+import type { BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
 
 export type TemplateCategory = 'sharepic' | 'slider' | 'profilbild';
+
+/** Which audience a template is offered to. Undefined is treated as 'de-DE'. */
+export type TemplateAudience = 'all' | BrandLocale;
 
 export interface TemplateInfo {
   id: CanvasConfigId;
@@ -15,6 +19,8 @@ export interface TemplateInfo {
   description: string;
   previewImage: string;
   category: TemplateCategory;
+  /** Audience gating — omitted defaults to 'de-DE'. */
+  audience?: TemplateAudience;
 }
 
 /**
@@ -84,6 +90,48 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     previewImage: '/imagine/previews/profilbild-preview.webp',
     category: 'profilbild',
   },
+
+  // Österreich (de-AT) variants
+  'info-at': {
+    id: 'info-at',
+    label: 'Info',
+    description: 'Headline mit Betonung und Logo (Österreich)',
+    previewImage: '/imagine/previews/info-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'zitat-at': {
+    id: 'zitat-at',
+    label: 'Zitat',
+    description: 'Zitat mit Hintergrundbild (Österreich)',
+    previewImage: '/imagine/previews/zitat-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'zitat-pure-at': {
+    id: 'zitat-pure-at',
+    label: 'Zitat Pur',
+    description: 'Zitat auf dunkelgrüner Fläche (Österreich)',
+    previewImage: '/imagine/previews/zitat-pure-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'dreizeilen-at': {
+    id: 'dreizeilen-at',
+    label: '3 Zeilen',
+    description: 'Dreizeilige Headline mit Betonung (Österreich)',
+    previewImage: '/imagine/previews/dreizeilen-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'freeform-at': {
+    id: 'freeform-at',
+    label: 'Freies Design',
+    description: 'Leere Leinwand mit österreichischem CI',
+    previewImage: '/imagine/previews/freeform-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
 };
 
 /**
@@ -98,6 +146,49 @@ export function getTemplateInfo(configId: CanvasConfigId): TemplateInfo {
  */
 export function getAllTemplates(): TemplateInfo[] {
   return Object.values(TEMPLATE_REGISTRY);
+}
+
+/** Effective audience of a template (undefined defaults to 'de-DE'). */
+function templateAudience(t: TemplateInfo): TemplateAudience {
+  return t.audience ?? 'de-DE';
+}
+
+/**
+ * Templates offered to a given locale — the audience-aware filter used by the
+ * studio picker. AT users see only 'de-AT' (+ 'all') templates; DE users see
+ * 'de-DE' (+ 'all'). Mirrors isAgentVisibleForLocale in agents/audience.ts.
+ */
+export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
+  return getAllTemplates().filter((t) => {
+    const a = templateAudience(t);
+    return a === 'all' || a === locale;
+  });
+}
+
+/**
+ * Base sharepic types that have a dedicated de-AT variant config.
+ * Extend this + add a `${base}-at` config to onboard a template for Austria.
+ */
+const AT_VARIANT_BASE_TYPES: readonly CanvasConfigId[] = [
+  'info',
+  'zitat',
+  'zitat-pure',
+  'dreizeilen',
+  'freeform',
+];
+
+/**
+ * Resolve the concrete config id for a base sharepic type + locale.
+ * `resolveConfigId('info', 'de-AT') === 'info-at'`; DE (or a type without an
+ * AT variant) returns the base id unchanged. Single seam consumed by the
+ * config loader, the studio picker and the chat sharepic mapping.
+ */
+export function resolveConfigId(baseType: CanvasConfigId, locale: BrandLocale): CanvasConfigId {
+  if (locale === 'de-AT' && AT_VARIANT_BASE_TYPES.includes(baseType)) {
+    const atId = `${baseType}-at` as CanvasConfigId;
+    if (atId in TEMPLATE_REGISTRY) return atId;
+  }
+  return baseType;
 }
 
 /**
