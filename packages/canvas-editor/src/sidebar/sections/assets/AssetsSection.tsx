@@ -4,7 +4,8 @@ import { HiSparkles } from 'react-icons/hi2';
 import { PiChartBar, PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
-import { LOGO_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { sortLogoAssets, type AssetInstance } from '../../../utils/canvasAssets';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
@@ -222,11 +223,11 @@ function MobileView({
   const effectiveIconsExpanded = bridge.active || iconsExpanded;
   const effectiveIllustrationsExpanded = bridge.active || illustrationenExpanded;
 
-  const sortedAssets = useMemo(() => {
-    const recommended = LOGO_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
-    const others = LOGO_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
-    return [...recommended, ...others];
-  }, [recommendedAssetIds]);
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+  const sortedAssets = useMemo(
+    () => sortLogoAssets(recommendedAssetIds, userLocale),
+    [recommendedAssetIds, userLocale]
+  );
 
   const subsections: Subsection[] = [];
 
@@ -340,7 +341,7 @@ function MobileView({
           <BadgeSection
             onAddPillBadge={onAddPillBadge}
             onAddCircleBadge={onAddCircleBadge}
-            onAddBalken={onAddBalken}
+            {...(userLocale === 'de-DE' ? { onAddBalken } : {})}
           />
         </>
       ),

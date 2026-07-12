@@ -3,6 +3,7 @@ import { FaCheck } from 'react-icons/fa';
 import { Icon } from '@iconify/react';
 
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { sortLogoAssets } from '../../../utils/canvasAssets';
 import { CHART_TYPE_DEFS } from '../../../utils/chartUtils';
 import { FRAME_ICON_MAP, FRAME_PRESETS } from '../../../utils/frameUtils';
@@ -25,47 +26,50 @@ import { cn } from '../../../utils/cn';
 const STRIP_COUNT = 8;
 const NO_RECOMMENDED: string[] = [];
 
-export const LogoStripTiles = memo(function LogoStripTiles({
+/** Combined brand strip: locale-filtered logos, plus Balken for DE users. */
+export const MarkeStripTiles = memo(function MarkeStripTiles({
   onAddAsset,
+  onAddBalken,
   recommendedAssetIds = NO_RECOMMENDED,
 }: {
-  onAddAsset: (assetId: string) => void;
+  onAddAsset?: (assetId: string) => void;
+  onAddBalken?: (mode: BalkenMode) => void;
   recommendedAssetIds?: string[];
 }) {
-  const assets = sortLogoAssets(recommendedAssetIds).slice(0, STRIP_COUNT);
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+  const showBalken = userLocale === 'de-DE' && onAddBalken !== undefined;
+  const logos = onAddAsset
+    ? sortLogoAssets(recommendedAssetIds, userLocale).slice(
+        0,
+        showBalken ? STRIP_COUNT - 2 : STRIP_COUNT
+      )
+    : [];
 
   return (
     <>
-      {assets.map((asset) => {
+      {logos.map((asset) => {
         const isWhiteAsset = /weiss|white/.test(asset.id);
         return (
           <StripTile
             key={asset.id}
             title={`${asset.label} hinzufügen`}
-            onClick={() => onAddAsset(asset.id)}
+            onClick={() => onAddAsset!(asset.id)}
             className={cn(isWhiteAsset && 'bg-secondary-600 hover:bg-secondary-700')}
           >
             <img src={asset.src} alt={asset.label} className="w-9 h-9 object-contain" />
           </StripTile>
         );
       })}
-    </>
-  );
-});
-
-export const BalkenStripTiles = memo(function BalkenStripTiles({
-  onAddBalken,
-}: {
-  onAddBalken: (mode: BalkenMode) => void;
-}) {
-  return (
-    <>
-      <StripTile title="Einzelnen Balken hinzufügen" onClick={() => onAddBalken('single')}>
-        <SingleBalkenPreviewIcon size={44} />
-      </StripTile>
-      <StripTile title="Dreifach-Balken hinzufügen" onClick={() => onAddBalken('triple')}>
-        <TripleBalkenPreviewIcon size={44} />
-      </StripTile>
+      {showBalken && (
+        <>
+          <StripTile title="Einzelnen Balken hinzufügen" onClick={() => onAddBalken!('single')}>
+            <SingleBalkenPreviewIcon size={44} />
+          </StripTile>
+          <StripTile title="Dreifach-Balken hinzufügen" onClick={() => onAddBalken!('triple')}>
+            <TripleBalkenPreviewIcon size={44} />
+          </StripTile>
+        </>
+      )}
     </>
   );
 });

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
 import { useDebounce } from '../../../hooks/useDebounce';
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { ALL_ASSETS, sortLogoAssets, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
@@ -19,17 +20,17 @@ import { CategoryStrip, StripTile } from './CategoryStrip';
 import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView } from './constants';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 import {
-  BalkenStripTiles,
   DiagrammeStripTiles,
   FormenStripTiles,
   IconStripTiles,
   IllustrationStripTiles,
-  LogoStripTiles,
+  MarkeStripTiles,
   RahmenStripTiles,
 } from './stripTiles';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetSearchState } from './useAssetSearch';
+import type { BalkenMode } from '../../../primitives';
 import type { AssetInstance } from '../../../utils/canvasAssets';
 import type { ShapeInstance, ShapeType } from '../../../utils/shapes';
 import type {
@@ -159,6 +160,7 @@ export function BrowseView(props: BrowseViewProps) {
     }
   }, [sectionProps.selectedFrameId]);
 
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
   const hasAssetsFeature = sectionProps.onAddAsset !== undefined;
   const hasIconsFeature =
     sectionProps.selectedIcons !== undefined && sectionProps.onIconToggle !== undefined;
@@ -175,8 +177,7 @@ export function BrowseView(props: BrowseViewProps) {
 
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
-      grafiken: hasAssetsFeature,
-      extras: hasBalkenFeature,
+      marke: hasAssetsFeature || (hasBalkenFeature && userLocale === 'de-DE'),
       formen: hasShapesFeature,
       diagramme: hasChartsFeature,
       rahmen: hasFramesFeature,
@@ -192,6 +193,7 @@ export function BrowseView(props: BrowseViewProps) {
     hasFramesFeature,
     hasIllustrationsFeature,
     hasIconsFeature,
+    userLocale,
   ]);
 
   const recentStripItems = useMemo<RecentItem[]>(() => {
@@ -330,15 +332,14 @@ export function BrowseView(props: BrowseViewProps) {
 
   function renderStripTiles(view: AssetView) {
     switch (view) {
-      case 'grafiken':
+      case 'marke':
         return (
-          <LogoStripTiles
-            onAddAsset={sectionProps.onAddAsset!}
+          <MarkeStripTiles
+            onAddAsset={sectionProps.onAddAsset}
+            onAddBalken={sectionProps.onAddBalken}
             recommendedAssetIds={sectionProps.recommendedAssetIds}
           />
         );
-      case 'extras':
-        return <BalkenStripTiles onAddBalken={sectionProps.onAddBalken!} />;
       case 'formen':
         return <FormenStripTiles onAddShape={sectionProps.onAddShape!} />;
       case 'diagramme':
@@ -448,7 +449,7 @@ export function BrowseView(props: BrowseViewProps) {
         <div className="flex-none px-[18px] pt-3">
           <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
 
-          {activeView !== 'extras' && activeView !== 'diagramme' && (
+          {activeView !== 'diagramme' && (
             <SearchInput
               value={drillDownQuery}
               onChange={setDrillDownQuery}
@@ -458,16 +459,13 @@ export function BrowseView(props: BrowseViewProps) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-[18px] pb-5">
-          {activeView === 'grafiken' && hasAssetsFeature && (
-            <GrafiksSectionContent
-              onAddAsset={sectionProps.onAddAsset!}
+          {activeView === 'marke' && (
+            <MarkeSectionContent
+              onAddAsset={sectionProps.onAddAsset}
+              onAddBalken={sectionProps.onAddBalken}
               recommendedAssetIds={sectionProps.recommendedAssetIds}
               searchQuery={debouncedDrillDownQuery}
             />
-          )}
-
-          {activeView === 'extras' && hasBalkenFeature && (
-            <BadgeSection onAddBalken={sectionProps.onAddBalken} />
           )}
 
           {activeView === 'formen' && hasShapesFeature && (
@@ -527,26 +525,44 @@ export function BrowseView(props: BrowseViewProps) {
   }
 }
 
-// --- Grafiken content (shared between browse drill-down and mobile) ---
+// --- Marke drill-down: locale-filtered logos + Balken (DE only) ---
 
-function GrafiksSectionContent({
+const NO_RECOMMENDED_ASSETS: string[] = [];
+
+function MarkeSectionContent({
   onAddAsset,
-  recommendedAssetIds = [],
+  onAddBalken,
+  recommendedAssetIds = NO_RECOMMENDED_ASSETS,
   searchQuery = '',
 }: {
-  onAddAsset: (assetId: string) => void;
+  onAddAsset?: (assetId: string) => void;
+  onAddBalken?: (mode: BalkenMode) => void;
   recommendedAssetIds?: string[];
   searchQuery?: string;
 }) {
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+  const showBalken = userLocale === 'de-DE' && onAddBalken !== undefined;
+
   const sortedAssets = useMemo(() => {
-    const all = sortLogoAssets(recommendedAssetIds);
+    const all = sortLogoAssets(recommendedAssetIds, userLocale);
     if (!searchQuery.trim()) return all;
     return all.filter((a) => matchesQuery(searchQuery, a.label, a.tags));
-  }, [recommendedAssetIds, searchQuery]);
+  }, [recommendedAssetIds, userLocale, searchQuery]);
 
   return (
-    <div className={cn(SIDEBAR_SECTION, 'w-full')}>
-      <AssetGrid assets={sortedAssets} onAddAsset={onAddAsset} />
+    <div className={cn(SIDEBAR_SECTION, 'gap-md w-full')}>
+      {onAddAsset && sortedAssets.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h5 className="text-sm font-bold text-[var(--editor-text)] m-0">Logos</h5>
+          <AssetGrid assets={sortedAssets} onAddAsset={onAddAsset} />
+        </section>
+      )}
+      {showBalken && (
+        <section className="flex flex-col gap-2">
+          <h5 className="text-sm font-bold text-[var(--editor-text)] m-0">Balken</h5>
+          <BadgeSection onAddBalken={onAddBalken} />
+        </section>
+      )}
     </div>
   );
 }

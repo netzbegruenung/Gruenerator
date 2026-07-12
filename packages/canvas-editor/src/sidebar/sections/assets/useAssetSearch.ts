@@ -2,7 +2,8 @@ import { useState, useMemo, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useDebounce } from '../../../hooks/useDebounce';
-import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { ALL_ASSETS, assetMatchesLocale, type UniversalAsset } from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons, type IconDef } from '../../../utils/canvasIcons';
 import { CHART_TYPE_DEFS, type ChartTypeDef } from '../../../utils/chartUtils';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
@@ -59,6 +60,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
   const deferredQuery = useDeferredValue(debouncedQuery);
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
 
   // Browsing loads sets per-tab; a query, however, should search ALL sets. Load
   // every set once a query is entered, gated so the no-search path stays cheap.
@@ -79,6 +81,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
 
     if (hasAssetsFeature) {
       ALL_ASSETS.forEach((asset) => {
+        if (!assetMatchesLocale(asset, userLocale)) return;
         if (matchesQuery(query, asset.label, asset.tags)) {
           results.push({ type: 'element', id: asset.id, name: asset.label, asset });
         }
@@ -131,6 +134,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     return results;
   }, [
     deferredQuery,
+    userLocale,
     hasAssetsFeature,
     hasShapesFeature,
     hasChartsFeature,
