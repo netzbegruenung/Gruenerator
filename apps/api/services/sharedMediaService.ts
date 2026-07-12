@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { THUMBNAIL_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
@@ -676,7 +676,7 @@ class SharedMediaService {
                 WHERE user_id = $1
                   AND (upload_source IS NULL OR upload_source != ALL($2))
             `;
-      const params: unknown[] = [userId, [...THUMBNAIL_UPLOAD_SOURCES]];
+      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
       let paramIndex = 3;
 
       if (mediaType) {
@@ -1025,9 +1025,12 @@ class SharedMediaService {
         }
       }
 
-      // Canvas gallery thumbnails are internal artifacts — keep them out of
-      // the Mediathek (getMediaLibrary filters on is_library_item).
-      const isLibraryItem = !(THUMBNAIL_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
+      // Non-library sources (gallery thumbnails, canvas-element tool output) are
+      // internal artifacts — keep them out of the Mediathek (getMediaLibrary
+      // filters on is_library_item).
+      const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(
+        uploadSource
+      );
 
       const query = `
                 INSERT INTO shared_media
