@@ -1,3 +1,4 @@
+import { type InitialPageDef } from '@gruenerator/canvas-editor';
 import { type CanvasTemplateType } from '@gruenerator/contracts';
 
 import { type DEFAULT_COLORS } from '../../../components/utils/constants';
@@ -153,6 +154,9 @@ export interface ImageStudioState {
   sunflowerOffset: [number, number];
   credit: string;
   searchTerms: string[];
+
+  /** Restored multi-page deck (gallery drafts with metadata.content.pages). */
+  deckPages: InitialPageDef[] | null;
 
   // Veranstaltung per-field font sizes
   veranstaltungFieldFontSizes: VeranstaltungFieldFontSizes;

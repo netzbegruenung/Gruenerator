@@ -20,7 +20,7 @@ import { cn } from '../utils/cn';
 
 interface TemplatePickerFlyoutProps {
   onSelectTemplate: (configId: CanvasConfigId) => void;
-  onDuplicateCurrent: () => void;
+  onDuplicateCurrent?: () => void;
   onClose: () => void;
   currentTemplateId?: CanvasConfigId;
   isOpen: boolean;
@@ -28,6 +28,11 @@ interface TemplatePickerFlyoutProps {
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   /** Restrict shown templates to one category (e.g. 'sharepic'). Undefined shows all. */
   templateFilter?: TemplateCategory;
+  /**
+   * 'add' (default) adds a new page; 'replace' converts an existing page —
+   * different title, no duplicate entry, no slider variants.
+   */
+  mode?: 'add' | 'replace';
 }
 
 interface TemplateCardProps {
@@ -85,7 +90,9 @@ export function TemplatePickerFlyout({
   anchorRef,
   onAddSliderVariant,
   templateFilter,
+  mode = 'add',
 }: TemplatePickerFlyoutProps) {
+  const isReplace = mode === 'replace';
   const flyoutRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number; maxHeight?: number }>({
     top: 0,
@@ -186,7 +193,7 @@ export function TemplatePickerFlyout({
   );
 
   const handleDuplicate = useCallback(() => {
-    onDuplicateCurrent();
+    onDuplicateCurrent?.();
     onClose();
   }, [onDuplicateCurrent, onClose]);
 
@@ -224,7 +231,9 @@ export function TemplatePickerFlyout({
       }}
     >
       <div className="flex justify-between items-center mb-3">
-        <h3 className="m-0 text-base font-semibold text-foreground-heading">Seite hinzufügen</h3>
+        <h3 className="m-0 text-base font-semibold text-foreground-heading">
+          {isReplace ? 'Vorlage ändern' : 'Seite hinzufügen'}
+        </h3>
         <button
           className="flex items-center justify-center size-7 p-0 bg-transparent border-none rounded-md cursor-pointer text-foreground-muted transition-[background-color,color] duration-150 hover:bg-hover-alt hover:text-foreground"
           onClick={onClose}
@@ -245,7 +254,7 @@ export function TemplatePickerFlyout({
           />
         ))}
 
-        {onAddSliderVariant && (
+        {onAddSliderVariant && !isReplace && (
           <>
             <button className={templateCardBase} onClick={handleAddCover} type="button">
               <div className="w-full aspect-square rounded overflow-hidden mb-1.5 flex items-center justify-center bg-background-alt [&>svg]:size-7 [&>svg]:text-foreground-muted">
@@ -281,16 +290,20 @@ export function TemplatePickerFlyout({
         )}
       </div>
 
-      <div className="h-px bg-border my-3" />
+      {!isReplace && onDuplicateCurrent && (
+        <>
+          <div className="h-px bg-border my-3" />
 
-      <button
-        className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-grey-400 dark:hover:border-grey-500 [&>svg]:size-[18px] [&>svg]:text-foreground-muted"
-        onClick={handleDuplicate}
-        type="button"
-      >
-        <HiOutlineDuplicate />
-        <span>Aktuelle Seite duplizieren</span>
-      </button>
+          <button
+            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-background-alt border border-border rounded-lg cursor-pointer text-[13px] font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-hover-alt hover:border-grey-400 dark:hover:border-grey-500 [&>svg]:size-[18px] [&>svg]:text-foreground-muted"
+            onClick={handleDuplicate}
+            type="button"
+          >
+            <HiOutlineDuplicate />
+            <span>Aktuelle Seite duplizieren</span>
+          </button>
+        </>
+      )}
     </div>,
     document.body
   );

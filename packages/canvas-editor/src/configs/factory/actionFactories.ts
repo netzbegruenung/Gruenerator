@@ -163,8 +163,8 @@ export function createShapeActions<TState extends { shapeInstances: ShapeInstanc
   defaultColor: string = BRAND_COLORS[0].value
 ) {
   return {
-    addShape: (type: ShapeType) => {
-      const newShape = createShape(type, canvasWidth / 2, canvasHeight / 2, defaultColor);
+    addShape: (type: ShapeType, color?: string) => {
+      const newShape = createShape(type, canvasWidth / 2, canvasHeight / 2, defaultColor, color);
       setState((prev) => ({
         ...prev,
         shapeInstances: [...prev.shapeInstances, newShape],
