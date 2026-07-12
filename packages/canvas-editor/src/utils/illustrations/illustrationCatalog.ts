@@ -8,8 +8,13 @@
  * editor bundle.
  */
 
+import { GOPHERS } from './gophers';
+import { HUMAAANS } from './humaaans';
+import { ILLLUSTRATIONS } from './illlustrations';
 import { KAWAII_ILLUSTRATIONS } from './kawaii';
 import { OPENDOODLES } from './opendoodles';
+import { OPENPEEPS } from './openpeeps';
+import { TRANSHUMANS } from './transhumans';
 import { UNDRAW_ALL } from './undrawAll';
 
 import type { IllustrationDef, SvgDef } from './types';
@@ -17,9 +22,22 @@ import type { IllustrationDef, SvgDef } from './types';
 export const ALL_ILLUSTRATIONS: IllustrationDef[] = [
   ...KAWAII_ILLUSTRATIONS,
   ...OPENDOODLES,
+  ...ILLLUSTRATIONS,
+  ...GOPHERS,
+  ...TRANSHUMANS,
+  ...HUMAAANS,
+  ...OPENPEEPS,
   ...UNDRAW_ALL,
 ];
 
-export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [...OPENDOODLES, ...UNDRAW_ALL];
+export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [
+  ...OPENDOODLES,
+  ...ILLLUSTRATIONS,
+  ...GOPHERS,
+  ...TRANSHUMANS,
+  ...HUMAAANS,
+  ...OPENPEEPS,
+  ...UNDRAW_ALL,
+];
 
 export { UNDRAW_ALL };
