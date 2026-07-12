@@ -18,15 +18,17 @@ const ArbeitenTab = () => {
 
   return (
     <PageContainer maxWidth="lg" noPadTop className="max-md:pt-lg">
-      <DocsHome />
+      <div data-tour="arbeiten-create">
+        <DocsHome />
+      </div>
 
-      <div className="mt-2xl">
+      <div className="mt-2xl" data-tour="arbeiten-recents">
         <Suspense fallback={null}>
           <RecentlyCreatedSection />
         </Suspense>
       </div>
 
-      <section className="mb-xl">
+      <section className="mb-xl" data-tour="arbeiten-tools">
         <ToolsSection />
       </section>
 

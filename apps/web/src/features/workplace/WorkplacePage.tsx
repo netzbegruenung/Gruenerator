@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
+import { useWorkplaceTourAutostart } from './tour/useWorkplaceTourAutostart';
 import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
 
 import { cn } from '@/utils/cn';
@@ -24,6 +25,7 @@ const TAB_BACKGROUND: Record<string, string> = {
 const WorkplacePage = () => {
   const { pathname } = useLocation();
   const tab = workplaceTabFromPathname(pathname);
+  useWorkplaceTourAutostart(tab);
 
   return (
     <ErrorBoundary>
@@ -38,7 +40,7 @@ const WorkplacePage = () => {
         ) : tab === 'wissen' ? (
           // The notebook chat surface sizes itself against a bounded parent —
           // full-height flex chain (sidebarOnly layout provides h-dvh).
-          <div className="min-h-0 flex-1 pt-14">
+          <div className="min-h-0 flex-1 pt-14" data-tour="wissen">
             <Suspense fallback={null}>
               <WissenTab />
             </Suspense>

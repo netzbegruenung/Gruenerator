@@ -91,7 +91,7 @@ const WorkplaceChatTab = () => {
         </h1>
       </div>
 
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto" data-tour="workplace-composer">
         <CreatorSection />
       </div>
     </div>
