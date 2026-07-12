@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons, type IconDef } from '../../../utils/canvasIcons';
+import { CHART_TYPE_DEFS, type ChartTypeDef } from '../../../utils/chartUtils';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_PRESETS } from '../../../utils/frameUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
@@ -12,7 +13,7 @@ import { ALL_SHAPES, type ShapeDef } from '../../../utils/shapes';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { IllustrationDef } from '../../../utils/illustrations/types';
 
-export type SearchResultType = 'element' | 'shape' | 'icon' | 'illustration' | 'frame';
+export type SearchResultType = 'element' | 'shape' | 'chart' | 'icon' | 'illustration' | 'frame';
 
 export interface SearchResult {
   type: SearchResultType;
@@ -20,6 +21,7 @@ export interface SearchResult {
   name: string;
   asset?: UniversalAsset;
   shapeDef?: ShapeDef;
+  chartTypeDef?: ChartTypeDef;
   iconDef?: IconDef;
   illustrationDef?: IllustrationDef;
   frameClipType?: FrameClipType;
@@ -28,6 +30,7 @@ export interface SearchResult {
 interface FeatureFlags {
   hasAssetsFeature: boolean;
   hasShapesFeature: boolean;
+  hasChartsFeature: boolean;
   hasIconsFeature: boolean;
   hasFramesFeature: boolean;
 }
@@ -45,7 +48,13 @@ export interface AssetSearchState {
 }
 
 export function useAssetSearch(features: FeatureFlags): AssetSearchState {
-  const { hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasFramesFeature } = features;
+  const {
+    hasAssetsFeature,
+    hasShapesFeature,
+    hasChartsFeature,
+    hasIconsFeature,
+    hasFramesFeature,
+  } = features;
 
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -84,6 +93,14 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
       });
     }
 
+    if (hasChartsFeature) {
+      CHART_TYPE_DEFS.forEach((def) => {
+        if (matchesQuery(query, def.name, def.tags)) {
+          results.push({ type: 'chart', id: def.id, name: def.name, chartTypeDef: def });
+        }
+      });
+    }
+
     if (hasIconsFeature) {
       const matchingIcons = filterIcons(allIcons ?? getIconsSync() ?? [], query);
       for (const icon of matchingIcons.slice(0, 20)) {
@@ -116,6 +133,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     deferredQuery,
     hasAssetsFeature,
     hasShapesFeature,
+    hasChartsFeature,
     hasIconsFeature,
     hasFramesFeature,
     allIcons,

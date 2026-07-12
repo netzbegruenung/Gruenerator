@@ -180,3 +180,15 @@ export function TripleBalkenPreviewIcon({ size = 48 }: PreviewIconProps) {
     </svg>
   );
 }
+
+export function DiagrammePreviewIcon({ size = 48 }: PreviewIconProps) {
+  const s = size;
+  return (
+    <svg width={s} height={s * 0.75} viewBox="0 0 64 48" fill="none" aria-hidden>
+      <rect x="8" y="20" width="10" height="22" rx="2" fill="#005538" />
+      <rect x="22" y="8" width="10" height="34" rx="2" fill="#8ABD24" />
+      <rect x="36" y="26" width="10" height="16" rx="2" fill="#4A9FD4" />
+      <rect x="50" y="14" width="10" height="28" rx="2" fill="#005538" />
+    </svg>
+  );
+}

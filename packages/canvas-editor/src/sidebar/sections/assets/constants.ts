@@ -1,5 +1,5 @@
 import { FaIcons, FaPuzzlePiece, FaShapes } from 'react-icons/fa';
-import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
+import { PiChartBarFill, PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 import {
   Planet,
   Cat,
@@ -16,7 +16,7 @@ import {
 } from 'react-kawaii';
 
 import { SYSTEM_ASSETS } from '../../../utils/canvasAssets';
-import { TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
+import { DiagrammePreviewIcon, TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
 
 import type { KawaiiIllustrationType } from '../../../utils/illustrations/types';
 import type { IconType } from 'react-icons';
@@ -27,6 +27,7 @@ export type AssetView =
   | 'grafiken'
   | 'extras'
   | 'formen'
+  | 'diagramme'
   | 'rahmen'
   | 'illustrationen'
   | 'icons';
@@ -74,6 +75,15 @@ export const CATEGORY_CARDS: CategoryCardDef[] = [
     id: 'formen',
     label: 'Formen',
     Icon: FaShapes,
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
+  },
+  {
+    id: 'diagramme',
+    label: 'Diagramme',
+    Icon: PiChartBarFill,
+    IconComponent: DiagrammePreviewIcon,
     iconColor: EUCALYPTUS_ICON,
     hoverShadow: EUCALYPTUS_HOVER_SHADOW,
     ring: EUCALYPTUS_RING,
