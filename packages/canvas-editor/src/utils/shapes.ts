@@ -638,7 +638,8 @@ export const createShape = (
   type: ShapeType,
   x: number,
   y: number,
-  color: string
+  color: string,
+  explicitColor?: string
 ): ShapeInstance => {
   const dims = DEFAULT_DIMENSIONS[type] ?? {
     width: DEFAULT_SHAPE_SIZE,
@@ -651,7 +652,7 @@ export const createShape = (
     y,
     width: dims.width,
     height: dims.height,
-    fill: DEFAULT_FILL_OVERRIDE[type] ?? color,
+    fill: explicitColor ?? DEFAULT_FILL_OVERRIDE[type] ?? color,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,

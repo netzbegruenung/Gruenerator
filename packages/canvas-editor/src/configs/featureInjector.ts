@@ -110,7 +110,7 @@ export function injectFeatureProps<S extends object, A extends object>(
     const stateWithShapes = state as FeatureStateWithShapes;
     injected.shapeInstances = stateWithShapes.shapeInstances;
     injected.selectedShapeId = context?.selectedElement || null;
-    injected.onAddShape = actions.addShape as (type: string) => void;
+    injected.onAddShape = actions.addShape as (type: string, color?: string) => void;
 
     if ('updateShape' in actions) {
       injected.onUpdateShape = actions.updateShape as (id: string, partial: unknown) => void;
