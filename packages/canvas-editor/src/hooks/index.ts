@@ -58,6 +58,7 @@ export type {
 } from './useMultiPageExport';
 
 export { usePageManager, parseInitialPages } from './usePageManager';
+export { useDeckAutoSave, SHARE_ORIGINAL_IMAGE_SRC } from './useDeckAutoSave';
 export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';
 
 export { usePageThumbnails } from './usePageThumbnails';
