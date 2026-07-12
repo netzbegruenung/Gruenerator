@@ -276,6 +276,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement?.includes('balken')) return 'settings';
+    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
@@ -524,6 +525,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
     circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
 
     // Layer Ordering
