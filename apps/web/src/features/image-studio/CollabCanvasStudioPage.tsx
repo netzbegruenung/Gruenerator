@@ -15,6 +15,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
+import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
@@ -107,11 +108,12 @@ function CollabCanvasStudioContent() {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
 
-  // Every download already renders the full-res image, so it doubles as a
-  // fresh gallery thumbnail. Only the list key is invalidated — the open
+  // Fresh gallery thumbnail from every full-res render: downloads and the
+  // editor's debounced collab snapshots (without the latter, recents kept
+  // showing the pre-edit state). Only the list key is invalidated — the open
   // document's ['canvas', id] query must not refetch (it would race the
   // optimistic title rename).
-  const handleDownload = useCallback(
+  const refreshThumbnail = useCallback(
     (base64: string) => {
       if (!id || !canEdit) return;
       updateCanvasThumbnail(id, base64)
@@ -122,10 +124,15 @@ function CollabCanvasStudioContent() {
   );
 
   const handleCancel = useCallback(() => {
-    void navigate('/studio');
+    void navigate('/workplace/arbeiten');
   }, [navigate]);
 
   const collaborators = useCollaborators(collab.provider);
+
+  const chatDoc = useMemo(
+    () => (id ? { documentId: id, title: canvas?.title ?? null } : null),
+    [id, canvas?.title]
+  );
 
   const isLive = collab.isSynced && collab.isConnected;
   const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
@@ -183,35 +190,38 @@ function CollabCanvasStudioContent() {
 
   return (
     <WebCanvasEditorProvider>
-      <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
-        <div className="flex-1 min-h-0">
-          <MasterCanvasEditor
-            type={canvas.template_type}
+      <CanvasChatDocContext.Provider value={chatDoc}>
+        <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
+          <div className="flex-1 min-h-0">
+            <MasterCanvasEditor
+              type={canvas.template_type}
+              initialState={canvas.initial_state}
+              initialPages={initialPages}
+              onExport={handleExport}
+              onDownload={refreshThumbnail}
+              onCollabSnapshot={refreshThumbnail}
+              onCancel={handleCancel}
+              collaborative={
+                collab.ydoc
+                  ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
+                  : undefined
+              }
+              chromeLeft={chromeLeft}
+              chromeCenter={chromeCenter}
+              chromeRight={chromeRight}
+              onInvitePeople={() => setShareOpen(true)}
+            />
+          </div>
+          <ShareCanvasDialog
+            canvasId={canvas.id}
+            canvasType={canvas.template_type}
             initialState={canvas.initial_state}
-            initialPages={initialPages}
-            onExport={handleExport}
-            onDownload={handleDownload}
-            onCancel={handleCancel}
-            collaborative={
-              collab.ydoc
-                ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
-                : undefined
-            }
-            chromeLeft={chromeLeft}
-            chromeCenter={chromeCenter}
-            chromeRight={chromeRight}
-            onInvitePeople={() => setShareOpen(true)}
+            defaultTitle={canvas.title}
+            open={shareOpen}
+            onOpenChange={setShareOpen}
           />
         </div>
-        <ShareCanvasDialog
-          canvasId={canvas.id}
-          canvasType={canvas.template_type}
-          initialState={canvas.initial_state}
-          defaultTitle={canvas.title}
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-        />
-      </div>
+      </CanvasChatDocContext.Provider>
     </WebCanvasEditorProvider>
   );
 }

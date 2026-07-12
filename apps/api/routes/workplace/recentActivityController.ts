@@ -1,4 +1,4 @@
-import { type BoardContent, type BoardType } from '@gruenerator/contracts';
+import { type BoardContent, type BoardPreview, type BoardType } from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -55,6 +55,7 @@ export interface RecentActivityItem {
   href: string;
   emoji?: string | undefined;
   boardType?: 'kanban' | 'whiteboard' | undefined;
+  preview?: BoardPreview | undefined;
   thumbnailUrl?: string | undefined;
   duration?: number | undefined;
   creatorName?: string | undefined;
@@ -151,7 +152,7 @@ export async function fetchRecentDocs(
     title: row.title || 'Unbenanntes Dokument',
     date: row.updated_at,
     type: 'doc' as const,
-    href: `/docs/${row.id}`,
+    href: `/office/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
     ...(row.content != null && { content: row.content }),
@@ -200,6 +201,7 @@ export async function fetchRecentBoards(
     }>
   ).map((row) => {
     let boardType: BoardType = 'kanban';
+    let preview: BoardPreview | null = null;
     try {
       // Parse into the contract type (BoardContent) rather than a hand-written cast,
       // so the field name is checked against boardContentSchema. The metadata column
@@ -208,8 +210,9 @@ export async function fetchRecentBoards(
       // typing it through the schema makes that a typecheck error instead.
       const content: BoardContent | null =
         typeof row.content === 'string' ? (JSON.parse(row.content) as BoardContent) : row.content;
-      if (content && typeof content !== 'string' && content.board_type === 'whiteboard') {
-        boardType = 'whiteboard';
+      if (content && typeof content !== 'string') {
+        if (content.board_type === 'whiteboard') boardType = 'whiteboard';
+        preview = content.preview ?? null;
       }
     } catch {
       // default to kanban
@@ -221,6 +224,7 @@ export async function fetchRecentBoards(
       type: 'board' as const,
       href: `/boards/${row.id}`,
       boardType,
+      ...(preview ? { preview } : {}),
       creatorName: row.creator_name,
       deleteEndpoint: `/api/boards/${row.id}`,
     };

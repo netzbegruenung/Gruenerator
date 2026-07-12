@@ -43,7 +43,7 @@ function toEntry(r: CardDocumentRow): BoardCardDocumentEntry {
     title: r.title,
     created_by: r.created_by,
     created_at: r.created_at,
-    url: `/docs/${r.document_id}`,
+    url: `/office/${r.document_id}`,
   };
 }
 

@@ -392,7 +392,7 @@ const ImageGallery = () => {
   );
 
   const handleNewImage = () => {
-    void navigate('/studio');
+    void navigate('/workplace/arbeiten');
   };
 
   // Quick-start tiles for the empty gallery. The builder centralises the
