@@ -99,6 +99,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     editTitle,
     uploadedImage,
     selectedImage,
+    deckPages,
   } = useImageStudioStore();
 
   const { autoSaveStatus } = useAutoSaveStore();
@@ -275,6 +276,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
       selectedImage: null,
       generatedImageSrc: null,
       searchTerms: [],
+      deckPages: null,
     });
 
     // Get first step from type config
@@ -304,6 +306,13 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     };
   }, [uploadedImage, uploadedImageUrl]);
 
+  // Gallery deck drafts restore all pages at once; single-page saves keep
+  // the per-field initialState path below.
+  const restoredDeckPages = useMemo(
+    () => (deckPages && deckPages.length > 0 ? deckPages : undefined),
+    [deckPages]
+  );
+
   const renderCanvasEditor = useCallback(() => {
     if (!type) return null;
 
@@ -321,6 +330,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -336,6 +346,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -350,6 +361,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -364,6 +376,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -384,6 +397,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -399,6 +413,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -410,6 +425,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             initialState={{}}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialPages={restoredDeckPages}
             initialShareToken={editShareToken}
             onAutoSaveShareToken={handleAutoSaveShareToken}
           />
@@ -437,6 +453,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     locationName,
     address,
     uploadedImageUrl,
+    restoredDeckPages,
     handleCanvasExport,
     handleCanvasCancel,
     handleAutoSaveShareToken,
