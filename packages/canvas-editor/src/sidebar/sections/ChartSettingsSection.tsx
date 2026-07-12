@@ -1,8 +1,20 @@
 import { Switch } from '@gruenerator/ui';
 import { FaTrash, FaPlus } from 'react-icons/fa';
-import { PiChartBar, PiChartLine, PiChartPie } from 'react-icons/pi';
+import {
+  PiChartBar,
+  PiChartBarHorizontal,
+  PiChartDonut,
+  PiChartLine,
+  PiChartLineUp,
+  PiChartPie,
+} from 'react-icons/pi';
 
-import { CHART_COLORS, type ChartInstance, type ChartType } from '../../utils/chartUtils';
+import {
+  CHART_COLORS,
+  isRoundChartType,
+  type ChartInstance,
+  type ChartType,
+} from '../../utils/chartUtils';
 
 import type { IconType } from 'react-icons';
 
@@ -13,9 +25,12 @@ export interface ChartSettingsSectionProps {
 }
 
 const TYPE_OPTIONS: { id: ChartType; label: string; icon: IconType }[] = [
-  { id: 'bar', label: 'Balken', icon: PiChartBar },
+  { id: 'bar', label: 'Säulen', icon: PiChartBar },
+  { id: 'bar-horizontal', label: 'Balken', icon: PiChartBarHorizontal },
   { id: 'line', label: 'Linie', icon: PiChartLine },
-  { id: 'pie', label: 'Kreis', icon: PiChartPie },
+  { id: 'area', label: 'Fläche', icon: PiChartLineUp },
+  { id: 'pie', label: 'Torte', icon: PiChartPie },
+  { id: 'donut', label: 'Donut', icon: PiChartDonut },
 ];
 
 export function ChartSettingsSection({
@@ -71,11 +86,18 @@ export function ChartSettingsSection({
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => update({ chartType: opt.id })}
+                onClick={() => {
+                  const partial: Partial<ChartInstance> = { chartType: opt.id };
+                  if (isRoundChartType(opt.id) !== isRoundChartType(chart.chartType)) {
+                    partial.showLegend = isRoundChartType(opt.id);
+                    partial.showGrid = !isRoundChartType(opt.id);
+                  }
+                  update(partial);
+                }}
                 className={`flex flex-col items-center gap-1 rounded-md border px-2 py-2 text-xs transition-colors ${
                   active
-                    ? 'border-primary-500 bg-primary-500/10 text-foreground'
-                    : 'border-grey-300 text-foreground-muted hover:border-primary-500 dark:border-grey-600'
+                    ? 'border-[var(--editor-accent)] bg-[var(--editor-active-bg)] text-[var(--editor-active-fg)]'
+                    : 'border-[var(--editor-border-strong)] text-[var(--editor-text-muted)] hover:border-[var(--editor-accent)]'
                 }`}
               >
                 <Icon size={18} />

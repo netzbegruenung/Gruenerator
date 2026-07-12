@@ -16,6 +16,7 @@ import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './com
 import {
   createAssetActions,
   createIconActions,
+  createChartActions,
   createShapeActions,
   createIllustrationActions,
   createPillBadgeActions,
@@ -35,6 +36,7 @@ import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
@@ -73,6 +75,7 @@ export interface VeranstaltungFullState {
     { x: number; y: number; scale: number; rotation: number; color?: string; opacity?: number }
   >;
   shapeInstances: ShapeInstance[];
+  chartInstances: ChartInstance[];
   selectedShapeId: string | null;
   illustrationInstances: IllustrationInstance[];
   additionalTexts: AdditionalText[];
@@ -600,6 +603,15 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       '#005538'
     );
 
+    const chartActions = createChartActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
     const illustrationActions = createIllustrationActions(
       getState,
       setState,
@@ -653,6 +665,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       ...assetActions,
       ...iconActions,
       ...shapeActions,
+      ...chartActions,
       ...illustrationActions,
       ...circleBadgeActions,
       ...pillBadgeActions,
