@@ -26,6 +26,7 @@ const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => (
   >
     <div
       role="tablist"
+      data-tour="workplace-tabs"
       className={cn(
         'pointer-events-auto inline-flex gap-0.5 rounded-full p-[3px]',
         'border border-white/50 bg-[rgba(246,246,244,.6)]',

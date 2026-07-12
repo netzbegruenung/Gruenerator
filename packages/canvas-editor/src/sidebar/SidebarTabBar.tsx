@@ -43,6 +43,7 @@ const TabButton = memo(function TabButton({
         disabled={isDisabled}
         aria-label={tab.ariaLabel}
         aria-pressed={isActive}
+        data-tour={`canvas-tab-${tab.id}`}
         type="button"
       >
         <Icon size={19} />
@@ -65,6 +66,7 @@ const TabButton = memo(function TabButton({
       aria-label={tab.ariaLabel}
       aria-pressed={isActive}
       title={tab.label}
+      data-tour={`canvas-tab-${tab.id}`}
       type="button"
     >
       <Icon size={21} />
@@ -118,6 +120,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
 
   return (
     <div
+      data-tour="canvas-tabs"
       className={cn(
         'sidebar-tab-bar flex flex-col items-center justify-start gap-1 pt-2 shrink-0 w-[76px] h-full bg-[var(--editor-surface)] border-r border-[var(--editor-border)]',
         isHorizontal && 'flex-row'

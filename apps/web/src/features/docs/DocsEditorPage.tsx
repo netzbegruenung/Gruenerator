@@ -64,6 +64,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { isDesktopApp } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
+import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -244,6 +245,10 @@ function EditorContent() {
   // Binding the y-prosemirror view to a not-yet-synced doc crashes with
   // "nodeSize undefined" when the first server state restructures the doc.
   const editorReady = useSyncGate(provider, isSynced);
+
+  useTourAutostart('docs', editorReady && !!docData && !isGuest, () => {
+    void import('../tours/docsTour').then((m) => m.startDocsTour());
+  });
 
   const commentCount = useSyncExternalStore(
     useCallback(
@@ -552,6 +557,7 @@ function EditorContent() {
         />
       ) : (
         <EditorTopBar
+          dataTour="docs-topbar"
           title={docData.title}
           connectionStatus={connectionStatus}
           onBack={isGuest ? undefined : () => navigate('/office')}
@@ -623,6 +629,7 @@ function EditorContent() {
                 onClick={() => togglePanel('chat')}
                 aria-label="Chat"
                 title="Chat"
+                data-tour="docs-chat-toggle"
               >
                 <FiMessageSquare />
               </button>
@@ -797,6 +804,7 @@ function EditorContent() {
 
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
         <main
+          data-tour="docs-surface"
           className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] ${
             isDesktopApp()
               ? // Desktop app only: match the editor backdrop to the top bar so
@@ -836,6 +844,7 @@ function EditorContent() {
           // and in-flight streams. The aside is hidden via CSS when the chat
           // panel isn't the active sidebar.
           <aside
+            data-tour="docs-chat"
             className={
               effectivePanel === 'chat'
                 ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
