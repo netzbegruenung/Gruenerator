@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
-import { PAGES_LOCAL_ORIGIN } from './useYjsPages';
+import { PAGES_LOCAL_ORIGIN, PAGES_STATE_ORIGIN } from './useYjsPages';
 import { YDOC_KEYS } from './ydocKeys';
 
 /**
@@ -35,7 +35,12 @@ export function useYjsPageStateSync(options: {
       const partial: Record<string, unknown> = {};
       for (const event of events) {
         if (event.target !== stateY) continue;
-        if (event.transaction.origin === PAGES_LOCAL_ORIGIN) continue;
+        if (
+          event.transaction.origin === PAGES_LOCAL_ORIGIN ||
+          event.transaction.origin === PAGES_STATE_ORIGIN
+        ) {
+          continue;
+        }
         for (const key of (event as Y.YMapEvent<unknown>).keysChanged) {
           partial[key] = (stateY as Y.Map<unknown>).get(key);
         }

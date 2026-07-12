@@ -38,9 +38,16 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
 
+  // Slider decks have no sensible single "quick add" — a page is explicitly a
+  // Start (green pill), Text or Ende slide — so "+" opens the variant picker
+  // instead of silently appending a content slide.
   const handleQuickAdd = useCallback(() => {
+    if (onAddSliderVariant) {
+      setIsFlyoutOpen(true);
+      return;
+    }
     if (currentTemplateId) onAddPage(currentTemplateId);
-  }, [currentTemplateId, onAddPage]);
+  }, [onAddSliderVariant, currentTemplateId, onAddPage]);
 
   const handleToggleFlyout = useCallback(() => {
     setIsFlyoutOpen((v) => !v);
