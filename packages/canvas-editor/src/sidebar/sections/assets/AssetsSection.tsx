@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FaPuzzlePiece, FaSearch, FaShapes } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
-import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
+import { PiChartBar, PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
 import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { LOGO_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
@@ -19,6 +19,7 @@ import {
 import { useMobileSubsectionBridge } from '../../MobileSubsectionBridgeContext';
 import { SubsectionTabBar, type Subsection } from '../../SubsectionTabBar';
 import { BadgeSection } from '../BadgeSection';
+import { DiagrammeSection } from '../DiagrammeSection';
 import { FormenSection } from '../FormenSection';
 import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
@@ -29,6 +30,7 @@ import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 import { useAssetSearch } from './useAssetSearch';
 
 import type { BalkenInstance, BalkenMode } from '../../../primitives';
+import type { ChartInstance, ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
 import type { IllustrationInstance } from '../../../utils/illustrations/types';
 
@@ -63,6 +65,8 @@ export interface ExtendedAssetsSectionProps {
   onUpdateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
   onRemoveShape?: (id: string) => void;
   onDuplicateShape?: (id: string) => void;
+  chartInstances?: ChartInstance[];
+  onAddChart?: (chartType: ChartType) => void;
   illustrationInstances?: IllustrationInstance[];
   selectedIllustrationId?: string | null;
   onAddIllustration?: (id: string) => void;
@@ -86,6 +90,7 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
     onIconToggle,
     onAddBalken,
     onAddShape,
+    onAddChart,
     onAddIllustration,
     onAddFrame,
   } = props;
@@ -108,12 +113,14 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
   const hasBadgesFeature =
     onAddPillBadge !== undefined || onAddCircleBadge !== undefined || onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
+  const hasChartsFeature = onAddChart !== undefined;
   const hasIllustrationsFeature = onAddIllustration !== undefined;
   const hasFramesFeature = onAddFrame !== undefined;
 
   const search = useAssetSearch({
     hasAssetsFeature,
     hasShapesFeature,
+    hasChartsFeature,
     hasIconsFeature,
     hasFramesFeature,
   });
@@ -149,6 +156,7 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
         hasIconsFeature,
         hasBadgesFeature,
         hasShapesFeature,
+        hasChartsFeature,
         hasIllustrationsFeature,
         hasFramesFeature,
       }}
@@ -164,6 +172,7 @@ interface MobileViewProps extends ExtendedAssetsSectionProps {
   hasIconsFeature: boolean;
   hasBadgesFeature: boolean;
   hasShapesFeature: boolean;
+  hasChartsFeature: boolean;
   hasIllustrationsFeature: boolean;
   hasFramesFeature: boolean;
 }
@@ -174,6 +183,7 @@ function MobileView({
   hasIconsFeature,
   hasBadgesFeature,
   hasShapesFeature,
+  hasChartsFeature,
   hasIllustrationsFeature,
   hasFramesFeature,
   recommendedAssetIds = [],
@@ -185,6 +195,7 @@ function MobileView({
   onIconToggle,
   maxIconSelections = 3,
   onAddShape,
+  onAddChart,
   onAddIllustration,
   onUpdateIllustration,
   onRemoveIllustration,
@@ -238,6 +249,7 @@ function MobileView({
               results={search.searchResults}
               onAddAsset={onAddAsset}
               onAddShape={onAddShape}
+              onAddChart={onAddChart}
               onAddIllustration={onAddIllustration}
               onAddFrame={onAddFrame}
               selectedIcons={selectedIcons}
@@ -358,6 +370,28 @@ function MobileView({
             )}
           </h4>
           <FormenSection onAddShape={onAddShape!} isExpanded={effectiveFormenExpanded} />
+        </>
+      ),
+    });
+  }
+
+  if (hasChartsFeature) {
+    subsections.push({
+      id: 'diagramme',
+      icon: PiChartBar,
+      label: 'Diagramme',
+      content: (
+        <>
+          <h4
+            className={cn(
+              SECTION_LABEL,
+              'flex items-center gap-2 mt-5 first:mt-0 max-canvas-mobile:hidden'
+            )}
+          >
+            <PiChartBar size={14} />
+            <span>Diagramme</span>
+          </h4>
+          <DiagrammeSection onAddChart={onAddChart!} />
         </>
       ),
     });

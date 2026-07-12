@@ -12,6 +12,7 @@ import {
 } from '../../../utils/illustrations/registry';
 import { SIDEBAR_SECTION, SECTION_LABEL } from '../../sidebarStyles';
 import { BadgeSection } from '../BadgeSection';
+import { DiagrammeSection } from '../DiagrammeSection';
 import { FormenSection } from '../FormenSection';
 import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
@@ -252,6 +253,7 @@ export function BrowseView(props: BrowseViewProps) {
     sectionProps.selectedIcons !== undefined && sectionProps.onIconToggle !== undefined;
   const hasBalkenFeature = sectionProps.onAddBalken !== undefined;
   const hasShapesFeature = sectionProps.onAddShape !== undefined;
+  const hasChartsFeature = sectionProps.onAddChart !== undefined;
   const hasIllustrationsFeature = sectionProps.onAddIllustration !== undefined;
   const hasFramesFeature = sectionProps.onAddFrame !== undefined;
 
@@ -265,6 +267,7 @@ export function BrowseView(props: BrowseViewProps) {
       grafiken: hasAssetsFeature,
       extras: hasBalkenFeature,
       formen: hasShapesFeature,
+      diagramme: hasChartsFeature,
       rahmen: hasFramesFeature,
       illustrationen: hasIllustrationsFeature,
       icons: hasIconsFeature,
@@ -274,6 +277,7 @@ export function BrowseView(props: BrowseViewProps) {
     hasAssetsFeature,
     hasBalkenFeature,
     hasShapesFeature,
+    hasChartsFeature,
     hasFramesFeature,
     hasIllustrationsFeature,
     hasIconsFeature,
@@ -352,6 +356,7 @@ export function BrowseView(props: BrowseViewProps) {
                 results={search.searchResults}
                 onAddAsset={sectionProps.onAddAsset}
                 onAddShape={sectionProps.onAddShape}
+                onAddChart={sectionProps.onAddChart}
                 onAddIllustration={sectionProps.onAddIllustration}
                 onAddFrame={sectionProps.onAddFrame}
                 selectedIcons={sectionProps.selectedIcons}
@@ -413,7 +418,7 @@ export function BrowseView(props: BrowseViewProps) {
       <div className="flex flex-col gap-2 w-full min-w-0">
         <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
 
-        {activeView !== 'extras' && (
+        {activeView !== 'extras' && activeView !== 'diagramme' && (
           <SearchInput
             value={drillDownQuery}
             onChange={setDrillDownQuery}
@@ -439,6 +444,10 @@ export function BrowseView(props: BrowseViewProps) {
             isExpanded
             searchQuery={debouncedDrillDownQuery}
           />
+        )}
+
+        {activeView === 'diagramme' && hasChartsFeature && (
+          <DiagrammeSection onAddChart={sectionProps.onAddChart!} />
         )}
 
         {activeView === 'rahmen' && hasFramesFeature && (

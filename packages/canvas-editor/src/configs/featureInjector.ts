@@ -7,6 +7,7 @@
  * **Conventions:**
  * - Icons: state.selectedIcons + actions.toggleIcon
  * - Shapes: state.shapeInstances + actions.addShape
+ * - Charts: state.chartInstances + actions.addChart
  * - Illustrations: state.illustrationInstances + actions.addIllustration
  * - Balken: state.balkenInstances + actions.addBalken
  *
@@ -15,6 +16,7 @@
 
 import type { SectionContext } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/assets';
 import type { FrameInstance } from '../utils/frameUtils';
@@ -29,6 +31,10 @@ interface FeatureStateWithIcons {
 
 interface FeatureStateWithShapes {
   shapeInstances?: ShapeInstance[];
+}
+
+interface FeatureStateWithCharts {
+  chartInstances?: ChartInstance[];
 }
 
 interface FeatureStateWithIllustrations {
@@ -117,6 +123,14 @@ export function injectFeatureProps<S extends object, A extends object>(
     if ('duplicateShape' in actions) {
       injected.onDuplicateShape = actions.duplicateShape as (id: string) => void;
     }
+  }
+
+  // === CHARTS FEATURE ===
+  // Convention: state.chartInstances + actions.addChart
+  if ('chartInstances' in state && 'addChart' in actions) {
+    const stateWithCharts = state as FeatureStateWithCharts;
+    injected.chartInstances = stateWithCharts.chartInstances;
+    injected.onAddChart = actions.addChart as (type: string) => void;
   }
 
   // === ILLUSTRATIONS FEATURE ===
