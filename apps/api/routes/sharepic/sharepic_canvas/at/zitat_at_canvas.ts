@@ -13,7 +13,14 @@ import {
 } from '../../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import { AT_BRAND, CANVAS, registerAtFonts, wrapText, drawLines } from './atCanvasShared.js';
+import {
+  AT_BRAND,
+  CANVAS,
+  registerAtFonts,
+  wrapText,
+  drawLines,
+  loadAtQuoteWhite,
+} from './atCanvasShared.js';
 
 const log = createLogger('zitat_at_canv');
 const router: Router = Router();
@@ -67,10 +74,9 @@ async function render(imageBuffer: Buffer, quote: string, name: string): Promise
   const quoteMarkY = 750;
   const quoteY = quoteMarkY + quoteMarkSize + 10;
 
-  // Quote mark (white, text-drawn)
-  ctx.fillStyle = AT_BRAND.textOnDark;
-  ctx.font = `${quoteMarkSize}px ${AT_BRAND.fonts.headline}`;
-  ctx.fillText('“', margin, quoteMarkY);
+  // Quote mark (white SVG) — same asset the konva zitat config draws.
+  const mark = await loadAtQuoteWhite();
+  ctx.drawImage(mark, margin, quoteMarkY, quoteMarkSize, quoteMarkSize);
 
   // Quote (white Gotham)
   ctx.fillStyle = AT_BRAND.textOnDark;
