@@ -937,7 +937,10 @@ function CanvasEditorInner({
           activeFloatingModule: toolbarState.activeFloatingModule ?? null,
           canMoveUp: toolbarState.canMoveUp ?? false,
           canMoveDown: toolbarState.canMoveDown ?? false,
-          handlers: toolbarHandlers,
+          handlers: {
+            ...toolbarHandlers,
+            onEditImage: () => setActiveTab('image-adjust'),
+          },
           onDelete: toolbarOnDelete,
         }
       : null;
