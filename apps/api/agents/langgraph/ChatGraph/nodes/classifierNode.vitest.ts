@@ -751,6 +751,26 @@ describe('heuristicClassify: pasted material must not hijack other fast paths', 
   });
 });
 
+describe('heuristicClassify: greeting rule needs a word boundary', () => {
+  it('"Hier …" / "Hilfe …" are not greetings (^hi matched without \\b)', () => {
+    const hier = heuristicClassify(
+      'Hier der Text für morgen, mach daraus bitte einen Instagram-Post'
+    );
+    expect(hier.reasoning).not.toBe('Greeting detected');
+    expect(hier.intent).toBe('social_post');
+    const hilfe = heuristicClassify(
+      'Hilfe, wie erstelle ich ein Sharepic für unseren Ortsverband?'
+    );
+    expect(hilfe.reasoning).not.toBe('Greeting detected');
+  });
+
+  it('real greetings keep the fast path', () => {
+    expect(heuristicClassify('Hallo, wie geht es dir?').intent).toBe('direct');
+    expect(heuristicClassify('Hi! Kannst du mir helfen?').intent).toBe('direct');
+    expect(heuristicClassify('Danke dir, das passt so!').intent).toBe('direct');
+  });
+});
+
 describe('heuristicClassify: unit conversion needs a target unit', () => {
   it('genuine conversions still route to compute', () => {
     expect(heuristicClassify('5 km in Meilen').intent).toBe('compute');
