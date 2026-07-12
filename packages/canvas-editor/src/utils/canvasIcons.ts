@@ -102,11 +102,6 @@ function loadSetByPrefix(prefix: string): Promise<IconifyJSON> | null {
 /** The set browsed by default when the picker opens (loads eagerly, alone). */
 export const DEFAULT_ICON_SET = ICON_SETS[0].prefix;
 
-/** Lightweight list of available sets for the picker's set selector. */
-export function getIconSets(): { prefix: string; library: string }[] {
-  return ICON_SETS.map(({ prefix, library }) => ({ prefix, library }));
-}
-
 // Per-set catalogs (names only). Each set is built lazily the first time it is
 // browsed, so the picker's first open only pays for the default set.
 const catalogBySet = new Map<string, IconDef[]>();
