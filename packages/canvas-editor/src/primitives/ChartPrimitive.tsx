@@ -34,6 +34,8 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     Bar,
     LineChart,
     Line,
+    AreaChart,
+    Area,
     PieChart,
     Pie,
     Cell,
@@ -52,7 +54,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     margin: { top: 16, right: 20, bottom: 8, left: 0 },
   };
 
-  if (chartType === 'pie') {
+  if (chartType === 'pie' || chartType === 'donut') {
     const radius = Math.min(width, height) / 2 - 24;
     return (
       <PieChart width={width} height={height}>
@@ -63,6 +65,7 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
           cx="50%"
           cy="50%"
           outerRadius={radius}
+          innerRadius={chartType === 'donut' ? radius * 0.55 : 0}
           isAnimationActive={false}
           label={showValues}
         >
@@ -75,13 +78,22 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
     );
   }
 
-  if (chartType === 'line') {
-    return (
-      <LineChart {...common}>
-        {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#e0e0df" /> : null}
-        <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
-        <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
-        {showLegend ? <Legend /> : null}
+  if (chartType === 'line' || chartType === 'area') {
+    const series =
+      chartType === 'area' ? (
+        <Area
+          dataKey="value"
+          type="monotone"
+          stroke={color(0)}
+          strokeWidth={3}
+          fill={color(0)}
+          fillOpacity={0.25}
+          dot={{ r: 4, fill: color(0) }}
+          isAnimationActive={false}
+        >
+          {showValues ? <LabelList dataKey="value" position="top" /> : null}
+        </Area>
+      ) : (
         <Line
           dataKey="value"
           type="monotone"
@@ -92,22 +104,64 @@ function buildChartElement(recharts: any, chart: ChartInstance) {
         >
           {showValues ? <LabelList dataKey="value" position="top" /> : null}
         </Line>
-      </LineChart>
+      );
+    const Wrapper = chartType === 'area' ? AreaChart : LineChart;
+    return (
+      <Wrapper {...common}>
+        {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#e0e0df" /> : null}
+        <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
+        <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
+        {showLegend ? <Legend /> : null}
+        {series}
+      </Wrapper>
     );
   }
 
-  // bar
+  // bar / bar-horizontal
+  const horizontal = chartType === 'bar-horizontal';
   return (
-    <BarChart {...common}>
-      {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#e0e0df" vertical={false} /> : null}
-      <XAxis dataKey="name" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
-      <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
+    <BarChart {...common} layout={horizontal ? 'vertical' : 'horizontal'}>
+      {showGrid ? (
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="#e0e0df"
+          vertical={horizontal}
+          horizontal={!horizontal}
+        />
+      ) : null}
+      {horizontal ? (
+        <>
+          <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={{ stroke: '#c8c8c7' }}
+            width={64}
+          />
+        </>
+      ) : (
+        <>
+          <XAxis
+            dataKey="name"
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={{ stroke: '#c8c8c7' }}
+          />
+          <YAxis tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: '#c8c8c7' }} width={40} />
+        </>
+      )}
       {showLegend ? <Legend /> : null}
-      <Bar dataKey="value" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+      <Bar
+        dataKey="value"
+        isAnimationActive={false}
+        radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+      >
         {data.map((_, i) => (
           <Cell key={i} fill={color(i)} />
         ))}
-        {showValues ? <LabelList dataKey="value" position="top" /> : null}
+        {showValues ? <LabelList dataKey="value" position={horizontal ? 'right' : 'top'} /> : null}
       </Bar>
     </BarChart>
   );

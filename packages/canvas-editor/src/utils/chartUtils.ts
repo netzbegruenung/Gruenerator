@@ -7,7 +7,63 @@
  * ChartSettingsSection) while still exporting/collab-syncing like any element.
  */
 
-export type ChartType = 'bar' | 'line' | 'pie';
+export type ChartType = 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'donut';
+
+export type ChartGroup = 'balken' | 'linien' | 'kreis';
+
+export interface ChartTypeDef {
+  id: ChartType;
+  name: string;
+  tags: readonly string[];
+  group: ChartGroup;
+}
+
+export const CHART_GROUP_LABELS: Record<ChartGroup, string> = {
+  balken: 'Balkendiagramme',
+  linien: 'Liniendiagramme',
+  kreis: 'Kreis- und Ringdiagramme',
+};
+
+export const CHART_GROUP_ORDER: readonly ChartGroup[] = ['balken', 'linien', 'kreis'];
+
+export const CHART_TYPE_DEFS: readonly ChartTypeDef[] = [
+  {
+    id: 'bar',
+    name: 'Säulen',
+    tags: ['diagramm', 'chart', 'säulen', 'saeulen', 'bar', 'balken', 'statistik'],
+    group: 'balken',
+  },
+  {
+    id: 'bar-horizontal',
+    name: 'Balken',
+    tags: ['diagramm', 'chart', 'balken', 'bar', 'horizontal', 'statistik'],
+    group: 'balken',
+  },
+  {
+    id: 'line',
+    name: 'Linie',
+    tags: ['diagramm', 'chart', 'linie', 'line', 'graph', 'verlauf', 'trend'],
+    group: 'linien',
+  },
+  {
+    id: 'area',
+    name: 'Fläche',
+    tags: ['diagramm', 'chart', 'fläche', 'flaeche', 'area', 'verlauf', 'trend'],
+    group: 'linien',
+  },
+  {
+    id: 'pie',
+    name: 'Torte',
+    tags: ['diagramm', 'chart', 'torte', 'kreis', 'pie', 'kuchen', 'anteil'],
+    group: 'kreis',
+  },
+  {
+    id: 'donut',
+    name: 'Donut',
+    tags: ['diagramm', 'chart', 'donut', 'ring', 'kreis', 'anteil'],
+    group: 'kreis',
+  },
+];
 
 export interface ChartDataPoint {
   name: string;
@@ -50,11 +106,16 @@ function makeId(): string {
   return `chart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Round charts default to legend-on/grid-off; cartesian charts the inverse. */
+export const isRoundChartType = (chartType: ChartType): boolean =>
+  chartType === 'pie' || chartType === 'donut';
+
 export function createChartInstance(
   chartType: ChartType,
   canvasWidth: number,
   canvasHeight: number
 ): ChartInstance {
+  const isRound = isRoundChartType(chartType);
   return {
     id: makeId(),
     x: canvasWidth / 2 - CHART_DEFAULT_WIDTH / 2,
@@ -68,8 +129,8 @@ export function createChartInstance(
     data: DEFAULT_DATA.map((d) => ({ ...d })),
     colors: [...CHART_COLORS],
     title: '',
-    showLegend: chartType === 'pie',
-    showGrid: chartType !== 'pie',
+    showLegend: isRound,
+    showGrid: !isRound,
     showValues: false,
   };
 }

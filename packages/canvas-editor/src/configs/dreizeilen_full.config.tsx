@@ -28,6 +28,7 @@ import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
 import {
   createAssetActions,
   createIconActions,
+  createChartActions,
   createShapeActions,
   createIllustrationActions,
   createPillBadgeActions,
@@ -576,6 +577,15 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       '#005538'
     );
 
+    const chartActions = createChartActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
     const illustrationActions = createIllustrationActions(
       getState,
       setState,
@@ -620,6 +630,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...assetActions,
       ...iconActions,
       ...shapeActions,
+      ...chartActions,
       ...illustrationActions,
       ...pillBadgeActions,
       ...circleBadgeActions,
