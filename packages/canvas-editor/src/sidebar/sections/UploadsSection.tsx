@@ -1,9 +1,11 @@
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
-import { useRef, useState } from 'react';
+import { buildSharedMediaSrcSet } from '@gruenerator/shared/media-library';
+import { memo, useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { cn } from '../../utils/cn';
+import { downscaleImageForUpload } from '../../utils/userImageUtils';
 import { SidebarHint } from '../components/SidebarHint';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
@@ -11,7 +13,14 @@ import { useUserUploads } from '../UserUploadsProvider';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 export interface UploadsSectionProps {
+  /** Place an already-durable URL (used when clicking a prior upload). */
   onPlaceFromUrl?: (url: string, fileName: string) => void;
+  /** Place a freshly-picked file instantly (local blob), returning its id. */
+  onPlaceLocalFile?: (file: File) => Promise<string>;
+  /** Swap an optimistically-placed instance's src to the durable URL. */
+  onSwapPlacedUrl?: (id: string, url: string) => void;
+  /** Remove an optimistically-placed instance if its upload fails. */
+  onRemovePlaced?: (id: string) => void;
 }
 
 function buildPlacementUrl(item: MediaItem): string | null {
@@ -20,7 +29,12 @@ function buildPlacementUrl(item: MediaItem): string | null {
   return item.thumbnailUrl;
 }
 
-export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
+export function UploadsSection({
+  onPlaceFromUrl,
+  onPlaceLocalFile,
+  onSwapPlacedUrl,
+  onRemovePlaced,
+}: UploadsSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     items,
@@ -30,30 +44,53 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
     setSearch,
     upload,
     deleteFromLibrary,
-    isUploading,
-    uploadProgress,
     uploadError,
     hasMore,
     loadMore,
   } = useUserUploads();
 
   const [isDragOver, setIsDragOver] = useState(false);
+  // Track in-flight uploads locally: uploads run in parallel but share one
+  // useMediaUpload mutation, so its `isUploading` flips false after the first
+  // completes. This counter reflects the whole batch.
+  const [activeUploads, setActiveUploads] = useState(0);
 
-  const acceptFiles = async (files: FileList | File[]) => {
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue;
-      const result = await upload(file);
-      if (result && onPlaceFromUrl) {
-        const url = buildPlacementUrl(result);
-        if (url) onPlaceFromUrl(url, result.originalFilename ?? result.title ?? file.name);
+  // One file: place a local blob preview on the canvas instantly, then upload
+  // (downscaled) in the background and swap the blob for the durable URL. If the
+  // upload fails (unsupported type, network, quota) the optimistic instance is
+  // rolled back so no unbacked blob: image is left on the canvas.
+  const handleOneFile = async (file: File) => {
+    const placedId = onPlaceLocalFile ? await onPlaceLocalFile(file).catch(() => null) : null;
+    setActiveUploads((n) => n + 1);
+    try {
+      const toUpload = await downscaleImageForUpload(file);
+      const result = await upload(toUpload);
+      const url = result ? buildPlacementUrl(result) : null;
+      if (!url) {
+        if (placedId && onRemovePlaced) onRemovePlaced(placedId);
+        return;
       }
+      if (placedId && onSwapPlacedUrl) {
+        onSwapPlacedUrl(placedId, url);
+      } else if (!placedId && onPlaceFromUrl) {
+        onPlaceFromUrl(url, result?.originalFilename ?? result?.title ?? file.name);
+      }
+    } finally {
+      setActiveUploads((n) => n - 1);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const acceptFiles = (files: FileList | File[]) => {
+    // Fire all uploads in parallel; each places optimistically on its own.
+    Array.from(files)
+      .filter((file) => file.type.startsWith('image/'))
+      .forEach((file) => void handleOneFile(file));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    await acceptFiles(files);
+    acceptFiles(files);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -64,14 +101,15 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
     onPlaceFromUrl(url, item.originalFilename ?? item.title ?? 'image');
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     if (!e.dataTransfer.files.length) return;
-    await acceptFiles(e.dataTransfer.files);
+    acceptFiles(e.dataTransfer.files);
   };
 
-  const showEmpty = !isLoading && items.length === 0 && !isUploading;
+  const isBusy = activeUploads > 0;
+  const showEmpty = !isLoading && items.length === 0 && !isBusy;
   const displayedError = uploadError ?? error;
 
   return (
@@ -105,11 +143,15 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading}
+        disabled={isBusy}
         className="flex items-center justify-center gap-xs py-sm px-md bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-150 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <HiArrowUpTray size={16} />
-        {isUploading ? `Lädt hoch… ${uploadProgress}%` : 'Dateien hochladen'}
+        {isBusy
+          ? activeUploads > 1
+            ? `Lädt ${activeUploads} Bilder hoch…`
+            : 'Lädt hoch…'
+          : 'Dateien hochladen'}
       </button>
 
       <input
@@ -130,17 +172,16 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
         </div>
       ) : null}
 
-      {(items.length > 0 || isUploading) && (
+      {(items.length > 0 || isBusy) && (
         <MasonryGrid columns="2" gap="sm">
-          {isUploading ? (
-            <MasonryItem className="relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] flex items-center justify-center">
-              <div
-                className="absolute inset-x-0 bottom-0 h-1 bg-primary-500 transition-all"
-                style={{ width: `${uploadProgress}%` }}
-              />
-              <span className="text-[10px] text-foreground/60">{uploadProgress}%</span>
+          {Array.from({ length: activeUploads }).map((_, i) => (
+            <MasonryItem
+              key={`uploading-${i}`}
+              className="relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] flex items-center justify-center animate-pulse"
+            >
+              <span className="text-[10px] text-foreground/60">Lädt hoch…</span>
             </MasonryItem>
-          ) : null}
+          ))}
           {items.map((item) => (
             <MasonryItem
               key={item.id}
@@ -152,7 +193,12 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
                 className="relative block w-full p-0 bg-transparent border-none cursor-pointer"
                 title={item.title ?? item.originalFilename ?? ''}
               >
-                {item.thumbnailUrl ? (
+                {item.shareToken ? (
+                  <ResponsiveThumb
+                    shareToken={item.shareToken}
+                    alt={item.altText ?? item.title ?? ''}
+                  />
+                ) : item.thumbnailUrl ? (
                   <img
                     src={item.thumbnailUrl}
                     alt={item.altText ?? item.title ?? ''}
@@ -193,3 +239,26 @@ export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
     </div>
   );
 }
+
+/**
+ * Gallery thumbnail served from the backend's responsive `/preview` variants
+ * (200/400/800px AVIF+WebP) instead of the full-resolution original, so the
+ * 2-column grid stays light. The browser picks the smallest variant that fits.
+ */
+const ResponsiveThumb = memo(function ResponsiveThumb({
+  shareToken,
+  alt,
+}: {
+  shareToken: string;
+  alt: string;
+}) {
+  const { sources, src } = buildSharedMediaSrcSet(shareToken);
+  return (
+    <picture>
+      {sources.map((source) => (
+        <source key={source.type} srcSet={source.srcSet} type={source.type} sizes="200px" />
+      ))}
+      <img src={src} alt={alt} className="w-full h-auto" draggable={false} loading="lazy" />
+    </picture>
+  );
+});

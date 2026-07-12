@@ -34,6 +34,13 @@ export const contentSyncRequestSchema = z.object({
   recent: z.boolean().optional(),
   forceUpdate: z.boolean().optional(),
   dryRun: z.boolean().optional(),
+  /**
+   * Run the sync as a background job: respond 202 with a jobId immediately and
+   * expose the outcome via GET /jobs/:jobId. Long full runs (LV BE/HE nightly)
+   * exceed the reverse proxy's ~5 min timeout, so synchronous callers get a 504
+   * while the sync keeps running server-side — CI polls the job instead.
+   */
+  background: z.boolean().optional(),
   /** CI run URL, included in the per-LV notification email when provided. */
   runUrl: z.string().optional(),
   /**
@@ -68,6 +75,37 @@ export const contentSyncFailureSchema = z.object({
   sourceId: contentSyncSourceSchema,
   error: z.string(),
   durationMs: z.number(),
+});
+
+export type ContentSyncFailure = z.infer<typeof contentSyncFailureSchema>;
+
+/** 202 — a `background: true` sync was accepted; poll GET /jobs/:jobId for the outcome. */
+export const contentSyncAcceptedSchema = z.object({
+  accepted: z.literal(true),
+  jobId: z.string(),
+  sourceId: contentSyncSourceSchema,
+});
+
+export type ContentSyncAccepted = z.infer<typeof contentSyncAcceptedSchema>;
+
+/**
+ * 200 — background job status. `result` is absent while `status` is
+ * `running`; afterwards it carries the same body a synchronous call would
+ * have returned (result on `completed`, failure on `failed`).
+ */
+export const contentSyncJobStatusSchema = z.object({
+  jobId: z.string(),
+  sourceId: contentSyncSourceSchema,
+  status: z.enum(['running', 'completed', 'failed']),
+  startedAt: z.string(),
+  result: z.union([contentSyncResultSchema, contentSyncFailureSchema]).optional(),
+});
+
+export type ContentSyncJobStatus = z.infer<typeof contentSyncJobStatusSchema>;
+
+/** 404 — unknown or expired (TTL'd out of Redis) job id. */
+export const contentSyncJobNotFoundSchema = z.object({
+  error: z.string(),
 });
 
 /** 409 — a sync for this source is already running. */

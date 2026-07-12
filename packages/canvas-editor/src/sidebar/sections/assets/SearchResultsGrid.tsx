@@ -71,15 +71,15 @@ export function SearchInput({
   return (
     <div className="relative w-full mb-3">
       <PiMagnifyingGlass
-        size={16}
-        className="absolute left-0 top-1/2 -translate-y-1/2 text-grey-500 pointer-events-none"
+        size={17}
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--editor-text-muted)] pointer-events-none"
       />
       <input
         type="text"
         placeholder={placeholder ?? 'Suche...'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full py-2 pr-0 pl-7 border-0 border-b border-b-grey-200 dark:border-b-grey-700 rounded-none text-[length:var(--font-size-sm,13px)] text-foreground bg-transparent transition-[border-color] duration-200 focus:outline-none focus:border-b-primary-600 placeholder:text-grey-500"
+        className="w-full h-11 pr-3 pl-10 rounded-[11px] border-[1.5px] border-[var(--editor-border-soft)] bg-[var(--editor-inset)] text-[13.5px] text-[var(--editor-text)] transition-[border-color] duration-200 focus:outline-none focus:border-[var(--editor-accent)] placeholder:text-[var(--editor-placeholder)]"
       />
     </div>
   );
