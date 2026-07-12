@@ -78,6 +78,7 @@ const initialState = {
   sunflowerOffset: [0, 0],
   credit: '',
   searchTerms: [],
+  deckPages: null,
 
   // Veranstaltung per-field font sizes (in pixels)
   veranstaltungFieldFontSizes: {

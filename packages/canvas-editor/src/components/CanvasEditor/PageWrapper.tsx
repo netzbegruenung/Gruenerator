@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, memo } from 'react';
+import React, { useCallback, memo } from 'react';
 
 import { GenericCanvas } from '../GenericCanvas';
 import { PageToolbar } from '../PageToolbar';
@@ -24,6 +24,7 @@ export const PageWrapper = memo(function PageWrapper({
   onDelete,
   onMovePage,
   onDuplicatePage,
+  onChangeTemplate,
   onExport,
   onCancel,
   callbacks,
@@ -32,46 +33,22 @@ export const PageWrapper = memo(function PageWrapper({
   onToolbarStateChange,
   mobileBridge,
   onAutoSaveShareToken,
-  pageCollaborative,
+  autoSave,
+  pageBinding,
   pageRef,
 }: PageWrapperProps) {
-  const lastReportedRef = useRef<{
-    state: Record<string, unknown> | null;
-    actions: Record<string, unknown> | null;
-    selectedElement: string | null;
-  }>({ state: null, actions: null, selectedElement: null });
-
-  useEffect(() => {
-    if (!canvasRef) return undefined;
-
-    const checkRef = () => {
-      const ref = canvasRef.current;
-      if (ref && isActive) {
-        const state = ref.getState?.();
-        const actions = ref.getActions?.();
-        const selectedElement = ref.getSelectedElement?.() ?? null;
-        if (state && actions) {
-          const last = lastReportedRef.current;
-          if (
-            last.state !== state ||
-            last.actions !== actions ||
-            last.selectedElement !== selectedElement
-          ) {
-            lastReportedRef.current = { state, actions, selectedElement };
-            onStateChange(page.id, state, actions, selectedElement);
-          }
-        }
-      }
-    };
-
-    checkRef();
-
-    if (isActive) {
-      const interval = setInterval(checkRef, 200);
-      return () => clearInterval(interval);
-    }
-    return undefined;
-  }, [canvasRef, isActive, page.id, onStateChange]);
+  // Active page pushes its live state/actions/selection up so the shared
+  // sidebar renders synchronously with edits (replaces the old 200ms poll).
+  const handleLiveState = useCallback(
+    (
+      state: Record<string, unknown>,
+      actions: Record<string, unknown>,
+      selectedElement: string | null
+    ) => {
+      onStateChange(page.id, state, actions, selectedElement);
+    },
+    [onStateChange, page.id]
+  );
 
   // Functional setState callback (Rule 5.5: stable callback)
   const handleSelect = useCallback(() => {
@@ -111,6 +88,7 @@ export const PageWrapper = memo(function PageWrapper({
         onMoveUp={() => onMovePage(page.id, 'up')}
         onMoveDown={() => onMovePage(page.id, 'down')}
         onDuplicate={() => onDuplicatePage(page.id)}
+        onChangeTemplate={onChangeTemplate ? () => onChangeTemplate(page.id) : undefined}
         onDelete={canDelete ? () => onDelete(page.id) : undefined}
       />
 
@@ -130,7 +108,9 @@ export const PageWrapper = memo(function PageWrapper({
           mobileBridge={mobileBridge}
           onToolbarStateChange={onToolbarStateChange}
           onAutoSaveShareToken={onAutoSaveShareToken}
-          collaborative={pageCollaborative}
+          onLiveState={isActive ? handleLiveState : undefined}
+          autoSave={autoSave}
+          pageBinding={pageBinding}
         />
       </ZoomableViewport>
     </div>

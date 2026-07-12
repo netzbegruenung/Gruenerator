@@ -144,3 +144,52 @@ describe('applyDeckChangesToDoc', () => {
     for (const p of pages) expect(p.state.headline).toBe('Überall');
   });
 });
+
+describe('pagesById container', () => {
+  it('new decks are seeded into pagesById with pos ordering and the watermark', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+
+    const pagesMap = doc.getMap<Y.Map<unknown>>('pagesById');
+    expect(pagesMap.size).toBe(3);
+    expect(doc.getMap<unknown>('meta').get('pagesSeeded')).toBe(true);
+    expect(doc.getArray('pages').length).toBe(0);
+    for (const yMap of ['p1', 'p2', 'p3'].map((id) => pagesMap.get(id)!)) {
+      expect(typeof yMap.get('pos')).toBe('string');
+    }
+  });
+
+  it('page ops insert at the right position via pos keys', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyDeckChangesToDoc(doc, {
+      pageOps: [
+        { op: 'add', index: 1, page: { id: 'mid', configId: 'slider', state: {} } },
+        { op: 'add', index: 0, page: { id: 'first', configId: 'slider', state: {} } },
+      ],
+    });
+    expect(readMergedState(doc).pages.map((p) => p.id)).toEqual(['first', 'p1', 'mid', 'p2', 'p3']);
+  });
+
+  it('pagesById docs ignore formState in the merged state', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    doc.getMap<unknown>('formState').set('headline', 'Legacy-Müll');
+    expect(readMergedState(doc).state.headline).toBe('Cover');
+  });
+
+  it('legacy-array docs keep being patched in place', () => {
+    const doc = new Y.Doc();
+    const legacy = doc.getArray<Y.Map<unknown>>('pages');
+    doc.transact(() => {
+      legacy.push([buildPage({ line1: 'Alt' })]);
+    });
+
+    applyDeckChangesToDoc(doc, {
+      pagePatches: [{ pageId: 'page-1', patch: { line1: 'Neu' } }],
+    });
+    expect(doc.getMap('pagesById').size).toBe(0);
+    expect((legacy.get(0).get('state') as Y.Map<unknown>).get('line1')).toBe('Neu');
+    expect(readMergedState(doc).pages[0]?.state.line1).toBe('Neu');
+  });
+});

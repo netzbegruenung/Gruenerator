@@ -35,6 +35,7 @@ import {
   applyDeckChanges,
   getCurrentCanvasState,
   getCurrentDeckState,
+  seedCanvasPages,
   type CanvasPageDef,
 } from '../../services/canvas/canvasStateService.js';
 import {
@@ -95,6 +96,15 @@ export const canvasContractRouter = s.router(canvasContract, {
         ...(b.format !== undefined ? { format: b.format } : {}),
       };
       const canvas = await createCanvas(userId, input);
+      // Authoritative server-side page seed — a studio tab opening later must
+      // not race its template defaults against another tab (deterministic
+      // seed ids make even a double-seed converge, this removes the race
+      // entirely). Tolerant of Hocuspocus being down.
+      await seedCanvasPages(
+        canvas.id,
+        b.template_type,
+        (b.initial_state ?? {}) as Record<string, unknown>
+      );
       return { status: 201 as const, body: canvas };
     } catch (error) {
       const err = error as Error;
