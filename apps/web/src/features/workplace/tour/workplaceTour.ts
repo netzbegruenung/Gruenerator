@@ -12,6 +12,8 @@ const SEL = {
   arbeitenRecents: '[data-tour="arbeiten-recents"]',
   arbeitenTools: '[data-tour="arbeiten-tools"]',
   wissen: '[data-tour="wissen"]',
+  wissenNotebooks: '[data-tour="wissen-notebooks"]',
+  sidebar: '[data-tour="app-sidebar"]',
 } as const;
 
 // Tab contents are lazy chunks — after a route change the step target may not
@@ -110,10 +112,28 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Wissen',
           description:
-            'Notebooks: Sammle Dokumente und Quellen und recherchiere darin mit KI-Unterstützung.',
+            'Stell Fragen zu grüner Politik — die KI antwortet mit Quellen aus Programmen und Beschlüssen.',
           onPrevClick: crossTab('/workplace/arbeiten', SEL.arbeitenTools, (drv) =>
             drv.movePrevious()
           ),
+        },
+      },
+      {
+        element: SEL.wissenNotebooks,
+        popover: {
+          title: 'Notebooks',
+          description:
+            'Fertige Wissenssammlungen — vom Bundesverband bis zu deinem Landesverband. Oder leg ein eigenes Notebook mit deinen Dokumenten an und recherchiere darin.',
+          side: 'top',
+        },
+      },
+      {
+        element: SEL.sidebar,
+        popover: {
+          title: 'Die Seitenleiste',
+          description:
+            'Von überall erreichbar: Suche (⌘K), Wissen, neue Inhalte anlegen, deine Chats und dein Konto.',
+          side: 'right',
         },
       },
     ],

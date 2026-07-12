@@ -446,7 +446,7 @@ function NotebooksIndexFooter() {
   );
 
   return (
-    <section className="mt-xl">
+    <section className="mt-xl" data-tour="wissen-notebooks">
       <NotebookSection title="Notebooks" notebooks={allNotebooks} groups={stableGroups} />
 
       <EigeneNotebooks
