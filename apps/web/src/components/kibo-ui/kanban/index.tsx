@@ -5,11 +5,15 @@ import {
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
-  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable } from '@dnd-kit/sortable';
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  useSortable,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ScrollArea, ScrollBar } from '@gruenerator/ui';
 import {
@@ -27,7 +31,10 @@ import tunnel from 'tunnel-rat';
 
 import type {
   Announcements,
+  CollisionDetection,
   DndContextProps,
+  DraggableAttributes,
+  DraggableSyntheticListeners,
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
@@ -67,26 +74,84 @@ const KanbanContext = createContext<KanbanContextProps>({
   cardsByColumn: new Map(),
 });
 
+// Exposes the column's drag-handle props to a `<KanbanColumnDragHandle>` rendered
+// somewhere inside the column (its header). Null when the column isn't draggable,
+// which lets the handle hide itself.
+type KanbanColumnHandle = {
+  attributes: DraggableAttributes;
+  listeners: DraggableSyntheticListeners;
+} | null;
+
+const KanbanColumnHandleContext = createContext<KanbanColumnHandle>(null);
+
+export const KanbanColumnDragHandle = ({ className }: { className?: string }) => {
+  const handle = useContext(KanbanColumnHandleContext);
+  if (!handle) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Spalte verschieben"
+      className={cn(
+        'shrink-0 cursor-grab touch-none rounded p-0.5 text-grey-400 hover:text-foreground hover:bg-grey-200 dark:hover:bg-grey-800 border-none bg-transparent',
+        className
+      )}
+      {...handle.attributes}
+      {...handle.listeners}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <circle cx="6" cy="4" r="1.3" />
+        <circle cx="10" cy="4" r="1.3" />
+        <circle cx="6" cy="8" r="1.3" />
+        <circle cx="10" cy="8" r="1.3" />
+        <circle cx="6" cy="12" r="1.3" />
+        <circle cx="10" cy="12" r="1.3" />
+      </svg>
+    </button>
+  );
+};
+
 export type KanbanBoardProps = {
   id: string;
   children: ReactNode;
   className?: string;
+  /** When true the column can be reordered by dragging its `<KanbanColumnDragHandle>`. */
+  draggable?: boolean;
 };
 
-export const KanbanBoard = ({ id, children, className }: KanbanBoardProps) => {
-  const { isOver, setNodeRef } = useDroppable({ id });
+export const KanbanBoard = ({ id, children, className, draggable = false }: KanbanBoardProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isOver, isDragging } =
+    useSortable({
+      id,
+      data: { type: 'column' },
+      // Keep the column a drop target for cards even when it can't itself be dragged.
+      disabled: { draggable: !draggable, droppable: false },
+    });
+
+  const style = useMemo(
+    () => ({ transition, transform: CSS.Transform.toString(transform) }),
+    [transition, transform]
+  );
+
+  const handle = useMemo<KanbanColumnHandle>(
+    () => (draggable ? { attributes, listeners } : null),
+    [draggable, attributes, listeners]
+  );
 
   return (
-    <div
-      className={cn(
-        'flex w-[260px] sm:w-[300px] shrink-0 h-fit flex-col overflow-hidden rounded-xl bg-grey-100 dark:bg-[#1e1e1e] pb-1 text-xs ring-2 transition-all',
-        isOver ? 'ring-primary-500' : 'ring-transparent',
-        className
-      )}
-      ref={setNodeRef}
-    >
-      {children}
-    </div>
+    <KanbanColumnHandleContext.Provider value={handle}>
+      <div
+        className={cn(
+          'flex w-[260px] sm:w-[300px] shrink-0 h-fit flex-col overflow-hidden rounded-xl bg-grey-100 dark:bg-[#1e1e1e] pb-1 text-xs ring-2 transition-all',
+          isOver ? 'ring-primary-500' : 'ring-transparent',
+          isDragging && 'opacity-60 z-10',
+          className
+        )}
+        style={style}
+        ref={setNodeRef}
+      >
+        {children}
+      </div>
+    </KanbanColumnHandleContext.Provider>
   );
 };
 
@@ -188,6 +253,7 @@ export type KanbanProviderProps<
   data: T[];
   after?: ReactNode;
   onDataChange?: (data: T[]) => void;
+  onColumnReorder?: (columns: C[]) => void;
   onDragStart?: (event: DragStartEvent) => void;
   onDragEnd?: (event: DragEndEvent) => void;
   onDragOver?: (event: DragOverEvent) => void;
@@ -206,6 +272,7 @@ export const KanbanProvider = <
   data,
   after,
   onDataChange,
+  onColumnReorder,
   ...props
 }: KanbanProviderProps<T, C>) => {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -219,6 +286,22 @@ export const KanbanProvider = <
   const itemById = useMemo(() => new Map(data.map((item) => [item.id, item])), [data]);
   const itemIndexById = useMemo(() => new Map(data.map((item, i) => [item.id, i])), [data]);
   const columnById = useMemo(() => new Map(columns.map((col) => [col.id, col])), [columns]);
+  const columnIds = useMemo(() => columns.map((col) => col.id), [columns]);
+
+  // While dragging a column, only collide with other columns — otherwise cards
+  // (which sit inside columns) would win closestCenter and the column wouldn't
+  // find a sibling drop target. Card drags keep the default behaviour.
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    if (args.active.data.current?.type === 'column') {
+      return closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+          (c) => c.data.current?.type === 'column'
+        ),
+      });
+    }
+    return closestCenter(args);
+  }, []);
 
   const cardsByColumn = useMemo(() => {
     const map = new Map<string, T[]>();
@@ -249,6 +332,13 @@ export const KanbanProvider = <
     (event: DragOverEvent) => {
       const { active, over } = event;
       if (!over) return;
+
+      // Column drags reorder via the horizontal SortableContext + onDragEnd; the
+      // card-move logic below must not run for them.
+      if (columnById.has(active.id as string)) {
+        onDragOver?.(event);
+        return;
+      }
 
       const activeItem = itemById.get(active.id as string);
       if (!activeItem) return;
@@ -284,6 +374,19 @@ export const KanbanProvider = <
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
+      // Column reorder: `over` may resolve to a card, so map it back to its column.
+      if (columnById.has(active.id as string)) {
+        const overColumnId = columnById.has(over.id as string)
+          ? (over.id as string)
+          : itemById.get(over.id as string)?.column;
+        const oldIndex = columns.findIndex((c) => c.id === active.id);
+        const newIndex = columns.findIndex((c) => c.id === overColumnId);
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          onColumnReorder?.(arrayMove(columns, oldIndex, newIndex));
+        }
+        return;
+      }
+
       const oldIndex = itemIndexById.get(active.id as string) ?? -1;
       const newIndex = itemIndexById.get(over.id as string) ?? -1;
 
@@ -291,7 +394,7 @@ export const KanbanProvider = <
         onDataChange?.(arrayMove([...data], oldIndex, newIndex));
       }
     },
-    [itemIndexById, data, onDataChange, onDragEnd]
+    [columnById, itemById, columns, onColumnReorder, itemIndexById, data, onDataChange, onDragEnd]
   );
 
   const announcements: Announcements = useMemo(
@@ -327,7 +430,7 @@ export const KanbanProvider = <
     <KanbanContext.Provider value={contextValue}>
       <DndContext
         accessibility={{ announcements }}
-        collisionDetection={closestCenter}
+        collisionDetection={collisionDetection}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
         onDragStart={handleDragStart}
@@ -335,7 +438,9 @@ export const KanbanProvider = <
         {...props}
       >
         <div className={cn('flex gap-5', className)}>
-          {columns.map((column) => children(column))}
+          <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+            {columns.map((column) => children(column))}
+          </SortableContext>
           {after}
         </div>
         {typeof window !== 'undefined' &&

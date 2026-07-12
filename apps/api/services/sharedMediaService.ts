@@ -3,11 +3,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { THUMBNAIL_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
+import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import type {
   SharedMediaRow,
@@ -244,7 +245,13 @@ class SharedMediaService {
     await this.ensureInitialized();
 
     try {
-      const countQuery = `SELECT COUNT(*) as count FROM shared_media WHERE user_id = $1`;
+      // Internal artifacts (canvas/chat thumbnails, template previews —
+      // is_library_item = FALSE) neither count against the user's quota nor
+      // get evicted: they are referenced by canvas_documents.thumbnail_url,
+      // and evicting one silently blanks that document's gallery preview.
+      // Their lifecycle is delete-on-replace in updateCanvas instead.
+      const countQuery = `SELECT COUNT(*) as count FROM shared_media
+                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
       const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
       const count = parseInt(countResult?.count ?? '0', 10);
 
@@ -255,7 +262,7 @@ class SharedMediaService {
                     WITH oldest AS (
                         SELECT id, share_token, file_path, thumbnail_path
                         FROM shared_media
-                        WHERE user_id = $1
+                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
                         ORDER BY created_at ASC
                         LIMIT $2
                     )
@@ -669,7 +676,7 @@ class SharedMediaService {
                 WHERE user_id = $1
                   AND (upload_source IS NULL OR upload_source != ALL($2))
             `;
-      const params: unknown[] = [userId, [...THUMBNAIL_UPLOAD_SOURCES]];
+      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
       let paramIndex = 3;
 
       if (mediaType) {
@@ -869,7 +876,7 @@ class SharedMediaService {
 
       if (search) {
         query += ` AND (title ILIKE $${paramIndex} OR alt_text ILIKE $${paramIndex})`;
-        params.push(`%${search}%`);
+        params.push(likeContainsPattern(search));
         paramIndex++;
       }
 
@@ -1018,9 +1025,12 @@ class SharedMediaService {
         }
       }
 
-      // Canvas gallery thumbnails are internal artifacts — keep them out of
-      // the Mediathek (getMediaLibrary filters on is_library_item).
-      const isLibraryItem = !(THUMBNAIL_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
+      // Non-library sources (gallery thumbnails, canvas-element tool output) are
+      // internal artifacts — keep them out of the Mediathek (getMediaLibrary
+      // filters on is_library_item).
+      const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(
+        uploadSource
+      );
 
       const query = `
                 INSERT INTO shared_media

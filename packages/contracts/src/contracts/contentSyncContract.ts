@@ -16,8 +16,11 @@ import { z } from 'zod';
 
 import {
   contentStatsResponseSchema,
+  contentSyncAcceptedSchema,
   contentSyncBusyResponseSchema,
   contentSyncFailureSchema,
+  contentSyncJobNotFoundSchema,
+  contentSyncJobStatusSchema,
   contentSyncRequestSchema,
   contentSyncResultSchema,
   contentSyncSourceSchema,
@@ -37,10 +40,23 @@ export const contentSyncContract = c.router(
       body: contentSyncRequestSchema.optional(),
       responses: {
         200: contentSyncResultSchema,
+        202: contentSyncAcceptedSchema,
         409: contentSyncBusyResponseSchema,
         500: contentSyncFailureSchema,
       },
       summary: 'Trigger a content sync for one source (admin token)',
+    },
+
+    /** GET /api/internal/content-sync/jobs/:jobId — poll a `background: true` run. */
+    getSyncJob: {
+      method: 'GET',
+      path: '/api/internal/content-sync/jobs/:jobId',
+      pathParams: z.object({ jobId: z.string().uuid() }),
+      responses: {
+        200: contentSyncJobStatusSchema,
+        404: contentSyncJobNotFoundSchema,
+      },
+      summary: 'Status/result of a background content-sync job (admin token)',
     },
 
     /** GET /api/internal/content-sync/sources — list triggerable source ids. */

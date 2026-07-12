@@ -1,6 +1,4 @@
-import { createContext, useContext, useEffect } from 'react';
-
-import { setIconifyApiUrl } from './utils/canvasIcons';
+import { createContext, useContext } from 'react';
 
 import type { ApplyResult } from './ai/applyOperation';
 import type { UseGenerateCanvasSuggestions } from './common/canvasAiTypes';
@@ -119,9 +117,6 @@ export interface CanvasEditorServices {
   /** Base URL for static assets (illustrations, etc.). Defaults to '' (same origin). */
   assetBaseUrl?: string;
 
-  /** Self-hosted Iconify API URL for icon browsing/search (e.g., 'https://iconify.gruenerator.eu') */
-  iconifyApiUrl?: string;
-
   /**
    * Optional AI-suggestions hook factory. When provided, templates that
    * register the `AiSection` will render the prompt UI; otherwise the
@@ -146,12 +141,6 @@ export function CanvasEditorProvider({
   services: CanvasEditorServices;
   children: ReactNode;
 }) {
-  useEffect(() => {
-    if (services.iconifyApiUrl) {
-      setIconifyApiUrl(services.iconifyApiUrl);
-    }
-  }, [services.iconifyApiUrl]);
-
   return <CanvasEditorContext.Provider value={services}>{children}</CanvasEditorContext.Provider>;
 }
 

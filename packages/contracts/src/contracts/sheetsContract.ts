@@ -2,6 +2,8 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  generateSheetBodySchema,
+  generateSheetResponseSchema,
   sheetAiRequestBodySchema,
   sheetAiResponseSchema,
   sheetErrorResponseSchema,
@@ -34,5 +36,21 @@ export const sheetsContract = c.router({
       500: sheetErrorResponseSchema,
     },
     summary: 'Generate sheet operations from a natural-language request',
+  },
+  /**
+   * POST /api/sheets/generate
+   * Direct, non-chat generator: build a full spreadsheet from a description,
+   * create the sheet document and seed its Y.Doc. Returns the new id/title.
+   */
+  generate: {
+    method: 'POST',
+    path: '/api/sheets/generate',
+    body: generateSheetBodySchema,
+    responses: {
+      201: generateSheetResponseSchema,
+      400: sheetErrorResponseSchema,
+      500: sheetErrorResponseSchema,
+    },
+    summary: 'Generate a complete spreadsheet from a description',
   },
 });

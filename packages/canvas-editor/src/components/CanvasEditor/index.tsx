@@ -41,6 +41,8 @@ import { getCategoryForTemplate } from '../../utils/templateRegistry';
 
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
+import { ContextToolbar } from '../TopBar/ContextToolbar';
+import { MobileContextBar } from '../TopBar/MobileContextBar';
 import { AddPageButton } from '../TemplatePickerFlyout';
 
 import { wrapCallbacksWithPageSync } from '../../collab/wrapCallbacksWithPageSync';
@@ -111,6 +113,7 @@ function CanvasEditorInner({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onCollabSnapshot,
   onAutoSaveShareToken,
 }: CanvasEditorProps) {
   const autoSaveStoreApi = useAutoSaveStoreApi();
@@ -390,13 +393,72 @@ function CanvasEditorInner({
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
 
+  // Collab mode has no shared_media autosave, so the host's document thumbnail
+  // only refreshed on download — edits persisted via Yjs but the gallery card
+  // kept showing the old state. Capture after local edits settle (and on tab
+  // hide) and hand the render to the host. Refs keep the ydoc listener stable
+  // across page switches.
+  const snapshotFnsRef = useRef({ capture: handleCaptureCanvas, notify: onCollabSnapshot });
+  snapshotFnsRef.current = { capture: handleCaptureCanvas, notify: onCollabSnapshot };
+  const collabYdoc = collaborative?.ydoc;
+  useEffect(() => {
+    if (!collabYdoc || !snapshotFnsRef.current.notify) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastSent: string | null = null;
+
+    const snapshot = () => {
+      timer = null;
+      void snapshotFnsRef.current.capture().then((dataUrl) => {
+        if (dataUrl && dataUrl !== lastSent) {
+          lastSent = dataUrl;
+          snapshotFnsRef.current.notify?.(dataUrl);
+        }
+      });
+    };
+
+    const onUpdate = (
+      _update: Uint8Array,
+      _origin: unknown,
+      _doc: unknown,
+      transaction: { local: boolean }
+    ) => {
+      if (!transaction.local) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(snapshot, 4000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && timer) {
+        clearTimeout(timer);
+        snapshot();
+      }
+    };
+
+    collabYdoc.on('update', onUpdate);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      collabYdoc.off('update', onUpdate);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (timer) {
+        clearTimeout(timer);
+        // Best effort — captureStageImage no-ops when the stage is already gone.
+        snapshot();
+      }
+    };
+  }, [collabYdoc]);
+
   const handleDownload = useCallback(
-    (format: 'png' | 'jpeg' = 'png', pixelRatio = 2) => {
+    (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 2, transparent = false) => {
       const ref = canvasRefsRef.current[currentPageIndex];
       if (!ref?.current) return;
-      const dataUrl = ref.current.toDataURL({ format, pixelRatio });
+      const dataUrl = ref.current.toDataURL({
+        format,
+        pixelRatio,
+        includeBackground: !transparent,
+      });
       if (dataUrl) {
-        const ext = format === 'jpeg' ? 'jpg' : 'png';
+        const ext = format === 'jpeg' ? 'jpg' : format;
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = `gruenerator-seite-${currentPageIndex + 1}.${ext}`;
@@ -851,20 +913,49 @@ function CanvasEditorInner({
     !isMobileBridge && (toolbarState !== null || chromeLeft || chromeCenter || chromeRight);
   const toolbarElement = showToolbar ? (
     <Toolbar
-      selectedElement={toolbarState?.selectedElement ?? null}
-      activeFloatingModule={toolbarState?.activeFloatingModule ?? null}
       canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
       canRedo={(toolbarState?.canRedo ?? false) || canRedoPageOp}
-      canMoveUp={toolbarState?.canMoveUp ?? false}
-      canMoveDown={toolbarState?.canMoveDown ?? false}
       handlers={toolbarHandlers}
-      onDelete={toolbarState ? toolbarOnDelete : undefined}
       shareProps={toolbarState ? toolbarShareProps : undefined}
       chromeLeft={chromeLeft}
       chromeCenter={chromeCenter}
       chromeRight={chromeRight}
     />
   ) : null;
+
+  // Selection-driven formatting controls live outside the menu bar: a floating
+  // card over the canvas (desktop) and a fixed row above the tab bar (mobile).
+  // Render only when the canvas has reported an actual element selection (not
+  // merely because delete-page is available on a multi-page doc — page ops live
+  // in the page toolbar / thumbnail strip). The delete-page action still rides
+  // along in the bar while an element is selected. Only one of the two bars is
+  // mounted per viewport to avoid a hidden duplicate React tree.
+  const contextControlsProps =
+    !isMobileBridge && toolbarState
+      ? {
+          selectedElement: toolbarState.selectedElement ?? null,
+          activeFloatingModule: toolbarState.activeFloatingModule ?? null,
+          canMoveUp: toolbarState.canMoveUp ?? false,
+          canMoveDown: toolbarState.canMoveDown ?? false,
+          handlers: {
+            ...toolbarHandlers,
+            onEditImage: () => setActiveTab('image-adjust'),
+          },
+          onDelete: toolbarOnDelete,
+        }
+      : null;
+  const hasContextControls =
+    contextControlsProps !== null &&
+    (contextControlsProps.selectedElement !== null ||
+      contextControlsProps.activeFloatingModule !== null);
+  const contextBarElement =
+    contextControlsProps && hasContextControls && !isMobileWeb ? (
+      <ContextToolbar {...contextControlsProps} />
+    ) : null;
+  const mobileContextBarElement =
+    contextControlsProps && hasContextControls && isMobileWeb ? (
+      <MobileContextBar {...contextControlsProps} />
+    ) : null;
 
   const showPageNavigator = !isMobileBridge && pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
@@ -875,7 +966,7 @@ function CanvasEditorInner({
   const categoryFilter = currentTemplateId ? getCategoryForTemplate(currentTemplateId) : undefined;
 
   const bottomBar = showPageNavigator ? (
-    <div className="canvas-bottom-bar flex items-stretch bg-white/85 dark:bg-[rgba(20,20,20,0.78)] backdrop-blur-[12px] border-t border-black/[0.06] dark:border-white/[0.08]">
+    <div className="canvas-bottom-bar flex items-stretch bg-[var(--editor-surface)] border-t border-[var(--editor-border)]">
       <div className="flex-1 min-w-0">
         <PageThumbnailStrip
           pages={pages}
@@ -891,7 +982,7 @@ function CanvasEditorInner({
           templateFilter={categoryFilter}
         />
       </div>
-      <div className="shrink-0 flex items-center border-l border-black/[0.06] dark:border-white/[0.08]">
+      <div className="shrink-0 flex items-center border-l border-[var(--editor-border)]">
         <CanvasMetaBar
           pageCount={pageCount}
           currentPageIndex={currentPageIndex}
@@ -909,11 +1000,13 @@ function CanvasEditorInner({
         tabBar={tabBar}
         actions={null}
         toolbar={toolbarElement}
+        contextBar={contextBarElement}
         bottomBar={bottomBar}
         hideMobileChrome={isMobileBridge}
         externalSidebar={isExternalSidebar}
         subsectionBar={webSubsectionBar}
       >
+        {mobileContextBarElement}
         <div
           ref={pagesContainerRef}
           className={cn(

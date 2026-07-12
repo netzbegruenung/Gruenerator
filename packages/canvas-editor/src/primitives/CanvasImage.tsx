@@ -322,6 +322,8 @@ function CanvasImageInner({
         <Transformer
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
+          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+          rotationSnapTolerance={7}
           flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}

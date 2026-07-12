@@ -177,7 +177,7 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
             type: 'group_content_shared',
             title: 'Dokument geteilt',
             body: `Ein Dokument „${docTitle}" wurde mit der Gruppe geteilt`,
-            actionUrl: `/docs/${docId}`,
+            actionUrl: `/office/${docId}`,
             metadata: { documentId: docId, groupId },
           })
         )

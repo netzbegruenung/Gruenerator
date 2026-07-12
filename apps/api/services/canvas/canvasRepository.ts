@@ -23,6 +23,7 @@ import {
   type DocumentAccessSubject,
 } from '../../routes/docs/documentAccess.js';
 import { type DocumentPermissions } from '../../routes/docs/types.js';
+import { likeContainsPattern } from '../../utils/sqlLike.js';
 
 export const CANVAS_SUBTYPE = 'canvas';
 const DEFAULT_CANVAS_FORMAT = 'post-portrait';
@@ -169,6 +170,30 @@ export async function listCanvases(userId: string): Promise<CanvasListItem[]> {
   return rows.map(rowToCanvasListItem);
 }
 
+/**
+ * Title search for the unified `/api/global-search` endpoint. Reuses
+ * `CANVAS_ACCESS_WHERE` so search visibility can't drift from `listCanvases`.
+ */
+export async function searchCanvases(
+  userId: string,
+  query: string,
+  limit: number
+): Promise<CanvasListItem[]> {
+  const rows = (await db.query(
+    `SELECT ${CANVAS_LIST_SELECT_COLUMNS}
+     FROM collaborative_documents cd
+     INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+     LEFT JOIN profiles p ON cd.created_by = p.id
+     WHERE ${CANVAS_ACCESS_WHERE}
+       AND cd.title ILIKE $4
+     ORDER BY cd.updated_at DESC
+     LIMIT $5`,
+    [CANVAS_SUBTYPE, userId, userId, likeContainsPattern(query), limit]
+  )) as Omit<CanvasJoinedRow, 'initial_state'>[];
+
+  return rows.map(rowToCanvasListItem);
+}
+
 type GetResult =
   | { kind: 'ok'; canvas: CanvasDocument }
   | { kind: 'not_found' }
@@ -305,6 +330,16 @@ export async function updateCanvas(
 
   const { title, thumbnail_url, page_count, format } = patch;
 
+  let replacedThumbnailUrl: string | null = null;
+  if (thumbnail_url !== undefined) {
+    const prev = (await db.query(
+      'SELECT thumbnail_url FROM canvas_documents WHERE document_id = $1',
+      [id]
+    )) as Array<{ thumbnail_url: string | null }>;
+    const prevUrl = prev[0]?.thumbnail_url ?? null;
+    if (prevUrl && prevUrl !== thumbnail_url) replacedThumbnailUrl = prevUrl;
+  }
+
   if (title !== undefined) {
     await db.query(
       `UPDATE collaborative_documents
@@ -337,7 +372,40 @@ export async function updateCanvas(
     );
   }
 
+  if (replacedThumbnailUrl) {
+    void deleteReplacedThumbnailShare(replacedThumbnailUrl).catch((err) => {
+      console.warn('[canvasRepository] Failed to delete replaced thumbnail share:', err);
+    });
+  }
+
   return { kind: 'ok' };
+}
+
+const SHARE_DOWNLOAD_URL_RE = /^\/api\/share\/([^/?#]+)\/download$/;
+
+/**
+ * Thumbnail refreshes mint a new share per render (immutable-cache URLs), so
+ * the superseded one must go or internal rows accumulate unbounded — they are
+ * exempt from enforceUserLimit. Only internal artifacts (is_library_item =
+ * FALSE) are ever deleted; a library image someone set as thumbnail survives.
+ * Deletion runs as the share's own uploader — in collab docs the replacer may
+ * be a different editor.
+ */
+async function deleteReplacedThumbnailShare(url: string): Promise<void> {
+  const match = SHARE_DOWNLOAD_URL_RE.exec(url);
+  if (!match) return;
+  const token = match[1];
+
+  const rows = (await db.query(
+    `SELECT user_id FROM shared_media
+     WHERE share_token = $1 AND COALESCE(is_library_item, TRUE) = FALSE`,
+    [token]
+  )) as Array<{ user_id: string }>;
+  if (!rows[0]) return;
+
+  const { getSharedMediaService } = await import('../../routes/share/shareServices.js');
+  const service = await getSharedMediaService();
+  await service.deleteShare(rows[0].user_id, token);
 }
 
 export async function deleteCanvas(id: string, userId: string): Promise<MutationResult> {
