@@ -49,6 +49,13 @@ export interface CanvasEditorProps {
    */
   onInvitePeople?: () => void;
   /**
+   * Collab mode only: fired with a fresh stage render after local edits
+   * settle (debounced) and when the tab is hidden. Hosts use it to keep the
+   * document thumbnail current — without it the gallery/recents preview only
+   * refreshes on download.
+   */
+  onCollabSnapshot?: (base64: string) => void;
+  /**
    * Seeds the per-instance AutoSaveStore with a known share token, e.g. when
    * the editor is opened against an existing share via URL. Without this seed,
    * the first save after a page reload creates a new draft instead of updating.
