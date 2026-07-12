@@ -1198,6 +1198,9 @@ importers:
       react-konva:
         specifier: ^19.2.5
         version: 19.2.5(@types/react@19.2.14)(konva@10.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      recharts:
+        specifier: 3.8.1
+        version: 3.8.1(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0

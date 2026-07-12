@@ -2,6 +2,8 @@ import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react
 
 import { applyOperation, type CanvasAiActionsBase } from '../ai/applyOperation';
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
+import { ChartSettingsSection } from '../sidebar/sections/ChartSettingsSection';
+import { ImageAdjustSection } from '../sidebar/sections/ImageAdjustSection';
 import { buildSharepicText } from './buildSharepicText';
 import { makeSectionDefiner } from './factory/defineSection';
 
@@ -9,6 +11,19 @@ import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { TemplateAiCapabilities } from '../ai/types';
 import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
+import type { ChartInstance, ChartType } from '../utils/chartUtils';
+import type { UserImageInstance } from '../utils/userImageUtils';
+
+interface ActionsWithChart {
+  addChart?: (chartType: ChartType) => void;
+  updateChart?: (id: string, partial: Partial<ChartInstance>) => void;
+  removeChart?: (id: string) => void;
+  addUserImageFromUrl?: (url: string, fileName: string) => void;
+}
+
+interface ActionsWithUserImage {
+  updateUserImage?: (id: string, partial: Partial<UserImageInstance>) => void;
+}
 
 export const uploadsTab: SidebarTab = {
   id: 'uploads',
@@ -59,7 +74,59 @@ export const toolsTab: SidebarTab = {
 
 export const toolsSectionEntry = defineCommonSection({
   component: ToolsSection,
-  propsFactory: (): ToolsSectionProps => ({}),
+  propsFactory: (_state, actions): ToolsSectionProps => {
+    const a = actions as ActionsWithChart;
+    const props: ToolsSectionProps = {};
+    if (a.addChart) props.onInsertChart = a.addChart;
+    // Tools place their generated image straight onto the canvas (durable URL).
+    if (a.addUserImageFromUrl) props.onPlaceImageUrl = a.addUserImageFromUrl;
+    return props;
+  },
+});
+
+/**
+ * Shared settings panel for a selected chart element. Rendered when
+ * `activeTab === 'chart-settings'` (configs auto-switch to it on `chart-*`
+ * selection). Reads the selected chart straight from state + the chart actions,
+ * exactly like each config's `frame-settings` entry.
+ */
+export const chartSettingsSectionEntry = defineCommonSection({
+  component: ChartSettingsSection,
+  propsFactory: (state, actions, context) => {
+    const s = state as { chartInstances?: ChartInstance[] };
+    const a = actions as ActionsWithChart;
+    const selectedId = (context as { selectedElement?: string | null } | undefined)
+      ?.selectedElement;
+    const selectedChart = selectedId
+      ? (s.chartInstances?.find((c) => c.id === selectedId) ?? null)
+      : null;
+    return {
+      selectedChart,
+      onUpdateChart: a.updateChart ?? (() => {}),
+      onRemoveChart: a.removeChart ?? (() => {}),
+    };
+  },
+});
+
+/**
+ * Shared image-adjust ("Bearbeiten") panel. Opened explicitly from the context
+ * bar's Bearbeiten button (setActiveTab('image-adjust')), not on selection.
+ */
+export const imageAdjustSectionEntry = defineCommonSection({
+  component: ImageAdjustSection,
+  propsFactory: (state, actions, context) => {
+    const s = state as { userImageInstances?: UserImageInstance[] };
+    const a = actions as ActionsWithUserImage;
+    const selectedId = (context as { selectedElement?: string | null } | undefined)
+      ?.selectedElement;
+    const selectedImage = selectedId
+      ? (s.userImageInstances?.find((u) => u.id === selectedId) ?? null)
+      : null;
+    return {
+      selectedImage,
+      onUpdateImage: a.updateUserImage ?? (() => {}),
+    };
+  },
 });
 
 export const chatTab: SidebarTab = {
@@ -84,6 +151,8 @@ export function createCommonSectionEntries<TState, TActions extends CanvasAiActi
     tools: toolsSectionEntry,
     uploads: uploadsSectionEntry,
     chat: createChatSection(canvasType, capabilities),
+    'chart-settings': chartSettingsSectionEntry,
+    'image-adjust': imageAdjustSectionEntry,
   };
 }
 
