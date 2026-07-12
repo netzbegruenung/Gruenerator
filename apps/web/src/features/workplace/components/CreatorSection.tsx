@@ -1,4 +1,7 @@
 import React, { Suspense, lazy, memo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { isWorkplaceTourDone } from '../tour/tourState';
 
 import ChatInner from './ChatInner';
 
@@ -9,6 +12,7 @@ const BilderInner = lazy(() => import('./BilderInner'));
 
 const CreatorSection: React.FC = memo(() => {
   const [isChat, setIsChat] = useState(true);
+  const navigate = useNavigate();
 
   return (
     <div className="w-full flex flex-col gap-sm">
@@ -26,13 +30,24 @@ const CreatorSection: React.FC = memo(() => {
         </Suspense>
       )}
 
-      <div className="text-center">
+      <div className="flex flex-col items-center gap-1 text-center">
         <button
           type="button"
           onClick={() => setIsChat((prev) => !prev)}
           className="text-[13.5px] font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
         >
           {isChat ? 'Oder editiere / erstelle ein Bild' : 'Oder schreibe eine Nachricht'}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            void import('../tour/workplaceTour').then((m) =>
+              m.startWorkplaceTour((path) => void navigate(path))
+            )
+          }
+          className="text-[13.5px] font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+        >
+          {isWorkplaceTourDone() ? 'Tour erneut starten' : 'Tour starten'}
         </button>
       </div>
     </div>
