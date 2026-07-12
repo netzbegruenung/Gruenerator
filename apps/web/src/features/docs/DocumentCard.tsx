@@ -15,6 +15,7 @@ import {
   FiRadio,
 } from 'react-icons/fi';
 
+import { SlidesPreviewBody, TablePreviewBody } from '../../components/common/SchematicPreviews';
 import { formatRelativeDate } from '../../utils/dateFormatter';
 import { parseDocPreview } from '../../utils/parseDocPreview';
 
@@ -108,7 +109,11 @@ export const DocumentCard = memo(function DocumentCard({
   const TypeIcon = style.icon;
   const hasContent = !!doc.content?.trim();
   const isSelectMode = mode === 'select';
-  const preview = hasContent ? parseDocPreview(doc.content!) : null;
+  // Sheets and presentations keep their data in the Y.Doc (no HTML `content`),
+  // so they get a type-faithful schematic plate instead of the prose excerpt.
+  const isSheet = doc.document_subtype === 'sheets' || doc.document_subtype === 'tabelle';
+  const isSlides = doc.document_subtype === 'presentations';
+  const preview = !isSheet && !isSlides && hasContent ? parseDocPreview(doc.content!) : null;
 
   const handleClick = () => {
     if (isDisabled) return;
@@ -144,7 +149,16 @@ export const DocumentCard = memo(function DocumentCard({
       ) : null}
 
       <div className="relative h-48 overflow-hidden border-b border-grey-100 bg-grey-50 dark:border-grey-700/60 dark:bg-grey-800/40">
-        {preview ? (
+        {isSheet ? (
+          <>
+            <TablePreviewBody content={doc.content} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-b from-transparent to-grey-50 dark:to-grey-800" />
+          </>
+        ) : isSlides ? (
+          <div className="h-full p-4">
+            <SlidesPreviewBody content={doc.content} />
+          </div>
+        ) : preview ? (
           <div className="flex flex-col gap-1.5 px-3.5 pt-4 text-left">
             {preview.heading && (
               <p className="m-0 line-clamp-2 text-[13px] font-bold leading-snug text-grey-800 dark:text-grey-100">

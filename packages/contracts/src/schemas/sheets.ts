@@ -146,3 +146,22 @@ export const sheetErrorResponseSchema = z.object({
   error: z.string(),
   details: z.string().optional(),
 });
+
+/**
+ * Request body for POST /api/sheets/generate — a direct, non-chat generator
+ * that produces a full spreadsheet from a natural-language description and
+ * returns the created sheet document (Y.Doc seeded server-side). Mirrors
+ * POST /api/docs/generate and POST /api/boards/generate.
+ */
+export const generateSheetBodySchema = z.object({
+  description: z.string(),
+});
+
+export type GenerateSheetBody = z.infer<typeof generateSheetBodySchema>;
+
+export const generateSheetResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+
+export type GenerateSheetResponse = z.infer<typeof generateSheetResponseSchema>;

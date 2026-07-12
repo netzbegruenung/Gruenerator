@@ -10,8 +10,11 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  SuggestionsSidebar,
   usePendingDocAI,
   useDocUndoState,
+  useSuggestionMode,
+  hasPendingSuggestions,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -36,12 +39,14 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  FiCheck,
   FiChevronDown,
   FiClock,
   FiCloud,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
+  FiEdit3,
   FiMessageCircle,
   FiMessageSquare,
   FiMoreVertical,
@@ -80,13 +85,14 @@ const DocsChatPanel = lazyWithRetry(() =>
   import('./DocsChatPanel').then((m) => ({ default: m.DocsChatPanel }))
 );
 
-type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions';
+type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions' | 'suggestions';
 
 const SIDEBAR_TITLES: Record<SidebarPanel, string> = {
   chat: 'Chat',
   'legacy-chat': 'Älterer Chat',
   comments: 'Kommentare',
   versions: 'Versionen',
+  suggestions: 'Änderungen',
 };
 
 function EditorFAB({
@@ -124,6 +130,26 @@ function EditorContent() {
   const [, , themePreference, cycleTheme] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
+
+  // Reliable identity for track-changes attribution — the auth user (or guest),
+  // the same source the assistant chat uses for the display name. Passed to the
+  // editor so suggestions aren't left "Unbekannt" when Yjs awareness is empty.
+  const suggestionAuthor = useMemo(() => {
+    if (user) {
+      return {
+        id: String(user.id),
+        name: user.display_name || user.email || 'Unbekannt',
+      };
+    }
+    if (guestIdentity) {
+      return {
+        id: guestIdentity.guestId,
+        name: guestIdentity.guestName,
+        color: guestIdentity.guestColor,
+      };
+    }
+    return null;
+  }, [user, guestIdentity]);
 
   const API_BASE = useMemo(() => adapter.getApiBaseUrl(), [adapter]);
 
@@ -233,6 +259,19 @@ function EditorContent() {
     () => 0
   );
 
+  const { enabled: suggestionModeEnabled, toggle: toggleSuggestionMode } = useSuggestionMode(
+    ydoc,
+    id ?? ''
+  );
+  // Track changes is surfaced entirely through the suggestions sidebar (no
+  // separate toolbar button): toggling the mode opens/closes the sidebar in one
+  // step, so the two stay coupled without a reactive effect.
+  const toggleSuggestions = useCallback(() => {
+    const willEnable = !suggestionModeEnabled;
+    toggleSuggestionMode();
+    setActiveSidebar(willEnable ? 'suggestions' : null);
+  }, [suggestionModeEnabled, toggleSuggestionMode]);
+
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
     provider,
@@ -292,8 +331,23 @@ function EditorContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showActionsMenu]);
 
+  // Exporters render suggestion marks as normal text (deletions would leak,
+  // insertions lose their pending status), so block export while any are open.
+  // The message is actionable only for editors; viewers (who can't resolve
+  // suggestions) get a plain statement instead of a dead-end instruction.
+  const exportBlockedBySuggestions = useCallback(() => {
+    const view = editor?.prosemirrorView;
+    if (!view || !hasPendingSuggestions(view.state.doc)) return false;
+    const message = canEdit
+      ? 'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+      : 'Das Dokument enthält offene Änderungsvorschläge und kann derzeit nicht exportiert werden.';
+    void import('sonner').then(({ toast }) => toast.error(message));
+    return true;
+  }, [editor, canEdit]);
+
   const handleExport = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
@@ -310,12 +364,13 @@ function EditorContent() {
       console.error('Export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
   // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
   const handleExportPDF = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
       const { pdf } = await import('@react-pdf/renderer');
@@ -335,10 +390,11 @@ function EditorContent() {
       console.error('PDF export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('PDF-Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
       const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
@@ -354,11 +410,17 @@ function EditorContent() {
       console.error('ODT export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('ODT-Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   const handleSaveToWolke = useCallback(
     async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
       if (!docData || !editor) throw new Error('Editor not ready');
+      const view = editor.prosemirrorView;
+      if (view && hasPendingSuggestions(view.state.doc)) {
+        throw new Error(
+          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+        );
+      }
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
       const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
@@ -431,7 +493,7 @@ function EditorContent() {
         <span className="text-foreground-heading font-medium">{docData.title || 'Dokument'}</span>
         <span>Dieses Dokument erfordert eine Anmeldung.</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
         >
           Anmelden
@@ -446,7 +508,7 @@ function EditorContent() {
         <span>Dokument nicht gefunden oder nicht öffentlich</span>
         {isGuest && (
           <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+            href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
             className="text-secondary-600 underline"
           >
             Anmelden
@@ -461,7 +523,7 @@ function EditorContent() {
       <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
         <span>{getAuthErrorMessage(authError) || 'Verbindung zum Dokument fehlgeschlagen.'}</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="text-secondary-600 underline"
         >
           Anmelden
@@ -492,7 +554,7 @@ function EditorContent() {
         <EditorTopBar
           title={docData.title}
           connectionStatus={connectionStatus}
-          onBack={isGuest ? undefined : () => navigate('/docs')}
+          onBack={isGuest ? undefined : () => navigate('/office')}
           editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
@@ -523,7 +585,7 @@ function EditorContent() {
                   guestName={guestIdentity.guestName}
                   guestColor={guestIdentity.guestColor}
                   guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
                 />
               )}
               {!isGuest && !canEdit && docData && (
@@ -630,6 +692,27 @@ function EditorContent() {
                           <FiClock />
                           Versionshistorie
                         </button>
+                        {canEdit && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            disabled={hasPendingAIChanges}
+                            title={
+                              hasPendingAIChanges
+                                ? 'Während einer KI-Überprüfung nicht verfügbar'
+                                : undefined
+                            }
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              toggleSuggestions();
+                            }}
+                          >
+                            <FiEdit3 />
+                            <span className="flex-1">Änderungen nachverfolgen (Experimentell)</span>
+                            {suggestionModeEnabled && (
+                              <FiCheck className="!h-4 !w-4 text-primary-600" />
+                            )}
+                          </button>
+                        )}
                         {wolkeConnected && (
                           <button
                             className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
@@ -735,6 +818,7 @@ function EditorContent() {
               editable={isEditable}
               commentsPortalTarget={commentsPortalTarget}
               onEditorReady={handleEditorReady}
+              localUser={suggestionAuthor}
             />
           ) : (
             <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
@@ -792,7 +876,9 @@ function EditorContent() {
                 </button>
               )}
               <button
-                onClick={() => setActiveSidebar(null)}
+                onClick={() =>
+                  effectivePanel === 'suggestions' ? toggleSuggestions() : setActiveSidebar(null)
+                }
                 className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
                 aria-label="Seitenleiste schließen"
               >
@@ -840,6 +926,10 @@ function EditorContent() {
                   }
                 }}
               />
+            )}
+
+            {effectivePanel === 'suggestions' && editor && (
+              <SuggestionsSidebar editor={editor} ydoc={ydoc} canEdit={isEditable} />
             )}
           </aside>
         )}

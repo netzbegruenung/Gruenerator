@@ -166,7 +166,7 @@ function PresentationsEditorContent() {
 
   const openPdfExport = useCallback(() => {
     if (!id) return;
-    window.open(`/docs/${id}?present=1&print-pdf`, '_blank', 'noopener');
+    window.open(`/office/${id}?present=1&print-pdf`, '_blank', 'noopener');
   }, [id]);
 
   const handlePptxExport = useCallback(async () => {
@@ -226,7 +226,7 @@ function PresentationsEditorContent() {
         </span>
         <span>Diese Präsentation erfordert eine Anmeldung.</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
         >
           Anmelden
@@ -241,7 +241,7 @@ function PresentationsEditorContent() {
         <span>Präsentation nicht gefunden oder nicht öffentlich</span>
         {isGuest && (
           <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+            href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
             className="text-secondary-600 underline"
           >
             Anmelden
@@ -258,7 +258,7 @@ function PresentationsEditorContent() {
           {getAuthErrorMessage(authError) || 'Verbindung zur Präsentation fehlgeschlagen.'}
         </span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="text-secondary-600 underline"
         >
           Anmelden
@@ -272,7 +272,7 @@ function PresentationsEditorContent() {
       <EditorTopBar
         title={docData.title}
         connectionStatus={connectionStatus}
-        onBack={isGuest ? undefined : () => navigate('/docs')}
+        onBack={isGuest ? undefined : () => navigate('/office')}
         editable={isEditable}
         onTitleChange={handleTitleChange}
         rightActions={
@@ -282,7 +282,7 @@ function PresentationsEditorContent() {
                 guestName={guestIdentity.guestName}
                 guestColor={guestIdentity.guestColor}
                 guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
               />
             )}
             {!isGuest && !canEdit && (

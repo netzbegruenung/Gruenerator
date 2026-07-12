@@ -9,6 +9,7 @@ import { v4 as uuid } from 'uuid';
 
 import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance } from '../../utils/canvasAssets';
+import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
 import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import { createFrameInstance } from '../../utils/frameUtils';
 import { createIllustration } from '../../utils/illustrations/registry';
@@ -532,6 +533,63 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
 }
 
 // ============================================================================
+// CHART ACTIONS
+// ============================================================================
+
+export function createChartActions<TState extends { chartInstances: ChartInstance[] }>(
+  getState: () => TState,
+  setState: StateSetter<TState>,
+  saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>,
+  canvasWidth: number,
+  canvasHeight: number
+) {
+  return {
+    addChart: (chartType: ChartType) => {
+      const newChart = createChartInstance(chartType, canvasWidth, canvasHeight);
+      setState((prev) => ({
+        ...prev,
+        chartInstances: [...prev.chartInstances, newChart],
+      }));
+      saveToHistory(getState());
+    },
+    updateChart: (id: string, partial: Partial<ChartInstance>) => {
+      setState((prev) => ({
+        ...prev,
+        chartInstances: prev.chartInstances.map((c) => (c.id === id ? { ...c, ...partial } : c)),
+      }));
+      debouncedSaveToHistory(getState());
+    },
+    removeChart: (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        chartInstances: prev.chartInstances.filter((c) => c.id !== id),
+      }));
+      saveToHistory(getState());
+    },
+    duplicateChart: (chartId: string) => {
+      const original = getState().chartInstances.find((c) => c.id === chartId);
+      if (!original) return;
+
+      const duplicate: ChartInstance = {
+        ...original,
+        id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        data: original.data.map((d) => ({ ...d })),
+        colors: [...original.colors],
+        x: original.x + 20,
+        y: original.y + 20,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        chartInstances: [...prev.chartInstances, duplicate],
+      }));
+      saveToHistory(getState());
+    },
+  };
+}
+
+// ============================================================================
 // FRAME ACTIONS
 // ============================================================================
 
@@ -621,7 +679,33 @@ export function createUserImageActions<TState extends { userImageInstances: User
         }
       );
     },
+    /**
+     * Place a freshly-picked file instantly via a local blob preview (dimensions
+     * read locally, no network) and return the new instance id. The caller
+     * uploads in the background and calls `updateUserImage(id, { src })` to swap
+     * the blob for the durable URL — mirrors the optimistic background path.
+     */
+    placeUserImageFromFile: (file: File): Promise<string> => {
+      const objectUrl = URL.createObjectURL(file);
+      return createUserImageInstance(file, objectUrl, canvasWidth, canvasHeight).then(
+        (instance) => {
+          setState((prev) => ({
+            ...prev,
+            userImageInstances: [...prev.userImageInstances, instance],
+          }));
+          saveToHistory(getState());
+          return instance.id;
+        }
+      );
+    },
     updateUserImage: (id: string, partial: Partial<UserImageInstance>) => {
+      // Free the optimistic blob once it's swapped for a durable URL.
+      if (partial.src) {
+        const prevInstance = getState().userImageInstances.find((u) => u.id === id);
+        if (prevInstance?.src.startsWith('blob:') && prevInstance.src !== partial.src) {
+          URL.revokeObjectURL(prevInstance.src);
+        }
+      }
       setState((prev) => ({
         ...prev,
         userImageInstances: prev.userImageInstances.map((u) =>
@@ -702,6 +786,14 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
+    ...createChartActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
     ...createFrameActions(
       getState,
       setState,

@@ -24,6 +24,8 @@ import {
 import { useColumnActivity } from '../context/BoardAwarenessContext';
 import { COLUMN_COLORS } from '../utils/boardDefaults';
 
+import { KanbanColumnDragHandle } from '@/components/kibo-ui/kanban';
+
 interface ColumnData {
   id: string;
   name: string;
@@ -78,6 +80,8 @@ export const ColumnHeader = memo(function ColumnHeader({
 
   return (
     <div className="flex items-center gap-xs px-3 py-2">
+      <KanbanColumnDragHandle />
+
       {column.color !== 'transparent' && (
         <div
           className="w-2.5 h-2.5 rounded-full shrink-0"

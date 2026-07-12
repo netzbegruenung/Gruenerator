@@ -5,6 +5,8 @@ import {
   isTabularComputeQuestion,
   detectSocialPlatform,
   resolveSocialPostEscape,
+  nounNearCreateVerb,
+  NOUN_TRIGGER_MAX_LENGTH,
 } from './classifierHeuristics.js';
 import {
   extractSearchTopic,
@@ -621,6 +623,213 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(heuristicClassify('Schreib einen Post inkl. Sharepic zur Verkehrswende').intent).toBe(
       'social_post'
     );
+  });
+});
+
+// ─── pasted reference material must not hijack noun-triggered intents ──────
+
+describe('heuristicClassify: pasted material with social/sharepic nouns', () => {
+  // Docs-page style paste: describes the product, mentions Sharepics/Instagram
+  // with creation verbs nearby — exactly the text that hijacked classification.
+  const pastedDocs =
+    'Der Grünerator ist ein speziell für Bündnis 90/Die Grünen entwickeltes KI-Tool. ' +
+    'Er erstellt Texte wie Pressemitteilungen, Social-Media-Beiträge und Anträge für kommunale Parlamente. ' +
+    'Außerdem kann er Sharepics grünerieren und beim Erstellen von Untertiteln helfen. ' +
+    'Wenn er einen Beitrag für Instagram oder eine Pressemitteilung erstellt, klingt dieser grün. ' +
+    'Er hilft beim Erstellen von Untertiteln für Instagram Reels und kreiert Alt-Texte für Sharepics. ' +
+    'Der Grünerator verwendet eine stark vereinfachte Benutzeroberfläche für alle Ehrenamtlichen.';
+
+  it('"Sharepics" inside a long paste does not fast-path to sharepic', () => {
+    const result = heuristicClassify(
+      `Nun schreibe eine Produktvorstellung des Grünerators, die zu diesem Antrag passt, ohne ihn zu zitieren: ${pastedDocs}`
+    );
+    expect(result.intent).not.toBe('sharepic');
+    expect(result.intent).not.toBe('social_post');
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('a genuine sharepic ask over a long paste defers to the LLM instead of misrouting', () => {
+    const result = heuristicClassify(
+      `Erstelle ein Sharepic zu folgendem Text: ${'Wort '.repeat(120)}`
+    );
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('short sharepic asks keep the 0.93 fast path', () => {
+    const result = heuristicClassify('Erstelle ein Sharepic zur Verkehrswende');
+    expect(result.intent).toBe('sharepic');
+    expect(result.confidence).toBeGreaterThanOrEqual(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('a creation verb far from a social noun is not a social_post ask (short message)', () => {
+    const msg =
+      'Schreibe eine Produktvorstellung dieses Werkzeugs. ' +
+      'Es unterstützt Ehrenamtliche bei vielen Aufgaben im Alltag der Partei. '.repeat(3) +
+      'Auch Instagram wird darin erwähnt.';
+    expect(msg.length).toBeLessThanOrEqual(NOUN_TRIGGER_MAX_LENGTH);
+    const result = heuristicClassify(msg);
+    expect(result.intent).not.toBe('social_post');
+  });
+});
+
+describe('heuristicClassify: pasted material must not hijack other fast paths', () => {
+  const filler =
+    'Der Ortsverband trifft sich jeden zweiten Donnerstag im Monat. Alle Mitglieder sind herzlich eingeladen, eigene Themen mitzubringen. '.repeat(
+      4
+    );
+
+  const hijacks: Array<{ hijacked: string; msg: string }> = [
+    {
+      hijacked: 'image',
+      msg: `Schreibe eine Produktvorstellung auf Basis dieses Textes: Das Tool erstellt jede Grafik automatisch im Corporate Design. ${filler}`,
+    },
+    {
+      hijacked: 'chart',
+      msg: `Schreibe einen Artikel auf Basis dieses Berichts: Das Diagramm zeigt einen deutlichen Anstieg der Mitgliederzahlen seit 2024. ${filler}`,
+    },
+    {
+      hijacked: 'artifact',
+      msg: `Schreibe eine Produktvorstellung zu diesem Verein: Die Website des Vereins bietet viele Informationen über die Arbeit vor Ort. ${filler}`,
+    },
+    {
+      hijacked: 'save_as_doc',
+      msg: `Was haltet ihr von diesen Aufgaben: Anna wird das Protokoll erstellen und an alle verschicken. ${filler}`,
+    },
+    {
+      hijacked: 'create_presentation',
+      msg: `Gib mir Feedback zu diesen Sitzungsnotizen: Max erstellt die Präsentation für den Parteitag am Samstag. ${filler}`,
+    },
+    {
+      hijacked: 'summary',
+      msg: `Schreibe einen Tweet dazu: Eine Zusammenfassung des Beschlusses findet ihr auf unserer Seite. ${filler}`,
+    },
+    {
+      hijacked: 'web',
+      msg: `Schreibe eine Anleitung auf Basis dieses Entwurfs: Suche im Internet nach dem Begriff und vergleiche die Ergebnisse. ${filler}`,
+    },
+    {
+      hijacked: 'research',
+      msg: `Schreibe eine Anleitung auf Basis dieser Tipps: Recherchiere vor jedem Beitrag die Faktenlage und nenne Quellen. ${filler}`,
+    },
+  ];
+
+  it.each(hijacks)('paste keywords do not fast-path to $hijacked', ({ hijacked, msg }) => {
+    const result = heuristicClassify(msg);
+    expect(result.intent).not.toBe(hijacked);
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('short creation asks keep their fast paths', () => {
+    expect(heuristicClassify('Erstelle ein Balkendiagramm der Wahlergebnisse 2025').intent).toBe(
+      'chart'
+    );
+    expect(heuristicClassify('Generiere ein Bild von einem Windpark im Sonnenaufgang').intent).toBe(
+      'image'
+    );
+    expect(heuristicClassify('Speichere das als Dokument').intent).toBe('save_as_doc');
+    expect(heuristicClassify('Erstelle eine Präsentation über die Verkehrswende').intent).toBe(
+      'create_presentation'
+    );
+  });
+
+  it('compute keeps its fast path over long pastes (word counting IS the use case)', () => {
+    const result = heuristicClassify(`Wie viele Wörter hat dieser Text: ${filler}`);
+    expect(result.intent).toBe('compute');
+    expect(result.confidence).toBeGreaterThanOrEqual(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('"teile das mit …" inside a long paste does not fast-path to share_doc', () => {
+    const result = heuristicClassify(
+      `Fasse das zusammen: Bitte teile das mit euren Ortsverbänden und meldet euch bei Fragen. ${filler}`
+    );
+    expect(result.intent).not.toBe('share_doc');
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('short share asks keep the share_doc fast path', () => {
+    expect(heuristicClassify('Teile das mit der AG Umwelt').intent).toBe('share_doc');
+  });
+});
+
+describe('heuristicClassify: greeting rule needs a word boundary', () => {
+  it('"Hier …" / "Hilfe …" are not greetings (^hi matched without \\b)', () => {
+    const hier = heuristicClassify(
+      'Hier der Text für morgen, mach daraus bitte einen Instagram-Post'
+    );
+    expect(hier.reasoning).not.toBe('Greeting detected');
+    expect(hier.intent).toBe('social_post');
+    const hilfe = heuristicClassify(
+      'Hilfe, wie erstelle ich ein Sharepic für unseren Ortsverband?'
+    );
+    expect(hilfe.reasoning).not.toBe('Greeting detected');
+  });
+
+  it('real greetings keep the fast path', () => {
+    expect(heuristicClassify('Hallo, wie geht es dir?').intent).toBe('direct');
+    expect(heuristicClassify('Hi! Kannst du mir helfen?').intent).toBe('direct');
+    expect(heuristicClassify('Danke dir, das passt so!').intent).toBe('direct');
+  });
+});
+
+describe('heuristicClassify: unit conversion needs a target unit', () => {
+  it('genuine conversions still route to compute', () => {
+    expect(heuristicClassify('5 km in Meilen').intent).toBe('compute');
+    expect(heuristicClassify('2 std in minuten bitte').intent).toBe('compute');
+  });
+
+  it('umlaut units work despite ASCII-only \\b ("5 Fuß in Meter")', () => {
+    expect(heuristicClassify('5 Fuß in Meter').intent).toBe('compute');
+    expect(heuristicClassify('5 fuss in meter').intent).toBe('compute');
+  });
+
+  it('plural/English target units convert ("10 kg in lbs", "5 km in miles")', () => {
+    expect(heuristicClassify('10 kg in lbs').intent).toBe('compute');
+    expect(heuristicClassify('5 km in miles').intent).toBe('compute');
+  });
+
+  it('the same unit on both sides is prose, not a conversion', () => {
+    const result = heuristicClassify(
+      'Schreibe einen Beitrag zur Klimakrise: 2 Grad Erwärmung, gemessen in Grad Celsius, sind zu viel'
+    );
+    expect(result.intent).not.toBe('compute');
+  });
+
+  it('"Tempo 30 in der Innenstadt … als …" is a post, not a conversion', () => {
+    const result = heuristicClassify(
+      'Erstelle einen Post zu Tempo 30 in der Innenstadt als Beitrag für unsere Kampagne'
+    );
+    expect(result.intent).toBe('social_post');
+  });
+
+  it('"35 °C in Berlin" is not a conversion', () => {
+    const result = heuristicClassify(
+      'Schreib einen Post zur Hitzewelle: gestern 35 °C in Berlin, wir fordern mehr Stadtgrün'
+    );
+    expect(result.intent).not.toBe('compute');
+  });
+
+  it('"500 m in wenigen Minuten" is not a conversion', () => {
+    const result = heuristicClassify(
+      'Schreib einen Beitrag über den neuen Radweg: 500 m in wenigen Minuten, sicher für alle'
+    );
+    expect(result.intent).not.toBe('compute');
+  });
+});
+
+describe('nounNearCreateVerb', () => {
+  const noun = /\b(instagram)\b/i;
+
+  it('true when verb and noun sit close together', () => {
+    expect(nounNearCreateVerb('erstelle einen instagram-post zu tempo 30', noun)).toBe(true);
+  });
+
+  it('false when the noun sits far from the verb', () => {
+    const text = `schreibe eine produktvorstellung. ${'wort '.repeat(40)}instagram ist eine plattform`;
+    expect(nounNearCreateVerb(text, noun)).toBe(false);
+  });
+
+  it('false without a creation verb', () => {
+    expect(nounNearCreateVerb('instagram ist eine plattform', noun)).toBe(false);
   });
 });
 

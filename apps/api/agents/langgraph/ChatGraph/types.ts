@@ -749,6 +749,8 @@ export type PendingAction = {
 export interface ChatSearchResult {
   threadId: string;
   threadTitle: string | null;
+  /** Stable tail of the pretty `/chat/<slug>` URL; null for pre-backfill threads. */
+  threadSlugSuffix: string | null;
   agentId: string;
   snippet: string;
   messageRole: 'user' | 'assistant';

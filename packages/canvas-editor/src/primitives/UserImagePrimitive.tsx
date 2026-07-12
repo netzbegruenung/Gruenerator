@@ -9,6 +9,8 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 
+import { getActiveImageFilters, hasActiveImageFilters } from '../utils/imageFilters';
+
 import type { UserImageInstance } from '../utils/userImageUtils';
 import type Konva from 'konva';
 
@@ -30,6 +32,7 @@ function UserImagePrimitiveInner({
   draggable = true,
 }: UserImagePrimitiveProps) {
   const groupRef = useRef<Konva.Group>(null);
+  const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
@@ -50,6 +53,31 @@ function UserImagePrimitiveInner({
       transformerRef.current.getLayer()?.batchDraw();
     }
   }, [isSelected]);
+
+  // Konva filters require the node to be cached first.
+  useEffect(() => {
+    const node = imageRef.current;
+    if (!node || !image) return;
+    if (hasActiveImageFilters(userImage)) {
+      node.cache();
+    } else {
+      node.clearCache();
+    }
+    node.getLayer()?.batchDraw();
+  }, [
+    image,
+    userImage.width,
+    userImage.height,
+    userImage.blur,
+    userImage.brightness,
+    userImage.contrast,
+    userImage.saturation,
+    userImage.hue,
+    userImage.temperature,
+    userImage.grayscale,
+    userImage.sepia,
+    userImage.invert,
+  ]);
 
   if (!image) return null;
 
@@ -93,7 +121,24 @@ function UserImagePrimitiveInner({
           onTransformEnd(node.x(), node.y(), newWidth, newHeight, newRotation);
         }}
       >
-        <Image image={image} width={width} height={height} />
+        <Image
+          ref={imageRef}
+          image={image}
+          width={width}
+          height={height}
+          filters={getActiveImageFilters(userImage)}
+          blurRadius={userImage.blur ?? 0}
+          brightness={userImage.brightness ?? 0}
+          contrast={userImage.contrast ?? 0}
+          saturation={userImage.saturation ?? 0}
+          hue={userImage.hue ?? 0}
+          temperature={userImage.temperature ?? 0}
+          shadowColor={userImage.shadowColor}
+          shadowBlur={userImage.shadowBlur}
+          shadowOffsetX={userImage.shadowOffsetX}
+          shadowOffsetY={userImage.shadowOffsetY}
+          shadowOpacity={userImage.shadowOpacity}
+        />
 
         {isSelected && (
           <Rect
@@ -137,6 +182,20 @@ export const UserImagePrimitive = memo(UserImagePrimitiveInner, (prevProps, next
   if (prev.scale !== next.scale) return false;
   if (prev.rotation !== next.rotation) return false;
   if (prev.opacity !== next.opacity) return false;
+  if (prev.blur !== next.blur) return false;
+  if (prev.brightness !== next.brightness) return false;
+  if (prev.contrast !== next.contrast) return false;
+  if (prev.saturation !== next.saturation) return false;
+  if (prev.hue !== next.hue) return false;
+  if (prev.temperature !== next.temperature) return false;
+  if (prev.grayscale !== next.grayscale) return false;
+  if (prev.sepia !== next.sepia) return false;
+  if (prev.invert !== next.invert) return false;
+  if (prev.shadowColor !== next.shadowColor) return false;
+  if (prev.shadowBlur !== next.shadowBlur) return false;
+  if (prev.shadowOffsetX !== next.shadowOffsetX) return false;
+  if (prev.shadowOffsetY !== next.shadowOffsetY) return false;
+  if (prev.shadowOpacity !== next.shadowOpacity) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
