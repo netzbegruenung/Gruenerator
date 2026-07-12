@@ -84,6 +84,10 @@ import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
+import dreizeilenAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_at_canvas.js';
+import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
+import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
+import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
@@ -97,6 +101,7 @@ import sliderCanvasRoute from './routes/sharepic/sharepic_canvas/slider_canvas.j
 import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
 import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
+// Österreich (de-AT) canvas renderers
 import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
 import sharepicClaudeRoute, {
   handleClaudeRequest,
@@ -417,6 +422,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
   app.use('/api/info_canvas', standardMutationLimiter, infoSharepicCanvasRoute);
+  // Österreich (de-AT) canvas renderers
+  app.use('/api/info_at_canvas', standardMutationLimiter, infoAtCanvasRoute);
+  app.use('/api/zitat_at_canvas', standardMutationLimiter, zitatAtCanvasRoute);
+  app.use('/api/zitat_pure_at_canvas', standardMutationLimiter, zitatPureAtCanvasRoute);
+  app.use('/api/dreizeilen_at_canvas', standardMutationLimiter, dreizeilenAtCanvasRoute);
   app.use('/api/imagine_label_canvas', standardMutationLimiter, imagineLabelCanvasRoute);
   // Canvas AI suggestions: dedicated Redis-based rate limit bucket
   // (canvas_ai resource) plus the abuse-prevention IP limiter shared with

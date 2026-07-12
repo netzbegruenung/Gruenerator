@@ -312,7 +312,13 @@ export type CanvasConfigId =
   | 'dreizeilen'
   | 'slider'
   | 'freeform'
-  | 'profilbild';
+  | 'profilbild'
+  // Österreich (de-AT) variants
+  | 'info-at'
+  | 'zitat-at'
+  | 'zitat-pure-at'
+  | 'dreizeilen-at'
+  | 'freeform-at';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {
