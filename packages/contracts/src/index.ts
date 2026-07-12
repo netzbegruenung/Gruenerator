@@ -23,6 +23,7 @@ export {
   recentValuesContract,
   itemUsageContract,
   searchContract,
+  globalSearchContract,
   researchContract,
   chatGraphContract,
   boardsContract,
@@ -78,6 +79,7 @@ export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
+export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
