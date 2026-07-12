@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
-import { type IconDef } from '../utils/canvasIcons';
+import { DEFAULT_ICON_SET, type IconDef } from '../utils/canvasIcons';
 import { useDebounce } from './useDebounce';
 import { useIconCatalog } from './useIconCatalog';
 import { useIconSearch } from './useIconSearch';
@@ -19,11 +19,13 @@ interface UsePaginatedIconsReturn {
 
 export function usePaginatedIcons(
   isExpanded: boolean,
-  searchQuery: string = ''
+  searchQuery: string = '',
+  activeSet: string = DEFAULT_ICON_SET
 ): UsePaginatedIconsReturn {
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
-  const catalog = useIconCatalog();
+  // Browsing shows the active set only (loaded on demand); search spans all sets.
+  const catalog = useIconCatalog(activeSet);
   const allIcons = catalog.data ?? [];
 
   const debouncedQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
@@ -31,10 +33,9 @@ export function usePaginatedIcons(
   const search = useIconSearch(debouncedQuery);
 
   useEffect(() => {
-    if (!isExpanded) {
-      setLoadedCount(PAGE_SIZE);
-    }
-  }, [isExpanded]);
+    // Reset paging when the browsed set changes or the section collapses.
+    setLoadedCount(PAGE_SIZE);
+  }, [isExpanded, activeSet]);
 
   const visibleIcons = useMemo(() => {
     if (hasSearch) return search.data?.icons ?? [];
