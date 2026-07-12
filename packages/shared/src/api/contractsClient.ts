@@ -61,6 +61,7 @@ import {
   monitorContract,
   sitesContract,
   subtitlerContract,
+  reisekostenContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -215,6 +216,7 @@ const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
+const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -261,6 +263,7 @@ export interface ContractsClient {
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
+  reisekosten: ReturnType<typeof _reisekostenClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -324,6 +327,7 @@ export function getContractsClient(): ContractsClient {
     monitor: _monitorClient(),
     sites: _sitesClient(),
     subtitler: _subtitlerClient(),
+    reisekosten: _reisekostenClient(),
   };
 
   return _client;
