@@ -31,6 +31,13 @@ const EXPERIMENTS: Experiment[] = [
     icon: getIcon('navigation', 'monitor') as IconType,
     path: '/experiments/monitor',
   },
+  {
+    id: 'reisekosten',
+    title: 'Fahrtkosten-Grünerator',
+    meta: 'Reisekostenformular mit KI-Belegprüfung',
+    icon: getIcon('navigation', 'reisekosten') as IconType,
+    path: '/experiments/reisekosten',
+  },
 ];
 
 // Mirrors the /notebooks gallery grid so experiments read as the same system.

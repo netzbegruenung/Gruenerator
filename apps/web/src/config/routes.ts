@@ -123,6 +123,7 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
+const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
 const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
@@ -328,6 +329,7 @@ const standardRoutes: RouteConfig[] = [
   // status. Monitor is the first — formerly the dev-only /monitor*, now
   // production-visible at /experiments/monitor*.
   { path: '/experiments', component: ExperimentsIndexPage },
+  { path: '/experiments/reisekosten', component: ReisekostenPage },
   { path: '/experiments/monitor', component: MonitorUebersichtPage },
   { path: '/experiments/monitor/themen', component: MonitorThemenPage },
   { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },

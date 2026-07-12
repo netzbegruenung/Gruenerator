@@ -72,6 +72,7 @@ export {
   contentSyncContract,
   monitorContract,
   sitesContract,
+  reisekostenContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
 export * from './schemas/richtext.js';
+export * from './schemas/reisekosten.js';
 
 // Sheets (Univer) collab schema + pure formatting helpers — Univer-free, shared
 // by the editor package and the API.
