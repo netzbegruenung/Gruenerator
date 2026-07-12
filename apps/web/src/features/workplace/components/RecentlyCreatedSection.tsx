@@ -29,7 +29,11 @@ import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { parseDocPreview } from '../../../utils/parseDocPreview';
-import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
+import {
+  getPublicAppOrigin,
+  resolveApiAssetUrl,
+  shareThumbnailPreviewUrl,
+} from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
 type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
@@ -154,10 +158,11 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
       return (
         <div className={PREVIEW_PLATE}>
           <img
-            src={resolveApiAssetUrl(item.thumbnailUrl)}
+            src={resolveApiAssetUrl(shareThumbnailPreviewUrl(item.thumbnailUrl))}
             alt={item.title || FALLBACK_TITLES[item.type]}
             className="h-full w-full object-cover"
             loading="lazy"
+            decoding="async"
           />
         </div>
       );

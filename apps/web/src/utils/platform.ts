@@ -40,6 +40,28 @@ export const getDesktopOS = (): DesktopOS => {
 
 export const isMacDesktop = (): boolean => isDesktopApp() && getDesktopOS() === 'macos';
 
+const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
+
+/**
+ * Canvas documents store their thumbnail as `/api/share/<token>/download` —
+ * the raw full-resolution render (a multi-MB PNG at pixelRatio 2). For
+ * card-sized `<img>`s, rewrite to the resized-variant route (webp, served
+ * from the server's thumbs disk cache). Other URLs pass through unchanged.
+ */
+export function shareThumbnailPreviewUrl(url: string, width?: 200 | 400 | 800): string;
+export function shareThumbnailPreviewUrl(
+  url: string | undefined,
+  width?: 200 | 400 | 800
+): string | undefined;
+export function shareThumbnailPreviewUrl(
+  url: string | undefined,
+  width: 200 | 400 | 800 = 400
+): string | undefined {
+  if (!url) return url;
+  const match = SHARE_DOWNLOAD_RE.exec(url);
+  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+}
+
 /**
  * Resolve a (possibly root-relative) API/media URL to one usable by plain
  * `<img>` / `<video>` tags in the desktop webview.

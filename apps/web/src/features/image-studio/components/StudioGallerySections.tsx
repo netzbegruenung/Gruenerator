@@ -10,7 +10,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { resolveApiAssetUrl } from '../../../utils/platform';
+import { resolveApiAssetUrl, shareThumbnailPreviewUrl } from '../../../utils/platform';
 import ReelsSection from '../../workplace/components/ReelsSection';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
@@ -265,7 +265,9 @@ const StudioGallerySections = () => {
                   <PreviewCard
                     key={`canvas-${card.item.id}`}
                     title={card.item.title || 'Sharepic'}
-                    thumbnailUrl={resolveApiAssetUrl(card.item.thumbnail_url ?? undefined)}
+                    thumbnailUrl={resolveApiAssetUrl(
+                      shareThumbnailPreviewUrl(card.item.thumbnail_url ?? undefined)
+                    )}
                     onClick={() => void navigate(`/studio/canvas/${card.item.id}`)}
                   />
                 ) : (

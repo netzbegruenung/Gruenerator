@@ -244,7 +244,13 @@ class SharedMediaService {
     await this.ensureInitialized();
 
     try {
-      const countQuery = `SELECT COUNT(*) as count FROM shared_media WHERE user_id = $1`;
+      // Internal artifacts (canvas/chat thumbnails, template previews —
+      // is_library_item = FALSE) neither count against the user's quota nor
+      // get evicted: they are referenced by canvas_documents.thumbnail_url,
+      // and evicting one silently blanks that document's gallery preview.
+      // Their lifecycle is delete-on-replace in updateCanvas instead.
+      const countQuery = `SELECT COUNT(*) as count FROM shared_media
+                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
       const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
       const count = parseInt(countResult?.count ?? '0', 10);
 
@@ -255,7 +261,7 @@ class SharedMediaService {
                     WITH oldest AS (
                         SELECT id, share_token, file_path, thumbnail_path
                         FROM shared_media
-                        WHERE user_id = $1
+                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
                         ORDER BY created_at ASC
                         LIMIT $2
                     )
