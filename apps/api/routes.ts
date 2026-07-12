@@ -125,6 +125,7 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
@@ -382,6 +383,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-values', requireAuth);
   mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
+  // ts-rest contract router for /api/reisekosten (Fahrtkosten-Grünerator).
+  // requireAuth at the prefix — all routes handle user-entered expense data.
+  app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
+  mountReisekostenContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
