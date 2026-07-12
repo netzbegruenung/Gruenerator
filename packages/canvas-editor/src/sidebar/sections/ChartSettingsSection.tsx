@@ -9,7 +9,12 @@ import {
   PiChartPie,
 } from 'react-icons/pi';
 
-import { CHART_COLORS, type ChartInstance, type ChartType } from '../../utils/chartUtils';
+import {
+  CHART_COLORS,
+  isRoundChartType,
+  type ChartInstance,
+  type ChartType,
+} from '../../utils/chartUtils';
 
 import type { IconType } from 'react-icons';
 
@@ -27,8 +32,6 @@ const TYPE_OPTIONS: { id: ChartType; label: string; icon: IconType }[] = [
   { id: 'pie', label: 'Torte', icon: PiChartPie },
   { id: 'donut', label: 'Donut', icon: PiChartDonut },
 ];
-
-const isRoundType = (t: ChartType) => t === 'pie' || t === 'donut';
 
 export function ChartSettingsSection({
   selectedChart,
@@ -85,9 +88,9 @@ export function ChartSettingsSection({
                 type="button"
                 onClick={() => {
                   const partial: Partial<ChartInstance> = { chartType: opt.id };
-                  if (isRoundType(opt.id) !== isRoundType(chart.chartType)) {
-                    partial.showLegend = isRoundType(opt.id);
-                    partial.showGrid = !isRoundType(opt.id);
+                  if (isRoundChartType(opt.id) !== isRoundChartType(chart.chartType)) {
+                    partial.showLegend = isRoundChartType(opt.id);
+                    partial.showGrid = !isRoundChartType(opt.id);
                   }
                   update(partial);
                 }}

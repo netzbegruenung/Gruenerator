@@ -13,9 +13,9 @@ export interface DiagrammeSectionProps {
   onAddChart: (chartType: ChartType) => void;
 }
 
-const C0 = CHART_COLORS[0];
-const C1 = CHART_COLORS[1];
-const C2 = CHART_COLORS[2];
+// Read at render time, not module init: CHART_COLORS lives in another chunk and
+// indexing it here risks the documented prod chunk-order crash (see FormenSection).
+const c = (index: number) => CHART_COLORS[index];
 
 /**
  * Static mini-chart glyphs (literal brand colors, no live Recharts) — one per
@@ -25,18 +25,18 @@ const C2 = CHART_COLORS[2];
 const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
   bar: () => (
     <>
-      <rect x="8" y="20" width="9" height="22" rx="1.5" fill={C0} />
-      <rect x="21" y="10" width="9" height="32" rx="1.5" fill={C1} />
-      <rect x="34" y="26" width="9" height="16" rx="1.5" fill={C2} />
-      <rect x="47" y="16" width="9" height="26" rx="1.5" fill={C0} />
+      <rect x="8" y="20" width="9" height="22" rx="1.5" fill={c(0)} />
+      <rect x="21" y="10" width="9" height="32" rx="1.5" fill={c(1)} />
+      <rect x="34" y="26" width="9" height="16" rx="1.5" fill={c(2)} />
+      <rect x="47" y="16" width="9" height="26" rx="1.5" fill={c(0)} />
     </>
   ),
   'bar-horizontal': () => (
     <>
-      <rect x="8" y="8" width="40" height="7" rx="1.5" fill={C0} />
-      <rect x="8" y="18" width="48" height="7" rx="1.5" fill={C1} />
-      <rect x="8" y="28" width="26" height="7" rx="1.5" fill={C2} />
-      <rect x="8" y="38" width="34" height="7" rx="1.5" fill={C0} />
+      <rect x="8" y="8" width="40" height="7" rx="1.5" fill={c(0)} />
+      <rect x="8" y="18" width="48" height="7" rx="1.5" fill={c(1)} />
+      <rect x="8" y="28" width="26" height="7" rx="1.5" fill={c(2)} />
+      <rect x="8" y="38" width="34" height="7" rx="1.5" fill={c(0)} />
     </>
   ),
   line: () => (
@@ -44,7 +44,7 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
       <polyline
         points="8,38 22,26 36,30 56,10"
         fill="none"
-        stroke={C0}
+        stroke={c(0)}
         strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -55,17 +55,17 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
         [36, 30],
         [56, 10],
       ].map(([cx, cy]) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" fill={C0} />
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" fill={c(0)} />
       ))}
     </>
   ),
   area: () => (
     <>
-      <path d="M8 38 L22 26 L36 30 L56 10 L56 44 L8 44 Z" fill={C0} fillOpacity="0.3" />
+      <path d="M8 38 L22 26 L36 30 L56 10 L56 44 L8 44 Z" fill={c(0)} fillOpacity="0.3" />
       <polyline
         points="8,38 22,26 36,30 56,10"
         fill="none"
-        stroke={C0}
+        stroke={c(0)}
         strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -74,20 +74,20 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
   ),
   pie: () => (
     <>
-      <circle cx="32" cy="24" r="18" fill={C0} />
-      <path d="M32 24 L32 6 A18 18 0 0 1 47.6 33 Z" fill={C1} />
-      <path d="M32 24 L47.6 33 A18 18 0 0 1 25.8 40.9 Z" fill={C2} />
+      <circle cx="32" cy="24" r="18" fill={c(0)} />
+      <path d="M32 24 L32 6 A18 18 0 0 1 47.6 33 Z" fill={c(1)} />
+      <path d="M32 24 L47.6 33 A18 18 0 0 1 25.8 40.9 Z" fill={c(2)} />
     </>
   ),
   donut: () => (
     <g transform="rotate(-90 32 24)">
-      <circle cx="32" cy="24" r="14" fill="none" stroke={C0} strokeWidth="8" />
+      <circle cx="32" cy="24" r="14" fill="none" stroke={c(0)} strokeWidth="8" />
       <circle
         cx="32"
         cy="24"
         r="14"
         fill="none"
-        stroke={C1}
+        stroke={c(1)}
         strokeWidth="8"
         strokeDasharray="35 53"
       />
@@ -96,7 +96,7 @@ const CHART_PREVIEWS: { readonly [K in ChartType]: () => ReactNode } = {
         cy="24"
         r="14"
         fill="none"
-        stroke={C2}
+        stroke={c(2)}
         strokeWidth="8"
         strokeDasharray="20 68"
         strokeDashoffset="-35"
