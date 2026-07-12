@@ -2,13 +2,13 @@ import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useRef, useCallback } from 'react';
 import type * as Y from 'yjs';
 
-import { serializeDeck } from '../collab/pagesDoc';
+import { serializeDeck, type SerializedPage } from '../collab/pagesDoc';
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 
 interface DeckAutoSaveOptions {
   /** The Y.Doc holding the deck's pages (usePageManager.pagesDoc). */
   ydoc: Y.Doc;
-  /** Off in collab mode (Hocuspocus persists) and below two pages (per-page autosave). */
+  /** Off in collab mode (Hocuspocus persists server-side). */
   enabled: boolean;
   /** configId of the first page — recorded as the share's sharepicType. */
   deckType: string;
@@ -20,15 +20,84 @@ interface DeckAutoSaveOptions {
 const SAVE_DEBOUNCE_MS = 4000;
 
 /**
- * Deck-level gallery autosave for local (non-collab) multi-page documents.
- *
- * The per-page useCanvasAutoSave serializes exactly one page's state, so it
- * is disabled beyond one page; this hook persists the WHOLE deck instead:
- * every Y.Doc change (template fields, layers, page ops) debounces a save of
- * `serializeDeck` under `metadata.content.pages`, with page 1's render as the
- * share image. It shares the AutoSaveStore token with the per-page path, so a
- * document growing from one page to two keeps updating the same gallery
- * record instead of forking a duplicate draft.
+ * Placeholder written into serialized page state where a transient background
+ * (blob:/data: URL) was persisted into the share's original-image slot.
+ * Restore substitutes it with the re-fetched `/share/:token/original` URL.
+ */
+export const SHARE_ORIGINAL_IMAGE_SRC = 'share:original';
+
+const IMAGE_SRC_KEYS = ['currentImageSrc', 'imageSrc'] as const;
+
+const isTransientUrl = (src: unknown): src is string =>
+  typeof src === 'string' && (src.startsWith('blob:') || src.startsWith('data:'));
+
+async function blobUrlToBase64(url: string): Promise<string | null> {
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Transient background URLs (blob: object URLs from the studio form flow)
+ * die with the session — persist the first one into the share's single
+ * original-image slot (the same mechanism the legacy per-page autosave used)
+ * and mark its occurrences in the serialized state for restore. Additional
+ * DISTINCT transient sources exceed that one slot and are left as-is.
+ */
+async function extractOriginalImage(
+  pages: SerializedPage[]
+): Promise<{ pages: SerializedPage[]; originalImageBase64: string | null }> {
+  let originalSrc: string | null = null;
+  for (const page of pages) {
+    for (const key of IMAGE_SRC_KEYS) {
+      const src = page.state[key];
+      if (isTransientUrl(src)) {
+        originalSrc = src;
+        break;
+      }
+    }
+    if (originalSrc) break;
+  }
+  if (!originalSrc) return { pages, originalImageBase64: null };
+
+  const originalImageBase64 = await blobUrlToBase64(originalSrc);
+  if (!originalImageBase64) return { pages, originalImageBase64: null };
+
+  const mapped = pages.map((page) => {
+    let state: Record<string, unknown> | null = null;
+    for (const key of IMAGE_SRC_KEYS) {
+      const src = page.state[key];
+      if (src === originalSrc) {
+        state = state ?? { ...page.state };
+        state[key] = SHARE_ORIGINAL_IMAGE_SRC;
+      } else if (isTransientUrl(src)) {
+        console.warn(
+          '[DeckAutoSave] additional transient background image cannot be persisted (one original-image slot per share)'
+        );
+      }
+    }
+    return state ? { ...page, state } : page;
+  });
+  return { pages: mapped, originalImageBase64 };
+}
+
+/**
+ * Gallery autosave for local (non-collab) canvas documents — the ONLY
+ * gallery writer in the multi-page editor, regardless of page count (a
+ * single-page doc is just a one-page deck). Every Y.Doc change (template
+ * fields, layers, page ops) debounces a save of `serializeDeck` under
+ * `metadata.content.pages`, with page 1's render as the share image. The
+ * deck shape is lossless and type-agnostic, so every template round-trips —
+ * unlike the legacy per-type field whitelist, which stays read-only for old
+ * drafts.
  */
 export function useDeckAutoSave({
   ydoc,
@@ -80,25 +149,35 @@ export function useDeckAutoSave({
 
     r.setAutoSaveStatus('saving');
     try {
-      const pages = serializeDeck(ydoc);
+      const { pages, originalImageBase64 } = await extractOriginalImage(serializeDeck(ydoc));
       const metadata = {
         sharepicType: r.deckType,
-        hasOriginalImage: false,
+        hasOriginalImage: originalImageBase64 !== null,
         content: { pages },
         styling: {},
         generatedAt: new Date().toISOString(),
       };
-      const title = `Canvas: ${r.deckType} (${pages.length} Seiten)`;
+      const title =
+        pages.length > 1
+          ? `Canvas: ${r.deckType} (${pages.length} Seiten)`
+          : `Canvas: ${r.deckType}`;
 
       const token = autoSaveStoreApi.getState().autoSavedShareToken;
       const share = token
-        ? await r.updateImageShare({ shareToken: token, imageBase64: image, title, metadata })
+        ? await r.updateImageShare({
+            shareToken: token,
+            imageBase64: image,
+            title,
+            metadata,
+            ...(originalImageBase64 ? { originalImage: originalImageBase64 } : {}),
+          })
         : await r.createImageShare({
             imageData: image,
             title,
             imageType: r.deckType,
             metadata,
             status: 'draft',
+            ...(originalImageBase64 ? { originalImage: originalImageBase64 } : {}),
           });
 
       if (share?.shareToken) {

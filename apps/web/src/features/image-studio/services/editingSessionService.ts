@@ -154,9 +154,10 @@ let galleryEditRestoreAttempted = false;
 // sessions on a fresh creation — cannot race the restore of THIS page load.
 let stashedGalleryEditSession: PersistedGalleryEditSession | null | undefined;
 
-// Only types whose autosave metadata loadGalleryEditData can faithfully map
-// back into form state. All other types store generic { canvasState } content
-// that would restore as a BLANK editor (and then mint a duplicate draft).
+// LEGACY-ONLY gate: pre-deck saves are restorable just for types whose
+// per-field metadata maps back into form state. New saves always carry the
+// lossless deck shape (content.pages) and pass isRestorableDeckContent
+// regardless of type.
 const RESTORABLE_SHAREPIC_TYPES = new Set([
   'dreizeilen',
   'zitat',

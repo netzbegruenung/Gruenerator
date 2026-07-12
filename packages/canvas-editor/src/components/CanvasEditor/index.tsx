@@ -448,21 +448,17 @@ function CanvasEditorInner({
     return await ref.current.captureCanvasForAi();
   }, [currentPageIndex, canvasRefsRef]);
 
-  // Deck-level autosave for local multi-page docs: per-page autosave only
-  // serializes one page's state, so it hands over to this once the doc goes
-  // multi-page — and STAYS handed over (latch) even if pages are deleted
-  // back down to one. Flipping back would overwrite the gallery record's
-  // deck serialization with the single-page shape, dropping layers/config.
-  const everMultiPageRef = useRef(false);
-  if (pageCount > 1) everMultiPageRef.current = true;
-  const deckAutoSaveMode = everMultiPageRef.current || pageCount > 1;
+  // The ONLY gallery autosave in this editor, for any page count — a
+  // single-page doc is a one-page deck. Per-page useCanvasAutoSave is
+  // disabled below (autoSave={false}); its legacy per-type metadata shape
+  // stays read-only for old drafts.
   const captureFirstPage = useCallback(async () => {
     const ref = canvasRefsRef.current[0];
     return ref?.current ? await ref.current.captureCanvas() : null;
   }, [canvasRefsRef]);
   useDeckAutoSave({
     ydoc: pagesDoc,
-    enabled: !collaborative && !isMobileBridge && deckAutoSaveMode,
+    enabled: !collaborative && !isMobileBridge,
     deckType: pages[0]?.configId ?? initialConfigId,
     captureImage: captureFirstPage,
     onShareToken: onAutoSaveShareToken,
@@ -1125,7 +1121,7 @@ function CanvasEditorInner({
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
                 onAutoSaveShareToken={onAutoSaveShareToken}
-                autoSave={!collaborative && !deckAutoSaveMode}
+                autoSave={false}
                 mobileBridge={isActive ? mobileBridge : undefined}
                 pageBinding={pageBindingAt(index, page.id, isActive)}
               />
