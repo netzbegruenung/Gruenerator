@@ -46,11 +46,13 @@ import {
 } from '../../../utils/illustrations/registry';
 import { assertNever } from '../../../utils/shapes';
 import { CARD_GRID, SELECTABLE_CARD } from '../../sidebarStyles';
+import { ChartTypePreview } from '../DiagrammeSection';
 
 import { PREVIEW_COMPONENTS } from './constants';
 
 import type React from 'react';
 import type { SearchResult } from './useAssetSearch';
+import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiDef, SvgDef } from '../../../utils/illustrations/types';
 import type { ShapeType } from '../../../utils/shapes';
@@ -91,6 +93,7 @@ export interface SearchResultsGridProps {
   results: SearchResult[];
   onAddAsset?: (assetId: string) => void;
   onAddShape?: (type: ShapeType) => void;
+  onAddChart?: (chartType: ChartType) => void;
   onAddIllustration?: (id: string) => void;
   onAddFrame?: (clipType: FrameClipType) => void;
   selectedIcons?: string[];
@@ -102,6 +105,7 @@ export function SearchResultsGrid({
   results,
   onAddAsset,
   onAddShape,
+  onAddChart,
   onAddIllustration,
   onAddFrame,
   selectedIcons = [],
@@ -145,6 +149,23 @@ export function SearchResultsGrid({
             >
               <div className="flex items-center justify-center w-full h-full relative text-secondary-600 dark:text-secondary-300">
                 <ShapeSearchPreview type={shape.id} />
+              </div>
+            </button>
+          );
+        }
+
+        if (result.type === 'chart' && result.chartTypeDef && onAddChart) {
+          const def = result.chartTypeDef;
+          return (
+            <button
+              key={`chart-${result.id}`}
+              className={SELECTABLE_CARD}
+              onClick={() => onAddChart(def.id)}
+              type="button"
+              title={`${def.name} einfügen`}
+            >
+              <div className="flex items-center justify-center w-full h-full relative">
+                <ChartTypePreview type={def.id} size={32} />
               </div>
             </button>
           );
