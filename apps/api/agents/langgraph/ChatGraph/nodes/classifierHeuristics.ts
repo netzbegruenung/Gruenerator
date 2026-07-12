@@ -475,8 +475,9 @@ export function heuristicClassify(
   // text is compute's primary use case.
   const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
 
-  // High confidence (0.95): Greetings and thanks at start of message
-  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)/i.test(q.trim())) {
+  // High confidence (0.95): Greetings and thanks at start of message.
+  // \b is required: without it "Hier unser Protokoll …" matches ^hi.
+  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)\b/i.test(q.trim())) {
     return {
       intent: 'direct',
       searchQuery: null,
