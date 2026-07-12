@@ -112,7 +112,7 @@ const SidebarAccount = memo(function SidebarAccount({
       <DropdownMenuItem
         onClick={() => {
           onNavigate('/workplace', 'Workplace');
-          void import('../../../features/workplace/tour/workplaceTour').then((m) =>
+          void import('../../../features/tours/workplaceTour').then((m) =>
             m.startWorkplaceTour((path) => onNavigate(path, ''))
           );
         }}

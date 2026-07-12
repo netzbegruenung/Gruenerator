@@ -11,6 +11,8 @@ interface EditorTopBarProps {
   rightActions?: ReactNode;
   onTitleChange?: (newTitle: string) => void;
   editable?: boolean;
+  /** Anchor for product tours — scoped per editor since this bar is shared. */
+  dataTour?: string;
 }
 
 export const EditorTopBar = ({
@@ -20,9 +22,10 @@ export const EditorTopBar = ({
   rightActions,
   onTitleChange,
   editable = false,
+  dataTour,
 }: EditorTopBarProps) => {
   return (
-    <header className="editor-topbar">
+    <header className="editor-topbar" data-tour={dataTour}>
       <div className="editor-topbar__left">
         {onBack && (
           <button className="glass-btn" onClick={onBack} aria-label="Zurück">

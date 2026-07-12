@@ -1,9 +1,8 @@
-import { driver, type Driver } from 'driver.js';
+import { type Driver } from 'driver.js';
 
-import { markWorkplaceTourDone } from './tourState';
+import useSidebarStore from '../../stores/sidebarStore';
 
-import 'driver.js/dist/driver.css';
-import './workplaceTour.css';
+import { runTour, waitForElement } from './runTour';
 
 const SEL = {
   composer: '[data-tour="workplace-composer"]',
@@ -16,29 +15,28 @@ const SEL = {
   sidebar: '[data-tour="app-sidebar"]',
 } as const;
 
-// Tab contents are lazy chunks — after a route change the step target may not
-// be mounted yet.
-function waitForElement(selector: string, timeoutMs = 5000): Promise<Element | null> {
-  return new Promise((resolve) => {
-    const startedAt = Date.now();
-    const poll = () => {
-      const el = document.querySelector(selector);
-      if (el) return resolve(el);
-      if (Date.now() - startedAt > timeoutMs) return resolve(null);
-      setTimeout(poll, 100);
-    };
-    poll();
-  });
-}
-
 type NavigateFn = (path: string) => void;
 
-let tourActive = false;
+const SIDEBAR_EXPAND_REQUESTER = 'workplace-tour';
+// Width transition is 200ms; highlight only after it settles so the spotlight
+// matches the expanded sidebar.
+const SIDEBAR_EXPAND_MS = 300;
+
+function expandSidebar(after: () => void) {
+  if (document.querySelector(SEL.sidebar)) {
+    useSidebarStore.getState().requestForceExpanded(SIDEBAR_EXPAND_REQUESTER);
+    setTimeout(after, SIDEBAR_EXPAND_MS);
+  } else {
+    after();
+  }
+}
+
+function collapseSidebar(after?: () => void) {
+  useSidebarStore.getState().releaseForceExpanded(SIDEBAR_EXPAND_REQUESTER);
+  if (after) setTimeout(after, SIDEBAR_EXPAND_MS);
+}
 
 export function startWorkplaceTour(navigate: NavigateFn): void {
-  if (tourActive) return;
-  tourActive = true;
-
   const crossTab =
     (path: string, selector: string, move: (drv: Driver) => void) =>
     (_el: Element | undefined, _step: unknown, opts: { driver: Driver }) => {
@@ -46,20 +44,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
       void waitForElement(selector).then(() => move(opts.driver));
     };
 
-  const driverObj = driver({
-    popoverClass: 'gruenerator-tour',
-    overlayOpacity: 0.55,
-    stagePadding: 6,
-    stageRadius: 14,
-    showProgress: true,
-    progressText: '{{current}} von {{total}}',
-    nextBtnText: 'Weiter',
-    prevBtnText: 'Zurück',
-    doneBtnText: 'Fertig',
-    onDestroyed: () => {
-      tourActive = false;
-    },
-    steps: [
+  runTour(
+    'workplace',
+    [
       {
         element: SEL.composer,
         popover: {
@@ -125,6 +112,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           description:
             'Fertige Wissenssammlungen — vom Bundesverband bis zu deinem Landesverband. Oder leg ein eigenes Notebook mit deinen Dokumenten an und recherchiere darin.',
           side: 'top',
+          onNextClick: (_el, _step, opts) => {
+            expandSidebar(() => opts.driver.moveNext());
+          },
         },
       },
       {
@@ -134,19 +124,12 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           description:
             'Von überall erreichbar: Suche (⌘K), Wissen, neue Inhalte anlegen, deine Chats und dein Konto.',
           side: 'right',
+          onPrevClick: (_el, _step, opts) => {
+            collapseSidebar(() => opts.driver.movePrevious());
+          },
         },
       },
     ],
-  });
-
-  void waitForElement(SEL.composer).then((el) => {
-    if (!el) {
-      tourActive = false;
-      return;
-    }
-    // Marked at start (not completion) so an abandoned tour never auto-replays;
-    // the manual entry in the account menu stays available.
-    markWorkplaceTourDone();
-    driverObj.drive();
-  });
+    { onDestroyed: () => collapseSidebar() }
+  );
 }
