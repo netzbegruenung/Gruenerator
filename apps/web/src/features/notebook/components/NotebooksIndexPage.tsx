@@ -93,6 +93,7 @@ const NotebookCard = memo(
         title={notebook.title}
         meta={notebook.meta}
         icon={notebook.icon}
+        accent="pink"
         onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
         menu={
           hasMenu ? (
@@ -275,6 +276,7 @@ const EigeneNotebooks = memo(
                   title={c.name}
                   meta={c.description || 'Eigenes Notebook'}
                   icon={NotebookIcon}
+                  accent="pink"
                   onActivate={() => onView(c.id)}
                   menu={
                     <DropdownMenu>
