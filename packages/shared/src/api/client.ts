@@ -87,7 +87,7 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
         // (session-debug correlation). The backend puts `code`/`requestId` in the
         // 401 body and mirrors the id to the `X-Request-Id` header.
         const errorBody = error.response.data as { code?: string; requestId?: string } | undefined;
-        const requestIdHeader = error.response.headers?.['x-request-id'];
+        const requestIdHeader: unknown = error.response.headers?.['x-request-id'];
         const info = {
           url: originalRequest.url,
           method: originalRequest.method,
