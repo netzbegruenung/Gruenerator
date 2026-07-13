@@ -21,6 +21,12 @@
  * the loop — that deterministic fast path stays; this just lets a search/web
  * turn also crawl a page ("suche X und lies den ersten Treffer").
  *
+ * Phase 2b: when a `loop` context is supplied (the live agentic path, absent in
+ * unit tests) the classified intent's DOMAIN tool is mounted too — `summary`,
+ * `bundestag` or `abgeordnetenwatch` (see `domainTools.ts`). These are
+ * intent-scoped (only the routed intent's tool is added) to keep Mistral's
+ * catalog lean; a general per-turn selector is Phase 3n.
+ *
  * Loop-level concerns (guards, SSE cards, timeouts, truncation, step recording)
  * are layered on separately by `wrapToolsForLoop`.
  */
@@ -31,11 +37,18 @@ import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 
+import {
+  makeAbgeordnetenwatchTool,
+  makeBundestagTool,
+  makeImageTool,
+  makeSummaryTool,
+} from './domainTools.js';
 import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
-import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import type { SSEWriter } from '../services/sseHelpers.js';
 
 const log = createLogger('toolCatalog');
 
@@ -60,8 +73,15 @@ export interface ChatToolCatalog {
 export function buildChatToolCatalog(params: {
   agentConfig: AgentConfig;
   sourceRegistry: SourceRegistry;
+  /**
+   * Live-loop context. Present only on the agentic path; enables the intent-
+   * scoped domain tools (summary/bundestag/abgeordnetenwatch) which emit their
+   * own SSE and run existing ChatGraph nodes. Absent in unit tests → search
+   * family only.
+   */
+  loop?: { sse: SSEWriter; state: ChatGraphState };
 }): ChatToolCatalog {
-  const { agentConfig, sourceRegistry } = params;
+  const { agentConfig, sourceRegistry, loop } = params;
 
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
@@ -152,6 +172,34 @@ NUTZE WENN:
       return { resultCount: results.length, sources };
     },
   });
+
+  // Phase 2b: mount the classified intent's domain tool (loop path only). The
+  // search family above stays available for composition ("suche X und fasse
+  // zusammen"); only the routed intent's specialised tool is added on top.
+  if (loop) {
+    const { sse, state } = loop;
+    switch (state.intent) {
+      case 'summary':
+        tools.summarize = makeSummaryTool({ sse, state });
+        break;
+      case 'bundestag':
+        tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
+        break;
+      case 'abgeordnetenwatch':
+        tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+        break;
+      case 'image':
+        // Respect the image gate ("enabled unless explicitly false", mirroring
+        // the single-pass executor which reads state.enabledTools). image_edit
+        // stays single-pass (needs an attachment).
+        if (state.enabledTools?.['image'] !== false) {
+          tools.generate_image = makeImageTool({ sse, state });
+        }
+        break;
+      default:
+        break;
+    }
+  }
 
   return { tools, toolNames: Object.keys(tools) };
 }

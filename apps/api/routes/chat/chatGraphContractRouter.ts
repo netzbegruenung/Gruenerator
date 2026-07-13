@@ -595,11 +595,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // the client to expect real tool cards (and skip the fabricated one). It
       // must be stable through to Stage 2: forced @tool mentions, images, and
       // non-Mistral selections stay on the deterministic single-pass pipeline.
+      // For an `mcp` turn the forcedTool flag means "the user picked this
+      // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
+      // so it may still enter the loop, which mounts that server's MCP tools.
+      const isMcpTurn = classifiedState.intent === 'mcp';
       const runAgentic =
         isAgenticLoopEnabled() &&
         AGENTIC_INTENTS.has(classifiedState.intent) &&
-        !forcedTool &&
+        (!forcedTool || isMcpTurn) &&
         !isCompound &&
+        // A generation secondaryIntent (e.g. search + sharepic) is executed by
+        // the single-pass intentsToExecute fan-out; the loop has no fat tool for
+        // it yet (Phase 3n), so keep multi-intent turns on the pipeline instead
+        // of silently dropping the secondary.
+        !classifiedState.secondaryIntent &&
         imageAttachments.length === 0 &&
         selectionIsToolCapable(
           classifiedState.agentConfig.provider as string,
@@ -1008,7 +1017,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           finalState.searchResults = outcome.sources;
           finalState.searchCount = outcome.sources.length;
         }
-        generatedImage = null;
+        // The generate_image loop tool merges its result onto the shared state;
+        // lift it so the assistant message persists the image (its rehydration
+        // reads message-level generatedImage metadata, not the tool-call).
+        generatedImage = finalState.generatedImage ?? null;
         sharepicVariants = [];
         socialPost = null;
         fullText = outcome.fullText;
