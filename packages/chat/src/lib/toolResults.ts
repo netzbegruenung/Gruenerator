@@ -112,6 +112,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   scrape_url: { label: 'URL', iconKey: 'external-link' },
   recall_memory: { label: 'Erinnerung', iconKey: 'message-circle' },
   save_memory: { label: 'Speichern', iconKey: 'message-circle' },
+  search_chat_history: { label: 'Vergangene Gespräche', iconKey: 'message-circle' },
   search_user_content: { label: 'Inhalte', iconKey: 'search' },
   gruenerator_pressemitteilung_examples: { label: 'Pressemitteilungen', iconKey: 'file' },
   ask_human: { label: 'Rückfrage', iconKey: 'message-circle' },

@@ -214,6 +214,11 @@ function buildToolGuidelines(
     );
   }
 
+  tools.push(
+    '- **search_chat_history**: Durchsucht die früheren Chats des Nutzers und liest das relevanteste Gespräch.\n' +
+      '  Nutze dieses Tool, wenn der Nutzer sich auf ein vergangenes Gespräch bezieht ("was haben wir letztes Mal besprochen", "mach da weiter wo wir aufgehört haben").'
+  );
+
   if (check('memory_save')) {
     tools.push(
       '- **save_memory**: Speichere wichtige Informationen über den Nutzer.\n' +

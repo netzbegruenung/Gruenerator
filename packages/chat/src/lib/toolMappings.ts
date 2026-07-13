@@ -8,6 +8,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   research: 'research',
   examples: 'gruenerator_examples_search',
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
+  chat_history: 'search_chat_history',
 };
 
 /**
