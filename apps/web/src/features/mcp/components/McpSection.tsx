@@ -9,7 +9,7 @@
  */
 import { Switch } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiServer, FiSearch, FiLock, FiCheck, FiLoader } from 'react-icons/fi';
 
 import {
@@ -40,6 +40,9 @@ import type { ConnectionStatus } from '../../connections/lib/connectionsApi';
 
 import { cn } from '@/utils/cn';
 
+// Nango is disabled until its secret key handling on beta/prod is fixed
+// (server 401s with unknown_account); the panel is MCP-only for now.
+const NANGO_ENABLED = false;
 const NANGO_PUBLIC_URL =
   (import.meta.env.VITE_NANGO_PUBLIC_URL as string | undefined) ?? 'https://nango.gruenerator.eu';
 const NANGO_CATEGORY = 'Dateien & Cloud';
@@ -170,6 +173,7 @@ const McpAddForm = memo(
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [setupUrl, setSetupUrl] = useState<string | null>(null);
+    const tokenRef = useRef<HTMLInputElement>(null);
     const redirectUri = `${window.location.origin}/api/mcp/auth/callback`;
 
     // A pick from the discover list fills the form so the user only confirms.
@@ -181,6 +185,13 @@ const McpAddForm = memo(
         setSetupUrl(prefill.setupUrl ?? null);
       }
     }, [prefill]);
+
+    // Runs after the render in which the token input exists.
+    useEffect(() => {
+      if (prefill?.authType === 'bearer' && authType === 'bearer') {
+        tokenRef.current?.focus({ preventScroll: true });
+      }
+    }, [prefill, authType]);
 
     const submit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -242,6 +253,7 @@ const McpAddForm = memo(
           </select>
           {authType === 'bearer' && (
             <input
+              ref={tokenRef}
               className={inputClass}
               type="password"
               placeholder="Token"
@@ -608,13 +620,14 @@ type AvailableItem =
 
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: servers = [], isLoading } = useMcpServers();
-  const { data: nangoProviders = [] } = useConnectionStatus();
+  const { data: nangoProviders = [] } = useConnectionStatus(NANGO_ENABLED);
   const createToken = useCreateSessionToken();
   const disconnect = useDisconnectProvider();
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
+  const addFormRef = useRef<HTMLDivElement>(null);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(search);
   const queryClient = useQueryClient();
 
@@ -667,6 +680,9 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           manual: true,
           setupUrl: entry.setupUrl,
         });
+        requestAnimationFrame(() =>
+          addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        );
         return;
       }
       // Popup opens synchronously inside runOAuth; create the server, then auth.
@@ -698,6 +714,9 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     // bearer / unknown → prefill the form so the user pastes a token. New object
     // identity each pick so the form's effect re-fires even for the same server.
     setPrefill({ name: entry.title, url: entry.url, authType: 'bearer' });
+    requestAnimationFrame(() =>
+      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
   };
 
   const handleConnectNango = useCallback(
@@ -892,9 +911,9 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       </div>
 
       {/* Custom MCP server */}
-      <div className="mt-xl">
+      <div ref={addFormRef} className="mt-xl scroll-mt-24">
         <h3 className="m-0 mb-sm text-xs font-bold tracking-widest uppercase text-grey-500">
-          Eigenen MCP-Server hinzufügen
+          {prefill ? `${prefill.name} verbinden` : 'Eigenen MCP-Server hinzufügen'}
         </h3>
         <McpAddForm onSuccess={onSuccess} onError={onError} prefill={prefill} />
       </div>

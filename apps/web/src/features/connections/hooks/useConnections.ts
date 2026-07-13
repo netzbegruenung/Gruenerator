@@ -10,12 +10,13 @@ import {
 
 const CONNECTIONS_KEY = ['connections', 'status'] as const;
 
-export function useConnectionStatus() {
+export function useConnectionStatus(enabled = true) {
   return useQuery<ConnectionStatus[]>({
     queryKey: CONNECTIONS_KEY,
     queryFn: fetchConnectionStatus,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    enabled,
   });
 }
 
