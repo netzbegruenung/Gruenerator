@@ -166,7 +166,8 @@ export function NotebookStartpage({
   );
 
   // Force-fall-through to 'ki' if Manuelle Recherche isn't available.
-  const activeView: ViewMode = viewMode === 'recherche' && manualSearchAvailable ? 'recherche' : 'ki';
+  const activeView: ViewMode =
+    viewMode === 'recherche' && manualSearchAvailable ? 'recherche' : 'ki';
 
   const activeBrowseTab = availableBrowseTabs.some((t) => t.id === browseTab)
     ? browseTab
@@ -249,10 +250,7 @@ export function NotebookStartpage({
               <SegTab active={activeView === 'ki'} onClick={() => setViewMode('ki')}>
                 KI
               </SegTab>
-              <SegTab
-                active={activeView === 'recherche'}
-                onClick={() => setViewMode('recherche')}
-              >
+              <SegTab active={activeView === 'recherche'} onClick={() => setViewMode('recherche')}>
                 Manuelle Recherche
               </SegTab>
             </div>
