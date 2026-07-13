@@ -21,10 +21,12 @@ import { z } from 'zod';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
+import { runSharepicGeneration } from '../services/intentExecutionService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import type { Request } from 'express';
 
 /**
  * `summarize`: map-reduce digest of the turn's attached documents (or, absent
@@ -187,6 +189,67 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
       const err = result.error ?? 'Bildgenerierung fehlgeschlagen.';
       sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
       return { error: err };
+    },
+  });
+}
+
+/**
+ * `sharepic` (Phase 3n fat tool, compound turns only): wraps the complete
+ * single-pass sharepic pipeline (`runSharepicGeneration` — loop-safe: it emits
+ * `sharepic_complete` itself and never ends the turn) so "recherchiere X und
+ * mach ein Sharepic" can compose search + generation in ONE loop. The catalog
+ * key MUST stay `sharepic`: card rehydration and follow-up edits look up the
+ * persisted `toolName === 'sharepic'` with `result.variants`
+ * (threadMessageConversion / getLastSharepicVariant / sharepicEditService), so
+ * returning `{ variants }` verbatim keeps all three consumers unchanged.
+ */
+export function makeCreateSharepicTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  req: Request;
+  threadId: string | null;
+}): Tool {
+  const { sse, state, req, threadId } = ctx;
+  return tool({
+    description: `Erstellt ein Sharepic (Social-Media-Grafik) aus einer Kernaussage.
+
+NUTZE WENN der*die Nutzer*in ein Sharepic/eine Grafik zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib die konkrete, belegte Kernaussage — kein Platzhaltertext.`,
+    inputSchema: z.object({
+      text: z
+        .string()
+        .min(1)
+        .describe('Kernaussage/Thema des Sharepics — konkret, mit den recherchierten Fakten'),
+    }),
+    execute: async ({ text }) => {
+      // Idempotent per turn (mirror of generate_image): variants are expensive
+      // and the model can't see the rendered result, so it tends to re-call.
+      if (state.sharepicVariants?.length) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Sharepic erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige das Sharepic kurz an.',
+        };
+      }
+      sse.send('image_start', { message: 'Erstelle Sharepic-Varianten...' });
+      // runSharepicGeneration reads its topic from the LAST user message —
+      // inject the model's researched text there (same trick as generate_image).
+      const injected = { role: 'user', content: text } as ChatGraphState['messages'][number];
+      const variants = await runSharepicGeneration({
+        state: { ...state, messages: [...state.messages, injected] },
+        sse,
+        req,
+        threadId,
+      });
+      if (variants.length === 0) {
+        // Error SSE already emitted inside runSharepicGeneration.
+        return { error: 'Sharepic-Erstellung fehlgeschlagen.' };
+      }
+      // Shared-ref merge → forceFinish trips and the router lifts the variants
+      // for persistence (like generatedImage).
+      state.sharepicVariants = variants;
+      return {
+        variants,
+        note: 'Sharepic erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an und biete Anpassungen an.',
+      };
     },
   });
 }
