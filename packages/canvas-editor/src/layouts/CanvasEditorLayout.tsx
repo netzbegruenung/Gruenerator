@@ -87,8 +87,8 @@ export function CanvasEditorLayout({
         )}
       >
         {contextBar && (
-          <div className="pointer-events-none absolute top-3 left-1/2 z-[90] flex w-full -translate-x-1/2 justify-center px-3 max-canvas-mobile:hidden">
-            <div className="pointer-events-auto max-w-full">{contextBar}</div>
+          <div className="z-[90] flex w-full shrink-0 justify-center px-3 pt-3 max-canvas-mobile:hidden">
+            <div className="max-w-full">{contextBar}</div>
           </div>
         )}
         {templateCreator && (

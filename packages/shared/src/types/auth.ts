@@ -47,10 +47,23 @@ export type AuthStore = AuthState & AuthActions;
 /**
  * Configuration for API client
  */
+/**
+ * Context about the 401 that triggered {@link ApiConfig.onUnauthorized}.
+ * All fields optional — the handler works with or without them (a bare
+ * `() => …` stays assignable). Used for session-debug correlation.
+ */
+export interface UnauthorizedInfo {
+  url?: string | undefined;
+  method?: string | undefined;
+  status?: number | undefined;
+  requestId?: string | undefined;
+  code?: string | undefined;
+}
+
 export interface ApiConfig {
   baseURL: string;
   getAuthToken?: () => Promise<string | null>;
-  onUnauthorized?: () => void | Promise<boolean>;
+  onUnauthorized?: (info?: UnauthorizedInfo) => void | Promise<boolean>;
   /**
    * Called when a response carries a refreshed bearer token (Better Auth's
    * `set-auth-token` header). Persist it so the stored token tracks the server
