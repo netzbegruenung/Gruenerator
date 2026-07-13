@@ -6,31 +6,14 @@ import {
   Skeleton,
   VideoCard,
 } from '@gruenerator/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import React, { memo, useCallback } from 'react';
 import { HiPencil } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
-
-interface RecentItem {
-  id: string;
-  title: string;
-  date: string;
-  type: string;
-  href: string;
-  thumbnailUrl?: string;
-  duration?: number;
-  deleteEndpoint?: string;
-}
-
-const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 12 },
-  });
-  return res.data?.items ?? [];
-};
+import { type RecentItem, useRecentActivity } from '../hooks/useRecentActivity';
 
 const ReelCard = memo(
   ({
@@ -80,11 +63,7 @@ const ReelsSection: React.FC = memo(() => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: allItems = [], isLoading } = useQuery({
-    queryKey: ['recent-activity'],
-    queryFn: fetchRecentActivity,
-    staleTime: 30_000,
-  });
+  const { data: allItems = [], isLoading } = useRecentActivity();
 
   const reels = allItems.filter((item) => item.type === 'video').slice(0, 5);
 

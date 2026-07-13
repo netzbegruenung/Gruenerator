@@ -11,7 +11,6 @@ import { cn } from '../../../../../../utils/cn';
 
 // Bildmodellauswahl vorübergehend auskommentiert
 // import ImageModelSettingsSection from './ImageModelSettingsSection';
-import ModelSettingsSection from './ModelSettingsSection';
 import RolesSection from './RolesSection';
 import SettingsSection from './SettingsSection';
 
@@ -206,8 +205,6 @@ const ProfileView = ({
       <RolesSection />
 
       <SettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
-
-      <ModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
 
       {/* Bildmodellauswahl vorübergehend auskommentiert
       <ImageModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} /> */}
