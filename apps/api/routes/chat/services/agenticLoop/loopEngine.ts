@@ -56,7 +56,7 @@ const GATHER_SUFFIX = [
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat.',
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
-  '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic oder Bild), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit der belegten Kernaussage auf. Verweigere die Erstellung NICHT.',
+  '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation oder eine Tabelle), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
   '- Schreibe in dieser Phase KEINE finale Antwort; sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe.',
 ].join('\n');
 

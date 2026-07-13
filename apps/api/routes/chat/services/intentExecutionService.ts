@@ -46,6 +46,7 @@ import { createMessage, touchThread } from './threadPersistenceService.js';
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
+  CreatedDocument,
   GeneratedImageResult,
   ImageAttachment,
   PendingAction,
@@ -155,6 +156,84 @@ export async function handleBoardCreation(opts: {
 }
 
 /**
+ * Loop-safe document generation core (presentations + sheets). Pure generation:
+ * runs the AI worker pool, parses the structure and creates the collaborative
+ * document — NO SSE, NO persistence, NO stream ownership. Shared by the
+ * turn-owning handlers (which wrap it with response_start/done/createMessage)
+ * AND the compound loop fat tools (which emit `document_created` + hand the
+ * card back to the model). Returns null when the model produced no parseable
+ * structure — the caller decides whether to fall through or report an error.
+ */
+export async function runDocGeneration(opts: {
+  kind: 'presentation' | 'sheet';
+  userContent: string;
+  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  req: Express.Request;
+  userId: string;
+  /** Invoked ONCE, after the model produced a parseable structure but BEFORE
+   *  the DB write. The turn-owning handlers use it to open the stream at the
+   *  original commit point (`response_start`) so a create failure still surfaces
+   *  the in-stream error rather than falling through; the loop fat tool omits
+   *  it (the loop owns the stream). */
+  onCommit?: () => void;
+}): Promise<CreatedDocument | null> {
+  const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
+  const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
+
+  if (kind === 'presentation') {
+    const {
+      PRESENTATION_GENERATION_PROMPT,
+      parsePresentationStructure,
+      createPresentationDocument,
+    } = await import('../../../services/presentations/PresentationGenerationService.js');
+    const genResult = await aiWorkerPool.processRequest(
+      {
+        type: 'doc_generation',
+        systemPrompt: PRESENTATION_GENERATION_PROMPT,
+        messages: [{ role: 'user', content: userContent }],
+        options: { temperature: 0.4, max_tokens: 4000 },
+      },
+      reqWithUser
+    );
+    const structure =
+      genResult.success && genResult.content ? parsePresentationStructure(genResult.content) : null;
+    if (!structure) {
+      log.warn('[ChatGraph] Presentation generation returned no parseable structure');
+      return null;
+    }
+    onCommit?.();
+    const doc = await createPresentationDocument(structure, userId);
+    return {
+      documentId: doc.id,
+      title: doc.title,
+      subtype: 'presentations',
+      url: `/office/${doc.id}`,
+    };
+  }
+
+  const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
+    await import('../../../services/sheets/SheetGenerationService.js');
+  const genResult = await aiWorkerPool.processRequest(
+    {
+      type: 'doc_generation',
+      systemPrompt: SHEET_GENERATION_PROMPT,
+      messages: [{ role: 'user', content: userContent }],
+      options: { temperature: 0.4, max_tokens: 4000 },
+    },
+    reqWithUser
+  );
+  const structure =
+    genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
+  if (!structure) {
+    log.warn('[ChatGraph] Sheet generation returned no parseable structure');
+    return null;
+  }
+  onCommit?.();
+  const doc = await createSheetDocument(structure, userId);
+  return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
+}
+
+/**
  * Handle the create_sheet intent / @sheet-erstellen forced tool: generate a
  * structured spreadsheet, create the collaborative_documents row (subtype
  * 'sheets') and seed its Y.Doc. Mirrors generateAndCreateDocument — the
@@ -176,53 +255,40 @@ export async function handleSheetCreation(opts: {
 
   let streamOpened = false;
   try {
-    const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
-      await import('../../../services/sheets/SheetGenerationService.js');
-
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: SHEET_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4, max_tokens: 4000 },
+    const created = await runDocGeneration({
+      kind: 'sheet',
+      userContent,
+      aiWorkerPool,
+      req,
+      userId,
+      // Open the stream at the original commit point (after a parseable
+      // structure, before the DB write) so a create failure surfaces the
+      // in-stream error via the catch instead of falling through.
+      onCommit: () => {
+        sse.send('response_start', { message: 'Erstelle Tabelle...' });
+        streamOpened = true;
       },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-
-    const structure =
-      genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
-    if (!structure) {
+    });
+    if (!created) {
       // Nothing streamed yet — return false so the caller falls through to the
       // normal respond pipeline cleanly (no dangling response_start).
-      log.warn('[ChatGraph] Sheet generation returned no parseable structure');
       return false;
     }
 
-    // Only open the stream once we know we're committing to the sheet.
-    sse.send('response_start', { message: 'Erstelle Tabelle...' });
-    streamOpened = true;
-
-    const newSheet = await createSheetDocument(structure, userId);
-
-    const responseText = `Tabelle **"${newSheet.title}"** wurde erstellt.`;
+    const responseText = `Tabelle **"${created.title}"** wurde erstellt.`;
     for (let i = 0; i < responseText.length; i += 20) {
       sse.send('text_delta', { text: responseText.slice(i, i + 20) });
     }
 
-    sse.send('document_created', {
-      documentId: newSheet.id,
-      title: newSheet.title,
-      subtype: 'sheets',
-      url: `/office/${newSheet.id}`,
-    });
+    sse.send('document_created', created);
 
-    log.info(`[ChatGraph] Sheet created: "${newSheet.title}" (${newSheet.id})`);
+    log.info(`[ChatGraph] Sheet created: "${created.title}" (${created.documentId})`);
 
     const totalTimeMs = Date.now() - classifiedState.startTime;
     sse.sendRaw('done', {
       threadId: actualThreadId,
       citations: [],
-      documentId: newSheet.id,
+      documentId: created.documentId,
       metadata: {
         intent: 'create_sheet',
         searchCount: 0,
@@ -235,12 +301,7 @@ export async function handleSheetCreation(opts: {
     if (actualThreadId) {
       await createMessage(actualThreadId, 'assistant', responseText, {
         intent: 'create_sheet',
-        createdDocument: {
-          documentId: newSheet.id,
-          title: newSheet.title,
-          subtype: 'sheets',
-          url: `/office/${newSheet.id}`,
-        },
+        createdDocument: created,
       });
       await touchThread(actualThreadId);
     }
@@ -281,58 +342,40 @@ export async function handlePresentationCreation(opts: {
 
   let streamOpened = false;
   try {
-    const {
-      PRESENTATION_GENERATION_PROMPT,
-      parsePresentationStructure,
-      createPresentationDocument,
-    } = await import('../../../services/presentations/PresentationGenerationService.js');
-
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: PRESENTATION_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4, max_tokens: 4000 },
+    const created = await runDocGeneration({
+      kind: 'presentation',
+      userContent,
+      aiWorkerPool,
+      req,
+      userId,
+      // Open the stream at the original commit point (after a parseable
+      // structure, before the DB write) so a create failure surfaces the
+      // in-stream error via the catch instead of falling through.
+      onCommit: () => {
+        sse.send('response_start', { message: 'Erstelle Präsentation...' });
+        streamOpened = true;
       },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-
-    const structure =
-      genResult.success && genResult.content ? parsePresentationStructure(genResult.content) : null;
-    if (!structure) {
+    });
+    if (!created) {
       // Nothing streamed yet — return false so the caller falls through to the
       // normal respond pipeline cleanly (no dangling response_start).
-      log.warn('[ChatGraph] Presentation generation returned no parseable structure');
       return false;
     }
 
-    // Only open the stream once we know we're committing to the presentation.
-    sse.send('response_start', { message: 'Erstelle Präsentation...' });
-    streamOpened = true;
-
-    const newPresentation = await createPresentationDocument(structure, userId);
-
-    const responseText = `Präsentation **"${newPresentation.title}"** wurde erstellt.`;
+    const responseText = `Präsentation **"${created.title}"** wurde erstellt.`;
     for (let i = 0; i < responseText.length; i += 20) {
       sse.send('text_delta', { text: responseText.slice(i, i + 20) });
     }
 
-    sse.send('document_created', {
-      documentId: newPresentation.id,
-      title: newPresentation.title,
-      subtype: 'presentations',
-      url: `/office/${newPresentation.id}`,
-    });
+    sse.send('document_created', created);
 
-    log.info(
-      `[ChatGraph] Presentation created: "${newPresentation.title}" (${newPresentation.id})`
-    );
+    log.info(`[ChatGraph] Presentation created: "${created.title}" (${created.documentId})`);
 
     const totalTimeMs = Date.now() - classifiedState.startTime;
     sse.sendRaw('done', {
       threadId: actualThreadId,
       citations: [],
-      documentId: newPresentation.id,
+      documentId: created.documentId,
       metadata: {
         intent: 'create_presentation',
         searchCount: 0,
@@ -345,12 +388,7 @@ export async function handlePresentationCreation(opts: {
     if (actualThreadId) {
       await createMessage(actualThreadId, 'assistant', responseText, {
         intent: 'create_presentation',
-        createdDocument: {
-          documentId: newPresentation.id,
-          title: newPresentation.title,
-          subtype: 'presentations',
-          url: `/office/${newPresentation.id}`,
-        },
+        createdDocument: created,
       });
       await touchThread(actualThreadId);
     }

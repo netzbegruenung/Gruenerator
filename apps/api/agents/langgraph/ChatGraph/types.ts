@@ -107,6 +107,16 @@ export interface GeneratedImageResult {
   generationTimeMs: number;
 }
 
+/** A collaborative document (presentation/sheet) created within a turn — the
+ *  shape emitted on the `document_created` SSE and persisted as message
+ *  metadata (`createdDocument`) for thread-reload rehydration. */
+export interface CreatedDocument {
+  documentId: string;
+  title: string;
+  subtype: 'presentations' | 'sheets';
+  url: string;
+}
+
 /**
  * Source prefixes used in SearchResult.source to identify result provenance.
  * Use these instead of raw strings to avoid silent mismatches across the pipeline.
@@ -576,10 +586,13 @@ export interface ChatGraphState {
   imageTimeMs: number;
   imageEditDescriptions: { original: string | null; edited: string | null } | null;
 
-  // Compound generation (agentic loop): mount signal for the sharepic fat tool
-  // and its per-turn result (shared-ref merge, like generatedImage).
+  // Compound generation (agentic loop): mount signal for the generation fat
+  // tools and their per-turn result (shared-ref merge, like generatedImage).
   compoundGeneration?: boolean;
   sharepicVariants?: SharepicVariant[] | null;
+  // Presentation/sheet fat tool result (compound turns) — lifted by the router
+  // into the persisted assistant message's `createdDocument` metadata.
+  createdDocument?: CreatedDocument | null;
 
   // Document summarization
   summaryContext: string | null;
