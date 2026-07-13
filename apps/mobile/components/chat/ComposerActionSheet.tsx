@@ -8,7 +8,6 @@ import {
   type ComposerToolIconKey,
   type SearchDepthIconKey,
 } from '@gruenerator/chat';
-import { QWEN_WARNING } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback } from 'react';
 import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
@@ -267,16 +266,6 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 >
                   {model.description}
                 </Text>
-                {model.region === 'cn' && (
-                  <Text
-                    style={[
-                      styles.modelChipWarningText,
-                      { color: active ? colors.white : colors.warning },
-                    ]}
-                  >
-                    {QWEN_WARNING}
-                  </Text>
-                )}
               </Pressable>
             );
           })}
@@ -350,10 +339,5 @@ const styles = StyleSheet.create({
   },
   modelChipDesc: {
     fontSize: 11,
-  },
-  modelChipWarningText: {
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 2,
   },
 });
