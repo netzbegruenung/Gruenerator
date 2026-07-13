@@ -16,7 +16,7 @@ import { type ModelMessage } from 'ai';
 
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
-import { getIntermediateModel, prefersUnifiedLoop } from '../../agents/providers.js';
+import { getLoopPlannerModel, LOOP_PLANNER_MODEL, prefersUnifiedLoop } from '../../agents/providers.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
@@ -204,7 +204,7 @@ export async function streamAgenticResponse(params: {
 
     await runAgenticLoop({
       mode,
-      plannerModel: mode === 'split' ? getIntermediateModel() : resolution.model,
+      plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
       synthModel: resolution.model,
       tools: wrapped,
       toolSystem,
@@ -248,7 +248,9 @@ export async function streamAgenticResponse(params: {
   }
 
   log.info(
-    `[Agentic] model=${resolution?.modelName ?? agentConfig.model} mode=${mode} intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}`
+    `[Agentic] model=${resolution?.modelName ?? agentConfig.model} mode=${mode}${
+      mode === 'split' ? ` planner=${LOOP_PLANNER_MODEL}` : ''
+    } intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}`
   );
 
   return {
