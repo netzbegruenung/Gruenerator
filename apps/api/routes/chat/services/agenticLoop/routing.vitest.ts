@@ -241,7 +241,27 @@ describe('decideRunAgentic — battle-test prompts', () => {
     ).toBe(false);
   });
 
-  it('pure sharepic stays single-pass (fixed-text contract) — compoundGeneration false', () => {
+  it('compound research+presentation and research+sheet enter the loop (fat tool per intent)', () => {
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_presentation',
+        compoundGeneration: true,
+        lastUserText:
+          'Recherchiere grüne Positionen zum Artenschutz und erstelle eine Präsentation dazu',
+      })
+    ).toBe(true);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_sheet',
+        compoundGeneration: true,
+        lastUserText: 'Such die aktuellen Zahlen zur Windkraft und mach eine Tabelle draus',
+      })
+    ).toBe(true);
+  });
+
+  it('pure sharepic/presentation stays single-pass (fixed-text contract) — compoundGeneration false', () => {
     expect(
       decideRunAgentic({
         ...base,
@@ -250,15 +270,32 @@ describe('decideRunAgentic — battle-test prompts', () => {
         lastUserText: 'Mach mir ein Sharepic zu Solarenergie',
       })
     ).toBe(false);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_presentation',
+        compoundGeneration: false,
+        lastUserText: 'Erstelle eine Präsentation zu Solarenergie',
+      })
+    ).toBe(false);
   });
 
-  it('compoundGeneration cannot smuggle a NON-sharepic intent into the loop', () => {
-    // The flag is only meaningful for sharepic turns — a mis-set flag on e.g.
-    // social_post must not open the gate.
+  it('compoundGeneration cannot smuggle a NON-generation intent into the loop', () => {
+    // The flag only opens the gate for the generation intents in
+    // COMPOUND_GENERATION_INTENTS — a mis-set flag on e.g. social_post or
+    // save_as_doc must not open it.
     expect(
       decideRunAgentic({
         ...base,
         intent: 'social_post',
+        compoundGeneration: true,
+        lastUserText: 'x',
+      })
+    ).toBe(false);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'save_as_doc',
         compoundGeneration: true,
         lastUserText: 'x',
       })
@@ -283,6 +320,13 @@ describe('looksLikeCompoundGeneration', () => {
     ],
     ['abstimmung + sharepic', 'Wie hat die Fraktion abgestimmt? Pack das in ein Sharepic'],
     ['beschluss + share-pic', 'Mach ein Share-Pic zum BDK-Beschluss über den Kohleausstieg'],
+    [
+      'recherchiere + präsentation',
+      'Recherchiere grüne Positionen zum Artenschutz und erstelle eine Präsentation dazu',
+    ],
+    ['zahlen + folien', 'Such aktuelle Zahlen zur Windkraft und mach Folien daraus'],
+    ['position + tabelle', 'Vergleiche die Positionen zum Tempolimit in einer Tabelle'],
+    ['fakten + sheet', 'Ich brauche ein Sheet mit den Fakten zur Kindergrundsicherung'],
   ];
   it.each(compound)('routes compound research+generation into the loop: %s', (_l, q) => {
     expect(looksLikeCompoundGeneration(q)).toBe(true);
@@ -296,6 +340,8 @@ describe('looksLikeCompoundGeneration', () => {
     ['plain search, no generation noun', 'Recherchiere die Position der Grünen zum Tempolimit'],
     ['plain facts ask', 'Welche aktuellen Zahlen gibt es zur Windkraft?'],
     ['image not sharepic', 'Recherchiere das Thema und mal mir ein Bild dazu'],
+    ['topic-only presentation', 'Erstelle eine Präsentation zu Solarenergie'],
+    ['topic-only sheet', 'Mach mir eine Tabelle für die Mitgliederliste'],
     ['empty', '   '],
   ];
   it.each(singlePass)('keeps a single-pass turn out: %s', (_l, q) => {
