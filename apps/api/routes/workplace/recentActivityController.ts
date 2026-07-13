@@ -51,7 +51,7 @@ export interface RecentActivityItem {
   id: string;
   title: string;
   date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
+  type: 'doc' | 'board' | 'image' | 'video' | 'canvas';
   href: string;
   emoji?: string | undefined;
   boardType?: 'kanban' | 'whiteboard' | undefined;
@@ -92,23 +92,15 @@ export async function aggregateRecentActivity(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
-  const [docs, boards, images, reelProjects, texts, canvases] = await Promise.all([
+  const [docs, boards, images, reelProjects, canvases] = await Promise.all([
     safe('docs', () => fetchRecentDocs(userId, limit)),
     safe('boards', () => fetchRecentBoards(userId, limit)),
     safe('images', () => fetchRecentImages(userId, limit)),
     safe('reels', () => fetchRecentReelProjects(userId, limit)),
-    safe('texts', () => fetchRecentTexts(userId, limit)),
     safe('canvases', () => fetchRecentCanvases(userId, limit)),
   ]);
 
-  const items: RecentActivityItem[] = [
-    ...docs,
-    ...boards,
-    ...images,
-    ...reelProjects,
-    ...texts,
-    ...canvases,
-  ];
+  const items: RecentActivityItem[] = [...docs, ...boards, ...images, ...reelProjects, ...canvases];
   items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   return items.slice(0, limit);
 }
@@ -330,50 +322,6 @@ export async function fetchRecentReelProjects(
       thumbnailUrl: row.thumbnail_path ? `/api/subtitler/projects/${row.id}/thumbnail` : undefined,
       duration,
       deleteEndpoint: `/api/subtitler/projects/${row.id}`,
-    };
-  });
-}
-
-export async function fetchRecentTexts(
-  userId: string,
-  limit: number
-): Promise<RecentActivityItem[]> {
-  const rows = await db.query(
-    `SELECT id, title, content, document_type, updated_at
-    FROM user_documents
-    WHERE user_id = $1 AND is_active = true
-    ORDER BY updated_at DESC
-    LIMIT $2`,
-    [userId, limit]
-  );
-
-  return (
-    rows as Array<{
-      id: string;
-      title: string;
-      content: string | null;
-      document_type: string;
-      updated_at: string;
-    }>
-  ).map((row) => {
-    const rawContent = typeof row.content === 'string' ? row.content : '';
-    let stripped = rawContent;
-    let prev: string;
-    do {
-      prev = stripped;
-      stripped = stripped.replace(/<[^>]*>/g, '');
-    } while (stripped !== prev);
-    stripped = stripped.slice(0, 500);
-
-    return {
-      id: row.id,
-      title: row.title || 'Ohne Titel',
-      date: row.updated_at,
-      type: 'text' as const,
-      href: `/texte/texteditor?textId=${row.id}`,
-      content: stripped,
-      documentType: row.document_type,
-      deleteEndpoint: `/api/auth/texts/${row.id}`,
     };
   });
 }
