@@ -219,6 +219,31 @@ describe('makeImageTool', () => {
     expect(passedState.messages.at(-1)?.content).toBe('Windrad im Sonnenlicht');
   });
 
+  it('is idempotent per turn: a second call does not regenerate (protects the image quota)', async () => {
+    const image = {
+      base64: 'x',
+      url: '/u.jpg',
+      filename: 'u.jpg',
+      prompt: 'p',
+      style: 'realistic',
+      generationTimeMs: 1,
+    };
+    imageNode.mockResolvedValue({ generatedImage: image });
+    const events: SseEvent[] = [];
+    const state = {
+      ...baseState,
+      intent: 'image',
+      messages: [{ role: 'user', content: 'x' }],
+    } as unknown as ChatGraphState;
+    const tool = makeImageTool({ sse: fakeSse(events), state });
+    await exec(tool, { prompt: 'Windrad' });
+    const second = (await exec(tool, { prompt: 'Windrad nochmal' })) as { ok?: boolean };
+    expect(second.ok).toBe(true);
+    expect(imageNode).toHaveBeenCalledTimes(1); // ← not 2: no second FLUX call / quota burn
+    // Only the first call emits image events.
+    expect(events.filter((e) => e.type === 'image_start')).toHaveLength(1);
+  });
+
   it('returns an error result (and clears state image) when generation fails', async () => {
     imageNode.mockResolvedValue({ generatedImage: null, error: 'Tageslimit erreicht.' });
     const events: SseEvent[] = [];

@@ -105,20 +105,31 @@ export function buildChatToolCatalog(params: {
     }
     const decorated: ExecuteFn = async (input, options) => {
       const result = await original(input, options);
-      const results =
+      const raw =
         result &&
         typeof result === 'object' &&
         Array.isArray((result as { results?: unknown }).results)
-          ? ((result as { results: SearchResult[] }).results ?? [])
+          ? ((result as { results: Record<string, unknown>[] }).results ?? [])
           : [];
-      if (results.length === 0) return result;
-      const sources = sourceRegistry.register(results);
+      if (raw.length === 0) return result;
+      // CRITICAL: executeDirectSearch/executeDirectWebSearch items carry their
+      // text in `excerpt` (docs) / `snippet` (web) — NOT `content`. The source
+      // registry keys on `content`, so without this normalisation every result
+      // was skipped as "empty", the model was handed `{ resultCount: 0 }`, and
+      // it answered from its own knowledge with no [N] citations.
+      const mapped: SearchResult[] = raw.map((r) => ({
+        source: String(r.source ?? r.domain ?? 'web'),
+        title: String(r.title ?? r.source ?? r.url ?? 'Quelle'),
+        content: String(r.excerpt ?? r.snippet ?? r.content ?? ''),
+        ...(typeof r.url === 'string' ? { url: r.url } : {}),
+      }));
+      const sources = sourceRegistry.register(mapped);
       if (!sources) return { resultCount: 0, sources: '' };
       // Lean model-facing shape: the numbered `sources` block is the grounding
       // (the raw content lives in the registry → done.citations). Dropping the
       // heavy `results[]` here keeps `sources` intact under result truncation
       // and halves the tokens the model pays per search.
-      return { resultCount: results.length, sources };
+      return { resultCount: mapped.length, sources };
     };
     tools[name] = { ...def, execute: decorated } as ToolSet[string];
   }
@@ -173,31 +184,22 @@ NUTZE WENN:
     },
   });
 
-  // Phase 2b: mount the classified intent's domain tool (loop path only). The
-  // search family above stays available for composition ("suche X und fasse
-  // zusammen"); only the routed intent's specialised tool is added on top.
+  // Domain tools (loop path only). Mounted BROADLY, not gated on the exact
+  // classified intent: the loop's whole point is that the MODEL picks the tool,
+  // and the classifier routinely sends Bundestag/politician questions to plain
+  // `search` (observed live: "Heizungsgesetz der Grünen Bundestagsfraktion" →
+  // intent=search). Intent-gating hid the specialised tool so the model fell
+  // back to generic search. The catalog stays small enough for Mistral (~9
+  // tools); a per-turn selector is Phase 3n.
   if (loop) {
     const { sse, state } = loop;
-    switch (state.intent) {
-      case 'summary':
-        tools.summarize = makeSummaryTool({ sse, state });
-        break;
-      case 'bundestag':
-        tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
-        break;
-      case 'abgeordnetenwatch':
-        tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
-        break;
-      case 'image':
-        // Respect the image gate ("enabled unless explicitly false", mirroring
-        // the single-pass executor which reads state.enabledTools). image_edit
-        // stays single-pass (needs an attachment).
-        if (state.enabledTools?.['image'] !== false) {
-          tools.generate_image = makeImageTool({ sse, state });
-        }
-        break;
-      default:
-        break;
+    tools.summarize = makeSummaryTool({ sse, state });
+    tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
+    tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+    // Image is expensive + rate-limited and the classifier routes it reliably,
+    // so it stays intent-scoped (and gated). image_edit stays single-pass.
+    if (state.intent === 'image' && state.enabledTools?.['image'] !== false) {
+      tools.generate_image = makeImageTool({ sse, state });
     }
   }
 
