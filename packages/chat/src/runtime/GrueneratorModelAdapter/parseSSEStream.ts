@@ -641,7 +641,10 @@ export async function* parseSSEStream(
             toolName: string;
             args?: Record<string, unknown>;
           };
-          const title = TOOL_STEP_TITLES[toolName] ?? 'Arbeite am Sharepic…';
+          const title =
+            toolName === 'mcp_tool'
+              ? `${(args?.server as string) ?? 'MCP'}${args?.tool ? ` · ${args.tool as string}` : ''}`
+              : (TOOL_STEP_TITLES[toolName] ?? 'Arbeite am Sharepic…');
           const isDuplicateStepId =
             (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
             allToolCalls.some((tc) => tc.toolCallId === stepId);
