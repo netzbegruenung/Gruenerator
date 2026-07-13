@@ -1,3 +1,5 @@
+import { type UploadSource } from '@gruenerator/shared/media-library';
+
 import apiClient from '../../../components/utils/apiClient';
 
 interface MediaUploadResponse {
@@ -27,7 +29,7 @@ interface MediaUploadResponse {
  */
 export async function uploadBlobToMediaLibrary(
   blob: Blob,
-  opts?: { filename?: string; uploadSource?: string }
+  opts?: { filename?: string; uploadSource?: UploadSource }
 ): Promise<string | null> {
   const form = new FormData();
   const filename =

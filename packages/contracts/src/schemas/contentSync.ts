@@ -18,9 +18,41 @@ export const contentSyncSourceSchema = z.enum([
   'boell-stiftung',
   'bundestag',
   'social-media',
+  'abgeordnetenwatch',
 ]);
 
 export type ContentSyncSource = z.infer<typeof contentSyncSourceSchema>;
+
+/**
+ * Request body for syncSource. `landesverband` scopes a `landesverbaende` run to
+ * one Landesverband (shortName prefix, e.g. "BE") — mirrors update-all-content.ts's
+ * `--landesverband` flag, including its own email notification. `recent` mirrors
+ * `--recent` (incremental discovery) where the underlying scraper supports it.
+ */
+export const contentSyncRequestSchema = z.object({
+  landesverband: z.string().optional(),
+  recent: z.boolean().optional(),
+  forceUpdate: z.boolean().optional(),
+  dryRun: z.boolean().optional(),
+  /**
+   * Run the sync as a background job: respond 202 with a jobId immediately and
+   * expose the outcome via GET /jobs/:jobId. Long full runs (LV BE/HE nightly)
+   * exceed the reverse proxy's ~5 min timeout, so synchronous callers get a 504
+   * while the sync keeps running server-side — CI polls the job instead.
+   */
+  background: z.boolean().optional(),
+  /** CI run URL, included in the per-LV notification email when provided. */
+  runUrl: z.string().optional(),
+  /**
+   * Recipient for a `landesverband` run when that LV has no entry in
+   * landesverbaendeContacts.json. The backend's own CONTENT_SYNC_EMAIL env is
+   * not deployed (it's currently only a CI variable), so the caller (CI)
+   * passes it through explicitly rather than the server silently going quiet.
+   */
+  fallbackEmail: z.string().optional(),
+});
+
+export type ContentSyncRequest = z.infer<typeof contentSyncRequestSchema>;
 
 /** 200 — a completed sync run. Mirrors the per-source scraper SyncResult counts. */
 export const contentSyncResultSchema = z.object({
@@ -45,6 +77,37 @@ export const contentSyncFailureSchema = z.object({
   durationMs: z.number(),
 });
 
+export type ContentSyncFailure = z.infer<typeof contentSyncFailureSchema>;
+
+/** 202 — a `background: true` sync was accepted; poll GET /jobs/:jobId for the outcome. */
+export const contentSyncAcceptedSchema = z.object({
+  accepted: z.literal(true),
+  jobId: z.string(),
+  sourceId: contentSyncSourceSchema,
+});
+
+export type ContentSyncAccepted = z.infer<typeof contentSyncAcceptedSchema>;
+
+/**
+ * 200 — background job status. `result` is absent while `status` is
+ * `running`; afterwards it carries the same body a synchronous call would
+ * have returned (result on `completed`, failure on `failed`).
+ */
+export const contentSyncJobStatusSchema = z.object({
+  jobId: z.string(),
+  sourceId: contentSyncSourceSchema,
+  status: z.enum(['running', 'completed', 'failed']),
+  startedAt: z.string(),
+  result: z.union([contentSyncResultSchema, contentSyncFailureSchema]).optional(),
+});
+
+export type ContentSyncJobStatus = z.infer<typeof contentSyncJobStatusSchema>;
+
+/** 404 — unknown or expired (TTL'd out of Redis) job id. */
+export const contentSyncJobNotFoundSchema = z.object({
+  error: z.string(),
+});
+
 /** 409 — a sync for this source is already running. */
 export const contentSyncBusyResponseSchema = z.object({
   error: z.string(),
@@ -53,4 +116,10 @@ export const contentSyncBusyResponseSchema = z.object({
 /** 200 — the list of source ids n8n is allowed to trigger. */
 export const contentSyncSourcesResponseSchema = z.object({
   sources: z.array(contentSyncSourceSchema),
+});
+
+/** 200 — the rendered content-stats docs page, queried live from Qdrant. */
+export const contentStatsResponseSchema = z.object({
+  markdown: z.string(),
+  totalPoints: z.number(),
 });

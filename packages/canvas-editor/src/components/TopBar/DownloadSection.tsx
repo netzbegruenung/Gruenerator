@@ -7,44 +7,41 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Switch,
 } from '@gruenerator/ui';
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-export type CanvasDownloadChoice = 'png' | 'jpeg' | 'pdf' | 'pdf-print';
+export type CanvasDownloadChoice = 'png' | 'jpeg' | 'webp';
 
 export interface DownloadSectionProps {
-  onDownload: (format: 'png' | 'jpeg', pixelRatio: number) => void;
+  onDownload: (format: CanvasDownloadChoice, pixelRatio: number, transparent: boolean) => void;
   onDownloadAllZip?: () => Promise<void>;
-  /**
-   * Server-side PDF wrap. The canvas-editor produces the high-DPI PNG; the
-   * consumer uploads it. `withBleed` is meaningful only for print formats —
-   * the UI only exposes it when `bleedSupported` is true (via the dedicated
-   * "PDF Druck" option).
-   */
-  onDownloadPdf?: (withBleed: boolean) => Promise<void>;
-  bleedSupported?: boolean;
   pageCount: number;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
 }
 
 const DEFAULT_RASTER_PIXEL_RATIO = 2;
+const SCALE_OPTIONS = [1, 2, 3] as const;
 
 export function DownloadSection({
   onDownload,
   onDownloadAllZip,
-  onDownloadPdf,
-  bleedSupported = false,
   pageCount,
   isMultiExporting = false,
   exportProgress,
 }: DownloadSectionProps) {
   const [choice, setChoice] = useState<CanvasDownloadChoice>('png');
+  const [scale, setScale] = useState<number>(DEFAULT_RASTER_PIXEL_RATIO);
+  const [transparent, setTransparent] = useState(false);
   const [pageSelection, setPageSelection] = useState<'current' | 'all'>('current');
   const [isDownloading, setIsDownloading] = useState(false);
 
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
+  // JPEG has no alpha channel — the transparency toggle is only meaningful for
+  // PNG/WebP.
+  const supportsTransparency = choice !== 'jpeg';
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -53,20 +50,7 @@ export function DownloadSection({
         await onDownloadAllZip();
         return;
       }
-      switch (choice) {
-        case 'png':
-          onDownload('png', DEFAULT_RASTER_PIXEL_RATIO);
-          break;
-        case 'jpeg':
-          onDownload('jpeg', DEFAULT_RASTER_PIXEL_RATIO);
-          break;
-        case 'pdf':
-          if (onDownloadPdf) await onDownloadPdf(false);
-          break;
-        case 'pdf-print':
-          if (onDownloadPdf) await onDownloadPdf(true);
-          break;
-      }
+      onDownload(choice, scale, supportsTransparency && transparent);
     } finally {
       setIsDownloading(false);
     }
@@ -83,13 +67,41 @@ export function DownloadSection({
           <SelectContent position="popper" className="z-[10001]">
             <SelectItem value="png">PNG</SelectItem>
             <SelectItem value="jpeg">JPG</SelectItem>
-            {onDownloadPdf && <SelectItem value="pdf">PDF</SelectItem>}
-            {onDownloadPdf && bleedSupported && (
-              <SelectItem value="pdf-print">PDF Druck</SelectItem>
-            )}
+            <SelectItem value="webp">WebP</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      {/* Resolution + transparency only apply to single-page export; the
+          multi-page ZIP path renders at fixed settings. */}
+      {pageSelection === 'current' && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-foreground-muted">Auflösung</Label>
+            <Select value={String(scale)} onValueChange={(v) => setScale(Number(v))}>
+              <SelectTrigger size="sm" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="z-[10001]">
+                {SCALE_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    {s}× {s === DEFAULT_RASTER_PIXEL_RATIO ? '(Standard)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {supportsTransparency && (
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-medium text-foreground-muted">
+                Transparenter Hintergrund
+              </Label>
+              <Switch checked={transparent} onCheckedChange={setTransparent} />
+            </div>
+          )}
+        </>
+      )}
 
       {isMultiPage && (
         <div className="flex flex-col gap-1.5">

@@ -29,7 +29,7 @@ import {
   applyCanvasStatePatch,
   applyDeckChanges,
   getCurrentCanvasState,
-  seedCanvasFormState,
+  seedCanvasPages,
   type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
@@ -157,7 +157,7 @@ async function setActiveThreadCanvas(threadId: string, variantId: string): Promi
 
 function deriveCanvasTitle(canvasType: string, props: Record<string, unknown>): string {
   const s = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
-  const text = s(props.line1) || s(props.quote) || s(props.header) || '';
+  const text = s(props.line1) || s(props.quote) || s(props.header) || s(props.headline) || '';
   const base = text.length > 60 ? `${text.slice(0, 57)}…` : text;
   return base || 'Sharepic aus dem Chat';
 }
@@ -304,8 +304,8 @@ export async function mintCanvasForVariant(args: {
     template_type: canvasType,
     initial_state: initialState,
   });
-  // Authoritative server-side Yjs seed (full state + `_seeded` watermark).
-  await seedCanvasFormState(canvas.id, initialState);
+  // Authoritative server-side Yjs seed (full state + pagesSeeded watermark).
+  await seedCanvasPages(canvas.id, canvasType, initialState);
   await bindThreadCanvas(threadId, variantId, canvas.id, canvasType);
   await insertCanvasVersion({
     canvasId: canvas.id,

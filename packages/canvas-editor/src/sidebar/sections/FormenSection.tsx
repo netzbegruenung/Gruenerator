@@ -37,8 +37,10 @@ import {
 } from 'react-icons/pi';
 
 import {
+  BRAND_COLORS,
   CATEGORY_LABELS,
   CATEGORY_ORDER,
+  EUCALYPTUS,
   getShapeDef,
   type ShapeCategory,
   type ShapeType,
@@ -48,12 +50,12 @@ import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../si
 import { cn } from '../../utils/cn';
 
 export interface FormenSectionProps {
-  onAddShape: (type: ShapeType) => void;
+  onAddShape: (type: ShapeType, color?: string) => void;
   isExpanded?: boolean;
   searchQuery?: string;
 }
 
-interface ShapeDefinition<T extends ShapeType = ShapeType> {
+export interface ShapeDefinition<T extends ShapeType = ShapeType> {
   id: T;
   title: string;
   renderPreview: () => React.ReactNode;
@@ -530,19 +532,69 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
   },
 };
 
-const ALL_PALETTE_SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(SHAPE_PREVIEWS);
+export const ALL_PALETTE_SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(SHAPE_PREVIEWS);
+
+export interface ShapeVariant {
+  color: string;
+  /** Tanne is illegible on the dark editor surface; the preview swaps to the standard
+      dark tint (must out-specify the inline style color, hence the important modifier)
+      while the inserted fill stays the true brand color. */
+  darkPreviewClass: string;
+}
+
+const SHAPE_VARIANT_COLOR_IDS = ['tanne', 'klee', 'grashalm', 'himmel', 'hellgruen'];
+const DARK_PREVIEW_OVERRIDES: Partial<Record<string, string>> = {
+  tanne: 'dark:!text-secondary-300',
+};
+
+/**
+ * Brand color variants cycled across shape tiles (Canva-style); clicking inserts the
+ * shown color. Keyed by the shape's global palette index so the same shape shows the
+ * same color in the strip, the drill-down groups, and search results.
+ * Lazy for the same chunk-init reason as getShapesByCategory below (BRAND_COLORS is a
+ * cross-chunk import).
+ */
+let shapeVariantByType: Map<ShapeType, ShapeVariant> | null = null;
+export function getShapeVariant(type: ShapeType): ShapeVariant {
+  if (!shapeVariantByType) {
+    const variants = SHAPE_VARIANT_COLOR_IDS.map((id) => ({
+      color: BRAND_COLORS.find((c) => c.id === id)?.value ?? EUCALYPTUS,
+      darkPreviewClass: DARK_PREVIEW_OVERRIDES[id] ?? '',
+    }));
+    shapeVariantByType = new Map(
+      ALL_PALETTE_SHAPES.map((shape, index) => [shape.id, variants[index % variants.length]])
+    );
+  }
+  return (
+    shapeVariantByType.get(type) ?? {
+      color: BRAND_COLORS[0]?.value ?? EUCALYPTUS,
+      darkPreviewClass: '',
+    }
+  );
+}
 const COLLAPSED_COUNT = 6;
 
-/** Index of palette entries grouped by category (computed once at module load). */
-const SHAPES_BY_CATEGORY: Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> = (() => {
+/**
+ * Palette entries grouped by category, computed lazily and memoized on first use.
+ *
+ * Must NOT run at module-init: `CATEGORY_ORDER` (and `getShapeDef`) are imported
+ * from `shapes.ts`, which under production code-splitting can live in a chunk
+ * that initializes AFTER this one. Iterating `CATEGORY_ORDER` at module top-level
+ * then throws "CATEGORY_ORDER is not iterable". Deferring to first render (all
+ * chunks initialized by then) makes this robust to chunk ordering.
+ */
+let shapesByCategoryCache: Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> | null = null;
+function getShapesByCategory(): Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> {
+  if (shapesByCategoryCache) return shapesByCategoryCache;
   const acc = {} as Record<ShapeCategory, ShapeDefinition[]>;
   for (const cat of CATEGORY_ORDER) acc[cat] = [];
   for (const shape of ALL_PALETTE_SHAPES) {
     const def = getShapeDef(shape.id);
     acc[def.category].push(shape);
   }
+  shapesByCategoryCache = acc;
   return acc;
-})();
+}
 
 function shapeMatchesQuery(shape: ShapeDefinition, q: string): boolean {
   const def = getShapeDef(shape.id);
@@ -566,27 +618,34 @@ export function FormenSection({
 
   // Expanded view: grouped by category with subheaders.
   const groupedShapes = useMemo(() => {
+    const shapesByCategory = getShapesByCategory();
     const groups: { category: ShapeCategory; shapes: ReadonlyArray<ShapeDefinition> }[] = [];
     for (const cat of CATEGORY_ORDER) {
-      const all = SHAPES_BY_CATEGORY[cat];
+      const all = shapesByCategory[cat];
       const filtered = q ? all.filter((s) => shapeMatchesQuery(s, q)) : all;
       if (filtered.length > 0) groups.push({ category: cat, shapes: filtered });
     }
     return groups;
   }, [q]);
 
-  const renderShapeButton = (shape: ShapeDefinition) => (
-    <button
-      key={shape.id}
-      className={SELECTABLE_CARD}
-      onClick={() => onAddShape(shape.id)}
-      title={shape.title}
-    >
-      <div className={cn(CARD_PREVIEW, 'text-secondary-600 dark:text-secondary-300')}>
-        {shape.renderPreview()}
-      </div>
-    </button>
-  );
+  const renderShapeButton = (shape: ShapeDefinition) => {
+    const variant = getShapeVariant(shape.id);
+    return (
+      <button
+        key={shape.id}
+        className={SELECTABLE_CARD}
+        onClick={() => onAddShape(shape.id, variant.color)}
+        title={shape.title}
+      >
+        <div
+          className={cn(CARD_PREVIEW, variant.darkPreviewClass)}
+          style={{ color: variant.color }}
+        >
+          {shape.renderPreview()}
+        </div>
+      </button>
+    );
+  };
 
   if (!isExpanded) {
     return (

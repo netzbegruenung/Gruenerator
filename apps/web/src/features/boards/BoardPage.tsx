@@ -480,6 +480,7 @@ function BoardViewContent({
           onUpdateView={boardState.updateView}
           currentUserId={currentUserId}
           boardId={boardId}
+          boardTitle={boardTitle}
           provider={provider}
           expertMode={expertMode}
           deepLinkRow={layout === 'kanban' ? deepLinkRow : null}
@@ -536,6 +537,7 @@ function BoardViewContent({
           onDuplicate={(rowId) => boardState.duplicateRow(rowId, currentUserId)}
           onUpdateField={boardState.updateField}
           boardId={boardId}
+          boardTitle={boardTitle}
           currentUserId={currentUserId}
           expertMode={expertMode}
         />

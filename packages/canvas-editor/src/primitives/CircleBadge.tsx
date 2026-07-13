@@ -291,6 +291,7 @@ function CircleBadgeInner({
         {/* Selection indicator */}
         {selected && (
           <Rect
+            name="selection-chrome"
             x={-radius - 4}
             y={-radius - 4}
             width={radius * 2 + 8}

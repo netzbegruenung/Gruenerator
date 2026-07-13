@@ -139,9 +139,11 @@ export async function buildStreamContext({
     boardIds: rawBoardIds,
     sheetIds: rawSheetIds,
     threadId,
+    clientTools,
     regenerate: rawRegenerate,
     replaceFromMessageId: rawReplaceFromMessageId,
     webpageUrls: rawWebpageUrls,
+    platform: rawPlatform,
   } = body;
 
   // === Validate ===
@@ -509,6 +511,7 @@ export async function buildStreamContext({
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,
+    clientCanRunPython: clientTools?.includes('run_python') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
@@ -544,6 +547,7 @@ export async function buildStreamContext({
         }
       : undefined,
     userLocale: user.locale ?? 'de-DE',
+    clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt: rawCustomSystemPrompt ?? undefined,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,

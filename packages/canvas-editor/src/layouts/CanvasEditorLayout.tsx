@@ -28,6 +28,8 @@ export interface CanvasEditorLayoutProps {
   templateCreator?: string | null;
   /** Toolbar rendered at layout level, above the canvas content */
   toolbar?: ReactNode;
+  /** Floating context-formatting bar, centered over the canvas work area (desktop) */
+  contextBar?: ReactNode;
   /** Optional sticky-bottom region (page navigator, zoom/meta bar) pinned to viewport bottom */
   bottomBar?: ReactNode;
   /** When true, removes mobile bottom padding and sidebar chrome (native handles these) */
@@ -44,6 +46,7 @@ export function CanvasEditorLayout({
   subsectionBar,
   templateCreator,
   toolbar,
+  contextBar,
   bottomBar,
   hideMobileChrome,
   externalSidebar,
@@ -54,17 +57,15 @@ export function CanvasEditorLayout({
   return (
     <div
       className={cn(
-        'canvas-editor-layout flex flex-col h-screen min-h-[500px]',
-        hasSidebar &&
-          'ml-[var(--image-studio-tab-bar-width)] max-canvas-mobile:ml-0 max-canvas-mobile:pb-16',
-        externalSidebar && 'ml-0',
-        hideMobileChrome && 'ml-0 pb-0 max-canvas-mobile:pb-0'
+        'canvas-editor-layout flex flex-col h-screen min-h-[500px] bg-[var(--editor-bg)]',
+        hasSidebar && 'max-canvas-mobile:pb-16',
+        hideMobileChrome && 'pb-0 max-canvas-mobile:pb-0'
       )}
     >
       {toolbar}
       {hasSidebar && (
         <div
-          className="canvas-sidebar fixed left-[var(--canvas-host-inset-left,0px)] top-0 bottom-0 z-[120] max-canvas-mobile:static max-canvas-mobile:contents"
+          className="canvas-sidebar fixed left-[var(--canvas-host-inset-left,0px)] top-[var(--editor-topbar-height)] bottom-0 z-[120] max-canvas-mobile:static max-canvas-mobile:contents"
           style={SIDEBAR_FONT_SIZES}
         >
           {tabBar}
@@ -77,7 +78,19 @@ export function CanvasEditorLayout({
       )}
       {subsectionBar}
 
-      <div className="canvas-editor-layout__main flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden max-canvas-mobile:flex-1 max-canvas-mobile:p-0">
+      <div
+        className={cn(
+          'canvas-editor-layout__main relative flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden bg-[var(--editor-canvas-bg)] max-canvas-mobile:flex-1 max-canvas-mobile:p-0',
+          hasSidebar &&
+            !externalSidebar &&
+            'ml-[var(--image-studio-tab-bar-width)] max-canvas-mobile:ml-0'
+        )}
+      >
+        {contextBar && (
+          <div className="pointer-events-none absolute top-3 left-1/2 z-[90] flex w-full -translate-x-1/2 justify-center px-3 max-canvas-mobile:hidden">
+            <div className="pointer-events-auto max-w-full">{contextBar}</div>
+          </div>
+        )}
         {templateCreator && (
           <div className="flex items-center gap-xs py-xs px-sm bg-primary-50 border-b border-primary-100 text-foreground-muted text-[length:var(--font-size-small)] w-full max-canvas-mobile:text-[length:var(--font-size-xsmall)] max-canvas-mobile:py-xxs max-canvas-mobile:px-xs">
             <HiLink className="text-[var(--klee)] text-base shrink-0" />
@@ -86,7 +99,10 @@ export function CanvasEditorLayout({
             </span>
           </div>
         )}
-        <div className="canvas-editor-layout__canvas flex-1 min-h-0 flex flex-col w-full max-w-full p-sm max-canvas-mobile:flex-1 max-canvas-mobile:p-0">
+        <div
+          data-tour="canvas-stage"
+          className="canvas-editor-layout__canvas flex-1 min-h-0 flex flex-col w-full max-w-full p-sm max-canvas-mobile:flex-1 max-canvas-mobile:p-0"
+        >
           {children}
         </div>
       </div>

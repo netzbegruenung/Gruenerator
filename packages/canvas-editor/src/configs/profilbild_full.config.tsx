@@ -104,6 +104,7 @@ function createProfilbildInitialState(props: Record<string, unknown>): Profilbil
     circleBadgeInstances: [],
     balkenInstances: [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
     transparentImage,
     backgroundColor,
@@ -196,6 +197,13 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
   id: 'profilbild',
 
   canvas: { width: CANVAS_SIZE, height: CANVAS_SIZE },
+
+  multiPage: {
+    enabled: true,
+    maxPages: 10,
+    heterogeneous: true,
+    defaultNewPageState: {},
+  },
 
   ai: profilbildAiCapabilities,
 

@@ -1,3 +1,4 @@
+import { type BoardPreview } from '@gruenerator/contracts';
 import {
   CardActionsMenu,
   CardGrid,
@@ -11,10 +12,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 import { FaVideo } from 'react-icons/fa';
-import { FiClock, FiFileText, FiGrid, FiImage } from 'react-icons/fi';
+import { FiClock, FiFileText, FiGrid, FiImage, FiMonitor } from 'react-icons/fi';
 import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import {
+  BoardPreviewBody,
+  PlaceholderBars,
+  SlidesPreviewBody,
+  TablePreviewBody,
+} from '../../../components/common/SchematicPreviews';
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
@@ -22,11 +29,14 @@ import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { parseDocPreview } from '../../../utils/parseDocPreview';
-import { parseTablePreview } from '../../../utils/parseTablePreview';
-import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
+import {
+  getPublicAppOrigin,
+  resolveApiAssetUrl,
+  shareThumbnailPreviewUrl,
+} from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
 
 interface RecentItem {
   id: string;
@@ -36,6 +46,7 @@ interface RecentItem {
   href: string;
   emoji?: string;
   boardType?: 'kanban' | 'whiteboard';
+  preview?: BoardPreview;
   thumbnailUrl?: string;
   duration?: number;
   creatorName?: string;
@@ -43,6 +54,7 @@ interface RecentItem {
   deleteEndpoint?: string;
   content?: string;
   documentType?: string;
+  blurhash?: string;
 }
 
 // Shared type vocabulary: every card surfaces the same eucalyptus-tinted badge
@@ -57,12 +69,17 @@ const TYPE_META: Record<
   image: { label: 'Bild', Icon: FiImage },
   video: { label: 'Video', Icon: FaVideo },
   text: { label: 'Text', Icon: FiFileText },
+  canvas: { label: 'Sharepic', Icon: FiImage },
 };
 
-// Spreadsheet-style docs (subtype 'tabelle') arrive as `type: 'doc'` but read as
-// their own category: a grid badge + grid preview instead of the prose excerpt.
+// Spreadsheet-style docs (legacy 'tabelle' HTML tables and Univer 'sheets')
+// arrive as `type: 'doc'` but read as their own category: a grid badge + grid
+// preview instead of the prose excerpt. Same for reveal 'presentations'.
 const isTablePreview = (item: RecentItem): boolean =>
-  item.type === 'doc' && item.documentType === 'tabelle';
+  item.type === 'doc' && (item.documentType === 'tabelle' || item.documentType === 'sheets');
+
+const isSlidesPreview = (item: RecentItem): boolean =>
+  item.type === 'doc' && item.documentType === 'presentations';
 
 const getTypeMeta = (
   item: RecentItem
@@ -72,6 +89,9 @@ const getTypeMeta = (
   }
   if (isTablePreview(item)) {
     return { label: 'Tabelle', Icon: FiGrid };
+  }
+  if (isSlidesPreview(item)) {
+    return { label: 'Präsentation', Icon: FiMonitor };
   }
   return TYPE_META[item.type];
 };
@@ -103,167 +123,31 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   image: 'Ohne Titel',
   video: 'Ohne Titel',
   text: 'Ohne Titel',
+  canvas: 'Neuer Canvas',
 };
 
 // Faint, fixed-height plate every preview sits on (matches the workspace
 // mockup): content lives directly on a tinted surface — no floating paper sheet.
 const PREVIEW_PLATE = 'h-[172px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
 
-// Stylised placeholder for content-less documents: one eucalyptus "title" bar
-// over greyed body bars — reads as a document outline instead of an empty plate.
-// Widths are deliberately uneven so it looks like real prose.
-const PlaceholderBars = memo(() => (
-  <div className="flex flex-col gap-2" aria-hidden>
-    <div className="h-2 w-3/5 rounded-full bg-secondary-300 dark:bg-secondary-600" />
-    <div className="h-1.5 w-[92%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-    <div className="h-1.5 w-[85%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-    <div className="h-1.5 w-[94%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-    <div className="h-1.5 w-[70%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-  </div>
-));
-PlaceholderBars.displayName = 'PlaceholderBars';
-
-// Board overview for the preview plate. The card list doesn't carry real board
-// rows (those live in Yjs, loaded only via /boards/:id/state), so we render a
-// type-faithful schematic: a three-column Kanban (eucalyptus header bar over
-// solid card blocks) or a grid of whiteboard sticky notes.
-const KANBAN_COLUMNS = [
-  { id: 'kanban-1', cards: 2 },
-  { id: 'kanban-2', cards: 1 },
-  { id: 'kanban-3', cards: 2 },
-];
-
-const WHITEBOARD_NOTES = [
-  { id: 'wb-a', tint: 'bg-secondary-100 dark:bg-secondary-900/40' },
-  { id: 'wb-b', tint: 'bg-primary-100 dark:bg-primary-900/40' },
-  { id: 'wb-c', tint: 'bg-grey-100 dark:bg-grey-700/50' },
-  { id: 'wb-d', tint: 'bg-secondary-50 dark:bg-secondary-900/30' },
-  { id: 'wb-e', tint: 'bg-grey-100 dark:bg-grey-700/50' },
-  { id: 'wb-f', tint: 'bg-primary-50 dark:bg-primary-900/30' },
-];
-
-const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboard' }) => {
-  if (boardType === 'whiteboard') {
-    return (
-      <div className="grid h-full grid-cols-3 grid-rows-2 gap-2" aria-hidden>
-        {WHITEBOARD_NOTES.map((note) => (
-          <div key={note.id} className={cn('rounded-[5px]', note.tint)} />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-2.5" aria-hidden>
-      {KANBAN_COLUMNS.map((col) => (
-        <div key={col.id} className="flex flex-1 flex-col gap-1.5">
-          <div className="h-2 rounded-[3px] bg-secondary-300 dark:bg-secondary-600" />
-          {Array.from({ length: col.cards }, (_, i) => (
-            <div
-              key={`${col.id}-${i}`}
-              className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-});
-BoardPreviewBody.displayName = 'BoardPreviewBody';
-
-// Spreadsheet preview for 'tabelle' docs: a schematic grid (A/B/C column
-// headers + numbered row gutter) filled with the table's real leading cells when
-// the content carries an HTML <table>, else faint placeholder bars. Reads as a
-// spreadsheet at a glance — distinct from the prose plate a plain doc shows.
-const COLUMN_LETTERS = ['A', 'B', 'C', 'D'];
-const TABLE_PLACEHOLDER_ROWS = 4;
-
-const TablePreviewBody = memo(({ content }: { content?: string }) => {
-  const rows = content ? parseTablePreview(content) : [];
-  const colCount = Math.min(
-    COLUMN_LETTERS.length,
-    Math.max(2, rows.reduce((max, row) => Math.max(max, row.length), 0) || 3)
-  );
-  const bodyRows: string[][] =
-    rows.length > 0 ? rows : Array.from({ length: TABLE_PLACEHOLDER_ROWS }, () => []);
-  const cols = COLUMN_LETTERS.slice(0, colCount);
-
-  const cellBase =
-    'flex items-center overflow-hidden px-2 text-[10.5px] leading-none border-r border-b';
-  const gutterCell =
-    'flex items-center justify-center text-[10px] leading-none border-r border-b bg-grey-50 text-grey-400 dark:bg-grey-800/60 dark:text-grey-500';
-
-  return (
-    <div
-      className="grid text-left"
-      style={{ gridTemplateColumns: `26px repeat(${colCount}, minmax(0, 1fr))` }}
-      aria-hidden
-    >
-      {/* Column header strip */}
-      <div className="h-5 border-r border-b border-grey-200 bg-grey-100 dark:border-grey-700/60 dark:bg-grey-700/40" />
-      {cols.map((letter) => (
-        <div
-          key={`h-${letter}`}
-          className="flex h-5 items-center px-2 border-r border-b border-grey-200 bg-grey-100 text-[10px] font-bold text-grey-500 dark:border-grey-700/60 dark:bg-grey-700/40 dark:text-grey-400"
-        >
-          {letter}
-        </div>
-      ))}
-
-      {bodyRows.map((row, rowIdx) => {
-        const isHeaderRow = rowIdx === 0;
-        return (
-          <React.Fragment key={`row-${rowIdx}`}>
-            <div className={cn(gutterCell, 'h-7')}>{rowIdx + 1}</div>
-            {cols.map((letter, colIdx) => {
-              const value = row[colIdx];
-              return (
-                <div
-                  key={`c-${rowIdx}-${letter}`}
-                  className={cn(
-                    cellBase,
-                    'h-7',
-                    isHeaderRow
-                      ? 'border-secondary-200 bg-secondary-50 font-semibold text-secondary-700 dark:border-secondary-800/60 dark:bg-secondary-900/30 dark:text-secondary-200'
-                      : 'border-grey-100 text-grey-700 dark:border-grey-700/40 dark:text-grey-300'
-                  )}
-                >
-                  {value ? (
-                    <span className="truncate">{value}</span>
-                  ) : (
-                    <span
-                      className={cn(
-                        'h-1.5 w-3/4 rounded-full',
-                        isHeaderRow
-                          ? 'bg-secondary-300 dark:bg-secondary-600'
-                          : 'bg-grey-200 dark:bg-grey-700/50'
-                      )}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-});
-TablePreviewBody.displayName = 'TablePreviewBody';
+// Schematic preview bodies (placeholder bars, board/table/slides plates) are
+// shared with the Office overview — see components/common/SchematicPreviews.
 
 // Flat preview surface: media fills the plate (object-cover), documents show
 // their heading + excerpt directly on the tinted plate, boards a schematic, and
 // content-less items the prose outline — no floating paper sheet.
 const PreviewArea = memo(({ item }: { item: RecentItem }) => {
-  if (item.type === 'image' || item.type === 'video') {
+  if (item.type === 'image' || item.type === 'video' || item.type === 'canvas') {
     // Images are shared-media backed (item.id is the share token) → responsive
-    // variants + BlurHash. Videos have no image variants, so keep the poster img.
+    // variants + BlurHash. Videos and canvases have no image variants, so they
+    // keep the plain thumbnail img.
     if (item.type === 'image') {
       return (
         <div className={PREVIEW_PLATE}>
           <SharedMediaImage
             shareToken={item.id}
             alt={item.title || FALLBACK_TITLES[item.type]}
+            blurhash={item.blurhash}
             sizes="(max-width: 768px) 50vw, 280px"
             className="h-full w-full object-cover"
           />
@@ -274,10 +158,11 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
       return (
         <div className={PREVIEW_PLATE}>
           <img
-            src={resolveApiAssetUrl(item.thumbnailUrl)}
+            src={resolveApiAssetUrl(shareThumbnailPreviewUrl(item.thumbnailUrl))}
             alt={item.title || FALLBACK_TITLES[item.type]}
             className="h-full w-full object-cover"
             loading="lazy"
+            decoding="async"
           />
         </div>
       );
@@ -310,7 +195,9 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   }
 
   let body: React.ReactNode;
-  if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
+  if (isSlidesPreview(item)) {
+    body = <SlidesPreviewBody content={item.content} />;
+  } else if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
       <>
@@ -327,7 +214,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
       </>
     );
   } else if (item.type === 'board') {
-    body = <BoardPreviewBody boardType={item.boardType} />;
+    body = <BoardPreviewBody boardType={item.boardType} preview={item.preview} />;
   } else {
     body = <PlaceholderBars />;
   }
@@ -632,7 +519,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       try {
         const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
         const { documentId } = res.data as { documentId: string };
-        void navigate(`/docs/${documentId}`);
+        void navigate(`/office/${documentId}`);
       } catch {
         // fallback to old editor
         void navigate(`/texte/texteditor?textId=${textId}`);
@@ -649,6 +536,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
         text: 'Text wirklich löschen?',
+        canvas: 'Sharepic wirklich löschen?',
       };
 
       if (!window.confirm(messages[item.type])) return;

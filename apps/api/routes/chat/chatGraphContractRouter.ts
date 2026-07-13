@@ -44,6 +44,7 @@ import {
 } from './services/intentExecutionService.js';
 import { extractTextContent } from './services/messageHelpers.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
+import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import {
   buildReelContextBlock,
@@ -76,6 +77,7 @@ import {
 } from './services/socialPostEditService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
+import { createMessage, touchThread } from './services/threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -323,6 +325,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           currentReel: rawCurrentReel ?? null,
           reelUpload: rawReelUpload,
           userLocale: initialState.userLocale || 'de-DE',
+          clientPlatform: initialState.clientPlatform,
           aiWorkerPool,
           startTime: initialState.startTime,
           ...(classifiedState.classificationTimeMs != null && {
@@ -359,6 +362,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             currentReel: rawCurrentReel ?? null,
             reelUpload: null,
             userLocale: initialState.userLocale || 'de-DE',
+            clientPlatform: initialState.clientPlatform,
             aiWorkerPool,
             startTime: initialState.startTime,
             ...(classifiedState.classificationTimeMs != null && {
@@ -366,6 +370,56 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             }),
           });
           if (handled) return { status: 200 as const, body: undefined };
+        }
+      }
+
+      // === App gate: sharepic UI is web-only ===
+      // The app renders neither sharepic_complete nor the combined-post card,
+      // so these turns would generate into the void. Placed before the edit/
+      // refinement branches and BOTH HITL interrupts — an interrupt stored
+      // with a sharepic intent would resume past this gate (resumePipeline
+      // has no platform check). social_post degrades to its text-only
+      // sibling intent instead of a redirect: the post text is a plain chat
+      // answer the app renders fine.
+      if (initialState.clientPlatform === 'app') {
+        if (
+          classifiedState.secondaryIntent === 'sharepic' ||
+          classifiedState.secondaryIntent === 'social_post'
+        ) {
+          classifiedState.secondaryIntent = null;
+        }
+        if (classifiedState.intent === 'social_post') {
+          classifiedState.intent = 'examples';
+          log.info('[ChatGraph] social_post on app — downgraded to examples (text-only post)');
+        }
+        if (classifiedState.intent === 'sharepic') {
+          log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
+          const redirectText = APP_REDIRECT_TEXTS.sharepic;
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          sse.send('text_delta', { text: redirectText });
+          sse.send('done', {
+            threadId: actualThreadId ?? null,
+            citations: [],
+            metadata: {
+              intent: classifiedState.intent,
+              searchCount: 0,
+              totalTimeMs: Date.now() - initialState.startTime,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+          if (actualThreadId) {
+            try {
+              await createMessage(actualThreadId, 'assistant', redirectText, {
+                intent: 'sharepic',
+              });
+              await touchThread(actualThreadId);
+            } catch (err) {
+              log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
+            }
+          }
+          sse.end();
+          return { status: 200 as const, body: undefined };
         }
       }
 
@@ -401,8 +455,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // combined post (rawCurrentSocialPost, which may set both), text-ish
       // instructions edit the post and sharepic-noun instructions still fall
       // through to the sharepic path. Declines (returns false) when the
-      // thread has no editable post.
+      // thread has no editable post. Skipped on the app, which can't render
+      // the combined-post card or its update events.
       if (
+        initialState.clientPlatform !== 'app' &&
         actualThreadId &&
         lastUserMessage &&
         imageAttachments.length === 0 &&
@@ -434,8 +490,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // sharepic the thread already produced. Applies structured operations to
       // the (lazily minted) canvas document and updates the card in place —
       // see sharepicEditService. Falls through to the legacy text-regeneration
-      // refinement below when no editable target exists.
+      // refinement below when no editable target exists. Skipped on the app,
+      // which can't render sharepic updates — edit-y phrases there run through
+      // the normal pipeline instead.
       if (
+        initialState.clientPlatform !== 'app' &&
         actualThreadId &&
         lastUserMessage &&
         imageAttachments.length === 0 &&
@@ -494,6 +553,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // or non-editable template).
       let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
       if (
+        initialState.clientPlatform !== 'app' &&
         actualThreadId &&
         lastUserMessage &&
         imageAttachments.length === 0 &&

@@ -88,6 +88,12 @@ export interface TypeConfigBase {
   hidden?: boolean;
   isBeta?: boolean;
   excludeFromTemplates?: boolean;
+  /**
+   * Audience gating (de-DE vs de-AT). Omitted defaults to 'de-DE'. The studio
+   * picker filters template tiles by the signed-in user's locale so AT users
+   * see the Austrian variants and DE users see the German set.
+   */
+  audience?: 'all' | 'de-DE' | 'de-AT';
   requiresImage: boolean;
   hasTextGeneration: boolean;
   hasTextCanvasEdit?: boolean;

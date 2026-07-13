@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import apiClient from '../components/utils/apiClient';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
-import { uploadBlobToMediaLibrary } from '../features/image-studio/services/mediaUploadService';
+import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
@@ -253,18 +253,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (result.status !== 200) return null;
         return result.body.state;
       },
-      updateSharepicThumbnail: async (canvasId: string, imageDataUrl: string) => {
-        const blob = await (await fetch(imageDataUrl)).blob();
-        const thumbnailUrl = await uploadBlobToMediaLibrary(blob, {
-          filename: `sharepic-thumbnail-${canvasId}.png`,
-          uploadSource: 'chat-sharepic-thumbnail',
-        });
-        if (!thumbnailUrl) return;
-        await getContractsClient().canvas.update({
-          params: { id: canvasId },
-          body: { thumbnail_url: thumbnailUrl },
-        });
-      },
+      updateSharepicThumbnail: (canvasId: string, imageDataUrl: string) =>
+        updateCanvasThumbnail(canvasId, imageDataUrl, 'chat-sharepic-thumbnail'),
       restoreSharepicVersion: async (canvasId: string, version: number) => {
         const result = await getContractsClient().canvas.restoreVersion({
           params: { id: canvasId, version },
@@ -323,7 +313,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
-          window.open(`/docs/${existingDocId}`, '_blank', 'noopener,noreferrer');
+          window.open(`/office/${existingDocId}`, '_blank', 'noopener,noreferrer');
           return existingDocId;
         }
 
@@ -336,7 +326,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (!response.ok) throw new Error('Document creation failed');
         const data = (await response.json()) as { documentId?: string; title?: string };
         if (data.documentId) {
-          window.open(`/docs/${data.documentId}`, '_blank', 'noopener,noreferrer');
+          window.open(`/office/${data.documentId}`, '_blank', 'noopener,noreferrer');
           return data.documentId;
         }
       },

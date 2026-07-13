@@ -446,7 +446,7 @@ function NotebooksIndexFooter() {
   );
 
   return (
-    <section className="mt-xl">
+    <section className="mt-xl" data-tour="wissen-notebooks">
       <NotebookSection title="Notebooks" notebooks={allNotebooks} groups={stableGroups} />
 
       <EigeneNotebooks
@@ -478,6 +478,9 @@ function NotebooksIndexPage() {
     />
   );
 }
+
+/** Unwrapped variant for embedding (workplace "Wissen" tab — auth-gated route). */
+export { NotebooksIndexPage as NotebooksIndexContent };
 
 export default withAuthRequired(NotebooksIndexPage, {
   title: 'Notebooks',

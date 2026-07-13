@@ -2,7 +2,7 @@ import React from 'react';
 import { PiStackPlus, PiStackMinus } from 'react-icons/pi';
 
 const iconBtn =
-  'size-8 max-canvas-mobile:size-11 rounded-full max-canvas-mobile:rounded-[10px] border-none bg-transparent cursor-pointer flex items-center justify-center text-foreground transition-[background-color,color] duration-200 hover:enabled:bg-hover-alt hover:enabled:text-primary-600 active:enabled:bg-grey-100 active:enabled:dark:bg-grey-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:text-grey-400';
+  'inline-flex items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:enabled:bg-[var(--editor-surface-hover)] hover:enabled:text-[var(--editor-active-fg)] disabled:opacity-30 disabled:cursor-not-allowed';
 
 interface FloatingLayerControlsProps {
   onMoveUp: () => void;
@@ -18,7 +18,7 @@ export const FloatingLayerControls: React.FC<FloatingLayerControlsProps> = ({
   canMoveDown,
 }) => {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       <button
         className={iconBtn}
         onClick={onMoveUp}

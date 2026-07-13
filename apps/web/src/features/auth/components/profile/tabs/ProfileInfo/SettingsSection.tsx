@@ -1,9 +1,10 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
-import { Send } from 'lucide-react';
+import { RotateCcw, Send } from 'lucide-react';
 import React, { memo, useState } from 'react';
 
 import NotificationPreferences from '../../../../../../features/notifications/components/NotificationPreferences';
+import { resetAllTours } from '../../../../../../features/tours/tourState';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 
 interface SettingsSectionProps {
@@ -49,6 +50,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
             <TestEmailRow onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
           }
         />
+        <TourResetRow onSuccessMessage={onSuccessMessage} />
       </div>
     );
   }
@@ -119,6 +121,32 @@ const TestEmailRow: React.FC<{
     </div>
   );
 });
+
+const TourResetRow: React.FC<{ onSuccessMessage: (msg: string) => void }> = memo(
+  ({ onSuccessMessage }) => (
+    <div className="flex items-center justify-between gap-md p-md rounded-lg border border-grey-200 dark:border-grey-700">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">Einführungs-Touren zurücksetzen</p>
+        <p className="text-xs text-grey-500 dark:text-grey-400">
+          Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das
+          Sharepic-Studio beim nächsten Öffnen wieder an.
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="shrink-0"
+        onClick={() => {
+          resetAllTours();
+          onSuccessMessage('Touren zurückgesetzt — sie starten beim nächsten Besuch wieder.');
+        }}
+      >
+        <RotateCcw className="w-4 h-4 mr-xs" />
+        Zurücksetzen
+      </Button>
+    </div>
+  )
+);
 
 export default SettingsSection;
 export { LocaleSelector };

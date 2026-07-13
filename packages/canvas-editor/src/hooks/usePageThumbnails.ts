@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { GenericCanvasRef } from '../components/GenericCanvas';
 import type { HeterogeneousPage } from '../configs/types';
@@ -21,12 +21,24 @@ export function usePageThumbnails({
   const [thumbnails, setThumbnails] = useState<Map<string, string>>(() => new Map());
   const cacheRef = useRef<Map<string, string>>(new Map());
 
+  // Effects key on the page-ID SET, with live data read through refs —
+  // `pages` gets a new identity on every edit, and re-keying the timers on it
+  // would reset the refresh interval on each keystroke (so it never fires
+  // while the user is actually editing).
+  const pagesRef = useRef(pages);
+  pagesRef.current = pages;
+  const canvasRefsRef = useRef(canvasRefs);
+  canvasRefsRef.current = canvasRefs;
+  const currentPageIndexRef = useRef(currentPageIndex);
+  currentPageIndexRef.current = currentPageIndex;
+  const pageIdsKey = useMemo(() => pages.map((p) => p.id).join('|'), [pages]);
+
   useEffect(() => {
     const captureMissing = () => {
       let updated = false;
-      pages.forEach((page, idx) => {
+      pagesRef.current.forEach((page, idx) => {
         if (cacheRef.current.has(page.id)) return;
-        const ref = canvasRefs[idx]?.current;
+        const ref = canvasRefsRef.current[idx]?.current;
         if (!ref?.toDataURL) return;
         const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
         if (dataUrl) {
@@ -47,24 +59,39 @@ export function usePageThumbnails({
       clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, [pages, canvasRefs, pixelRatio]);
+  }, [pageIdsKey, pixelRatio]);
 
+  // Refresh the active page every tick plus ONE non-active page on a rotating
+  // cursor — remote/off-screen edits eventually reach every thumbnail without
+  // re-snapshotting the whole deck at once.
+  const rotationRef = useRef(0);
   useEffect(() => {
-    const page = pages[currentPageIndex];
-    if (!page) return undefined;
+    const capture = (index: number): boolean => {
+      const page = pagesRef.current[index];
+      const ref = canvasRefsRef.current[index]?.current;
+      if (!page || !ref?.toDataURL) return false;
+      const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
+      if (!dataUrl || cacheRef.current.get(page.id) === dataUrl) return false;
+      cacheRef.current.set(page.id, dataUrl);
+      return true;
+    };
 
     const interval = setInterval(() => {
-      const ref = canvasRefs[currentPageIndex]?.current;
-      if (!ref?.toDataURL) return;
-      const dataUrl = ref.toDataURL({ format: 'png', pixelRatio });
-      if (!dataUrl) return;
-      if (cacheRef.current.get(page.id) === dataUrl) return;
-      cacheRef.current.set(page.id, dataUrl);
-      setThumbnails(new Map(cacheRef.current));
+      const activeIndex = currentPageIndexRef.current;
+      const pageCount = pagesRef.current.length;
+      let updated = capture(activeIndex);
+      if (pageCount > 1) {
+        rotationRef.current = (rotationRef.current + 1) % pageCount;
+        if (rotationRef.current === activeIndex) {
+          rotationRef.current = (rotationRef.current + 1) % pageCount;
+        }
+        updated = capture(rotationRef.current) || updated;
+      }
+      if (updated) setThumbnails(new Map(cacheRef.current));
     }, refreshIntervalMs);
 
     return () => clearInterval(interval);
-  }, [pages, canvasRefs, currentPageIndex, refreshIntervalMs, pixelRatio]);
+  }, [pageIdsKey, refreshIntervalMs, pixelRatio]);
 
   useEffect(() => {
     const ids = new Set(pages.map((p) => p.id));

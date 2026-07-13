@@ -22,6 +22,7 @@ import {
   recentValuesContract,
   itemUsageContract,
   searchContract,
+  globalSearchContract,
   researchContract,
   boardsContract,
   sheetsContract,
@@ -56,9 +57,11 @@ import {
   groupsContract,
   userProfileContract,
   canvasContract,
+  canvasAiContract,
   monitorContract,
   sitesContract,
   subtitlerContract,
+  reisekostenContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -174,6 +177,7 @@ const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
@@ -208,9 +212,11 @@ const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
+const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
+const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -218,6 +224,7 @@ export interface ContractsClient {
   recentValues: ReturnType<typeof _recentValuesClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   search: ReturnType<typeof _searchClient>;
+  globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
   sheets: ReturnType<typeof _sheetsClient>;
@@ -252,9 +259,11 @@ export interface ContractsClient {
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
   canvas: ReturnType<typeof _canvasClient>;
+  canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
+  reisekosten: ReturnType<typeof _reisekostenClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -279,6 +288,7 @@ export function getContractsClient(): ContractsClient {
     recentValues: _recentValuesClient(),
     itemUsage: _itemUsageClient(),
     search: _searchClient(),
+    globalSearch: _globalSearchClient(),
     research: _researchClient(),
     boards: _boardsClient(),
     sheets: _sheetsClient(),
@@ -313,9 +323,11 @@ export function getContractsClient(): ContractsClient {
     groups: _groupsClient(),
     userProfile: _userProfileClient(),
     canvas: _canvasClient(),
+    canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
     subtitler: _subtitlerClient(),
+    reisekosten: _reisekostenClient(),
   };
 
   return _client;

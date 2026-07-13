@@ -1,3 +1,21 @@
+import type { GradientFill } from './gradientFill';
+
+/**
+ * Shapes rendered as strokes (Konva Line/Arrow) with no fill area — a gradient
+ * fill has no visible effect on these.
+ */
+export const STROKE_ONLY_SHAPES: ReadonlySet<string> = new Set([
+  'line',
+  'line-thick',
+  'line-dashed',
+  'line-dotted',
+  'line-double',
+  'line-arrow',
+  'arrow',
+  'double-arrow',
+  'arrow-curved',
+]);
+
 export type ShapeType =
   | 'rect'
   | 'circle'
@@ -521,6 +539,14 @@ export interface ShapeInstance {
   cornerRadius?: number;
   strokeWidth?: number;
   dash?: number[];
+  /** Drop shadow (Konva shadow* props); omit for no shadow. */
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+  /** Linear gradient fill; when set, overrides `fill`. */
+  fillGradient?: GradientFill | null;
 }
 
 /** Eucalyptus (--secondary-600), used as the default neutral color for line variants. */
@@ -612,7 +638,8 @@ export const createShape = (
   type: ShapeType,
   x: number,
   y: number,
-  color: string
+  color: string,
+  explicitColor?: string
 ): ShapeInstance => {
   const dims = DEFAULT_DIMENSIONS[type] ?? {
     width: DEFAULT_SHAPE_SIZE,
@@ -625,7 +652,7 @@ export const createShape = (
     y,
     width: dims.width,
     height: dims.height,
-    fill: DEFAULT_FILL_OVERRIDE[type] ?? color,
+    fill: explicitColor ?? DEFAULT_FILL_OVERRIDE[type] ?? color,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,
