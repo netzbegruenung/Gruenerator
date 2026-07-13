@@ -53,7 +53,7 @@ function TargetChip({ target, size = 26 }: { target: OmniTarget; size?: number }
   const icon = Math.round(size * 0.55);
   return (
     <span
-      className="flex flex-none items-center justify-center rounded-lg bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+      className="flex flex-none items-center justify-center rounded-lg bg-[#FBE4F0] text-[#B4005C] dark:bg-[#3A1E2C] dark:text-[#F2A9CE]"
       style={{ width: size, height: size }}
     >
       <Icon style={{ width: icon, height: icon }} />
@@ -256,7 +256,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
 
   return (
     <div className="relative mx-auto w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#9DBDAE] focus-within:shadow-[0_0_0_4px_rgba(95,133,117,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
+      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#E48DB6] focus-within:shadow-[0_0_0_4px_rgba(214,0,110,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
         <div className="relative min-w-0 flex-1">
           {question.length === 0 && (
             <TypingAnimation
@@ -290,7 +290,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
 
         {detectedTarget && (
           <span
-            className="flex flex-none items-center gap-1.5 rounded-full bg-primary-50 px-[11px] py-[5px] text-[12.5px] font-bold text-primary-700 max-[420px]:px-1.5 dark:bg-primary-900/30 dark:text-primary-300"
+            className="flex flex-none items-center gap-1.5 rounded-full bg-[#FBE4F0] px-[11px] py-[5px] text-[12.5px] font-bold text-[#B4005C] max-[420px]:px-1.5 dark:bg-[#3A1E2C] dark:text-[#F2A9CE]"
             aria-label={`Erkanntes Notebook: ${detectedTarget.title}`}
           >
             <DetectedIcon className="h-[13px] w-[13px]" />
@@ -304,7 +304,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           onClick={runPrimary}
           disabled={question.length === 0}
           aria-label="Fragen oder suchen"
-          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#4C8A6E] text-white transition-[background,transform] hover:bg-[#3E7A5F] active:scale-95 disabled:opacity-50"
+          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#D6006E] text-white transition-[background,transform] hover:bg-[#B4005C] active:scale-95 disabled:opacity-50"
         >
           <svg
             viewBox="0 0 24 24"
