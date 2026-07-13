@@ -53,6 +53,9 @@ export const searchIntentSchema = z.enum([
   'chat_history',
   'mcp',
   'direct',
+  // Loop demotion: low-confidence toolable turns skip the LLM classifier and
+  // let the agentic loop's model pick the tools itself.
+  'agentic',
 ]);
 export type SearchIntent = z.infer<typeof searchIntentSchema>;
 

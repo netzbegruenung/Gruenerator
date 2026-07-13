@@ -350,6 +350,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   ],
   mcp: ['Verbinde Tools...', 'Rufe externes Tool auf...', 'Frage verbundenen Dienst...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
+  agentic: ['Schaue selbst nach...', 'Lege los...', 'Greife zu den Tools...'],
 };
 
 /**

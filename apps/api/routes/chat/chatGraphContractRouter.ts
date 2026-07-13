@@ -34,7 +34,7 @@ import {
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
-import { decideRunAgentic } from './services/agenticLoop/routing.js';
+import { looksLikeCompoundGeneration, decideRunAgentic } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
@@ -610,19 +610,39 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
       const isMcpTurn = classifiedState.intent === 'mcp';
+      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+      // Compound research+generation (Phase 3n slice): a sharepic ask with an
+      // explicit research signal goes through the loop with the sharepic fat
+      // tool; pure sharepic keeps the direct dispatch + fixed text. Computed
+      // AFTER the app platform gate + refinement branches above, so app
+      // redirects and refinement turns are unaffected.
+      const compoundGeneration =
+        classifiedState.intent === 'sharepic' &&
+        !forcedTool &&
+        !sharepicRefinement &&
+        looksLikeCompoundGeneration(lastUserText);
+      if (compoundGeneration) classifiedState.compoundGeneration = true;
       // The whole routing decision lives in the pure, unit-tested decideRunAgentic
       // (agenticLoop/routing.ts) — including the `direct`-question rescue.
       const runAgentic = decideRunAgentic({
         loopEnabled: isAgenticLoopEnabled(),
         agenticIntents: AGENTIC_INTENTS,
         intent: classifiedState.intent,
-        lastUserText: lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+        lastUserText,
         forcedTool: !!forcedTool,
         isMcpTurn,
         isCompound,
-        hasSecondaryIntent: !!classifiedState.secondaryIntent,
+        secondaryIntent: classifiedState.secondaryIntent ?? null,
+        compoundGeneration,
         hasImageAttachments: imageAttachments.length > 0,
       });
+
+      // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
+      // of the loop must not strand in executeIntentPipeline, which has no
+      // 'agentic' branch — degrade to plain search.
+      if (!runAgentic && classifiedState.intent === 'agentic') {
+        classifiedState.intent = 'search';
+      }
 
       sse.send('intent', {
         intent: classifiedState.intent,
@@ -805,7 +825,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // sharepic/web keep their flow), no @-forced tools, and the matcher
       // itself excludes text-metric ("wie viele zeichen") and visualization
       // questions.
-      const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       const computeOverridableIntents = new Set([
         'compute',
         'direct',
@@ -1075,6 +1094,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(modelId != null && { modelId }),
           requestId,
           sse,
+          req,
+          threadId: actualThreadId ?? null,
         });
 
         finalState = classifiedState;
@@ -1087,7 +1108,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         // lift it so the assistant message persists the image (its rehydration
         // reads message-level generatedImage metadata, not the tool-call).
         generatedImage = finalState.generatedImage ?? null;
-        sharepicVariants = [];
+        // Same lift for the sharepic fat tool (compound turns) — persistence
+        // reads the variants from the recorded tool step, but the non-empty
+        // check + fixed confirmation branches key on this variable.
+        sharepicVariants = finalState.sharepicVariants ?? [];
         socialPost = null;
         fullText = outcome.fullText;
         agenticSteps = outcome.steps;

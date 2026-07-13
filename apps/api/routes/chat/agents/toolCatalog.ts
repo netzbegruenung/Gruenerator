@@ -40,6 +40,7 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
 } from './domainTools.js';
@@ -49,6 +50,7 @@ import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
+import type { Request } from 'express';
 
 const log = createLogger('toolCatalog');
 
@@ -79,7 +81,7 @@ export function buildChatToolCatalog(params: {
    * own SSE and run existing ChatGraph nodes. Absent in unit tests → search
    * family only.
    */
-  loop?: { sse: SSEWriter; state: ChatGraphState };
+  loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
 }): ChatToolCatalog {
   const { agentConfig, sourceRegistry, loop } = params;
 
@@ -198,8 +200,30 @@ NUTZE WENN:
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
-    if (state.intent === 'image' && state.enabledTools?.['image'] !== false) {
+    // 'agentic' (demoted) turns also mount it — image phrasings the confident
+    // heuristic misses land there; idempotency + forceFinish cap quota at one
+    // image per turn.
+    if (
+      (state.intent === 'image' || state.intent === 'agentic') &&
+      state.enabledTools?.['image'] !== false
+    ) {
       tools.generate_image = makeImageTool({ sse, state });
+    }
+    // Sharepic fat tool (Phase 3n slice): ONLY for compound research+generation
+    // turns — pure "mach ein Sharepic" keeps its direct dispatch + fixed text.
+    // Catalog key `sharepic` is load-bearing (persisted toolName drives card
+    // rehydration + follow-up edits).
+    if (
+      state.compoundGeneration === true &&
+      loop.req &&
+      state.enabledTools?.['sharepic'] !== false
+    ) {
+      tools.sharepic = makeCreateSharepicTool({
+        sse,
+        state,
+        req: loop.req,
+        threadId: loop.threadId ?? null,
+      });
     }
   }
 
