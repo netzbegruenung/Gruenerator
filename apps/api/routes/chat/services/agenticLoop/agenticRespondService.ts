@@ -41,8 +41,10 @@ const log = createLogger('AgenticRespond');
  *    respond), so "hallo" never pays tool-loop overhead.
  * `mcp` (Phase 2) enters the loop when a user has connected servers — see the
  * router's gate, which must let it through despite the @<server> forcedTool flag.
- * `summary`/`bundestag`/`abgeordnetenwatch` (Phase 2b) each mount their own
- * domain tool via `buildChatToolCatalog`'s intent-scoped `loop` branch.
+ * `summary`/`bundestag`/`abgeordnetenwatch` (Phase 2b) and `image` (Phase 3)
+ * each mount their own domain tool via `buildChatToolCatalog`'s intent-scoped
+ * `loop` branch. `image` (generate) enters the loop only for attachment-free
+ * turns — `image_edit` needs an attachment and the router gate excludes those.
  */
 export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'search',
@@ -54,6 +56,7 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'summary',
   'bundestag',
   'abgeordnetenwatch',
+  'image',
 ]);
 
 export function isAgenticLoopEnabled(): boolean {

@@ -604,6 +604,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         AGENTIC_INTENTS.has(classifiedState.intent) &&
         (!forcedTool || isMcpTurn) &&
         !isCompound &&
+        // A generation secondaryIntent (e.g. search + sharepic) is executed by
+        // the single-pass intentsToExecute fan-out; the loop has no fat tool for
+        // it yet (Phase 3n), so keep multi-intent turns on the pipeline instead
+        // of silently dropping the secondary.
+        !classifiedState.secondaryIntent &&
         imageAttachments.length === 0 &&
         selectionIsToolCapable(
           classifiedState.agentConfig.provider as string,
@@ -1012,7 +1017,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           finalState.searchResults = outcome.sources;
           finalState.searchCount = outcome.sources.length;
         }
-        generatedImage = null;
+        // The generate_image loop tool merges its result onto the shared state;
+        // lift it so the assistant message persists the image (its rehydration
+        // reads message-level generatedImage metadata, not the tool-call).
+        generatedImage = finalState.generatedImage ?? null;
         sharepicVariants = [];
         socialPost = null;
         fullText = outcome.fullText;

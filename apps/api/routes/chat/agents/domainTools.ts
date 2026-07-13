@@ -18,6 +18,7 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
@@ -130,6 +131,51 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
       }
       const sources = sourceRegistry.register(results);
       return { resultCount: results.length, sources: sources ?? '' };
+    },
+  });
+}
+
+/**
+ * `generate_image`: Flux image generation via `imageNode`. Emits
+ * `image_start`/`image_complete` (the latter carries the full image incl.
+ * base64 for the live card). `imageNode` derives subject+style from the last
+ * user message, so the model's `prompt` is injected as a synthetic trailing
+ * user message — that lets the loop steer the image (e.g. from search results).
+ * The result is merged back onto the shared state so the router persists it via
+ * the message-level `generatedImage` metadata (its rehydration path); the model
+ * only gets a lean confirmation (no base64). `image_edit` stays single-pass —
+ * it needs an attachment and the router gate excludes attachment turns.
+ */
+export function makeImageTool(ctx: { sse: SSEWriter; state: ChatGraphState }): Tool {
+  const { sse, state } = ctx;
+  return tool({
+    description: `Generiert ein Bild (Illustration, Foto-Stil oder Sharepic-Motiv) aus einer Beschreibung.
+
+NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möchte ("mach/generiere/zeichne ein Bild von ..."). Übergib eine präzise Bildbeschreibung auf Deutsch.`,
+    inputSchema: z.object({
+      prompt: z.string().min(1).describe('Bildbeschreibung (Motiv, Stil, Details)'),
+    }),
+    execute: async ({ prompt }) => {
+      sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
+      const injected = { role: 'user', content: prompt } as ChatGraphState['messages'][number];
+      const result = await imageNode({ ...state, messages: [...state.messages, injected] });
+      // Mirror the single-pass merge so the router persists the image through
+      // the message-level generatedImage metadata (state is the shared ref).
+      state.generatedImage = result.generatedImage ?? null;
+      if (state.generatedImage) {
+        sse.send('image_complete', {
+          message: PROGRESS_MESSAGES.imageComplete,
+          image: state.generatedImage,
+        });
+        return {
+          ok: true,
+          prompt: state.generatedImage.prompt,
+          style: state.generatedImage.style,
+        };
+      }
+      const err = result.error ?? 'Bildgenerierung fehlgeschlagen.';
+      sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
+      return { error: err };
     },
   });
 }

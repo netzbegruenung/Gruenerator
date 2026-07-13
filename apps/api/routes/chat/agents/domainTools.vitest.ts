@@ -2,17 +2,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
-import { makeAbgeordnetenwatchTool, makeBundestagTool, makeSummaryTool } from './domainTools.js';
+import {
+  makeAbgeordnetenwatchTool,
+  makeBundestagTool,
+  makeImageTool,
+  makeSummaryTool,
+} from './domainTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
 const searchNode = vi.fn<(s: unknown) => Promise<unknown>>();
 const summarizeNode = vi.fn<(s: unknown) => Promise<unknown>>();
+const imageNode = vi.fn<(s: unknown) => Promise<unknown>>();
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
   searchNode: (s: unknown): Promise<unknown> => searchNode(s),
 }));
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js', () => ({
   summarizeNode: (s: unknown): Promise<unknown> => summarizeNode(s),
+}));
+vi.mock('../../../agents/langgraph/ChatGraph/nodes/imageNode.js', () => ({
+  imageNode: (s: unknown): Promise<unknown> => imageNode(s),
 }));
 
 type SseEvent = { type: string; payload: unknown };
@@ -173,5 +182,58 @@ describe('makeAbgeordnetenwatchTool', () => {
     )) as { error?: string; resultCount: number };
     expect(out.error).toBeTruthy();
     expect(out.resultCount).toBe(0);
+  });
+});
+
+describe('makeImageTool', () => {
+  beforeEach(() => imageNode.mockReset());
+
+  it('injects the prompt, emits image events, returns lean confirmation, and merges the image onto state', async () => {
+    const image = {
+      base64: 'data:image/jpeg;base64,AAA',
+      url: '/uploads/flux/results/x.jpg',
+      filename: 'x.jpg',
+      prompt: 'Windrad im Sonnenlicht',
+      style: 'illustration',
+      generationTimeMs: 900,
+    };
+    imageNode.mockResolvedValue({ generatedImage: image });
+    const events: SseEvent[] = [];
+    const state = {
+      ...baseState,
+      intent: 'image',
+      messages: [{ role: 'user', content: 'egal' }],
+    } as unknown as ChatGraphState;
+    const out = (await exec(makeImageTool({ sse: fakeSse(events), state }), {
+      prompt: 'Windrad im Sonnenlicht',
+    })) as { ok?: boolean; prompt?: string };
+    expect(out.ok).toBe(true);
+    expect(out.prompt).toBe('Windrad im Sonnenlicht');
+    expect(events.map((e) => e.type)).toEqual(['image_start', 'image_complete']);
+    // Full image (incl. base64) rides the image_complete event for the live card.
+    expect((events[1].payload as { image: { base64: string } }).image.base64).toBe(image.base64);
+    // Merged onto shared state so the router can persist it.
+    expect((state as unknown as { generatedImage: unknown }).generatedImage).toBe(image);
+    // The model's prompt was injected as the trailing user message imageNode reads.
+    const passedState = imageNode.mock.calls[0][0] as { messages: { content: string }[] };
+    expect(passedState.messages.at(-1)?.content).toBe('Windrad im Sonnenlicht');
+  });
+
+  it('returns an error result (and clears state image) when generation fails', async () => {
+    imageNode.mockResolvedValue({ generatedImage: null, error: 'Tageslimit erreicht.' });
+    const events: SseEvent[] = [];
+    const state = {
+      ...baseState,
+      intent: 'image',
+      messages: [{ role: 'user', content: 'x' }],
+    } as unknown as ChatGraphState;
+    const out = (await exec(makeImageTool({ sse: fakeSse(events), state }), {
+      prompt: 'irgendwas',
+    })) as { error?: string; ok?: boolean };
+    expect(out.error).toBe('Tageslimit erreicht.');
+    expect(out.ok).toBeUndefined();
+    expect((state as unknown as { generatedImage: unknown }).generatedImage).toBeNull();
+    // image_complete still fires so the progress indicator resolves.
+    expect(events.map((e) => e.type)).toEqual(['image_start', 'image_complete']);
   });
 });

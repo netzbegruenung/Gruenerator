@@ -37,7 +37,12 @@ import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 
-import { makeAbgeordnetenwatchTool, makeBundestagTool, makeSummaryTool } from './domainTools.js';
+import {
+  makeAbgeordnetenwatchTool,
+  makeBundestagTool,
+  makeImageTool,
+  makeSummaryTool,
+} from './domainTools.js';
 import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
@@ -182,6 +187,14 @@ NUTZE WENN:
         break;
       case 'abgeordnetenwatch':
         tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+        break;
+      case 'image':
+        // Respect the image gate ("enabled unless explicitly false", mirroring
+        // the single-pass executor which reads state.enabledTools). image_edit
+        // stays single-pass (needs an attachment).
+        if (state.enabledTools?.['image'] !== false) {
+          tools.generate_image = makeImageTool({ sse, state });
+        }
         break;
       default:
         break;
