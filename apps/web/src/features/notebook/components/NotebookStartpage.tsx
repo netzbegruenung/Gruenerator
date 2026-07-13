@@ -9,10 +9,10 @@ import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icon
 
 import PageContainer from '../../../components/common/PageContainer';
 import { useNotebookStats } from '../hooks/useNotebookStats';
+import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
 import { LastAddedSection } from './LastAddedSection';
 import { NotebookAgentsSection, useNotebookHasAgents } from './NotebookAgentsSection';
-import { NotebookGlobalChatLauncher } from './NotebookGlobalChatLauncher';
 import { NotebookManualSearch } from './NotebookManualSearch';
 import { StatisticsSection } from './StatisticsSection';
 
@@ -27,7 +27,7 @@ interface ExampleQuestion {
 interface NotebookStartpageProps {
   title: string;
   placeholder: string;
-  /** Retained for API stability; no longer rendered in the 2a hero. */
+  /** Retained for API stability; no longer rendered. */
   exampleQuestions?: ExampleQuestion[];
   composerSourceFilters?: SourceFilterConfig;
   composerCategoryFilters?: CategoryFilterConfig;
@@ -38,37 +38,40 @@ interface NotebookStartpageProps {
   showStats?: boolean;
   showLastAdded?: boolean;
   showManualSearch?: boolean;
-  /**
-   * Suppresses the global-chat ("Chat") tab even when a `notebookMention` is set.
-   * Used by aggregate surfaces (e.g. the /notebooks index) where routing into the
-   * global chat doesn't correspond to a specific notebook the user picked.
-   */
+  /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
   hideGlobalChat?: boolean;
   /**
    * When set, the manual-research tab scopes search to a single user-owned notebook
    * (ownership-checked, no facet filters). Forwarded to `NotebookManualSearch`.
    */
   manualSearchNotebookId?: string;
-  /** Mention slug for the global-chat tab (e.g. 'berlin'). Null hides the tab. */
+  /** Accepted for caller compatibility; the notebook "Chat" tab was removed. */
   notebookMention?: string | null;
   /** Canonical notebook id (e.g. 'brandenburg-notebook') used to surface the
    *  notebook's LV agents. The agents section self-hides when none match. */
   notebookId?: string;
+  /**
+   * Overview mode: render only the intelligent omni composer (ask/route/open in
+   * one input) — no KI/Manuelle-Recherche tabs, no browse sub-tabs. Used by the
+   * /notebooks index + workplace "Wissen" surface. Individual notebook pages keep
+   * the 2a KI / Manuelle Recherche experience.
+   */
+  omniComposer?: boolean;
   footer?: ReactNode;
 }
 
-type ViewMode = 'ki' | 'recherche' | 'globalChat';
+type ViewMode = 'ki' | 'recherche';
 type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 
-// --- 2a gradient hero card ("Workplace pur") ---
-// Exact light gradient per design; matching deep-green radial for dark mode.
-const HERO_CARD = cn(
-  'relative flex min-h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-[18px]',
-  'border border-[#E2E8E4] dark:border-[#243A30]',
-  'shadow-[0_6px_22px_rgba(31,63,51,0.06)]',
+// Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
+// as the full-page background so the hero fills the surface like the other
+// workplace pages instead of sitting in a bounded card.
+export const NOTEBOOK_MAGENTA_BG = cn(
   'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEBF3_0%,#FCF4F8_55%,#FEFDFE_100%)]',
   'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1E3A2E_0%,#16281F_55%,#0F1D17_100%)]'
 );
+
+const HERO_FILL = 'relative flex min-h-[calc(100vh-11rem)] flex-col';
 
 const SEG_CONTAINER = cn(
   'inline-flex gap-0.5 rounded-full p-1',
@@ -94,8 +97,7 @@ const subBase = cn(
   'inline-flex items-center gap-2 rounded-full px-[17px] py-[9px] text-[13.5px] font-semibold',
   'border transition-all cursor-pointer select-none'
 );
-const subActive =
-  'bg-white dark:bg-[#1B2C24] border-[#52907A] text-[#316049] dark:text-[#7DB89E]';
+const subActive = 'bg-white dark:bg-[#1B2C24] border-[#52907A] text-[#316049] dark:text-[#7DB89E]';
 const subInactive = cn(
   'bg-white/90 dark:bg-white/5 border-[rgba(82,144,122,0.25)]',
   'text-[#22382E] dark:text-[#C0D8CB] hover:border-[#52907A]'
@@ -140,10 +142,9 @@ export function NotebookStartpage({
   showStats = true,
   showLastAdded = true,
   showManualSearch = true,
-  hideGlobalChat = false,
   manualSearchNotebookId,
-  notebookMention,
   notebookId,
+  omniComposer = false,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
@@ -151,9 +152,6 @@ export function NotebookStartpage({
 
   const hasCollections = recentCollectionIds.length > 0;
   const manualSearchAvailable = showManualSearch && hasCollections;
-  const globalChatAvailable = !!notebookMention && !hideGlobalChat;
-  const anyExtraTabAvailable = manualSearchAvailable || globalChatAvailable;
-
   const hasAgents = useNotebookHasAgents(notebookId);
   const lastAddedAvailable = showLastAdded && hasCollections;
   const statsAvailable = showStats && hasCollections;
@@ -167,10 +165,8 @@ export function NotebookStartpage({
     [lastAddedAvailable, hasAgents, statsAvailable]
   );
 
-  // Force-fall-through to 'ki' if the currently selected tab isn't available.
-  let activeView: ViewMode = viewMode;
-  if (activeView === 'recherche' && !manualSearchAvailable) activeView = 'ki';
-  if (activeView === 'globalChat' && !globalChatAvailable) activeView = 'ki';
+  // Force-fall-through to 'ki' if Manuelle Recherche isn't available.
+  const activeView: ViewMode = viewMode === 'recherche' && manualSearchAvailable ? 'recherche' : 'ki';
 
   const activeBrowseTab = availableBrowseTabs.some((t) => t.id === browseTab)
     ? browseTab
@@ -185,13 +181,30 @@ export function NotebookStartpage({
   // react-query cache with StatisticsSection, so no duplicate fetch.
   const { data: stats } = useNotebookStats({
     collectionIds: recentCollectionIds,
-    enabled: manualSearchAvailable && activeView === 'recherche',
+    enabled: !omniComposer && manualSearchAvailable && activeView === 'recherche',
   });
   const docCount = stats?.totalDocuments;
   const rechercheHeading = docCount
     ? `Recherchiere in ${docCount.toLocaleString('de-DE')} Dokumenten`
     : 'Recherchiere in den Dokumenten';
 
+  // --- Overview surface (/notebooks index + workplace "Wissen"): omni composer
+  //     only. No segmented tabs, no browse sub-tabs. ---
+  if (omniComposer) {
+    return (
+      <PageContainer maxWidth="lg" noPadTop gradient={false} bgClassName={NOTEBOOK_MAGENTA_BG}>
+        <div className="flex flex-col items-center px-6 pb-6 pt-10 md:px-20 md:pt-16">
+          <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
+          <div className="w-full max-w-3xl">
+            <NotebookOmniComposer />
+          </div>
+        </div>
+        {footer}
+      </PageContainer>
+    );
+  }
+
+  // --- Individual notebook page: 2a KI / Manuelle Recherche, full-bleed. ---
   const browseSlot =
     availableBrowseTabs.length > 0 ? (
       <div className="flex flex-col gap-lg">
@@ -227,31 +240,21 @@ export function NotebookStartpage({
     ) : undefined;
 
   return (
-    <PageContainer maxWidth="lg" noPadTop gradient={false}>
-      <div className={HERO_CARD}>
-        {/* Segmented tab control */}
-        {anyExtraTabAvailable && (
+    <PageContainer maxWidth="lg" noPadTop gradient={false} bgClassName={NOTEBOOK_MAGENTA_BG}>
+      <div className={HERO_FILL}>
+        {/* Segmented tab control — only when Manuelle Recherche exists. */}
+        {manualSearchAvailable && (
           <div className="flex justify-center pt-6">
             <div className={SEG_CONTAINER}>
               <SegTab active={activeView === 'ki'} onClick={() => setViewMode('ki')}>
                 KI
               </SegTab>
-              {manualSearchAvailable && (
-                <SegTab
-                  active={activeView === 'recherche'}
-                  onClick={() => setViewMode('recherche')}
-                >
-                  Manuelle Recherche
-                </SegTab>
-              )}
-              {globalChatAvailable && (
-                <SegTab
-                  active={activeView === 'globalChat'}
-                  onClick={() => setViewMode('globalChat')}
-                >
-                  Chat
-                </SegTab>
-              )}
+              <SegTab
+                active={activeView === 'recherche'}
+                onClick={() => setViewMode('recherche')}
+              >
+                Manuelle Recherche
+              </SegTab>
             </div>
           </div>
         )}
@@ -302,14 +305,6 @@ export function NotebookStartpage({
                 notebookId={manualSearchNotebookId}
                 browseSlot={browseSlot}
               />
-            </div>
-          </div>
-        )}
-
-        {activeView === 'globalChat' && notebookMention && (
-          <div className="flex flex-1 flex-col justify-center px-6 py-10">
-            <div className="mx-auto w-full max-w-3xl">
-              <NotebookGlobalChatLauncher mention={notebookMention} />
             </div>
           </div>
         )}
