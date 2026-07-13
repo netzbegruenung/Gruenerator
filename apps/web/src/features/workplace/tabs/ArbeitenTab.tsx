@@ -20,15 +20,15 @@ const ArbeitenTab = () => {
         <DocsHome />
       </div>
 
-      <div className="mt-2xl" data-tour="arbeiten-recents">
+      <section className="mb-xl mt-2xl" data-tour="arbeiten-tools">
+        <ToolsSection />
+      </section>
+
+      <div data-tour="arbeiten-recents">
         <Suspense fallback={null}>
           <RecentlyCreatedSection />
         </Suspense>
       </div>
-
-      <section className="mb-xl" data-tour="arbeiten-tools">
-        <ToolsSection />
-      </section>
 
       {/* Grünerators Favoriten vorerst ausgeblendet:
       {!isAustrian && (
