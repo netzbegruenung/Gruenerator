@@ -17,6 +17,7 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
@@ -145,12 +146,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       // behaviour as the store default.
       fetch: chatFetch,
       onUnauthorized: () => {
+        sessionDebug('http.401', { stack: 'chat' });
         if (!isPublicPage() && window.location.pathname !== '/login') {
           const currentPath = window.location.pathname + window.location.search;
           window.location.href = buildLoginUrl(currentPath);
         }
       },
-      wolkeConnectUrl: '/profile/wolke',
+      wolkeConnectUrl: '/profile/verbindungen',
       renderSharepic: renderSharepicToImage,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {

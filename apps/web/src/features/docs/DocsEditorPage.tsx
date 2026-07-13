@@ -24,6 +24,7 @@ import {
   type Document,
 } from '@gruenerator/docs';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import { Skeleton } from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -47,6 +48,7 @@ import {
   FiCornerUpRight,
   FiDownload,
   FiEdit3,
+  FiList,
   FiMessageCircle,
   FiMessageSquare,
   FiMoreVertical,
@@ -268,14 +270,20 @@ function EditorContent() {
     ydoc,
     id ?? ''
   );
-  // Track changes is surfaced entirely through the suggestions sidebar (no
-  // separate toolbar button): toggling the mode opens/closes the sidebar in one
-  // step, so the two stay coupled without a reactive effect.
+  // Tailwind max-md boundary — below it the sidebar is a full-screen overlay.
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  // Mode and panel are independent: on desktop enabling still auto-opens the
+  // sidebar for review, but on mobile the panel is a full-screen overlay that
+  // would trap the user, so it only opens via "Änderungen prüfen".
   const toggleSuggestions = useCallback(() => {
     const willEnable = !suggestionModeEnabled;
     toggleSuggestionMode();
-    setActiveSidebar(willEnable ? 'suggestions' : null);
-  }, [suggestionModeEnabled, toggleSuggestionMode]);
+    if (willEnable) {
+      if (!isMobile) setActiveSidebar('suggestions');
+    } else {
+      setActiveSidebar((prev) => (prev === 'suggestions' ? null : prev));
+    }
+  }, [suggestionModeEnabled, toggleSuggestionMode, isMobile]);
 
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
@@ -720,6 +728,18 @@ function EditorContent() {
                             )}
                           </button>
                         )}
+                        {canEdit && suggestionModeEnabled && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              togglePanel('suggestions');
+                            }}
+                          >
+                            <FiList />
+                            Änderungen prüfen
+                          </button>
+                        )}
                         {wolkeConnected && (
                           <button
                             className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
@@ -885,9 +905,7 @@ function EditorContent() {
                 </button>
               )}
               <button
-                onClick={() =>
-                  effectivePanel === 'suggestions' ? toggleSuggestions() : setActiveSidebar(null)
-                }
+                onClick={() => setActiveSidebar(null)}
                 className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
                 aria-label="Seitenleiste schließen"
               >

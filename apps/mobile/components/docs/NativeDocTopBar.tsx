@@ -48,11 +48,12 @@ export function NativeDocTopBar() {
   const setSuggestionsSheetOpen = useDocsEditorBridgeStore((s) => s.setSuggestionsSheetOpen);
 
   // Änderungsmodus is doc-wide (Word semantics): flipping it syncs to all editors.
-  // Enabling opens the review sheet; disabling closes it — mirrors the web coupling.
+  // The review sheet opens only via "Änderungen prüfen"; disabling still closes it
+  // so a stale open flag doesn't resurface the sheet on the next enable.
   const toggleSuggestionMode = () => {
     const next = !suggestionMode;
     dispatchAction({ type: 'set-suggestion-mode', enabled: next });
-    setSuggestionsSheetOpen(next);
+    if (!next) setSuggestionsSheetOpen(false);
   };
 
   // Native dictation: the OS recognizer (final transcript) feeds the editor via

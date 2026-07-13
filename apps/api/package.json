@@ -63,6 +63,7 @@
     "@langchain/langgraph": "^1.4.7",
     "@langchain/mistralai": "^1.2.0",
     "@mistralai/mistralai": "^2.4.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nangohq/node": "^0.70.9",
     "@napi-rs/canvas": "^1.0.2",
     "@pdf-lib/fontkit": "^1.1.1",

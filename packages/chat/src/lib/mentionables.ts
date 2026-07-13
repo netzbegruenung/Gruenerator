@@ -1,5 +1,6 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
+import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
 import {
   PiFlask,
   PiFiles,
@@ -514,6 +515,58 @@ export function getUserNotebookMentionables(): Mentionable[] {
   return dynamicUserNotebookMentionables;
 }
 
+export interface McpServerMentionable {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+let dynamicMcpServerMentionables: Mentionable[] = [];
+
+/**
+ * Per-server MCP mentions (@notion, @brevo, …) — one entry per connected server,
+ * fed from `/api/mcp/servers`. The identifier is `mcp:<serverId>` so the parser
+ * routes it into forcedTools and the backend scopes the tool-loop to that one
+ * server; the visible `@slug` is cosmetic. Replaces the old generic @mcp.
+ */
+export function setMcpServerMentionables(servers: McpServerMentionable[]): void {
+  const usedSlugs = new Set<string>();
+  // A slug that collides with a built-in/agent/notebook mention (registered
+  // earlier, so first-wins in rebuildMentionableMap) would make the server
+  // unreachable — its @mention would resolve to the other entry. Treat those as
+  // taken too, and suffix around them.
+  const takenByOther = (slug: string): boolean => {
+    const existing = mentionableMap.get(slug);
+    return existing != null && !existing.identifier.startsWith('mcp:');
+  };
+  dynamicMcpServerMentionables = servers.map((srv) => {
+    let slug = slugifyName(srv.name, 'mcp');
+    if (usedSlugs.has(slug) || takenByOther(slug)) {
+      let n = 2;
+      while (usedSlugs.has(`${slug}-${n}`) || takenByOther(`${slug}-${n}`)) n++;
+      slug = `${slug}-${n}`;
+    }
+    usedSlugs.add(slug);
+    return {
+      type: 'tool' as const,
+      category: 'function' as const,
+      trigger: '@' as const,
+      identifier: `mcp:${srv.id}`,
+      title: srv.name,
+      description: srv.description || 'Verbundener MCP-Dienst',
+      avatar: '🔌',
+      icon: PiPlugsConnected,
+      backgroundColor: mcpBrandColor(srv.name),
+      mention: slug,
+    };
+  });
+  rebuildMentionableMap();
+}
+
+export function getMcpServerMentionables(): Mentionable[] {
+  return dynamicMcpServerMentionables;
+}
+
 /**
  * The legacy @datei ("Datei auswählen") and @dokumentchat ("Dokument-Chat")
  * pickers were merged into the single @docs entry below — it opens the same
@@ -738,6 +791,7 @@ export function getAllMentionables(): Mentionable[] {
     ...dynamicUserNotebookMentionables,
     ...notebookMentionables,
     ...toolMentionables,
+    ...dynamicMcpServerMentionables,
     ...boardToolMentionables,
     ...dynamicBoardMentionables,
     ...docToolMentionables,
@@ -765,6 +819,7 @@ function rebuildMentionableMap(): void {
     // Full set (incl. disabled) so historical `@hamburg`/`@sh` tokens still resolve.
     allNotebookMentionables,
     toolMentionables,
+    dynamicMcpServerMentionables,
     boardToolMentionables,
     dynamicBoardMentionables,
     docToolMentionables,
@@ -832,7 +887,7 @@ export function filterMentionables(query: string): {
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
       userNotebooks: dynamicUserNotebookMentionables,
-      tools: [...toolMentionables, ...webpageMentionables],
+      tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables],
       boards: allBoards,
       docs: allDocs,
       documents: documentMentionables,
@@ -867,7 +922,9 @@ export function filterMentionables(query: string): {
     userNotebooks: isNotebookCategoryQuery
       ? dynamicUserNotebookMentionables
       : dynamicUserNotebookMentionables.filter(matchFn),
-    tools: [...toolMentionables, ...webpageMentionables].filter(matchFn),
+    tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables].filter(
+      matchFn
+    ),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
