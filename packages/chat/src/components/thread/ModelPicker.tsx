@@ -165,9 +165,7 @@ export const ModelPicker = memo(function ModelPicker({
   const ariaLabel =
     selectedModel === AUTO_MODEL_ID
       ? `Modell wählen – Automatisch (${resolvedAuto.name})`
-      : 'region' in current && current.region === 'cn'
-        ? `Modell wählen – ${current.name} (Warnhinweis)`
-        : 'Modell wählen';
+      : 'Modell wählen';
 
   return (
     <ResponsiveMenu
