@@ -1,10 +1,13 @@
 import * as Sentry from '@sentry/react';
 
+import { getSessionDebugBuffer } from '../sessionDebug';
+
 export type AuthStage =
   | 'api-401-unexpected'
   | 'partial-logout'
   | 'partial-logout-check-failed'
   | 'redirect-loop'
+  | 'session-teardown'
   | 'login-flow';
 
 interface AuthIssueOptions {
@@ -76,6 +79,9 @@ export function captureAuthIssue(opts: AuthIssueOptions): void {
       scope.setExtra('href', window.location.href);
       scope.setExtra('pathname', window.location.pathname);
     }
+    // Attach the full session-debug timeline so one incident report carries
+    // its whole lead-up (probe verdicts, 401s per stack, cache mutations).
+    scope.setExtra('sessionDebugBuffer', getSessionDebugBuffer());
     Sentry.captureException(opts.cause);
   });
 
