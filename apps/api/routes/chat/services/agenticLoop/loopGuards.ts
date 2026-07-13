@@ -36,10 +36,15 @@ export interface InternalFirstPolicy {
   /** Tool that must have run at least once before gated tools are allowed. */
   requiredTool: string;
   gatedTools: ReadonlySet<string>;
-  /** True disables the policy for this turn (explicit web intent, temporal
-   *  question, user-pasted URL). */
+  /** True disables the policy for this turn (explicit web intent, user-pasted URL). */
   exempt: boolean;
+  /** Once the internal search has yielded at least this many sources, the web/
+   *  scrape tools are refused — internal is PREFERRED, not merely FIRST. The web
+   *  stays available only when internal came up short (or empty). Default 3. */
+  minSourcesToSkipWeb?: number;
 }
+
+export const MIN_INTERNAL_SOURCES_TO_SKIP_WEB = 3;
 
 export interface ToolLoopGuardOptions {
   maxFailuresPerTool?: number;
@@ -234,6 +239,13 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       if (!policy || policy.exempt || !policy.gatedTools.has(toolName)) return null;
       if ((callCounts.get(policy.requiredTool) ?? 0) === 0) {
         return `Nutze zuerst ${policy.requiredTool} (interne Dokumente), bevor du das Web durchsuchst.`;
+      }
+      // Internal-PREFERRED: if the internal search already yielded enough, don't
+      // web-search / scrape on top of it. Only fall to the web when internal
+      // came up short (or empty). Also blocks model-invented scrape URLs.
+      const minSources = policy.minSourcesToSkipWeb ?? MIN_INTERNAL_SOURCES_TO_SKIP_WEB;
+      if ((options.getSourceCount?.() ?? 0) >= minSources) {
+        return 'Du hast bereits genügend interne Dokumente gefunden — beantworte die Frage damit. Nutze die Websuche/Scraping NUR, wenn intern nichts Passendes zu finden war (oder es klar um tagesaktuelle Ereignisse geht).';
       }
       return null;
     },
