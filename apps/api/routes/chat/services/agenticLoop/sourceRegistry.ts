@@ -31,6 +31,10 @@ export interface SourceRegistry {
   register(results: SearchResult[]): string;
   /** All accumulated results in stable order (capped), for persistence/UI. */
   getResults(limit?: number): SearchResult[];
+  /** The full numbered snippet block for ALL accumulated results — injected into
+   *  the synthesizer's context in the planner/executor split (the synth model
+   *  has no tools, so it can't see results via tool returns). */
+  renderAll(): string;
   /** Citations over all accumulated results — numbering matches the snippets. */
   getCitations(): Citation[];
   readonly size: number;
@@ -68,6 +72,9 @@ export function createSourceRegistry(): SourceRegistry {
     },
     getResults(limit = 10) {
       return ordered.slice(0, limit);
+    },
+    renderAll() {
+      return ordered.map((r, i) => snippetLine(i + 1, r)).join('\n');
     },
     getCitations() {
       // Project each result in registry order and stamp the registry index as
