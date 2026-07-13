@@ -73,6 +73,15 @@ export function isAgenticLoopEnabled(): boolean {
   return process.env.CHAT_AGENT_LOOP !== 'false';
 }
 
+/** Tools counted against the per-turn search budget (loopGuards). */
+const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
+  'gruenerator_search',
+  'web_search',
+  'gruenerator_examples_search',
+  'gruenerator_pressemitteilung_examples',
+  'scrape_url',
+]);
+
 function resolveBudget(): LoopBudget {
   const maxSteps = Number(process.env.CHAT_AGENT_LOOP_MAX_STEPS) || DEFAULT_LOOP_BUDGET.maxSteps;
   const wallClockMs =
@@ -122,7 +131,20 @@ export async function streamAgenticResponse(params: {
   const agentConfig = finalState.agentConfig;
 
   const sourceRegistry = createSourceRegistry();
-  const guards = createToolLoopGuards();
+  const guards = createToolLoopGuards({
+    searchToolNames: SEARCH_FAMILY_TOOLS,
+    getSourceCount: () => sourceRegistry.size,
+    internalFirst: {
+      requiredTool: 'gruenerator_search',
+      gatedTools: new Set(['web_search', 'scrape_url']),
+      // Explicit web intent, temporal question or user-pasted URL may go to
+      // the web/scrape directly.
+      exempt:
+        finalState.intent === 'web' ||
+        finalState.hasTemporal === true ||
+        (finalState.detectedUrls?.length ?? 0) > 0,
+    },
+  });
   const steps: PersistedStep[] = [];
   let text = '';
   let responseStarted = false;

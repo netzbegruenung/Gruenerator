@@ -129,13 +129,15 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       const stepId = options.toolCallId;
       const args = asRecord(input);
 
-      // checkDuplicate is the only guard that mutates state (advances lastKey).
-      // If an earlier guard trips it isn't called, so a blocked call doesn't
-      // reset "last" — harmless: failure/total caps stay tripped for the turn
-      // and maxSteps bounds any spin.
+      // checkDuplicate is the only guard that mutates state (registers the
+      // call key). If an earlier guard trips it isn't called, so a blocked
+      // call doesn't register — harmless: failure/total caps stay tripped for
+      // the turn and maxSteps bounds any spin.
       const guardError =
         ctx.guards.checkFailureCap(toolName) ??
         ctx.guards.checkTotalFailureBudget() ??
+        ctx.guards.checkSearchBudget(toolName) ??
+        ctx.guards.checkInternalFirst(toolName) ??
         ctx.guards.checkDuplicate(toolName, input);
       if (guardError) {
         const result = { error: guardError };
@@ -145,6 +147,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         return result;
       }
 
+      ctx.guards.noteCall(toolName);
       sendStart(stepId, args);
 
       let output: unknown;
