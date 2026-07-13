@@ -661,12 +661,15 @@ export async function* parseSSEStream(
             title?: string;
             serverName?: string;
           };
-          // Prefer a server-provided title; else the sharepic-specific map; else
-          // a generic label derived from the (possibly MCP-namespaced) name.
+          // Prefer a server-provided title; else the legacy mcpToolNode
+          // `mcp_tool` server/tool label; else the sharepic-specific map; else a
+          // generic label derived from the (possibly MCP-namespaced) name.
           const title =
             serverTitle ??
-            TOOL_STEP_TITLES[toolName] ??
-            `${formatNamespacedToolLabel(toolName, serverName)}…`;
+            (toolName === 'mcp_tool'
+              ? `${(args?.server as string) ?? 'MCP'}${args?.tool ? ` · ${args.tool as string}` : ''}`
+              : (TOOL_STEP_TITLES[toolName] ??
+                `${formatNamespacedToolLabel(toolName, serverName)}…`));
           const alreadyKnown =
             toolStepsById.has(stepId) || allToolCalls.some((tc) => tc.toolCallId === stepId);
           if (!alreadyKnown) {
