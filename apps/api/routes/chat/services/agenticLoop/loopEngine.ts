@@ -41,6 +41,14 @@ export interface LoopDeps {
 }
 const defaultDeps: LoopDeps = { streamText: streamTextReal, generateText: generateTextReal };
 
+/** Injected via prepareStep's `system` override on the force-finish step
+ *  (LobeHub pattern: strip tools AND tell the model why, instead of a bare
+ *  toolChoice:'none' it can't interpret). */
+export const FORCE_FINISH_SYSTEM_SUFFIX =
+  '\n\nWICHTIG: Du hast das Schritt-Limit erreicht. Rufe KEINE Tools mehr auf. Fasse zusammen, was du herausgefunden hast, und gib JETZT die endgültige Antwort auf Basis der vorhandenen Belege. Wenn etwas offen bleibt, sag ehrlich, was fehlt.';
+export const FORCE_FINISH_GATHER_SUFFIX =
+  '\n\nWICHTIG: Schritt-Limit erreicht — beende die Recherche JETZT ohne weitere Tool-Aufrufe.';
+
 const GATHER_SUFFIX = [
   '',
   '',
@@ -69,6 +77,20 @@ function tryLenientJsonParse(raw: string): unknown {
     }
     return null;
   }
+}
+
+/** prepareStep shared by both modes: on the last step (or when forceFinish
+ *  trips) strip tools AND explain why via a per-step system override. */
+function buildPrepareStep(
+  baseSystem: string,
+  finishSuffix: string,
+  maxSteps: number,
+  forceFinish: () => boolean
+): ({ stepNumber }: { stepNumber: number }) => { toolChoice?: 'none'; system?: string } {
+  return ({ stepNumber }) =>
+    stepNumber >= maxSteps - 1 || forceFinish()
+      ? { toolChoice: 'none' as const, system: `${baseSystem}${finishSuffix}` }
+      : {};
 }
 
 /** Lenient one-shot arg repair; else the invalid-args error is surfaced to the
@@ -132,8 +154,12 @@ async function streamWithTools(
     temperature: p.temperature,
     maxOutputTokens: p.maxOutputTokens,
     abortSignal: p.abortSignal,
-    prepareStep: ({ stepNumber }) =>
-      stepNumber >= p.maxSteps - 1 || p.forceFinish() ? { toolChoice: 'none' as const } : {},
+    prepareStep: buildPrepareStep(
+      p.toolSystem,
+      FORCE_FINISH_SYSTEM_SUFFIX,
+      p.maxSteps,
+      p.forceFinish
+    ),
     experimental_repairToolCall: repairToolCall,
   });
   return drain(result, p.onText, p.onReasoning);
@@ -143,17 +169,22 @@ async function streamWithTools(
  *  Its own text output is discarded — the answer comes from synthesis. */
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
   try {
+    const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
     await deps.generateText({
       model: p.plannerModel,
-      system: `${p.toolSystem}${GATHER_SUFFIX}`,
+      system: gatherSystem,
       messages: p.messages,
       tools: p.tools,
       stopWhen: stepCountIs(p.maxSteps),
       temperature: p.temperature,
       maxOutputTokens: p.maxOutputTokens,
       abortSignal: p.abortSignal,
-      prepareStep: ({ stepNumber }) =>
-        stepNumber >= p.maxSteps - 1 || p.forceFinish() ? { toolChoice: 'none' as const } : {},
+      prepareStep: buildPrepareStep(
+        gatherSystem,
+        FORCE_FINISH_GATHER_SUFFIX,
+        p.maxSteps,
+        p.forceFinish
+      ),
       experimental_repairToolCall: repairToolCall,
     });
   } catch (err) {
