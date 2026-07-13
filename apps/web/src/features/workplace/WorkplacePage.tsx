@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useAuthStore } from '../../stores/authStore';
-import { NOTEBOOK_MAGENTA_BG } from '../notebook/components/NotebookStartpage';
+import { NOTEBOOK_MAGENTA_BG } from '../notebook/notebookTheme';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
@@ -18,10 +18,11 @@ import './workplace-sunrise.css';
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 const WissenTab = lazy(() => import('./tabs/WissenTab'));
 
-// Per-tab page tints from the design (light mode only; dark keeps the theme
-// background). Chat gets the warm radial glow behind the centered hero.
+// Per-tab page tints from the design. Chat gets the warm radial glow behind the
+// centered hero (light + dark handled in workplace-sunrise.css); Wissen shares
+// the notebook magenta gradient (pink light / deep-green dark).
 const TAB_BACKGROUND: Record<string, string> = {
-  chat: 'workplace-chat-sunrise dark:bg-transparent',
+  chat: 'workplace-chat-sunrise',
   arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
   // "Wissen" adopts the notebook 2a magenta radial as a full-page surface.
   wissen: NOTEBOOK_MAGENTA_BG,
