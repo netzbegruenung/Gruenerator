@@ -13,7 +13,8 @@ import type { ChatSearchResult } from '../../../agents/langgraph/ChatGraph/types
 const mockQuery = vi.fn().mockResolvedValue([]);
 const mockSearchChatHistory = vi.fn();
 const mockSearchThreadRecall = vi.fn();
-const mockSearchDocuments = vi.fn();
+const mockSearchOfficeContent = vi.fn();
+const mockRerankPipeline = vi.fn();
 
 vi.mock('../../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: mockQuery }),
@@ -28,12 +29,17 @@ vi.mock('../../../services/chat/threadRecallEmbeddingService.js', () => ({
 }));
 
 vi.mock('../../docs/docsSearch.js', () => ({
-  searchDocuments: (...args: unknown[]) => mockSearchDocuments(...args),
+  searchOfficeContent: (...args: unknown[]) => mockSearchOfficeContent(...args),
+}));
+
+vi.mock('../../../services/search/rerankPipeline.js', () => ({
+  rerankPipeline: (...args: unknown[]) => mockRerankPipeline(...args),
 }));
 
 const {
   recallPastChats,
   recallOfficeDocuments,
+  rerankRecall,
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
@@ -187,61 +193,51 @@ describe('recallOfficeDocuments', () => {
     vi.clearAllMocks();
   });
 
-  it('maps subtypes to German kind labels and /office/ URLs', async () => {
-    mockSearchDocuments.mockResolvedValue([
+  it('maps subtypes to labels, per-subtype URLs and snippets (incl. boards)', async () => {
+    mockSearchOfficeContent.mockResolvedValue([
       {
         id: 'd1',
         title: 'Klimastrategie',
         document_subtype: 'presentations',
         updated_at: '2026-04-01T10:00:00Z',
+        content: '<ol><li>Ziele</li><li>Maßnahmen</li></ol>',
       },
       {
-        id: 'd2',
-        title: 'Budget 2026',
-        document_subtype: 'sheets',
+        id: 'b1',
+        title: 'Kampagnen-Board',
+        document_subtype: 'boards',
         updated_at: '2026-03-20T10:00:00Z',
-      },
-      {
-        id: 'd3',
-        title: 'Antrag Radwege',
-        document_subtype: 'antrag',
-        updated_at: '2026-03-01T10:00:00Z',
+        content: JSON.stringify({
+          board_type: 'kanban',
+          preview: { columns: [{ name: 'To Do' }], notes: [] },
+        }),
       },
     ]);
     const docs = await recallOfficeDocuments('user-1', 'Klima', 5);
-    expect(docs).toEqual([
-      {
-        id: 'd1',
-        title: 'Klimastrategie',
-        kind: 'Präsentation',
-        url: '/office/d1',
-        updatedAt: '2026-04-01T10:00:00.000Z',
-      },
-      {
-        id: 'd2',
-        title: 'Budget 2026',
-        kind: 'Tabelle',
-        url: '/office/d2',
-        updatedAt: '2026-03-20T10:00:00.000Z',
-      },
-      {
-        id: 'd3',
-        title: 'Antrag Radwege',
-        kind: 'Dokument',
-        url: '/office/d3',
-        updatedAt: '2026-03-01T10:00:00.000Z',
-      },
-    ]);
+    expect(docs[0]).toMatchObject({
+      id: 'd1',
+      kind: 'Präsentation',
+      subtype: 'presentations',
+      url: '/office/d1',
+    });
+    expect(docs[0].snippet).toContain('Ziele');
+    expect(docs[1]).toMatchObject({
+      id: 'b1',
+      kind: 'Board',
+      subtype: 'boards',
+      url: '/boards/b1',
+    });
+    expect(docs[1].snippet).toContain('To Do');
   });
 
   it('returns [] for an empty query without hitting the DB', async () => {
     const docs = await recallOfficeDocuments('user-1', '   ', 5);
     expect(docs).toEqual([]);
-    expect(mockSearchDocuments).not.toHaveBeenCalled();
+    expect(mockSearchOfficeContent).not.toHaveBeenCalled();
   });
 
-  it('degrades to [] when the document search throws', async () => {
-    mockSearchDocuments.mockRejectedValue(new Error('DB down'));
+  it('degrades to [] when the office search throws', async () => {
+    mockSearchOfficeContent.mockRejectedValue(new Error('DB down'));
     const docs = await recallOfficeDocuments('user-1', 'Klima', 5);
     expect(docs).toEqual([]);
   });
@@ -252,17 +248,62 @@ describe('formatOfficeDocsBlock', () => {
     expect(formatOfficeDocsBlock([])).toBe('');
   });
 
-  it('renders a header and one line per document with kind + date', () => {
+  it('renders a header and one line per item with kind + date', () => {
     const block = formatOfficeDocsBlock([
       {
         id: 'd1',
         title: 'Klimastrategie',
+        subtype: 'presentations',
         kind: 'Präsentation',
+        snippet: '',
         url: '/office/d1',
         updatedAt: '2026-04-01T10:00:00Z',
       },
     ]);
-    expect(block).toContain('## RELEVANTE EIGENE DOKUMENTE');
+    expect(block).toContain('## RELEVANTE EIGENE INHALTE');
     expect(block).toContain('„Klimastrategie" (Präsentation, 01.04.2026)');
+  });
+});
+
+describe('rerankRecall', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeOffice(id: string, title: string) {
+    return {
+      id,
+      title,
+      subtype: 'docs',
+      kind: 'Dokument',
+      snippet: `about ${title}`,
+      url: `/office/${id}`,
+      updatedAt: '2026-04-01T10:00:00Z',
+    };
+  }
+
+  it('reorders across sources by rerank result and keeps top-N', async () => {
+    // Rank office(index 2) first, then chat(index 0); drop the rest.
+    mockRerankPipeline.mockResolvedValue({ rankedIndices: [2, 0], scores: new Map() });
+    const chats = [makeHit('c1', 'One'), makeHit('c2', 'Two')];
+    const office = [makeOffice('o1', 'Doc A')];
+    const out = await rerankRecall('query', chats, office, 2);
+    expect(out.officeDocs.map((d) => d.id)).toEqual(['o1']);
+    expect(out.chats.map((c) => c.threadId)).toEqual(['c1']);
+  });
+
+  it('falls back to unranked order (truncated) when rerank throws', async () => {
+    mockRerankPipeline.mockRejectedValue(new Error('rerank down'));
+    const chats = [makeHit('c1', 'One'), makeHit('c2', 'Two')];
+    const office = [makeOffice('o1', 'Doc A')];
+    const out = await rerankRecall('query', chats, office, 2);
+    expect(out.chats.map((c) => c.threadId)).toEqual(['c1', 'c2']);
+    expect(out.officeDocs).toEqual([]);
+  });
+
+  it('skips rerank for a single candidate', async () => {
+    const out = await rerankRecall('query', [makeHit('c1', 'One')], [], 3);
+    expect(out.chats.map((c) => c.threadId)).toEqual(['c1']);
+    expect(mockRerankPipeline).not.toHaveBeenCalled();
   });
 });

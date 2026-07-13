@@ -26,6 +26,7 @@ import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  rerankRecall,
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
@@ -1004,7 +1005,7 @@ export async function executeIntentPipeline(opts: {
             : '');
         const dateFrom = finalState.detectedFilters?.date_from;
         const dateTo = finalState.detectedFilters?.date_to;
-        const [hits, officeDocs] = await Promise.all([
+        const [rawChats, rawOfficeDocs] = await Promise.all([
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
@@ -1013,6 +1014,9 @@ export async function executeIntentPipeline(opts: {
           }),
           recallOfficeDocuments(userId, query, 5),
         ]);
+        // Cross-source rerank so the most relevant few survive across chats +
+        // office content, rather than 5 of each.
+        const { chats: hits, officeDocs } = await rerankRecall(query, rawChats, rawOfficeDocs, 6);
 
         const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
 
@@ -1026,7 +1030,7 @@ export async function executeIntentPipeline(opts: {
           ...officeDocs.map((d) => ({
             source: 'office_document',
             title: d.title ?? 'Unbenanntes Dokument',
-            content: d.kind,
+            content: d.snippet || d.kind,
             url: d.url,
           })),
         ];

@@ -7,8 +7,9 @@
  *  - past chat conversations (`recallPastChats`): ILIKE `searchChatHistory`
  *    merged with thread-level semantic matches so a fresh first message can
  *    surface a topically related past thread even without shared keywords.
- *  - office documents — docs, presentations, sheets (`recallOfficeDocuments`):
- *    title search over `collaborative_documents`, reusing `searchDocuments`.
+ *  - office content — docs, boards, sheets, presentations (`recallOfficeDocuments`):
+ *    title + content-preview search over `collaborative_documents`, reusing
+ *    `searchOfficeContent`. `rerankRecall` then cross-ranks both sources.
  *
  * This is deliberately separate from mem0 fact memory: mem0 stores distilled
  * facts about the user; this returns raw conversation excerpts and document
@@ -17,9 +18,10 @@
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
+import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../utils/logger.js';
 import { toIsoOrNull, toIsoString } from '../../../utils/toIsoString.js';
-import { searchDocuments } from '../../docs/docsSearch.js';
+import { searchOfficeContent } from '../../docs/docsSearch.js';
 
 import { searchChatHistory } from './chatSearchService.js';
 
@@ -32,24 +34,62 @@ const DEEP_READ_MAX_CHARS = 4_000;
 
 /** German label per collaborative_documents subtype for the recall block/card. */
 function officeKindLabel(subtype: string | null): string {
+  if (subtype === 'boards') return 'Board';
   if (subtype === 'presentations') return 'Präsentation';
   if (subtype === 'sheets' || subtype === 'tabelle') return 'Tabelle';
   return 'Dokument';
 }
 
+/** Boards live at /boards/<id>; docs/sheets/presentations at /office/<id>. */
+function officeUrl(subtype: string | null, id: string): string {
+  return subtype === 'boards' ? `/boards/${id}` : `/office/${id}`;
+}
+
+const OFFICE_SNIPPET_CHARS = 200;
+
+/**
+ * Short readable snippet from the denormalized `content` preview. Boards store
+ * JSON `{board_type, preview:{columns,notes}}`; docs/sheets/presentations store
+ * HTML. Returns '' when nothing usable.
+ */
+function officeSnippet(subtype: string | null, content: string | null): string {
+  if (!content) return '';
+  if (subtype === 'boards') {
+    try {
+      const parsed = JSON.parse(content) as {
+        preview?: { columns?: Array<{ name?: string }>; notes?: string[] };
+      };
+      const cols = parsed.preview?.columns?.map((c) => c.name).filter(Boolean) ?? [];
+      const notes = parsed.preview?.notes ?? [];
+      return [...cols, ...notes].join(', ').slice(0, OFFICE_SNIPPET_CHARS);
+    } catch {
+      return '';
+    }
+  }
+  return content
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, OFFICE_SNIPPET_CHARS);
+}
+
 export interface OfficeDocHit {
   id: string;
   title: string | null;
-  /** German kind label (Dokument / Präsentation / Tabelle). */
+  /** Underlying collaborative_documents.document_subtype. */
+  subtype: string | null;
+  /** German kind label (Dokument / Präsentation / Tabelle / Board). */
   kind: string;
+  /** Short readable excerpt from the content preview (may be ''). */
+  snippet: string;
   url: string;
   updatedAt: string | null;
 }
 
 /**
- * Title search over the user's own office documents (docs, presentations,
- * sheets). Reuses `searchDocuments`, which applies the owned/shared/group
- * access predicate, so a user never sees another user's documents.
+ * Search the user's own office content — docs, boards, sheets, presentations —
+ * by title and content preview. Reuses `searchOfficeContent`, which applies the
+ * owned/shared/group access predicate, so a user never sees another's content.
  */
 export async function recallOfficeDocuments(
   userId: string,
@@ -58,17 +98,82 @@ export async function recallOfficeDocuments(
 ): Promise<OfficeDocHit[]> {
   if (!query.trim()) return [];
   try {
-    const hits = await searchDocuments(userId, query, limit);
+    const hits = await searchOfficeContent(userId, query, { limit });
     return hits.map((h) => ({
       id: h.id,
       title: h.title,
+      subtype: h.document_subtype,
       kind: officeKindLabel(h.document_subtype),
-      url: `/office/${h.id}`,
+      snippet: officeSnippet(h.document_subtype, h.content),
+      url: officeUrl(h.document_subtype, h.id),
       updatedAt: toIsoOrNull(h.updated_at),
     }));
   } catch (err) {
-    log.warn(`[Recall] Office document search failed: ${err}`);
+    log.warn(`[Recall] Office content search failed: ${err}`);
     return [];
+  }
+}
+
+const RERANK_SNIPPET_CHARS = 300;
+
+/**
+ * Cross-source relevance ranking of recall candidates (chats + office content)
+ * via the shared cross-encoder `rerankPipeline`, so the few most relevant items
+ * survive regardless of source — instead of blindly injecting N of each. Returns
+ * the kept subsets (rerank order preserved). Degrades to the inputs (truncated
+ * to `keep`) when reranking is unavailable or the list is trivially small.
+ */
+export async function rerankRecall(
+  query: string,
+  chats: ChatSearchResult[],
+  officeDocs: OfficeDocHit[],
+  keep: number
+): Promise<{ chats: ChatSearchResult[]; officeDocs: OfficeDocHit[] }> {
+  type Candidate = { kind: 'chat'; hit: ChatSearchResult } | { kind: 'office'; hit: OfficeDocHit };
+  const candidates: Candidate[] = [
+    ...chats.map((hit) => ({ kind: 'chat' as const, hit })),
+    ...officeDocs.map((hit) => ({ kind: 'office' as const, hit })),
+  ];
+
+  const splitKept = (kept: Candidate[]) => ({
+    chats: kept
+      .filter((c): c is Extract<Candidate, { kind: 'chat' }> => c.kind === 'chat')
+      .map((c) => c.hit),
+    officeDocs: kept
+      .filter((c): c is Extract<Candidate, { kind: 'office' }> => c.kind === 'office')
+      .map((c) => c.hit),
+  });
+
+  if (candidates.length <= 1 || !query.trim()) {
+    return splitKept(candidates.slice(0, keep));
+  }
+
+  const items = candidates.map((c) =>
+    c.kind === 'chat'
+      ? {
+          title: c.hit.threadTitle ?? 'Chat',
+          content: (c.hit.snippet ?? '').slice(0, RERANK_SNIPPET_CHARS),
+          source: 'chat',
+        }
+      : {
+          title: c.hit.title ?? c.hit.kind,
+          content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
+          source: c.hit.subtype ?? 'office',
+        }
+  );
+
+  try {
+    const { rankedIndices } = await rerankPipeline({
+      query,
+      items,
+      outputLimit: keep,
+      instruct: 'Finde die eigenen Inhalte des Nutzers, die zur Anfrage am relevantesten sind.',
+      sourceTagFn: (it) => (it.source === 'chat' ? 'Chat' : 'Eigener Inhalt'),
+    });
+    return splitKept(rankedIndices.map((i) => candidates[i]));
+  } catch (err) {
+    log.warn(`[Recall] Rerank failed (using unranked order): ${err}`);
+    return splitKept(candidates.slice(0, keep));
   }
 }
 
@@ -227,9 +332,9 @@ export function formatPastChatsBlock(
 export function formatOfficeDocsBlock(docs: OfficeDocHit[]): string {
   if (docs.length === 0) return '';
   const lines: string[] = [
-    '## RELEVANTE EIGENE DOKUMENTE (KONTEXT – KEINE QUELLEN, NICHT ZITIEREN)',
+    '## RELEVANTE EIGENE INHALTE (KONTEXT – KEINE QUELLEN, NICHT ZITIEREN)',
     '',
-    'Diese Dokumente, Präsentationen und Tabellen hat der Nutzer selbst erstellt.',
+    'Diese Dokumente, Präsentationen, Tabellen und Boards hat der Nutzer selbst erstellt.',
     'Du darfst darauf verweisen, wenn es zur Anfrage passt.',
     '',
   ];

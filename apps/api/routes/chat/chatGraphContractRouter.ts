@@ -46,13 +46,14 @@ import { extractTextContent } from './services/messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
-  type OfficeDocHit,
 } from './services/pastChatRecallService.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
+import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -86,7 +87,7 @@ import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services
 import { buildStreamContext } from './services/streamContext.js';
 import { createMessage, touchThread } from './services/threadPersistenceService.js';
 
-import type { ChatGraphState, ChatSearchResult } from '../../agents/langgraph/ChatGraph/types.js';
+import type { ChatGraphState } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
@@ -592,6 +593,31 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(isCompound && { compound: true }),
       });
 
+      // === Recall tool-loop (flag-gated) ===
+      // For the chat_history intent, let the model search + read the user's own
+      // content on demand (size-probed) instead of pre-injecting everything.
+      // Handles the whole turn; when off, falls through to the deterministic
+      // chat_history branch in executeIntentPipeline below.
+      if (
+        classifiedState.intent === 'chat_history' &&
+        isChatRecallLoopEnabled() &&
+        actualThreadId &&
+        lastUserMessage
+      ) {
+        const handled = await handleRecallToolLoop({
+          sse,
+          threadId: actualThreadId,
+          userId,
+          instruction: (extractTextContent(lastUserMessage.content) as string) || '',
+          query:
+            classifiedState.searchQuery ||
+            (extractTextContent(lastUserMessage.content) as string) ||
+            '',
+          startTime: Date.now(),
+        });
+        if (handled) return { status: 200 as const, body: undefined };
+      }
+
       // === Chat history context enrichment ===
       // Explicit: the user referenced a past conversation (classifier/regex).
       // Proactive: first turn of a new thread — surface a relevant past chat so
@@ -614,25 +640,32 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
               : '');
           if (recallQuery.trim()) {
-            const [chatResults, officeDocs] = await withTimeout(
-              Promise.all([
-                recallPastChats(userId, recallQuery, {
-                  ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
-                  limit: 3,
-                }),
-                recallOfficeDocuments(userId, recallQuery, 3),
-              ]),
+            // Fetch chats + office content, then cross-source rerank to the few
+            // most relevant — all inside the best-effort timeout.
+            const recalled = await withTimeout(
+              (async () => {
+                const [chatResults, officeDocs] = await Promise.all([
+                  recallPastChats(userId, recallQuery, {
+                    ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
+                    limit: 3,
+                  }),
+                  recallOfficeDocuments(userId, recallQuery, 3),
+                ]);
+                return rerankRecall(recallQuery, chatResults, officeDocs, 4);
+              })(),
               EXTERNAL_CONTEXT_TIMEOUT_MS,
               'past-work recall'
-            ).catch(() => [[], []] as [ChatSearchResult[], OfficeDocHit[]]);
+            ).catch(
+              () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
+            );
             const blocks = [
-              chatResults.length > 0 ? formatPastChatsBlock(chatResults) : '',
-              formatOfficeDocsBlock(officeDocs),
+              recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
+              formatOfficeDocsBlock(recalled.officeDocs),
             ].filter(Boolean);
             if (blocks.length > 0) {
               classifiedState.chatHistoryContext = blocks.join('\n\n');
               log.info(
-                `[ChatGraph] Injected recall: ${chatResults.length} chats, ${officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
+                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
               );
             }
           }
