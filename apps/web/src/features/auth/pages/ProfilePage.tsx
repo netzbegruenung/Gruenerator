@@ -60,6 +60,12 @@ const ProfilePage = () => {
       return;
     }
 
+    // Legacy: the "Wolke" tab was renamed to "Verbindungen" — keep old links alive.
+    if (tab === 'wolke') {
+      void navigate('/profile/verbindungen', { replace: true });
+      return;
+    }
+
     if (tab && !TAB_MAPPING[tab]) {
       void navigate('/profile', { replace: true });
       return;
@@ -154,11 +160,11 @@ const ProfilePage = () => {
             />
           )}
 
-          {activeTab === 'wolke' && (
+          {activeTab === 'verbindungen' && (
             <WolkeManagementTab
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'wolke'}
+              isActive={activeTab === 'verbindungen'}
             />
           )}
         </Suspense>
