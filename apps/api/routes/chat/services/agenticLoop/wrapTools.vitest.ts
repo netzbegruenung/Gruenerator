@@ -118,7 +118,7 @@ describe('wrapToolsForLoop', () => {
     expect(execute).toHaveBeenCalledTimes(1);
 
     const out = (await run(tools, 'web_search', { query: 'b' }, 'call_2')) as { error: string };
-    expect(out.error).toMatch(/Genug Belege/);
+    expect(out.error).toMatch(/bereits ausführlich gesucht/);
     expect(execute).toHaveBeenCalledTimes(1); // second call never executed
     expect(events.filter((e) => e.event === 'tool_step_start')).toHaveLength(2);
     expect(steps).toHaveLength(2);
