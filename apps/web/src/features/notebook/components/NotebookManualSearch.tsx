@@ -129,11 +129,17 @@ interface NotebookManualSearchProps {
    * AND hides the facet-filter UI. User notebooks have no Qdrant facets.
    */
   notebookId?: string;
+  /** Seed query executed on mount (omni composer → "Manuell recherchieren"). */
+  initialQuery?: string;
 }
 
-export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManualSearchProps) {
+export function NotebookManualSearch({
+  collectionIds,
+  notebookId,
+  initialQuery,
+}: NotebookManualSearchProps) {
   const hideFilters = !!notebookId;
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ?? '');
   const [hasSearched, setHasSearched] = useState(false);
   const lastQueryRef = useRef('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -215,7 +221,22 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
     [executeSearch, query]
   );
 
+  // Run the seeded query once on mount (deliberately not re-run when
+  // executeSearch's identity changes — filter changes re-search via the
+  // debounced effect below).
+  useEffect(() => {
+    if (!initialQuery || initialQuery.trim().length < 2) return;
+    const timer = setTimeout(() => executeSearch(initialQuery), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Debounced re-search when filters/sort/mode change after the first search.
+  // `hasSearched` is read as a gate but deliberately NOT a dependency: its
+  // false→true transition happens *inside* the first executeSearch, and
+  // re-running this effect on it would fire the identical query a second time
+  // ~300ms later (once per first/seeded search). Real filter/sort/mode changes
+  // still re-search via activeFilters/searchMode/sortBy/executeSearch.
   useEffect(() => {
     if (!hasSearched || !lastQueryRef.current) return;
     clearTimeout(debounceRef.current);
@@ -223,7 +244,8 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
       executeSearch(lastQueryRef.current);
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [activeFilters, searchMode, sortBy, hasSearched, executeSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilters, searchMode, sortBy, executeSearch]);
 
   const sortIndicator = sortBy !== 'relevance' ? ` · sortiert nach ${SORT_LABELS[sortBy]}` : '';
   const modeLabel = MODE_OPTIONS.find((o) => o.value === searchMode)?.label ?? 'Hybrid';

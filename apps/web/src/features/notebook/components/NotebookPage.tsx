@@ -33,6 +33,7 @@ import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
 import { NotebookStartpage } from './NotebookStartpage';
+import { PendingQuestionSender } from './PendingQuestionSender';
 
 interface NotebookCollection {
   id: string;
@@ -96,6 +97,9 @@ interface NotebookPageContentProps {
   /** Disable the startpage's own page background when embedded in a surface
    *  that paints its own (workplace "Wissen" tab tint). Defaults to true. */
   pageGradient?: boolean;
+  /** Replace the plain question composer with the omni composer (ask/route/
+   *  open/research in one input). Used by the /notebooks index surface. */
+  omniComposer?: boolean;
 }
 
 interface NotebookPageProps {
@@ -144,6 +148,7 @@ export const NotebookPageContent = ({
   hideGlobalChat = false,
   manualSearchNotebookId,
   pageGradient = true,
+  omniComposer = false,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -346,6 +351,7 @@ export const NotebookPageContent = ({
       mode={mode}
       documentIds={documentIds}
     >
+      <PendingQuestionSender />
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
           {/* Notebook search runs internally (no tool-call), so render the
@@ -372,6 +378,7 @@ export const NotebookPageContent = ({
                     notebookMention={notebookMention}
                     notebookId={notebookId}
                     pageGradient={pageGradient}
+                    omniComposer={omniComposer}
                     footer={startpageFooter}
                   />
                 </div>
