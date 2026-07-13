@@ -5,6 +5,7 @@ import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js'
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
 } from './domainTools.js';
@@ -22,6 +23,10 @@ vi.mock('../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js', () => ({
 }));
 vi.mock('../../../agents/langgraph/ChatGraph/nodes/imageNode.js', () => ({
   imageNode: (s: unknown): Promise<unknown> => imageNode(s),
+}));
+const runSharepicGeneration = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../services/intentExecutionService.js', () => ({
+  runSharepicGeneration: (o: unknown): Promise<unknown> => runSharepicGeneration(o),
 }));
 
 type SseEvent = { type: string; payload: unknown };
@@ -260,5 +265,99 @@ describe('makeImageTool', () => {
     expect((state as unknown as { generatedImage: unknown }).generatedImage).toBeNull();
     // image_complete still fires so the progress indicator resolves.
     expect(events.map((e) => e.type)).toEqual(['image_start', 'image_complete']);
+  });
+});
+
+describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
+  beforeEach(() => runSharepicGeneration.mockReset());
+
+  const VARIANTS = [{ type: 'dreizeiler', imageBase64: 'x', pages: undefined }];
+
+  function makeTool(state: ChatGraphState, events: SseEvent[] = []) {
+    return makeCreateSharepicTool({
+      sse: fakeSse(events) as Parameters<typeof makeCreateSharepicTool>[0]['sse'],
+      state,
+      req: {} as Parameters<typeof makeCreateSharepicTool>[0]['req'],
+      threadId: 't1',
+    });
+  }
+
+  it('injects the researched text as the trailing user message and returns variants verbatim', async () => {
+    runSharepicGeneration.mockResolvedValue(VARIANTS);
+    const events: SseEvent[] = [];
+    const state = {
+      ...baseState,
+      intent: 'sharepic',
+      messages: [{ role: 'user', content: 'Recherchiere X und mach ein Sharepic' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+
+    const out = (await exec(makeTool(state, events), {
+      text: 'Tempolimit 130: spart 6,7 Mio. Tonnen CO2 pro Jahr',
+    })) as { variants: unknown[]; note: string };
+
+    // The generator reads the LAST message — the model's grounded text must be
+    // there, with the original conversation preserved before it.
+    const passed = runSharepicGeneration.mock.calls[0][0] as {
+      state: { messages: { role: string; content: string }[] };
+      threadId: string | null;
+    };
+    expect(passed.state.messages).toHaveLength(2);
+    expect(passed.state.messages[1].content).toContain('Tempolimit 130');
+    expect(passed.threadId).toBe('t1');
+    // Verbatim variants → persisted step rehydrates the card (toolName 'sharepic').
+    expect(out.variants).toEqual(VARIANTS);
+    // Shared-ref merge → forceFinish + router lift see the variants.
+    expect(state.sharepicVariants).toEqual(VARIANTS);
+    expect(events.map((e) => e.type)).toContain('image_start');
+  });
+
+  it('is idempotent per turn: a second call never regenerates', async () => {
+    runSharepicGeneration.mockResolvedValue(VARIANTS);
+    const state = {
+      ...baseState,
+      messages: [{ role: 'user', content: 'x' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+    const tool = makeTool(state);
+
+    await exec(tool, { text: 'a' });
+    const second = (await exec(tool, { text: 'völlig anderer text' })) as {
+      ok: boolean;
+      note: string;
+    };
+    expect(second.ok).toBe(true);
+    expect(second.note).toMatch(/NICHT erneut/);
+    expect(runSharepicGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('failure returns {error} WITHOUT merging state — a retry stays possible', async () => {
+    runSharepicGeneration.mockResolvedValueOnce([]);
+    runSharepicGeneration.mockResolvedValueOnce(VARIANTS);
+    const state = {
+      ...baseState,
+      messages: [{ role: 'user', content: 'x' }],
+      sharepicVariants: null,
+    } as unknown as ChatGraphState;
+    const tool = makeTool(state);
+
+    const failed = (await exec(tool, { text: 'a' })) as { error: string };
+    expect(failed.error).toMatch(/fehlgeschlagen/);
+    // Failure must NOT trip the idempotency guard (that would dead-end the turn).
+    expect(state.sharepicVariants ?? null).toBeNull();
+    const retried = (await exec(tool, { text: 'b' })) as { variants: unknown[] };
+    expect(retried.variants).toEqual(VARIANTS);
+    expect(runSharepicGeneration).toHaveBeenCalledTimes(2);
+  });
+
+  it('pre-existing variants on state (defensive) short-circuit immediately', async () => {
+    const state = {
+      ...baseState,
+      messages: [{ role: 'user', content: 'x' }],
+      sharepicVariants: VARIANTS,
+    } as unknown as ChatGraphState;
+    const out = (await exec(makeTool(state), { text: 'a' })) as { ok: boolean };
+    expect(out.ok).toBe(true);
+    expect(runSharepicGeneration).not.toHaveBeenCalled();
   });
 });
