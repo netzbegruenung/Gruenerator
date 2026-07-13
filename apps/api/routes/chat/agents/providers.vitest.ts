@@ -1,6 +1,24 @@
 import { describe, it, expect } from 'vitest';
 
-import { AVAILABLE_MODELS, getContextWindow, getModelConfig } from './providers.js';
+import {
+  AVAILABLE_MODELS,
+  getContextWindow,
+  getModelConfig,
+  prefersUnifiedLoop,
+} from './providers.js';
+
+describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
+  it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
+    expect(prefersUnifiedLoop('mistral', 'mistral-medium-2604')).toBe(true);
+  });
+  it('every other provider runs the split (planner does tools, selection writes)', () => {
+    expect(prefersUnifiedLoop('litellm', 'verdigado-think')).toBe(false);
+    expect(prefersUnifiedLoop('litellm', 'verdigado-pro')).toBe(false);
+    expect(prefersUnifiedLoop('regolo', 'gemma4-31b')).toBe(false);
+    expect(prefersUnifiedLoop('regolo', 'gpt-oss-120b')).toBe(false);
+    expect(prefersUnifiedLoop('regolo', 'qwen3.5-122b')).toBe(false);
+  });
+});
 
 describe('AVAILABLE_MODELS', () => {
   it('all entries have contextWindow field', () => {
