@@ -5,15 +5,9 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
-import {
-  fetchRecentDocs,
-  fetchRecentBoards,
-  fetchRecentImages,
-  fetchRecentReelProjects,
-} from '../workplace/recentActivityController.js';
+import { aggregateRecentActivity } from '../workplace/recentActivityController.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { RecentActivityItem } from '../workplace/recentActivityController.js';
 
 const db = getPostgresInstance();
 const log = createLogger('auth-init');
@@ -27,7 +21,13 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
       fetchGroups(userId),
       fetchSavedTexts(userId),
       fetchNotebookCollections(userId),
-      fetchRecentActivity(userId),
+      // Seed the SAME 30-item shape the workplace section fetches, so the
+      // post-login cache seed is identical to a direct /recent-activity call
+      // (was a divergent 12-item, canvas-less copy → the flicker bug).
+      aggregateRecentActivity(userId, 30).catch((error: unknown) => {
+        log.warn('Recent activity fetch failed in init:', error);
+        return [];
+      }),
       fetchProfile(userId),
     ]);
 
@@ -195,25 +195,6 @@ async function fetchProfile(userId: string): Promise<unknown> {
   } catch (error) {
     log.warn('Profile fetch failed in init:', error);
     return null;
-  }
-}
-
-async function fetchRecentActivity(userId: string): Promise<RecentActivityItem[]> {
-  try {
-    const limit = 12;
-    const [docs, boards, images, reelProjects] = await Promise.all([
-      fetchRecentDocs(userId, limit),
-      fetchRecentBoards(userId, limit),
-      fetchRecentImages(userId, limit),
-      fetchRecentReelProjects(userId, limit),
-    ]);
-
-    const items = [...docs, ...boards, ...images, ...reelProjects];
-    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return items.slice(0, limit);
-  } catch (error) {
-    log.warn('Recent activity fetch failed in init:', error);
-    return [];
   }
 }
 
