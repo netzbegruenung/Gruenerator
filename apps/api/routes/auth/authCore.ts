@@ -15,6 +15,7 @@ import { ba_accounts } from '../../database/schema/auth.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
+import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { createLogger } from '../../utils/logger.js';
 import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
 
@@ -54,6 +55,32 @@ async function signOutAndForwardCookies(req: Request, res: Response): Promise<vo
   } catch (err) {
     log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
     captureAuthIssue({ stage: 'logout', cause: err, req });
+  }
+}
+
+/**
+ * Re-read the session from the DB (bypassing the cookie cache) and forward the
+ * refreshed `Set-Cookie: ba.session_data=...` header to the browser. Better Auth
+ * caches a signed copy of the whole user object — including `locale` — in the
+ * `ba.session_data` cookie for 300s (`betterAuth.ts` session.cookieCache). A DB
+ * write alone (e.g. `PUT /locale`) does NOT touch that cookie, so the next
+ * `getSession()` returns the stale cached user for up to 300s and the frontend
+ * reverts the change. `getSession({ query: { disableCookieCache: true } })`
+ * forces a fresh DB read and re-writes the cache cookie; forwarding its
+ * Set-Cookie makes the just-persisted value visible immediately. Same hazard,
+ * and same forwarding pattern, as `signOutAndForwardCookies` above.
+ */
+async function refreshSessionCookieCache(req: Request, res: Response): Promise<void> {
+  try {
+    const betterAuthResponse = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+      query: { disableCookieCache: true },
+      asResponse: true,
+    });
+    forwardBetterAuthCookies(res, betterAuthResponse);
+  } catch (err) {
+    log.warn('[Auth /locale PUT] session cache refresh threw: %s', (err as Error).message);
+    captureAuthIssue({ stage: 'locale-update', cause: err, req });
   }
 }
 
@@ -258,6 +285,11 @@ router.put(
 
       await profileService.updateProfile(req.user!.id, { locale });
       req.user!.locale = locale;
+
+      // Persist to the DB is not enough: Better Auth serves `getSession` from the
+      // 300s `ba.session_data` cookie cache, which still holds the old locale.
+      // Refresh it so the switch sticks instead of reverting on the next reload.
+      await refreshSessionCookieCache(req, res);
 
       res.json({ success: true, message: 'Locale updated successfully', locale });
     } catch (error) {
