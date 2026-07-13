@@ -20,6 +20,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { type Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 import { createLogger } from '../../utils/logger.js';
+import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 const log = createLogger('user-mcp-client');
 
@@ -94,6 +95,15 @@ export class UserMCPClient {
 
   /** Connect and complete the MCP initialize handshake. Throws on failure. */
   async connect(): Promise<void> {
+    // SSRF guard at the connect chokepoint: the server URL is user-provided, so
+    // re-validate on every connect (not just at create time — DNS can rebind to
+    // an internal address between). Blocks localhost/private IPs/metadata hosts.
+    const urlCheck = await validateUrlForFetch(this.config.url);
+    if (!urlCheck.isValid) {
+      throw new Error(
+        `Unsichere MCP-Server-URL (${this.config.name}): ${urlCheck.error ?? 'blockiert'}`
+      );
+    }
     this.client = new Client({ name: 'gruenerator-chat', version: '1.0.0' }, { capabilities: {} });
     this.transport = this.buildTransport();
     // The SDK's concrete transport types `sessionId` as `string | undefined`,

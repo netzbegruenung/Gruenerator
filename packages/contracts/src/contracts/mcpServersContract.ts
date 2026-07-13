@@ -67,6 +67,7 @@ export const mcpServersContract = c.router(
       body: mcpServerUpdateBodySchema,
       responses: {
         200: mcpServerResponseSchema,
+        400: mcpServerErrorResponseSchema,
         404: mcpServerErrorResponseSchema,
         500: mcpServerErrorResponseSchema,
       },
