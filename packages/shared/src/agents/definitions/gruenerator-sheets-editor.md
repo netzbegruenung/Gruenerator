@@ -1,6 +1,7 @@
 ---
 iconKey: table
 identifier: gruenerator-sheets-editor
+hiddenFromInventory: true
 title: Tabellen-Assistent
 description: 'Beantwortet Fragen zur aktuellen Tabelle, trägt Daten ein, baut Formeln und formatiert Bereiche.'
 plugins:

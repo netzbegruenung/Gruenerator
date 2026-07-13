@@ -115,18 +115,6 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
-  'qwen-regolo': {
-    kind: 'single',
-    provider: 'regolo',
-    model: 'qwen3.5-122b',
-    contextWindow: 32768,
-  },
-  'qwen3.6-regolo': {
-    kind: 'single',
-    provider: 'regolo',
-    model: 'qwen3.6-27b',
-    contextWindow: 32768,
-  },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
