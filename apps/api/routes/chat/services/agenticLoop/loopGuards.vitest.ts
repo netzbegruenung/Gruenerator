@@ -136,6 +136,108 @@ describe('createToolLoopGuards — duplicate detection', () => {
   });
 });
 
+describe('createToolLoopGuards — near-duplicate (Jaccard)', () => {
+  it('blocks a re-phrasing that shares ≥0.6 tokens with a prior same-tool search', () => {
+    const guards = createToolLoopGuards();
+    expect(
+      guards.checkDuplicate('gruenerator_search', { query: 'Atomkraft Position Grüne' })
+    ).toBeNull();
+    // "Position Atomkraft" ⊂ prior → overlap 2/3 = 0.67 → blocked.
+    expect(
+      guards.checkDuplicate('gruenerator_search', { query: 'Position Atomkraft' })
+    ).not.toBeNull();
+    // "Atomkraft Grüne" vs prior → 2/3 = 0.67 → blocked.
+    expect(
+      guards.checkDuplicate('gruenerator_search', { query: 'Atomkraft Grüne' })
+    ).not.toBeNull();
+  });
+
+  it('the Q5 regression: 4 Atomkraft variants collapse, other topics stay free', () => {
+    const guards = createToolLoopGuards({
+      searchToolNames: new Set(['gruenerator_search']),
+    });
+    const search = (q: string): string | null =>
+      guards.checkSearchBudget('gruenerator_search') ??
+      guards.checkDuplicate('gruenerator_search', { query: q }) ??
+      (guards.noteCall('gruenerator_search'), null);
+
+    expect(search('Atomkraft Position Grüne')).toBeNull(); // 1st Atomkraft — runs
+    expect(search('Atomkraft Grüne')).not.toBeNull(); // near-dup — blocked
+    expect(search('Position Atomkraft')).not.toBeNull(); // near-dup — blocked
+    // The other three topics are NOT similar → all allowed (were starved before).
+    expect(search('Tempolimit 130 Autobahn')).toBeNull();
+    expect(search('Vermögensteuer Grüne')).toBeNull();
+    expect(search('Cannabis Legalisierung Grüne')).toBeNull();
+  });
+
+  it('a genuinely different topic on the same tool is allowed', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('gruenerator_search', { query: 'Atomkraft Position' })).toBeNull();
+    expect(
+      guards.checkDuplicate('gruenerator_search', { query: 'Tempolimit Autobahn' })
+    ).toBeNull();
+  });
+
+  it('near-dup does NOT fire in consecutive scope (sharepic edit loop unaffected)', () => {
+    const guards = createToolLoopGuards({ duplicateScope: 'consecutive' });
+    expect(guards.checkDuplicate('apply', { text: 'Zeile eins kürzen' })).toBeNull();
+    // Overlapping but not identical — must be allowed for edit ops.
+    expect(guards.checkDuplicate('apply', { text: 'Zeile eins fetten' })).toBeNull();
+  });
+
+  it('a single-token synonym slips through (documented Jaccard limit)', () => {
+    const guards = createToolLoopGuards();
+    expect(guards.checkDuplicate('gruenerator_search', { query: 'Atomkraft Grüne' })).toBeNull();
+    // "Atomenergie" shares no tokens with "Atomkraft" → lexical dedup can't catch it.
+    expect(guards.checkDuplicate('gruenerator_search', { query: 'Atomenergie' })).toBeNull();
+  });
+
+  it('threshold is tunable; 1.0 only blocks exact token-set repeats', () => {
+    const guards = createToolLoopGuards({ nearDuplicateJaccard: 1 });
+    expect(guards.checkDuplicate('s', { query: 'Atomkraft Position Grüne' })).toBeNull();
+    expect(guards.checkDuplicate('s', { query: 'Position Atomkraft' })).toBeNull(); // 0.67 < 1.0
+    expect(guards.checkDuplicate('s', { query: 'grüne position atomkraft' })).not.toBeNull(); // same set
+  });
+});
+
+describe('createToolLoopGuards — budget rework (multi-topic)', () => {
+  const SEARCH = new Set(['gruenerator_search', 'web_search']);
+
+  it('two rich searches (10 sources) no longer starve the budget (was the Q5 bug)', () => {
+    let sources = 0;
+    const guards = createToolLoopGuards({
+      searchToolNames: SEARCH,
+      getSourceCount: () => sources,
+    });
+    guards.noteCall('gruenerator_search');
+    sources = 5;
+    guards.noteCall('gruenerator_search');
+    sources = 10; // two topics, 10 sources — under the new 20 ceiling
+    // A third topic is still allowed (old maxSources=6 would have blocked here).
+    expect(guards.checkSearchBudget('gruenerator_search')).toBeNull();
+  });
+
+  it('allows up to 6 distinct searches, then caps', () => {
+    const guards = createToolLoopGuards({ searchToolNames: SEARCH });
+    for (let i = 0; i < 6; i++) {
+      expect(guards.checkSearchBudget('gruenerator_search')).toBeNull();
+      guards.noteCall('gruenerator_search');
+    }
+    expect(guards.checkSearchBudget('gruenerator_search')).not.toBeNull();
+  });
+
+  it('the source ceiling still fires as a context-safety backstop (20)', () => {
+    let sources = 25;
+    const guards = createToolLoopGuards({
+      searchToolNames: SEARCH,
+      getSourceCount: () => sources,
+    });
+    expect(guards.checkSearchBudget('web_search')).not.toBeNull();
+    sources = 19;
+    expect(guards.checkSearchBudget('web_search')).toBeNull();
+  });
+});
+
 describe('createToolLoopGuards — failure caps', () => {
   it('caps failures per tool at MAX_FAILURES_PER_TOOL', () => {
     const guards = createToolLoopGuards();
@@ -221,13 +323,25 @@ describe('createToolLoopGuards — internal-first', () => {
     exempt: false,
   };
 
-  it('blocks web/scrape before the internal search ran, unblocks after', () => {
-    const guards = createToolLoopGuards({ internalFirst: policy });
+  it('blocks web/scrape before the internal search ran, unblocks when internal came up SHORT', () => {
+    let sources = 0;
+    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
     expect(guards.checkInternalFirst('web_search')).not.toBeNull();
     expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
     guards.noteCall('gruenerator_search');
+    sources = 1; // internal ran but yielded little → web is allowed as a fallback
     expect(guards.checkInternalFirst('web_search')).toBeNull();
     expect(guards.checkInternalFirst('scrape_url')).toBeNull();
+  });
+
+  it('prefer-internal: once internal yields enough sources, web/scrape are refused', () => {
+    let sources = 0;
+    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
+    guards.noteCall('gruenerator_search');
+    sources = 5; // enough internal evidence → do not web-search on top
+    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
+    // Also blocks a model-invented scrape URL (Q2 gruene.de/positionen/atomkraft 404).
+    expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
   });
 
   it('never blocks non-gated tools', () => {

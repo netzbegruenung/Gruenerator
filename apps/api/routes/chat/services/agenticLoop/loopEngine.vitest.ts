@@ -196,7 +196,7 @@ describe('runAgenticLoop — force-finish (prepareStep)', () => {
     expect(final.toolChoice).toBe('none');
     // The override must extend the gather system, not replace it with the bare tool system.
     expect(final.system).toContain('TOOLSYS');
-    expect(final.system).toContain('RECHERCHE-STRATEGIE');
+    expect(final.system).toContain('ARBEITSPHASE');
     expect(final.system).toContain(FORCE_FINISH_GATHER_SUFFIX.trim().slice(0, 20));
     expect(final.system).not.toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(-30));
   });
