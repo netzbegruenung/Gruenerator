@@ -79,7 +79,7 @@ function makeTag(
   typ: VerpflegungTag['typ'],
   basis: number,
   abzuege: Map<string, VerpflegungAbzug>,
-  rate: RateConfig,
+  rate: RateConfig
 ): VerpflegungTag {
   const abz = abzuege.get(datum);
   let abzugRaw = 0;
@@ -104,7 +104,7 @@ export function computeVerpflegungDays(
   rueckkehr: string,
   hasOvernight: boolean,
   abzuegeList: VerpflegungAbzug[],
-  rate: RateConfig,
+  rate: RateConfig
 ): VerpflegungTag[] {
   const beginn = new Date(reisebeginn);
   const ende = new Date(rueckkehr);
@@ -154,7 +154,7 @@ export function computeReisekosten(state: ReisekostenState): ComputeResult {
     state.reise.rueckkehr,
     state.uebernachtung !== null,
     state.verpflegungAbzuege,
-    rate,
+    rate
   );
   const verpflegungSumme = round2(tage.reduce((acc, t) => acc + t.summe, 0));
   const uebernachtungSumme = computeUebernachtung(state.uebernachtung, rate);
