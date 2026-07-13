@@ -55,6 +55,7 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
       meta={meta}
       icon={HiBookOpen}
       metaIcon={collection.creator_name ? FiUser : undefined}
+      accent="pink"
       onActivate={() => void navigate(href)}
       action={
         <LikeButton
