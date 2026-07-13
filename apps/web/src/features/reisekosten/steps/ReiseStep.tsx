@@ -1,6 +1,15 @@
 import { VERANSTALTUNGEN } from '@gruenerator/shared/reisekosten';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Field, Select, TextInput } from '../ui';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Field,
+  Select,
+  TextInput,
+} from '../ui';
 
 import type { ReisekostenState } from '@gruenerator/contracts';
 
@@ -40,7 +49,11 @@ export function ReiseStep({
             />
           </Field>
           <Field label="Ziel der Reise *">
-            <TextInput value={state.reise.ziel} onChange={(v) => setReise({ ziel: v })} placeholder="Anschrift" />
+            <TextInput
+              value={state.reise.ziel}
+              onChange={(v) => setReise({ ziel: v })}
+              placeholder="Anschrift"
+            />
           </Field>
           <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
             <Field label="Reisebeginn *">
