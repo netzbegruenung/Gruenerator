@@ -66,33 +66,61 @@ export interface RecentActivityItem {
   blurhash?: string | undefined;
 }
 
+// One failing source (e.g. the canvas JOIN) must degrade to a missing strip,
+// not a 500 that blanks the whole "Zuletzt" section. Each fetcher is wrapped
+// so a rejection resolves to [] — the same graceful-degradation the images
+// fetcher already relied on, now applied uniformly.
+async function safe(
+  label: string,
+  fetch: () => Promise<RecentActivityItem[]>
+): Promise<RecentActivityItem[]> {
+  try {
+    return await fetch();
+  } catch (error) {
+    log.error(`Failed to fetch recent ${label}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Canonical recent-activity aggregation. Both the `/recent-activity` route and
+ * `/auth/init`'s seed call this, so the workplace section and the post-login
+ * cache seed return identical data — the earlier drift (init omitted canvases
+ * and used a different limit) is what made canvases flicker in and out.
+ */
+export async function aggregateRecentActivity(
+  userId: string,
+  limit: number
+): Promise<RecentActivityItem[]> {
+  const [docs, boards, images, reelProjects, texts, canvases] = await Promise.all([
+    safe('docs', () => fetchRecentDocs(userId, limit)),
+    safe('boards', () => fetchRecentBoards(userId, limit)),
+    safe('images', () => fetchRecentImages(userId, limit)),
+    safe('reels', () => fetchRecentReelProjects(userId, limit)),
+    safe('texts', () => fetchRecentTexts(userId, limit)),
+    safe('canvases', () => fetchRecentCanvases(userId, limit)),
+  ]);
+
+  const items: RecentActivityItem[] = [
+    ...docs,
+    ...boards,
+    ...images,
+    ...reelProjects,
+    ...texts,
+    ...canvases,
+  ];
+  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return items.slice(0, limit);
+}
+
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : 12;
 
-    const [docs, boards, images, reelProjects, texts, canvases] = await Promise.all([
-      fetchRecentDocs(userId, limit),
-      fetchRecentBoards(userId, limit),
-      fetchRecentImages(userId, limit),
-      fetchRecentReelProjects(userId, limit),
-      fetchRecentTexts(userId, limit),
-      fetchRecentCanvases(userId, limit),
-    ]);
-
-    const items: RecentActivityItem[] = [
-      ...docs,
-      ...boards,
-      ...images,
-      ...reelProjects,
-      ...texts,
-      ...canvases,
-    ];
-
-    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    res.json({ items: items.slice(0, limit) });
+    const items = await aggregateRecentActivity(userId, limit);
+    res.json({ items });
   } catch (error: unknown) {
     log.error('Failed to fetch recent activity:', error);
     res.status(500).json({ error: 'Failed to fetch recent activity' });
@@ -237,17 +265,10 @@ export async function fetchRecentImages(
 ): Promise<RecentActivityItem[]> {
   // Status policy lives in the service (USER_VISIBLE_SHARE_STATUSES) — this
   // surface shows everything the user's own galleries show, drafts included.
-  let rows;
-  try {
-    const service = await getSharedMediaService();
-    rows = await service.getUserShares(userId, 'image', USER_VISIBLE_SHARE_STATUSES, limit);
-  } catch (error) {
-    // Degrade to an empty strip instead of failing the whole Promise.all'd
-    // /recent-activity response (the media service adds an fs dependency the
-    // old raw query didn't have).
-    log.error('Failed to fetch recent images:', error);
-    return [];
-  }
+  // Errors here degrade to a missing strip via the `safe()` wrapper in
+  // aggregateRecentActivity, so no local try/catch is needed.
+  const service = await getSharedMediaService();
+  const rows = await service.getUserShares(userId, 'image', USER_VISIBLE_SHARE_STATUSES, limit);
 
   return rows.map((row) => ({
     id: row.share_token,
