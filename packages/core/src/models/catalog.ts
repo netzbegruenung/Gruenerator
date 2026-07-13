@@ -20,6 +20,8 @@ export type ModelIcon = 'sparkles' | 'server' | 'zap' | 'brain';
 
 interface BaseModelOption {
   name: string;
+  /** Compact label for narrow screens (no emoji, no version suffix). */
+  shortName?: string;
   description: string;
   icon: ModelIcon;
   region: ModelRegion;
@@ -69,6 +71,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'text',
     id: 'gemma-litellm',
     name: '🌳 Gemma 4',
+    shortName: 'Gemma',
     description: 'Am besten für Kreativtexte',
     model: 'verdigado-think',
     provider: 'litellm',
@@ -79,6 +82,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'text',
     id: 'mistral-medium-3.5',
     name: '⭐ Mistral',
+    shortName: 'Mistral',
     description: 'Bester Allrounder',
     model: 'mistral-medium-2604',
     provider: 'mistral',
@@ -89,6 +93,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'text',
     id: 'litellm',
     name: '🌳 GPT-OSS',
+    shortName: 'GPT-OSS',
     description: 'Schnellstes Modell',
     model: 'verdigado-pro',
     provider: 'litellm',
