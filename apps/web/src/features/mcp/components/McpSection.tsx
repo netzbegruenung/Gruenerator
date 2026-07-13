@@ -422,7 +422,6 @@ const CardShell = memo(
     title,
     description,
     badge,
-    recommended,
     category,
     connecting,
     onConnect,
@@ -430,7 +429,6 @@ const CardShell = memo(
     title: string;
     description: string | null | undefined;
     badge: string;
-    recommended: boolean;
     category: string | undefined;
     connecting: boolean;
     onConnect: () => void;
@@ -439,12 +437,7 @@ const CardShell = memo(
       <div className="flex items-start gap-md">
         <McpLogo title={title} size={48} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-sm flex-wrap">
-            <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
-            {recommended && (
-              <span className={cn(chipClass, 'rounded-full font-semibold')}>Empfohlen</span>
-            )}
-          </div>
+          <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
           {description && (
             <p className="mt-1.5 text-xs leading-relaxed text-grey-500 line-clamp-2">
               {description}
@@ -632,7 +625,6 @@ interface AvailableItem {
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: servers = [], isLoading } = useMcpServers();
   const [search, setSearch] = useState('');
-  const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
   const [bearerEntry, setBearerEntry] = useState<McpRegistryEntry | null>(null);
@@ -652,12 +644,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     [registry, connectedUrls]
   );
 
-  const cats = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of available) if (it.category) set.add(it.category);
-    return ['Alle', ...Array.from(set)];
-  }, [available]);
-  const filtered = cat === 'Alle' ? available : available.filter((it) => it.category === cat);
   const activeCount = servers.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
@@ -784,41 +770,16 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           />
         </div>
 
-        {/* Category pills */}
-        {cats.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-md">
-            {cats.map((c) => {
-              const active = c === cat;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCat(c)}
-                  className={cn(
-                    'px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors border',
-                    active
-                      ? 'bg-primary text-white border-primary shadow-sm'
-                      : 'bg-background-pure text-foreground border-grey-200 dark:border-grey-700 hover:border-primary-300'
-                  )}
-                >
-                  {c}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {registryLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
 
-        {!registryLoading && filtered.length > 0 && (
+        {!registryLoading && available.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-            {filtered.map((it) => (
+            {available.map((it) => (
               <CardShell
                 key={it.key}
                 title={it.entry.title}
                 description={it.entry.description}
                 badge={authLabel[it.entry.authHint]}
-                recommended={it.entry.recommended}
                 category={it.category}
                 connecting={connecting === it.entry.url}
                 onConnect={() => handlePickMcp(it.entry)}
@@ -827,12 +788,10 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           </div>
         )}
 
-        {!registryLoading && filtered.length === 0 && (
+        {!registryLoading && available.length === 0 && (
           <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center bg-background-pure">
             <div className="text-sm font-semibold text-foreground">Kein Dienst gefunden</div>
-            <div className="mt-1 text-xs text-grey-500">
-              Passe die Suche an oder wähle eine andere Kategorie.
-            </div>
+            <div className="mt-1 text-xs text-grey-500">Passe die Suche an.</div>
           </div>
         )}
       </div>
