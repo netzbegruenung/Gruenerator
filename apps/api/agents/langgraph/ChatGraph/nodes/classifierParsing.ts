@@ -17,12 +17,14 @@ import type { ClassifierLLMResponse } from './classifierFilters.js';
 const log = createLogger('ChatGraph:Classifier');
 
 /**
- * Phrases that reference an earlier conversation with the assistant. Used both
- * to add the `chat_history` search source (combined queries) and to defensively
- * upgrade a misclassified `direct` intent to the `chat_history` tool.
+ * Phrases that reference the user's earlier work — a past conversation with the
+ * assistant OR one of the user's own office documents (docs/presentations/
+ * sheets). Used both to add the `chat_history` search source (combined queries)
+ * and to defensively upgrade a misclassified `direct` intent to the
+ * `chat_history` tool.
  */
 const CHAT_HISTORY_KEYWORDS =
-  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört)\b/i;
+  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag)|meine\s+(dokumente|präsentationen|tabellen|notizen)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich)\b/i;
 
 /**
  * Parse JSON response from classifier, with error handling.

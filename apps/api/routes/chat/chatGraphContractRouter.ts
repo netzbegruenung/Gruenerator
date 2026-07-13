@@ -43,7 +43,13 @@ import {
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { extractTextContent } from './services/messageHelpers.js';
-import { recallPastChats, formatPastChatsBlock } from './services/pastChatRecallService.js';
+import {
+  recallPastChats,
+  recallOfficeDocuments,
+  formatPastChatsBlock,
+  formatOfficeDocsBlock,
+  type OfficeDocHit,
+} from './services/pastChatRecallService.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
@@ -80,7 +86,7 @@ import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services
 import { buildStreamContext } from './services/streamContext.js';
 import { createMessage, touchThread } from './services/threadPersistenceService.js';
 
-import type { ChatGraphState } from '../../agents/langgraph/ChatGraph/types.js';
+import type { ChatGraphState, ChatSearchResult } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
@@ -608,18 +614,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
               : '');
           if (recallQuery.trim()) {
-            const chatResults = await withTimeout(
-              recallPastChats(userId, recallQuery, {
-                ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
-                limit: 3,
-              }),
+            const [chatResults, officeDocs] = await withTimeout(
+              Promise.all([
+                recallPastChats(userId, recallQuery, {
+                  ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
+                  limit: 3,
+                }),
+                recallOfficeDocuments(userId, recallQuery, 3),
+              ]),
               EXTERNAL_CONTEXT_TIMEOUT_MS,
-              'past-chat recall'
-            ).catch(() => []);
-            if (chatResults.length > 0) {
-              classifiedState.chatHistoryContext = formatPastChatsBlock(chatResults);
+              'past-work recall'
+            ).catch(() => [[], []] as [ChatSearchResult[], OfficeDocHit[]]);
+            const blocks = [
+              chatResults.length > 0 ? formatPastChatsBlock(chatResults) : '',
+              formatOfficeDocsBlock(officeDocs),
+            ].filter(Boolean);
+            if (blocks.length > 0) {
+              classifiedState.chatHistoryContext = blocks.join('\n\n');
               log.info(
-                `[ChatGraph] Injected ${chatResults.length} past-chat results for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
+                `[ChatGraph] Injected recall: ${chatResults.length} chats, ${officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
               );
             }
           }
