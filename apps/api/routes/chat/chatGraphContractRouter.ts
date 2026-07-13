@@ -29,12 +29,12 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
-import { selectionIsToolCapable } from './agents/providers.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
+import { decideRunAgentic } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
@@ -610,16 +610,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
       const isMcpTurn = classifiedState.intent === 'mcp';
-      const runAgentic =
-        isAgenticLoopEnabled() &&
-        AGENTIC_INTENTS.has(classifiedState.intent) &&
-        (!forcedTool || isMcpTurn) &&
-        !isCompound &&
-        imageAttachments.length === 0 &&
-        selectionIsToolCapable(
-          classifiedState.agentConfig.provider as string,
-          modelId ?? undefined
-        );
+      // The whole routing decision lives in the pure, unit-tested decideRunAgentic
+      // (agenticLoop/routing.ts) — including the `direct`-question rescue.
+      const runAgentic = decideRunAgentic({
+        loopEnabled: isAgenticLoopEnabled(),
+        agenticIntents: AGENTIC_INTENTS,
+        intent: classifiedState.intent,
+        lastUserText: lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+        forcedTool: !!forcedTool,
+        isMcpTurn,
+        isCompound,
+        hasSecondaryIntent: !!classifiedState.secondaryIntent,
+        hasImageAttachments: imageAttachments.length > 0,
+      });
 
       sse.send('intent', {
         intent: classifiedState.intent,
@@ -1080,7 +1083,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           finalState.searchResults = outcome.sources;
           finalState.searchCount = outcome.sources.length;
         }
-        generatedImage = null;
+        // The generate_image loop tool merges its result onto the shared state;
+        // lift it so the assistant message persists the image (its rehydration
+        // reads message-level generatedImage metadata, not the tool-call).
+        generatedImage = finalState.generatedImage ?? null;
         sharepicVariants = [];
         socialPost = null;
         fullText = outcome.fullText;
