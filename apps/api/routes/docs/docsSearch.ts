@@ -10,6 +10,14 @@ import { likeContainsPattern } from '../../utils/sqlLike.js';
 
 import { DOCS_ONLY_SUBTYPES, OFFICE_SUBTYPES, docsAccessWhere } from './constants.js';
 
+export {
+  officeKind,
+  officeKindLabel,
+  officeSnippet,
+  officeUrl,
+  type OfficeKind,
+} from './officeContentFormat.js';
+
 const db = getPostgresInstance();
 
 type CollabRow = InferSelectModel<typeof collaborative_documents>;
