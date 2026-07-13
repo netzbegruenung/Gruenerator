@@ -97,6 +97,9 @@ interface NotebookPageContentProps {
   /** Replace the plain question composer with the omni composer (ask/route/
    *  open/research in one input). Used by the /notebooks index surface. */
   omniComposer?: boolean;
+  /** Disable the startpage's own page background when embedded in a surface
+   *  that paints its own (workplace "Wissen" tab tint). Defaults to true. */
+  pageGradient?: boolean;
 }
 
 interface NotebookPageProps {
@@ -145,6 +148,7 @@ export const NotebookPageContent = ({
   hideGlobalChat = false,
   manualSearchNotebookId,
   omniComposer = false,
+  pageGradient = true,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -374,6 +378,7 @@ export const NotebookPageContent = ({
                     notebookMention={notebookMention}
                     notebookId={notebookId}
                     omniComposer={omniComposer}
+                    pageGradient={pageGradient}
                     footer={startpageFooter}
                   />
                 </div>

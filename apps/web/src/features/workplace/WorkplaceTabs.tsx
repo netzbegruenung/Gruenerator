@@ -18,11 +18,12 @@ export function workplaceTabFromPathname(pathname: string): WorkplaceTab {
 }
 
 // Design "tabbar": fixed glass pill centered at the top — frosted container,
-// active tab as a white pill with a soft shadow.
+// active tab as a white pill with a soft shadow. The h-12 row matches
+// PageLayout's sidebar-toggle row so pill and toggle share a centerline.
 const WorkplaceTabs = memo(({ active }: { active: WorkplaceTab }) => (
   <nav
     aria-label="Workplace-Bereiche"
-    className="pointer-events-none fixed left-0 right-0 top-4 z-40 flex justify-center"
+    className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex h-12 items-center justify-center"
   >
     <div
       role="tablist"
