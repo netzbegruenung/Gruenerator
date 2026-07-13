@@ -127,6 +127,12 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
+  /** Split mode only: runs AFTER the gather phase and BEFORE synthesis. Used to
+   *  GUARANTEE a compound turn's artifact — the split planner unreliably invokes
+   *  the generation fat tool (it treats the turn as pure research and stops), so
+   *  this hook force-creates the artifact from the gathered sources when the
+   *  planner didn't, before the synth announces it. */
+  afterGather?: () => Promise<void>;
 }
 
 export async function runAgenticLoop(
@@ -137,6 +143,7 @@ export async function runAgenticLoop(
     return streamWithTools(p, p.synthModel, deps);
   }
   await gather(p, deps);
+  if (p.afterGather) await p.afterGather();
   return synthesize(p, deps);
 }
 
