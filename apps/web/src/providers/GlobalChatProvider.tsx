@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -20,7 +20,6 @@ import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
 import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
-import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 import { getDesktopToken } from '../utils/desktopAuth';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
 
@@ -145,12 +144,12 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       // (absolute API origin + bearer); on web it's the same relative+cookie
       // behaviour as the store default.
       fetch: chatFetch,
-      onUnauthorized: () => {
+      onUnauthorized: async () => {
         sessionDebug('http.401', { stack: 'chat' });
-        if (!isPublicPage() && window.location.pathname !== '/login') {
-          const currentPath = window.location.pathname + window.location.search;
-          window.location.href = buildLoginUrl(currentPath);
-        }
+        // Route through the shared authority: probe → 'retry' replays the
+        // request once (transient cookie rotation), 'logout' fires the single
+        // atomic teardown, 'stay' leaves the user put (infra blip / logging out).
+        return (await handleUnauthorized('chat')) === 'retry';
       },
       wolkeConnectUrl: '/profile/verbindungen',
       renderSharepic: renderSharepicToImage,
