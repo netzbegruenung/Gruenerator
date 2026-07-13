@@ -159,7 +159,9 @@ describe('validateReisekosten', () => {
       },
     });
     const findings = validateReisekosten(state, new Date('2025-04-10T12:00'));
-    expect(findings.some((f) => f.field === 'fahrt.kfz.dbFlexpreis' && f.level === 'error')).toBe(true);
+    expect(findings.some((f) => f.field === 'fahrt.kfz.dbFlexpreis' && f.level === 'error')).toBe(
+      true
+    );
   });
 
   it('passes a clean, timely form', () => {

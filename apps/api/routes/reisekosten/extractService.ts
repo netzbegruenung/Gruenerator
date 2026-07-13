@@ -23,7 +23,7 @@ const extractionSchema = z.object({
     .boolean()
     .nullable()
     .describe(
-      'Nur bei Hotelrechnungen: true, wenn das Frühstück als "Business-Package" oder "Servicepauschale" ausgewiesen ist; false wenn als "Frühstück" gelistet; sonst null',
+      'Nur bei Hotelrechnungen: true, wenn das Frühstück als "Business-Package" oder "Servicepauschale" ausgewiesen ist; false wenn als "Frühstück" gelistet; sonst null'
     ),
 });
 
@@ -41,7 +41,7 @@ export async function extractBeleg(
   base64: string,
   filename: string,
   mimeType: string,
-  belegType: BelegTyp,
+  belegType: BelegTyp
 ): Promise<ExtractBelegResponse> {
   const ocr = await ocrService.extractTextFromBase64(base64, filename, mimeType);
   const rohtext = ocr.text.slice(0, 8000);

@@ -150,7 +150,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           window.location.href = buildLoginUrl(currentPath);
         }
       },
-      wolkeConnectUrl: '/profile/wolke',
+      wolkeConnectUrl: '/profile/verbindungen',
       renderSharepic: renderSharepicToImage,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {

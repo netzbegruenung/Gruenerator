@@ -26,14 +26,20 @@ export function BelegStatus({
         <span className="text-sm font-semibold text-primary-700">✨ Beleg ausgelesen</span>
         {parts.length > 0 && <span className="text-sm text-primary-700">{parts.join(' · ')}</span>}
         {beleg.businessPackage === true && (
-          <span className="text-xs text-primary-700">🥐 Frühstück als Business-Package erkannt.</span>
+          <span className="text-xs text-primary-700">
+            🥐 Frühstück als Business-Package erkannt.
+          </span>
         )}
         <span className="text-xs text-primary-700">Bitte kurz prüfen und bei Bedarf anpassen.</span>
       </div>
     );
   }
   if (confirmed) {
-    return <span className="text-xs font-medium text-primary-700">✓ Beleg liegt vor (manuell bestätigt).</span>;
+    return (
+      <span className="text-xs font-medium text-primary-700">
+        ✓ Beleg liegt vor (manuell bestätigt).
+      </span>
+    );
   }
   if (hasBetrag) {
     return (
