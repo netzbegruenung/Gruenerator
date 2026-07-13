@@ -7,7 +7,15 @@
  *    used by the `connect` chat intent for document retrieval.
  * Both are hand-picked to work out of the box with no complex app registration.
  */
-import { Switch } from '@gruenerator/ui';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Switch,
+} from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiServer, FiSearch, FiLock, FiCheck, FiLoader } from 'react-icons/fi';
@@ -29,7 +37,9 @@ import {
 } from '../hooks/useMcpServers';
 import {
   createMcpServer,
+  deleteMcpServer,
   startMcpOAuth,
+  testMcpServer,
   type McpAuthType,
   type McpRegistryEntry,
   type McpServerSummary,
@@ -121,7 +131,18 @@ const authBadgeClass =
   'flex-none inline-flex items-center gap-1 px-2 py-1 rounded-full bg-grey-100 dark:bg-grey-800 text-grey-500 text-[11px] font-semibold border border-grey-200 dark:border-grey-700';
 
 const connectBtnClass =
-  'text-xs font-semibold px-md py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 transition-colors cursor-pointer';
+  'text-xs font-semibold px-md py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30 transition-colors cursor-pointer';
+
+const chipClass =
+  'inline-flex items-center px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 dark:bg-primary-950/30 dark:text-primary-300 dark:border-primary-800 text-[11px] font-medium';
+
+const okTextClass = 'text-primary-700 dark:text-primary-400';
+
+const secondaryBtnClass =
+  'px-lg py-sm rounded-xl font-medium text-sm cursor-pointer bg-transparent border border-grey-300 text-foreground hover:bg-grey-50 dark:border-grey-600 dark:hover:bg-grey-800 transition-colors';
+
+const dotOnClass =
+  'bg-primary shadow-[0_0_0_3px_var(--color-primary-100)] dark:shadow-[0_0_0_3px_var(--color-primary-950)]';
 
 /** A healthy (green) row border once the connector's test passed. */
 const rowBorder = (healthy: boolean) =>
@@ -134,10 +155,7 @@ const ToolChips = memo(({ tools, max = 16 }: { tools: string[]; max?: number }) 
   return (
     <div className="flex flex-wrap gap-1.5">
       {shown.map((t) => (
-        <span
-          key={t}
-          className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 text-[11px] font-medium border border-primary-100"
-        >
+        <span key={t} className={chipClass}>
           {t}
         </span>
       ))}
@@ -173,7 +191,6 @@ const McpAddForm = memo(
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [setupUrl, setSetupUrl] = useState<string | null>(null);
-    const tokenRef = useRef<HTMLInputElement>(null);
     const redirectUri = `${window.location.origin}/api/mcp/auth/callback`;
 
     // A pick from the discover list fills the form so the user only confirms.
@@ -185,13 +202,6 @@ const McpAddForm = memo(
         setSetupUrl(prefill.setupUrl ?? null);
       }
     }, [prefill]);
-
-    // Runs after the render in which the token input exists.
-    useEffect(() => {
-      if (prefill?.authType === 'bearer' && authType === 'bearer') {
-        tokenRef.current?.focus({ preventScroll: true });
-      }
-    }, [prefill, authType]);
 
     const submit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -253,7 +263,6 @@ const McpAddForm = memo(
           </select>
           {authType === 'bearer' && (
             <input
-              ref={tokenRef}
               className={inputClass}
               type="password"
               placeholder="Token"
@@ -272,7 +281,7 @@ const McpAddForm = memo(
                     href={setupUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary-600 hover:text-primary-700 underline"
+                    className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline"
                   >
                     Entwickler-Portal
                   </a>{' '}
@@ -306,11 +315,7 @@ const McpAddForm = memo(
         <button
           type="submit"
           disabled={create.isPending || !name.trim() || !url.trim()}
-          className={cn(
-            'self-start px-lg py-sm rounded-xl font-medium text-sm cursor-pointer transition-all',
-            'bg-none border border-grey-300 text-foreground hover:bg-grey-50 hover:border-grey-400',
-            'disabled:opacity-50'
-          )}
+          className={cn(secondaryBtnClass, 'self-start disabled:opacity-50')}
         >
           {create.isPending ? 'Füge hinzu…' : 'MCP-Server hinzufügen'}
         </button>
@@ -336,11 +341,7 @@ const McpServerRow = memo(
 
     const needsAuth = server.authType === 'oauth' && !server.hasToken;
     const statusLabel = needsAuth ? 'Nicht autorisiert' : server.enabled ? 'Verbunden' : 'Pausiert';
-    const dotClass = needsAuth
-      ? 'bg-amber-500'
-      : server.enabled
-        ? 'bg-primary shadow-[0_0_0_3px_var(--color-primary-100)]'
-        : 'bg-grey-400';
+    const dotClass = needsAuth ? 'bg-amber-500' : server.enabled ? dotOnClass : 'bg-grey-400';
 
     const authorize = () => {
       void runOAuth(async () => server.id).then((result) => {
@@ -386,7 +387,9 @@ const McpServerRow = memo(
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-grey-500">
                   <span className={cn('w-1.5 h-1.5 rounded-full', dotClass)} />
-                  <span className={cn(needsAuth ? 'text-amber-600' : 'text-primary-700')}>
+                  <span
+                    className={cn(needsAuth ? 'text-amber-600 dark:text-amber-400' : okTextClass)}
+                  >
                     {statusLabel}
                   </span>
                 </span>
@@ -408,11 +411,7 @@ const McpServerRow = memo(
               Aktiv
             </label>
             {needsAuth && (
-              <button
-                type="button"
-                onClick={authorize}
-                className="text-xs font-semibold px-sm py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 transition-colors cursor-pointer"
-              >
+              <button type="button" onClick={authorize} className={connectBtnClass}>
                 Autorisieren
               </button>
             )}
@@ -442,7 +441,12 @@ const McpServerRow = memo(
         {testResult &&
           (testResult.ok ? (
             <div className="flex flex-col gap-1.5">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700">
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-xs font-semibold',
+                  okTextClass
+                )}
+              >
                 <FiCheck className="w-3.5 h-3.5" />
                 {testResult.tools.length} Tools verfügbar
               </span>
@@ -506,8 +510,13 @@ const NangoRow = memo(
                 <span className="text-base font-bold text-foreground-heading truncate">
                   {provider.label}
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_0_3px_var(--color-primary-100)]" />
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 text-xs font-semibold',
+                    okTextClass
+                  )}
+                >
+                  <span className={cn('w-1.5 h-1.5 rounded-full', dotOnClass)} />
                   Verbunden
                 </span>
               </div>
@@ -536,7 +545,12 @@ const NangoRow = memo(
         {testResult &&
           (testResult.ok ? (
             <div className="flex flex-col gap-1.5">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700">
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-xs font-semibold',
+                  okTextClass
+                )}
+              >
                 <FiCheck className="w-3.5 h-3.5" />
                 Verbindung aktiv — nutzbar im Chat
               </span>
@@ -578,9 +592,7 @@ const CardShell = memo(
           <div className="flex items-center gap-sm flex-wrap">
             <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
             {recommended && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 text-[11px] font-semibold border border-primary-100">
-                Empfohlen
-              </span>
+              <span className={cn(chipClass, 'rounded-full font-semibold')}>Empfohlen</span>
             )}
           </div>
           {description && (
@@ -597,8 +609,8 @@ const CardShell = memo(
       <div className="flex items-center justify-between gap-sm mt-md">
         <span className="text-[11px] text-grey-400 font-medium">{category}</span>
         {connecting ? (
-          <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary">
-            <span className="w-3.5 h-3.5 border-2 border-primary-200 border-t-primary rounded-full animate-spin" />
+          <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary dark:text-primary-400">
+            <span className="w-3.5 h-3.5 border-2 border-primary-200 dark:border-primary-800 border-t-primary rounded-full animate-spin" />
             Verbindung wird hergestellt …
           </span>
         ) : (
@@ -611,6 +623,153 @@ const CardShell = memo(
   )
 );
 CardShell.displayName = 'CardShell';
+
+// ── Bearer connect dialog ────────────────────────────────────────────────────
+
+/**
+ * One-step connect for token-based servers: paste the token, we create the
+ * server AND verify it live. A failing token deletes the half-created server
+ * again, so retries stay idempotent and the connected list stays clean.
+ */
+const BearerConnectDialog = ({
+  entry,
+  onClose,
+  onConnected,
+}: {
+  entry: McpRegistryEntry;
+  onClose: () => void;
+  onConnected: (toolCount: number) => void;
+}) => {
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tools, setTools] = useState<string[] | null>(null);
+
+  const websiteHost = useMemo(() => {
+    if (!entry.websiteUrl) return null;
+    try {
+      return new URL(entry.websiteUrl).host;
+    } catch {
+      return null;
+    }
+  }, [entry.websiteUrl]);
+
+  const connect = async () => {
+    if (!token.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    let serverId: string | null = null;
+    try {
+      const server = await createMcpServer({
+        name: entry.title,
+        url: entry.url,
+        authType: 'bearer',
+        token: token.trim(),
+      });
+      serverId = server.id;
+      const result = await testMcpServer(server.id);
+      if (!result.ok) throw new Error(result.error || 'Verbindung fehlgeschlagen');
+      setTools(result.toolNames);
+      onConnected(result.toolCount);
+    } catch (e) {
+      if (serverId) await deleteMcpServer(serverId).catch(() => {});
+      setError(e instanceof Error ? e.message : 'Verbindung fehlgeschlagen');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="flex items-center gap-md">
+            <McpLogo title={entry.title} size={44} />
+            <div className="flex flex-col gap-1 text-left">
+              <DialogTitle>{entry.title} verbinden</DialogTitle>
+              <DialogDescription>{entry.description}</DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {tools ? (
+          <div className="flex flex-col gap-sm">
+            <span
+              className={cn('inline-flex items-center gap-1.5 text-sm font-semibold', okTextClass)}
+            >
+              <FiCheck className="w-4 h-4" />
+              Verbunden — {tools.length} Tools verfügbar
+            </span>
+            <ToolChips tools={tools} max={10} />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-sm">
+            <p className="text-sm text-grey-500 leading-relaxed m-0">
+              Füge deinen API-Token ein — er wird verschlüsselt gespeichert und nur für deine
+              Anfragen genutzt.
+              {websiteHost && (
+                <>
+                  {' '}
+                  Du findest ihn in deinem Konto auf{' '}
+                  <a
+                    href={entry.websiteUrl ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline"
+                  >
+                    {websiteHost}
+                  </a>
+                  .
+                </>
+              )}
+            </p>
+            <input
+              className={inputClass}
+              type="password"
+              placeholder="API-Token einfügen"
+              value={token}
+              autoFocus
+              onChange={(e) => setToken(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void connect();
+              }}
+            />
+            {error && <span className="text-xs text-[var(--error-red)]">✗ {error}</span>}
+          </div>
+        )}
+
+        <DialogFooter>
+          {tools ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-lg py-sm rounded-xl font-medium text-sm cursor-pointer bg-primary text-white hover:bg-primary-600 transition-colors border-none"
+            >
+              Fertig
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={onClose} className={secondaryBtnClass}>
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => void connect()}
+                disabled={busy || !token.trim()}
+                className="inline-flex items-center gap-2 px-lg py-sm rounded-xl font-medium text-sm cursor-pointer bg-primary text-white hover:bg-primary-600 transition-colors border-none disabled:opacity-50"
+              >
+                {busy && (
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                )}
+                {busy ? 'Verbinde…' : 'Verbinden'}
+              </button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 // ── Unified section ──────────────────────────────────────────────────────────
 
@@ -627,6 +786,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
+  const [bearerEntry, setBearerEntry] = useState<McpRegistryEntry | null>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
   const { data: registry, isLoading: registryLoading } = useMcpRegistry(search);
   const queryClient = useQueryClient();
@@ -711,12 +871,8 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         .catch((e) => onError(e instanceof Error ? e.message : 'Fehler'));
       return;
     }
-    // bearer / unknown → prefill the form so the user pastes a token. New object
-    // identity each pick so the form's effect re-fires even for the same server.
-    setPrefill({ name: entry.title, url: entry.url, authType: 'bearer' });
-    requestAnimationFrame(() =>
-      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    );
+    // bearer / unknown → one-step token dialog right on the card.
+    setBearerEntry(entry);
   };
 
   const handleConnectNango = useCallback(
@@ -766,14 +922,14 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     <div className="mt-xl">
       {/* Header */}
       <div className="flex items-center gap-md">
-        <div className="w-[52px] h-[52px] flex-none rounded-[14px] bg-primary-50 border border-primary-100 flex items-center justify-center text-primary">
+        <div className="w-[52px] h-[52px] flex-none rounded-[14px] bg-primary-50 border border-primary-100 dark:bg-primary-950/30 dark:border-primary-800 flex items-center justify-center text-primary dark:text-primary-400">
           <FiServer className="w-6 h-6" />
         </div>
         <div className="flex items-center gap-sm flex-wrap">
           <h2 className="text-2xl font-semibold text-foreground-heading m-0 tracking-tight">
             Connectoren
           </h2>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-50 text-secondary-700 text-xs font-semibold border border-secondary-100">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-50 text-secondary-700 border-secondary-100 dark:bg-secondary-900/30 dark:text-secondary-300 dark:border-secondary-600 text-xs font-semibold border">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />
             Experimentell
           </span>
@@ -917,6 +1073,20 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         </h3>
         <McpAddForm onSuccess={onSuccess} onError={onError} prefill={prefill} />
       </div>
+
+      {bearerEntry && (
+        <BearerConnectDialog
+          entry={bearerEntry}
+          onClose={() => {
+            setBearerEntry(null);
+            refreshMcp();
+          }}
+          onConnected={(toolCount) => {
+            refreshMcp();
+            onSuccess(`${bearerEntry.title} verbunden — ${toolCount} Tools verfügbar`);
+          }}
+        />
+      )}
     </div>
   );
 });
