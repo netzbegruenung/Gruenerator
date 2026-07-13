@@ -52,7 +52,6 @@ describe('decideRunAgentic', () => {
     isCompound: false,
     hasSecondaryIntent: false,
     hasImageAttachments: false,
-    toolCapable: true,
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
 
@@ -87,8 +86,12 @@ describe('decideRunAgentic', () => {
     expect(decide({ hasImageAttachments: true })).toBe(false);
   });
 
-  it('respects the flag and model tool-capability', () => {
+  it('respects the flag', () => {
     expect(decide({ loopEnabled: false })).toBe(false);
-    expect(decide({ toolCapable: false })).toBe(false);
+  });
+
+  it('enters the loop regardless of the selected model (planner does the tools)', () => {
+    // No tool-capability gate: the split lets any model into the loop.
+    expect(decide({ intent: 'search' })).toBe(true);
   });
 });
