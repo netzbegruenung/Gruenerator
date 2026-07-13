@@ -383,6 +383,21 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
   return provider === 'mistral';
 }
 
+/** Model name used for the split's tool-gathering phase (see getLoopPlannerModel). */
+export const LOOP_PLANNER_MODEL = LITELLM_DEFAULT_MODEL;
+
+/**
+ * Model that runs the tool-gathering phase of the planner/executor split. Must
+ * be a FAST, RELIABLE, NATIVE tool-caller. Pinned to litellm/verdigado-pro
+ * (confirmed to emit tool_calls in aiController, EU-hosted, and demonstrably up
+ * — the classifier already routes through litellm) rather than the regolo
+ * INTERMEDIATE_MODEL, which proved unavailable in the test env: the planner
+ * failed, the gather catch swallowed it, and turns came back steps=0 / ungrounded.
+ */
+export function getLoopPlannerModel(): LanguageModel {
+  return getModel('litellm', LOOP_PLANNER_MODEL);
+}
+
 /**
  * Cheap, slot-free check of whether the model that WILL be used (user selection
  * or agent default) can drive the agentic loop. Mistral lanes never acquire an
