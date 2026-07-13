@@ -85,6 +85,7 @@ const BRAND: Record<string, string> = {
   Jamie: '#6366F1',
   Sally: '#4F46E5',
   HubSpot: '#FF7A59',
+  Brevo: '#0B996E',
   Attio: '#1A1A1A',
   Statista: '#1F7BB6',
   SISTRIX: '#E5195F',
