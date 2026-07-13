@@ -45,6 +45,7 @@ import {
   emailContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
+  mcpServersContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
@@ -199,6 +200,7 @@ const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
+const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
@@ -245,6 +247,7 @@ export interface ContractsClient {
   email: ReturnType<typeof _emailClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
+  mcpServers: ReturnType<typeof _mcpServersClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
@@ -308,6 +311,7 @@ export function getContractsClient(): ContractsClient {
     email: _emailClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
+    mcpServers: _mcpServersClient(),
     imageEdit: _imageEditClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
