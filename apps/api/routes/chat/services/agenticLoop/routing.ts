@@ -41,13 +41,27 @@ export function looksLikeToolableQuestion(raw: string): boolean {
 }
 
 /**
- * Compound research+generation detector (Phase 3n slice): a sharepic turn that
- * ALSO carries an explicit research/facts signal enters the loop with the
- * sharepic fat tool mounted, so search + generation compose in one turn.
- * Pure "Mach ein Sharepic zu Solarenergie" must stay false — "zu X" alone is
- * a topic, not a research ask — keeping the single-pass fixed-text contract.
+ * Generation intents that can enter the loop as a COMPOUND turn (research +
+ * generation composed in one turn via an opaque fat tool). Each keeps its
+ * single-pass direct dispatch for non-research asks ("mach ein Sharepic zu X"):
+ * only a turn that ALSO carries a research signal is lifted into the loop.
  */
-const GENERATION_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
+export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
+  'sharepic',
+  'create_presentation',
+  'create_sheet',
+]);
+
+/**
+ * Compound research+generation detector (Phase 3n): a generation turn (sharepic,
+ * presentation, sheet) that ALSO carries an explicit research/facts signal
+ * enters the loop with the matching fat tool mounted, so search + generation
+ * compose in one turn. Pure "Mach ein Sharepic/eine Präsentation zu X" must stay
+ * false — "zu X" alone is a topic, not a research ask — keeping the single-pass
+ * fixed-text/direct-dispatch contract.
+ */
+const GENERATION_NOUN_RE =
+  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet)\b/i;
 const RESEARCH_SIGNAL_RE =
   /\b(recherchier\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*)\b/i;
 
@@ -88,13 +102,13 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
-  const compoundSharepic = p.intent === 'sharepic' && p.compoundGeneration;
+  const compoundGen = COMPOUND_GENERATION_INTENTS.has(p.intent) && p.compoundGeneration;
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     (p.intent === 'direct' && looksLikeToolableQuestion(p.lastUserText)) ||
-    compoundSharepic;
+    compoundGen;
   const secondaryAllowed =
-    p.secondaryIntent == null || (compoundSharepic && p.secondaryIntent === 'scrape_url');
+    p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
   return (
     p.loopEnabled &&
     inLoopSet &&
