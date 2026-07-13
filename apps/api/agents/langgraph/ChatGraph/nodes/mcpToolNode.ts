@@ -177,6 +177,9 @@ Fasse am Ende die Ergebnisse knapp auf Deutsch zusammen.`;
             model: 'mistral-medium-2604',
             max_tokens: 2000,
             tools: catalog,
+            // Without an explicit choice the adapters default to 'none' (tools
+            // attached but forbidden) — the loop needs the model to decide.
+            tool_choice: 'auto',
           },
         },
         null
