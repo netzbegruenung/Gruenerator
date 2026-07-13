@@ -11,6 +11,7 @@
  * is used as a bearer token.
  */
 
+import { type McpServerSummary } from '@gruenerator/contracts';
 import { and, eq } from 'drizzle-orm';
 
 import { mcp_servers, type McpServer } from '../../database/schema/mcpServers.js';
@@ -18,23 +19,34 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
 
-import { type McpConnectionConfig } from './UserMCPClient.js';
+import { findSeedByUrl } from './McpRegistryService.js';
+import { type McpConnectionConfig, type McpToolDescriptor } from './UserMCPClient.js';
 
 const log = createLogger('mcp-server-registry');
 
-export type McpAuthType = 'none' | 'bearer' | 'oauth';
+/** Cap the persisted snapshot so a chatty server can't bloat the row. */
+const SNAPSHOT_MAX_TOOLS = 40;
+const SNAPSHOT_DESC_CHARS = 200;
 
-/** UI-facing record — never exposes decrypted tokens. */
-export interface McpServerSummary {
+/** Enabled server as seen by the classifier — cheap, no live connect. */
+export interface McpClassifierServer {
   id: string;
   name: string;
-  url: string;
-  authType: McpAuthType;
-  hasToken: boolean;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
+  description: string | null;
+  toolNames: string[];
 }
+
+// getClassifierContext runs on every prose classification; a short TTL cache
+// keeps it off the DB hot path without risking a stale server list.
+const CLASSIFIER_CACHE_TTL_MS = 60_000;
+const classifierCache = new Map<string, { at: number; data: McpClassifierServer[] }>();
+
+export type McpAuthType = 'none' | 'bearer' | 'oauth';
+
+// UI-facing record — never exposes decrypted tokens. Shape is the single source
+// of truth in @gruenerator/contracts (mcpServerSummarySchema); re-exported here
+// for the service's return types.
+export type { McpServerSummary };
 
 export interface McpServerCreateInput {
   name: string;
@@ -67,6 +79,8 @@ function toSummary(row: McpServer): McpServerSummary {
     enabled: row.enabled,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
+    description: findSeedByUrl(row.url)?.description ?? null,
+    toolNames: row.tools_snapshot?.map((t) => t.name) ?? null,
   };
 }
 
@@ -88,13 +102,24 @@ export class McpServerRegistry {
     return rows.length;
   }
 
-  /** Decrypted connection configs for the tool-loop. Skips disabled servers. */
-  static async getConnectionConfigs(userId: string): Promise<McpConnectionConfig[]> {
+  /**
+   * Decrypted connection configs for the tool-loop. Skips disabled servers.
+   * Pass `serverId` to scope to a single server (a `@notion`/`@brevo` mention or
+   * a classifier hint) — this also limits the OAuth lazy-refresh to that server.
+   */
+  static async getConnectionConfigs(
+    userId: string,
+    opts?: { serverId?: string }
+  ): Promise<McpConnectionConfig[]> {
     const db = getDrizzleInstance();
-    const rows = await db
-      .select()
-      .from(mcp_servers)
-      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true)));
+    const where = opts?.serverId
+      ? and(
+          eq(mcp_servers.user_id, userId),
+          eq(mcp_servers.enabled, true),
+          eq(mcp_servers.id, opts.serverId)
+        )
+      : and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true));
+    const rows = await db.select().from(mcp_servers).where(where);
     return Promise.all(
       rows.map(async (row) => {
         let token: string | null = null;
@@ -118,6 +143,64 @@ export class McpServerRegistry {
     );
   }
 
+  /**
+   * Persist the tool list from a successful connect (best-effort — never throws).
+   * Used only for mention hints + classifier context; the loop always lists live.
+   */
+  static async saveToolsSnapshot(
+    userId: string,
+    serverId: string,
+    tools: McpToolDescriptor[]
+  ): Promise<void> {
+    try {
+      const snapshot = tools.slice(0, SNAPSHOT_MAX_TOOLS).map((t) => ({
+        name: t.name,
+        description: (t.description ?? '').slice(0, SNAPSHOT_DESC_CHARS),
+      }));
+      const db = getDrizzleInstance();
+      await db
+        .update(mcp_servers)
+        .set({ tools_snapshot: snapshot, tools_snapshot_at: new Date() })
+        .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, serverId)));
+      // No classifierCache invalidation here: prose routing matches on server
+      // NAMES, not tool names, so a refreshed snapshot can't change routing.
+      // Busting it on every tool-loop turn would defeat the 60s TTL.
+    } catch (err) {
+      log.warn('Failed to persist MCP tools snapshot', {
+        serverId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Enabled servers with a description + cached tool names, for the classifier's
+   * conservative prose routing. Short-TTL cached per user to stay off the DB hot
+   * path (the classifier runs on every message).
+   */
+  static async getClassifierContext(userId: string): Promise<McpClassifierServer[]> {
+    const cached = classifierCache.get(userId);
+    if (cached && Date.now() - cached.at < CLASSIFIER_CACHE_TTL_MS) return cached.data;
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select({
+        id: mcp_servers.id,
+        name: mcp_servers.name,
+        url: mcp_servers.url,
+        tools_snapshot: mcp_servers.tools_snapshot,
+      })
+      .from(mcp_servers)
+      .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true)));
+    const data: McpClassifierServer[] = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: findSeedByUrl(row.url)?.description ?? null,
+      toolNames: row.tools_snapshot?.map((t) => t.name) ?? [],
+    }));
+    classifierCache.set(userId, { at: Date.now(), data });
+    return data;
+  }
+
   static async create(userId: string, input: McpServerCreateInput): Promise<McpServerSummary> {
     const db = getDrizzleInstance();
     const rows = await db
@@ -139,6 +222,7 @@ export class McpServerRegistry {
       .returning();
     const row = rows[0];
     if (!row) throw new Error('Failed to insert MCP server');
+    classifierCache.delete(userId);
     log.info('MCP server created', { userId, server: row.name });
     return toSummary(row);
   }
@@ -173,6 +257,7 @@ export class McpServerRegistry {
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)))
       .returning();
     const row = rows[0];
+    classifierCache.delete(userId);
     return row ? toSummary(row) : undefined;
   }
 
@@ -182,6 +267,7 @@ export class McpServerRegistry {
       .delete(mcp_servers)
       .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, id)))
       .returning({ id: mcp_servers.id });
+    classifierCache.delete(userId);
     return rows.length > 0;
   }
 }

@@ -44,8 +44,6 @@ const SEEDS: Seed[] = [
   ['Attio', 'https://mcp.attio.com/mcp', 'oauth', 'CRM für Beziehungen, Kontakte und Deals.', 'https://attio.com', 'CRM & Marketing'],
   ['Statista', 'https://api.statista.ai/v1/mcp', 'bearer', 'Statistiken, Konsumenten- und Marktdaten.', 'https://statista.com', 'Analyse & SEO'],
   ['SISTRIX', 'https://api.sistrix.com/mcp/', 'bearer', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com', 'Analyse & SEO'],
-  ['Wix', 'https://mcp.wix.com/mcp', 'oauth', 'Wix-Websites erstellen und verwalten.', 'https://wix.com', 'Web & Design'],
-  ['Webflow', 'https://mcp.webflow.com/mcp', 'oauth', 'Webflow-Projekte und Inhalte.', 'https://webflow.com', 'Web & Design'],
   ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
   ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
 ];
@@ -63,6 +61,21 @@ const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
     ...(opts ? { requiresManualRegistration: true, setupUrl: opts.setupUrl } : {}),
   })
 );
+
+const SEED_BY_HOST = new Map(RECOMMENDED.map((e) => [e.name, e]));
+
+/**
+ * Resolve a curated seed for a server URL by host (falls back to exact URL).
+ * Enriches per-user server records with a stable German description and lets the
+ * classifier name a connected service — without re-deriving copy on the client.
+ */
+export function findSeedByUrl(url: string): McpRegistryEntry | null {
+  try {
+    return SEED_BY_HOST.get(new URL(url).host) ?? null;
+  } catch {
+    return RECOMMENDED.find((e) => e.url === url) ?? null;
+  }
+}
 
 export class McpRegistryService {
   /**

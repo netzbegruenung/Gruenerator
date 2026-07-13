@@ -46,21 +46,38 @@ function sanitizeToolName(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
 }
 
+/** When a scoped @mention/prose hit names a server that's gone, tell the user. */
+const SCOPED_SERVER_MISSING =
+  '## Hinweis\nDer erwähnte Dienst ist nicht (mehr) verbunden oder wurde deaktiviert. Weise den Nutzer freundlich darauf hin, dass er die Verbindung unter Einstellungen → Verbindungen (wieder) aktivieren kann.';
+
 export async function mcpToolNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   const userId = state.agentConfig.userId;
   if (!userId) return { mcpToolContext: null, mcpToolTimeMs: 0 };
 
+  const scope = state.mcpServerScope ?? null;
+
   let configs;
   try {
-    configs = await McpServerRegistry.getConnectionConfigs(userId);
+    configs = await McpServerRegistry.getConnectionConfigs(
+      userId,
+      scope ? { serverId: scope } : undefined
+    );
   } catch (err) {
     log.warn('[Mcp] Failed to load server configs', {
       error: err instanceof Error ? err.message : String(err),
     });
     return { mcpToolContext: null, mcpToolTimeMs: Date.now() - startTime };
   }
-  if (configs.length === 0) return { mcpToolContext: null, mcpToolTimeMs: 0 };
+  if (configs.length === 0) {
+    // A scoped mention/prose hit for a server the user disabled or deleted:
+    // answer honestly instead of silently degrading to a hallucinated reply.
+    if (scope) {
+      log.info('[Mcp] Scoped server not connected/enabled', { scope });
+      return { mcpToolContext: SCOPED_SERVER_MISSING, mcpToolTimeMs: Date.now() - startTime };
+    }
+    return { mcpToolContext: null, mcpToolTimeMs: 0 };
+  }
 
   const clients: UserMCPClient[] = [];
   const catalog: Tool[] = [];
@@ -79,6 +96,8 @@ export async function mcpToolNode(state: ChatGraphState): Promise<Partial<ChatGr
           await client.connect();
           const tools = await client.listTools();
           clients.push(client);
+          // Refresh the cached snapshot used by the mention picker + classifier.
+          void McpServerRegistry.saveToolsSnapshot(userId, config.id, tools);
           for (const tool of tools) {
             if (catalog.length >= MAX_TOOLS) break;
             const providerName = `s${serverIdx}__${sanitizeToolName(tool.name)}`.slice(0, 64);
@@ -116,7 +135,13 @@ export async function mcpToolNode(state: ChatGraphState): Promise<Partial<ChatGr
       ? `${conversationContext}\n\nAktuelle Anfrage: "${rawUserText}"`
       : `Anfrage: "${rawUserText}"`;
 
-    const systemPrompt = `Du bist ein Assistent mit Zugriff auf externe Tools, die der Nutzer verbunden hat (via MCP-Server).
+    // Scoped runs name the single service so the model stays on-task and doesn't
+    // apologize for "missing" tools that live on a server we deliberately excluded.
+    const scopedServerName = scope ? configs[0]?.name : null;
+    const toolSourceLine = scopedServerName
+      ? `Du arbeitest ausschließlich mit den Tools des Dienstes „${scopedServerName}", den der Nutzer verbunden hat (via MCP-Server).`
+      : 'Du bist ein Assistent mit Zugriff auf externe Tools, die der Nutzer verbunden hat (via MCP-Server).';
+    const systemPrompt = `${toolSourceLine}
 Nutze die passenden Tools, um die Anfrage zu erfüllen. Du kannst mehrere Tools nacheinander aufrufen.
 Wenn kein Tool passt oder die verfügbaren Tools die Anfrage nicht erfüllen können, sage das klar und rufe kein Tool auf.
 Fasse am Ende die Ergebnisse knapp auf Deutsch zusammen.`;

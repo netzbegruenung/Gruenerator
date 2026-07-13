@@ -106,8 +106,10 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   test: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const configs = await McpServerRegistry.getConnectionConfigs(userId);
-      const config = configs.find((c) => c.id === args.params.id);
+      const configs = await McpServerRegistry.getConnectionConfigs(userId, {
+        serverId: args.params.id,
+      });
+      const config = configs[0];
       if (!config)
         return { status: 404 as const, body: { error: 'Server nicht gefunden oder deaktiviert.' } };
 
@@ -115,6 +117,8 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       try {
         await client.connect();
         const tools = await client.listTools();
+        // Cache the tool list for chat mention hints + classifier context.
+        await McpServerRegistry.saveToolsSnapshot(userId, config.id, tools);
         return {
           status: 200 as const,
           body: {
