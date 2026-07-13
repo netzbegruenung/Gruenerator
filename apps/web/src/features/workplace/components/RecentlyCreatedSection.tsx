@@ -51,7 +51,6 @@ const TYPE_META: Record<
   board: { label: 'Board', Icon: PiKanban },
   image: { label: 'Bild', Icon: FiImage },
   video: { label: 'Video', Icon: FaVideo },
-  text: { label: 'Text', Icon: FiFileText },
   canvas: { label: 'Sharepic', Icon: FiImage },
 };
 
@@ -95,7 +94,6 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   board: 'Unbenanntes Board',
   image: 'Ohne Titel',
   video: 'Ohne Titel',
-  text: 'Ohne Titel',
   canvas: 'Neuer Canvas',
 };
 
@@ -170,7 +168,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   let body: React.ReactNode;
   if (isSlidesPreview(item)) {
     body = <SlidesPreviewBody content={item.content} />;
-  } else if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
+  } else if (item.type === 'doc' && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
       <>
@@ -318,12 +316,10 @@ const RecentItemCard = memo(
     item,
     onDelete,
     onShare,
-    onConvertText,
   }: {
     item: RecentItem;
     onDelete: (item: RecentItem) => void;
     onShare: (item: RecentItem) => void;
-    onConvertText?: (textId: string) => void;
   }) => {
     const { label: typeLabel, Icon: TypeIcon } = getTypeMeta(item);
     const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
@@ -378,25 +374,6 @@ const RecentItemCard = memo(
         </div>
       </>
     );
-
-    if (item.type === 'text' && onConvertText) {
-      return (
-        <div
-          role="button"
-          tabIndex={0}
-          className={cardClass}
-          onClick={() => onConvertText(item.id)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onConvertText(item.id);
-            }
-          }}
-        >
-          {cardContent}
-        </div>
-      );
-    }
 
     if (item.type === 'image') {
       return (
@@ -458,33 +435,13 @@ const RecentReelCard = memo(
 RecentReelCard.displayName = 'RecentReelCard';
 
 const RecentlyCreatedSection: React.FC = memo(() => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: allItems = [], isLoading, isError, refetch } = useRecentActivity();
-
-  const items = allItems.filter((item) => {
-    if (item.type === 'text') return false;
-    return true;
-  });
+  const { data: items = [], isLoading, isError, refetch } = useRecentActivity();
 
   const [expanded, setExpanded] = useState(false);
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
-
-  const handleConvertText = useCallback(
-    async (textId: string) => {
-      try {
-        const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
-        const { documentId } = res.data as { documentId: string };
-        void navigate(`/office/${documentId}`);
-      } catch {
-        // fallback to old editor
-        void navigate(`/texte/texteditor?textId=${textId}`);
-      }
-    },
-    [navigate]
-  );
 
   const handleDelete = useCallback(
     (item: RecentItem) => {
@@ -493,7 +450,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         board: 'Board wirklich löschen?',
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
-        text: 'Text wirklich löschen?',
         canvas: 'Sharepic wirklich löschen?',
       };
 
@@ -563,7 +519,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         item={item}
         onDelete={handleDelete}
         onShare={handleShare}
-        onConvertText={handleConvertText}
       />
     );
 
