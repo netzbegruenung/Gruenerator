@@ -1,25 +1,18 @@
-import React from 'react';
-import { RiSpyLine } from 'react-icons/ri';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
+import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
+import {
+  WORKPLACE_TOOLS,
+  filterWorkplaceTools,
+  isFavouritableTool,
+  sortToolsByFavourites,
+  type WorkplaceToolItem,
+} from '../../../config/workplaceToolsConfig';
+import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 
 import type { IconType } from '../../../config/icons';
-
-interface ToolItem {
-  id: string;
-  title: string;
-  description: string;
-  /** Internal route (rendered as a router Link). Mutually exclusive with `href`. */
-  path?: string;
-  /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
-  href?: string;
-  icon: IconType;
-  devOnly?: boolean;
-}
-
-const NEWSLETTER_URL =
-  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
 
 interface FavoriteItem {
   id: string;
@@ -27,88 +20,6 @@ interface FavoriteItem {
   href: string;
   icon: IconType;
 }
-
-const MAIN_TOOLS: ToolItem[] = [
-  {
-    id: 'agents',
-    title: 'Agentura',
-    description: 'KI-Agent*innen & Skills entdecken',
-    path: '/agentura',
-    icon: RiSpyLine,
-  },
-  {
-    id: 'monitor',
-    title: 'Monitor',
-    description: 'Themen und Erwähnungen beobachten',
-    path: '/experiments/monitor',
-    icon: getIcon('navigation', 'monitor')!,
-    devOnly: true,
-  },
-  {
-    id: 'gruen-veraendern',
-    title: 'Bild mit KI begrünen',
-    description: 'Eigene Fotos grüner machen',
-    path: '/studio/ki/green-edit',
-    icon: getIcon('navigation', 'imagine')!,
-  },
-  {
-    id: 'reels-untertitel',
-    title: 'Reel untertiteln',
-    description: 'Untertitel für Social-Clips',
-    path: '/studio/video',
-    icon: getIcon('navigation', 'reel')!,
-  },
-  {
-    id: 'vorlagen',
-    title: 'Vorlagen',
-    description: 'Fertige Design-Vorlagen',
-    path: '/vorlagen',
-    icon: getIcon('navigation', 'vorlagen')!,
-  },
-  {
-    id: 'transfer',
-    title: 'Transfer',
-    description: 'Dateien sicher übertragen',
-    path: '/transfer',
-    icon: getIcon('actions', 'upload')!,
-    devOnly: true,
-  },
-  {
-    id: 'scanner',
-    title: 'Text digitalisieren',
-    description: 'Fotos & Scans in Text umwandeln',
-    path: '/scanner',
-    icon: getIcon('navigation', 'scanner')!,
-  },
-  {
-    id: 'zeichenzaehler',
-    title: 'Zeichenzähler',
-    description: 'Zeichen, Wörter & Social-Limits zählen',
-    path: '/zeichenzaehler',
-    icon: getIcon('navigation', 'zeichenzaehler')!,
-  },
-  {
-    id: 'transkription',
-    title: 'Audio mit KI transkribieren',
-    description: 'Meetings & Interviews verschriftlichen',
-    path: '/transkription',
-    icon: getIcon('navigation', 'transkription')!,
-  },
-  {
-    id: 'apps',
-    title: 'Mit ChatGPT & co verbinden',
-    description: 'Grünerator in ChatGPT & Claude nutzen',
-    path: '/apps',
-    icon: getIcon('actions', 'link')!,
-  },
-  {
-    id: 'newsletter',
-    title: 'Newsletter',
-    description: 'Updates & Neuigkeiten abonnieren',
-    href: NEWSLETTER_URL,
-    icon: getIcon('navigation', 'presse-social')!,
-  },
-];
 
 const FAVORITES: FavoriteItem[] = [
   {
@@ -143,10 +54,6 @@ const FAVORITES: FavoriteItem[] = [
   },
 ];
 
-function filterTools(tools: ToolItem[]): ToolItem[] {
-  return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
-}
-
 // Soft, hover-lift card surface shared by tool tiles and favorite pills. Mirrors
 // the workplace's established card idiom (see RecentlyCreatedSection): a hairline
 // border + `bg-background` that, on hover, lifts, deepens its shadow and tints its
@@ -174,15 +81,16 @@ function SectionHeading({ title, badge }: { title: string; badge?: string }) {
   );
 }
 
-function ToolTile({ tool }: { tool: ToolItem }) {
+function ToolTile({ tool }: { tool: WorkplaceToolItem }) {
   const Icon = tool.icon;
+  const favouritable = isFavouritableTool(tool);
   const className = `${CARD_BASE} gap-3 rounded-2xl p-md`;
   const body = (
     <>
       <span className={`${CHIP_BASE} size-12 text-[22px]`}>
         <Icon />
       </span>
-      <span className="min-w-0">
+      <span className={`min-w-0 flex-1${favouritable ? ' pr-6' : ''}`}>
         <h3 className="m-0 text-[15px] font-semibold leading-tight text-foreground-heading">
           {tool.title}
         </h3>
@@ -190,6 +98,7 @@ function ToolTile({ tool }: { tool: ToolItem }) {
           {tool.description}
         </span>
       </span>
+      {favouritable && <FavouriteStar id={tool.id} size={15} className="absolute right-2 top-2" />}
     </>
   );
 
@@ -224,7 +133,11 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 }
 
 const ToolsSection = React.memo(() => {
-  const tools = filterTools(MAIN_TOOLS);
+  const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
+  const tools = useMemo(
+    () => sortToolsByFavourites(filterWorkplaceTools(WORKPLACE_TOOLS), favouriteIds),
+    [favouriteIds]
+  );
   return (
     <>
       <SectionHeading title="Tools" />
