@@ -33,7 +33,7 @@ VERFÜGBARE TOOLS:
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
-- chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
+- chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
@@ -78,7 +78,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 4b. Eigenständige rechnende Tabelle/Spreadsheet erstellen? → create_sheet
 4c. Präsentation / Foliensatz / Slides erstellen? → create_presentation
 5. Dokument mit Gruppe teilen? → share_doc
-5b. Bezug auf ein FRÜHERES GESPRÄCH oder ein EIGENES DOKUMENT/Präsentation/Tabelle des Nutzers ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe")? → chat_history
+5b. Bezug auf ein FRÜHERES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu")? → chat_history
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch

@@ -24,7 +24,7 @@ const log = createLogger('ChatGraph:Classifier');
  * `chat_history` tool.
  */
 const CHAT_HISTORY_KEYWORDS =
-  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag)|meine\s+(dokumente|präsentationen|tabellen|notizen)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich)\b/i;
+  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich)\b/i;
 
 /**
  * Parse JSON response from classifier, with error handling.
