@@ -1,6 +1,7 @@
 ---
 iconKey: layout-grid
 identifier: gruenerator-boards-editor
+hiddenFromInventory: true
 title: Board-Assistent
 description: 'Verwaltet das aktuelle Board: erstellt und ändert Aufgaben, verschiebt Karten, kommentiert, pflegt Spalten, Felder und Ansichten — und beantwortet Fragen zum Board.'
 plugins:
