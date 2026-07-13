@@ -56,7 +56,7 @@ const GATHER_SUFFIX = [
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat.',
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
-  '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic oder Bild), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit der belegten Kernaussage auf. Verweigere die Erstellung NICHT.',
+  '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
   '- Schreibe in dieser Phase KEINE finale Antwort; sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe.',
 ].join('\n');
 
@@ -127,6 +127,12 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
+  /** Split mode only: runs AFTER the gather phase and BEFORE synthesis. Used to
+   *  GUARANTEE a compound turn's artifact — the split planner unreliably invokes
+   *  the generation fat tool (it treats the turn as pure research and stops), so
+   *  this hook force-creates the artifact from the gathered sources when the
+   *  planner didn't, before the synth announces it. */
+  afterGather?: () => Promise<void>;
 }
 
 export async function runAgenticLoop(
@@ -137,6 +143,7 @@ export async function runAgenticLoop(
     return streamWithTools(p, p.synthModel, deps);
   }
   await gather(p, deps);
+  if (p.afterGather) await p.afterGather();
   return synthesize(p, deps);
 }
 
