@@ -37,9 +37,18 @@
   }
 }
 
-.dark .workplace-chat-sunrise {
+/* Dark mode is toggled via [data-theme="dark"] (see @custom-variant in the
+   theme CSS), not a .dark class — a plain `.dark` selector never matches here.
+   Keep a faint warm glow over the theme background so the chat hero still reads
+   as a designed surface in dark mode. */
+[data-theme='dark'] .workplace-chat-sunrise {
   background-color: transparent;
-  background-image: none;
+  background-image: radial-gradient(
+    88% 58% at 50% 52%,
+    rgb(233 214 150 / 0.1) 0%,
+    rgb(233 214 150 / 0.035) 42%,
+    rgb(0 0 0 / 0) 74%
+  );
   animation: none;
 }
 
