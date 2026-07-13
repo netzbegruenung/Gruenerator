@@ -104,7 +104,8 @@ describe('runAgenticLoop — split (planner/executor)', () => {
         await o.tools?.probe?.execute?.({}, { toolCallId: 'c1' });
         return { text: '' };
       }) as unknown as LoopDeps['generateText'],
-      streamText: (() => streamOf([{ type: 'text-delta', text: 'A' }])) as unknown as LoopDeps['streamText'],
+      streamText: (() =>
+        streamOf([{ type: 'text-delta', text: 'A' }])) as unknown as LoopDeps['streamText'],
     };
 
     await runAgenticLoop(
@@ -144,9 +145,9 @@ describe('runAgenticLoop — stream draining', () => {
         ])) as unknown as LoopDeps['streamText'],
     };
 
-    await expect(runAgenticLoop(baseParams({ mode: 'unified', onReasoning }), deps)).rejects.toThrow(
-      'stream fail'
-    );
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'unified', onReasoning }), deps)
+    ).rejects.toThrow('stream fail');
     expect(onReasoning).toHaveBeenCalledWith('denke nach');
   });
 });
