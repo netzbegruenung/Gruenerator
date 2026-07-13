@@ -59,17 +59,57 @@ export default function TestsommerPage() {
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
 
-    // Feedback form → thank-you state
+    // Feedback form → POST to /api/feedback, then thank-you state
     const form = scope.querySelector<HTMLFormElement>('#fb-form');
+    const submitBtn = scope.querySelector<HTMLButtonElement>('#fb-submit');
+    const errorEl = scope.querySelector<HTMLElement>('#fb-error');
+    const showError = (msg: string) => {
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.style.display = '';
+      }
+    };
     const onSubmit = (e: Event) => {
       e.preventDefault();
-      const wrap = scope.querySelector<HTMLElement>('#fb-form-wrap');
-      const sent = scope.querySelector<HTMLElement>('#fb-sent-wrap');
-      if (wrap) wrap.style.display = 'none';
-      if (sent) sent.style.display = '';
-      scope
-        .querySelector('#feedback')
-        ?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      if (!form) return;
+      const data = new FormData(form);
+      const email = String(data.get('email') ?? '').trim();
+      const message = String(data.get('message') ?? '').trim();
+      if (!email || !message) return;
+      const name = String(data.get('name') ?? '').trim();
+      const track = String(data.get('track') ?? '').trim();
+      if (errorEl) errorEl.style.display = 'none';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Wird gesendet …';
+      }
+      void fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          message,
+          ...(name && { name }),
+          source: track ? `Testsommer · ${track}` : 'Testsommer',
+        }),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(String(res.status));
+          const wrap = scope.querySelector<HTMLElement>('#fb-form-wrap');
+          const sent = scope.querySelector<HTMLElement>('#fb-sent-wrap');
+          if (wrap) wrap.style.display = 'none';
+          if (sent) sent.style.display = '';
+          scope
+            .querySelector('#feedback')
+            ?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+        })
+        .catch(() => {
+          showError('Das hat leider nicht geklappt. Bitte versuch es später noch einmal.');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Feedback senden →';
+          }
+        });
     };
     form?.addEventListener('submit', onSubmit);
 

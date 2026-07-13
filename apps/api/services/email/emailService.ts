@@ -61,6 +61,7 @@ export interface SendEmailOptions {
   subject: string;
   html: string;
   text: string;
+  replyTo?: string;
   attachments?: Array<{
     filename: string;
     content: Buffer | string;
@@ -89,6 +90,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
       subject: options.subject,
       html: options.html,
       text: options.text,
+      ...(options.replyTo != null && { replyTo: options.replyTo }),
       attachments: options.attachments,
     });
     log.info('[Email] Sent', { to: options.to, subject: options.subject });

@@ -66,6 +66,7 @@ import { mountNotificationsContractRouter } from './routes/notifications/notific
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
@@ -125,7 +126,6 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
-import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
@@ -284,6 +284,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
+  const { default: feedbackRouter } = await import('./routes/feedback/feedbackController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: _publicSiteRouter } =
     await import('./routes/sites/index.js');
@@ -421,6 +422,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // 'authenticated' (50/day) instead of the 'anonymous' 20/day fallback.
   // The tool stays public — anonymous access is still allowed (anonymous = 20).
   app.use('/api/gruen-o-mat', optionalAuth, gruenOMatRouter);
+  // Public feedback endpoint (Testsommer landing page). No auth: the page is
+  // public; the route rate-limits by IP and sets Reply-To to the sender.
+  app.use('/api/feedback', feedbackRouter);
   app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
