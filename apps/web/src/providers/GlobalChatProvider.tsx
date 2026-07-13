@@ -151,7 +151,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         // atomic teardown, 'stay' leaves the user put (infra blip / logging out).
         return (await handleUnauthorized('chat')) === 'retry';
       },
-      wolkeConnectUrl: '/profile/wolke',
+      wolkeConnectUrl: '/profile/verbindungen',
       renderSharepic: renderSharepicToImage,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {

@@ -75,7 +75,9 @@ export const fahrtSchema = z.object({
   oepnv: belegPositionSchema.nullable(),
   kfz: kfzSchema.nullable(),
   miete: mieteSchema.nullable(),
-  taxi: z.object({ betrag: z.number(), begruendung: z.string(), belegVorhanden: z.boolean() }).nullable(),
+  taxi: z
+    .object({ betrag: z.number(), begruendung: z.string(), belegVorhanden: z.boolean() })
+    .nullable(),
   sonstiges: z.object({ betrag: z.number(), beschreibung: z.string() }).nullable(),
 });
 

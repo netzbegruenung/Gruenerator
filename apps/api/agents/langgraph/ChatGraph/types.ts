@@ -397,6 +397,13 @@ export interface ChatGraphState {
   // HTTP-decoupled (no Response object on state).
   onResearchProgress?: ((message: string) => void) | undefined;
 
+  // Optional progress sink for the EXPERIMENTAL `mcp` intent tool-loop. The
+  // dispatch layer wires this to SSE tool_step_start/tool_step_result so each
+  // external MCP tool call is surfaced to the user. Graph stays HTTP-decoupled.
+  onMcpProgress?:
+    | ((step: { phase: 'start' | 'result'; server: string; tool: string; ok?: boolean }) => void)
+    | undefined;
+
   // Attachment context
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
@@ -571,6 +578,16 @@ export interface ChatGraphState {
   // Document summarization
   summaryContext: string | null;
   summaryTimeMs: number;
+
+  // EXPERIMENTAL `mcp` intent: aggregated output of the external-tool loop,
+  // injected into respondNode as authoritative context. Null/undefined when the
+  // loop produced nothing (no servers, all failed, no tool used).
+  mcpToolContext?: string | null | undefined;
+  mcpToolTimeMs?: number | undefined;
+  // Scopes the tool-loop to one connected server (its `mcp_servers.id`), set by a
+  // `@notion`/`@brevo` mention (router) or a conservative classifier hint. Null =
+  // run over all enabled servers (legacy @mcp).
+  mcpServerScope?: string | null | undefined;
 
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;
