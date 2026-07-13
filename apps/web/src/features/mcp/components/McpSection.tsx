@@ -16,7 +16,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiLock, FiCheck } from 'react-icons/fi';
+import { FiServer, FiSearch, FiCheck } from 'react-icons/fi';
 
 import {
   useMcpServers,
@@ -71,18 +71,8 @@ const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) =>
 ));
 McpLogo.displayName = 'McpLogo';
 
-const authLabel: Record<McpRegistryEntry['authHint'], string> = {
-  none: 'Ohne Auth',
-  bearer: 'Token',
-  oauth: 'OAuth',
-  unknown: '—',
-};
-
 const inputClass =
   'w-full px-md py-sm rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure text-sm text-foreground focus:border-primary-400 focus:outline-none transition-colors';
-
-const authBadgeClass =
-  'flex-none inline-flex items-center gap-1 px-2 py-1 rounded-full bg-grey-100 dark:bg-grey-800 text-grey-500 text-[11px] font-semibold border border-grey-200 dark:border-grey-700';
 
 const connectBtnClass =
   'text-xs font-semibold px-md py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30 transition-colors cursor-pointer';
@@ -421,14 +411,12 @@ const CardShell = memo(
   ({
     title,
     description,
-    badge,
     category,
     connecting,
     onConnect,
   }: {
     title: string;
     description: string | null | undefined;
-    badge: string;
     category: string | undefined;
     connecting: boolean;
     onConnect: () => void;
@@ -444,10 +432,6 @@ const CardShell = memo(
             </p>
           )}
         </div>
-        <span className={authBadgeClass}>
-          <FiLock className="w-2.5 h-2.5" />
-          {badge}
-        </span>
       </div>
       <div className="flex items-center justify-between gap-sm mt-md">
         <span className="text-[11px] text-grey-400 font-medium">{category}</span>
@@ -779,7 +763,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 key={it.key}
                 title={it.entry.title}
                 description={it.entry.description}
-                badge={authLabel[it.entry.authHint]}
                 category={it.category}
                 connecting={connecting === it.entry.url}
                 onConnect={() => handlePickMcp(it.entry)}
