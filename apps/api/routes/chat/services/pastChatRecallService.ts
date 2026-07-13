@@ -1,22 +1,25 @@
 /**
- * Past Chat Recall Service
+ * Past Work Recall Service
  *
- * Lets the assistant recall the user's OWN earlier conversations — both as
- * start-of-chat context (see chatGraphContractRouter) and as an explicit tool
- * (the `chat_history` intent). Wraps the low-level ILIKE primitive
- * `searchChatHistory` and, when thread-level embeddings exist, merges in
- * semantic matches so a fresh first message can surface a topically related
- * past thread even without shared keywords.
+ * Lets the assistant recall the user's OWN earlier work — both as start-of-chat
+ * context (see chatGraphContractRouter) and as an explicit tool (the
+ * `chat_history` intent). Two sources:
+ *  - past chat conversations (`recallPastChats`): ILIKE `searchChatHistory`
+ *    merged with thread-level semantic matches so a fresh first message can
+ *    surface a topically related past thread even without shared keywords.
+ *  - office documents — docs, presentations, sheets (`recallOfficeDocuments`):
+ *    title search over `collaborative_documents`, reusing `searchDocuments`.
  *
  * This is deliberately separate from mem0 fact memory: mem0 stores distilled
- * facts about the user; this returns raw conversation excerpts with titles and
- * dates the model can reference naturally.
+ * facts about the user; this returns raw conversation excerpts and document
+ * references with titles and dates the model can reference naturally.
  */
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { toIsoString } from '../../../utils/toIsoString.js';
+import { toIsoOrNull, toIsoString } from '../../../utils/toIsoString.js';
+import { searchDocuments } from '../../docs/docsSearch.js';
 
 import { searchChatHistory } from './chatSearchService.js';
 
@@ -26,6 +29,48 @@ const log = createLogger('PastChatRecallService');
 
 const DEEP_READ_MAX_MESSAGES = 10;
 const DEEP_READ_MAX_CHARS = 4_000;
+
+/** German label per collaborative_documents subtype for the recall block/card. */
+function officeKindLabel(subtype: string | null): string {
+  if (subtype === 'presentations') return 'Präsentation';
+  if (subtype === 'sheets' || subtype === 'tabelle') return 'Tabelle';
+  return 'Dokument';
+}
+
+export interface OfficeDocHit {
+  id: string;
+  title: string | null;
+  /** German kind label (Dokument / Präsentation / Tabelle). */
+  kind: string;
+  url: string;
+  updatedAt: string | null;
+}
+
+/**
+ * Title search over the user's own office documents (docs, presentations,
+ * sheets). Reuses `searchDocuments`, which applies the owned/shared/group
+ * access predicate, so a user never sees another user's documents.
+ */
+export async function recallOfficeDocuments(
+  userId: string,
+  query: string,
+  limit = 3
+): Promise<OfficeDocHit[]> {
+  if (!query.trim()) return [];
+  try {
+    const hits = await searchDocuments(userId, query, limit);
+    return hits.map((h) => ({
+      id: h.id,
+      title: h.title,
+      kind: officeKindLabel(h.document_subtype),
+      url: `/office/${h.id}`,
+      updatedAt: toIsoOrNull(h.updated_at),
+    }));
+  } catch (err) {
+    log.warn(`[Recall] Office document search failed: ${err}`);
+    return [];
+  }
+}
 
 export interface PastChatRecallOptions {
   excludeThreadId?: string;
@@ -170,6 +215,29 @@ export function formatPastChatsBlock(
     lines.push(deepRead.transcript.trim());
   }
 
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * German system-prompt block listing the user's own office documents (docs,
+ * presentations, sheets) that match. Same framing as the chats block — context
+ * the model may reference, not a citable source. Returns '' when empty so the
+ * caller can drop it from the combined context.
+ */
+export function formatOfficeDocsBlock(docs: OfficeDocHit[]): string {
+  if (docs.length === 0) return '';
+  const lines: string[] = [
+    '## RELEVANTE EIGENE DOKUMENTE (KONTEXT – KEINE QUELLEN, NICHT ZITIEREN)',
+    '',
+    'Diese Dokumente, Präsentationen und Tabellen hat der Nutzer selbst erstellt.',
+    'Du darfst darauf verweisen, wenn es zur Anfrage passt.',
+    '',
+  ];
+  for (const d of docs) {
+    const title = d.title?.trim() || 'Unbenanntes Dokument';
+    const meta = d.updatedAt ? `${d.kind}, ${formatGermanDate(d.updatedAt)}` : d.kind;
+    lines.push(`- „${title}" (${meta})`);
+  }
   return lines.join('\n').trimEnd();
 }
 

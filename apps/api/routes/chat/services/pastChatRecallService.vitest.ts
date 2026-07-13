@@ -13,6 +13,7 @@ import type { ChatSearchResult } from '../../../agents/langgraph/ChatGraph/types
 const mockQuery = vi.fn().mockResolvedValue([]);
 const mockSearchChatHistory = vi.fn();
 const mockSearchThreadRecall = vi.fn();
+const mockSearchDocuments = vi.fn();
 
 vi.mock('../../../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({ query: mockQuery }),
@@ -26,8 +27,17 @@ vi.mock('../../../services/chat/threadRecallEmbeddingService.js', () => ({
   searchThreadRecall: (...args: unknown[]) => mockSearchThreadRecall(...args),
 }));
 
-const { recallPastChats, getThreadRecallContext, formatPastChatsBlock } =
-  await import('./pastChatRecallService.js');
+vi.mock('../../docs/docsSearch.js', () => ({
+  searchDocuments: (...args: unknown[]) => mockSearchDocuments(...args),
+}));
+
+const {
+  recallPastChats,
+  recallOfficeDocuments,
+  getThreadRecallContext,
+  formatPastChatsBlock,
+  formatOfficeDocsBlock,
+} = await import('./pastChatRecallService.js');
 
 function makeHit(id: string, title: string): ChatSearchResult {
   return {
@@ -169,5 +179,90 @@ describe('formatPastChatsBlock', () => {
     });
     expect(withDeep).toContain('Vollständiger Verlauf des relevantesten Gesprächs');
     expect(withDeep).toContain('[user] hallo');
+  });
+});
+
+describe('recallOfficeDocuments', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('maps subtypes to German kind labels and /office/ URLs', async () => {
+    mockSearchDocuments.mockResolvedValue([
+      {
+        id: 'd1',
+        title: 'Klimastrategie',
+        document_subtype: 'presentations',
+        updated_at: '2026-04-01T10:00:00Z',
+      },
+      {
+        id: 'd2',
+        title: 'Budget 2026',
+        document_subtype: 'sheets',
+        updated_at: '2026-03-20T10:00:00Z',
+      },
+      {
+        id: 'd3',
+        title: 'Antrag Radwege',
+        document_subtype: 'antrag',
+        updated_at: '2026-03-01T10:00:00Z',
+      },
+    ]);
+    const docs = await recallOfficeDocuments('user-1', 'Klima', 5);
+    expect(docs).toEqual([
+      {
+        id: 'd1',
+        title: 'Klimastrategie',
+        kind: 'Präsentation',
+        url: '/office/d1',
+        updatedAt: '2026-04-01T10:00:00.000Z',
+      },
+      {
+        id: 'd2',
+        title: 'Budget 2026',
+        kind: 'Tabelle',
+        url: '/office/d2',
+        updatedAt: '2026-03-20T10:00:00.000Z',
+      },
+      {
+        id: 'd3',
+        title: 'Antrag Radwege',
+        kind: 'Dokument',
+        url: '/office/d3',
+        updatedAt: '2026-03-01T10:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('returns [] for an empty query without hitting the DB', async () => {
+    const docs = await recallOfficeDocuments('user-1', '   ', 5);
+    expect(docs).toEqual([]);
+    expect(mockSearchDocuments).not.toHaveBeenCalled();
+  });
+
+  it('degrades to [] when the document search throws', async () => {
+    mockSearchDocuments.mockRejectedValue(new Error('DB down'));
+    const docs = await recallOfficeDocuments('user-1', 'Klima', 5);
+    expect(docs).toEqual([]);
+  });
+});
+
+describe('formatOfficeDocsBlock', () => {
+  it('returns empty string when there are no docs', () => {
+    expect(formatOfficeDocsBlock([])).toBe('');
+  });
+
+  it('renders a header and one line per document with kind + date', () => {
+    const block = formatOfficeDocsBlock([
+      {
+        id: 'd1',
+        title: 'Klimastrategie',
+        kind: 'Präsentation',
+        url: '/office/d1',
+        updatedAt: '2026-04-01T10:00:00Z',
+      },
+    ]);
+    expect(block).toContain('## RELEVANTE EIGENE DOKUMENTE');
+    expect(block).toContain('„Klimastrategie" (Präsentation, 01.04.2026)');
   });
 });

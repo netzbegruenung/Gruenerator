@@ -25,8 +25,10 @@ import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
+  recallOfficeDocuments,
   getThreadRecallContext,
   formatPastChatsBlock,
+  formatOfficeDocsBlock,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
 import {
@@ -987,12 +989,12 @@ export async function executeIntentPipeline(opts: {
         sse.send('compute', { compute: finalState.computedResult });
       }
     } else if (currentIntent === 'chat_history') {
-      // Search the user's own past threads and deep-read the top match, so the
-      // model can continue an earlier conversation. Runs its own retrieval
-      // (not searchNode, which targets party documents/web).
+      // Recall the user's own past work — chat threads (deep-reading the top
+      // match) plus office documents (docs/presentations/sheets). Runs its own
+      // retrieval (not searchNode, which targets party documents/web).
       const userId = finalState.agentConfig.userId;
       if (userId) {
-        sse.send('search_start', { message: 'Durchsuche vergangene Gespräche…' });
+        sse.send('search_start', { message: 'Durchsuche frühere Inhalte…' });
         const query =
           finalState.searchQuery ||
           (finalState.messages.length
@@ -1002,26 +1004,41 @@ export async function executeIntentPipeline(opts: {
             : '');
         const dateFrom = finalState.detectedFilters?.date_from;
         const dateTo = finalState.detectedFilters?.date_to;
-        const hits = await recallPastChats(userId, query, {
-          limit: 5,
-          ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
-          ...(dateFrom && { startDate: new Date(dateFrom) }),
-          ...(dateTo && { endDate: new Date(dateTo) }),
-        });
+        const [hits, officeDocs] = await Promise.all([
+          recallPastChats(userId, query, {
+            limit: 5,
+            ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
+            ...(dateFrom && { startDate: new Date(dateFrom) }),
+            ...(dateTo && { endDate: new Date(dateTo) }),
+          }),
+          recallOfficeDocuments(userId, query, 5),
+        ]);
 
         const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
 
-        const searchResults: SearchResult[] = hits.map((h) => ({
-          source: 'chat_history',
-          title: h.threadTitle ?? 'Unbenannter Chat',
-          content: h.snippet,
-          url: `/chat/${h.threadSlugSuffix ? buildChatThreadSlug(h.threadTitle, h.threadSlugSuffix) : h.threadId}`,
-        }));
+        const searchResults: SearchResult[] = [
+          ...hits.map((h) => ({
+            source: 'chat_history',
+            title: h.threadTitle ?? 'Unbenannter Chat',
+            content: h.snippet,
+            url: `/chat/${h.threadSlugSuffix ? buildChatThreadSlug(h.threadTitle, h.threadSlugSuffix) : h.threadId}`,
+          })),
+          ...officeDocs.map((d) => ({
+            source: 'office_document',
+            title: d.title ?? 'Unbenanntes Dokument',
+            content: d.kind,
+            url: d.url,
+          })),
+        ];
 
+        const contextBlocks = [
+          hits.length ? formatPastChatsBlock(hits, deepRead) : '',
+          formatOfficeDocsBlock(officeDocs),
+        ].filter(Boolean);
         finalState = {
           ...finalState,
           searchResults,
-          chatHistoryContext: hits.length ? formatPastChatsBlock(hits, deepRead) : null,
+          chatHistoryContext: contextBlocks.length ? contextBlocks.join('\n\n') : null,
         } as ChatGraphState;
 
         const payloadResults: SearchResultPayload[] = searchResults.map((r) => ({
@@ -1031,8 +1048,8 @@ export async function executeIntentPipeline(opts: {
           ...(r.url != null && { url: r.url }),
         }));
         sse.send('search_complete', {
-          message: PROGRESS_MESSAGES.searchComplete(hits.length),
-          resultCount: hits.length,
+          message: PROGRESS_MESSAGES.searchComplete(searchResults.length),
+          resultCount: searchResults.length,
           results: payloadResults,
         });
       }
