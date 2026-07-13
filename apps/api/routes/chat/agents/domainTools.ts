@@ -21,7 +21,11 @@ import { z } from 'zod';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
-import { runDocGeneration, runSharepicGeneration } from '../services/intentExecutionService.js';
+import {
+  runBoardGeneration,
+  runDocGeneration,
+  runSharepicGeneration,
+} from '../services/intentExecutionService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -264,28 +268,36 @@ NUTZE WENN der*die Nutzer*in ein Sharepic/eine Grafik zum Thema möchte. Recherc
  * persisted message `createdDocument` metadata), and hands the model a lean
  * value to announce. The `prompt` arg carries the researched, concrete brief.
  */
+const DOC_LABELS: Record<
+  'presentation' | 'sheet' | 'document',
+  { label: string; artifact: string }
+> = {
+  presentation: {
+    label: 'Präsentation',
+    artifact: 'eine Präsentation (Foliendeck) zu einem Thema',
+  },
+  sheet: { label: 'Tabelle', artifact: 'eine Tabelle/Kalkulation zu einem Thema' },
+  document: { label: 'Dokument', artifact: 'ein Textdokument zu einem Thema' },
+};
+
 export function makeCreateDocTool(ctx: {
-  kind: 'presentation' | 'sheet';
+  kind: 'presentation' | 'sheet' | 'document';
   sse: SSEWriter;
   state: ChatGraphState;
   req: Request;
 }): Tool {
   const { kind, sse, state, req } = ctx;
-  const label = kind === 'presentation' ? 'Präsentation' : 'Tabelle';
-  const artifact =
-    kind === 'presentation'
-      ? 'eine Präsentation (Foliendeck) zu einem Thema'
-      : 'eine Tabelle/Kalkulation zu einem Thema';
+  const { label, artifact } = DOC_LABELS[kind];
   return tool({
     description: `Erstellt ${artifact}.
 
-NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/Folien' : 'eine Tabelle/Kalkulation'} zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.`,
+NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/Folien' : label === 'Tabelle' ? 'eine Tabelle/Kalkulation' : 'ein Dokument/einen Text'} zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.`,
     inputSchema: z.object({
       prompt: z
         .string()
         .min(1)
         .describe(
-          `Konkreter Auftrag für die ${label} — Thema plus die recherchierten Fakten/Inhalte, die vorkommen sollen`
+          `Konkreter Auftrag für ${label === 'Dokument' ? 'das Dokument' : `die ${label}`} — Thema plus die recherchierten Fakten/Inhalte, die vorkommen sollen`
         ),
     }),
     execute: async ({ prompt }) => {
@@ -294,7 +306,7 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       if (state.createdDocument) {
         return {
           ok: true,
-          note: `Es wurde in diesem Turn bereits ${label === 'Präsentation' ? 'eine Präsentation' : 'eine Tabelle'} erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige sie kurz an.`,
+          note: `Es wurde in diesem Turn bereits ${label === 'Dokument' ? 'ein Dokument' : `eine ${label}`} erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
         };
       }
       const userId = state.agentConfig?.userId;
@@ -317,7 +329,58 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       state.createdDocument = created;
       return {
         document: created,
-        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige sie kurz an.`,
+        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+      };
+    },
+  });
+}
+
+/**
+ * Compound board fat tool. Boards have a DIFFERENT contract than documents:
+ * no `document_created`/card path — the board renders from `boardId` +
+ * `boardGeneratedStructure` in the turn's `done` event. So this tool stashes the
+ * descriptor on `state.createdBoard` (shared-ref → router lifts it into the loop
+ * `done` event) and hands the model the board URL to mention. No card
+ * rehydration on reload (matches the single-pass @board-erstellen path).
+ */
+export function makeCreateBoardTool(ctx: { state: ChatGraphState; req: Request }): Tool {
+  const { state, req } = ctx;
+  return tool({
+    description: `Erstellt ein Kanban-Board (Aufgabenboard) zu einem Thema.
+
+NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Inhalten angereicherten Auftrag (Aufgaben/Spalten) — kein Platzhaltertext.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe('Konkreter Auftrag für das Board — Thema plus die Aufgaben/Inhalte'),
+    }),
+    execute: async ({ prompt }) => {
+      if (state.createdBoard) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Board erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: 'Board-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
+      }
+      const created = await runBoardGeneration({
+        userContent: prompt,
+        aiWorkerPool: state.aiWorkerPool,
+        req,
+        userId,
+      });
+      if (!created) {
+        return { error: 'Board-Erstellung fehlgeschlagen.' };
+      }
+      // Shared-ref merge → forceFinish trips and the router lifts boardId +
+      // structure into the `done` event (boards have no mid-stream card SSE).
+      state.createdBoard = created;
+      return {
+        board: { boardId: created.boardId, title: created.title },
+        note: `Board "${created.title}" erstellt (unter /boards/${created.boardId}). Rufe das Tool NICHT erneut auf; kündige es kurz an und nenne den Link.`,
       };
     },
   });

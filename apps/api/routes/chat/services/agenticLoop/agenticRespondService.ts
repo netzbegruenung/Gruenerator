@@ -240,7 +240,16 @@ export async function streamAgenticResponse(params: {
           ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
           : '',
         finalState.createdDocument != null
-          ? `HINWEIS: In diesem Turn wurde bereits ${finalState.createdDocument.subtype === 'presentations' ? 'eine Präsentation' : 'eine Tabelle'} ("${finalState.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige sie kurz an und fasse die recherchierten Kerninhalte zusammen.`
+          ? `HINWEIS: In diesem Turn wurde bereits ${
+              finalState.createdDocument.subtype === 'presentations'
+                ? 'eine Präsentation'
+                : finalState.createdDocument.subtype === 'sheets'
+                  ? 'eine Tabelle'
+                  : 'ein Dokument'
+            } ("${finalState.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen.`
+          : '',
+        finalState.createdBoard != null
+          ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${finalState.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Link (/boards/${finalState.createdBoard.boardId}).`
           : '',
       ]
         .filter(Boolean)
@@ -283,7 +292,8 @@ export async function streamAgenticResponse(params: {
       forceFinish: () =>
         finalState.generatedImage != null ||
         (finalState.sharepicVariants?.length ?? 0) > 0 ||
-        finalState.createdDocument != null,
+        finalState.createdDocument != null ||
+        finalState.createdBoard != null,
       onText: (delta) => {
         startResponse();
         text += delta;

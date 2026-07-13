@@ -34,11 +34,7 @@ import {
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
-import {
-  looksLikeCompoundGeneration,
-  decideRunAgentic,
-  COMPOUND_GENERATION_INTENTS,
-} from './services/agenticLoop/routing.js';
+import { compoundGenerationKind, decideRunAgentic } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
@@ -616,16 +612,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const isMcpTurn = classifiedState.intent === 'mcp';
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
-      // presentation, sheet) with an explicit research signal goes through the
-      // loop with the matching fat tool; pure generation keeps the direct
-      // dispatch + fixed text. Computed AFTER the app platform gate + refinement
-      // branches above, so app redirects and refinement turns are unaffected.
-      const compoundGeneration =
-        COMPOUND_GENERATION_INTENTS.has(classifiedState.intent) &&
-        !forcedTool &&
-        !sharepicRefinement &&
-        looksLikeCompoundGeneration(lastUserText);
-      if (compoundGeneration) classifiedState.compoundGeneration = true;
+      // presentation, sheet, text doc, board) with an explicit research signal
+      // goes through the loop with the matching fat tool; pure generation keeps
+      // the direct dispatch + fixed text. The KIND is derived from the intent OR
+      // — for a turn the classifier demoted to `agentic` — the text noun, so
+      // "mach mir eine Tabelle draus" (which only reaches direct@0.50 → agentic)
+      // still mounts the sheet tool. Computed AFTER the app platform gate +
+      // refinement branches, so app redirects and refinements are unaffected.
+      const compoundKind =
+        !forcedTool && !sharepicRefinement
+          ? compoundGenerationKind(classifiedState.intent, lastUserText)
+          : null;
+      const compoundGeneration = compoundKind != null;
+      if (compoundKind) {
+        classifiedState.compoundGeneration = true;
+        classifiedState.compoundGenerationKind = compoundKind;
+      }
       // The whole routing decision lives in the pure, unit-tested decideRunAgentic
       // (agenticLoop/routing.ts) — including the `direct`-question rescue.
       const runAgentic = decideRunAgentic({
@@ -1085,6 +1087,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // shared state and persisted as message-level `createdDocument` metadata
       // (the single-pass handlers persist it directly; the loop path lifts it).
       let createdDocument: CreatedDocument | null = null;
+      // Board created by a compound loop tool — boards have no card path, so
+      // this is emitted in the `done` event (boardId + boardGeneratedStructure),
+      // the way the single-pass @board-erstellen handler does.
+      let createdBoard: ChatGraphState['createdBoard'] = null;
 
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
@@ -1130,6 +1136,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sharepicVariants = finalState.sharepicVariants ?? [];
         // Same lift for the presentation/sheet fat tools (compound turns).
         createdDocument = finalState.createdDocument ?? null;
+        createdBoard = finalState.createdBoard ?? null;
         socialPost = null;
         fullText = outcome.fullText;
         agenticSteps = outcome.steps;
@@ -1441,6 +1448,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(actualThreadId != null && { threadId: actualThreadId }),
         citations: finalState.citations,
         generatedImage,
+        // Compound board turn: boards render from these `done` fields (no card
+        // SSE), mirroring the single-pass @board-erstellen handler.
+        ...(createdBoard != null && {
+          boardId: createdBoard.boardId,
+          boardGeneratedStructure: createdBoard.boardGeneratedStructure,
+        }),
         metadata: {
           intent: finalState.intent,
           searchCount: finalState.searchCount || 0,

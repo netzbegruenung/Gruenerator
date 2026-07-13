@@ -61,13 +61,50 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
  * fixed-text/direct-dispatch contract.
  */
 const GENERATION_NOUN_RE =
-  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet)\b/i;
+  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard)\b/i;
 const RESEARCH_SIGNAL_RE =
   /\b(recherchier\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*)\b/i;
 
 export function looksLikeCompoundGeneration(raw: string): boolean {
   const t = (raw ?? '').trim();
   return GENERATION_NOUN_RE.test(t) && RESEARCH_SIGNAL_RE.test(t);
+}
+
+export type CompoundGenerationKind = 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board';
+
+// Per-artifact nouns, used to recover the generation KIND from the text when the
+// intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
+const SHAREPIC_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
+const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
+const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
+const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
+const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i;
+
+/**
+ * The generation KIND a compound turn should mount a fat tool for. Prefers the
+ * classified generation intent; on a DEMOTED (`agentic`) or mislabelled
+ * (`direct`) turn — where the intent no longer names the artifact — it recovers
+ * the kind from the noun in the text. This is why "mach mir eine Tabelle draus"
+ * still creates a sheet even though the classifier only reached `direct@0.50`
+ * (→ demoted to `agentic`), not `create_sheet`. Returns null when the turn is
+ * not compound (no research signal, or no generation noun).
+ */
+export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
+  const t = (raw ?? '').trim();
+  if (!looksLikeCompoundGeneration(t)) return null;
+  if (intent === 'sharepic') return 'sharepic';
+  if (intent === 'create_presentation') return 'presentation';
+  if (intent === 'create_sheet') return 'sheet';
+  if (intent === 'agentic' || intent === 'direct') {
+    // Order = specificity: the concrete products first, the generic "Dokument"
+    // last (it's the fallback artifact when nothing more specific matches).
+    if (SHAREPIC_NOUN_RE.test(t)) return 'sharepic';
+    if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
+    if (SHEET_NOUN_RE.test(t)) return 'sheet';
+    if (BOARD_NOUN_RE.test(t)) return 'board';
+    if (DOCUMENT_NOUN_RE.test(t)) return 'document';
+  }
+  return null;
 }
 
 export interface AgenticDecisionInput {
