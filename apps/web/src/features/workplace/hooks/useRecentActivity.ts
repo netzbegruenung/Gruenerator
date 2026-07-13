@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
 
-export type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
+export type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'canvas';
 
 export interface RecentItem {
   id: string;
