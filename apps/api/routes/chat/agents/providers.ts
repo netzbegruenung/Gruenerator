@@ -399,8 +399,14 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  *
  * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
  */
-const LOOP_PLANNER_PRIMARY = { provider: 'regolo' as const, model: 'mistral-small-4-119b' };
-const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+// Planner = litellm/verdigado-pro: a fast, verified tool-caller that is proven
+// reachable and completed planner=verdigado-pro turns on test-branch. NOT regolo
+// (caused the earlier steps=0 gather regression). Mistral native as the
+// cross-provider fallback if litellm is ever down.
+const LOOP_PLANNER_PRIMARY = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+const LOOP_PLANNER_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+// Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
+// litellm/verdigado-pro (fast, non-think) when regolo is absent.
 const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
 const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
 
@@ -411,7 +417,7 @@ const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAU
 const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
-  return isProviderConfigured('regolo') ? LOOP_PLANNER_PRIMARY : LOOP_PLANNER_FALLBACK;
+  return isProviderConfigured('litellm') ? LOOP_PLANNER_PRIMARY : LOOP_PLANNER_FALLBACK;
 }
 
 function loopSynthWriterChoice(): { provider: Provider; model: string } {
