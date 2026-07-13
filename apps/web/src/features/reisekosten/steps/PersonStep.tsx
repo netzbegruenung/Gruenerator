@@ -31,7 +31,11 @@ export function PersonStep({
           </div>
           <div className="grid grid-cols-[120px_1fr] gap-md">
             <Field label="PLZ *">
-              <TextInput value={s.plz} onChange={(v) => setStammdaten({ plz: v })} inputMode="numeric" />
+              <TextInput
+                value={s.plz}
+                onChange={(v) => setStammdaten({ plz: v })}
+                inputMode="numeric"
+              />
             </Field>
             <Field label="Ort *">
               <TextInput value={s.ort} onChange={(v) => setStammdaten({ ort: v })} />
@@ -39,10 +43,18 @@ export function PersonStep({
           </div>
           <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
             <Field label="E-Mail *">
-              <TextInput type="email" value={s.email} onChange={(v) => setStammdaten({ email: v })} />
+              <TextInput
+                type="email"
+                value={s.email}
+                onChange={(v) => setStammdaten({ email: v })}
+              />
             </Field>
             <Field label="Telefon">
-              <TextInput type="tel" value={s.telefon ?? ''} onChange={(v) => setStammdaten({ telefon: v })} />
+              <TextInput
+                type="tel"
+                value={s.telefon ?? ''}
+                onChange={(v) => setStammdaten({ telefon: v })}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-1 gap-md sm:grid-cols-[1fr_140px]">

@@ -3,7 +3,7 @@
  * Uses Vercel AI SDK for text generation with content-type specific configurations
  */
 
-import { generateText, type ModelMessage, type Tool } from 'ai';
+import { generateText, type ModelMessage } from 'ai';
 
 import {
   getGenerationConfig,
@@ -13,7 +13,7 @@ import {
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
-import { mergeMetadata } from './adapterUtils.js';
+import { buildAiSdkTools, mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
@@ -213,31 +213,6 @@ async function convertMessages(
 }
 
 /**
- * Convert tool handler payload to Vercel AI SDK tools format
- */
-function convertTools(
-  toolsPayload: ReturnType<typeof ToolHandler.prepareToolsPayload>
-): Record<string, Tool> | undefined {
-  if (!toolsPayload.tools || toolsPayload.tools.length === 0) {
-    return undefined;
-  }
-
-  const tools: Record<string, Tool> = {};
-  for (const tool of toolsPayload.tools as Array<{
-    name: string;
-    description: string;
-    parameters?: unknown;
-    input_schema?: unknown;
-  }>) {
-    tools[tool.name] = {
-      description: tool.description,
-      inputSchema: (tool.parameters || tool.input_schema) as Tool['inputSchema'],
-    };
-  }
-  return tools;
-}
-
-/**
  * Execute a Mistral AI request using Vercel AI SDK
  */
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
@@ -289,7 +264,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     requestId,
     type
   );
-  const tools = convertTools(toolsPayload);
+  const tools = buildAiSdkTools(toolsPayload);
 
   // Determine tool choice
   let toolChoice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string } | undefined;

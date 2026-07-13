@@ -1,6 +1,14 @@
 import { type ReactNode } from 'react';
 
-export function DetailBox({ emoji, title, children }: { emoji: string; title: string; children: ReactNode }) {
+export function DetailBox({
+  emoji,
+  title,
+  children,
+}: {
+  emoji: string;
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-sm rounded-md border border-border p-md">
       <span className="text-sm font-semibold">

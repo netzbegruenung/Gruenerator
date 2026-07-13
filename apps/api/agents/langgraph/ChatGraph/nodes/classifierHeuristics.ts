@@ -151,6 +151,9 @@ export const INTENT_KEYWORDS: Record<
     | 'social_post'
     // chat_history is detected by the dedicated past-conversation regex, not keywords.
     | 'chat_history'
+    // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
+    // never keyword-classified (would misfire on generic "tool"/"server" words).
+    | 'mcp'
   >,
   string[]
 > = {

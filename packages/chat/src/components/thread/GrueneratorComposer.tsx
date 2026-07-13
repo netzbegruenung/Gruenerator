@@ -11,7 +11,7 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { RiVoiceAiFill } from 'react-icons/ri';
-import { cn } from '@gruenerator/ui';
+import { cn, useIsMobile } from '@gruenerator/ui';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore, type ThreadMode } from '../../stores/chatStore';
 import { SearchDepthToggle } from '../SearchDepthToggle';
@@ -233,7 +233,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   toolbarExtra,
   onNavigate,
   firstName,
-  placeholder = 'Nachricht schreiben...',
+  placeholder,
   disclaimer = 'Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.',
   disclaimerCompact = 'Kann Fehler machen.',
   showMentions = true,
@@ -249,6 +249,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const isCompact = useChatDensity() === 'compact';
+  const isMobile = useIsMobile();
+  const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
@@ -752,7 +754,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     <ComposerPrimitive.Input
       ref={textareaRef}
       autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
-      placeholder={placeholder}
+      placeholder={effectivePlaceholder}
       minRows={1}
       maxRows={isPill ? 6 : isCompact ? 4 : 8}
       className={
