@@ -11,6 +11,11 @@
  *   Tier 4: LLM classification (full context)
  */
 
+import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
+import {
+  McpServerRegistry,
+  type McpClassifierServer,
+} from '../../../../services/mcp/McpServerRegistry.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -70,6 +75,28 @@ const SOCIAL_NOUN_PATTERN =
  * Kept as a wrapper so the inner classifier's many return paths stay focused
  * on intent/query/filters and don't each have to remember the doc-source plumbing.
  */
+// Conservative prose routing for connected MCP servers: fire only when the
+// message both names a connected service AND carries an imperative action shape,
+// so statements ("Ich finde Notion super") never trigger a write-capable tool
+// loop. Deliberately excludes opinion-/question-prone stems (finde, frag, welche)
+// that read as commentary rather than a command.
+const MCP_ACTION_PATTERN =
+  /(?<![\p{L}])(erstell\w*|leg\w*|f(?:ü|ue)g\w*|hinzu|aktualisier\w*|(?:ä|ae)nder\w*|l(?:ö|oe)sch\w*|entfern\w*|hol\w*|zeig\w*|list\w*|such\w*|send\w*|schick\w*|abruf\w*|abfrag\w*|(?:ö|oe)ffn\w*|starte?|wie\s+viele?|gib\s+mir)/iu;
+
+/**
+ * Returns the id of the single connected server named in the message, or null.
+ * Word-boundary match on the server name (so "Brevo-Kampagne" matches "Brevo");
+ * the caller gates on MCP_ACTION_PATTERN. Ambiguous (≥2 named) → null.
+ */
+function matchMcpServerByName(userContent: string, servers: McpClassifierServer[]): string | null {
+  const hits = servers.filter((srv) => {
+    const name = srv.name.trim();
+    if (name.length < 3) return false;
+    return new RegExp(`(?<![\\p{L}])${escapeRegExp(name)}(?![\\p{L}])`, 'iu').test(userContent);
+  });
+  return hits.length === 1 ? hits[0]!.id : null;
+}
+
 export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const result = await classifierNodeImpl(state);
 
@@ -116,6 +143,16 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   if (intent === 'bundestag' && state.userLocale === 'de-AT') {
     log.info('[Classifier] bundestag downgraded to web for de-AT locale (DE-only source)');
     intent = 'web';
+  }
+
+  // Conservative MCP guard: the LLM tier can return `mcp` but can't name a
+  // concrete connected server. Only the deterministic name-match tier (which
+  // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
+  // in the router) may run the write-capable tool loop. An unscoped prose `mcp`
+  // would risk acting on the wrong server, so downgrade it to direct.
+  if (intent === 'mcp' && !result.mcpServerScope) {
+    log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');
+    intent = 'direct';
   }
 
   // ── URL context: pasted link(s) → additive scrape_url step ──
@@ -685,6 +722,34 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         complexity,
         classificationTimeMs: Date.now() - startTime,
       };
+    }
+
+    // EXPERIMENTAL per-server MCP prose routing: when the user names one of their
+    // connected external services alongside an action ("erstelle eine Brevo-
+    // Kampagne"), scope the tool-loop to that server — without needing an explicit
+    // @-mention. Conservative by construction: only connected servers are known,
+    // and only a name + action verb fires (see matchMcpServerByName). Runs before
+    // the social-post block so "Brevo-Kampagne" isn't misrouted to social_post.
+    // Gate the DB/cache lookup behind the cheap action-verb regex so the
+    // overwhelmingly common no-action message never touches the servers table.
+    const mcpUserId = state.agentConfig?.userId;
+    if (mcpUserId && userContent.length >= 8 && MCP_ACTION_PATTERN.test(userContent)) {
+      const servers = await McpServerRegistry.getClassifierContext(mcpUserId).catch(() => []);
+      const scopedServerId = matchMcpServerByName(userContent, servers);
+      if (scopedServerId) {
+        log.info('[Classifier] MCP prose routing → mcp intent', { scope: scopedServerId });
+        return {
+          intent: 'mcp',
+          mcpServerScope: scopedServerId,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'Connected MCP service named with an action — routing to tool loop',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // EXPERIMENTAL combined social post — for ALL users, not just

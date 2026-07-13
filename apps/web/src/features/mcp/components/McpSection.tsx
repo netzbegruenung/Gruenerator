@@ -1,12 +1,10 @@
 /**
- * Unified "Connectoren" surface (EXPERIMENTAL).
- *
- * One page for two connection architectures:
- *  - MCP servers (this feature) — external MCP endpoints, generic tool-loop.
- *  - Nango connections — OAuth'd cloud accounts (Google/Microsoft/Jira/Confluence)
- *    used by the `connect` chat intent for document retrieval.
- * Both are hand-picked to work out of the box with no complex app registration.
+ * "Connectoren" surface (EXPERIMENTAL) — connect external MCP servers and use
+ * them in chat via per-server mentions (@notion, @brevo, …). A curated directory
+ * of hand-picked, remote-hosted servers plus a custom-server form. Auth is
+ * `none`, `bearer` (token dialog) or `oauth` (PKCE/DCR popup).
  */
+import { mcpBrandColor } from '@gruenerator/shared/utils';
 import {
   Dialog,
   DialogContent,
@@ -17,15 +15,9 @@ import {
   Switch,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiLock, FiCheck, FiLoader } from 'react-icons/fi';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { FiServer, FiSearch, FiLock, FiCheck } from 'react-icons/fi';
 
-import {
-  useConnectionStatus,
-  useCreateSessionToken,
-  useDisconnectProvider,
-  useTestConnection,
-} from '../../connections/hooks/useConnections';
 import {
   useMcpServers,
   useCreateMcpServer,
@@ -46,17 +38,7 @@ import {
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
 
-import type { ConnectionStatus } from '../../connections/lib/connectionsApi';
-
 import { cn } from '@/utils/cn';
-
-// Nango is disabled until its secret key handling on beta/prod is fixed
-// (server 401s with unknown_account); the panel is MCP-only for now.
-const NANGO_ENABLED = false;
-const NANGO_PUBLIC_URL =
-  (import.meta.env.VITE_NANGO_PUBLIC_URL as string | undefined) ?? 'https://nango.gruenerator.eu';
-const NANGO_CATEGORY = 'Dateien & Cloud';
-const CONNECTIONS_KEY = ['connections', 'status'] as const;
 
 /**
  * Drive the OAuth popup. The popup MUST be opened synchronously (first line,
@@ -78,39 +60,10 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAut
 
 // ── Presentation helpers ─────────────────────────────────────────────────────
 
-const BRAND: Record<string, string> = {
-  Notion: '#0F0F0F',
-  Coda: '#F46A54',
-  'monday.com': '#FF3D57',
-  Jamie: '#6366F1',
-  Sally: '#4F46E5',
-  HubSpot: '#FF7A59',
-  Brevo: '#0B996E',
-  Attio: '#1A1A1A',
-  Statista: '#1F7BB6',
-  SISTRIX: '#E5195F',
-  Wix: '#116DFF',
-  Webflow: '#146EF5',
-  Zapier: '#FF4A00',
-  'Google Maps': '#4285F4',
-  'Google Workspace': '#4285F4',
-  'Microsoft 365': '#0078D4',
-  Jira: '#0052CC',
-  Confluence: '#172B4D',
-};
-
-function brandColor(title: string): string {
-  const hit = BRAND[title];
-  if (hit) return hit;
-  let h = 0;
-  for (let i = 0; i < title.length; i++) h = title.charCodeAt(i) + ((h << 5) - h);
-  return `hsl(${((h % 360) + 360) % 360} 52% 45%)`;
-}
-
 const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => (
   <div
     className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
-    style={{ background: brandColor(title), width: size, height: size, fontSize: size * 0.44 }}
+    style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
     aria-hidden
   >
     {title.charAt(0).toUpperCase()}
@@ -462,110 +415,6 @@ const McpServerRow = memo(
 );
 McpServerRow.displayName = 'McpServerRow';
 
-// ── Connected Nango account row ──────────────────────────────────────────────
-
-const NangoRow = memo(
-  ({
-    provider,
-    onDisconnect,
-    isDisconnecting,
-    onError,
-  }: {
-    provider: ConnectionStatus;
-    onDisconnect: (key: string) => void;
-    isDisconnecting: boolean;
-    onError: (message: string) => void;
-  }) => {
-    const test = useTestConnection();
-    const [testResult, setTestResult] = useState<{
-      ok: boolean;
-      tools: string[];
-      error: string | null;
-    } | null>(null);
-
-    const runTest = () => {
-      test.mutate(provider.provider, {
-        onSuccess: (r) => setTestResult({ ok: r.ok, tools: r.tools, error: r.ok ? null : r.error }),
-        onError: (err) => {
-          const msg = err instanceof Error ? err.message : 'Fehler';
-          setTestResult({ ok: false, tools: [], error: msg });
-          onError(msg);
-        },
-      });
-    };
-
-    const healthy = testResult?.ok === true;
-
-    return (
-      <div
-        className={cn(
-          'flex flex-col gap-sm bg-background-pure border rounded-2xl p-md sm:px-lg shadow-sm transition-colors',
-          rowBorder(healthy)
-        )}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center gap-md">
-          <div className="flex items-center gap-md min-w-0 flex-1">
-            <McpLogo title={provider.label} size={48} />
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-sm flex-wrap">
-                <span className="text-base font-bold text-foreground-heading truncate">
-                  {provider.label}
-                </span>
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 text-xs font-semibold',
-                    okTextClass
-                  )}
-                >
-                  <span className={cn('w-1.5 h-1.5 rounded-full', dotOnClass)} />
-                  Verbunden
-                </span>
-              </div>
-              <span className="text-xs text-grey-400 truncate">{provider.services.join(', ')}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-md flex-wrap sm:flex-none sm:justify-end">
-            <button
-              type="button"
-              onClick={runTest}
-              disabled={test.isPending}
-              className="text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-            >
-              {test.isPending ? 'Teste…' : 'Testen'}
-            </button>
-            <button
-              type="button"
-              onClick={() => onDisconnect(provider.provider)}
-              disabled={isDisconnecting}
-              className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-            >
-              {isDisconnecting ? <FiLoader className="animate-spin w-3.5 h-3.5" /> : 'Trennen'}
-            </button>
-          </div>
-        </div>
-        {testResult &&
-          (testResult.ok ? (
-            <div className="flex flex-col gap-1.5">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1.5 text-xs font-semibold',
-                  okTextClass
-                )}
-              >
-                <FiCheck className="w-3.5 h-3.5" />
-                Verbindung aktiv — nutzbar im Chat
-              </span>
-              <ToolChips tools={testResult.tools} />
-            </div>
-          ) : (
-            <span className="text-xs text-grey-500">✗ {testResult.error}</span>
-          ))}
-      </div>
-    );
-  }
-);
-NangoRow.displayName = 'NangoRow';
-
 // ── Available cards ──────────────────────────────────────────────────────────
 
 const CardShell = memo(
@@ -772,17 +621,16 @@ const BearerConnectDialog = ({
   );
 };
 
-// ── Unified section ──────────────────────────────────────────────────────────
+// ── Section ──────────────────────────────────────────────────────────────────
 
-type AvailableItem =
-  | { kind: 'mcp'; key: string; category: string | undefined; entry: McpRegistryEntry }
-  | { kind: 'nango'; key: string; category: string; provider: ConnectionStatus };
+interface AvailableItem {
+  key: string;
+  category: string | undefined;
+  entry: McpRegistryEntry;
+}
 
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: servers = [], isLoading } = useMcpServers();
-  const { data: nangoProviders = [] } = useConnectionStatus(NANGO_ENABLED);
-  const createToken = useCreateSessionToken();
-  const disconnect = useDisconnectProvider();
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -793,33 +641,16 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const queryClient = useQueryClient();
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
-  const refreshNango = () => void queryClient.invalidateQueries({ queryKey: CONNECTIONS_KEY });
 
   const connectedUrls = useMemo(() => new Set(servers.map((s) => s.url)), [servers]);
-  const connectedNango = nangoProviders.filter((p) => p.connected);
 
-  const q = search.trim().toLowerCase();
-  const available = useMemo<AvailableItem[]>(() => {
-    const mcp: AvailableItem[] = (registry?.recommended ?? [])
-      .filter((e) => !connectedUrls.has(e.url))
-      .map((entry) => ({ kind: 'mcp', key: entry.url, category: entry.category, entry }));
-    const nango: AvailableItem[] = nangoProviders
-      .filter((p) => !p.connected)
-      .filter(
-        (p) =>
-          !q ||
-          p.label.toLowerCase().includes(q) ||
-          p.services.join(' ').toLowerCase().includes(q) ||
-          NANGO_CATEGORY.toLowerCase().includes(q)
-      )
-      .map((provider) => ({
-        kind: 'nango',
-        key: `nango:${provider.provider}`,
-        category: NANGO_CATEGORY,
-        provider,
-      }));
-    return [...mcp, ...nango];
-  }, [registry, connectedUrls, nangoProviders, q]);
+  const available = useMemo<AvailableItem[]>(
+    () =>
+      (registry?.recommended ?? [])
+        .filter((e) => !connectedUrls.has(e.url))
+        .map((entry) => ({ key: entry.url, category: entry.category, entry })),
+    [registry, connectedUrls]
+  );
 
   const cats = useMemo(() => {
     const set = new Set<string>();
@@ -827,7 +658,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     return ['Alle', ...Array.from(set)];
   }, [available]);
   const filtered = cat === 'Alle' ? available : available.filter((it) => it.category === cat);
-  const activeCount = servers.filter((s) => s.enabled).length + connectedNango.length;
+  const activeCount = servers.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
     if (entry.authHint === 'oauth') {
@@ -876,48 +707,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     setBearerEntry(entry);
   };
 
-  const handleConnectNango = useCallback(
-    async (providerKey: string) => {
-      try {
-        setConnecting(`nango:${providerKey}`);
-        const token = await createToken.mutateAsync();
-        const connectUrl = `${NANGO_PUBLIC_URL}/oauth/connect/${providerKey}?connect_session_token=${encodeURIComponent(token)}`;
-        const popup = window.open(connectUrl, '_blank', 'width=600,height=700');
-        if (popup) {
-          const interval = setInterval(() => {
-            if (popup.closed) {
-              clearInterval(interval);
-              setConnecting(null);
-              refreshNango();
-            }
-          }, 1000);
-        } else {
-          setConnecting(null);
-        }
-        onSuccess('OAuth-Flow gestartet');
-      } catch {
-        setConnecting(null);
-        onError('Verbindung konnte nicht gestartet werden');
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [createToken]
-  );
-
-  const handleDisconnectNango = useCallback(
-    async (providerKey: string) => {
-      try {
-        await disconnect.mutateAsync(providerKey);
-        onSuccess('Verbindung getrennt');
-      } catch {
-        onError('Verbindung konnte nicht getrennt werden');
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [disconnect]
-  );
-
-  const hasConnected = servers.length > 0 || connectedNango.length > 0;
+  const hasConnected = servers.length > 0;
 
   return (
     <div className="mt-xl">
@@ -937,9 +727,11 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         </div>
       </div>
       <p className="mt-sm max-w-xl text-sm text-grey-500 leading-relaxed">
-        Verbinde externe Tools und Konten und nutze sie direkt im Chat – MCP-Server per{' '}
-        <span className="text-foreground font-semibold">@mcp</span>, verbundene Konten über den
-        Datei-Kontext. Ein Klick startet die Verbindung.
+        Verbinde externe Dienste und nutze sie direkt im Chat – jeder verbundene Server ist per
+        eigenem Mention ansprechbar, z. B.{' '}
+        <span className="text-foreground font-semibold">@notion</span> oder{' '}
+        <span className="text-foreground font-semibold">@brevo</span>. Ein Klick startet die
+        Verbindung.
       </p>
 
       {isLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
@@ -959,15 +751,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 key={server.id}
                 server={server}
                 onSuccess={onSuccess}
-                onError={onError}
-              />
-            ))}
-            {connectedNango.map((provider) => (
-              <NangoRow
-                key={provider.provider}
-                provider={provider}
-                onDisconnect={handleDisconnectNango}
-                isDisconnecting={disconnect.isPending && disconnect.variables === provider.provider}
                 onError={onError}
               />
             ))}
@@ -1029,31 +812,18 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
         {!registryLoading && filtered.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-            {filtered.map((it) =>
-              it.kind === 'mcp' ? (
-                <CardShell
-                  key={it.key}
-                  title={it.entry.title}
-                  description={it.entry.description}
-                  badge={authLabel[it.entry.authHint]}
-                  recommended={it.entry.recommended}
-                  category={it.category}
-                  connecting={connecting === it.entry.url}
-                  onConnect={() => handlePickMcp(it.entry)}
-                />
-              ) : (
-                <CardShell
-                  key={it.key}
-                  title={it.provider.label}
-                  description={it.provider.services.join(', ')}
-                  badge="Konto"
-                  recommended={false}
-                  category={it.category}
-                  connecting={connecting === it.key}
-                  onConnect={() => void handleConnectNango(it.provider.provider)}
-                />
-              )
-            )}
+            {filtered.map((it) => (
+              <CardShell
+                key={it.key}
+                title={it.entry.title}
+                description={it.entry.description}
+                badge={authLabel[it.entry.authHint]}
+                recommended={it.entry.recommended}
+                category={it.category}
+                connecting={connecting === it.entry.url}
+                onConnect={() => handlePickMcp(it.entry)}
+              />
+            ))}
           </div>
         )}
 
