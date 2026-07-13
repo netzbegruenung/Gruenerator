@@ -227,6 +227,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
       }
 
+      // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
+      // scopes the tool-loop to that one server. Bare `mcp` (legacy @mcp tokens in
+      // old threads; no mention emits it anymore) still runs unscoped over all
+      // enabled servers for back-compat. Not in TOOL_PRIORITY, so resolved here;
+      // the forced flag lets the loop run even if enabledTools.mcp is off, and
+      // mcpToolNode no-ops safely when the user has no servers.
+      const mcpScopedToken = forcedTools?.find((t) => t.startsWith('mcp:'));
+      const mcpForced = !!forcedTools?.includes('mcp') || !!mcpScopedToken;
+      if (mcpForced) {
+        classifiedState.intent = 'mcp';
+        classifiedState.mcpServerScope = mcpScopedToken ? mcpScopedToken.slice(4) : null;
+        forcedTool = true;
+        log.info('[ChatGraph] Intent forced to "mcp" via mention', {
+          scope: classifiedState.mcpServerScope ?? 'all',
+        });
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
