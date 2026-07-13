@@ -1,7 +1,6 @@
 import React, { Suspense, lazy, memo, useState } from 'react';
+import { HiOutlineSparkles } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
-
-import { isTourDone } from '../../tours/tourState';
 
 import ChatInner from './ChatInner';
 
@@ -45,9 +44,10 @@ const CreatorSection: React.FC = memo(() => {
               m.startWorkplaceTour((path) => void navigate(path))
             )
           }
-          className="text-[13.5px] font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+          className="mt-1 inline-flex items-center gap-2 rounded-full border border-primary-300 bg-primary-50 px-4 py-1.5 text-[13.5px] font-semibold text-primary-700 transition-colors hover:border-primary-400 hover:bg-primary-100 dark:border-primary-700 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/50"
         >
-          {isTourDone('workplace') ? 'Tour erneut starten' : 'Tour starten'}
+          <HiOutlineSparkles className="size-4" />
+          Entdecke den neuen Grünerator
         </button>
       </div>
     </div>
