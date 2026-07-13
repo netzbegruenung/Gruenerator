@@ -217,6 +217,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
@@ -351,6 +352,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     circleBadgeInstances: [],
     balkenInstances: [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
 
     // Layer ordering

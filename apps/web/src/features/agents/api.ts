@@ -8,6 +8,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../components/utils/apiClient';
+import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 
 // Derived from the ts-rest contract schemas — the single source of truth for
@@ -33,8 +34,12 @@ function readError(body: unknown): { message: string; agent: Agent | null } {
 }
 
 export function useUserAgents() {
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   return useQuery({
     queryKey: KEY,
+    // Gate on resolved auth: the sidebar mounts before the auth bootstrap
+    // finishes, and an ungated query 401s during the login redirect.
+    enabled: !!user?.id && isAuthenticated && !authLoading,
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;

@@ -60,13 +60,13 @@ export function SidebarPanel({
 
       <div
         className={cn(
-          'sidebar-panel fixed bg-background overflow-hidden flex flex-col',
+          'sidebar-panel fixed bg-[var(--editor-surface)] flex flex-col',
           'transition-[transform,opacity] duration-200 ease-out z-[101]',
-          /* Desktop: left side panel next to tab bar; pt-12 keeps content below the 48px TopBar */
-          'canvas-mobile:top-0 canvas-mobile:bottom-0 canvas-mobile:right-auto canvas-mobile:w-auto canvas-mobile:min-w-[120px] canvas-mobile:max-w-[320px] canvas-mobile:rounded-br-xl canvas-mobile:pt-12',
-          'canvas-mobile:left-[var(--image-studio-tab-bar-width,64px)]',
+          /* Desktop: left side panel next to tab bar, below the green menu bar */
+          'canvas-mobile:top-[var(--editor-topbar-height)] canvas-mobile:bottom-0 canvas-mobile:right-auto canvas-mobile:w-[348px] canvas-mobile:max-w-[348px] canvas-mobile:min-w-0 canvas-mobile:pt-0 canvas-mobile:overflow-visible canvas-mobile:border-r canvas-mobile:border-[var(--editor-border)]',
+          'canvas-mobile:left-[calc(var(--canvas-host-inset-left,0px)_+_var(--image-studio-tab-bar-width,76px))]',
           /* Mobile: bottom sheet — sits above the 60px tab bar */
-          'max-canvas-mobile:top-auto max-canvas-mobile:right-0 max-canvas-mobile:bottom-[var(--mobile-tab-bar-height,60px)] max-canvas-mobile:left-0 max-canvas-mobile:w-full max-canvas-mobile:max-w-full max-canvas-mobile:min-w-0 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px))] max-canvas-mobile:pt-0 max-canvas-mobile:rounded-t-2xl max-canvas-mobile:shadow-[0_-4px_24px_rgba(0,0,0,0.12)] max-canvas-mobile:z-[99]',
+          'max-canvas-mobile:overflow-hidden max-canvas-mobile:top-auto max-canvas-mobile:right-0 max-canvas-mobile:bottom-[var(--mobile-tab-bar-height,60px)] max-canvas-mobile:left-0 max-canvas-mobile:w-full max-canvas-mobile:max-w-full max-canvas-mobile:min-w-0 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px))] max-canvas-mobile:pt-0 max-canvas-mobile:rounded-t-2xl max-canvas-mobile:shadow-[0_-4px_24px_rgba(0,0,0,0.12)] max-canvas-mobile:z-[99]',
           'max-canvas-mobile:translate-y-0'
         )}
         style={Object.keys(mobileStyle).length > 0 ? mobileStyle : undefined}
@@ -83,6 +83,29 @@ export function SidebarPanel({
         <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col gap-3 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px)-60px)] max-canvas-mobile:p-0 max-canvas-mobile:pb-md">
           {children}
         </div>
+
+        {isDesktop && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Panel einklappen"
+            title="Panel einklappen"
+            className="absolute top-1/2 -right-[13px] -translate-y-1/2 flex items-center justify-center w-[26px] h-[52px] rounded-r-lg border border-l-0 border-[var(--editor-border-soft)] bg-[var(--editor-surface)] text-[var(--editor-text-muted)] shadow-[2px_0_6px_rgba(0,0,0,0.05)] cursor-pointer transition-colors duration-150 hover:text-[var(--editor-active-fg)]"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9.5 3 5 8l4.5 5" />
+            </svg>
+          </button>
+        )}
       </div>
     </>
   );

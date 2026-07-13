@@ -6,6 +6,13 @@ import { DOCUMENT_FRAGMENT_NAME, injectHtmlIntoFragment } from '@gruenerator/sha
 import * as Y from 'yjs';
 
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
+import {
+  boardPreview,
+  detectPreviewKind,
+  presentationPreviewHtml,
+  sheetPreviewHtml,
+  type BoardPreview,
+} from './contentPreviews.js';
 import { createLogger } from './logger.js';
 import { TEMPLATE_CONTENT } from './templateContent.js';
 
@@ -32,9 +39,11 @@ const DEFAULT_TITLES = new Set([
 // so adding/removing a subtype is a single-source change; the derived union
 // catches accidental string drift at compile time.
 //
-// Mirrors `DOCS_SUBTYPES` in apps/api/routes/workplace/recentActivityController.ts.
 // Per CLAUDE.md, the Hocuspocus service has zero cross-package deps, so the
 // constant is duplicated here intentionally rather than imported.
+// 'sheets' (Univer spreadsheets) is intentionally absent: its Y.Doc holds a
+// workbook snapshot + mutation log, not a BlockNote fragment, so the HTML
+// preview pipeline must never touch it.
 const DOC_SUBTYPES = [
   'blank',
   'antrag',
@@ -357,6 +366,13 @@ export class PostgresPersistence {
 
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
+      const kind = detectPreviewKind(ydoc);
+
+      if (kind !== 'blocknote') {
+        await this.storeTypedPreview(documentId, ydoc, kind);
+        return;
+      }
+
       const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
       const xml = fragment.toString();
       log.debug(`[Preview] Raw XML (first 200): ${xml.slice(0, 200)}`);
@@ -401,6 +417,67 @@ export class PostgresPersistence {
     }
   }
 
+  /** Sheets/presentations/board previews, shared by live store and backfill. */
+  private async storeTypedPreview(
+    documentId: string,
+    ydoc: Y.Doc,
+    kind: 'sheets' | 'presentations' | 'board'
+  ): Promise<string | null> {
+    if (kind === 'board') {
+      const preview = boardPreview(ydoc);
+      if (!preview) return null;
+      await this.mergeBoardPreview(documentId, preview);
+      return JSON.stringify(preview);
+    }
+
+    const preview = kind === 'sheets' ? sheetPreviewHtml(ydoc) : presentationPreviewHtml(ydoc);
+    if (!preview) return null;
+    await this.db(
+      `UPDATE collaborative_documents
+       SET content = $2
+       WHERE id = $1
+         AND document_subtype = $3
+         AND content IS DISTINCT FROM $2`,
+      [documentId, preview, kind]
+    );
+    log.debug(`[Preview] Updated ${kind} preview for ${documentId} (${preview.length} chars)`);
+    return preview;
+  }
+
+  /**
+   * Boards keep `{ board_type, is_archived }` JSON in `content`, so the
+   * preview is merged into that object instead of replacing the column.
+   * Non-JSON legacy content is treated as absent.
+   */
+  private async mergeBoardPreview(documentId: string, preview: BoardPreview): Promise<void> {
+    const rows = (await this.db(
+      `SELECT content FROM collaborative_documents WHERE id = $1 AND document_subtype = 'boards'`,
+      [documentId]
+    )) as Array<{ content: string | null }>;
+    if (rows.length === 0) return;
+
+    let meta: Record<string, unknown> = {};
+    const current = rows[0].content;
+    if (current) {
+      try {
+        const parsed = JSON.parse(current) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          meta = parsed as Record<string, unknown>;
+        }
+      } catch {
+        /* legacy non-JSON content — replace with a fresh metadata object */
+      }
+    }
+
+    const next = JSON.stringify({ ...meta, preview });
+    if (next === current) return;
+    await this.db(
+      `UPDATE collaborative_documents SET content = $2 WHERE id = $1 AND document_subtype = 'boards'`,
+      [documentId, next]
+    );
+    log.debug(`[Preview] Updated board preview for ${documentId}`);
+  }
+
   async extractContentPreview(documentId: string): Promise<string | null> {
     try {
       const state = await this.loadDocument(documentId);
@@ -408,6 +485,11 @@ export class PostgresPersistence {
 
       const ydoc = new Y.Doc();
       Y.applyUpdate(ydoc, state);
+
+      const kind = detectPreviewKind(ydoc);
+      if (kind !== 'blocknote') {
+        return await this.storeTypedPreview(documentId, ydoc, kind);
+      }
 
       const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
       const xml = fragment.toString();
@@ -438,6 +520,38 @@ export class PostgresPersistence {
     } catch (error) {
       log.debug(`[Backfill] Failed to extract preview for ${documentId}: ${error}`);
       return null;
+    }
+  }
+
+  /**
+   * Boot-safe variant of the full backfill: only sheets/presentations whose
+   * `content` preview was never written and boards whose metadata lacks a
+   * preview. Idempotent — once previews exist the query matches nothing, so
+   * this runs on every start without the HOCUSPOCUS_BACKFILL_PREVIEWS flag.
+   */
+  async backfillMissingTypedPreviews(): Promise<void> {
+    try {
+      const docs = await this.db(
+        `SELECT id FROM collaborative_documents
+         WHERE is_deleted = false
+           AND (
+             (document_subtype IN ('sheets', 'presentations') AND COALESCE(content, '') = '')
+             OR (document_subtype = 'boards' AND COALESCE(content, '') NOT LIKE '%"preview"%')
+           )
+         LIMIT 500`,
+        []
+      );
+      if (docs.length === 0) return;
+
+      log.info(`[Backfill] ${docs.length} documents without typed preview — extracting`);
+      let updated = 0;
+      for (const doc of docs) {
+        const result = await this.extractContentPreview(doc.id as string);
+        if (result) updated++;
+      }
+      log.info(`[Backfill] Typed previews: ${updated}/${docs.length} regenerated`);
+    } catch (error) {
+      log.error(`[Backfill] Failed to backfill typed previews: ${error}`);
     }
   }
 

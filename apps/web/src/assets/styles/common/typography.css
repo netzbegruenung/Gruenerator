@@ -44,6 +44,52 @@
     font-display: swap;
 }
 
+/* Österreich (de-AT) sharepic fonts — Gotham Narrow + Vollkorn */
+@font-face {
+    font-family: 'GothamNarrow-Ultra';
+    src: url('../../fonts/GothamNarrow-Ultra.woff2') format('woff2'),
+         url('../../fonts/GothamNarrow-Ultra.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'GothamNarrow-Book';
+    src: url('../../fonts/GothamNarrow-Book.woff2') format('woff2'),
+         url('../../fonts/GothamNarrow-Book.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'GothamNarrow-Bold';
+    src: url('../../fonts/GothamNarrow-Bold.woff2') format('woff2'),
+         url('../../fonts/GothamNarrow-Bold.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vollkorn';
+    src: url('../../fonts/Vollkorn-BoldItalic.woff2') format('woff2'),
+         url('../../fonts/Vollkorn-BoldItalic.woff') format('woff');
+    font-weight: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vollkorn';
+    src: url('../../fonts/Vollkorn-BlackItalic.woff2') format('woff2'),
+         url('../../fonts/Vollkorn-BlackItalic.woff') format('woff');
+    font-weight: bold;
+    font-style: italic;
+    font-display: swap;
+}
+
 @font-face {
     font-family: 'Raleway';
     src: url('../../fonts/Raleway-Thin.woff2') format('woff2'),

@@ -53,6 +53,9 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "category": "Productivity",
+    "shortDescription": "KI-Content-Werkzeug für Bündnis 90/Die Grünen",
+    "longDescription": "Grünerator ist die KI-Content-Plattform für Bündnis 90/Die Grünen: Chat, Sharepics, Dokumente und weitere Werkzeuge in einer nativen Desktop-App.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -66,11 +69,12 @@
         "files": {}
       },
       "deb": {
-        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"],
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1"],
         "section": "utils",
         "priority": "optional"
       },
       "rpm": {
+        "depends": ["webkit2gtk4.1", "gtk3", "libayatana-appindicator-gtk3"],
         "release": "1",
         "epoch": 0
       }

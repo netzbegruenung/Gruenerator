@@ -48,20 +48,27 @@ const ALL_INTENTS: SearchIntent[] = [
   'examples',
   'pressemitteilung_examples',
   'abgeordnetenwatch',
+  'bundestag',
   'image',
   'image_edit',
   'sharepic',
+  'social_post',
   'summary',
   'chart',
   'artifact',
   'compute',
   'save_as_doc',
+  'create_sheet',
+  'create_presentation',
   'modify_doc',
   'edit_current_doc',
   'edit_current_board',
   'modify_board',
   'share_doc',
+  'chat_history',
+  'mcp',
   'direct',
+  'agentic',
 ];
 
 /**
@@ -296,6 +303,8 @@ describe('every SearchIntent has a handler path', () => {
     image: 'handled via image branch in controller',
     image_edit: 'handled via image_edit branch in controller',
     sharepic: 'handled via sharepic branch in controller (image generation variant)',
+    social_post:
+      'handled via social_post branch in executeIntentPipeline — parallel sharepic generation + examples-grounded text (EXPERIMENTAL combined post), fixed Stage-3 confirmation',
     direct: 'falls through to response generation',
     research: 'handled via search branch (intent !== direct)',
     compare: 'handled via search branch — multi-document comparison, same path as research',
@@ -306,6 +315,8 @@ describe('every SearchIntent has a handler path', () => {
       'handled via search branch — landesverbaende press release templates, same path as examples',
     abgeordnetenwatch:
       'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
+    bundestag:
+      'handled via search branch (intent !== direct) — searchNode case calls BundestagEnrichedService (Bundestag MCP / DIP)',
     summary: 'handled via summary branch in controller',
     chart: 'routes to respond, chart data handled by controller post-response',
     artifact: 'routes to respond, controller extracts HTML/SVG block into an artifact SSE event',
@@ -313,6 +324,10 @@ describe('every SearchIntent has a handler path', () => {
       'handled via compute branch in controller — computeNode runs plain-JS calc, emits compute SSE + injects verified result into respond',
     scrape_url: 'handled via search branch — crawls pasted URL(s) as additional context',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    create_sheet:
+      'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
+    create_presentation:
+      'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     edit_current_doc:
       'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
@@ -320,6 +335,11 @@ describe('every SearchIntent has a handler path', () => {
       'controller emits trigger_board_action SSE for the boards assistant live edit (client-side executor)',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
+    mcp: 'EXPERIMENTAL — routes to respond, controller runs mcpToolNode (external MCP tool-loop) and injects result',
+    chat_history:
+      'handled via chat_history branch in executeIntentPipeline — recall tool-loop over the own threads (flag-gated), else recallContext injection',
+    agentic:
+      'loop demotion (classifier Tier 3.5) — router routes to streamAgenticResponse; never reaches executeIntentPipeline (safety line degrades a killed loop turn to search)',
   };
 
   for (const intent of ALL_INTENTS) {

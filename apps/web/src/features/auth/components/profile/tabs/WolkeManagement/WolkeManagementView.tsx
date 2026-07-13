@@ -17,10 +17,8 @@ import {
   useDeleteWordPressSite,
 } from '../../../../../wordpress/hooks/useWordPress';
 
-const ConnectedAccountsSection = lazy(
-  () => import('../../../../../connections/components/ConnectedAccountsSection')
-);
 const CanvaSection = lazy(() => import('../../../../../canva/components/CanvaSection'));
+const McpSection = lazy(() => import('../../../../../mcp/components/McpSection'));
 
 import { cn } from '@/utils/cn';
 import './clouds.css';
@@ -233,8 +231,10 @@ const WolkeManagementView = memo(
           </div>
         </CloudCard>
         {import.meta.env.DEV && <WordPressSection />}
-        <ConnectedAccountsSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
-        <CanvaSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
+        {import.meta.env.DEV && (
+          <CanvaSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
+        )}
+        <McpSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
       </motion.div>
     );
   }

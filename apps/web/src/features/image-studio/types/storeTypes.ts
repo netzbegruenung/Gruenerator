@@ -1,3 +1,6 @@
+import { type InitialPageDef } from '@gruenerator/canvas-editor';
+import { type CanvasTemplateType } from '@gruenerator/contracts';
+
 import { type DEFAULT_COLORS } from '../../../components/utils/constants';
 import {
   type IMAGE_STUDIO_CATEGORIES,
@@ -151,6 +154,9 @@ export interface ImageStudioState {
   sunflowerOffset: [number, number];
   credit: string;
   searchTerms: string[];
+
+  /** Restored multi-page deck (gallery drafts with metadata.content.pages). */
+  deckPages: InitialPageDef[] | null;
 
   // Veranstaltung per-field font sizes
   veranstaltungFieldFontSizes: VeranstaltungFieldFontSizes;
@@ -334,9 +340,10 @@ export interface ImageStudioActions {
   isKiType: () => boolean;
   hasRateLimit: () => boolean;
 
-  // AI prompt generation (from chat input)
+  // AI prompt generation (from chat input). The type is canonical by
+  // construction — both callers validate at their boundary before calling.
   loadFromAIGeneration: (
-    sharepicType: string,
+    sharepicType: CanvasTemplateType,
     generatedData: Record<string, string>,
     selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null
   ) => void;

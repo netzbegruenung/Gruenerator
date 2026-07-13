@@ -98,6 +98,27 @@
   --color-text-green: var(--font-color-green);
   --color-hover-alt: var(--hover-color-alt);
 
+  /* Canva-Layout Editor Surfaces (sand palette) */
+  --color-editor-bg: var(--editor-bg);
+  --color-editor-canvas-bg: var(--editor-canvas-bg);
+  --color-editor-surface: var(--editor-surface);
+  --color-editor-surface-hover: var(--editor-surface-hover);
+  --color-editor-inset: var(--editor-inset);
+  --color-editor-tile: var(--editor-tile);
+  --color-editor-canvas-hover: var(--editor-canvas-hover);
+  --color-editor-border: var(--editor-border);
+  --color-editor-border-soft: var(--editor-border-soft);
+  --color-editor-border-strong: var(--editor-border-strong);
+  --color-editor-text: var(--editor-text);
+  --color-editor-text-secondary: var(--editor-text-secondary);
+  --color-editor-text-muted: var(--editor-text-muted);
+  --color-editor-placeholder: var(--editor-placeholder);
+  --color-editor-green-deep: var(--editor-green-deep);
+  --color-editor-accent: var(--editor-accent);
+  --color-editor-active-fg: var(--editor-active-fg);
+  --color-editor-active-bg: var(--editor-active-bg);
+  --color-editor-active-soft: var(--editor-active-soft);
+
   /* Spacing System */
   --spacing-xxs: var(--spacing-xxsmall);
   --spacing-xs: var(--spacing-xsmall);
@@ -125,7 +146,7 @@
   --radius-lg: var(--card-border-radius-large);
 
   /* Canvas Editor Layout */
-  --image-studio-tab-bar-width: 64px;
+  --image-studio-tab-bar-width: 76px;
   --mobile-tab-bar-height: 60px;
 
   /* Custom Breakpoints */

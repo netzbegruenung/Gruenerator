@@ -45,7 +45,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
 - **`packages/sites`** — Embedded candidate-site builder (Home / Login / Demo / Edit pages, editor components, stores). Consumed by `apps/web` at `/sites/*` via `apps/web/src/features/sites/`. No standalone shell; auth/apiClient injected via `<SitesProvider>`.
 - **`packages/sites-design`** — Design tokens + presentational components for the site builder (consumed by `packages/sites` and the public candidate sites).
-- **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`.
+- **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`. **Editor UI follows the "Canva-Layout in Grünerator-Grün" design — see `packages/canvas-editor/CLAUDE.md` (mandatory `--editor-*` token layer, no `dark:` utilities, tokens in 4 files).**
 - **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
 - **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md`.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image gen.
@@ -77,6 +77,8 @@ Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
 **Better Auth**: Config at `apps/api/config/betterAuth.ts`. Tables use `ba_` prefix, snake_case columns. `fields` mapping must cover every camelCase→snake_case column or Kysely queries fail.
 
 **Dev Auth Bypass**: `VITE_E2E_AUTH_BYPASS=true` + token in `apps/web/.env`, `ALLOW_DEV_AUTH_BYPASS=true` + token in root `.env`. Production fail-fast: `ALLOW_DEV_AUTH_BYPASS=true` in prod → HTTP 500.
+
+**Debugging the PRODUCTION bundle locally** (bundle-only bugs: chunk init order, lazy-load timing): the bypass is baked in at BUILD time (`import.meta.env` is inlined), so set `VITE_E2E_AUTH_BYPASS=true` in `apps/web/.env` BEFORE `pnpm build:web`, then serve with `cd apps/web && VITE_E2E_AUTH_BYPASS=true VITE_DEV_AUTH_BYPASS_TOKEN=<token> npx vite preview --port 3101`. The preview proxy (vite.config `preview.proxy`) forwards `/api` to the local backend on :3001, attaches the `x-dev-auth-bypass` header AND rewrites the `origin` header to `http://localhost:3000` — the backend's CORS allowlist only accepts :3000, so without the rewrite every API call fails with "Not allowed by CORS". Port 3000 is often taken by a running dev server; any other port works because of the rewrite. In worktrees, `.env` files are untracked — copy them from the main checkout first.
 
 ### AI Providers
 

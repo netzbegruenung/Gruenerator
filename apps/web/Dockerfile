@@ -17,6 +17,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy only package.json files needed by pnpm filter (better layer caching)
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/docs/package.json ./packages/docs/
@@ -25,9 +26,11 @@ COPY packages/voice/package.json ./packages/voice/
 COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
+COPY packages/sheets/package.json ./packages/sheets/
 COPY packages/wolke/package.json ./packages/wolke/
 COPY packages/sites/package.json ./packages/sites/
 COPY packages/sites-design/package.json ./packages/sites-design/
+COPY packages/presentations/package.json ./packages/presentations/
 
 COPY apps/web/package.json ./apps/web/
 
@@ -37,6 +40,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source (changes here don't bust the install cache)
 COPY packages/shared ./packages/shared
+COPY packages/query ./packages/query
 COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY packages/docs ./packages/docs
@@ -45,9 +49,11 @@ COPY packages/voice ./packages/voice
 COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
+COPY packages/sheets ./packages/sheets
 COPY packages/wolke ./packages/wolke
 COPY packages/sites ./packages/sites
 COPY packages/sites-design ./packages/sites-design
+COPY packages/presentations ./packages/presentations
 
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
@@ -157,7 +163,17 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
-    # Everything else (index.html, config.js, manifest.json, SW, illustrations)
+    # Canvas-editor illustration assets (SVGs + PNG thumbnails) served from
+    # /public, so they miss the hashed /assets/ rule. Filenames are stable and
+    # content-immutable (new illustrations get new names, existing bytes are
+    # never overwritten), so caching them immutable turns the picker's many
+    # per-file requests into zero-byte disk-cache hits instead of 304 round-trips.
+    location /illustrations/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Everything else (index.html, config.js, manifest.json, SW)
     # no-cache = store but revalidate via ETag → efficient 304 responses
     location / {
         add_header Cache-Control "no-cache";

@@ -5,9 +5,13 @@
  * Keeps template metadata in one place for easy maintenance.
  */
 
+import type { BrandLocale } from '../brand/theme';
 import type { CanvasConfigId } from '../configs/types';
 
-export type TemplateCategory = 'sharepic' | 'slider' | 'plakat' | 'presentation' | 'profilbild';
+export type TemplateCategory = 'sharepic' | 'slider' | 'profilbild';
+
+/** Which audience a template is offered to. Undefined is treated as 'de-DE'. */
+export type TemplateAudience = 'all' | BrandLocale;
 
 export interface TemplateInfo {
   id: CanvasConfigId;
@@ -15,6 +19,8 @@ export interface TemplateInfo {
   description: string;
   previewImage: string;
   category: TemplateCategory;
+  /** Audience gating — omitted defaults to 'de-DE'. */
+  audience?: TemplateAudience;
 }
 
 /**
@@ -63,13 +69,6 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     previewImage: '/imagine/previews/veranstaltung-preview.webp',
     category: 'sharepic',
   },
-  'veranstaltung-plakat': {
-    id: 'veranstaltung-plakat',
-    label: 'Event-Plakat',
-    description: 'Veranstaltungsankündigung im Plakat-Format',
-    previewImage: '/imagine/previews/veranstaltung-plakat-preview.svg',
-    category: 'plakat',
-  },
   slider: {
     id: 'slider',
     label: 'Slider',
@@ -84,33 +83,54 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     previewImage: '/imagine/previews/freeform-preview.webp',
     category: 'sharepic',
   },
-  'pres-title': {
-    id: 'pres-title',
-    label: 'Nur Titel',
-    description: 'Titelfolie mit Sonnenblume',
-    previewImage: '/imagine/previews/pres-title-preview.webp',
-    category: 'presentation',
-  },
-  'pres-image': {
-    id: 'pres-image',
-    label: 'Bild mit Überschrift',
-    description: 'Vollbild-Foto mit Textoverlay',
-    previewImage: '/imagine/previews/pres-image-preview.webp',
-    category: 'presentation',
-  },
-  'pres-content': {
-    id: 'pres-content',
-    label: 'Inhalt',
-    description: 'Titel mit Text, optional zweispaltig',
-    previewImage: '/imagine/previews/pres-content-preview.webp',
-    category: 'presentation',
-  },
   profilbild: {
     id: 'profilbild',
     label: 'Profilbild',
     description: 'Profilbild mit transparentem Vordergrund auf farbigem Hintergrund',
     previewImage: '/imagine/previews/profilbild-preview.webp',
     category: 'profilbild',
+  },
+
+  // Österreich (de-AT) variants
+  'info-at': {
+    id: 'info-at',
+    label: 'Info',
+    description: 'Headline mit Betonung und Logo (Österreich)',
+    previewImage: '/imagine/previews/info-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'zitat-at': {
+    id: 'zitat-at',
+    label: 'Zitat',
+    description: 'Zitat mit Hintergrundbild (Österreich)',
+    previewImage: '/imagine/previews/zitat-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'zitat-pure-at': {
+    id: 'zitat-pure-at',
+    label: 'Zitat Pur',
+    description: 'Zitat auf dunkelgrüner Fläche (Österreich)',
+    previewImage: '/imagine/previews/zitat-pure-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'dreizeilen-at': {
+    id: 'dreizeilen-at',
+    label: '3 Zeilen',
+    description: 'Dreizeilige Headline mit Betonung (Österreich)',
+    previewImage: '/imagine/previews/dreizeilen-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'freeform-at': {
+    id: 'freeform-at',
+    label: 'Freies Design',
+    description: 'Leere Leinwand mit österreichischem CI',
+    previewImage: '/imagine/previews/freeform-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
   },
 };
 
@@ -128,6 +148,23 @@ export function getAllTemplates(): TemplateInfo[] {
   return Object.values(TEMPLATE_REGISTRY);
 }
 
+/** Effective audience of a template (undefined defaults to 'de-DE'). */
+function templateAudience(t: TemplateInfo): TemplateAudience {
+  return t.audience ?? 'de-DE';
+}
+
+/**
+ * Templates offered to a given locale — the audience-aware filter used by the
+ * studio picker. AT users see only 'de-AT' (+ 'all') templates; DE users see
+ * 'de-DE' (+ 'all'). Mirrors isAgentVisibleForLocale in agents/audience.ts.
+ */
+export function getTemplatesForLocale(locale: BrandLocale): TemplateInfo[] {
+  return getAllTemplates().filter((t) => {
+    const a = templateAudience(t);
+    return a === 'all' || a === locale;
+  });
+}
+
 /**
  * Get the category for a template ID. Returns undefined for unknown ids.
  */
@@ -140,22 +177,12 @@ export function getCategoryForTemplate(configId: CanvasConfigId): TemplateCatego
  * Used to determine if background can be inherited
  */
 export function templateSupportsImageBackground(configId: CanvasConfigId): boolean {
-  return [
-    'zitat',
-    'simple',
-    'veranstaltung',
-    'veranstaltung-plakat',
-    'dreizeilen',
-    'freeform',
-    'pres-image',
-  ].includes(configId);
+  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform'].includes(configId);
 }
 
 /**
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(
-    configId
-  );
+  return ['info', 'zitat-pure', 'slider', 'freeform'].includes(configId);
 }

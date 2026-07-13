@@ -10,10 +10,16 @@ interface ToolItem {
   id: string;
   title: string;
   description: string;
-  path: string;
+  /** Internal route (rendered as a router Link). Mutually exclusive with `href`. */
+  path?: string;
+  /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
+  href?: string;
   icon: IconType;
   devOnly?: boolean;
 }
+
+const NEWSLETTER_URL =
+  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
 
 interface FavoriteItem {
   id: string;
@@ -75,6 +81,13 @@ const MAIN_TOOLS: ToolItem[] = [
     icon: getIcon('navigation', 'scanner')!,
   },
   {
+    id: 'zeichenzaehler',
+    title: 'Zeichenzähler',
+    description: 'Zeichen, Wörter & Social-Limits zählen',
+    path: '/zeichenzaehler',
+    icon: getIcon('navigation', 'zeichenzaehler')!,
+  },
+  {
     id: 'transkription',
     title: 'Audio mit KI transkribieren',
     description: 'Meetings & Interviews verschriftlichen',
@@ -88,18 +101,16 @@ const MAIN_TOOLS: ToolItem[] = [
     path: '/apps',
     icon: getIcon('actions', 'link')!,
   },
-];
-
-const NEWSLETTER_URL =
-  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
-
-const FAVORITES: FavoriteItem[] = [
   {
     id: 'newsletter',
     title: 'Newsletter',
+    description: 'Updates & Neuigkeiten abonnieren',
     href: NEWSLETTER_URL,
     icon: getIcon('navigation', 'presse-social')!,
   },
+];
+
+const FAVORITES: FavoriteItem[] = [
   {
     id: 'verdigado',
     title: 'Verdigado',
@@ -150,21 +161,24 @@ const CHIP_BASE =
   'flex flex-none items-center justify-center rounded-xl text-secondary-600 transition-colors duration-150 ' +
   'group-hover:bg-secondary-50 dark:text-secondary-400 dark:group-hover:bg-secondary-900/30';
 
-function SectionHeading({ title, badge }: { title: string; badge: string }) {
+function SectionHeading({ title, badge }: { title: string; badge?: string }) {
   return (
     <div className="mb-md flex items-center gap-sm">
       <h2 className="m-0 text-xl font-semibold text-foreground-heading">{title}</h2>
-      <span className="rounded-full bg-secondary-50 px-2.5 py-0.5 text-xs font-semibold text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
-        {badge}
-      </span>
+      {badge && (
+        <span className="rounded-full bg-secondary-50 px-2.5 py-0.5 text-xs font-semibold text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
+          {badge}
+        </span>
+      )}
     </div>
   );
 }
 
 function ToolTile({ tool }: { tool: ToolItem }) {
   const Icon = tool.icon;
-  return (
-    <Link to={tool.path} className={`${CARD_BASE} gap-3 rounded-2xl p-md`}>
+  const className = `${CARD_BASE} gap-3 rounded-2xl p-md`;
+  const body = (
+    <>
       <span className={`${CHIP_BASE} size-12 text-[22px]`}>
         <Icon />
       </span>
@@ -176,6 +190,16 @@ function ToolTile({ tool }: { tool: ToolItem }) {
           {tool.description}
         </span>
       </span>
+    </>
+  );
+
+  return tool.href ? (
+    <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
+      {body}
+    </a>
+  ) : (
+    <Link to={tool.path ?? '/'} className={className}>
+      {body}
     </Link>
   );
 }
@@ -203,7 +227,7 @@ const ToolsSection = React.memo(() => {
   const tools = filterTools(MAIN_TOOLS);
   return (
     <>
-      <SectionHeading title="Weitere Tools" badge={`${tools.length} Werkzeuge`} />
+      <SectionHeading title="Tools" />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-sm">
         {tools.map((tool) => (
           <ToolTile key={tool.id} tool={tool} />

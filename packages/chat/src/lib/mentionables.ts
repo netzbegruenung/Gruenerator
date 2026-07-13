@@ -1,5 +1,6 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
+import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
 import {
   PiFlask,
   PiFiles,
@@ -9,9 +10,11 @@ import {
   PiImage,
   PiImagesSquare,
   PiClipboardText,
+  PiBank,
   PiFileText,
   PiSparkle,
   PiCloud,
+  PiGlobe,
   PiNotePencil,
   PiPlugsConnected,
   PiChartBar,
@@ -25,10 +28,13 @@ export type MentionableType =
   | 'document'
   | 'board'
   | 'doc'
+  | 'sheet'
+  | 'presentation'
   | 'wolke'
   | 'connect'
   | 'canva'
-  | 'vorlagen';
+  | 'vorlagen'
+  | 'webpage';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -237,6 +243,22 @@ export const toolMentionables: Mentionable[] = [
     audience: 'de-DE',
   },
   {
+    // Official Bundestag documents via the DIP (Drucksachen, plenary speeches,
+    // legislative processes). DE-only source — gated to de-DE so the picker
+    // hides it for Austrian users (Nationalrat isn't covered).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'bundestag',
+    title: 'Bundestag',
+    description: 'Drucksachen, Reden & Gesetzgebung aus dem Bundestag',
+    avatar: '🏛️',
+    icon: PiBank,
+    backgroundColor: '#4B5563',
+    mention: 'bundestag',
+    audience: 'de-DE',
+  },
+  {
     type: 'tool',
     category: 'function',
     trigger: '@',
@@ -350,6 +372,60 @@ export function getBoardMentionables(): Mentionable[] {
   return [...boardToolMentionables, ...dynamicBoardMentionables];
 }
 
+export interface SheetMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+export const sheetToolMentionables: Mentionable[] = [
+  {
+    type: 'sheet',
+    category: 'function',
+    trigger: '@',
+    identifier: 'sheet-erstellen',
+    title: 'Tabelle erstellen',
+    description: 'Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf',
+    avatar: '✨',
+    icon: PiSparkle,
+    backgroundColor: '#316049',
+    mention: 'tabelle-erstellen',
+  },
+];
+
+let dynamicSheetMentionables: Mentionable[] = [];
+
+export function setSheetMentionables(sheets: SheetMentionable[]): void {
+  dynamicSheetMentionables = sheets.map((sh) => ({
+    type: 'sheet' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: sh.id,
+    title: sh.title,
+    description: `Tabelle: ${sh.title}`,
+    avatar: '📊',
+    icon: PiClipboardText,
+    backgroundColor: '#316049',
+    mention: sh.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export const presentationToolMentionables: Mentionable[] = [
+  {
+    type: 'presentation',
+    category: 'function',
+    trigger: '@',
+    identifier: 'praesentation-erstellen',
+    title: 'Präsentation erstellen',
+    description: 'Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf',
+    avatar: '🎬',
+    icon: PiSparkle,
+    backgroundColor: '#316049',
+    mention: 'praesentation-erstellen',
+  },
+];
+
 export const docToolMentionables: Mentionable[] = [
   {
     type: 'doc',
@@ -439,6 +515,58 @@ export function getUserNotebookMentionables(): Mentionable[] {
   return dynamicUserNotebookMentionables;
 }
 
+export interface McpServerMentionable {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+let dynamicMcpServerMentionables: Mentionable[] = [];
+
+/**
+ * Per-server MCP mentions (@notion, @brevo, …) — one entry per connected server,
+ * fed from `/api/mcp/servers`. The identifier is `mcp:<serverId>` so the parser
+ * routes it into forcedTools and the backend scopes the tool-loop to that one
+ * server; the visible `@slug` is cosmetic. Replaces the old generic @mcp.
+ */
+export function setMcpServerMentionables(servers: McpServerMentionable[]): void {
+  const usedSlugs = new Set<string>();
+  // A slug that collides with a built-in/agent/notebook mention (registered
+  // earlier, so first-wins in rebuildMentionableMap) would make the server
+  // unreachable — its @mention would resolve to the other entry. Treat those as
+  // taken too, and suffix around them.
+  const takenByOther = (slug: string): boolean => {
+    const existing = mentionableMap.get(slug);
+    return existing != null && !existing.identifier.startsWith('mcp:');
+  };
+  dynamicMcpServerMentionables = servers.map((srv) => {
+    let slug = slugifyName(srv.name, 'mcp');
+    if (usedSlugs.has(slug) || takenByOther(slug)) {
+      let n = 2;
+      while (usedSlugs.has(`${slug}-${n}`) || takenByOther(`${slug}-${n}`)) n++;
+      slug = `${slug}-${n}`;
+    }
+    usedSlugs.add(slug);
+    return {
+      type: 'tool' as const,
+      category: 'function' as const,
+      trigger: '@' as const,
+      identifier: `mcp:${srv.id}`,
+      title: srv.name,
+      description: srv.description || 'Verbundener MCP-Dienst',
+      avatar: '🔌',
+      icon: PiPlugsConnected,
+      backgroundColor: mcpBrandColor(srv.name),
+      mention: slug,
+    };
+  });
+  rebuildMentionableMap();
+}
+
+export function getMcpServerMentionables(): Mentionable[] {
+  return dynamicMcpServerMentionables;
+}
+
 /**
  * The legacy @datei ("Datei auswählen") and @dokumentchat ("Dokument-Chat")
  * pickers were merged into the single @docs entry below — it opens the same
@@ -465,6 +593,24 @@ export const wolkeMentionables: Mentionable[] = [
     icon: PiCloud,
     backgroundColor: '#0EA5E9',
     mention: 'wolke',
+  },
+];
+
+// @web opens a sub-popover for pasting a URL. The page is attached as a chip
+// (contentType application/x-gruenerator-webpage) whose data carries the URL;
+// the backend crawls it through the existing scrape_url pipeline.
+export const webpageMentionables: Mentionable[] = [
+  {
+    type: 'webpage',
+    category: 'function',
+    trigger: '@',
+    identifier: 'webpage-trigger',
+    title: 'Webseite',
+    description: 'Inhalt einer Webseite per URL anhängen',
+    avatar: '🌐',
+    icon: PiGlobe,
+    backgroundColor: '#0EA5E9',
+    mention: 'web',
   },
 ];
 
@@ -645,15 +791,20 @@ export function getAllMentionables(): Mentionable[] {
     ...dynamicUserNotebookMentionables,
     ...notebookMentionables,
     ...toolMentionables,
+    ...dynamicMcpServerMentionables,
     ...boardToolMentionables,
     ...dynamicBoardMentionables,
     ...docToolMentionables,
     ...dynamicDocMentionables,
+    ...sheetToolMentionables,
+    ...dynamicSheetMentionables,
+    ...presentationToolMentionables,
     ...documentMentionables,
     ...wolkeMentionables,
     ...connectMentionables,
     ...canvaMentionables,
     ...vorlagenMentionables,
+    ...webpageMentionables,
   ];
 }
 
@@ -668,15 +819,20 @@ function rebuildMentionableMap(): void {
     // Full set (incl. disabled) so historical `@hamburg`/`@sh` tokens still resolve.
     allNotebookMentionables,
     toolMentionables,
+    dynamicMcpServerMentionables,
     boardToolMentionables,
     dynamicBoardMentionables,
     docToolMentionables,
     dynamicDocMentionables,
+    sheetToolMentionables,
+    dynamicSheetMentionables,
+    presentationToolMentionables,
     documentMentionables,
     wolkeMentionables,
     connectMentionables,
     canvaMentionables,
     vorlagenMentionables,
+    webpageMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -718,14 +874,20 @@ export function filterMentionables(query: string): {
   vorlagen: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
-  const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
+  const allDocs = [
+    ...docToolMentionables,
+    ...dynamicDocMentionables,
+    ...sheetToolMentionables,
+    ...dynamicSheetMentionables,
+    ...presentationToolMentionables,
+  ];
   if (!query) {
     return {
       agents: getAgentMentionables(),
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
       userNotebooks: dynamicUserNotebookMentionables,
-      tools: toolMentionables,
+      tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables],
       boards: allBoards,
       docs: allDocs,
       documents: documentMentionables,
@@ -760,7 +922,9 @@ export function filterMentionables(query: string): {
     userNotebooks: isNotebookCategoryQuery
       ? dynamicUserNotebookMentionables
       : dynamicUserNotebookMentionables.filter(matchFn),
-    tools: toolMentionables.filter(matchFn),
+    tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables].filter(
+      matchFn
+    ),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),

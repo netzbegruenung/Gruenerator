@@ -354,6 +354,130 @@ export function getModel(provider: string, modelId: string): LanguageModel {
   }
 }
 
+/**
+ * Whether a resolved model can drive the agentic chat tool loop (native
+ * function calling with multi-step tool use). Conservative on purpose: only
+ * Mistral is enabled for now — it's the primary EU provider and our strongest
+ * tool-caller (mistral-medium-2604). The overflow lanes (Gemma/GPT-OSS via
+ * litellm/regolo) and Qwen are NOT gated in yet; a non-tool-capable user
+ * selection stays on the single-pass pipeline rather than being silently
+ * swapped (the informed-consent boundary in resolveModel).
+ */
+export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
+  return provider === 'mistral';
+}
+
+/**
+ * Whether the SELECTED model drives the tool loop directly (unified single-model
+ * pass) vs. delegating tool orchestration to the fast planner (planner/executor
+ * split: INTERMEDIATE_MODEL gathers, selected model writes the answer).
+ *
+ * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
+ * fastest and highest-fidelity. Everything else splits: the fixed fast planner
+ * does every tool call (so tool-calling reliability no longer depends on the
+ * user's model) and the selected model only writes prose — which is why ANY
+ * model, including slow "thinking" lanes and non-tool-callers, is now selectable
+ * for the loop.
+ */
+export function prefersUnifiedLoop(provider: string, _modelName: string): boolean {
+  return provider === 'mistral';
+}
+
+/**
+ * Split-mode model policy — the planner/executor split gives us two independent
+ * slots, so we point each at its best NON-CHINESE model instead of forcing the
+ * user's (often slow) lane model into both roles:
+ *
+ *  - PLANNER (gather): needs fast, reliable NATIVE tool-calling; its prose is
+ *    discarded. Prefer the cheaper regolo Mistral-small-4 (verified tool-caller,
+ *    the user's requested tool model); fall back to always-up litellm/verdigado-
+ *    pro when regolo is absent (it proved flaky in the test env — steps=0).
+ *  - SYNTH (write): needs the best GERMAN WRITER and must NEVER be a reasoning
+ *    model — litellm/verdigado-think as the synthesizer is the 18–76s latency
+ *    culprit. For `auto` (and any think-lane selection) we write with gemma-4
+ *    (best prose, 31b = fast); an explicit non-think model selection is honored.
+ *
+ * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
+ */
+// Planner = litellm/verdigado-pro: a fast, verified tool-caller that is proven
+// reachable and completed planner=verdigado-pro turns on test-branch. NOT regolo
+// (caused the earlier steps=0 gather regression). Mistral native as the
+// cross-provider fallback if litellm is ever down.
+const LOOP_PLANNER_PRIMARY = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+const LOOP_PLANNER_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+// Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
+// litellm/verdigado-pro (fast, non-think) when regolo is absent.
+const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
+const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+
+/** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
+ *  Chinese lanes (qwen — excluded by policy), and gpt-oss (verified tool-call
+ *  fail / reasoning leak). Any of these in the synth slot is rewritten to the
+ *  best-writer lane. */
+const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
+
+function loopPlannerChoice(): { provider: Provider; model: string } {
+  return isProviderConfigured('litellm') ? LOOP_PLANNER_PRIMARY : LOOP_PLANNER_FALLBACK;
+}
+
+function loopSynthWriterChoice(): { provider: Provider; model: string } {
+  return isProviderConfigured('regolo') ? LOOP_SYNTH_PRIMARY : LOOP_SYNTH_FALLBACK;
+}
+
+/** Human-readable planner model name (for the [Agentic] log line). */
+export function loopPlannerModelName(): string {
+  return loopPlannerChoice().model;
+}
+
+export function getLoopPlannerModel(): LanguageModel {
+  const p = loopPlannerChoice();
+  return getModel(p.provider, p.model);
+}
+
+/**
+ * Synthesizer for the split's write phase. `auto` (or any think-lane selection)
+ * writes with the best-writer lane; an explicit fast model is honored as-is.
+ * Returns the name too so the caller can log which model actually wrote.
+ */
+/** Pure synth-model DECISION (no model instantiation) — env-free & unit-testable.
+ *  `null` provider means "honor the resolved model as-is". */
+export function loopSynthChoice(
+  resolvedModelName: string,
+  isAuto: boolean
+): { provider: Provider | null; model: string } {
+  const useWriter = isAuto || AVOID_AS_SYNTH.test(resolvedModelName);
+  if (!useWriter) return { provider: null, model: resolvedModelName };
+  return loopSynthWriterChoice();
+}
+
+export function getLoopSynthModel(
+  resolution: { model: LanguageModel; modelName: string },
+  isAuto: boolean
+): { model: LanguageModel; name: string } {
+  const choice = loopSynthChoice(resolution.modelName, isAuto);
+  if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
+  return { model: getModel(choice.provider, choice.model), name: choice.model };
+}
+
+/**
+ * Cheap, slot-free check of whether the model that WILL be used (user selection
+ * or agent default) can drive the agentic loop. Mistral lanes never acquire an
+ * overflow slot, so this can decide the agentic branch before the heavier
+ * `resolveModel` runs — without double-acquiring a Verdigado slot.
+ */
+export function selectionIsToolCapable(agentProvider: string, modelId?: string): boolean {
+  if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
+    const cfg = AVAILABLE_MODELS[modelId];
+    if (cfg) {
+      const provider = cfg.kind === 'single' ? cfg.provider : cfg.primary.provider;
+      const model = cfg.kind === 'single' ? cfg.model : cfg.primary.model;
+      return isAgenticToolCapable(provider, model);
+    }
+    // Unknown id → agent default is used, fall through.
+  }
+  return isAgenticToolCapable(agentProvider, '');
+}
+
 export function getProviderName(provider: AgentConfig['provider']): string {
   switch (provider) {
     case 'mistral':

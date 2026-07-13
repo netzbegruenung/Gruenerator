@@ -214,6 +214,11 @@ function buildToolGuidelines(
     );
   }
 
+  tools.push(
+    '- **search_chat_history**: Durchsucht die früheren Inhalte des Nutzers — vergangene Chats (liest das relevanteste Gespräch) und eigene Dokumente, Präsentationen und Tabellen.\n' +
+      '  Nutze dieses Tool, wenn der Nutzer sich auf ein vergangenes Gespräch oder ein eigenes Dokument bezieht ("was haben wir letztes Mal besprochen", "mach da weiter wo wir aufgehört haben", "finde meine Präsentation zu X").'
+  );
+
   if (check('memory_save')) {
     tools.push(
       '- **save_memory**: Speichere wichtige Informationen über den Nutzer.\n' +

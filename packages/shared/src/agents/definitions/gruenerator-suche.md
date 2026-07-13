@@ -36,5 +36,3 @@ author: Grünerator
 routeTo: search
 order: 2
 ---
-
-

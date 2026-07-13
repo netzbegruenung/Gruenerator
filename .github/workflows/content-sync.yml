@@ -105,34 +105,47 @@ jobs:
         id: sync
         continue-on-error: true
         run: |
-          ARGS="--landesverband ${{ matrix.lv }}"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
           # Hourly schedule (any cron other than the daily '0 2 * * *') → only crawl
           # the newest items; the nightly run does the full per-URL walk. Empty
           # SCHEDULE = manual dispatch → keep the full run.
-          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then ARGS="$ARGS --recent"; fi
-          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
-          pnpm --filter @gruenerator/api run update:all -- $ARGS
+          RECENT=false
+          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then RECENT=true; fi
+          FORCE=false
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
+          DRY_RUN=false
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_RUN=true; fi
+
+          BODY=$(jq -nc \
+            --arg lv "${{ matrix.lv }}" \
+            --argjson recent $RECENT \
+            --argjson force $FORCE \
+            --argjson dryRun $DRY_RUN \
+            --arg runUrl "$RUN_URL" \
+            --arg fallbackEmail "$CONTENT_SYNC_EMAIL" \
+            '{landesverband: $lv, recent: $recent, forceUpdate: $force, dryRun: $dryRun, runUrl: $runUrl, fallbackEmail: $fallbackEmail}')
+
+          # Trigger as a background job and poll — full runs outlive the
+          # reverse proxy's ~5 min timeout, so a synchronous call 504s.
+          HTTP_CODE=$(.github/scripts/content-sync-request.sh landesverbaende "$BODY" /tmp/sync-response.json)
+          RESPONSE_BODY=$(cat /tmp/sync-response.json)
+          echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
+
+          WRAP_FLAGS="--id landesverband-${{ matrix.lv }} --http-code $HTTP_CODE"
+          if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
+          if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+            > "$GITHUB_WORKSPACE/sync-summary-lv-${{ matrix.lv }}.json"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::LV sync failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
         env:
           SCHEDULE: ${{ github.event.schedule }}
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
-          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
-          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
-          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
-          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
-          CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
-          # Unique per-matrix path so the aggregate job (download-artifact with
-          # merge-multiple=true) doesn't collide same-named files into one.
-          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary-lv-${{ matrix.lv }}.json
+          CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Upload summary
         if: always()
@@ -171,27 +184,31 @@ jobs:
         id: sync
         continue-on-error: true
         run: |
-          ARGS="--source ${{ matrix.source }} --no-email"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
-          pnpm --filter @gruenerator/api run update:all -- $ARGS
+          FORCE=false
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
+          DRY_RUN=false
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_RUN=true; fi
+
+          BODY=$(jq -nc --argjson force $FORCE --argjson dryRun $DRY_RUN \
+            '{forceUpdate: $force, dryRun: $dryRun}')
+
+          HTTP_CODE=$(.github/scripts/content-sync-request.sh "${{ matrix.source }}" "$BODY" /tmp/sync-response.json)
+          RESPONSE_BODY=$(cat /tmp/sync-response.json)
+          echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
+
+          WRAP_FLAGS="--id ${{ matrix.source }} --http-code $HTTP_CODE"
+          if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
+          if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+            > "$GITHUB_WORKSPACE/sync-summary-source-${{ matrix.source }}.json"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Sync failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
         env:
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
-          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
-          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
-          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
-          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
-          # Unique per-matrix path — see sync-lv comment above.
-          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary-source-${{ matrix.source }}.json
 
       - name: Upload summary
         if: always()
@@ -337,14 +354,13 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: pnpm --filter @gruenerator/api run stats:content
+        run: |
+          curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
+            "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
+            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
         env:
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
-          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
       - name: Create PR for stats page update
         if: always()
@@ -380,32 +396,44 @@ jobs:
         env:
           KIND: ${{ needs.setup.outputs.single_kind }}
           VAL: ${{ needs.setup.outputs.single_value }}
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
-          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
-          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
-          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
-          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
-          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          FORCE=false
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
+          DRY_RUN=false
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_RUN=true; fi
+
           if [ "$KIND" = "landesverband" ]; then
-            FLAG="--landesverband"
+            SOURCE_PATH="landesverbaende"
+            WRAP_ID="landesverband-$VAL"
+            BODY=$(jq -nc --arg lv "$VAL" --argjson force $FORCE --argjson dryRun $DRY_RUN \
+              --arg runUrl "$RUN_URL" --arg fallbackEmail "$CONTENT_SYNC_EMAIL" \
+              '{landesverband: $lv, forceUpdate: $force, dryRun: $dryRun, runUrl: $runUrl, fallbackEmail: $fallbackEmail}')
           else
-            FLAG="--source"
+            SOURCE_PATH="$VAL"
+            WRAP_ID="$VAL"
+            BODY=$(jq -nc --argjson force $FORCE --argjson dryRun $DRY_RUN '{forceUpdate: $force, dryRun: $dryRun}')
           fi
-          ARGS="$FLAG $VAL"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
-          pnpm --filter @gruenerator/api run update:all -- $ARGS
+
+          # Manual single-source runs (e.g. abgeordnetenwatch full backfill)
+          # can run long — allow the poll loop the job's full 120 min budget.
+          HTTP_CODE=$(POLL_TIMEOUT_SECONDS=7000 .github/scripts/content-sync-request.sh "$SOURCE_PATH" "$BODY" /tmp/sync-response.json)
+          RESPONSE_BODY=$(cat /tmp/sync-response.json)
+          echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
+
+          WRAP_FLAGS="--id $WRAP_ID --http-code $HTTP_CODE"
+          if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
+          if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+            > "$GITHUB_WORKSPACE/sync-summary.json"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Sync failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
 
       - name: Generate job summary
         if: always()
@@ -438,14 +466,13 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: pnpm --filter @gruenerator/api run stats:content
+        run: |
+          curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
+            "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
+            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
         env:
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
-          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
       - name: Create PR for stats page update
         if: always()

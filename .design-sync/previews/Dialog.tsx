@@ -18,8 +18,8 @@ export function ConfirmPublish() {
         <DialogHeader>
           <DialogTitle>Pressemitteilung veröffentlichen?</DialogTitle>
           <DialogDescription>
-            Die Mitteilung wird sofort auf der Website und im Presseverteiler
-            sichtbar. Dieser Schritt kann nicht rückgängig gemacht werden.
+            Die Mitteilung wird sofort auf der Website und im Presseverteiler sichtbar. Dieser
+            Schritt kann nicht rückgängig gemacht werden.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

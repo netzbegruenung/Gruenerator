@@ -86,6 +86,7 @@ const NotebookCard = memo(
         title={notebook.title}
         meta={notebook.meta}
         icon={notebook.icon}
+        accent="pink"
         onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
         menu={
           hasMenu ? (
@@ -268,6 +269,7 @@ const EigeneNotebooks = memo(
                   title={c.name}
                   meta={c.description || 'Eigenes Notebook'}
                   icon={NotebookIcon}
+                  accent="pink"
                   onActivate={() => onView(c.id)}
                   menu={
                     <DropdownMenu>
@@ -446,7 +448,7 @@ function NotebooksIndexFooter() {
   );
 
   return (
-    <section className="mt-xl">
+    <section className="mt-xl" data-tour="wissen-notebooks">
       <NotebookSection title="Notebooks" notebooks={allNotebooks} groups={stableGroups} />
 
       <EigeneNotebooks
@@ -475,9 +477,14 @@ function NotebooksIndexPage() {
       showStats={false}
       showExamples={false}
       hideGlobalChat
+      omniComposer
+      pageGradient={false}
     />
   );
 }
+
+/** Unwrapped variant for embedding (workplace "Wissen" tab — auth-gated route). */
+export { NotebooksIndexPage as NotebooksIndexContent };
 
 export default withAuthRequired(NotebooksIndexPage, {
   title: 'Notebooks',

@@ -18,6 +18,25 @@ export const PTSANS_BOLD_PATH: string = path.resolve(
   __dirname,
   '../../../public/fonts/PTSans-Bold.ttf'
 );
+
+// Österreich (de-AT) fonts — Gotham Narrow + Vollkorn (CI 2026)
+export const GOTHAM_ULTRA_PATH: string = path.resolve(
+  __dirname,
+  '../../../public/fonts/GothamNarrow-Ultra.otf'
+);
+export const GOTHAM_BOOK_PATH: string = path.resolve(
+  __dirname,
+  '../../../public/fonts/GothamNarrow-Book.otf'
+);
+export const GOTHAM_BOLD_PATH: string = path.resolve(
+  __dirname,
+  '../../../public/fonts/GothamNarrow-Bold.otf'
+);
+export const VOLLKORN_ITALIC_PATH: string = path.resolve(
+  __dirname,
+  '../../../public/fonts/Vollkorn-BoldItalic.ttf'
+);
+
 export const SUNFLOWER_PATH: string = path.resolve(__dirname, '../../../public/Sonnenblume.png');
 export const TESTBILD_PATH: string = path.resolve(__dirname, '../../../public/testbild.jpg');
 export const TEMP_UPLOAD_DIR: string = path.resolve(__dirname, '../../../temp_uploads');

@@ -8,7 +8,20 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   research: 'research',
   examples: 'gruenerator_examples_search',
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
+  chat_history: 'search_chat_history',
 };
+
+/**
+ * Human-readable label for an agentic-loop tool step. MCP/connector tools are
+ * namespaced `s<idx>__<tool>` on the wire; strip the prefix and prepend the
+ * server name so the card reads e.g. "Notion · search". Internal tools pass
+ * through unchanged.
+ */
+export function formatNamespacedToolLabel(toolName: string, serverName?: string): string {
+  const match = /^s\d+__(.+)$/.exec(toolName);
+  const bare = match ? match[1] : toolName;
+  return serverName ? `${serverName} · ${bare}` : bare;
+}
 
 /**
  * Maps backend tool names (from thinking_step events) to UI-facing tool names.

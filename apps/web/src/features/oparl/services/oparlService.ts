@@ -1,15 +1,11 @@
-import axios from 'axios';
+import apiClient from '../../../components/utils/apiClient';
 
 import type { OparlPaper } from '../types';
 
-const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
-
-const apiClient = axios.create({
-  baseURL: baseURL,
-  timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
-});
+// Use the shared probe-aware client (session probe + atomic teardown on 401)
+// instead of a standalone axios instance that had no 401 handling at all.
+// Its default timeout is 900s, so each oparl call re-asserts the old 30s cap.
+const OPARL_TIMEOUT = 30_000;
 
 export interface OparlCity {
   name: string;
@@ -43,18 +39,20 @@ interface OparlStats {
 export const searchCity = async (query: string): Promise<SearchCityResponse> => {
   const response = await apiClient.get<SearchCityResponse>('/oparl/search-city', {
     params: { q: query },
+    timeout: OPARL_TIMEOUT,
   });
   return response.data;
 };
 
 export const getEndpoints = async (): Promise<unknown[]> => {
-  const response = await apiClient.get<unknown[]>('/oparl/endpoints');
+  const response = await apiClient.get<unknown[]>('/oparl/endpoints', { timeout: OPARL_TIMEOUT });
   return response.data;
 };
 
 export const getPapers = async (city: string, limit: number = 50): Promise<GetPapersResponse> => {
   const response = await apiClient.get<GetPapersResponse>('/oparl/papers', {
     params: { city, limit },
+    timeout: OPARL_TIMEOUT,
   });
   return response.data;
 };
@@ -75,17 +73,20 @@ export const searchPapers = async (
   const { city, limit = 10 } = options;
   const response = await apiClient.get<SearchResult>('/oparl/search', {
     params: { q: query, city, limit },
+    timeout: OPARL_TIMEOUT,
   });
   return response.data;
 };
 
 export const getIndexedCities = async (): Promise<IndexedCitiesResult> => {
-  const response = await apiClient.get<IndexedCitiesResult>('/oparl/indexed-cities');
+  const response = await apiClient.get<IndexedCitiesResult>('/oparl/indexed-cities', {
+    timeout: OPARL_TIMEOUT,
+  });
   return response.data;
 };
 
 export const getStats = async (): Promise<OparlStats> => {
-  const response = await apiClient.get<OparlStats>('/oparl/stats');
+  const response = await apiClient.get<OparlStats>('/oparl/stats', { timeout: OPARL_TIMEOUT });
   return response.data;
 };
 
