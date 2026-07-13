@@ -34,6 +34,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureConnected, redisClient } from '../../utils/redis/client.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
+import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 import { consumeOAuthState, generateState, saveOAuthState } from './mcpOAuthState.js';
 
@@ -86,6 +87,14 @@ export class McpOAuthService {
   static async startAuthorization(userId: string, serverId: string): Promise<string> {
     const server = await getServer(userId, serverId);
     if (!server) throw Object.assign(new Error('Server nicht gefunden'), { statusCode: 404 });
+
+    // SSRF: OAuth discovery fetches server.url — re-validate (DNS rebind guard).
+    const urlCheck = await validateUrlForFetch(server.url);
+    if (!urlCheck.isValid) {
+      throw Object.assign(new Error(`Unsichere Server-URL: ${urlCheck.error ?? 'blockiert'}`), {
+        statusCode: 400,
+      });
+    }
 
     const info = await discoverOAuthServerInfo(server.url);
     const authorizationServerUrl = info.authorizationServerUrl;
