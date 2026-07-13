@@ -28,6 +28,13 @@ import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { selectionIsToolCapable } from './agents/providers.js';
+import {
+  streamAgenticResponse,
+  isAgenticLoopEnabled,
+  AGENTIC_INTENTS,
+} from './services/agenticLoop/agenticRespondService.js';
+import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
 import { searchChatHistory } from './services/chatSearchService.js';
@@ -567,6 +574,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         status: 'completed',
       });
 
+      // Agentic respond path decision — made here so the `intent` event can tell
+      // the client to expect real tool cards (and skip the fabricated one). It
+      // must be stable through to Stage 2: forced @tool mentions, images, and
+      // non-Mistral selections stay on the deterministic single-pass pipeline.
+      const runAgentic =
+        isAgenticLoopEnabled() &&
+        AGENTIC_INTENTS.has(classifiedState.intent) &&
+        !forcedTool &&
+        !isCompound &&
+        imageAttachments.length === 0 &&
+        selectionIsToolCapable(
+          classifiedState.agentConfig.provider as string,
+          modelId ?? undefined
+        );
+
       sse.send('intent', {
         intent: classifiedState.intent,
         message: getIntentMessage(classifiedState.intent),
@@ -580,6 +602,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           secondaryIntent: classifiedState.secondaryIntent,
         }),
         ...(isCompound && { compound: true }),
+        ...(runAgentic && { agentic: true }),
       });
 
       // === Chat history context enrichment ===
@@ -927,85 +950,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
       }
 
-      // === Stage 2: Search or Image Generation ===
-      const { finalState, generatedImage, sharepicVariants, socialPost } =
-        await executeIntentPipeline({
-          classifiedState,
-          sse,
-          forcedTool,
-          ...(enabledTools != null && { enabledTools }),
-          imageAttachments,
-          req,
-          threadId: actualThreadId ?? null,
-          ...(sharepicRefinement && { sharepicRefinement }),
-        });
-
-      // === Stage 3: Response generation ===
+      // === Stage 2 + 3: Response generation ===
+      type PipelineResult = Awaited<ReturnType<typeof executeIntentPipeline>>;
+      let finalState: PipelineResult['finalState'];
+      let generatedImage: PipelineResult['generatedImage'];
+      let sharepicVariants: PipelineResult['sharepicVariants'];
+      let socialPost: PipelineResult['socialPost'];
       let fullText: string | null;
-      if (finalState.intent === 'social_post') {
-        // Combined post (EXPERIMENTAL): both halves were already produced +
-        // streamed in Stage 2 (social_post_complete / sharepic_complete).
-        // Fixed confirmation like the sharepic branch — no extra LLM call.
-        const hasText = socialPost != null;
-        const n = sharepicVariants.length;
-        fullText =
-          hasText && n > 0
-            ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
-              `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
-            : hasText
-              ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
-                `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
-              : n > 0
-                ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                  `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
-                : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
-        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-        sse.send('text_delta', { text: fullText });
-      } else if (finalState.intent === 'sharepic') {
-        // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
-        // Skip the LLM — with the still-vague topic it asks clarifying questions over the
-        // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
-        // assistant knows the sharepic exists. Also covers the all-variants-failed case.
-        const n = sharepicVariants.length;
-        const deckSlides = sharepicVariants[0]?.pages?.length;
-        fullText =
-          n > 0
-            ? deckSlides
-              ? `Ich habe dir ein Slider-Karussell mit ${deckSlides} Folien erstellt. ` +
-                `Sag mir, was ich an einzelnen Folien anpassen soll, oder öffne es im Studio.`
-              : `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
-            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-              `anderen Thema noch einmal versuchen?`;
-        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-        sse.send('text_delta', { text: fullText });
-      } else {
-        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+      let agenticSteps: PersistedStep[] | undefined;
 
-        const systemMessage = await buildSystemMessage(finalState);
-        const agentConfigForResolve = {
-          provider: finalState.agentConfig.provider as string,
-          model: finalState.agentConfig.model,
-          ...(finalState.agentConfig.defaultModel != null && {
-            defaultModel: finalState.agentConfig.defaultModel,
-          }),
-        };
-        const resolution = await resolveModel(
-          agentConfigForResolve,
-          modelId ?? undefined,
-          requestId,
-          {
-            hasImages: imageAttachments.length > 0,
-            intent: finalState.intent,
-          }
-        );
-        if (resolution.unknownModelId) {
-          sse.send('warning', {
-            code: 'unknown_model_id',
-            message: `Modell "${resolution.unknownModelId}" ist nicht verfügbar — Standardmodell wird verwendet.`,
-          });
-        }
-
+      if (runAgentic) {
+        // Agentic path: the model holds the search tools and loops until it can
+        // answer, writing the reply in the same streamed turn. Stage 2's
+        // pre-decided single search is skipped entirely.
+        const systemMessage = await buildSystemMessage(classifiedState);
         const prunedValidMessages = pruneMessages(
           validMessages as Parameters<typeof pruneMessages>[0]
         );
@@ -1018,49 +976,166 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             )
           : systemMessage;
 
-        let messagesForAI = buildMessagesForAI(
-          finalSystemMessage,
-          prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
-        );
-        // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
-        // would put bytes in front of a non-vision model (since we no longer
-        // force-switch above) and create a redundant grounding source for vision
-        // models — skip injection so the descriptions are the single source.
-        if (finalState.intent !== 'image_edit') {
-          messagesForAI = injectImageAttachments(
-            messagesForAI as Parameters<typeof injectImageAttachments>[0],
-            imageAttachments,
-            requestId
-          );
+        const outcome = await streamAgenticResponse({
+          finalState: classifiedState,
+          systemMessage: finalSystemMessage,
+          messages: prunedValidMessages as ModelMessage[],
+          ...(modelId != null && { modelId }),
+          requestId,
+          sse,
+        });
+
+        finalState = classifiedState;
+        finalState.citations = outcome.citations;
+        if (outcome.sources.length > 0) {
+          finalState.searchResults = outcome.sources;
+          finalState.searchCount = outcome.sources.length;
         }
-
-        const baseMaxTokens = finalState.agentConfig.params.max_tokens;
-
-        try {
-          fullText = await streamWithFallback({
-            primary: resolution,
+        generatedImage = null;
+        sharepicVariants = [];
+        socialPost = null;
+        fullText = outcome.fullText;
+        agenticSteps = outcome.steps;
+      } else {
+        // === Stage 2: Search or Image Generation ===
+        ({ finalState, generatedImage, sharepicVariants, socialPost } = await executeIntentPipeline(
+          {
+            classifiedState,
             sse,
-            logPrefix: '[ChatGraph]',
-            buildStream: async (r) => {
-              const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-              return streamForResolution({
-                resolution: r,
-                messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-                maxTokens: isReasoning
-                  ? Math.max(baseMaxTokens, 16000)
-                  : Math.max(baseMaxTokens, 8000),
-                temperature: finalState.agentConfig.params.temperature,
-                sse,
-                logPrefix: '[ChatGraph]',
-              });
-            },
-          });
-        } finally {
-          if (resolution.releaseSlot) await resolution.releaseSlot();
-        }
+            forcedTool,
+            ...(enabledTools != null && { enabledTools }),
+            imageAttachments,
+            req,
+            threadId: actualThreadId ?? null,
+            ...(sharepicRefinement && { sharepicRefinement }),
+          }
+        ));
 
-        if (fullText === null) return { status: 200 as const, body: undefined };
+        // === Stage 3: Response generation ===
+        if (finalState.intent === 'social_post') {
+          // Combined post (EXPERIMENTAL): both halves were already produced +
+          // streamed in Stage 2 (social_post_complete / sharepic_complete).
+          // Fixed confirmation like the sharepic branch — no extra LLM call.
+          const hasText = socialPost != null;
+          const n = sharepicVariants.length;
+          fullText =
+            hasText && n > 0
+              ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
+                `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
+              : hasText
+                ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
+                  `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
+                : n > 0
+                  ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                    `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
+                  : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          sse.send('text_delta', { text: fullText });
+        } else if (finalState.intent === 'sharepic') {
+          // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
+          // Skip the LLM — with the still-vague topic it asks clarifying questions over the
+          // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
+          // assistant knows the sharepic exists. Also covers the all-variants-failed case.
+          const n = sharepicVariants.length;
+          const deckSlides = sharepicVariants[0]?.pages?.length;
+          fullText =
+            n > 0
+              ? deckSlides
+                ? `Ich habe dir ein Slider-Karussell mit ${deckSlides} Folien erstellt. ` +
+                  `Sag mir, was ich an einzelnen Folien anpassen soll, oder öffne es im Studio.`
+                : `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                  `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+              : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+                `anderen Thema noch einmal versuchen?`;
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          sse.send('text_delta', { text: fullText });
+        } else {
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+
+          const systemMessage = await buildSystemMessage(finalState);
+          const agentConfigForResolve = {
+            provider: finalState.agentConfig.provider as string,
+            model: finalState.agentConfig.model,
+            ...(finalState.agentConfig.defaultModel != null && {
+              defaultModel: finalState.agentConfig.defaultModel,
+            }),
+          };
+          const resolution = await resolveModel(
+            agentConfigForResolve,
+            modelId ?? undefined,
+            requestId,
+            {
+              hasImages: imageAttachments.length > 0,
+              intent: finalState.intent,
+            }
+          );
+          if (resolution.unknownModelId) {
+            sse.send('warning', {
+              code: 'unknown_model_id',
+              message: `Modell "${resolution.unknownModelId}" ist nicht verfügbar — Standardmodell wird verwendet.`,
+            });
+          }
+
+          const prunedValidMessages = pruneMessages(
+            validMessages as Parameters<typeof pruneMessages>[0]
+          );
+          const finalSystemMessage = actualThreadId
+            ? await applyCompaction(
+                actualThreadId,
+                prunedValidMessages,
+                systemMessage,
+                contextWindowTokens
+              )
+            : systemMessage;
+
+          let messagesForAI = buildMessagesForAI(
+            finalSystemMessage,
+            prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
+          );
+          // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
+          // would put bytes in front of a non-vision model (since we no longer
+          // force-switch above) and create a redundant grounding source for vision
+          // models — skip injection so the descriptions are the single source.
+          if (finalState.intent !== 'image_edit') {
+            messagesForAI = injectImageAttachments(
+              messagesForAI as Parameters<typeof injectImageAttachments>[0],
+              imageAttachments,
+              requestId
+            );
+          }
+
+          const baseMaxTokens = finalState.agentConfig.params.max_tokens;
+
+          try {
+            fullText = await streamWithFallback({
+              primary: resolution,
+              sse,
+              logPrefix: '[ChatGraph]',
+              buildStream: async (r) => {
+                const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
+                return streamForResolution({
+                  resolution: r,
+                  messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+                  maxTokens: isReasoning
+                    ? Math.max(baseMaxTokens, 16000)
+                    : Math.max(baseMaxTokens, 8000),
+                  temperature: finalState.agentConfig.params.temperature,
+                  sse,
+                  logPrefix: '[ChatGraph]',
+                });
+              },
+            });
+          } finally {
+            if (resolution.releaseSlot) await resolution.releaseSlot();
+          }
+
+          if (fullText === null) return { status: 200 as const, body: undefined };
+        }
       }
+
+      // Narrow fullText for the extraction/persist stages: the agentic path
+      // always yields text; the pipeline path already returned above on null.
+      if (fullText === null) return { status: 200 as const, body: undefined };
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -1180,6 +1255,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         requestId,
         memoryEnabled,
         ...(agentId != null && { agentId }),
+        ...(agenticSteps != null && { agenticSteps }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===
