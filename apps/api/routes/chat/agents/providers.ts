@@ -389,12 +389,15 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  *
  * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
  */
-// Planner = litellm/verdigado-pro: a fast, verified tool-caller that is proven
-// reachable and completed planner=verdigado-pro turns on test-branch. NOT regolo
-// (caused the earlier steps=0 gather regression). Mistral native as the
-// cross-provider fallback if litellm is ever down.
-const LOOP_PLANNER_PRIMARY = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
-const LOOP_PLANNER_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+// Planner = native Mistral (mistral-medium-2604 = "Mistral Medium 3.5"): the
+// strongest, most RELIABLE tool-caller available (proven by the unified loop +
+// single-pass sharepic). verdigado-pro (via litellm) too often treats a compound
+// turn as pure research and never calls the generation tool — the split planner
+// MUST reliably invoke tools, so native Mistral leads. litellm/verdigado-pro is
+// the cross-provider fallback if the Mistral API is down. NOT regolo (steps=0
+// gather regression).
+const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
 // Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
 // litellm/verdigado-pro (fast, non-think) when regolo is absent.
 const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
@@ -407,7 +410,11 @@ const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAU
 const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
-  return isProviderConfigured('litellm') ? LOOP_PLANNER_PRIMARY : LOOP_PLANNER_FALLBACK;
+  // Prefer the native Mistral tool-caller; fall back to litellm/verdigado-pro
+  // only when the Mistral API isn't configured.
+  if (isProviderConfigured('mistral')) return LOOP_PLANNER_PRIMARY;
+  if (isProviderConfigured('litellm')) return LOOP_PLANNER_FALLBACK;
+  return LOOP_PLANNER_PRIMARY;
 }
 
 function loopSynthWriterChoice(): { provider: Provider; model: string } {
