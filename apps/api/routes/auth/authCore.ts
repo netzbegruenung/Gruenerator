@@ -15,11 +15,10 @@ import { ba_accounts } from '../../database/schema/auth.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
-import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { createLogger } from '../../utils/logger.js';
 import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
 
-import type { AuthRequest, LocaleUpdateBody } from './types.js';
+import type { AuthRequest } from './types.js';
 
 const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -55,32 +54,6 @@ async function signOutAndForwardCookies(req: Request, res: Response): Promise<vo
   } catch (err) {
     log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
     captureAuthIssue({ stage: 'logout', cause: err, req });
-  }
-}
-
-/**
- * Re-read the session from the DB (bypassing the cookie cache) and forward the
- * refreshed `Set-Cookie: ba.session_data=...` header to the browser. Better Auth
- * caches a signed copy of the whole user object — including `locale` — in the
- * `ba.session_data` cookie for 300s (`betterAuth.ts` session.cookieCache). A DB
- * write alone (e.g. `PUT /locale`) does NOT touch that cookie, so the next
- * `getSession()` returns the stale cached user for up to 300s and the frontend
- * reverts the change. `getSession({ query: { disableCookieCache: true } })`
- * forces a fresh DB read and re-writes the cache cookie; forwarding its
- * Set-Cookie makes the just-persisted value visible immediately. Same hazard,
- * and same forwarding pattern, as `signOutAndForwardCookies` above.
- */
-async function refreshSessionCookieCache(req: Request, res: Response): Promise<void> {
-  try {
-    const betterAuthResponse = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-      query: { disableCookieCache: true },
-      asResponse: true,
-    });
-    forwardBetterAuthCookies(res, betterAuthResponse);
-  } catch (err) {
-    log.warn('[Auth /locale PUT] session cache refresh threw: %s', (err as Error).message);
-    captureAuthIssue({ stage: 'locale-update', cause: err, req });
   }
 }
 
@@ -255,6 +228,10 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
 // shape; the old `res.json({ user: req.user })` duplicate here was dead,
 // shadowed code and has been removed.
 
+// NOTE: `PUT /locale` is owned by the ts-rest `userProfileContract`
+// (userProfileContractRouter), which mounts before this router. It persists the
+// locale AND refreshes Better Auth's session cookie cache so the switch is
+// visible immediately. `GET /locale` remains here as a simple session read.
 router.get('/locale', ensureAuthenticated, (req: AuthRequest, res: Response): void => {
   try {
     const userLocale = req.user?.locale || 'de-DE';
@@ -264,39 +241,5 @@ router.get('/locale', ensureAuthenticated, (req: AuthRequest, res: Response): vo
     res.status(500).json({ success: false, error: 'Failed to get locale' });
   }
 });
-
-router.put(
-  '/locale',
-  ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const { locale } = req.body as LocaleUpdateBody;
-
-      if (!locale || !['de-DE', 'de-AT'].includes(locale)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid locale. Must be de-DE or de-AT',
-        });
-        return;
-      }
-
-      const { getProfileService } = await import('../../services/user/ProfileService.js');
-      const profileService = getProfileService();
-
-      await profileService.updateProfile(req.user!.id, { locale });
-      req.user!.locale = locale;
-
-      // Persist to the DB is not enough: Better Auth serves `getSession` from the
-      // 300s `ba.session_data` cookie cache, which still holds the old locale.
-      // Refresh it so the switch sticks instead of reverting on the next reload.
-      await refreshSessionCookieCache(req, res);
-
-      res.json({ success: true, message: 'Locale updated successfully', locale });
-    } catch (error) {
-      log.error('[Auth /locale PUT] Error:', error);
-      res.status(500).json({ success: false, error: 'Failed to update locale' });
-    }
-  }
-);
 
 export default router;

@@ -317,6 +317,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // middleware ordering), and every profile route requires authentication.
   app.use('/api/auth/profile', requireAuth);
   app.use('/api/auth/delete-account', requireAuth);
+  app.use('/api/auth/locale', requireAuth);
   mountUserProfileContractRouter(app);
   // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
   // so contract-modeled routes match first; unmatched paths fall through.
