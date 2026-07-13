@@ -156,6 +156,16 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
       prompt: z.string().min(1).describe('Bildbeschreibung (Motiv, Stil, Details)'),
     }),
     execute: async ({ prompt }) => {
+      // Idempotent per turn: the loop model can't SEE the image it made and
+      // tends to re-call ("try again"), which burns the daily image quota (seen
+      // live: 3 generations for one request). If we already produced one this
+      // turn, acknowledge success instead of generating again.
+      if (state.generatedImage) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Bild erstellt und dem*der Nutzer*in angezeigt. Rufe generate_image NICHT erneut auf; beschreibe das Bild kurz.',
+        };
+      }
       sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
       const injected = { role: 'user', content: prompt } as ChatGraphState['messages'][number];
       const result = await imageNode({ ...state, messages: [...state.messages, injected] });
@@ -171,6 +181,7 @@ NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möc
           ok: true,
           prompt: state.generatedImage.prompt,
           style: state.generatedImage.style,
+          note: 'Bild erfolgreich erstellt und dem*der Nutzer*in angezeigt. Rufe generate_image NICHT erneut auf; kündige das Bild kurz an.',
         };
       }
       const err = result.error ?? 'Bildgenerierung fehlgeschlagen.';
