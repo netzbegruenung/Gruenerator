@@ -239,6 +239,9 @@ export async function streamAgenticResponse(params: {
         (finalState.sharepicVariants?.length ?? 0) > 0
           ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
           : '',
+        finalState.createdDocument != null
+          ? `HINWEIS: In diesem Turn wurde bereits ${finalState.createdDocument.subtype === 'presentations' ? 'eine Präsentation' : 'eine Tabelle'} ("${finalState.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige sie kurz an und fasse die recherchierten Kerninhalte zusammen.`
+          : '',
       ]
         .filter(Boolean)
         .map((n) => `\n\n${n}`)
@@ -278,7 +281,9 @@ export async function streamAgenticResponse(params: {
       maxOutputTokens: Math.max(agentConfig.params.max_tokens ?? 2000, 4000),
       abortSignal,
       forceFinish: () =>
-        finalState.generatedImage != null || (finalState.sharepicVariants?.length ?? 0) > 0,
+        finalState.generatedImage != null ||
+        (finalState.sharepicVariants?.length ?? 0) > 0 ||
+        finalState.createdDocument != null,
       onText: (delta) => {
         startResponse();
         text += delta;

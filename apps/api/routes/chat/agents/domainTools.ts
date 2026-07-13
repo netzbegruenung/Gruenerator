@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
-import { runSharepicGeneration } from '../services/intentExecutionService.js';
+import { runDocGeneration, runSharepicGeneration } from '../services/intentExecutionService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -249,6 +249,75 @@ NUTZE WENN der*die Nutzer*in ein Sharepic/eine Grafik zum Thema möchte. Recherc
       return {
         variants,
         note: 'Sharepic erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an und biete Anpassungen an.',
+      };
+    },
+  });
+}
+
+/**
+ * Compound document fat tool (Phase 3n): presentations and sheets as opaque
+ * loop tools so "recherchiere X und erstelle eine Präsentation/Tabelle" composes
+ * search + generation in ONE turn. Mirrors `makeCreateSharepicTool`: idempotent
+ * per turn (`state.createdDocument`), delegates to the loop-safe
+ * `runDocGeneration` core, emits the same `document_created` SSE the single-pass
+ * handlers do (so the chat card renders live + thread-reload rehydrates via the
+ * persisted message `createdDocument` metadata), and hands the model a lean
+ * value to announce. The `prompt` arg carries the researched, concrete brief.
+ */
+export function makeCreateDocTool(ctx: {
+  kind: 'presentation' | 'sheet';
+  sse: SSEWriter;
+  state: ChatGraphState;
+  req: Request;
+}): Tool {
+  const { kind, sse, state, req } = ctx;
+  const label = kind === 'presentation' ? 'Präsentation' : 'Tabelle';
+  const artifact =
+    kind === 'presentation'
+      ? 'eine Präsentation (Foliendeck) zu einem Thema'
+      : 'eine Tabelle/Kalkulation zu einem Thema';
+  return tool({
+    description: `Erstellt ${artifact}.
+
+NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/Folien' : 'eine Tabelle/Kalkulation'} zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe(
+          `Konkreter Auftrag für die ${label} — Thema plus die recherchierten Fakten/Inhalte, die vorkommen sollen`
+        ),
+    }),
+    execute: async ({ prompt }) => {
+      // Idempotent per turn (mirror of sharepic/generate_image): generation is
+      // expensive and the model can't see the rendered result, so it re-calls.
+      if (state.createdDocument) {
+        return {
+          ok: true,
+          note: `Es wurde in diesem Turn bereits ${label === 'Präsentation' ? 'eine Präsentation' : 'eine Tabelle'} erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige sie kurz an.`,
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: `${label}-Erstellung nicht möglich (keine Nutzer-Sitzung).` };
+      }
+      const created = await runDocGeneration({
+        kind,
+        userContent: prompt,
+        aiWorkerPool: state.aiWorkerPool,
+        req,
+        userId,
+      });
+      if (!created) {
+        return { error: `${label}-Erstellung fehlgeschlagen.` };
+      }
+      // Live card (same event the single-pass handler emits). Shared-ref merge →
+      // forceFinish trips and the router lifts it for message-level persistence.
+      sse.send('document_created', created);
+      state.createdDocument = created;
+      return {
+        document: created,
+        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige sie kurz an.`,
       };
     },
   });

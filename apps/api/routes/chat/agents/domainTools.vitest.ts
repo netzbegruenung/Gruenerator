@@ -5,6 +5,7 @@ import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js'
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
@@ -25,8 +26,10 @@ vi.mock('../../../agents/langgraph/ChatGraph/nodes/imageNode.js', () => ({
   imageNode: (s: unknown): Promise<unknown> => imageNode(s),
 }));
 const runSharepicGeneration = vi.fn<(o: unknown) => Promise<unknown>>();
+const runDocGeneration = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../services/intentExecutionService.js', () => ({
   runSharepicGeneration: (o: unknown): Promise<unknown> => runSharepicGeneration(o),
+  runDocGeneration: (o: unknown): Promise<unknown> => runDocGeneration(o),
 }));
 
 type SseEvent = { type: string; payload: unknown };
@@ -359,5 +362,93 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     const out = (await exec(makeTool(state), { text: 'a' })) as { ok: boolean };
     expect(out.ok).toBe(true);
     expect(runSharepicGeneration).not.toHaveBeenCalled();
+  });
+});
+
+describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
+  beforeEach(() => runDocGeneration.mockReset());
+
+  const DOC = {
+    documentId: 'doc-1',
+    title: 'Artenschutz – Grüne Positionen',
+    subtype: 'presentations' as const,
+    url: '/office/doc-1',
+  };
+
+  function makeTool(
+    kind: 'presentation' | 'sheet',
+    state: ChatGraphState,
+    events: SseEvent[] = []
+  ) {
+    return makeCreateDocTool({
+      kind,
+      sse: fakeSse(events) as Parameters<typeof makeCreateDocTool>[0]['sse'],
+      state,
+      req: {} as Parameters<typeof makeCreateDocTool>[0]['req'],
+    });
+  }
+
+  const withUser = (over: Partial<ChatGraphState> = {}): ChatGraphState =>
+    ({
+      ...baseState,
+      intent: 'create_presentation',
+      agentConfig: { userId: 'u1' },
+      aiWorkerPool: {},
+      createdDocument: null,
+      ...over,
+    }) as unknown as ChatGraphState;
+
+  it('passes the researched prompt through, emits document_created, merges state, returns the card', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    const events: SseEvent[] = [];
+    const state = withUser();
+
+    const out = (await exec(makeTool('presentation', state, events), {
+      prompt: 'Artenschutz: Wiedervernässung von Mooren, Flächenstilllegung, [1][2]',
+    })) as { document: typeof DOC; note: string };
+
+    const passed = runDocGeneration.mock.calls[0][0] as { kind: string; userContent: string };
+    expect(passed.kind).toBe('presentation');
+    expect(passed.userContent).toContain('Artenschutz');
+    expect(out.document).toEqual(DOC);
+    expect(state.createdDocument).toEqual(DOC);
+    const created = events.find((e) => e.type === 'document_created');
+    expect(created?.payload).toEqual(DOC);
+  });
+
+  it('is idempotent per turn: a second call never regenerates', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    const state = withUser();
+    const tool = makeTool('presentation', state);
+
+    await exec(tool, { prompt: 'a' });
+    const second = (await exec(tool, { prompt: 'völlig anderer auftrag' })) as {
+      ok: boolean;
+      note: string;
+    };
+    expect(second.ok).toBe(true);
+    expect(second.note).toMatch(/NICHT erneut/);
+    expect(runDocGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('failure returns {error} WITHOUT merging state — a retry stays possible', async () => {
+    runDocGeneration.mockResolvedValueOnce(null);
+    runDocGeneration.mockResolvedValueOnce(DOC);
+    const state = withUser();
+    const tool = makeTool('sheet', state);
+
+    const failed = (await exec(tool, { prompt: 'a' })) as { error: string };
+    expect(failed.error).toMatch(/fehlgeschlagen/);
+    expect(state.createdDocument ?? null).toBeNull();
+    const retried = (await exec(tool, { prompt: 'b' })) as { document: typeof DOC };
+    expect(retried.document).toEqual(DOC);
+    expect(runDocGeneration).toHaveBeenCalledTimes(2);
+  });
+
+  it('no user session → {error}, never calls the generator', async () => {
+    const state = withUser({ agentConfig: {} as ChatGraphState['agentConfig'] });
+    const out = (await exec(makeTool('presentation', state), { prompt: 'a' })) as { error: string };
+    expect(out.error).toMatch(/nicht möglich/);
+    expect(runDocGeneration).not.toHaveBeenCalled();
   });
 });

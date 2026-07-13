@@ -205,6 +205,47 @@ describe('toolCatalog domain tool mounting', () => {
     expect(Object.keys(tools)).toContain('sharepic');
     expect(Object.keys(tools)).not.toContain('create_sharepic');
   });
+
+  // Presentation/sheet fat tools mount under the intent-matching key, only on a
+  // compound turn with a req, and never cross-mount (a presentation turn must
+  // NOT expose the sheet tool or the sharepic tool).
+  it('mounts create_presentation / create_sheet only on the matching compound intent', () => {
+    expect(
+      sharepicCatalog({ intent: 'create_presentation', compoundGeneration: true }).toolNames
+    ).toContain('create_presentation');
+    expect(
+      sharepicCatalog({ intent: 'create_sheet', compoundGeneration: true }).toolNames
+    ).toContain('create_sheet');
+    // Not compound → single-pass handler owns it, never mounted.
+    expect(
+      sharepicCatalog({ intent: 'create_presentation', compoundGeneration: false }).toolNames
+    ).not.toContain('create_presentation');
+    // No req → generator can't run.
+    expect(
+      sharepicCatalog({ intent: 'create_sheet', compoundGeneration: true, req: false }).toolNames
+    ).not.toContain('create_sheet');
+    // User disabled → respected.
+    expect(
+      sharepicCatalog({
+        intent: 'create_presentation',
+        compoundGeneration: true,
+        enabledTools: { create_presentation: false },
+      }).toolNames
+    ).not.toContain('create_presentation');
+  });
+
+  it('generation fat tools never cross-mount across intents', () => {
+    const pres = sharepicCatalog({
+      intent: 'create_presentation',
+      compoundGeneration: true,
+    }).toolNames;
+    expect(pres).toContain('create_presentation');
+    expect(pres).not.toContain('create_sheet');
+    expect(pres).not.toContain('sharepic');
+    const sheet = sharepicCatalog({ intent: 'create_sheet', compoundGeneration: true }).toolNames;
+    expect(sheet).not.toContain('create_presentation');
+    expect(sheet).not.toContain('sharepic');
+  });
 });
 
 describe('toolCatalog scrape_url', () => {

@@ -40,6 +40,7 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
@@ -216,6 +217,7 @@ NUTZE WENN:
     if (
       state.compoundGeneration === true &&
       loop.req &&
+      state.intent === 'sharepic' &&
       state.enabledTools?.['sharepic'] !== false
     ) {
       tools.sharepic = makeCreateSharepicTool({
@@ -224,6 +226,26 @@ NUTZE WENN:
         req: loop.req,
         threadId: loop.threadId ?? null,
       });
+    }
+    // Presentation/sheet fat tools (compound turns): mounted under the SAME
+    // catalog key as the classified intent so the persisted step + card
+    // rehydration stay aligned. Pure "erstelle eine Präsentation" keeps its
+    // single-pass handler (compoundGeneration is false → not mounted here).
+    if (state.compoundGeneration === true && loop.req) {
+      if (
+        state.intent === 'create_presentation' &&
+        state.enabledTools?.['create_presentation'] !== false
+      ) {
+        tools.create_presentation = makeCreateDocTool({
+          kind: 'presentation',
+          sse,
+          state,
+          req: loop.req,
+        });
+      }
+      if (state.intent === 'create_sheet' && state.enabledTools?.['create_sheet'] !== false) {
+        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+      }
     }
   }
 
