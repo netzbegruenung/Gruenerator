@@ -38,6 +38,8 @@ export const mcp_servers = pgTable('mcp_servers', {
   oauth_client_secret_encrypted: text('oauth_client_secret_encrypted'),
   oauth_meta: jsonb('oauth_meta').$type<McpOidcConfig>(),
   enabled: boolean('enabled').notNull().default(true),
+  tools_snapshot: jsonb('tools_snapshot').$type<Array<{ name: string; description: string }>>(),
+  tools_snapshot_at: timestamp('tools_snapshot_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

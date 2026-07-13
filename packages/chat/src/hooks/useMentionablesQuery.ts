@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setMcpServerMentionables,
   setSheetMentionables,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
@@ -143,6 +144,37 @@ export function useUserNotebooksQuery() {
       const list = Array.isArray(res?.collections) ? res.collections : [];
       setUserNotebookMentionables(
         list.map((n) => ({ id: n.id, title: n.name, slug: slugify(n.name) }))
+      );
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+interface McpServerListItem {
+  id: string;
+  name: string;
+  enabled: boolean;
+  description?: string | null;
+}
+
+/**
+ * User's connected external MCP servers → per-server @mentions (@notion,
+ * @brevo, …). Only enabled servers become mentions; anonymous users / no
+ * servers resolve to an empty list.
+ */
+export function useMcpServersQuery() {
+  const apiClient = useApiClient();
+  return useQuery<McpServerListItem[]>({
+    queryKey: ['mention-mcp-servers'],
+    queryFn: async () => {
+      const res = await apiClient
+        .get<{ servers?: McpServerListItem[] }>('/api/mcp/servers')
+        .catch(() => ({ servers: [] }));
+      const list = Array.isArray(res?.servers) ? res.servers.filter((s) => s.enabled) : [];
+      setMcpServerMentionables(
+        list.map((s) => ({ id: s.id, name: s.name, description: s.description }))
       );
       return list;
     },
@@ -428,6 +460,7 @@ export function useMentionablesQuery(): void {
   useDocsQuery();
   useSheetsQuery();
   useUserNotebooksQuery();
+  useMcpServersQuery();
 }
 
 /**

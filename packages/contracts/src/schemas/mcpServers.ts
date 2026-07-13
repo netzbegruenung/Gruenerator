@@ -18,6 +18,12 @@ export const mcpServerSummarySchema = z.object({
   enabled: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  // Enriched from the curated registry seed matching the URL host; drives the
+  // chat mention picker's description line. Null for uncurated custom servers.
+  description: z.string().nullish(),
+  // Cached tool names from the last successful connect (tools_snapshot); powers
+  // the composer mention hint and the classifier's server context.
+  toolNames: z.array(z.string()).nullish(),
 });
 export type McpServerSummary = z.infer<typeof mcpServerSummarySchema>;
 
