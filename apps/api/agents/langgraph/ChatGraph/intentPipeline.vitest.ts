@@ -65,8 +65,10 @@ const ALL_INTENTS: SearchIntent[] = [
   'edit_current_board',
   'modify_board',
   'share_doc',
+  'chat_history',
   'mcp',
   'direct',
+  'agentic',
 ];
 
 /**
@@ -334,6 +336,10 @@ describe('every SearchIntent has a handler path', () => {
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
     mcp: 'EXPERIMENTAL — routes to respond, controller runs mcpToolNode (external MCP tool-loop) and injects result',
+    chat_history:
+      'handled via chat_history branch in executeIntentPipeline — recall tool-loop over the own threads (flag-gated), else recallContext injection',
+    agentic:
+      'loop demotion (classifier Tier 3.5) — router routes to streamAgenticResponse; never reaches executeIntentPipeline (safety line degrades a killed loop turn to search)',
   };
 
   for (const intent of ALL_INTENTS) {

@@ -63,15 +63,12 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'bundestag',
   'abgeordnetenwatch',
   'image',
+  // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
+  // skipped the LLM classifier entirely.
+  'agentic',
 ]);
 
-export function isAgenticLoopEnabled(): boolean {
-  // test-branch: loop ON by default so it can be exercised live without env
-  // config. An explicit CHAT_AGENT_LOOP=false still disables it (escape hatch).
-  // NOTE: this differs from the master-bound PR, which keeps the opt-in
-  // (=== 'true'); do not carry this default to prod without a deliberate flip.
-  return process.env.CHAT_AGENT_LOOP !== 'false';
-}
+export { isAgenticLoopEnabled } from './flags.js';
 
 /** Tools counted against the per-turn search budget (loopGuards). */
 const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
