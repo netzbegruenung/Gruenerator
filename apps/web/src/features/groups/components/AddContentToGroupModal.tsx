@@ -21,6 +21,7 @@ import {
 import { useQueries } from '@tanstack/react-query';
 import { ChevronLeft, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FiGrid, FiMonitor } from 'react-icons/fi';
 import { HiDocumentText, HiLink } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
 
@@ -45,7 +46,15 @@ interface ContentItem {
   name?: string;
   description?: string;
   filename?: string;
+  document_subtype?: string;
 }
+
+// Office collaborative_documents share the same 'collaborative_documents'
+// content_type and the same listDocuments query, but read as distinct
+// categories in the picker (matching the workplace "Zuletzt" vocabulary):
+// spreadsheets (Univer 'sheets' + legacy HTML 'tabelle') and reveal decks.
+const SHEET_SUBTYPES = new Set(['sheets', 'tabelle']);
+const PRESENTATION_SUBTYPES = new Set(['presentations']);
 
 interface ContentCategory {
   id: CategoryId;
@@ -54,13 +63,21 @@ interface ContentCategory {
   contentType: string;
 }
 
-type CategoryId = 'collabDocs' | 'boards' | 'documents' | 'texts' | 'notebooks' | 'links';
+type CategoryId =
+  | 'collabDocs'
+  | 'sheets'
+  | 'presentations'
+  | 'boards'
+  | 'documents'
+  | 'notebooks'
+  | 'links';
 
 interface ContentState {
   collabDocs: ContentItem[];
+  sheets: ContentItem[];
+  presentations: ContentItem[];
   boards: ContentItem[];
   documents: ContentItem[];
-  texts: ContentItem[];
   notebooks: ContentItem[];
 }
 
@@ -99,13 +116,24 @@ interface AddContentToGroupModalProps {
 const CONTENT_CATEGORIES: ContentCategory[] = [
   { id: 'collabDocs', label: 'Docs', icon: HiDocumentText, contentType: 'collaborative_documents' },
   {
+    id: 'sheets',
+    label: 'Sheets',
+    icon: FiGrid as IconType,
+    contentType: 'collaborative_documents',
+  },
+  {
+    id: 'presentations',
+    label: 'Präsentationen',
+    icon: FiMonitor as IconType,
+    contentType: 'collaborative_documents',
+  },
+  {
     id: 'boards',
     label: 'Boards',
     icon: PiSquaresFour as IconType,
     contentType: 'collaborative_documents',
   },
   { id: 'documents', label: 'Dokumente', icon: HiDocumentText, contentType: 'documents' },
-  { id: 'texts', label: 'Texte', icon: HiDocumentText, contentType: 'user_documents' },
   {
     id: 'notebooks',
     label: 'Notebooks',
@@ -182,11 +210,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         enabled: isOpen,
       },
       {
-        queryKey: ['add-to-group', 'texts'],
-        queryFn: () => profileApiService.getUserTexts(),
-        enabled: isOpen,
-      },
-      {
         queryKey: ['add-to-group', 'notebooks'],
         queryFn: () => profileApiService.getNotebookCollections(),
         enabled: isOpen,
@@ -197,18 +220,24 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const isLoading = contentQueries.some((q) => q.isLoading);
 
   const content = useMemo<ContentState>(() => {
-    const [collabDocs, boards, docs, texts, notebooks] = contentQueries.map(
+    const [allCollabDocs, boards, docs, notebooks] = contentQueries.map(
       (q) => (q.data as ContentItem[] | undefined) ?? []
     );
     const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({
       id: `system:${nb.id}`,
       title: nb.title,
     }));
+    // One listDocuments query backs three doc categories; split by subtype so
+    // office items read as Sheets/Präsentationen instead of being lumped into Docs.
+    const subtypeOf = (item: ContentItem) => item.document_subtype ?? '';
     return {
-      collabDocs,
+      collabDocs: allCollabDocs.filter(
+        (d) => !SHEET_SUBTYPES.has(subtypeOf(d)) && !PRESENTATION_SUBTYPES.has(subtypeOf(d))
+      ),
+      sheets: allCollabDocs.filter((d) => SHEET_SUBTYPES.has(subtypeOf(d))),
+      presentations: allCollabDocs.filter((d) => PRESENTATION_SUBTYPES.has(subtypeOf(d))),
       boards,
       documents: docs,
-      texts,
       notebooks: [...notebooks, ...systemNotebookItems],
     };
   }, [contentQueries]);
