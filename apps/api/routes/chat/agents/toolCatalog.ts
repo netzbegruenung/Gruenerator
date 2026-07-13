@@ -40,6 +40,7 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateBoardTool,
   makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
@@ -210,41 +211,36 @@ NUTZE WENN:
     ) {
       tools.generate_image = makeImageTool({ sse, state });
     }
-    // Sharepic fat tool (Phase 3n slice): ONLY for compound research+generation
-    // turns — pure "mach ein Sharepic" keeps its direct dispatch + fixed text.
-    // Catalog key `sharepic` is load-bearing (persisted toolName drives card
-    // rehydration + follow-up edits).
-    if (
-      state.compoundGeneration === true &&
-      loop.req &&
-      state.intent === 'sharepic' &&
-      state.enabledTools?.['sharepic'] !== false
-    ) {
-      tools.sharepic = makeCreateSharepicTool({
-        sse,
-        state,
-        req: loop.req,
-        threadId: loop.threadId ?? null,
-      });
-    }
-    // Presentation/sheet fat tools (compound turns): mounted under the SAME
-    // catalog key as the classified intent so the persisted step + card
-    // rehydration stay aligned. Pure "erstelle eine Präsentation" keeps its
-    // single-pass handler (compoundGeneration is false → not mounted here).
+    // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
+    // generation KIND the router derived (from intent OR — for a demoted
+    // `agentic` turn — the text noun). Pure "mach ein Sharepic" keeps its direct
+    // dispatch + fixed text (compoundGenerationKind is null → nothing mounted).
+    // The sharepic key is load-bearing (`sharepic` drives card rehydration +
+    // follow-up edits); presentation/sheet/document persist via createdDocument;
+    // board renders from the `done` event.
     if (state.compoundGeneration === true && loop.req) {
-      if (
-        state.intent === 'create_presentation' &&
-        state.enabledTools?.['create_presentation'] !== false
-      ) {
+      const kind = state.compoundGenerationKind;
+      const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
+      if (kind === 'sharepic' && enabled('sharepic')) {
+        tools.sharepic = makeCreateSharepicTool({
+          sse,
+          state,
+          req: loop.req,
+          threadId: loop.threadId ?? null,
+        });
+      } else if (kind === 'presentation' && enabled('create_presentation')) {
         tools.create_presentation = makeCreateDocTool({
           kind: 'presentation',
           sse,
           state,
           req: loop.req,
         });
-      }
-      if (state.intent === 'create_sheet' && state.enabledTools?.['create_sheet'] !== false) {
+      } else if (kind === 'sheet' && enabled('create_sheet')) {
         tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+      } else if (kind === 'document' && enabled('create_document')) {
+        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+      } else if (kind === 'board' && enabled('create_board')) {
+        tools.create_board = makeCreateBoardTool({ state, req: loop.req });
       }
     }
   }

@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
+  compoundGenerationKind,
   decideRunAgentic,
 } from './routing.js';
 
@@ -353,5 +354,63 @@ describe('looksLikeCompoundGeneration', () => {
     expect(
       looksLikeCompoundGeneration('Suche nach "Sharepic Vorlagen" und fasse die Fakten zusammen')
     ).toBe(true);
+  });
+});
+
+// compoundGenerationKind decides WHICH fat tool mounts. The critical cases are
+// the DEMOTED (`agentic`) turns: the classifier only reached direct@0.50 for
+// "mach mir eine Tabelle", so the kind must be recovered from the text noun.
+describe('compoundGenerationKind', () => {
+  it('uses the explicit generation intent when the classifier named it', () => {
+    expect(compoundGenerationKind('sharepic', 'Recherchiere X und mach ein Sharepic')).toBe(
+      'sharepic'
+    );
+    expect(
+      compoundGenerationKind('create_presentation', 'Recherchiere X und erstelle eine Präsentation')
+    ).toBe('presentation');
+    expect(compoundGenerationKind('create_sheet', 'Such Zahlen und mach eine Tabelle')).toBe(
+      'sheet'
+    );
+  });
+
+  it('recovers the kind from the text noun on a DEMOTED `agentic` turn (the sheet bug)', () => {
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Such die aktuellen Zahlen zu Balkonkraftwerken und mach mir eine Tabelle draus'
+      )
+    ).toBe('sheet');
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere Artenschutz und mach ein Board dazu')
+    ).toBe('board');
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein Dokument dazu')).toBe(
+      'document'
+    );
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und mach Folien daraus')).toBe(
+      'presentation'
+    );
+    expect(compoundGenerationKind('direct', 'Such Fakten und mach ein Sharepic')).toBe('sharepic');
+  });
+
+  it('returns null without a research signal (pure generation stays single-pass)', () => {
+    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
+  });
+
+  it('returns null for a non-generation turn even with a research signal', () => {
+    expect(compoundGenerationKind('search', 'Recherchiere die Position zum Tempolimit')).toBe(null);
+    expect(compoundGenerationKind('agentic', 'Wie hat die Fraktion abgestimmt?')).toBe(null);
+  });
+
+  it('prefers the most specific artifact when the text names several', () => {
+    // sharepic (most specific product) wins over the generic "Dokument".
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X, mach ein Sharepic und ein Dokument')
+    ).toBe('sharepic');
   });
 });
