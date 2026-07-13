@@ -12,15 +12,7 @@ import {
   PopoverTrigger,
   StatusBanner,
 } from '@gruenerator/ui';
-import {
-  type JSX,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { type JSX, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
 import rehypeRaw from 'rehype-raw';
