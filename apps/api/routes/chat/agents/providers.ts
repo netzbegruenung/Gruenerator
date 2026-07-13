@@ -385,19 +385,74 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
   return provider === 'mistral';
 }
 
-/** Model name used for the split's tool-gathering phase (see getLoopPlannerModel). */
-export const LOOP_PLANNER_MODEL = LITELLM_DEFAULT_MODEL;
+/**
+ * Split-mode model policy — the planner/executor split gives us two independent
+ * slots, so we point each at its best NON-CHINESE model instead of forcing the
+ * user's (often slow) lane model into both roles:
+ *
+ *  - PLANNER (gather): needs fast, reliable NATIVE tool-calling; its prose is
+ *    discarded. Prefer the cheaper regolo Mistral-small-4 (verified tool-caller,
+ *    the user's requested tool model); fall back to always-up litellm/verdigado-
+ *    pro when regolo is absent (it proved flaky in the test env — steps=0).
+ *  - SYNTH (write): needs the best GERMAN WRITER and must NEVER be a reasoning
+ *    model — litellm/verdigado-think as the synthesizer is the 18–76s latency
+ *    culprit. For `auto` (and any think-lane selection) we write with gemma-4
+ *    (best prose, 31b = fast); an explicit non-think model selection is honored.
+ *
+ * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
+ */
+const LOOP_PLANNER_PRIMARY = { provider: 'regolo' as const, model: 'mistral-small-4-119b' };
+const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
+const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+
+/** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
+ *  Chinese lanes (qwen — excluded by policy), and gpt-oss (verified tool-call
+ *  fail / reasoning leak). Any of these in the synth slot is rewritten to the
+ *  best-writer lane. */
+const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
+
+function loopPlannerChoice(): { provider: Provider; model: string } {
+  return isProviderConfigured('regolo') ? LOOP_PLANNER_PRIMARY : LOOP_PLANNER_FALLBACK;
+}
+
+function loopSynthWriterChoice(): { provider: Provider; model: string } {
+  return isProviderConfigured('regolo') ? LOOP_SYNTH_PRIMARY : LOOP_SYNTH_FALLBACK;
+}
+
+/** Human-readable planner model name (for the [Agentic] log line). */
+export function loopPlannerModelName(): string {
+  return loopPlannerChoice().model;
+}
+
+export function getLoopPlannerModel(): LanguageModel {
+  const p = loopPlannerChoice();
+  return getModel(p.provider, p.model);
+}
 
 /**
- * Model that runs the tool-gathering phase of the planner/executor split. Must
- * be a FAST, RELIABLE, NATIVE tool-caller. Pinned to litellm/verdigado-pro
- * (confirmed to emit tool_calls in aiController, EU-hosted, and demonstrably up
- * — the classifier already routes through litellm) rather than the regolo
- * INTERMEDIATE_MODEL, which proved unavailable in the test env: the planner
- * failed, the gather catch swallowed it, and turns came back steps=0 / ungrounded.
+ * Synthesizer for the split's write phase. `auto` (or any think-lane selection)
+ * writes with the best-writer lane; an explicit fast model is honored as-is.
+ * Returns the name too so the caller can log which model actually wrote.
  */
-export function getLoopPlannerModel(): LanguageModel {
-  return getModel('litellm', LOOP_PLANNER_MODEL);
+/** Pure synth-model DECISION (no model instantiation) — env-free & unit-testable.
+ *  `null` provider means "honor the resolved model as-is". */
+export function loopSynthChoice(
+  resolvedModelName: string,
+  isAuto: boolean
+): { provider: Provider | null; model: string } {
+  const useWriter = isAuto || AVOID_AS_SYNTH.test(resolvedModelName);
+  if (!useWriter) return { provider: null, model: resolvedModelName };
+  return loopSynthWriterChoice();
+}
+
+export function getLoopSynthModel(
+  resolution: { model: LanguageModel; modelName: string },
+  isAuto: boolean
+): { model: LanguageModel; name: string } {
+  const choice = loopSynthChoice(resolution.modelName, isAuto);
+  if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
+  return { model: getModel(choice.provider, choice.model), name: choice.model };
 }
 
 /**
