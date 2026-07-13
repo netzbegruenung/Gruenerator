@@ -53,10 +53,14 @@ import type {
   ImageAttachment,
   ThreadAttachment,
   UserLocale,
+  ClientPlatform,
+  SocialTextPlatform,
+  SocialPostPayload,
   ChartData,
   ComputeData,
   ResearchToolResult,
   ExamplesToolResult,
+  BtEnrichedResult,
   DocumentSource,
   SynthesisMode,
   WolkeFileRef,
@@ -93,6 +97,9 @@ const ChatStateAnnotation = Annotation.Root({
   userLocale: Annotation<UserLocale>({
     reducer: (x, y) => y ?? x,
   }),
+  clientPlatform: Annotation<ClientPlatform>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Attachment context
   attachmentContext: Annotation<string | null>({
@@ -105,6 +112,9 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? [],
   }),
   hasTabularAttachment: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  clientCanRunPython: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
   }),
 
@@ -142,6 +152,14 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
+  // Sheet context (from @sheet mentions)
+  sheetIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  sheetContext: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
   // Collaborative document context (from @doc mentions)
   docMentionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
@@ -153,6 +171,10 @@ const ChatStateAnnotation = Annotation.Root({
   // Connected-account (Nango) file refs selected via @connect mentionable.
   connectFiles: Annotation<ConnectFileRef[]>({
     reducer: (x, y) => y ?? x ?? [],
+  }),
+  attachedWebpageUrls: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+    default: () => [],
   }),
   // Current open document in the docs editor (primary context for docs surface)
   currentDocument: Annotation<CurrentDocument | null>({
@@ -257,7 +279,7 @@ const ChatStateAnnotation = Annotation.Root({
   targetGroupName: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
-  platform: Annotation<'instagram' | 'facebook' | null>({
+  platform: Annotation<SocialTextPlatform | null>({
     reducer: (x, y) => y ?? x ?? null,
   }),
 
@@ -287,6 +309,10 @@ const ChatStateAnnotation = Annotation.Root({
   }),
 
   examplesResult: Annotation<ExamplesToolResult | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  bundestagResult: Annotation<BtEnrichedResult | null>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -368,6 +394,11 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   summaryTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
+  }),
+
+  // Combined social post (EXPERIMENTAL): text half of the social_post intent
+  socialPostResult: Annotation<SocialPostPayload | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Chart generation
@@ -494,12 +525,21 @@ function routeAfterClassification(
     return 'respond';
   }
 
+  // EXPERIMENTAL mcp intent = route to respond; the controller runs mcpToolNode
+  // (external MCP tool-loop) and injects the aggregated result into the prompt.
+  if (intent === 'mcp') {
+    log.info('[ChatGraph] Route: classifier → respond (mcp handled by controller)');
+    return 'respond';
+  }
+
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
   // edit_current_doc also falls here: respondNode generates a brief confirmation
   // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
   // SSE event the docs-editor frontend dispatches into BlockNote's AI extension.
   if (
     intent === 'save_as_doc' ||
+    intent === 'create_sheet' ||
+    intent === 'create_presentation' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
     intent === 'edit_current_board' ||
@@ -519,8 +559,12 @@ function routeAfterClassification(
     web: 'web',
     scrape_url: 'scrape',
     examples: 'examples',
+    // Combined post rides the examples search; its sharepic half is gated
+    // separately in the execution stage (production path).
+    social_post: 'examples',
     pressemitteilung_examples: 'pressemitteilung_examples',
     abgeordnetenwatch: 'abgeordnetenwatch',
+    bundestag: 'bundestag',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -534,7 +578,13 @@ function routeAfterClassification(
     modify_board: 'modify_board',
     edit_current_board: 'edit_current_board',
     share_doc: 'share_doc',
+    create_sheet: 'create_sheet',
+    create_presentation: 'create_presentation',
+    chat_history: 'chat_history',
+    mcp: 'mcp',
     direct: 'direct',
+    // Demoted loop turns are never user-disableable (the loop gates its own tools).
+    agentic: 'direct',
   };
 
   const toolKey = intentToToolKey[intent];
@@ -762,12 +812,14 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     },
     aiWorkerPool: input.aiWorkerPool,
     userLocale: input.userLocale || 'de-DE',
+    clientPlatform: input.clientPlatform || 'web',
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
+    clientCanRunPython: input.clientCanRunPython ?? false,
 
     // Notebook scoping
     notebookIds: input.notebookIds || [],
@@ -790,6 +842,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     boardIds: input.boardIds || [],
     boardContext: null,
 
+    // Sheet context (from @sheet mentions, populated by controller)
+    sheetIds: input.sheetIds || [],
+    sheetContext: null,
+
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],
     documentMentionContext: null,
@@ -799,6 +855,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Connected-account (Nango) file refs (from @connect mentionable)
     connectFiles: input.connectFiles || [],
+
+    // URLs attached via @web mentionable (unioned into detectedUrls by classifier)
+    attachedWebpageUrls: input.attachedWebpageUrls || [],
 
     // Current open document (docs editor surface)
     currentDocument: input.currentDocument || null,
@@ -854,6 +913,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     researchBrief: null,
     researchMeta: null,
     examplesResult: null,
+    bundestagResult: null,
 
     // Search results (will be set by search node)
     searchResults: [],
@@ -882,6 +942,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Document summarization (will be set by summarizeNode)
     summaryContext: null,
     summaryTimeMs: 0,
+
+    // Combined social post (set by the execution stage for social_post)
+    socialPostResult: null,
 
     // Chart generation (will be set by chart node)
     chartData: null,

@@ -13,6 +13,7 @@ import {
   AssistantRuntimeProvider,
   useLocalRuntime,
   useAui,
+  useAuiState,
   Tools,
   Suggestions,
   useRemoteThreadListRuntime,
@@ -73,16 +74,35 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const history = useMemo(
     () => ({
       async load() {
-        let remoteId: string | undefined;
+        let remoteId: string | null;
         try {
-          const result = await aui.threadListItem().initialize();
-          remoteId = result.remoteId;
+          const itemState = aui.threadListItem().getState();
+          remoteId = itemState.status === 'new' ? null : (itemState.remoteId ?? null);
         } catch (err) {
           console.warn('[History] Thread entry not available (likely deleted):', err);
           return { messages: [] };
         }
 
-        if (remoteId) {
+        if (!remoteId) {
+          // Fresh draft: no server-side thread yet. assistant-ui's run-start
+          // hook calls adapter.initialize() on the first message send, so an
+          // abandoned draft never creates an empty "Neue Unterhaltung" row.
+          useAgentStore.getState().setCurrentThread(null);
+          const initialMsg = useAgentStore.getState().pendingInitialAssistantMessage;
+          if (initialMsg) {
+            useAgentStore.getState().setPendingInitialAssistantMessage(null);
+            return ExportedMessageRepository.fromArray([
+              {
+                role: 'assistant' as const,
+                content: [{ type: 'text' as const, text: initialMsg }],
+                id: 'initial_draft',
+              },
+            ]);
+          }
+          return { messages: [] };
+        }
+
+        {
           useAgentStore.getState().setCurrentThread(remoteId);
 
           try {
@@ -285,10 +305,31 @@ function useGrueneratorThreadRuntime() {
 }
 
 /**
+ * Keeps the store's currentThreadId in lockstep with the active main thread.
+ * history.load() only runs once per thread runtime instance, so switching
+ * A → draft → back to A would leave a stale id — with lazy thread creation
+ * a send in A would then hit the backend with threadId null and mint a wrong
+ * new thread. Also nulls the persisted currentThreadId on boot (the initial
+ * draft is main); the thread URL is the restore mechanism now.
+ */
+function MainThreadSyncEffect() {
+  const mainRemoteId = useAuiState(
+    (s) => s.threads.threadItems.find((t) => t.id === s.threads.mainThreadId)?.remoteId ?? null
+  );
+
+  useEffect(() => {
+    useAgentStore.getState().setCurrentThread(mainRemoteId);
+  }, [mainRemoteId]);
+
+  return null;
+}
+
+/**
  * Watches for first message completion and triggers title generation.
- * Assistant UI's built-in trigger never fires because initialize() pre-creates
- * the thread (status transitions to "regular" before the first message).
- * This effect bypasses that by calling generateTitle() directly via aui.
+ * With lazy initialize(), assistant-ui's built-in runEnd trigger fires for
+ * new threads; this effect stays as the trigger for legacy pre-created
+ * threads (status already "regular" before the first message). The adapter's
+ * generateTitle dedupes so double invocation runs its side effects once.
  */
 function ThreadTitleEffect() {
   const aui = useAui();
@@ -399,6 +440,7 @@ export function GrueneratorChatRuntimeProvider({
     <ChatRuntimeReadyProvider>
       <AssistantRuntimeProvider aui={aui} runtime={runtime}>
         <ExternalThreadProvider value={externalCtx}>
+          <MainThreadSyncEffect />
           <ThreadTitleEffect />
           <AgentSwitchListener />
           {threadListPortalSlotId && (

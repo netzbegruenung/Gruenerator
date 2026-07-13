@@ -1,5 +1,7 @@
 import { memo, useCallback } from 'react';
 
+import { HIDDEN_SCROLLBAR } from './sidebarStyles';
+
 import { cn } from '../utils/cn';
 
 export interface WebSubsection {
@@ -22,7 +24,7 @@ export const WebSubsectionBar = memo(function WebSubsectionBar({
 
   return (
     <div className="fixed bottom-[var(--mobile-tab-bar-height,60px)] left-0 right-0 bg-background border-t border-t-grey-200 dark:border-t-grey-700 z-[100]">
-      <div className="flex items-center gap-1 px-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]">
+      <div className={cn('flex items-center gap-1 px-2 overflow-x-auto', HIDDEN_SCROLLBAR)}>
         {subsections.map((sub) => (
           <SubsectionItem
             key={sub.id}

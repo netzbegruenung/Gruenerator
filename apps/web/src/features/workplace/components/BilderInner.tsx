@@ -856,7 +856,7 @@ const BilderInner: React.FC = memo(() => {
         createImageShare({
           imageData: base64,
           title: trimmed.slice(0, 100),
-          imageType: 'imagine',
+          imageType: 'pure-create',
           status: 'ready',
           metadata: { prompt: trimmed },
         })
@@ -901,7 +901,7 @@ const BilderInner: React.FC = memo(() => {
       createImageShare({
         imageData: base64,
         title: trimmed.slice(0, 100),
-        imageType: 'edit',
+        imageType: 'universal-edit',
         status: 'ready',
         metadata: {
           prompt: trimmed,
@@ -951,7 +951,7 @@ const BilderInner: React.FC = memo(() => {
       createImageShare({
         imageData: base64,
         title: trimmed.slice(0, 100),
-        imageType: 'edit',
+        imageType: 'green-edit',
         status: 'ready',
         metadata: {
           prompt: trimmed,
@@ -982,7 +982,7 @@ const BilderInner: React.FC = memo(() => {
         createImageShare({
           imageData: base64,
           title: title.slice(0, 100),
-          imageType: 'edit',
+          imageType: 'universal-edit',
           status: 'ready',
           metadata: { sourceFilename: file.name, editType: 'remove-background' },
         })
@@ -1069,7 +1069,7 @@ const BilderInner: React.FC = memo(() => {
       createImageShare({
         imageData: base64,
         title: title.slice(0, 100),
-        imageType: 'imagine',
+        imageType: 'pure-create',
         status: 'ready',
         metadata: {
           sourceFilename: sourceFile.name,
@@ -1280,7 +1280,7 @@ const BilderInner: React.FC = memo(() => {
     handlePickFromLibrary,
   ]);
 
-  const toolbar = useMemo(
+  const pillLeading = useMemo(
     () => (
       <>
         <SettingsDropdown
@@ -1288,34 +1288,63 @@ const BilderInner: React.FC = memo(() => {
           value={subMode}
           onChange={(val) => setSubMode(val as SubMode)}
         />
-        <BilderSettingsMenu
-          settings={isErstellen ? (erstellenDef?.settings ?? []) : []}
-          settingsValues={modeState}
-          onSettingChange={(key, val) => updateField(key, val)}
-          modelValue={
-            isErstellen || isBearbeiten ? (selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID) : null
-          }
-          onModelChange={handleModelChange}
-          format={
-            isErstellen && supportsCustomDims
-              ? {
-                  config: CREATE_FORMAT_CONFIG,
-                  value: createFormat,
-                  onChange: (val) => setCreateFormat(val as CreateFormat),
-                }
-              : isVergroessern
-                ? {
-                    config: ASPECT_RATIO_CONFIG,
-                    value: aspectRatio,
-                    onChange: (val) => setAspectRatio(val as AspectRatio),
-                  }
-                : null
-          }
-          kiLabel={isHintergrund ? null : kiLabel}
-          onKiLabelChange={setKiLabel}
-        />
-        {isBearbeiten && referencePillRow}
         {(isBegruenen || isHintergrund) && filePickerPill}
+      </>
+    ),
+    [subMode, isBegruenen, isHintergrund, filePickerPill]
+  );
+
+  const settingsMenu = useMemo(
+    () => (
+      <BilderSettingsMenu
+        settings={isErstellen ? (erstellenDef?.settings ?? []) : []}
+        settingsValues={modeState}
+        onSettingChange={(key, val) => updateField(key, val)}
+        modelValue={
+          isErstellen || isBearbeiten ? (selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID) : null
+        }
+        onModelChange={handleModelChange}
+        format={
+          isErstellen && supportsCustomDims
+            ? {
+                config: CREATE_FORMAT_CONFIG,
+                value: createFormat,
+                onChange: (val) => setCreateFormat(val as CreateFormat),
+              }
+            : isVergroessern
+              ? {
+                  config: ASPECT_RATIO_CONFIG,
+                  value: aspectRatio,
+                  onChange: (val) => setAspectRatio(val as AspectRatio),
+                }
+              : null
+        }
+        kiLabel={isHintergrund ? null : kiLabel}
+        onKiLabelChange={setKiLabel}
+      />
+    ),
+    [
+      isErstellen,
+      isBearbeiten,
+      isVergroessern,
+      isHintergrund,
+      erstellenDef?.settings,
+      modeState,
+      updateField,
+      selectedImageModel,
+      handleModelChange,
+      supportsCustomDims,
+      createFormat,
+      aspectRatio,
+      kiLabel,
+      setKiLabel,
+    ]
+  );
+
+  const pillBelow = useMemo(
+    () => (
+      <>
+        {isBearbeiten && referencePillRow}
         {((isVergroessern && isCustomAspect) ||
           (isErstellen && supportsCustomDims && createFormat === 'custom')) && (
           <span
@@ -1355,12 +1384,9 @@ const BilderInner: React.FC = memo(() => {
       </>
     ),
     [
-      subMode,
       isErstellen,
       isBearbeiten,
-      isBegruenen,
       isVergroessern,
-      isHintergrund,
       isCustomAspect,
       customWidth,
       customHeight,
@@ -1368,16 +1394,7 @@ const BilderInner: React.FC = memo(() => {
       createFormat,
       createCustomValid,
       supportsCustomDims,
-      erstellenDef?.settings,
-      modeState,
-      updateField,
-      selectedImageModel,
-      handleModelChange,
-      filePickerPill,
       referencePillRow,
-      aspectRatio,
-      kiLabel,
-      setKiLabel,
       usage,
     ]
   );
@@ -1426,6 +1443,8 @@ const BilderInner: React.FC = memo(() => {
       />
 
       <AIPromptInput
+        variant="pill"
+        className="max-w-[720px]"
         useDictation={useVoxtralDictation}
         value={prompt}
         onChange={setPrompt}
@@ -1434,7 +1453,9 @@ const BilderInner: React.FC = memo(() => {
         error={error}
         placeholder={activeDef?.placeholder ?? ''}
         examples={activeDef?.examples}
-        toolbar={toolbar}
+        leading={pillLeading}
+        toolbar={settingsMenu}
+        belowRow={pillBelow}
         inputAreaOverride={isVergroessern ? vergroessernDropZone : undefined}
         canSubmit={
           isVergroessern

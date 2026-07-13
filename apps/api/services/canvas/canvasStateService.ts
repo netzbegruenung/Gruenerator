@@ -24,7 +24,25 @@ export interface CanvasPageDef {
   id: string;
   configId: string;
   state: Record<string, unknown>;
+  /** Optional free-element layers/config (serialized deck seeds). */
+  layers?: Array<Record<string, unknown>>;
+  config?: Record<string, unknown>;
 }
+
+/** Seed input: like CanvasPageDef but the id may be absent (assigned deterministically). */
+type SeedPageInput = Omit<CanvasPageDef, 'id'> & { id?: unknown };
+
+const isSeedPageArray = (v: unknown): v is SeedPageInput[] =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.every(
+    (p) =>
+      !!p &&
+      typeof p === 'object' &&
+      typeof (p as SeedPageInput).configId === 'string' &&
+      typeof (p as SeedPageInput).state === 'object' &&
+      (p as SeedPageInput).state !== null
+  );
 
 interface InternalStateResponse {
   state: Record<string, unknown>;
@@ -133,6 +151,47 @@ export async function applyCanvasStatePatch(
   );
 
   log.info(`Patched canvas ${canvasId} (${Object.keys(patch).length} key(s), yjs=${internalOk})`);
+}
+
+/**
+ * Authoritatively seed a freshly created canvas's Yjs pages server-side,
+ * BEFORE any studio tab opens. The internal endpoint stamps the
+ * `meta.pagesSeeded` watermark so a client never writes template defaults
+ * over it. Uses the client's deterministic seed ids (`seed-<index>`) so a
+ * racing client seed converges onto the same pages instead of duplicating
+ * the deck. Tolerant: on failure the client seed is the fallback.
+ */
+export async function seedCanvasPages(
+  canvasId: string,
+  templateType: string,
+  initialState: Record<string, unknown>
+): Promise<void> {
+  // Accept page defs WITHOUT ids too (client-composed InitialPageDef shape)
+  // and assign the same deterministic ids the client would — collapsing them
+  // to a single page would watermark the doc and permanently block the
+  // client's multi-page fallback seed.
+  const statePages = initialState.pages;
+  const pages: CanvasPageDef[] = isSeedPageArray(statePages)
+    ? statePages.map((p, i) => ({ ...p, id: typeof p.id === 'string' ? p.id : `seed-${i}` }))
+    : [
+        {
+          id: 'seed-0',
+          configId: templateType,
+          state: Object.fromEntries(Object.entries(initialState).filter(([k]) => k !== 'pages')),
+        },
+      ];
+  try {
+    const res = await internalFetch(`/internal/canvas/${encodeURIComponent(canvasId)}/state`, {
+      method: 'POST',
+      body: JSON.stringify({ seedPages: pages }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`internal POST returned ${res.status}: ${text.slice(0, 200)}`);
+    }
+  } catch (err) {
+    log.warn(`Page seed for ${canvasId} failed (client seed is the fallback): ${err}`);
+  }
 }
 
 // ---------------------------------------------------------------------------

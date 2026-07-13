@@ -4,7 +4,16 @@ import { GlobalFonts } from '@napi-rs/canvas';
 
 import { createLogger } from '../../../utils/logger.js';
 
-import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH } from './config.js';
+import {
+  FONT_PATH,
+  PTSANS_REGULAR_PATH,
+  PTSANS_BOLD_PATH,
+  SUNFLOWER_PATH,
+  GOTHAM_ULTRA_PATH,
+  GOTHAM_BOOK_PATH,
+  GOTHAM_BOLD_PATH,
+  VOLLKORN_ITALIC_PATH,
+} from './config.js';
 
 const log = createLogger('fileManagement');
 
@@ -48,6 +57,11 @@ export function registerFonts(): void {
     { path: FONT_PATH, family: 'GrueneTypeNeue', name: 'GrueneTypeNeue' },
     { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
     { path: PTSANS_BOLD_PATH, family: 'PTSans-Bold', name: 'PTSans Bold' },
+    // Österreich (de-AT) — Gotham Narrow + Vollkorn (CI 2026)
+    { path: GOTHAM_ULTRA_PATH, family: 'GothamNarrow-Ultra', name: 'Gotham Narrow Ultra' },
+    { path: GOTHAM_BOOK_PATH, family: 'GothamNarrow-Book', name: 'Gotham Narrow Book' },
+    { path: GOTHAM_BOLD_PATH, family: 'GothamNarrow-Bold', name: 'Gotham Narrow Bold' },
+    { path: VOLLKORN_ITALIC_PATH, family: 'Vollkorn', name: 'Vollkorn Italic' },
   ];
 
   for (const font of fonts) {

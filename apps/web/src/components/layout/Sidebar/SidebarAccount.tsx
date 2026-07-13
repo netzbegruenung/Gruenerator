@@ -14,7 +14,7 @@ import {
 } from '@gruenerator/ui';
 import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
-import { PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
+import { PiCompass, PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -108,6 +108,17 @@ const SidebarAccount = memo(function SidebarAccount({
       <DropdownMenuItem onClick={() => onNavigate('/support', 'Support')}>
         <PiQuestion className="size-4" />
         <span>Support</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => {
+          onNavigate('/workplace', 'Workplace');
+          void import('../../../features/tours/workplaceTour').then((m) =>
+            m.startWorkplaceTour((path) => onNavigate(path, ''))
+          );
+        }}
+      >
+        <PiCompass className="size-4" />
+        <span>Tour starten</span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       {/* Theme + logout share one row to save vertical space. */}

@@ -34,6 +34,8 @@ export const chatThreads = pgTable(
     doc_id: uuid('doc_id'),
     // Auto-generated + user-editable topic tags for sidebar filtering/search.
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    // Stable 6-char key for Notion-style thread URLs (/chat/<titel>-<suffix>).
+    slug_suffix: text('slug_suffix'),
   },
   (t) => [index('idx_chat_threads_tags').using('gin', t.tags)]
 );

@@ -1,7 +1,6 @@
 import { FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { PiGlobe } from 'react-icons/pi';
-import { SlNotebook } from 'react-icons/sl';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
@@ -24,7 +23,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
+  { key: 'verbindungen', label: 'Verbindungen', path: '/profile/verbindungen', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
 ];
 
@@ -39,6 +38,9 @@ export interface MenuItemType {
   items?: MenuItemType[];
   badge?: BadgeType;
   activePaths?: string[];
+  /** Exact-match highlights (no prefix logic) — for parent entries whose
+   * subpaths belong to sibling entries (e.g. /workplace vs. /workplace/wissen). */
+  exactActivePaths?: string[];
   /**
    * Query-param requirements for the item to be considered active. Useful when
    * multiple sidebar entries share the same path (e.g. /chat?agent=X vs.
@@ -57,6 +59,9 @@ export interface MenuSection {
 // Direct menu items result type
 export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
+/** The sidebar entry that opens the global search palette rather than a route. */
+export const GLOBAL_SEARCH_ITEM_ID = 'globalSearch';
+
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
@@ -67,24 +72,19 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
+    // Exact tab paths only — a /workplace prefix would also claim the Wissen
+    // tab, which the dedicated entry below highlights.
+    exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
   };
 
-  items.docs = {
-    id: 'docs',
-    path: '/docs',
-    title: 'Dokumente und Boards',
-    description: 'Dokumente & Präsentationen',
-    icon: getIcon('navigation', 'docs'),
-    activePaths: ['/docs'],
-  };
-
-  items.notebooks = {
-    id: 'notebooks',
-    path: '/notebooks',
-    title: 'Notebooks',
-    description: 'Suche, Wissensmanagement & Dokumentenrecherche',
-    icon: SlNotebook,
-    activePaths: ['/notebooks', '/notebook'],
+  // No `path`: the sidebar opens the global search palette instead of
+  // navigating. Consumers that render nav targets (DesktopHome, featureIndex)
+  // already skip path-less entries.
+  items.globalSearch = {
+    id: GLOBAL_SEARCH_ITEM_ID,
+    title: 'Suche',
+    description: 'Alles durchsuchen',
+    icon: getIcon('ui', 'search'),
   };
 
   if (import.meta.env.DEV) {
@@ -97,17 +97,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
       activePaths: ['/sites'],
     };
   }
-
-  // Studio is prod-visible (gallery + Imagine + Reel). The canvas-based sharepic
-  // creation behind it is a public research preview gated by SHOW_SHAREPIC_STUDIO.
-  items.studio = {
-    id: 'studio',
-    path: '/studio',
-    title: 'Studio',
-    description: 'Sharepics, KI-Bilder und Videos',
-    icon: getIcon('navigation', 'sharepic'),
-    activePaths: ['/studio'],
-  };
 
   return items;
 };

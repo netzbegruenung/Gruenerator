@@ -6,9 +6,11 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
+import { socialPostPayloadSchema, bundestagPayloadSchema } from '@gruenerator/contracts';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import {
   coerceSharepicVariants,
+  type ComputeData,
   type GeneratedImage,
   type Citation,
   type SearchResult,
@@ -33,6 +35,7 @@ export interface LoadedMessage {
     searchResults?: SearchResult[];
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
+    computeData?: ComputeData;
     agentId?: string;
     toolCalls?: PersistedToolCall[];
     senderId?: string;
@@ -84,6 +87,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',
   'generatedImage',
   'createdDocument',
+  'computeData',
   'agentId',
   'roleName',
 ] as const;
@@ -121,6 +125,23 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
   );
   if (validSharepicVariants) custom.sharepicData = { variants: validSharepicVariants };
+
+  // Tool-derived: EXPERIMENTAL combined social post (text half). Validate on
+  // reload the same way the live stream's Zod wire schema does; the persisted
+  // result additionally carries `versions`, which the head schema ignores.
+  const socialPostCall = metadata.toolCalls?.find((tc) => tc.toolName === 'social_post');
+  if (socialPostCall?.result) {
+    const parsedPost = socialPostPayloadSchema.safeParse(socialPostCall.result);
+    if (parsedPost.success) custom.socialPostData = parsedPost.data;
+  }
+
+  // Tool-derived: Bundestag/DIP card. The persisted `bundestag` tool result is
+  // the same BundestagPayload the live stream sends — validate it identically.
+  const bundestagCall = metadata.toolCalls?.find((tc) => tc.toolName === 'bundestag');
+  if (bundestagCall?.result) {
+    const parsedBt = bundestagPayloadSchema.safeParse(bundestagCall.result);
+    if (parsedBt.success) custom.bundestagData = parsedBt.data;
+  }
 
   // Tool-derived: reel cards. The persisted tool results carry payloads
   // identical to the reel_processing / reel_picker SSE events.

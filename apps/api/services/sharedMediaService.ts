@@ -3,10 +3,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
 
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
+import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import type {
   SharedMediaRow,
@@ -32,6 +34,16 @@ const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
 const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
 const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
+
+/**
+ * Statuses a user sees in their own creation listings (galleries, recent
+ * strips). Canvas autosave writes 'draft' and only an explicit publish
+ * promotes to 'ready', so user-facing lists must include drafts — a
+ * ready-only filter permanently hides autosaved work. Surfaces that
+ * intentionally narrow (the curated media library is ready-only) should pass
+ * an explicit status instead of duplicating the policy in raw SQL.
+ */
+export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
 
 // Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
 // with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
@@ -233,7 +245,13 @@ class SharedMediaService {
     await this.ensureInitialized();
 
     try {
-      const countQuery = `SELECT COUNT(*) as count FROM shared_media WHERE user_id = $1`;
+      // Internal artifacts (canvas/chat thumbnails, template previews —
+      // is_library_item = FALSE) neither count against the user's quota nor
+      // get evicted: they are referenced by canvas_documents.thumbnail_url,
+      // and evicting one silently blanks that document's gallery preview.
+      // Their lifecycle is delete-on-replace in updateCanvas instead.
+      const countQuery = `SELECT COUNT(*) as count FROM shared_media
+                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
       const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
       const count = parseInt(countResult?.count ?? '0', 10);
 
@@ -244,7 +262,7 @@ class SharedMediaService {
                     WITH oldest AS (
                         SELECT id, share_token, file_path, thumbnail_path
                         FROM shared_media
-                        WHERE user_id = $1
+                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
                         ORDER BY created_at ASC
                         LIMIT $2
                     )
@@ -645,7 +663,8 @@ class SharedMediaService {
   async getUserShares(
     userId: string,
     mediaType: 'image' | 'video' | null = null,
-    status: string | null = null
+    status: string | readonly string[] | null = null,
+    limit: number = 100
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -655,9 +674,10 @@ class SharedMediaService {
                        duration, image_type, image_metadata, status, download_count, created_at
                 FROM shared_media
                 WHERE user_id = $1
+                  AND (upload_source IS NULL OR upload_source != ALL($2))
             `;
-      const params: unknown[] = [userId];
-      let paramIndex = 2;
+      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
+      let paramIndex = 3;
 
       if (mediaType) {
         query += ` AND media_type = $${paramIndex}`;
@@ -665,13 +685,18 @@ class SharedMediaService {
         paramIndex++;
       }
 
-      if (status) {
+      if (Array.isArray(status)) {
+        query += ` AND status = ANY($${paramIndex})`;
+        params.push(status);
+        paramIndex++;
+      } else if (status) {
         query += ` AND status = $${paramIndex}`;
         params.push(status);
         paramIndex++;
       }
 
-      query += ` ORDER BY created_at DESC LIMIT 100`;
+      query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
+      params.push(Math.min(Math.max(1, Math.trunc(limit)), 100));
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
       return results;
@@ -828,6 +853,8 @@ class SharedMediaService {
     const { type = 'all', search = null, limit = 50, offset = 0, sort = 'newest' } = filters;
 
     try {
+      // Intentionally narrower than USER_VISIBLE_SHARE_STATUSES: the media
+      // library is a curated asset pool, drafts stay out until published.
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
@@ -849,7 +876,7 @@ class SharedMediaService {
 
       if (search) {
         query += ` AND (title ILIKE $${paramIndex} OR alt_text ILIKE $${paramIndex})`;
-        params.push(`%${search}%`);
+        params.push(likeContainsPattern(search));
         paramIndex++;
       }
 
@@ -998,12 +1025,19 @@ class SharedMediaService {
         }
       }
 
+      // Non-library sources (gallery thumbnails, canvas-element tool output) are
+      // internal artifacts — keep them out of the Mediathek (getMediaLibrary
+      // filters on is_library_item).
+      const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(
+        uploadSource
+      );
+
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
                  image_metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', TRUE, $10, $11, $12, $13)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14)
                 RETURNING id, share_token, created_at
             `;
 
@@ -1021,6 +1055,7 @@ class SharedMediaService {
         null, // thumbnail_path filled by processMediaVariants
         fileBuffer.length,
         mimeType,
+        isLibraryItem,
         altText || null,
         uploadSource,
         originalFilename,

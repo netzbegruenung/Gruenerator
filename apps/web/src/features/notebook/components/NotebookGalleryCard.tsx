@@ -24,6 +24,8 @@ export interface NotebookGalleryCardProps {
    * propagation around it, so the node won't navigate the card.
    */
   action?: ReactNode;
+  /** Pink icon + border accent for the "Wissen" notebook surface. Defaults to neutral. */
+  accent?: 'pink';
   className?: string;
 }
 
@@ -42,10 +44,12 @@ const NotebookGalleryCard = memo(
     onActivate,
     menu,
     action,
+    accent,
     className,
   }: NotebookGalleryCardProps) => {
     const Icon = icon ?? FiFolder;
     const MetaIcon = metaIcon ?? FiLayers;
+    const pink = accent === 'pink';
 
     return (
       <div
@@ -59,10 +63,11 @@ const NotebookGalleryCard = memo(
           }
         }}
         className={cn(
-          'group relative flex flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background text-left no-underline',
-          'cursor-pointer transition-all duration-200 ease-out',
-          'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
-          'dark:border-grey-700/60 dark:hover:border-secondary-700',
+          'group relative flex flex-col overflow-hidden rounded-xl border bg-background text-left no-underline',
+          'cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md',
+          pink
+            ? 'border-[#EFC9DD] hover:border-[#D6006E] dark:border-[#4A2A3B] dark:hover:border-[#EC5AA0]'
+            : 'border-grey-200/80 hover:border-secondary-300 dark:border-grey-700/60 dark:hover:border-secondary-700',
           className
         )}
       >

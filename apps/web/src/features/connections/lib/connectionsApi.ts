@@ -30,3 +30,14 @@ export async function createSessionToken(): Promise<string> {
 export async function disconnectProvider(providerKey: string): Promise<void> {
   await apiClient.delete(`/connections/${providerKey}`);
 }
+
+export interface ConnectionTestResult {
+  ok: boolean;
+  tools: string[];
+  error: string | null;
+}
+
+export async function testConnection(providerKey: string): Promise<ConnectionTestResult> {
+  const response = await apiClient.post<ConnectionTestResult>(`/connections/${providerKey}/test`);
+  return response.data;
+}

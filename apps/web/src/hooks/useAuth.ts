@@ -11,6 +11,7 @@ import {
 } from '../features/auth/storageKeys';
 import { authClient } from '../lib/authClient';
 import { captureAuthIssue } from '../lib/observability/captureAuthIssue';
+import { sessionDebug } from '../lib/sessionDebug';
 import { sessionUserToProfile } from '../lib/sessionUserToProfile';
 import { useAuthStore, type User } from '../stores/authStore';
 
@@ -20,6 +21,8 @@ import { useAuthStore, type User } from '../stores/authStore';
  * `GET /api/auth/status`.
  */
 async function fetchAuthStatus(): Promise<AuthData> {
+  // Cookie-cache read (see probeAuthStatus): this feeds the partial-logout
+  // diagnostic, not a teardown, so tolerance beats authority here.
   const { data, error } = await authClient.getSession();
   if (error) throw error;
   if (!data?.user) return { isAuthenticated: false };
@@ -45,6 +48,16 @@ type AuthProbeResult =
 
 async function probeAuthStatus(): Promise<AuthProbeResult> {
   try {
+    // Deliberately DO read the cookie cache here. This is the routine
+    // authStatus refetch (fires on every window focus / mount), and its guest
+    // answer tears down the session in one shot (`applyAuthAnswer`). Forcing an
+    // authoritative store lookup on every focus made a single transient
+    // "session not resolved" flip (e.g. a cookie-delivery hiccup on some hosts)
+    // log an active user straight out. The cookie cache (now ≤60s) rides those
+    // out; a genuinely dead session is still caught within 60s here, and
+    // INSTANTLY on the next real API 401 via `probeSessionVerdict`, which stays
+    // authoritative (disableCookieCache) because THAT path has already seen a
+    // hard 401 and needs the truth.
     const { data, error } = await authClient.getSession();
     if (error) return { kind: 'transient-error', error };
     if (!data?.user) return { kind: 'guest' };
@@ -201,6 +214,10 @@ const detectPartialLogoutState = async () => {
         console.warn(
           '[useAuth] Partial logout detected: Frontend logged out but backend still authenticated'
         );
+        sessionDebug('partial-logout.detected', {
+          frontendState: 'logged_out',
+          backendState: 'authenticated',
+        });
         // Always capture: partial logout is never normal — it indicates a
         // failed signOut, cross-tab desync, or a Set-Cookie that didn't make
         // it to the browser. Single high-signal bucket in GlitchTip.
@@ -307,8 +324,17 @@ const getCachedAuthEntry = (): { data: AuthData; timestamp: number } | null => {
     const cached = localStorage.getItem(INSTANT_AUTH_CACHE);
     if (cached) {
       const parsed = JSON.parse(cached) as { timestamp?: number; data?: AuthData };
-      if (parsed.timestamp && parsed.data && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
-        return { data: parsed.data, timestamp: parsed.timestamp };
+      if (parsed.timestamp && parsed.data) {
+        const ageMs = Date.now() - parsed.timestamp;
+        if (ageMs < 5 * 60 * 1000) {
+          sessionDebug('boot.cache-seed', {
+            hit: true,
+            ageMs,
+            isAuthenticated: parsed.data.isAuthenticated,
+          });
+          return { data: parsed.data, timestamp: parsed.timestamp };
+        }
+        sessionDebug('boot.cache-rejected', { ageMs });
       }
     }
   } catch {
@@ -323,6 +349,10 @@ const getCachedAuthState = (): AuthData | null => getCachedAuthEntry()?.data ?? 
  * Save auth state to cache
  */
 const setCachedAuthState = (data: AuthData) => {
+  sessionDebug('cache.write', {
+    source: 'setCachedAuthState',
+    isAuthenticated: data.isAuthenticated,
+  });
   try {
     localStorage.setItem(
       INSTANT_AUTH_CACHE,
@@ -337,6 +367,7 @@ const setCachedAuthState = (data: AuthData) => {
 };
 
 const clearCachedAuthState = () => {
+  sessionDebug('cache.clear', { source: 'clearCachedAuthState' });
   try {
     localStorage.removeItem(INSTANT_AUTH_CACHE);
   } catch {
@@ -433,6 +464,11 @@ const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQuery
     }
 
     const authUser = data.user as User | null | undefined;
+    sessionDebug('authq.apply', {
+      isAuthenticated: true,
+      action: 'cache-write+confirm',
+      userChanged: authUser?.id !== currentUser?.id,
+    });
     if (authUser?.id !== currentUser?.id) {
       useAuthStore.getState().setAuthState({
         user: authUser ?? null,
@@ -450,7 +486,15 @@ const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQuery
           if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
           if (notebookCollections)
             queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
-          if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
+          // Only seed recent-activity if nothing has fetched it yet. The
+          // workplace section fetches the same key directly and lazy-mounts, so
+          // its request can resolve before this seed lands — clobbering the
+          // fresh 30-item list (canvases included) with a stale seed made
+          // canvases flicker in and out. The seed keeps its instant-paint job
+          // on the first post-login paint, where the cache is genuinely empty.
+          if (recentActivity && !queryClient.getQueryState(['recent-activity'])?.dataUpdatedAt) {
+            queryClient.setQueryData(['recent-activity'], recentActivity);
+          }
           if (profile) queryClient.setQueryData(['profileData', userId], profile);
         })
         .catch((error: unknown) => {
@@ -464,9 +508,15 @@ const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQuery
     // post-login `/workplace` mount to read).
     clearCachedAuthState();
 
+    sessionDebug('authq.apply', {
+      isAuthenticated: false,
+      action: currentIsAuthenticated ? 'cache-wipe+clearAuth' : 'cache-wipe+setGuest',
+      userChanged: currentIsAuthenticated,
+    });
+
     if (currentIsAuthenticated) {
       // Full teardown: clears persisted state, profile store, etc.
-      useAuthStore.getState().clearAuth();
+      useAuthStore.getState().clearAuth('authq-guest');
     } else {
       // Reflect the server answer into the store so `hasServerConfirmed` is
       // freshly accurate.
@@ -534,6 +584,16 @@ export const useAuth = (options: AuthOptions = {}) => {
       }
 
       const result = await probeAuthStatus();
+      sessionDebug('authq.result', {
+        kind: result.kind,
+        errorStatus:
+          result.kind === 'transient-error'
+            ? ((result.error as { status?: number; response?: { status?: number } })?.status ??
+              (result.error as { response?: { status?: number } })?.response?.status)
+            : undefined,
+        errorName:
+          result.kind === 'transient-error' ? (result.error as { name?: string })?.name : undefined,
+      });
       if (result.kind === 'transient-error') {
         // We couldn't reach or trust the server — this is NOT a logout. Leave
         // the optimistic store state AND the localStorage caches untouched.

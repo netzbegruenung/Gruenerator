@@ -69,63 +69,72 @@ export const useRecentGalleryItems = (
   const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<number | null>(initialCache.timestamp);
 
-  const fetchRecentItems = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchRecentItems = useCallback(
+    async (signal?: AbortSignal) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const response = await apiClient.get(`/share/recent?limit=${limit}`, {
-        skipAuthRedirect: true,
-      } as Record<string, unknown>);
+      try {
+        const response = await apiClient.get(`/share/recent?limit=${limit}`, {
+          skipAuthRedirect: true,
+          signal,
+        } as Record<string, unknown>);
 
-      interface SharesResponse {
-        success: boolean;
-        shares: Record<string, unknown>[];
-      }
-      const responseData = response.data as SharesResponse;
-      if (responseData.success && responseData.shares) {
-        const recentItems: RecentGalleryItem[] = responseData.shares.map(
-          (share: Record<string, unknown>) => ({
-            shareToken: share.shareToken as string,
-            title: share.title as string,
-            thumbnailPath: share.thumbnailPath as string | undefined,
-            imageType: share.imageType as string | undefined,
-            createdAt: share.createdAt as string,
-            imageMetadata: share.imageMetadata as RecentGalleryItemMetadata | undefined,
-          })
-        );
-
-        setItems(recentItems);
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({
-            items: recentItems,
-            timestamp: Date.now(),
-          })
-        );
-        setLastFetch(Date.now());
-      } else {
-        setItems([]);
-      }
-    } catch (err: unknown) {
-      console.error('[useRecentGalleryItems] Error fetching recent items:', err);
-      let errorMsg = 'Failed to fetch recent items';
-      if (err instanceof Error && 'response' in err) {
-        const response = (err as { response?: { data?: { error?: string } } }).response;
-        if (response?.data?.error) {
-          errorMsg = response.data.error;
+        interface SharesResponse {
+          success: boolean;
+          shares: Record<string, unknown>[];
         }
-      }
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [limit]);
+        const responseData = response.data as SharesResponse;
+        if (responseData.success && responseData.shares) {
+          const recentItems: RecentGalleryItem[] = responseData.shares.map(
+            (share: Record<string, unknown>) => ({
+              shareToken: share.shareToken as string,
+              title: share.title as string,
+              thumbnailPath: share.thumbnailPath as string | undefined,
+              imageType: share.imageType as string | undefined,
+              createdAt: share.createdAt as string,
+              imageMetadata: share.imageMetadata as RecentGalleryItemMetadata | undefined,
+            })
+          );
 
+          setItems(recentItems);
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({
+              items: recentItems,
+              timestamp: Date.now(),
+            })
+          );
+          setLastFetch(Date.now());
+        } else {
+          setItems([]);
+        }
+      } catch (err: unknown) {
+        if (signal?.aborted) return;
+        console.error('[useRecentGalleryItems] Error fetching recent items:', err);
+        let errorMsg = 'Failed to fetch recent items';
+        if (err instanceof Error && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error) {
+            errorMsg = response.data.error;
+          }
+        }
+        setError(errorMsg);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [limit]
+  );
+
+  // Stale-while-revalidate: the localStorage cache only provides the instant
+  // first paint; every mount refetches so freshly autosaved images appear
+  // immediately instead of after the cache TTL. The abort keeps rapid
+  // remounts from interleaving out-of-order responses.
   useEffect(() => {
-    if (lastFetch === null) {
-      void fetchRecentItems();
-    }
+    const controller = new AbortController();
+    void fetchRecentItems(controller.signal);
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

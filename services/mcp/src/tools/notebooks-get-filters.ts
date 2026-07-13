@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
-import { callGrueneratorApi } from '../api-client.ts';
+import { callGrueneratorApi, notebooksApiError } from '../api-client.ts';
 
 export const notebooksGetFiltersTool = {
   name: 'notebooks_get_filters',
   description: `Liefert die verfügbaren Filterwerte (Facetten) für einen Landesverband.
 
-Hilfreich, wenn du in \`notebooks_ask\` oder \`notebooks_search\` mit \`filters\` einschränken willst —
+Hilfreich, wenn du in \`notebooks_search\` mit \`filters\` einschränken willst —
 z.B. nach Datum, Kategorie oder Inhaltstyp.
 
 Erfordert einen Bearer API-Key, dessen Scope den \`landesverband\` abdeckt.`,
@@ -27,7 +27,7 @@ Erfordert einen Bearer API-Key, dessen Scope den \`landesverband\` abdeckt.`,
       query: { landesverband },
     });
     if (!result.ok) {
-      return { error: true, status: result.status, message: result.message };
+      return notebooksApiError(result.status, result.message);
     }
     return result.data;
   },
