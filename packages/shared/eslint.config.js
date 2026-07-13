@@ -9,6 +9,7 @@ export default [
         projectService: {
           allowDefaultProject: [
             'eslint.config.js',
+            'vitest.config.ts',
             'src/utils/index.js',
             'src/utils/textNormalization.js',
             'src/search/vector/index.js',

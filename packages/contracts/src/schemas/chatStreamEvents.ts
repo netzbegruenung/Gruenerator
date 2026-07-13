@@ -287,6 +287,11 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       searchQuery: z.string().optional(),
       subQueries: z.array(z.string()).nullish(),
       searchSources: z.array(z.string()).nullish(),
+      // Set by the agentic respond path: the model holds the tools and drives
+      // the loop, so real `tool_step_*` cards will follow — the parser then
+      // skips the intent-fabricated tool card (INTENT_TO_TOOL). Older clients
+      // ignore the flag (forward-compatible).
+      agentic: z.boolean().optional(),
     })
     .passthrough(),
   search_start: z.object({ message: z.string() }).passthrough(),
@@ -362,6 +367,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       stepId: z.string(),
       toolName: z.string(),
       args: flexibleRecord.optional(),
+      // Server-provided card title (else the client derives one from toolName);
+      // serverName labels a connector/MCP tool. Both optional + additive.
+      title: z.string().optional(),
+      serverName: z.string().optional(),
     })
     .passthrough(),
   tool_step_result: z
@@ -370,6 +379,9 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       toolName: z.string(),
       ok: z.boolean(),
       summary: z.string().optional(),
+      // Rich result payload for mid-stream card rendering (results/examples/
+      // researchMeta/…). Stamped onto the tool-call part by the parser.
+      result: flexibleRecord.optional(),
     })
     .passthrough(),
   response_start: z.object({ message: z.string() }).passthrough(),
