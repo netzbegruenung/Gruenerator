@@ -99,7 +99,7 @@ function buildToolUsageBlock(maxSteps: number): string {
     'ARBEITSWEISE MIT TOOLS:',
     '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen, Bundestags-Dokumente (DIP) und Abgeordneten-Abstimmungsdaten (abgeordnetenwatch) abzurufen sowie Dokumente zusammenzufassen.',
     '- NUTZE das passende Tool DIREKT, statt anzubieten es zu tun. Frage NIEMALS "Soll ich das für dich suchen/tun?" — wenn du ein Tool dafür hast, ruf es einfach auf. Frag nur zurück, wenn dir eine echte Angabe fehlt (z.B. um welche Person/Abstimmung es geht).',
-    '- Rufe Tools auf, bis du genug für eine fundierte Antwort weißt. Verfeinere die Suche, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
+    '- Rufe so WENIGE Tools wie möglich auf. Sobald die ersten Ergebnisse deine Frage beantworten, antworte SOFORT — such nicht zur Absicherung weiter und wiederhole keine ähnlichen Suchen. Verfeinere oder wechsle das Tool NUR, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
     `- Du hast maximal ${maxSteps} Schritte. Danach antwortest du mit dem, was du hast.`,
     '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen im Feld "sources" der Tool-Ergebnisse entsprechen.',
     '- Passt kein Tool (Begrüßung, kreative Aufgabe, einfache Folgefrage), antworte direkt ohne Tool-Aufruf.',
@@ -272,7 +272,7 @@ export async function streamAgenticResponse(params: {
   }
 
   log.info(
-    `[Agentic] intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}`
+    `[Agentic] model=${resolution?.modelName ?? agentConfig.model} intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}`
   );
 
   return {
