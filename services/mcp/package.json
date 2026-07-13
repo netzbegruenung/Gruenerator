@@ -32,7 +32,7 @@
     "@gruenerator/query": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@qdrant/js-client-rest": "^1.18.0",
-    "@sentry/node": "^10.57.0",
+    "@sentry/node": "^10.65.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -42,11 +42,11 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.3",
-    "eslint": "^9.39.4",
-    "tsx": "^4.22.4",
+    "@types/node": "^25.9.5",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=18.0.0"
