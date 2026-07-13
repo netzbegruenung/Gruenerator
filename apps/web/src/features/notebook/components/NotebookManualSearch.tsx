@@ -12,7 +12,15 @@ import {
   PopoverTrigger,
   StatusBanner,
 } from '@gruenerator/ui';
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type JSX,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
 import rehypeRaw from 'rehype-raw';
@@ -131,12 +139,18 @@ interface NotebookManualSearchProps {
   notebookId?: string;
   /** Seed query executed on mount (omni composer → "Manuell recherchieren"). */
   initialQuery?: string;
+  /**
+   * Rendered in place of the "Gib einen Suchbegriff ein…" empty state while no
+   * search has run — the notebook browse sub-tabs (Zuletzt/Agenten/Statistiken).
+   */
+  browseSlot?: ReactNode;
 }
 
 export function NotebookManualSearch({
   collectionIds,
   notebookId,
   initialQuery,
+  browseSlot,
 }: NotebookManualSearchProps) {
   const hideFilters = !!notebookId;
   const [query, setQuery] = useState(initialQuery ?? '');
@@ -489,14 +503,16 @@ export function NotebookManualSearch({
         </div>
       )}
 
-      {!hasSearched && !isLoading && (
-        <div className="flex flex-col items-center justify-center py-2xl text-center">
-          <IoSearch className="mb-sm size-12 text-grey-300 dark:text-grey-600" />
-          <p className="text-sm text-grey-500 dark:text-grey-400">
-            Gib einen Suchbegriff ein, um in diesem Notizbuch zu suchen.
-          </p>
-        </div>
-      )}
+      {!hasSearched &&
+        !isLoading &&
+        (browseSlot ?? (
+          <div className="flex flex-col items-center justify-center py-2xl text-center">
+            <IoSearch className="mb-sm size-12 text-grey-300 dark:text-grey-600" />
+            <p className="text-sm text-grey-500 dark:text-grey-400">
+              Gib einen Suchbegriff ein, um in diesem Notizbuch zu suchen.
+            </p>
+          </div>
+        ))}
     </div>
   );
 }
