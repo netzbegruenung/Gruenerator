@@ -37,7 +37,9 @@ export default function ReisekostenPage() {
       <main className="flex flex-col gap-lg">
         {step === 0 && <ReiseStep state={state} setReise={setReise} />}
         {step === 1 && <PersonStep state={state} setStammdaten={setStammdaten} />}
-        {step === 2 && <FahrtStep state={state} belege={belege} update={update} onBeleg={addBeleg} />}
+        {step === 2 && (
+          <FahrtStep state={state} belege={belege} update={update} onBeleg={addBeleg} />
+        )}
         {step === 3 && (
           <VerpflegungUebernachtungStep
             state={state}
