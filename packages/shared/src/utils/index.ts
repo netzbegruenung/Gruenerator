@@ -43,3 +43,6 @@ export {
 // Usage-based ranking (favourites-first ordering for notebooks & agents)
 export { compareUsageStats, sortByUsage } from './usageRanking.js';
 export type { UsageStat, UsageMap } from './usageRanking.js';
+
+// MCP connector brand colours (shared by settings + chat mention picker)
+export { mcpBrandColor } from './mcpBrand.js';

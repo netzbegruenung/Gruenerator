@@ -117,6 +117,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   gruenerator_pressemitteilung_examples: { label: 'Pressemitteilungen', iconKey: 'file' },
   ask_human: { label: 'Rückfrage', iconKey: 'message-circle' },
   run_python: { label: 'Tabellen-Berechnung', iconKey: 'sparkles' },
+  mcp_tool: { label: 'MCP-Tool', iconKey: 'external-link' },
   sharepic_edit: { label: 'Sharepic', iconKey: 'image' },
   reel_edit: { label: 'Reel', iconKey: 'image' },
 };

@@ -525,6 +525,13 @@ function routeAfterClassification(
     return 'respond';
   }
 
+  // EXPERIMENTAL mcp intent = route to respond; the controller runs mcpToolNode
+  // (external MCP tool-loop) and injects the aggregated result into the prompt.
+  if (intent === 'mcp') {
+    log.info('[ChatGraph] Route: classifier → respond (mcp handled by controller)');
+    return 'respond';
+  }
+
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
   // edit_current_doc also falls here: respondNode generates a brief confirmation
   // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
@@ -574,6 +581,7 @@ function routeAfterClassification(
     create_sheet: 'create_sheet',
     create_presentation: 'create_presentation',
     chat_history: 'chat_history',
+    mcp: 'mcp',
     direct: 'direct',
   };
 

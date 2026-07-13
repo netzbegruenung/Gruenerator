@@ -17,7 +17,12 @@ import { stepForField } from '../utils/findings';
 import { eur } from '../utils/format';
 import { buildPosten } from '../utils/posten';
 
-import type { ComputeResult, ExtractBelegResponse, Finding, ReisekostenState } from '@gruenerator/contracts';
+import type {
+  ComputeResult,
+  ExtractBelegResponse,
+  Finding,
+  ReisekostenState,
+} from '@gruenerator/contracts';
 
 export function PruefenStep({
   state,
@@ -55,7 +60,9 @@ export function PruefenStep({
       list.push(f.message.replace(/\.$/, ''));
       byStep.set(idx, list);
     }
-    return [...byStep.entries()].sort((a, b) => a[0] - b[0]).map(([idx, items]) => ({ idx, items }));
+    return [...byStep.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([idx, items]) => ({ idx, items }));
   }, [errors]);
 
   const posten = buildPosten(state, computed);
@@ -92,7 +99,7 @@ export function PruefenStep({
   };
 
   const mailto = `mailto:reisekosten@gruene.de?subject=${encodeURIComponent(
-    `Reisekostenabrechnung: ${state.reise.anlass || 'Dienstreise'}`,
+    `Reisekostenabrechnung: ${state.reise.anlass || 'Dienstreise'}`
   )}`;
 
   return (
@@ -105,7 +112,9 @@ export function PruefenStep({
             </span>
             <div className="flex flex-col">
               <span className="text-sm font-bold">
-                {errors.length === 1 ? '1 Angabe fehlt noch' : `${errors.length} Angaben fehlen noch`}
+                {errors.length === 1
+                  ? '1 Angabe fehlt noch'
+                  : `${errors.length} Angaben fehlen noch`}
               </span>
               <span className="text-xs text-muted-foreground">
                 Tippe auf einen Schritt, um die Angaben zu ergänzen.
@@ -154,7 +163,9 @@ export function PruefenStep({
         <div className="flex items-start gap-md rounded-lg border border-amber-300 bg-amber-50 p-lg dark:bg-amber-950">
           <span className="text-xl leading-none">⚠️</span>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-amber-800 dark:text-amber-200">Export möglich – bitte Hinweise prüfen</span>
+            <span className="text-sm font-bold text-amber-800 dark:text-amber-200">
+              Export möglich – bitte Hinweise prüfen
+            </span>
             <span className="text-sm text-amber-800 dark:text-amber-200">
               Die Abrechnung ist vollständig, es gibt aber offene Hinweise (unten).
             </span>
@@ -165,7 +176,9 @@ export function PruefenStep({
       <Card>
         <CardHeader>
           <CardTitle>Prüfen & Spende</CardTitle>
-          <CardDescription>Belege per KI abgleichen und optional eine Spende angeben.</CardDescription>
+          <CardDescription>
+            Belege per KI abgleichen und optional eine Spende angeben.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-md">
@@ -209,7 +222,8 @@ export function PruefenStep({
         <CardHeader>
           <CardTitle>Abrechnung</CardTitle>
           <CardDescription>
-            {[state.reise.anlass, state.reise.ziel].filter(Boolean).join(' · ') || 'Angaben aus Schritt 1'}
+            {[state.reise.anlass, state.reise.ziel].filter(Boolean).join(' · ') ||
+              'Angaben aus Schritt 1'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -226,7 +240,9 @@ export function PruefenStep({
                     <span className="text-xs font-medium text-primary-700">✓ Beleg vorhanden</span>
                   )}
                   {p.beleg === 'missing' && (
-                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">⚠️ Beleg fehlt</span>
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                      ⚠️ Beleg fehlt
+                    </span>
                   )}
                 </div>
                 <span className="whitespace-nowrap tabular-nums">{p.betrag}</span>
@@ -260,7 +276,11 @@ export function PruefenStep({
         </CardFooter>
       </Card>
 
-      {hasError && <span className="text-sm text-destructive">Bitte zuerst die offenen Angaben (oben) ergänzen.</span>}
+      {hasError && (
+        <span className="text-sm text-destructive">
+          Bitte zuerst die offenen Angaben (oben) ergänzen.
+        </span>
+      )}
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   );

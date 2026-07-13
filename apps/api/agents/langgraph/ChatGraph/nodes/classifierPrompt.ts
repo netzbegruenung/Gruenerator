@@ -34,6 +34,7 @@ VERFÜGBARE TOOLS:
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
 - chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
+- mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ direct).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
@@ -172,7 +173,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -225,6 +226,7 @@ export const NON_SEARCH_INTENTS = new Set([
   'modify_doc',
   'modify_board',
   'share_doc',
+  'mcp',
 ]);
 
 export const CLASSIFIER_CONTEXT_MESSAGES = 5;

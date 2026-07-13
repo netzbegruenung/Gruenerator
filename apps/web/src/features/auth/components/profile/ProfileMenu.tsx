@@ -41,7 +41,7 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
     hasSubmenu: true,
   },
   { key: 'inhalte', label: 'Archiv', path: '/profile/inhalte', icon: FaArchive },
-  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
+  { key: 'verbindungen', label: 'Verbindungen', path: '/profile/verbindungen', icon: FaCloud },
 ];
 
 const ProfileMenu = ({
