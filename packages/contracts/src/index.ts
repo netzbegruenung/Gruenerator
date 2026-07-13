@@ -73,6 +73,7 @@ export {
   monitorContract,
   sitesContract,
   reisekostenContract,
+  promptsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -148,3 +149,4 @@ export * from './sheetsYdoc.js';
 export * from './presentationsYdoc.js';
 
 export * from './schemas/scanner.js';
+export * from './schemas/prompts.js';
