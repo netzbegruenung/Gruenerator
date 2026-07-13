@@ -11,7 +11,7 @@ import {
   type TemplateType,
 } from '@gruenerator/docs';
 import { instantiateUserTemplate, type UserTemplateSummary } from '@gruenerator/shared';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, isUnauthorizedError } from '@gruenerator/shared/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -629,7 +629,9 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
               ))}
             </>
           )
-        ) : isLoading ? (
+        ) : isLoading || isUnauthorizedError(docsError) ? (
+          // On a 401 the session teardown+redirect is already in flight — show
+          // the skeleton, never a partial/stale grid or an error flash.
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
