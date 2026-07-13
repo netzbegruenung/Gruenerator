@@ -34,6 +34,7 @@ import {
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
+import { decideRunAgentic } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
@@ -599,21 +600,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
       const isMcpTurn = classifiedState.intent === 'mcp';
-      const runAgentic =
-        isAgenticLoopEnabled() &&
-        AGENTIC_INTENTS.has(classifiedState.intent) &&
-        (!forcedTool || isMcpTurn) &&
-        !isCompound &&
-        // A generation secondaryIntent (e.g. search + sharepic) is executed by
-        // the single-pass intentsToExecute fan-out; the loop has no fat tool for
-        // it yet (Phase 3n), so keep multi-intent turns on the pipeline instead
-        // of silently dropping the secondary.
-        !classifiedState.secondaryIntent &&
-        imageAttachments.length === 0 &&
-        selectionIsToolCapable(
+      // The whole routing decision lives in the pure, unit-tested decideRunAgentic
+      // (agenticLoop/routing.ts) — including the `direct`-question rescue.
+      const runAgentic = decideRunAgentic({
+        loopEnabled: isAgenticLoopEnabled(),
+        agenticIntents: AGENTIC_INTENTS,
+        intent: classifiedState.intent,
+        lastUserText: lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+        forcedTool: !!forcedTool,
+        isMcpTurn,
+        isCompound,
+        hasSecondaryIntent: !!classifiedState.secondaryIntent,
+        hasImageAttachments: imageAttachments.length > 0,
+        toolCapable: selectionIsToolCapable(
           classifiedState.agentConfig.provider as string,
           modelId ?? undefined
-        );
+        ),
+      });
 
       sse.send('intent', {
         intent: classifiedState.intent,
