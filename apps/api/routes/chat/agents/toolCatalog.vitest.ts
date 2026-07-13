@@ -141,9 +141,11 @@ describe('toolCatalog domain tool mounting', () => {
     );
   });
 
-  it('mounts generate_image only for the image intent (expensive + rate-limited)', () => {
+  it('mounts generate_image only for image + demoted agentic turns (expensive + rate-limited)', () => {
     expect(catalogFor('search').toolNames).not.toContain('generate_image');
     expect(catalogFor('image').toolNames).toContain('generate_image');
+    // Demoted turns can be image asks the confident heuristic missed.
+    expect(catalogFor('agentic').toolNames).toContain('generate_image');
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
@@ -151,6 +153,57 @@ describe('toolCatalog domain tool mounting', () => {
     const { toolNames } = buildChatToolCatalog({ agentConfig, sourceRegistry });
     expect(toolNames).not.toContain('bundestag');
     expect(toolNames).not.toContain('summarize');
+  });
+
+  // Sharepic fat tool (Phase 3n slice): every leg of the mount gate matters —
+  // a wrong mount either breaks the fixed-text contract (mounted on pure
+  // sharepic turns) or the compound feature (not mounted when it should be).
+  function sharepicCatalog(opts: {
+    intent?: string;
+    compoundGeneration?: boolean;
+    req?: boolean;
+    enabledTools?: Record<string, boolean>;
+  }) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: opts.intent ?? 'sharepic',
+      enabledTools: opts.enabledTools ?? {},
+      compoundGeneration: opts.compoundGeneration,
+    } as unknown as ChatGraphState;
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state,
+        ...(opts.req === false ? {} : { req: {} as never }),
+        threadId: 't1',
+      },
+    });
+  }
+
+  it('mounts the sharepic fat tool ONLY on compound-generation turns with a req', () => {
+    expect(sharepicCatalog({ compoundGeneration: true }).toolNames).toContain('sharepic');
+    // Not compound → fixed-text single-pass contract, never mounted.
+    expect(sharepicCatalog({ compoundGeneration: false }).toolNames).not.toContain('sharepic');
+    expect(sharepicCatalog({}).toolNames).not.toContain('sharepic');
+    // Without the Express req the generator cannot run — never mounted.
+    expect(sharepicCatalog({ compoundGeneration: true, req: false }).toolNames).not.toContain(
+      'sharepic'
+    );
+    // User disabled the sharepic tool → respected.
+    expect(
+      sharepicCatalog({ compoundGeneration: true, enabledTools: { sharepic: false } }).toolNames
+    ).not.toContain('sharepic');
+  });
+
+  it('the fat tool key is exactly `sharepic` (persisted toolName drives card rehydration)', () => {
+    const { tools } = sharepicCatalog({ compoundGeneration: true });
+    expect(Object.keys(tools)).toContain('sharepic');
+    expect(Object.keys(tools)).not.toContain('create_sharepic');
   });
 });
 

@@ -131,12 +131,13 @@ afterEach(() => {
 // ─── getFirstTokenDeadlineMs ────────────────────────────────────────────────
 
 describe('getFirstTokenDeadlineMs', () => {
-  it('gives reasoning-stream models the longest deadline', () => {
-    expect(getFirstTokenDeadlineMs('regolo', 'qwen3.5-122b')).toBe(45_000);
-    // Gemma 4 / gpt-oss reasoning lanes hold back text until thinking completes.
-    expect(getFirstTokenDeadlineMs('regolo', 'gemma4-31b')).toBe(45_000);
-    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-think')).toBe(45_000);
-    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(45_000);
+  it('gives reasoning-stream models the longest deadline (but not so long a hang stalls the turn)', () => {
+    // Cut 45s→20s: a hanging verdigado-think used to make the user wait 45s
+    // before the sibling fallback even started (observed 86s turn).
+    expect(getFirstTokenDeadlineMs('regolo', 'qwen3.5-122b')).toBe(20_000);
+    expect(getFirstTokenDeadlineMs('regolo', 'gemma4-31b')).toBe(20_000);
+    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-think')).toBe(20_000);
+    expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(20_000);
   });
 
   it('gives the non-reasoning litellm overflow lane queue headroom', () => {
