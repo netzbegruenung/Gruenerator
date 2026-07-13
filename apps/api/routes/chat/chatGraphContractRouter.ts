@@ -624,6 +624,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         hasImageAttachments: imageAttachments.length > 0,
       });
 
+      // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
+      // of the loop must not strand in executeIntentPipeline, which has no
+      // 'agentic' branch — degrade to plain search.
+      if (!runAgentic && classifiedState.intent === 'agentic') {
+        classifiedState.intent = 'search';
+      }
+
       sse.send('intent', {
         intent: classifiedState.intent,
         message: getIntentMessage(classifiedState.intent),
