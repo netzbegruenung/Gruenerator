@@ -226,8 +226,8 @@ export function useUserShareLinksQuery(enabled = true) {
       return (res?.shareLinks ?? []).filter((l) => l.is_active !== false);
     },
     // Re-fetch on every picker open: users add/remove share links via
-    // /profile/wolke between sessions, and stale caching would keep showing
-    // the "Keine Wolke verbunden" empty state after the user just connected.
+    // /profile/verbindungen between sessions, and stale caching would keep
+    // showing the "Keine Wolke verbunden" empty state after just connecting.
     staleTime: 0,
     refetchOnMount: 'always',
     enabled,
