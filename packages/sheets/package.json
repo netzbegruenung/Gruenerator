@@ -29,9 +29,9 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
+    "@types/react": "19.2.14",
     "typescript": "^6.0.3",
-    "vitest": "^3.0.0"
+    "vitest": "^3.2.7"
   },
   "peerDependencies": {
     "react": "^19.0.0",

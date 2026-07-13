@@ -23,9 +23,7 @@ function useNotebookAgents(notebookId?: string) {
   return useMemo(
     () =>
       notebookId
-        ? getSystemAgentsForLocale(locale).filter((a) =>
-            a.defaultNotebookIds?.includes(notebookId)
-          )
+        ? getSystemAgentsForLocale(locale).filter((a) => a.defaultNotebookIds?.includes(notebookId))
         : [],
     [locale, notebookId]
   );

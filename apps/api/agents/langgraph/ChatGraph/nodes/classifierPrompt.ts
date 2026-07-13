@@ -33,6 +33,7 @@ VERFÜGBARE TOOLS:
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
+- chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
 - mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ direct).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
@@ -78,6 +79,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 4b. Eigenständige rechnende Tabelle/Spreadsheet erstellen? → create_sheet
 4c. Präsentation / Foliensatz / Slides erstellen? → create_presentation
 5. Dokument mit Gruppe teilen? → share_doc
+5b. Bezug auf ein FRÜHERES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu")? → chat_history
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
@@ -88,7 +90,8 @@ SCHRITT 3 - TOOL WÄHLEN:
 10. Alles andere (kreativ, Textbearbeitung, Erstelle/Schreib X) → direct
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
-Wenn intent search/research/web/examples/social_post ist, erstelle eine optimierte Suchquery:
+Wenn intent search/research/web/examples/social_post/chat_history ist, erstelle eine optimierte Suchquery:
+- Bei chat_history: extrahiere das THEMA des gesuchten Gesprächs oder Dokuments (z.B. "unser Chat über den Newsletter" → "Newsletter", "meine Präsentation zur Klimapolitik" → "Klimapolitik"). Zeitangaben ("letzte Woche", "gestern") gehören in date_from/date_to (Schritt 7), nicht in die Query.
 - Entferne Aufgabenanweisungen (schreib, erstelle, formuliere, verfasse...)
 - Behalte NUR das faktische Thema für die Suche
 - Beispiel: "Schreib eine Pressemitteilung über die Klimapolitik der Grünen" → "Klimapolitik der Grünen"
@@ -170,7 +173,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "mcp" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,

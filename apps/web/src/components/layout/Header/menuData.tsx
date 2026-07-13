@@ -1,7 +1,6 @@
 import { FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { PiGlobe } from 'react-icons/pi';
-import { SlNotebook } from 'react-icons/sl';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
@@ -86,15 +85,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Suche',
     description: 'Alles durchsuchen',
     icon: getIcon('ui', 'search'),
-  };
-
-  items.notebooks = {
-    id: 'notebooks',
-    path: '/workplace/wissen',
-    title: 'Wissen',
-    description: 'Suche, Wissensmanagement & Dokumentenrecherche',
-    icon: SlNotebook,
-    activePaths: ['/workplace/wissen', '/notebooks', '/notebook'],
   };
 
   if (import.meta.env.DEV) {
