@@ -14,6 +14,7 @@ const TOOL_LABELS: Record<string, string> = {
   recall_memory: 'Erinnerung abrufen',
   save_memory: 'Erinnerung speichern',
   search_user_content: 'Inhalte durchsuchen',
+  search_chat_history: 'Frühere Inhalte durchsuchen',
 };
 
 interface ToolCallPartProps {

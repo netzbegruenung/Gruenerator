@@ -9,6 +9,7 @@
 import { generateText, type ModelMessage } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
@@ -140,6 +141,12 @@ export async function saveCompactionState(
   );
 
   log.info(`[Compaction] Saved compaction state for thread ${threadId}`);
+
+  // Re-embed the thread's recall point with the fresh summary so semantic
+  // recall reflects the whole (now compacted) conversation. Best-effort.
+  upsertThreadRecallPoint(threadId).catch((err) =>
+    log.warn(`[Compaction] Thread recall re-embedding failed for ${threadId}:`, err)
+  );
 }
 
 /**

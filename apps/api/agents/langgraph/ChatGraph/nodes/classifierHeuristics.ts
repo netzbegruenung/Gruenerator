@@ -149,6 +149,8 @@ export const INTENT_KEYWORDS: Record<
     | 'compute'
     // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
     | 'social_post'
+    // chat_history is detected by the dedicated past-conversation regex, not keywords.
+    | 'chat_history'
     // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
     // never keyword-classified (would misfire on generic "tool"/"server" words).
     | 'mcp'
