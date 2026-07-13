@@ -112,10 +112,9 @@ const fetchRecentActivity = async (): Promise<RecentItem[]> => {
   return res.data?.items ?? [];
 };
 
-// Collapsed, the section shows a horizontally-scrollable row sliced to this
-// count; "Mehr anzeigen" expands the rest into a wrapping grid (mirrors the
-// TextsSection expand pattern).
-const RECENT_COLLAPSE_THRESHOLD = 10;
+// The vertical grid shows this many items by default (a couple of rows, like
+// Word's "Recent"); "Mehr anzeigen" reveals the rest of the fetched items.
+const RECENT_COLLAPSE_THRESHOLD = 12;
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
   doc: 'Unbenanntes Dokument',
@@ -484,17 +483,6 @@ const RecentReelCard = memo(
 );
 RecentReelCard.displayName = 'RecentReelCard';
 
-// Single horizontally-scrollable row at every breakpoint (≈5 visible on desktop,
-// the rest peeking/scrollable) — mirrors the Notebooks row below it rather than
-// collapsing to a wrapping grid.
-const RECENT_ROW_CLASS = cn(
-  // `overflow-x-auto` also clips vertically, so the cards' upward hover-lift +
-  // shadow would be cut off — `pt-2` (matching `pb-2`) gives them room.
-  'grid grid-flow-col gap-md overflow-x-auto pt-2 pb-2',
-  'auto-cols-[75%] sm:auto-cols-[42%] md:auto-cols-[30%] lg:auto-cols-[19%]',
-  '-mx-4 px-4 lg:mx-0 lg:px-0'
-);
-
 const RecentlyCreatedSection: React.FC = memo(() => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -614,8 +602,8 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       <SectionHeader title="Zuletzt" />
 
       {isLoading ? (
-        <div className={RECENT_ROW_CLASS}>
-          {Array.from({ length: 5 }, (_, i) => (
+        <CardGrid columns="5" gap="md">
+          {Array.from({ length: 10 }, (_, i) => (
             <div
               key={i}
               className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
@@ -628,24 +616,18 @@ const RecentlyCreatedSection: React.FC = memo(() => {
               </div>
             </div>
           ))}
-        </div>
+        </CardGrid>
       ) : items.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Inhalte vorhanden.
         </p>
       ) : (
         <>
-          {/* Collapsed: scrollable row sliced to the threshold. Expanded: every
-              item in a wrapping grid (same card density as the row's ≈5/desktop). */}
-          {expanded ? (
-            <CardGrid columns="5" gap="md">
-              {items.map(renderCard)}
-            </CardGrid>
-          ) : (
-            <div className={RECENT_ROW_CLASS}>
-              {items.slice(0, RECENT_COLLAPSE_THRESHOLD).map(renderCard)}
-            </div>
-          )}
+          {/* Vertical grid that scrolls with the page (like Word's "Recent"),
+              sliced to the threshold; "Mehr anzeigen" reveals the rest. */}
+          <CardGrid columns="5" gap="md">
+            {(expanded ? items : items.slice(0, RECENT_COLLAPSE_THRESHOLD)).map(renderCard)}
+          </CardGrid>
           {items.length > RECENT_COLLAPSE_THRESHOLD && (
             <button
               type="button"
