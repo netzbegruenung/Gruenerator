@@ -182,12 +182,16 @@ export const auth = betterAuth({
     storeSessionInDatabase: true,
     cookieCache: {
       enabled: true,
-      // 60s (not 300) shrinks the window in which a dead session still reads
-      // as alive from the signed `ba.session_data` snapshot — the root of the
-      // "half logged in" state. Do NOT disable: that puts Redis/PG on the hot
-      // path of every request and makes auth_unavailable 503 bursts far more
-      // visible during Redis blips (which the cache currently rides out).
-      maxAge: 60,
+      // 300s = Better Auth's default. This is the IDLE-TOLERANCE window: while
+      // the signed `ba.session_data` snapshot is valid, getSession answers from
+      // it without a store lookup, so an idle user isn't logged out for up to
+      // 5 min. A previous change to 60s cut that to ~1 min and logged idle users
+      // out far too aggressively. The prolonged "half logged in" state is
+      // prevented by the unified 401 teardown (getSession stays authoritative
+      // on real 401s via disableCookieCache) — NOT by shrinking this window, so
+      // 300s is the right value. Do NOT disable: that puts Redis/PG on every
+      // request's hot path.
+      maxAge: 300,
     },
     additionalFields: {
       push_token: { type: 'string', required: false },
