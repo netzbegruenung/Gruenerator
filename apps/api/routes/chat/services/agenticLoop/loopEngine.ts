@@ -42,7 +42,7 @@ export interface LoopDeps {
 const defaultDeps: LoopDeps = { streamText: streamTextReal, generateText: generateTextReal };
 
 const GATHER_SUFFIX =
-  '\n\nWICHTIG (Sammelphase): Rufe in dieser Phase NUR Tools auf, um Belege zu sammeln. Schreibe noch KEINE Antwort — sobald du genug Belege hast, beende die Tool-Aufrufe.';
+  '\n\nWICHTIG (Recherchephase): Deine EINZIGE Aufgabe ist es jetzt, mit den Tools Belege für die Frage zu sammeln. Verlass dich NICHT auf dein eigenes Wissen — rufe für jede Sach-/Faktenfrage mindestens ein passendes Such-Tool auf (Programm-, Web-, Bundestag- oder Abgeordneten-Tool). Schreibe in dieser Phase KEINE Antwort; sobald du genug Belege hast, beende die Tool-Aufrufe.';
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
 function tryLenientJsonParse(raw: string): unknown {
