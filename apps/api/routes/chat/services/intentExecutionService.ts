@@ -156,16 +156,17 @@ export async function handleBoardCreation(opts: {
 }
 
 /**
- * Loop-safe document generation core (presentations + sheets). Pure generation:
- * runs the AI worker pool, parses the structure and creates the collaborative
- * document — NO SSE, NO persistence, NO stream ownership. Shared by the
- * turn-owning handlers (which wrap it with response_start/done/createMessage)
- * AND the compound loop fat tools (which emit `document_created` + hand the
- * card back to the model). Returns null when the model produced no parseable
- * structure — the caller decides whether to fall through or report an error.
+ * Loop-safe document generation core (presentation / sheet / text doc). Pure
+ * generation: runs the AI worker pool, parses the structure and creates the
+ * collaborative document — NO SSE, NO persistence, NO stream ownership. Shared
+ * by the turn-owning handlers (which wrap it with
+ * response_start/done/createMessage) AND the compound loop fat tools (which emit
+ * `document_created` + hand the card back to the model). Returns null when the
+ * model produced no parseable structure — the caller decides whether to fall
+ * through or report an error.
  */
 export async function runDocGeneration(opts: {
-  kind: 'presentation' | 'sheet';
+  kind: 'presentation' | 'sheet' | 'document';
   userContent: string;
   aiWorkerPool: ChatGraphState['aiWorkerPool'];
   req: Express.Request;
@@ -211,26 +212,110 @@ export async function runDocGeneration(opts: {
     };
   }
 
-  const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
-    await import('../../../services/sheets/SheetGenerationService.js');
+  if (kind === 'sheet') {
+    const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
+      await import('../../../services/sheets/SheetGenerationService.js');
+    const genResult = await aiWorkerPool.processRequest(
+      {
+        type: 'doc_generation',
+        systemPrompt: SHEET_GENERATION_PROMPT,
+        messages: [{ role: 'user', content: userContent }],
+        options: { temperature: 0.4, max_tokens: 4000 },
+      },
+      reqWithUser
+    );
+    const structure =
+      genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
+    if (!structure) {
+      log.warn('[ChatGraph] Sheet generation returned no parseable structure');
+      return null;
+    }
+    onCommit?.();
+    const doc = await createSheetDocument(structure, userId);
+    return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
+  }
+
+  // kind === 'document' — a free-form text document (DocGenerationService picks
+  // the subtype). Unlike the turn-owning generateAndCreateDocument, the loop
+  // core returns null on a generation failure instead of writing a blank doc:
+  // an empty doc from a researched compound turn is worse than a tool error the
+  // model can explain.
+  const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
+    await import('../../../services/docs/DocGenerationService.js');
   const genResult = await aiWorkerPool.processRequest(
     {
       type: 'doc_generation',
-      systemPrompt: SHEET_GENERATION_PROMPT,
+      systemPrompt: DOCUMENT_GENERATION_PROMPT,
       messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.4, max_tokens: 4000 },
+      options: { temperature: 0.7, max_tokens: 4000 },
     },
     reqWithUser
   );
-  const structure =
-    genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
-  if (!structure) {
-    log.warn('[ChatGraph] Sheet generation returned no parseable structure');
+  const parsed =
+    genResult.success && genResult.content ? parseDocumentResponse(genResult.content) : null;
+  if (!parsed || !parsed.content) {
+    log.warn('[ChatGraph] Document generation returned no parseable content');
     return null;
   }
   onCommit?.();
-  const doc = await createSheetDocument(structure, userId);
-  return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
+  const doc = await createDocumentWithContent(parsed.title, parsed.content, parsed.subtype, userId);
+  return {
+    documentId: doc.id,
+    title: parsed.title,
+    subtype: parsed.subtype,
+    url: `/office/${doc.id}`,
+  };
+}
+
+export interface CreatedBoard {
+  boardId: string;
+  title: string;
+  /** Post-processed board structure — carried in the loop's `done` event so the
+   *  boards UI renders it live (boards have no `document_created`/card path). */
+  boardGeneratedStructure: unknown;
+}
+
+/**
+ * Loop-safe board generation core, extracted from `handleBoardCreation`. Pure:
+ * generates + creates the board row, returns the descriptor (incl. the
+ * post-processed structure the UI needs). NO SSE/stream ownership. Returns null
+ * when the model produced no parseable board structure.
+ */
+export async function runBoardGeneration(opts: {
+  userContent: string;
+  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  req: Express.Request;
+  userId: string;
+}): Promise<CreatedBoard | null> {
+  const { userContent, aiWorkerPool, req, userId } = opts;
+  const {
+    BOARD_GENERATION_PROMPT,
+    createBoardDocument,
+    parseBoardStructure,
+    postProcessBoardStructure,
+  } = await import('../../../services/boards/BoardService.js');
+
+  const genResult = await aiWorkerPool.processRequest(
+    {
+      type: 'board_generation',
+      systemPrompt: BOARD_GENERATION_PROMPT,
+      messages: [{ role: 'user', content: userContent }],
+      options: { temperature: 0.7, max_tokens: 2000 },
+    },
+    req as Express.Request & { user?: { id?: string }; sessionID?: string }
+  );
+  const structure =
+    genResult.success && genResult.content ? parseBoardStructure(genResult.content) : null;
+  if (!structure) {
+    log.warn('[ChatGraph] Board generation returned no parseable structure');
+    return null;
+  }
+  const { id, title } = await createBoardDocument(structure.title || 'Neues Board', userId);
+  return {
+    boardId: id,
+    title,
+    boardGeneratedStructure: postProcessBoardStructure(structure, userId),
+  };
 }
 
 /**
