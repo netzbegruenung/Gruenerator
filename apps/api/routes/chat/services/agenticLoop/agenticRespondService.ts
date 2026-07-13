@@ -41,6 +41,8 @@ const log = createLogger('AgenticRespond');
  *    respond), so "hallo" never pays tool-loop overhead.
  * `mcp` (Phase 2) enters the loop when a user has connected servers — see the
  * router's gate, which must let it through despite the @<server> forcedTool flag.
+ * `summary`/`bundestag`/`abgeordnetenwatch` (Phase 2b) each mount their own
+ * domain tool via `buildChatToolCatalog`'s intent-scoped `loop` branch.
  */
 export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'search',
@@ -49,6 +51,9 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'pressemitteilung_examples',
   'compare',
   'mcp',
+  'summary',
+  'bundestag',
+  'abgeordnetenwatch',
 ]);
 
 export function isAgenticLoopEnabled(): boolean {
@@ -147,7 +152,11 @@ export async function streamAgenticResponse(params: {
       { intent: finalState.intent }
     );
 
-    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry });
+    const { tools } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: finalState },
+    });
 
     // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
     // (dynamicTool) into the same catalog, so the model composes them with the
