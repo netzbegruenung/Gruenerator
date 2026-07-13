@@ -198,7 +198,13 @@ NUTZE WENN:
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
-    if (state.intent === 'image' && state.enabledTools?.['image'] !== false) {
+    // 'agentic' (demoted) turns also mount it — image phrasings the confident
+    // heuristic misses land there; idempotency + forceFinish cap quota at one
+    // image per turn.
+    if (
+      (state.intent === 'image' || state.intent === 'agentic') &&
+      state.enabledTools?.['image'] !== false
+    ) {
       tools.generate_image = makeImageTool({ sse, state });
     }
   }
