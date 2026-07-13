@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { FiCloud, FiCornerDownLeft, FiGrid, FiSearch, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { type FeatureHit, matchFeatures } from '../global-search/featureIndex';
+
 import {
   DOC_TYPE_META,
   PROMPT_EXAMPLES,
@@ -11,6 +13,7 @@ import {
   detectPromptIntent,
   type DocKind,
 } from './docTypeMeta';
+import { useComposerOfficeSearch } from './useComposerOfficeSearch';
 
 export type ImportKind = 'file' | 'sheet' | 'wolke';
 
@@ -34,6 +37,8 @@ export interface ComposerTemplate {
 interface DocsComposerProps {
   items: ComposerItem[];
   templates: ComposerTemplate[];
+  /** Client-side index of tools/features/agents — powers the "reel → Reel" tool hits. */
+  featureIndex: FeatureHit[];
   isGenerating: boolean;
   /** Offer sharepic detection/creation (gated: SHOW_SHAREPIC_STUDIO, not de-AT). */
   sharepicEnabled?: boolean;
@@ -50,6 +55,7 @@ interface Option {
 
 const MAX_ITEMS = 5;
 const MAX_TEMPLATES = 4;
+const MAX_TOOLS = 4;
 
 function TypeChip({ kind, size = 26 }: { kind: DocKind; size?: number }) {
   const meta = DOC_TYPE_META[kind];
@@ -68,6 +74,7 @@ function TypeChip({ kind, size = 26 }: { kind: DocKind; size?: number }) {
 export function DocsComposer({
   items,
   templates,
+  featureIndex,
   isGenerating,
   sharepicEnabled = false,
   onGenerate,
@@ -106,7 +113,22 @@ export function DocsComposer({
         .slice(0, MAX_TEMPLATES)
     : [];
 
-  const hasResults = matchedItems.length + matchedTemplates.length > 0;
+  // Content matches from the backend — documents/boards/sheets/presentations
+  // whose query term lives in the body, not the title. Drop the ones already
+  // shown as an instant title match so a hit doesn't appear twice.
+  const contentHits = useComposerOfficeSearch(query, open);
+  const localItemIds = new Set(matchedItems.map((it) => it.id));
+  const contentMatches = contentHits.filter((h) => !localItemIds.has(h.id)).slice(0, MAX_ITEMS);
+
+  // Tools/features/agents — "reel" surfaces the Reel tool, mirroring the
+  // sidebar's global search.
+  const toolHits = query ? matchFeatures(featureIndex, query, MAX_TOOLS) : [];
+
+  // Tool hits stay out of `hasResults`: matchFeatures matches liberally (a
+  // create term like "plan" can graze a tool's keywords), and they shouldn't
+  // demote the create action or hide the import fallback — they render as an
+  // extra section regardless.
+  const hasResults = matchedItems.length + contentMatches.length + matchedTemplates.length > 0;
   const promptMode = query.length > 0 && (detectPromptIntent(query) || !hasResults);
 
   const runCreate = () => {
@@ -144,6 +166,46 @@ export function DocsComposer({
             {it.title}
           </div>
           <div className="text-xs text-[#9AA8A1]">{DOC_TYPE_META[it.kind].label}</div>
+        </div>
+      </div>
+    ),
+  }));
+
+  const contentOptions: Option[] = contentMatches.map((h) => ({
+    key: `content-${h.kind}-${h.id}`,
+    onSelect: () => navigate(h.url),
+    render: () => (
+      <div className="flex w-full min-w-0 items-center gap-3">
+        <TypeChip kind={h.kind} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
+            {h.title}
+          </div>
+          <div className="truncate text-xs text-[#9AA8A1]">
+            {h.snippet || DOC_TYPE_META[h.kind].label}
+          </div>
+        </div>
+      </div>
+    ),
+  }));
+
+  const toolOptions: Option[] = toolHits.map((hit) => ({
+    key: `tool-${hit.key}`,
+    onSelect: () => navigate(hit.path),
+    render: () => (
+      <div className="flex w-full min-w-0 items-center gap-3">
+        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#F1F4F1] text-[#5C6B63] dark:bg-grey-700 dark:text-grey-300">
+          {hit.icon ? (
+            <hit.icon aria-hidden="true" className="size-[15px]" />
+          ) : (
+            <FiSearch size={15} />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
+            {hit.title}
+          </div>
+          {hit.subtitle && <div className="truncate text-xs text-[#9AA8A1]">{hit.subtitle}</div>}
         </div>
       </div>
     ),
@@ -191,9 +253,16 @@ export function DocsComposer({
     ),
   }));
 
+  const resultOptions: Option[] = [
+    ...itemOptions,
+    ...contentOptions,
+    ...templateOptions,
+    ...toolOptions,
+    ...importOptions,
+  ];
   const options: Option[] = promptMode
-    ? [createOption, ...itemOptions, ...templateOptions, ...importOptions]
-    : [...itemOptions, ...templateOptions, ...importOptions, createOption];
+    ? [createOption, ...resultOptions]
+    : [...resultOptions, createOption];
 
   const clampedActive = Math.min(active, Math.max(0, options.length - 1));
   const showDropdown = open && query.length > 0 && options.length > 0;

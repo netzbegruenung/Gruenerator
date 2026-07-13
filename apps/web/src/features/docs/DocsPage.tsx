@@ -37,6 +37,7 @@ import { generateSharepicFromPrompt } from '../../services/sharepicPromptService
 import { useAuthStore } from '../../stores/authStore';
 import useImageStudioStore from '../../stores/imageStudioStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
+import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
 import {
   getPresentationTemplate,
@@ -115,6 +116,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const locale = useAuthStore((s) => s.locale);
+  const featureIndex = useFeatureIndex();
   const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
   // Sharepic creation routes into the canvas editor — a research preview
   // (SHOW_SHAREPIC_STUDIO); AT users create via the external bildgenerator.
@@ -570,6 +572,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
         <DocsComposer
           items={composerItems}
           templates={composerTemplates}
+          featureIndex={featureIndex}
           isGenerating={creating}
           sharepicEnabled={sharepicEnabled}
           onGenerate={handleComposerCreate}
