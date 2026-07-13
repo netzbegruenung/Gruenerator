@@ -15,6 +15,7 @@ export {
   imageEditNode,
   summarizeNode,
   computeNode,
+  mcpToolNode,
   pandasComputeNode,
   computeVerifierNode,
   respondNode,

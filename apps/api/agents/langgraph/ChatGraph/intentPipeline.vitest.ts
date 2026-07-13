@@ -65,6 +65,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'edit_current_board',
   'modify_board',
   'share_doc',
+  'mcp',
   'direct',
 ];
 
@@ -332,6 +333,7 @@ describe('every SearchIntent has a handler path', () => {
       'controller emits trigger_board_action SSE for the boards assistant live edit (client-side executor)',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
+    mcp: 'EXPERIMENTAL — routes to respond, controller runs mcpToolNode (external MCP tool-loop) and injects result',
   };
 
   for (const intent of ALL_INTENTS) {
