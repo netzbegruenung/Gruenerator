@@ -10,6 +10,8 @@ import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
 
 import { cn } from '@/utils/cn';
 
+import './workplace-sunrise.css';
+
 // Each tab is its own chunk so the default Chat tab paints without pulling
 // office/docs or the notebook chat surface.
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
@@ -18,7 +20,7 @@ const WissenTab = lazy(() => import('./tabs/WissenTab'));
 // Per-tab page tints from the design (light mode only; dark keeps the theme
 // background). Chat gets the warm radial glow behind the centered hero.
 const TAB_BACKGROUND: Record<string, string> = {
-  chat: 'bg-[#FEFCF5] [background-image:radial-gradient(88%_58%_at_50%_52%,rgba(233,214,150,.5)_0%,rgba(233,214,150,.18)_40%,rgba(255,255,255,0)_74%)] dark:bg-transparent dark:[background-image:none]',
+  chat: 'workplace-chat-sunrise dark:bg-transparent',
   arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
   wissen: 'bg-[#FEFDF9] dark:bg-transparent',
 };
