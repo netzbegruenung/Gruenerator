@@ -354,6 +354,38 @@ export function getModel(provider: string, modelId: string): LanguageModel {
   }
 }
 
+/**
+ * Whether a resolved model can drive the agentic chat tool loop (native
+ * function calling with multi-step tool use). Conservative on purpose: only
+ * Mistral is enabled for now — it's the primary EU provider and our strongest
+ * tool-caller (mistral-medium-2604). The overflow lanes (Gemma/GPT-OSS via
+ * litellm/regolo) and Qwen are NOT gated in yet; a non-tool-capable user
+ * selection stays on the single-pass pipeline rather than being silently
+ * swapped (the informed-consent boundary in resolveModel).
+ */
+export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
+  return provider === 'mistral';
+}
+
+/**
+ * Cheap, slot-free check of whether the model that WILL be used (user selection
+ * or agent default) can drive the agentic loop. Mistral lanes never acquire an
+ * overflow slot, so this can decide the agentic branch before the heavier
+ * `resolveModel` runs — without double-acquiring a Verdigado slot.
+ */
+export function selectionIsToolCapable(agentProvider: string, modelId?: string): boolean {
+  if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
+    const cfg = AVAILABLE_MODELS[modelId];
+    if (cfg) {
+      const provider = cfg.kind === 'single' ? cfg.provider : cfg.primary.provider;
+      const model = cfg.kind === 'single' ? cfg.model : cfg.primary.model;
+      return isAgenticToolCapable(provider, model);
+    }
+    // Unknown id → agent default is used, fall through.
+  }
+  return isAgenticToolCapable(agentProvider, '');
+}
+
 export function getProviderName(provider: AgentConfig['provider']): string {
   switch (provider) {
     case 'mistral':
