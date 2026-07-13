@@ -964,6 +964,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
         reasoning: 'Externe Info → search_documents zusätzlich zum Dokumentkontext.',
       },
     ],
+    hiddenFromInventory: true,
     iconKey: 'file-text',
     localized: {
       'de-AT': {
@@ -1027,6 +1028,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
           'Board-bezogene Frage → direkt aus dem Boardkontext beantworten, keine Mutation.',
       },
     ],
+    hiddenFromInventory: true,
     iconKey: 'layout-grid',
     audience: 'all',
     systemRole:
@@ -1082,6 +1084,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
           'Modifikations-Intent → edit_current_doc-Pfad, die Plattform setzt die Formel direkt in der Tabelle um.',
       },
     ],
+    hiddenFromInventory: true,
     iconKey: 'table',
     localized: {
       'de-AT': {
@@ -1146,6 +1149,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
           'Modifikations-Intent → edit_current_doc-Pfad, die Plattform setzt die Folienänderung direkt im Editor um.',
       },
     ],
+    hiddenFromInventory: true,
     iconKey: 'PiProjectorScreenChart',
     localized: {
       'de-AT': {
@@ -1212,6 +1216,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
           'Recherche-Aufgabe → externe Quellen nutzen, Ergebnisse sharepic-tauglich verdichten.',
       },
     ],
+    hiddenFromInventory: true,
     iconKey: 'image',
     audience: 'all',
     systemRole:
