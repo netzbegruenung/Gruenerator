@@ -1,4 +1,3 @@
-import { type BoardPreview } from '@gruenerator/contracts';
 import {
   CardActionsMenu,
   CardGrid,
@@ -8,7 +7,7 @@ import {
   Skeleton,
   VideoCard,
 } from '@gruenerator/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 import { FaVideo } from 'react-icons/fa';
@@ -35,27 +34,11 @@ import {
   shareThumbnailPreviewUrl,
 } from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
-
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
-
-interface RecentItem {
-  id: string;
-  title: string;
-  date: string;
-  type: RecentItemType;
-  href: string;
-  emoji?: string;
-  boardType?: 'kanban' | 'whiteboard';
-  preview?: BoardPreview;
-  thumbnailUrl?: string;
-  duration?: number;
-  creatorName?: string;
-  accessType?: string;
-  deleteEndpoint?: string;
-  content?: string;
-  documentType?: string;
-  blurhash?: string;
-}
+import {
+  type RecentItem,
+  type RecentItemType,
+  useRecentActivity,
+} from '../hooks/useRecentActivity';
 
 // Shared type vocabulary: every card surfaces the same eucalyptus-tinted badge
 // (icon + label) so a board and a document read as one system. `boardType`
@@ -68,7 +51,6 @@ const TYPE_META: Record<
   board: { label: 'Board', Icon: PiKanban },
   image: { label: 'Bild', Icon: FiImage },
   video: { label: 'Video', Icon: FaVideo },
-  text: { label: 'Text', Icon: FiFileText },
   canvas: { label: 'Sharepic', Icon: FiImage },
 };
 
@@ -103,15 +85,6 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-// Fetch the backend maximum (capped at 30 server-side) so the "Mehr anzeigen"
-// expansion has more than the collapsed row to reveal without a refetch.
-const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 30 },
-  });
-  return res.data?.items ?? [];
-};
-
 // The vertical grid shows this many items by default (a couple of rows, like
 // Word's "Recent"); "Mehr anzeigen" reveals the rest of the fetched items.
 const RECENT_COLLAPSE_THRESHOLD = 12;
@@ -121,7 +94,6 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   board: 'Unbenanntes Board',
   image: 'Ohne Titel',
   video: 'Ohne Titel',
-  text: 'Ohne Titel',
   canvas: 'Neuer Canvas',
 };
 
@@ -196,7 +168,7 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
   let body: React.ReactNode;
   if (isSlidesPreview(item)) {
     body = <SlidesPreviewBody content={item.content} />;
-  } else if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
+  } else if (item.type === 'doc' && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
       <>
@@ -344,12 +316,10 @@ const RecentItemCard = memo(
     item,
     onDelete,
     onShare,
-    onConvertText,
   }: {
     item: RecentItem;
     onDelete: (item: RecentItem) => void;
     onShare: (item: RecentItem) => void;
-    onConvertText?: (textId: string) => void;
   }) => {
     const { label: typeLabel, Icon: TypeIcon } = getTypeMeta(item);
     const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
@@ -404,25 +374,6 @@ const RecentItemCard = memo(
         </div>
       </>
     );
-
-    if (item.type === 'text' && onConvertText) {
-      return (
-        <div
-          role="button"
-          tabIndex={0}
-          className={cardClass}
-          onClick={() => onConvertText(item.id)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onConvertText(item.id);
-            }
-          }}
-        >
-          {cardContent}
-        </div>
-      );
-    }
 
     if (item.type === 'image') {
       return (
@@ -484,37 +435,13 @@ const RecentReelCard = memo(
 RecentReelCard.displayName = 'RecentReelCard';
 
 const RecentlyCreatedSection: React.FC = memo(() => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: allItems = [], isLoading } = useQuery({
-    queryKey: ['recent-activity'],
-    queryFn: fetchRecentActivity,
-    staleTime: 30_000,
-  });
-
-  const items = allItems.filter((item) => {
-    if (item.type === 'text') return false;
-    return true;
-  });
+  const { data: items = [], isLoading, isError, refetch } = useRecentActivity();
 
   const [expanded, setExpanded] = useState(false);
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
-
-  const handleConvertText = useCallback(
-    async (textId: string) => {
-      try {
-        const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
-        const { documentId } = res.data as { documentId: string };
-        void navigate(`/office/${documentId}`);
-      } catch {
-        // fallback to old editor
-        void navigate(`/texte/texteditor?textId=${textId}`);
-      }
-    },
-    [navigate]
-  );
 
   const handleDelete = useCallback(
     (item: RecentItem) => {
@@ -523,7 +450,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         board: 'Board wirklich löschen?',
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
-        text: 'Text wirklich löschen?',
         canvas: 'Sharepic wirklich löschen?',
       };
 
@@ -593,7 +519,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         item={item}
         onDelete={handleDelete}
         onShare={handleShare}
-        onConvertText={handleConvertText}
       />
     );
 
@@ -617,6 +542,19 @@ const RecentlyCreatedSection: React.FC = memo(() => {
             </div>
           ))}
         </CardGrid>
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-2 py-lg text-center">
+          <p className="text-sm text-grey-500 dark:text-grey-400">
+            Zuletzt bearbeitete Inhalte konnten nicht geladen werden.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+          >
+            Erneut versuchen
+          </button>
+        </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Inhalte vorhanden.
