@@ -52,6 +52,9 @@ interface NotebookStartpageProps {
   /** Canonical notebook id (e.g. 'brandenburg-notebook') used to surface the
    *  notebook's LV agents. The agents section self-hides when none match. */
   notebookId?: string;
+  /** Disable the PageContainer gradient when embedded in a surface that paints
+   *  its own page background (workplace "Wissen" tab tint). Defaults to true. */
+  pageGradient?: boolean;
   footer?: ReactNode;
 }
 
@@ -93,6 +96,7 @@ export function NotebookStartpage({
   manualSearchNotebookId,
   notebookMention,
   notebookId,
+  pageGradient = true,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
@@ -107,7 +111,7 @@ export function NotebookStartpage({
   if (activeView === 'globalChat' && !globalChatAvailable) activeView = 'ki';
 
   return (
-    <PageContainer maxWidth="lg">
+    <PageContainer maxWidth="lg" gradient={pageGradient}>
       <div className="mb-lg pt-md text-center">
         <h1 className="mb-xs text-4xl font-semibold text-foreground-heading max-md:text-2xl">
           {title}
