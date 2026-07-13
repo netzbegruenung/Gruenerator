@@ -21,10 +21,9 @@ import { useAuthStore, type User } from '../stores/authStore';
  * `GET /api/auth/status`.
  */
 async function fetchAuthStatus(): Promise<AuthData> {
-  // disableCookieCache forces a real store lookup instead of reading the ≤60s
-  // signed cookie snapshot — this probe must be authoritative or it reports a
-  // dead session as alive (the half-logged-in bug).
-  const { data, error } = await authClient.getSession({ query: { disableCookieCache: true } });
+  // Cookie-cache read (see probeAuthStatus): this feeds the partial-logout
+  // diagnostic, not a teardown, so tolerance beats authority here.
+  const { data, error } = await authClient.getSession();
   if (error) throw error;
   if (!data?.user) return { isAuthenticated: false };
   return {
@@ -49,9 +48,17 @@ type AuthProbeResult =
 
 async function probeAuthStatus(): Promise<AuthProbeResult> {
   try {
-    // Authoritative read: bypass the cookie-cache snapshot so a freshly-dead
-    // session is seen as such on the next mount / window-focus refetch.
-    const { data, error } = await authClient.getSession({ query: { disableCookieCache: true } });
+    // Deliberately DO read the cookie cache here. This is the routine
+    // authStatus refetch (fires on every window focus / mount), and its guest
+    // answer tears down the session in one shot (`applyAuthAnswer`). Forcing an
+    // authoritative store lookup on every focus made a single transient
+    // "session not resolved" flip (e.g. a cookie-delivery hiccup on some hosts)
+    // log an active user straight out. The cookie cache (now ≤60s) rides those
+    // out; a genuinely dead session is still caught within 60s here, and
+    // INSTANTLY on the next real API 401 via `probeSessionVerdict`, which stays
+    // authoritative (disableCookieCache) because THAT path has already seen a
+    // hard 401 and needs the truth.
+    const { data, error } = await authClient.getSession();
     if (error) return { kind: 'transient-error', error };
     if (!data?.user) return { kind: 'guest' };
     return {
