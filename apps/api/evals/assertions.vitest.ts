@@ -82,6 +82,18 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
+  it('cited does NOT false-positive on numbered headings / ordinals / ranges (live multitopic answer)', () => {
+    const rs = runAssertions(
+      trace({
+        fullText:
+          '### 1. Atomkraft\nRisiken [1].\n### 2. Tempolimit\nEinsparung 1–2 Millionen Tonnen [2].\n### 3. Vermögensteuer\nGerechtigkeit [3][1][2].',
+        sources: 0,
+      }),
+      { cited: true }
+    );
+    expect(names(rs)['cited']).toBe(true);
+  });
+
   it('cited fails when a citation number exceeds the source count', () => {
     const rs = runAssertions(trace({ fullText: 'Aussage [27].', sources: 5 }), { cited: true });
     expect(names(rs)['cited']).toBe(false);

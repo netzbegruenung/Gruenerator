@@ -39,7 +39,14 @@ function loadCorpus(): EvalCase[] {
     .map((l) => l.trim())
     .filter(Boolean)
     .map((l) => JSON.parse(l) as EvalCase)
-    .filter((c) => !FILTER || c.id.includes(FILTER) || c.category.includes(FILTER));
+    .filter((c) => {
+      if (!FILTER) return true;
+      // Comma-separated OR match on id or category substrings.
+      return FILTER.split(',')
+        .map((f) => f.trim())
+        .filter(Boolean)
+        .some((f) => c.id.includes(f) || c.category.includes(f));
+    });
 }
 
 async function runCase(c: EvalCase): Promise<CaseResult> {
