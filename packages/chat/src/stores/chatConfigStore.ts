@@ -45,8 +45,13 @@ export type RunPython = (
 export interface ChatConfig {
   /** Custom fetch function. Default: fetch with credentials:'include' */
   fetch?: (url: string, options?: RequestInit) => Promise<Response>;
-  /** Called on 401. Default: redirect to /login */
-  onUnauthorized?: () => void;
+  /**
+   * Called on 401. A truthy (Promise-)return means "the session was probed and
+   * is actually alive — retry the request once" (web routes this through the
+   * shared handleUnauthorized authority); void/false means "don't retry".
+   * Default: redirect to /login.
+   */
+  onUnauthorized?: () => void | boolean | Promise<boolean | void>;
   /** Client shell sent with chat requests; unset means 'web'. */
   platform?: ClientPlatform;
   /** API endpoint overrides (all have defaults matching current paths) */
@@ -164,7 +169,7 @@ export interface ResolvedEndpoints {
 
 interface ResolvedChatConfig {
   fetch: (url: string, options?: RequestInit) => Promise<Response>;
-  onUnauthorized: () => void;
+  onUnauthorized: () => void | boolean | Promise<boolean | void>;
   endpoints: ResolvedEndpoints;
   docsBaseUrl?: string;
 }
