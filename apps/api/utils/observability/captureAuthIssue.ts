@@ -13,6 +13,7 @@ export type AuthStage =
   | 'oauth-no-session'
   | 'token-exchange'
   | 'auth-error-route'
+  | 'locale-update'
   | 'better-auth';
 
 interface AuthIssueOptions {
