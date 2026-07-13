@@ -8,6 +8,7 @@ import { cn, pillActive, pillBase, pillInactive } from '@gruenerator/ui';
 import { memo, useState, type ReactNode } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
+import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
 import { LastAddedSection } from './LastAddedSection';
 import { NotebookAgentsSection } from './NotebookAgentsSection';
@@ -55,6 +56,9 @@ interface NotebookStartpageProps {
   /** Disable the PageContainer gradient when embedded in a surface that paints
    *  its own page background (workplace "Wissen" tab tint). Defaults to true. */
   pageGradient?: boolean;
+  /** Replace the plain question composer with the omni composer (ask/route/
+   *  open/research in one input). Used by the /notebooks index surface. */
+  omniComposer?: boolean;
   footer?: ReactNode;
 }
 
@@ -97,9 +101,13 @@ export function NotebookStartpage({
   notebookMention,
   notebookId,
   pageGradient = true,
+  omniComposer = false,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
+  // `nonce` bumps on every seed so re-researching the *same* query still
+  // remounts NotebookManualSearch (the `key` would otherwise be unchanged).
+  const [manualSearchSeed, setManualSearchSeed] = useState({ query: '', nonce: 0 });
   const manualSearchAvailable = showManualSearch && recentCollectionIds.length > 0;
   const globalChatAvailable = !!notebookMention && !hideGlobalChat;
   const anyExtraTabAvailable = manualSearchAvailable || globalChatAvailable;
@@ -154,13 +162,26 @@ export function NotebookStartpage({
       {activeView === 'ki' && (
         <>
           <div className="mx-auto mb-xl max-w-3xl">
-            <NotebookComposer
-              placeholder={placeholder}
-              sourceFilters={composerSourceFilters}
-              categoryFilters={composerCategoryFilters}
-              mode={mode}
-              onModeChange={onModeChange}
-            />
+            {omniComposer ? (
+              <NotebookOmniComposer
+                onManualSearch={
+                  manualSearchAvailable
+                    ? (query) => {
+                        setManualSearchSeed((prev) => ({ query, nonce: prev.nonce + 1 }));
+                        setViewMode('recherche');
+                      }
+                    : undefined
+                }
+              />
+            ) : (
+              <NotebookComposer
+                placeholder={placeholder}
+                sourceFilters={composerSourceFilters}
+                categoryFilters={composerCategoryFilters}
+                mode={mode}
+                onModeChange={onModeChange}
+              />
+            )}
             {exampleQuestions.length > 0 && (
               <div className="mt-md grid grid-cols-1 gap-sm md:grid-cols-3">
                 {exampleQuestions.map((q) => (
@@ -188,8 +209,10 @@ export function NotebookStartpage({
       {activeView === 'recherche' && (
         <div className="mx-auto max-w-3xl">
           <NotebookManualSearch
+            key={manualSearchSeed.nonce}
             collectionIds={recentCollectionIds}
             notebookId={manualSearchNotebookId}
+            initialQuery={manualSearchSeed.query || undefined}
           />
         </div>
       )}
