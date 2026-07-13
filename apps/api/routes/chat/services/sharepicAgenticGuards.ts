@@ -6,7 +6,14 @@
 import { canvasAiOperationSchema, sliderDeckOperationSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
-export const MAX_FAILURES_PER_TOOL = 2;
+// The guard state is now the generalized agentic-loop guard. The sharepic loop
+// uses only its first three methods (duplicate/failure-cap), whose semantics are
+// identical to the original inline version — so this is a pure re-export, no
+// behaviour change.
+export {
+  MAX_FAILURES_PER_TOOL,
+  createToolLoopGuards as createLoopGuards,
+} from './agenticLoop/loopGuards.js';
 
 export const applyOpsInputSchema = z.object({
   operations: z.array(canvasAiOperationSchema).min(1).max(8),
@@ -21,32 +28,3 @@ export const applySliderOpsInputSchema = z.object({
 export const restoreInputSchema = z.object({
   version: z.number().int().min(1),
 });
-
-/**
- * Pure guard state for one loop turn: rejects an exactly repeated tool call
- * (model ping-pong) and caps failures per tool so the loop can't burn all its
- * steps on the same broken idea.
- */
-export function createLoopGuards() {
-  let lastKey = '';
-  const failures = new Map<string, number>();
-  return {
-    checkDuplicate(toolName: string, input: unknown): string | null {
-      const key = `${toolName}:${JSON.stringify(input)}`;
-      if (key === lastKey) {
-        return 'Identischer Aufruf wiederholt — ändere die Parameter oder antworte dem*der Nutzer*in direkt.';
-      }
-      lastKey = key;
-      return null;
-    },
-    noteFailure(toolName: string): void {
-      failures.set(toolName, (failures.get(toolName) ?? 0) + 1);
-    },
-    checkFailureCap(toolName: string): string | null {
-      if ((failures.get(toolName) ?? 0) >= MAX_FAILURES_PER_TOOL) {
-        return 'Zu viele Fehlversuche mit diesem Tool — erkläre dem*der Nutzer*in, was nicht geklappt hat.';
-      }
-      return null;
-    },
-  };
-}
