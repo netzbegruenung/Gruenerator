@@ -189,7 +189,17 @@ export async function fetchRecentBoards(
   const rows = await db.query(
     `SELECT
       cd.id, cd.title, cd.updated_at, cd.created_by, cd.content,
-      p.display_name as creator_name
+      p.display_name as creator_name,
+      CASE
+        WHEN cd.created_by = $1 THEN 'owner'
+        WHEN cd.permissions ? $2::text THEN 'direct'
+        WHEN cd.id IN (
+          SELECT gcs.content_id::uuid
+          FROM group_content_shares gcs
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          WHERE gcs.content_type = 'collaborative_documents'
+        ) THEN 'group'
+      END AS access_type
     FROM collaborative_documents cd
     LEFT JOIN profiles p ON cd.created_by = p.id
     WHERE
@@ -218,6 +228,7 @@ export async function fetchRecentBoards(
       created_by: string;
       content: string | BoardContent | null;
       creator_name: string;
+      access_type: string | null;
     }>
   ).map((row) => {
     let boardType: BoardType = 'kanban';
@@ -246,6 +257,7 @@ export async function fetchRecentBoards(
       boardType,
       ...(preview ? { preview } : {}),
       creatorName: row.creator_name,
+      accessType: row.access_type ?? undefined,
       deleteEndpoint: `/api/boards/${row.id}`,
     };
   });
@@ -337,7 +349,12 @@ export async function fetchRecentCanvases(
       CASE
         WHEN cd.created_by = $2 THEN 'owner'
         WHEN cd.permissions ? $3::text THEN 'direct'
-        ELSE 'group'
+        WHEN cd.id IN (
+          SELECT gcs.content_id::uuid
+          FROM group_content_shares gcs
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+          WHERE gcs.content_type = 'collaborative_documents'
+        ) THEN 'group'
       END AS access_type
     FROM collaborative_documents cd
     INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
@@ -356,7 +373,7 @@ export async function fetchRecentCanvases(
       created_by: string;
       thumbnail_url: string | null;
       creator_name: string | null;
-      access_type: string;
+      access_type: string | null;
     }>
   ).map((row) => ({
     id: row.id,
@@ -366,7 +383,7 @@ export async function fetchRecentCanvases(
     href: `/studio/canvas/${row.id}`,
     thumbnailUrl: row.thumbnail_url ?? undefined,
     creatorName: row.creator_name ?? undefined,
-    accessType: row.access_type,
+    accessType: row.access_type ?? undefined,
     deleteEndpoint: `/api/canvas/${row.id}`,
   }));
 }
