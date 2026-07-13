@@ -7,7 +7,7 @@ import {
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { parseSSELine } from '../../lib/sseParser';
-import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
+import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
@@ -135,6 +135,12 @@ export async function* parseSSEStream(
   let receivedReelPicker: ReelPickerData | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
+  // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
+  // ONE model step (parallel tool calls), so their start/result events
+  // interleave — a single `activeToolCall` would drop all but the last. Each
+  // step is pushed on `tool_step_start` and updated in place on
+  // `tool_step_result`.
+  const toolStepsById = new Map<string, ToolCallPart>();
   let interruptPending = false;
   // client_tool interrupt (auto-executed by the ModelAdapter): unlike a
   // clarification it must NOT flip the message to requires-action — the same
@@ -278,14 +284,16 @@ export async function* parseSSEStream(
         }
 
         case 'intent': {
-          const { intent, message, reasoning, searchQuery, subQueries, searchSources } = data as {
-            intent: SearchIntent;
-            message: string;
-            reasoning?: string;
-            searchQuery?: string;
-            subQueries?: string[] | null;
-            searchSources?: string[] | null;
-          };
+          const { intent, message, reasoning, searchQuery, subQueries, searchSources, agentic } =
+            data as {
+              intent: SearchIntent;
+              message: string;
+              reasoning?: string;
+              searchQuery?: string;
+              subQueries?: string[] | null;
+              searchSources?: string[] | null;
+              agentic?: boolean;
+            };
           let stage: ProgressStage = 'searching';
           if (intent === 'direct' || intent === 'artifact') stage = 'generating';
           else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
@@ -294,7 +302,11 @@ export async function* parseSSEStream(
           transitionStep(stage);
           currentProgress = { stage, message, intent, reasoning };
 
-          const toolName = INTENT_TO_TOOL[intent];
+          // Agentic respond path: the model drives the tool loop, so real
+          // tool_step_* cards will arrive. Skip the intent-fabricated tool card
+          // (and its search_complete result stamping) — otherwise a ghost card
+          // would sit alongside the real ones.
+          const toolName = agentic ? undefined : INTENT_TO_TOOL[intent];
           if (toolName) {
             const hasMultiSearch =
               (subQueries && subQueries.length > 0) || (searchSources && searchSources.length > 1);
@@ -632,31 +644,47 @@ export async function* parseSSEStream(
           break;
         }
 
-        // Agentic sharepic loop (CHAT_TOOL_LOOP): each tool step renders as a
-        // tool-call part, mirroring the thinking_step archive-and-replace
-        // mechanics (including the duplicate-stepId guard).
+        // Agentic tool loop (sharepic edit + general respond loop): each tool
+        // step renders as a tool-call part, mirroring the thinking_step
+        // archive-and-replace mechanics (including the duplicate-stepId guard).
         case 'tool_step_start': {
-          const { stepId, toolName, args } = data as {
+          const {
+            stepId,
+            toolName,
+            args,
+            title: serverTitle,
+            serverName,
+          } = data as {
             stepId: string;
             toolName: string;
             args?: Record<string, unknown>;
+            title?: string;
+            serverName?: string;
           };
-          const title = TOOL_STEP_TITLES[toolName] ?? 'Arbeite am Sharepic…';
-          const isDuplicateStepId =
-            (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
-            allToolCalls.some((tc) => tc.toolCallId === stepId);
-          if (!isDuplicateStepId) {
-            if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
-              allToolCalls.push(activeToolCall);
-            }
+          // Prefer a server-provided title; else the legacy mcpToolNode
+          // `mcp_tool` server/tool label; else the sharepic-specific map; else a
+          // generic label derived from the (possibly MCP-namespaced) name.
+          const title =
+            serverTitle ??
+            (toolName === 'mcp_tool'
+              ? `${(args?.server as string) ?? 'MCP'}${args?.tool ? ` · ${args.tool as string}` : ''}`
+              : (TOOL_STEP_TITLES[toolName] ??
+                `${formatNamespacedToolLabel(toolName, serverName)}…`));
+          const alreadyKnown =
+            toolStepsById.has(stepId) || allToolCalls.some((tc) => tc.toolCallId === stepId);
+          if (!alreadyKnown) {
             const toolArgs = { query: title, ...(args ?? {}) };
-            activeToolCall = {
+            const toolCall: ToolCallPart = {
               type: 'tool-call',
               toolCallId: stepId,
               toolName,
               args: toolArgs as Record<string, string | number | boolean | null>,
               argsText: JSON.stringify(toolArgs),
             };
+            // Push immediately so a parallel sibling's start doesn't orphan this
+            // card; the result updates it in place.
+            toolStepsById.set(stepId, toolCall);
+            allToolCalls.push(toolCall);
           }
           currentProgress = { stage: 'searching', message: title };
           yield buildResult();
@@ -664,19 +692,27 @@ export async function* parseSSEStream(
         }
 
         case 'tool_step_result': {
-          const { stepId, ok, summary } = data as {
+          const { stepId, ok, summary, result } = data as {
             stepId: string;
             toolName: string;
             ok: boolean;
             summary?: string;
+            result?: Record<string, unknown>;
           };
-          if (activeToolCall?.toolCallId === stepId) {
-            activeToolCall = {
-              ...activeToolCall,
-              result: { ok, ...(summary ? { summary } : {}) },
+          const pending = toolStepsById.get(stepId);
+          if (pending) {
+            // Stamp the rich per-tool result (results/examples/researchMeta) so
+            // the tool-ui card renders mid-stream from the real tool output,
+            // not just an ok/summary status. ok/summary are folded in for the
+            // generic status chip. Replace by identity so memoized consumers
+            // re-render.
+            const updated: ToolCallPart = {
+              ...pending,
+              result: { ...(result ?? {}), ok, ...(summary ? { summary } : {}) },
             };
-            allToolCalls.push(activeToolCall);
-            activeToolCall = null;
+            toolStepsById.set(stepId, updated);
+            const idx = allToolCalls.indexOf(pending);
+            if (idx >= 0) allToolCalls[idx] = updated;
           }
           currentProgress = {
             stage: 'generating',

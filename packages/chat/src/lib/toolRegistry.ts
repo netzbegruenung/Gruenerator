@@ -43,6 +43,7 @@ export const UI_TOOL_NAMES = z.enum([
   'save_memory',
   'ask_human',
   'run_python',
+  'mcp_tool',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -193,6 +194,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   save_memory: entry('save_memory', 'text-note', parseTextNoteVM),
   ask_human: entry('ask_human', 'interactive', () => ({ kind: 'interactive' })),
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
+  mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
 };
 
 /** Lookup that degrades gracefully for unregistered tool names. */
