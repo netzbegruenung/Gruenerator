@@ -97,6 +97,17 @@ export const auth = betterAuth({
         );
         return;
       }
+      // Known Better Auth secondary-storage corruption: a partial/corrupt
+      // `ba:<token>` Redis value makes deleteSession early-return WITHOUT
+      // deleting the DB row or firing hooks — leaving a revoked session's row
+      // alive (a silent half-logged-in source). Not benign; alert on it.
+      if (
+        level === 'error' &&
+        typeof message === 'string' &&
+        /not found in secondary storage/i.test(message)
+      ) {
+        captureAuthIssue({ stage: 'better-auth', cause: new Error(message), extras: { args } });
+      }
       const sink =
         level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
       sink(`[BA:${level}]`, message, ...args);
@@ -171,7 +182,12 @@ export const auth = betterAuth({
     storeSessionInDatabase: true,
     cookieCache: {
       enabled: true,
-      maxAge: 300,
+      // 60s (not 300) shrinks the window in which a dead session still reads
+      // as alive from the signed `ba.session_data` snapshot — the root of the
+      // "half logged in" state. Do NOT disable: that puts Redis/PG on the hot
+      // path of every request and makes auth_unavailable 503 bursts far more
+      // visible during Redis blips (which the cache currently rides out).
+      maxAge: 60,
     },
     additionalFields: {
       push_token: { type: 'string', required: false },
@@ -336,13 +352,36 @@ export const auth = betterAuth({
       create: {
         after: async (session) => {
           log.info(
-            `[Auth] session-created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'}`
+            `[Session] created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
           );
           // Deliver one-off product announcements (e.g. new Pride avatars) on
           // login — once per user, idempotent, best-effort.
           const { deliverLoginAnnouncements } =
             await import('../services/notifications/loginAnnouncements.js');
           await deliverLoginAnnouncements(session.userId);
+        },
+      },
+      // Rolling refresh (updateAge: 24h) touches the session at most once per
+      // user per day — so this line is low-volume and makes rotation visible.
+      // A user rotating more than once a day is anomalous (rotation-loop bug).
+      update: {
+        after: async (session) => {
+          log.info(
+            `[Session] rotated id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
+          );
+        },
+      },
+      // First-time visibility into revocation AND expiry-purge-on-read. `reason`
+      // is inferred from expiry: a row whose expiresAt is already past was
+      // purged when getSession read it; otherwise it's an explicit sign-out.
+      delete: {
+        after: async (session) => {
+          const expiresAt =
+            session.expiresAt instanceof Date ? session.expiresAt : new Date(session.expiresAt);
+          const expired = expiresAt.getTime() < Date.now();
+          log.info(
+            `[Session] deleted id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expired=${expired} reason=${expired ? 'expired-on-read' : 'revoked'}`
+          );
         },
       },
     },
