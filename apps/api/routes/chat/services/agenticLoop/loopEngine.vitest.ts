@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngine.js';
+import {
+  runAgenticLoop,
+  FORCE_FINISH_SYSTEM_SUFFIX,
+  FORCE_FINISH_GATHER_SUFFIX,
+  type LoopDeps,
+  type LoopEngineParams,
+} from './loopEngine.js';
 
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
@@ -130,6 +136,89 @@ describe('runAgenticLoop — split (planner/executor)', () => {
     const out = await runAgenticLoop(baseParams({ mode: 'split' }), deps);
 
     expect(out.text).toBe('RECOVERED');
+  });
+});
+
+describe('runAgenticLoop — force-finish (prepareStep)', () => {
+  type PrepareStep = (a: { stepNumber: number }) => { toolChoice?: string; system?: string };
+
+  function capturePrepareStep(mode: 'unified' | 'split', params: Partial<LoopEngineParams>) {
+    let streamPrepare: PrepareStep | undefined;
+    let genPrepare: PrepareStep | undefined;
+    const deps: LoopDeps = {
+      streamText: ((o: StreamOpts & { prepareStep?: PrepareStep }) => {
+        streamPrepare ??= o.prepareStep;
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+      generateText: ((o: GenOpts & { prepareStep?: PrepareStep }) => {
+        genPrepare = o.prepareStep;
+        return Promise.resolve({ text: '' });
+      }) as unknown as LoopDeps['generateText'],
+    };
+    const run = runAgenticLoop(baseParams({ mode, ...params }), deps);
+    return { run, prepare: () => (mode === 'unified' ? streamPrepare : genPrepare) };
+  }
+
+  it('unified: last step strips tools AND injects the finish instruction', async () => {
+    const { run, prepare } = capturePrepareStep('unified', { maxSteps: 6 });
+    await run;
+    const p = prepare();
+    expect(p).toBeDefined();
+    // Early steps: untouched.
+    expect(p!({ stepNumber: 0 })).toEqual({});
+    expect(p!({ stepNumber: 4 })).toEqual({});
+    // Final step: toolChoice none + explicit "answer now" system override.
+    const final = p!({ stepNumber: 5 });
+    expect(final.toolChoice).toBe('none');
+    expect(final.system).toContain('TOOLSYS');
+    expect(final.system).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
+  });
+
+  it('unified: forceFinish() trips the finish instruction on ANY step (e.g. image generated)', async () => {
+    let generated = false;
+    const { run, prepare } = capturePrepareStep('unified', {
+      maxSteps: 6,
+      forceFinish: () => generated,
+    });
+    await run;
+    const p = prepare()!;
+    expect(p({ stepNumber: 1 })).toEqual({});
+    generated = true;
+    const forced = p({ stepNumber: 1 });
+    expect(forced.toolChoice).toBe('none');
+    expect(forced.system).toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(0, 20));
+  });
+
+  it('split gather: finish override keeps the GATHER system (incl. strategy block) + gather suffix', async () => {
+    const { run, prepare } = capturePrepareStep('split', { maxSteps: 4 });
+    await run;
+    const final = prepare()!({ stepNumber: 3 });
+    expect(final.toolChoice).toBe('none');
+    // The override must extend the gather system, not replace it with the bare tool system.
+    expect(final.system).toContain('TOOLSYS');
+    expect(final.system).toContain('RECHERCHE-STRATEGIE');
+    expect(final.system).toContain(FORCE_FINISH_GATHER_SUFFIX.trim().slice(0, 20));
+    expect(final.system).not.toContain(FORCE_FINISH_SYSTEM_SUFFIX.trim().slice(-30));
+  });
+
+  it('split synthesis has NO prepareStep (no tools to strip)', async () => {
+    let synthHadPrepare: boolean | null = null;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({ text: '' })) as unknown as LoopDeps['generateText'],
+      streamText: ((o: { prepareStep?: unknown }) => {
+        synthHadPrepare = o.prepareStep != null;
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+    await runAgenticLoop(baseParams({ mode: 'split' }), deps);
+    expect(synthHadPrepare).toBe(false);
+  });
+
+  it('maxSteps=1 force-finishes immediately (degenerate budget still answers)', async () => {
+    const { run, prepare } = capturePrepareStep('unified', { maxSteps: 1 });
+    await run;
+    const first = prepare()!({ stepNumber: 0 });
+    expect(first.toolChoice).toBe('none');
   });
 });
 

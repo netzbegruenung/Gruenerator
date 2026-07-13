@@ -16,7 +16,11 @@ import { type ModelMessage } from 'ai';
 
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
-import { getIntermediateModel, prefersUnifiedLoop } from '../../agents/providers.js';
+import {
+  getLoopPlannerModel,
+  LOOP_PLANNER_MODEL,
+  prefersUnifiedLoop,
+} from '../../agents/providers.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
@@ -65,6 +69,15 @@ export function isAgenticLoopEnabled(): boolean {
   return process.env.CHAT_AGENT_LOOP === 'true';
 }
 
+/** Tools counted against the per-turn search budget (loopGuards). */
+const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
+  'gruenerator_search',
+  'web_search',
+  'gruenerator_examples_search',
+  'gruenerator_pressemitteilung_examples',
+  'scrape_url',
+]);
+
 function resolveBudget(): LoopBudget {
   const maxSteps = Number(process.env.CHAT_AGENT_LOOP_MAX_STEPS) || DEFAULT_LOOP_BUDGET.maxSteps;
   const wallClockMs =
@@ -76,6 +89,7 @@ function buildToolUsageBlock(maxSteps: number): string {
   return [
     'ARBEITSWEISE MIT TOOLS:',
     '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen, Bundestags-Dokumente (DIP) und Abgeordneten-Abstimmungsdaten (abgeordnetenwatch) abzurufen sowie Dokumente zusammenzufassen.',
+    '- Für grüne Positionen, Programme und Beschlüsse ZUERST die interne Dokumentsuche (gruenerator_search). Nutze die Websuche NUR ergänzend, wenn intern nichts Passendes zu finden ist oder es um tagesaktuelle Ereignisse geht.',
     '- NUTZE das passende Tool DIREKT, statt anzubieten es zu tun. Frage NIEMALS "Soll ich das für dich suchen/tun?" — wenn du ein Tool dafür hast, ruf es einfach auf. Frag nur zurück, wenn dir eine echte Angabe fehlt (z.B. um welche Person/Abstimmung es geht).',
     '- Rufe so WENIGE Tools wie möglich auf. Sobald die ersten Ergebnisse deine Frage beantworten, antworte SOFORT — such nicht zur Absicherung weiter und wiederhole keine ähnlichen Suchen. Verfeinere oder wechsle das Tool NUR, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
     `- Du hast maximal ${maxSteps} Schritte. Danach antwortest du mit dem, was du hast.`,
@@ -113,7 +127,20 @@ export async function streamAgenticResponse(params: {
   const agentConfig = finalState.agentConfig;
 
   const sourceRegistry = createSourceRegistry();
-  const guards = createToolLoopGuards();
+  const guards = createToolLoopGuards({
+    searchToolNames: SEARCH_FAMILY_TOOLS,
+    getSourceCount: () => sourceRegistry.size,
+    internalFirst: {
+      requiredTool: 'gruenerator_search',
+      gatedTools: new Set(['web_search', 'scrape_url']),
+      // Explicit web intent, temporal question or user-pasted URL may go to
+      // the web/scrape directly.
+      exempt:
+        finalState.intent === 'web' ||
+        finalState.hasTemporal === true ||
+        (finalState.detectedUrls?.length ?? 0) > 0,
+    },
+  });
   const steps: PersistedStep[] = [];
   let text = '';
   let responseStarted = false;
@@ -200,7 +227,7 @@ export async function streamAgenticResponse(params: {
 
     await runAgenticLoop({
       mode,
-      plannerModel: mode === 'split' ? getIntermediateModel() : resolution.model,
+      plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
       synthModel: resolution.model,
       tools: wrapped,
       toolSystem,
@@ -244,7 +271,9 @@ export async function streamAgenticResponse(params: {
   }
 
   log.info(
-    `[Agentic] model=${resolution?.modelName ?? agentConfig.model} mode=${mode} intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}`
+    `[Agentic] model=${resolution?.modelName ?? agentConfig.model} mode=${mode}${
+      mode === 'split' ? ` planner=${LOOP_PLANNER_MODEL}` : ''
+    } intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}`
   );
 
   return {
