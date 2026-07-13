@@ -1,6 +1,7 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -38,10 +39,16 @@ import { VonDerBasisSection } from './VonDerBasisSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
-// Responsive grid of the tall notebook cards — shared by the system and the
-// "Eigene" sections so both read as one gallery.
-const NOTEBOOK_GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-md max-sm:grid-cols-2';
+// Single horizontally-scrollable row of the tall notebook cards — shared by the
+// system and "Eigene" sections so both mirror the workplace "Zuletzt" row.
+// `overflow-x-auto` clips vertically too, so `pt-2`/`pb-2` give the cards' hover
+// lift room; the negative inline margins let the row bleed to the screen edge on
+// small viewports.
+const NOTEBOOK_GRID_CLASS = cn(
+  'grid grid-flow-col gap-md overflow-x-auto pt-2 pb-2',
+  'auto-cols-[42%] sm:auto-cols-[24%] md:auto-cols-[16%] lg:auto-cols-[11rem]',
+  '-mx-4 px-4 lg:mx-0 lg:px-0'
+);
 
 const EMPTY_COLLECTIONS: NotebookCollection[] = [];
 

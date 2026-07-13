@@ -67,15 +67,24 @@ interface NotebookStartpageProps {
 type ViewMode = 'ki' | 'recherche' | 'globalChat';
 type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 
-// --- 2a gradient hero card ("Workplace pur") ---
-// Exact light gradient per design; matching deep-green radial for dark mode.
+// The exact 2a radial gradient (light) + matching deep-green radial (dark).
+// Exported so the workplace "Wissen" tab can paint the same full-page surface.
+export const NOTEBOOK_MAGENTA_BG = cn(
+  'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEBF3_0%,#FCF4F8_55%,#FEFDFE_100%)]',
+  'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1E3A2E_0%,#16281F_55%,#0F1D17_100%)]'
+);
+
+// --- 2a gradient hero card ("Workplace pur") — bounded card for standalone
+// notebook pages. Index/Wissen surfaces blend into a full-page magenta instead.
 const HERO_CARD = cn(
   'relative flex min-h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-[18px]',
   'border border-[#E2E8E4] dark:border-[#243A30]',
   'shadow-[0_6px_22px_rgba(31,63,51,0.06)]',
-  'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEBF3_0%,#FCF4F8_55%,#FEFDFE_100%)]',
-  'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1E3A2E_0%,#16281F_55%,#0F1D17_100%)]'
+  NOTEBOOK_MAGENTA_BG
 );
+
+// Blended hero: no card chrome — the content sits directly on the magenta page.
+const HERO_BLEND = 'relative flex min-h-[calc(100vh-11rem)] flex-col';
 
 const SEG_CONTAINER = cn(
   'inline-flex gap-0.5 rounded-full p-1',
@@ -152,8 +161,12 @@ export function NotebookStartpage({
   notebookMention,
   notebookId,
   omniComposer = false,
+  pageGradient = true,
   footer,
 }: NotebookStartpageProps) {
+  // Index/Wissen surfaces (pageGradient=false) blend the hero into a full-page
+  // magenta; standalone notebook pages keep the bounded 2a card.
+  const embedded = !pageGradient;
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
   const [browseTab, setBrowseTab] = useState<BrowseTab>('zuletzt');
   // Seed query pushed from the omni composer's "Manuell recherchieren" path.
@@ -237,8 +250,13 @@ export function NotebookStartpage({
     ) : undefined;
 
   return (
-    <PageContainer maxWidth="lg" noPadTop gradient={false}>
-      <div className={HERO_CARD}>
+    <PageContainer
+      maxWidth="lg"
+      noPadTop
+      gradient={false}
+      bgClassName={embedded ? NOTEBOOK_MAGENTA_BG : undefined}
+    >
+      <div className={embedded ? HERO_BLEND : HERO_CARD}>
         {/* Segmented tab control */}
         {anyExtraTabAvailable && (
           <div className="flex justify-center pt-6">

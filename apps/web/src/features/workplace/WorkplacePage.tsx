@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useAuthStore } from '../../stores/authStore';
+import { NOTEBOOK_MAGENTA_BG } from '../notebook/components/NotebookStartpage';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
@@ -22,7 +23,8 @@ const WissenTab = lazy(() => import('./tabs/WissenTab'));
 const TAB_BACKGROUND: Record<string, string> = {
   chat: 'workplace-chat-sunrise dark:bg-transparent',
   arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
-  wissen: 'bg-[#FEFDF9] dark:bg-transparent',
+  // "Wissen" adopts the notebook 2a magenta radial as a full-page surface.
+  wissen: NOTEBOOK_MAGENTA_BG,
 };
 
 const WorkplacePage = () => {
