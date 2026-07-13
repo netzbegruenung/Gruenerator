@@ -27,23 +27,17 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { getIcon } from '../../config/icons';
-import { useUserAgents } from '../agents/api';
 
-import { buildFeatureIndex, matchFeatures } from './featureIndex';
+import { matchFeatures } from './featureIndex';
+import { useFeatureIndex } from './useFeatureIndex';
 import { MIN_QUERY_LENGTH, useGlobalSearch } from './useGlobalSearch';
 
-import type { Agent } from '@gruenerator/shared/agents';
-
-import { useAuthStore } from '@/stores/authStore';
 import { resolveApiAssetUrl } from '@/utils/platform';
 
 interface GlobalSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-/** Stable reference: a `= []` default would rebuild the index on every render. */
-const NO_AGENTS: Agent[] = [];
 
 const NewChatIcon = getIcon('actions', 'edit');
 
@@ -88,13 +82,7 @@ export default function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchD
   const navigate = useNavigate();
   const [input, setInput] = useState('');
 
-  const locale = useAuthStore((state) => state.locale);
-  const { data: userAgents = NO_AGENTS } = useUserAgents();
-
-  const featureIndex = useMemo(
-    () => buildFeatureIndex({ isAustrian: locale === 'de-AT', locale, userAgents }),
-    [locale, userAgents]
-  );
+  const featureIndex = useFeatureIndex();
   const featureHits = useMemo(() => matchFeatures(featureIndex, input), [featureIndex, input]);
 
   const { data, isSearching } = useGlobalSearch(input, open);
