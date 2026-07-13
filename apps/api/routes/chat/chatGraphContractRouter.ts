@@ -595,10 +595,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // the client to expect real tool cards (and skip the fabricated one). It
       // must be stable through to Stage 2: forced @tool mentions, images, and
       // non-Mistral selections stay on the deterministic single-pass pipeline.
+      // For an `mcp` turn the forcedTool flag means "the user picked this
+      // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
+      // so it may still enter the loop, which mounts that server's MCP tools.
+      const isMcpTurn = classifiedState.intent === 'mcp';
       const runAgentic =
         isAgenticLoopEnabled() &&
         AGENTIC_INTENTS.has(classifiedState.intent) &&
-        !forcedTool &&
+        (!forcedTool || isMcpTurn) &&
         !isCompound &&
         imageAttachments.length === 0 &&
         selectionIsToolCapable(
