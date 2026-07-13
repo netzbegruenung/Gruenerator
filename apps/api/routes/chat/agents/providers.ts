@@ -399,14 +399,15 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  *
  * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
  */
-// Planner = native Mistral (mistral-medium-2604 = "Mistral Medium 3.5"): the
-// strongest, most RELIABLE tool-caller available (proven by the unified loop +
-// single-pass sharepic). verdigado-pro (via litellm) too often treats a compound
-// turn as pure research and never calls the generation tool — the split planner
-// MUST reliably invoke tools, so native Mistral leads. litellm/verdigado-pro is
-// the cross-provider fallback if the Mistral API is down. NOT regolo (steps=0
-// gather regression).
-const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+// Planner = native Mistral Small (mistral-small-latest): the planner only calls
+// tools + formulates queries (the synth writes the prose), so Small's tool-
+// calling is plenty — and it's faster/cheaper, cutting multi-step gather latency.
+// Reliability of "does it actually call the generation tool" is now backstopped
+// by the afterGather guarantee (agenticRespondService), so Small's lighter
+// judgment is safe. Native (not regolo — steps=0 gather regression). Bump to
+// mistral-medium-2604 here if Small proves weak on multi-step gather.
+// litellm/verdigado-pro is the cross-provider fallback if the Mistral API is down.
+const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-small-latest' };
 const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
 // Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
 // litellm/verdigado-pro (fast, non-think) when regolo is absent.
