@@ -21,15 +21,17 @@ function bracketedCiteNumbers(text: string): number[] {
   return nums;
 }
 
-/** A citation number written as a bare token (no brackets) — the "unclean"
- *  case: the SAME number appears bracketed elsewhere AND standalone before
- *  punctuation/end-of-line. Conservative: only flags numbers that ARE citations. */
+/** A citation number written as a bare token instead of `[N]` — the "unclean"
+ *  case (e.g. "im gebotenen Umfang 20." meaning [20]). Deliberately narrow to
+ *  avoid false positives on numbered headings ("### 1. Atomkraft"), list
+ *  ordinals ("1. …") and quantities ("1–2 Millionen"): require a LOWERCASE
+ *  letter + single space + the number + sentence punctuation, and the number
+ *  must itself be a citation elsewhere. Ranges (1–2) and units (20 Mio.) don't
+ *  match; headings start with '#'/line-start, not a lowercase letter. */
 function bareCitationNumbers(text: string, citeNums: Set<number>): number[] {
   const bare: number[] = [];
-  for (const m of text.matchAll(/(?<![\d[])\b(\d{1,2})\b(?=[\s.,;:!?)]|$)/g)) {
+  for (const m of text.matchAll(/[a-zäöüß]\s(\d{1,2})(?=[.,;:](?:\s|$))/gu)) {
     const n = Number(m[1]);
-    // Skip if it's inside a bracket (already handled) — matchAll's lookbehind
-    // excludes '[' immediately before, but a bracketed "[3, 7]" inner 7 is safe.
     if (citeNums.has(n)) bare.push(n);
   }
   return bare;
