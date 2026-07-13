@@ -16,6 +16,7 @@ import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 import type { Application } from 'express';
 
@@ -51,6 +52,15 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   create: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      // SSRF: reject internal/localhost/metadata URLs before persisting a server
+      // the backend would later connect to (CLAUDE.md external-clients rule).
+      const urlCheck = await validateUrlForFetch(args.body.url);
+      if (!urlCheck.isValid) {
+        return {
+          status: 400 as const,
+          body: { error: `Diese Server-URL ist nicht erlaubt: ${urlCheck.error ?? 'blockiert'}` },
+        };
+      }
       const server = await McpServerRegistry.create(userId, {
         name: args.body.name,
         url: args.body.url,
@@ -76,6 +86,16 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   update: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
+      // Re-validate when the URL is being changed (same SSRF guard as create).
+      if (args.body.url !== undefined) {
+        const urlCheck = await validateUrlForFetch(args.body.url);
+        if (!urlCheck.isValid) {
+          return {
+            status: 400 as const,
+            body: { error: `Diese Server-URL ist nicht erlaubt: ${urlCheck.error ?? 'blockiert'}` },
+          };
+        }
+      }
       const server = await McpServerRegistry.update(userId, args.params.id, {
         ...(args.body.name !== undefined && { name: args.body.name }),
         ...(args.body.url !== undefined && { url: args.body.url }),
