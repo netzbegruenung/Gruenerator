@@ -24,7 +24,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
+  { key: 'verbindungen', label: 'Verbindungen', path: '/profile/verbindungen', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
 ];
 

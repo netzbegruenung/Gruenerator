@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setMcpServerMentionables,
   setSheetMentionables,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
@@ -151,6 +152,37 @@ export function useUserNotebooksQuery() {
   });
 }
 
+interface McpServerListItem {
+  id: string;
+  name: string;
+  enabled: boolean;
+  description?: string | null;
+}
+
+/**
+ * User's connected external MCP servers → per-server @mentions (@notion,
+ * @brevo, …). Only enabled servers become mentions; anonymous users / no
+ * servers resolve to an empty list.
+ */
+export function useMcpServersQuery() {
+  const apiClient = useApiClient();
+  return useQuery<McpServerListItem[]>({
+    queryKey: ['mention-mcp-servers'],
+    queryFn: async () => {
+      const res = await apiClient
+        .get<{ servers?: McpServerListItem[] }>('/api/mcp/servers')
+        .catch(() => ({ servers: [] }));
+      const list = Array.isArray(res?.servers) ? res.servers.filter((s) => s.enabled) : [];
+      setMcpServerMentionables(
+        list.map((s) => ({ id: s.id, name: s.name, description: s.description }))
+      );
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 export interface ChatShareLink {
   id: string;
   label?: string;
@@ -194,8 +226,8 @@ export function useUserShareLinksQuery(enabled = true) {
       return (res?.shareLinks ?? []).filter((l) => l.is_active !== false);
     },
     // Re-fetch on every picker open: users add/remove share links via
-    // /profile/wolke between sessions, and stale caching would keep showing
-    // the "Keine Wolke verbunden" empty state after the user just connected.
+    // /profile/verbindungen between sessions, and stale caching would keep
+    // showing the "Keine Wolke verbunden" empty state after just connecting.
     staleTime: 0,
     refetchOnMount: 'always',
     enabled,
@@ -428,6 +460,7 @@ export function useMentionablesQuery(): void {
   useDocsQuery();
   useSheetsQuery();
   useUserNotebooksQuery();
+  useMcpServersQuery();
 }
 
 /**

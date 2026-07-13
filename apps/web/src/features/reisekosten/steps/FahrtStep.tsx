@@ -44,12 +44,18 @@ export function FahrtStep({
         return setFahrt({ oepnv: f.oepnv ? null : { betrag: 0, belegVorhanden: false } });
       case 'kfz':
         return setFahrt({
-          kfz: f.kfz ? null : { km: 0, fahrzeug: 'pkw', routenplanerVorhanden: false, dbFlexpreis: null },
+          kfz: f.kfz
+            ? null
+            : { km: 0, fahrzeug: 'pkw', routenplanerVorhanden: false, dbFlexpreis: null },
         });
       case 'miete':
-        return setFahrt({ miete: f.miete ? null : { betrag: 0, dbFlexpreis: null, belegVorhanden: false } });
+        return setFahrt({
+          miete: f.miete ? null : { betrag: 0, dbFlexpreis: null, belegVorhanden: false },
+        });
       case 'taxi':
-        return setFahrt({ taxi: f.taxi ? null : { betrag: 0, begruendung: '', belegVorhanden: false } });
+        return setFahrt({
+          taxi: f.taxi ? null : { betrag: 0, begruendung: '', belegVorhanden: false },
+        });
       case 'sonstiges':
         return setFahrt({ sonstiges: f.sonstiges ? null : { betrag: 0, beschreibung: '' } });
     }
@@ -60,8 +66,8 @@ export function FahrtStep({
       <CardHeader>
         <CardTitle>Fahrtkosten</CardTitle>
         <CardDescription>
-          Verkehrsmittel wählen und Rechnung hochladen – wir lesen Betrag und Daten automatisch aus. Für Bahn, ÖPNV und
-          Mietwagen ist ein Beleg erforderlich.
+          Verkehrsmittel wählen und Rechnung hochladen – wir lesen Betrag und Daten automatisch aus.
+          Für Bahn, ÖPNV und Mietwagen ist ein Beleg erforderlich.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -97,19 +103,25 @@ export function FahrtStep({
                   title="Bahnticket hochladen"
                   onExtracted={(b) => {
                     onBeleg(b);
-                    setFahrt({ bahn: { betrag: b.betrag ?? f.bahn?.betrag ?? 0, belegVorhanden: true } });
+                    setFahrt({
+                      bahn: { betrag: b.betrag ?? f.bahn?.betrag ?? 0, belegVorhanden: true },
+                    });
                   }}
                 />
                 <Field label="Betrag (€) *" hint="2. Klasse, BahnCard-Rabatt bereits abgezogen.">
                   <NumberInput
                     value={f.bahn.betrag || null}
-                    onChange={(v) => setFahrt({ bahn: { betrag: v ?? 0, belegVorhanden: f.bahn!.belegVorhanden } })}
+                    onChange={(v) =>
+                      setFahrt({ bahn: { betrag: v ?? 0, belegVorhanden: f.bahn!.belegVorhanden } })
+                    }
                   />
                 </Field>
                 <Checkbox
                   label="Originalbeleg liegt vor"
                   checked={f.bahn.belegVorhanden}
-                  onChange={(on) => setFahrt({ bahn: { betrag: f.bahn!.betrag, belegVorhanden: on } })}
+                  onChange={(on) =>
+                    setFahrt({ bahn: { betrag: f.bahn!.betrag, belegVorhanden: on } })
+                  }
                 />
                 <BelegStatus
                   beleg={latestBeleg(belege, 'bahn')}
@@ -126,13 +138,19 @@ export function FahrtStep({
                   title="ÖPNV-Beleg hochladen"
                   onExtracted={(b) => {
                     onBeleg(b);
-                    setFahrt({ oepnv: { betrag: b.betrag ?? f.oepnv?.betrag ?? 0, belegVorhanden: true } });
+                    setFahrt({
+                      oepnv: { betrag: b.betrag ?? f.oepnv?.betrag ?? 0, belegVorhanden: true },
+                    });
                   }}
                 />
                 <Field label="Betrag (€) *">
                   <NumberInput
                     value={f.oepnv.betrag || null}
-                    onChange={(v) => setFahrt({ oepnv: { betrag: v ?? 0, belegVorhanden: f.oepnv!.belegVorhanden } })}
+                    onChange={(v) =>
+                      setFahrt({
+                        oepnv: { betrag: v ?? 0, belegVorhanden: f.oepnv!.belegVorhanden },
+                      })
+                    }
                   />
                 </Field>
                 <BelegStatus
@@ -146,7 +164,10 @@ export function FahrtStep({
             {f.kfz && (
               <DetailBox emoji="🚗" title="Kfz (privater Pkw)">
                 <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
-                  <Field label="Kilometer (kürzeste Strecke) *" hint="Routenplaner-Ausdruck beifügen.">
+                  <Field
+                    label="Kilometer (kürzeste Strecke) *"
+                    hint="Routenplaner-Ausdruck beifügen."
+                  >
                     <NumberInput
                       value={f.kfz.km || null}
                       step="1"
@@ -157,7 +178,9 @@ export function FahrtStep({
                   <Field label="Fahrzeug">
                     <Select
                       value={f.kfz.fahrzeug}
-                      onChange={(v) => setFahrt({ kfz: { ...f.kfz!, fahrzeug: v as 'pkw' | 'motorrad' } })}
+                      onChange={(v) =>
+                        setFahrt({ kfz: { ...f.kfz!, fahrzeug: v as 'pkw' | 'motorrad' } })
+                      }
                       options={[
                         { value: 'pkw', label: 'Pkw (0,30 €/km)' },
                         { value: 'motorrad', label: 'Motorrad/Roller (0,20 €/km)' },
@@ -191,7 +214,13 @@ export function FahrtStep({
                   title="Rechnung hochladen"
                   onExtracted={(b) => {
                     onBeleg(b);
-                    setFahrt({ miete: { ...f.miete!, betrag: b.betrag ?? f.miete?.betrag ?? 0, belegVorhanden: true } });
+                    setFahrt({
+                      miete: {
+                        ...f.miete!,
+                        betrag: b.betrag ?? f.miete?.betrag ?? 0,
+                        belegVorhanden: true,
+                      },
+                    });
                   }}
                 />
                 <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
@@ -223,7 +252,13 @@ export function FahrtStep({
                   title="Taxi-Quittung hochladen"
                   onExtracted={(b) => {
                     onBeleg(b);
-                    setFahrt({ taxi: { ...f.taxi!, betrag: b.betrag ?? f.taxi?.betrag ?? 0, belegVorhanden: true } });
+                    setFahrt({
+                      taxi: {
+                        ...f.taxi!,
+                        betrag: b.betrag ?? f.taxi?.betrag ?? 0,
+                        belegVorhanden: true,
+                      },
+                    });
                   }}
                 />
                 <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
@@ -258,10 +293,15 @@ export function FahrtStep({
                       onChange={(v) => setFahrt({ sonstiges: { ...f.sonstiges!, betrag: v ?? 0 } })}
                     />
                   </Field>
-                  <Field label="Beschreibung *" hint="z. B. Teilnahmebeitrag, Parkgebühr (keine Bewirtung).">
+                  <Field
+                    label="Beschreibung *"
+                    hint="z. B. Teilnahmebeitrag, Parkgebühr (keine Bewirtung)."
+                  >
                     <TextInput
                       value={f.sonstiges.beschreibung}
-                      onChange={(v) => setFahrt({ sonstiges: { ...f.sonstiges!, beschreibung: v } })}
+                      onChange={(v) =>
+                        setFahrt({ sonstiges: { ...f.sonstiges!, beschreibung: v } })
+                      }
                     />
                   </Field>
                 </div>

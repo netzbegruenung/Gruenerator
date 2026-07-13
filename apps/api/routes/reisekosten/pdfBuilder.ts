@@ -75,15 +75,21 @@ export async function buildReisekostenPdf(state: ReisekostenState): Promise<Buff
     s: string,
     x: number,
     yy: number,
-    opts: { font?: PDFFont; size?: number; color?: RGB } = {},
+    opts: { font?: PDFFont; size?: number; color?: RGB } = {}
   ) => {
-    page.drawText(s, { x, y: yy, size: opts.size ?? 10, font: opts.font ?? font, color: opts.color ?? ink });
+    page.drawText(s, {
+      x,
+      y: yy,
+      size: opts.size ?? 10,
+      font: opts.font ?? font,
+      color: opts.color ?? ink,
+    });
   };
   const right = (
     s: string,
     xRight: number,
     yy: number,
-    opts: { font?: PDFFont; size?: number; color?: RGB } = {},
+    opts: { font?: PDFFont; size?: number; color?: RGB } = {}
   ) => {
     const f = opts.font ?? font;
     const size = opts.size ?? 10;
@@ -126,7 +132,10 @@ export async function buildReisekostenPdf(state: ReisekostenState): Promise<Buff
   section('Antragsteller*in');
   line('Name', state.stammdaten.name || '—');
   if (state.stammdaten.funktion) line('Funktion', state.stammdaten.funktion);
-  line('Anschrift', `${state.stammdaten.strasse} ${state.stammdaten.hausnr}, ${state.stammdaten.plz} ${state.stammdaten.ort}`);
+  line(
+    'Anschrift',
+    `${state.stammdaten.strasse} ${state.stammdaten.hausnr}, ${state.stammdaten.plz} ${state.stammdaten.ort}`
+  );
   line('E-Mail', state.stammdaten.email || '—');
   if (state.stammdaten.telefon) line('Telefon', state.stammdaten.telefon);
 
@@ -178,10 +187,15 @@ export async function buildReisekostenPdf(state: ReisekostenState): Promise<Buff
 
   // ── Bankverbindung ──
   y -= 10;
-  text(`IBAN: ${state.stammdaten.iban || '—'}${state.stammdaten.bic ? `   BIC: ${state.stammdaten.bic}` : ''}`, margin, y, {
-    size: 9,
-    color: muted,
-  });
+  text(
+    `IBAN: ${state.stammdaten.iban || '—'}${state.stammdaten.bic ? `   BIC: ${state.stammdaten.bic}` : ''}`,
+    margin,
+    y,
+    {
+      size: 9,
+      color: muted,
+    }
+  );
 
   const bytes = await pdfDoc.save();
   log.info(`[reisekosten] PDF built (${bytes.length} bytes), gesamt=${c.gesamt}`);

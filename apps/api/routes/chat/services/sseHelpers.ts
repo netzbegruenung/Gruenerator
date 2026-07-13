@@ -127,6 +127,9 @@ export interface SSEEventPayloads {
     subQueries?: string[] | null;
     searchSources?: SearchSource[] | null;
     compound?: boolean;
+    /** Agentic respond path drives the tool loop — real tool_step_* cards
+     *  follow, so the client skips the intent-fabricated tool card. */
+    agentic?: boolean;
   };
   search_start: { message: string; subQueries?: string[] };
   search_complete: {
@@ -200,11 +203,25 @@ export interface SSEEventPayloads {
     changedIndices: number[];
   };
   reel_edit_error: { projectId?: string; error: string };
-  // Agentic tool loop (CHAT_TOOL_LOOP): one start/result pair per tool step.
-  // Args/summaries are compact display data — full state still travels via
-  // sharepic_updated only.
-  tool_step_start: { stepId: string; toolName: string; args?: Record<string, unknown> };
-  tool_step_result: { stepId: string; toolName: string; ok: boolean; summary?: string };
+  // Agentic tool loop: one start/result pair per tool step. Args/summaries are
+  // compact display data. `title`/`serverName` label the card (MCP/connector
+  // tools); `result` carries the rich per-tool payload the UI cards read
+  // (results/examples/researchMeta) so they render mid-stream without waiting
+  // for the persistence reload.
+  tool_step_start: {
+    stepId: string;
+    toolName: string;
+    args?: Record<string, unknown>;
+    title?: string;
+    serverName?: string;
+  };
+  tool_step_result: {
+    stepId: string;
+    toolName: string;
+    ok: boolean;
+    summary?: string;
+    result?: Record<string, unknown>;
+  };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   progress_step: ProgressStepPayload;
@@ -326,6 +343,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
   edit_current_board: ['Passe Board an...', 'Aktualisiere...', 'Pflege...'],
   share_doc: ['Teile...', 'Sende...', 'Reiche weiter...'],
+  mcp: ['Verbinde Tools...', 'Rufe externes Tool auf...', 'Frage verbundenen Dienst...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
 };
 
