@@ -147,6 +147,8 @@ export const ModelPicker = memo(function ModelPicker({
     </ResponsiveMenuSection>
   );
 
+  const currentShortName = ('shortName' in current && current.shortName) || current.name;
+
   const triggerLabel =
     selectedModel === AUTO_MODEL_ID && resolvedAuto ? (
       <span className="flex flex-col items-start leading-tight">
@@ -157,7 +159,10 @@ export const ModelPicker = memo(function ModelPicker({
         <span className="text-muted-foreground text-xs max-sm:hidden">→ {resolvedAuto.name}</span>
       </span>
     ) : (
-      <span>{current.name}</span>
+      <span>
+        <span className="max-sm:hidden">{current.name}</span>
+        <span className="sm:hidden">{currentShortName}</span>
+      </span>
     );
 
   const ariaLabel =
