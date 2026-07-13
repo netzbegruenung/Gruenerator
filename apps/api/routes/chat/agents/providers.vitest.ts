@@ -29,7 +29,7 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // regolo Mistral-small-4 when configured, else litellm/verdigado-pro — never
     // qwen (Chinese), gpt-oss (tool-call fail) or a think model.
     const planner = loopPlannerModelName();
-    expect(['mistral-small-4-119b', 'verdigado-pro']).toContain(planner);
+    expect(['verdigado-pro', 'mistral-medium-2604']).toContain(planner);
   });
 
   it('auto selection writes with the best writer, NEVER a think model', () => {
