@@ -2,7 +2,17 @@ import BelegUpload from '../BelegUpload';
 import { BelegStatus } from '../components/BelegStatus';
 import { BreakdownRow } from '../components/BreakdownRow';
 import { MealChip } from '../components/MealChip';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Field, NumberInput, Select, Switch } from '../ui';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Field,
+  NumberInput,
+  Select,
+  Switch,
+} from '../ui';
 import { latestBeleg } from '../utils/beleg';
 import { eur } from '../utils/format';
 
@@ -19,7 +29,10 @@ export function VerpflegungUebernachtungStep({
   state: ReisekostenState;
   belege: ExtractBelegResponse[];
   update: (patch: (s: ReisekostenState) => ReisekostenState) => void;
-  onToggle: (datum: string, patch: { fruehstueck?: boolean; mittagessen?: boolean; abendessen?: boolean }) => void;
+  onToggle: (
+    datum: string,
+    patch: { fruehstueck?: boolean; mittagessen?: boolean; abendessen?: boolean }
+  ) => void;
   onBeleg: (b: ExtractBelegResponse) => void;
   computed: ComputeResult;
 }) {
@@ -33,7 +46,10 @@ export function VerpflegungUebernachtungStep({
 
   const u = state.uebernachtung;
   const setU = (patch: Partial<NonNullable<ReisekostenState['uebernachtung']>>) =>
-    update((s) => ({ ...s, uebernachtung: s.uebernachtung ? { ...s.uebernachtung, ...patch } : null }));
+    update((s) => ({
+      ...s,
+      uebernachtung: s.uebernachtung ? { ...s.uebernachtung, ...patch } : null,
+    }));
 
   return (
     <div className="flex flex-col gap-lg">
@@ -47,15 +63,17 @@ export function VerpflegungUebernachtungStep({
             <div className="flex items-start gap-sm rounded-md bg-background-alt p-md text-sm text-muted-foreground">
               <span className="text-xl leading-none">🗓️</span>
               <span>
-                Bitte zuerst in <strong className="text-foreground">1. Reise</strong> Reisebeginn und Rückkehr angeben –
-                die Pauschale wird daraus automatisch berechnet.
+                Bitte zuerst in <strong className="text-foreground">1. Reise</strong> Reisebeginn
+                und Rückkehr angeben – die Pauschale wird daraus automatisch berechnet.
               </span>
             </div>
           ) : (
             <div className="flex flex-col gap-lg">
               <div className="flex flex-col gap-md rounded-lg border border-primary bg-primary-50 p-lg dark:bg-primary-900/30">
                 <div className="flex items-baseline justify-between gap-md">
-                  <span className="text-sm font-semibold text-primary-700">Verpflegungspauschale</span>
+                  <span className="text-sm font-semibold text-primary-700">
+                    Verpflegungspauschale
+                  </span>
                   <span className="text-3xl font-bold leading-none tabular-nums text-primary-700">
                     {eur(computed.verpflegung.summe)}
                   </span>
@@ -98,7 +116,8 @@ export function VerpflegungUebernachtungStep({
               <div className="flex flex-col gap-sm">
                 <span className="text-sm font-semibold">Gestellte Mahlzeiten abziehen</span>
                 <span className="text-xs text-muted-foreground">
-                  Mahlzeiten, die z. B. vom Veranstalter gestellt wurden, werden von der Pauschale abgezogen.
+                  Mahlzeiten, die z. B. vom Veranstalter gestellt wurden, werden von der Pauschale
+                  abgezogen.
                 </span>
                 <div className="mt-xs flex flex-col gap-sm">
                   {tage.map((t) => {
@@ -120,19 +139,25 @@ export function VerpflegungUebernachtungStep({
                             emoji="🥐"
                             label="Frühstück"
                             active={abz?.fruehstueck ?? false}
-                            onClick={() => onToggle(t.datum, { fruehstueck: !(abz?.fruehstueck ?? false) })}
+                            onClick={() =>
+                              onToggle(t.datum, { fruehstueck: !(abz?.fruehstueck ?? false) })
+                            }
                           />
                           <MealChip
                             emoji="🍽️"
                             label="Mittag"
                             active={abz?.mittagessen ?? false}
-                            onClick={() => onToggle(t.datum, { mittagessen: !(abz?.mittagessen ?? false) })}
+                            onClick={() =>
+                              onToggle(t.datum, { mittagessen: !(abz?.mittagessen ?? false) })
+                            }
                           />
                           <MealChip
                             emoji="🌙"
                             label="Abend"
                             active={abz?.abendessen ?? false}
-                            onClick={() => onToggle(t.datum, { abendessen: !(abz?.abendessen ?? false) })}
+                            onClick={() =>
+                              onToggle(t.datum, { abendessen: !(abz?.abendessen ?? false) })
+                            }
                           />
                         </div>
                       </div>
@@ -156,7 +181,10 @@ export function VerpflegungUebernachtungStep({
               <Switch
                 checked={u !== null}
                 onChange={(on) =>
-                  update((s) => ({ ...s, uebernachtung: on ? { modus: 'pauschal', betrag: null, naechte: 1 } : null }))
+                  update((s) => ({
+                    ...s,
+                    uebernachtung: on ? { modus: 'pauschal', betrag: null, naechte: 1 } : null,
+                  }))
                 }
               />
               Übernachtung anfügen
@@ -166,7 +194,9 @@ export function VerpflegungUebernachtungStep({
                 <Field label="Art">
                   <Select
                     value={u.modus}
-                    onChange={(v) => setU({ modus: v as NonNullable<ReisekostenState['uebernachtung']>['modus'] })}
+                    onChange={(v) =>
+                      setU({ modus: v as NonNullable<ReisekostenState['uebernachtung']>['modus'] })
+                    }
                     options={[
                       { value: 'pauschal', label: 'Pauschal (20 €/Nacht, privat)' },
                       { value: 'beleg', label: 'Laut Beleg' },
@@ -176,7 +206,12 @@ export function VerpflegungUebernachtungStep({
                 </Field>
                 {u.modus === 'pauschal' && (
                   <Field label="Nächte *">
-                    <NumberInput value={u.naechte} step="1" placeholder="0" onChange={(v) => setU({ naechte: v })} />
+                    <NumberInput
+                      value={u.naechte}
+                      step="1"
+                      placeholder="0"
+                      onChange={(v) => setU({ naechte: v })}
+                    />
                   </Field>
                 )}
                 {u.modus === 'beleg' && (

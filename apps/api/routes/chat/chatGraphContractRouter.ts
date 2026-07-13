@@ -27,6 +27,7 @@ import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
+import { withTimeout } from '../../utils/withTimeout.js';
 
 import { selectionIsToolCapable } from './agents/providers.js';
 import {
@@ -38,7 +39,6 @@ import { decideRunAgentic } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
-import { searchChatHistory } from './services/chatSearchService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { extractChartFromResponse, emitConfirmAction } from './services/confirmActionService.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
@@ -51,9 +51,17 @@ import {
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { extractTextContent } from './services/messageHelpers.js';
+import {
+  recallPastChats,
+  recallOfficeDocuments,
+  rerankRecall,
+  formatPastChatsBlock,
+  formatOfficeDocsBlock,
+} from './services/pastChatRecallService.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
+import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
 import {
   buildReelContextBlock,
   handleReelEdit,
@@ -92,6 +100,9 @@ import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
+
+/** Cap best-effort past-chat recall so it never delays the user-facing stream. */
+const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
 
 const s = initServer();
 
@@ -634,27 +645,84 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(runAgentic && { agentic: true }),
       });
 
+      // === Recall tool-loop (flag-gated) ===
+      // For the chat_history intent, let the model search + read the user's own
+      // content on demand (size-probed) instead of pre-injecting everything.
+      // Handles the whole turn; when off, falls through to the deterministic
+      // chat_history branch in executeIntentPipeline below.
+      if (
+        classifiedState.intent === 'chat_history' &&
+        isChatRecallLoopEnabled() &&
+        actualThreadId &&
+        lastUserMessage
+      ) {
+        const handled = await handleRecallToolLoop({
+          sse,
+          threadId: actualThreadId,
+          userId,
+          instruction: (extractTextContent(lastUserMessage.content) as string) || '',
+          query:
+            classifiedState.searchQuery ||
+            (extractTextContent(lastUserMessage.content) as string) ||
+            '',
+          startTime: Date.now(),
+        });
+        if (handled) return { status: 200 as const, body: undefined };
+      }
+
       // === Chat history context enrichment ===
-      if (classifiedState.searchSources?.includes('chat_history') && classifiedState.searchQuery) {
+      // Explicit: the user referenced a past conversation (classifier/regex).
+      // Proactive: first turn of a new thread — surface a relevant past chat so
+      // the assistant can continue with continuity, gated on the same
+      // memory_enabled toggle as mem0. The `chat_history` tool handles its own
+      // retrieval, so skip the proactive pass for it.
+      const explicitRecall =
+        classifiedState.searchSources?.includes('chat_history') && !!classifiedState.searchQuery;
+      const proactiveRecall =
+        isNewThread &&
+        memoryEnabled &&
+        !!lastUserMessage &&
+        classifiedState.intent !== 'chat_history';
+
+      if (explicitRecall || proactiveRecall) {
         try {
-          const chatResults = await searchChatHistory(userId, classifiedState.searchQuery, {
-            ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
-            limit: 3,
-          });
-          if (chatResults.length > 0) {
-            const chatContext = chatResults
-              .map(
-                (r) =>
-                  `### ${r.threadTitle || 'Untitled'} (${new Date(r.threadUpdatedAt).toLocaleDateString('de-DE')})\n${r.snippet}`
-              )
-              .join('\n\n');
-            classifiedState.chatHistoryContext = `## RELEVANTE VERGANGENE GESPRÄCHE\n\n${chatContext}`;
-            log.info(
-              `[ChatGraph] Injected ${chatResults.length} chat history results for "${classifiedState.searchQuery}"`
+          const recallQuery =
+            classifiedState.searchQuery ||
+            (lastUserMessage
+              ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
+              : '');
+          if (recallQuery.trim()) {
+            // Fetch chats + office content, then cross-source rerank to the few
+            // most relevant — all inside the best-effort timeout.
+            const recalled = await withTimeout(
+              (async () => {
+                const [chatResults, officeDocs] = await Promise.all([
+                  recallPastChats(userId, recallQuery, {
+                    ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
+                    limit: 3,
+                  }),
+                  recallOfficeDocuments(userId, recallQuery, 3),
+                ]);
+                return rerankRecall(recallQuery, chatResults, officeDocs, 4);
+              })(),
+              EXTERNAL_CONTEXT_TIMEOUT_MS,
+              'past-work recall'
+            ).catch(
+              () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
             );
+            const blocks = [
+              recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
+              formatOfficeDocsBlock(recalled.officeDocs),
+            ].filter(Boolean);
+            if (blocks.length > 0) {
+              classifiedState.chatHistoryContext = blocks.join('\n\n');
+              log.info(
+                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
+              );
+            }
           }
         } catch (err) {
-          log.warn(`[ChatGraph] Chat history search failed: ${err}`);
+          log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
         }
       }
 
