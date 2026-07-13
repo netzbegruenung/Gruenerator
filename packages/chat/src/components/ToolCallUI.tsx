@@ -72,6 +72,7 @@ const TOOL_COLOR: Record<string, string> = {
   scrape_url: 'text-secondary-700',
   recall_memory: 'text-primary-400',
   save_memory: 'text-primary-400',
+  search_chat_history: 'text-primary-400',
 };
 
 export const ToolCallUI = memo(function ToolCallUI({

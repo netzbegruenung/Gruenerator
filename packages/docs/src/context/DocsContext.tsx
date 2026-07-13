@@ -1,5 +1,6 @@
 'use client';
 
+import { UnauthorizedError } from '@gruenerator/shared/api';
 import { createContext, useContext, type ReactNode } from 'react';
 
 /**
@@ -19,8 +20,12 @@ export interface DocsAdapter {
   getHocuspocusToken(): Promise<string | null>;
   /** Get auth headers for non-fetch usage */
   getAuthHeaders(): Promise<Record<string, string>>;
-  /** Called on 401 — redirect to login or show auth UI */
-  onUnauthorized(): void;
+  /**
+   * Called on 401. A truthy (Promise-)return means "the session was probed and
+   * is alive — retry the request once" (web routes this through the shared
+   * handleUnauthorized authority); void/false means redirect / don't retry.
+   */
+  onUnauthorized(): void | boolean | Promise<boolean | void>;
   /** Navigate to a document (platform-specific routing) */
   navigateToDocument(documentId: string): void;
   /** Navigate to document list */
@@ -60,7 +65,8 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
   async function request<T>(
     endpoint: string,
     options: RequestInit = {},
-    docsOptions: DocsRequestOptions = {}
+    docsOptions: DocsRequestOptions = {},
+    retried = false
   ): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${adapter.getApiBaseUrl()}${endpoint}`;
 
@@ -87,8 +93,14 @@ export function createDocsApiClient(adapter: DocsAdapter): DocsApiClient {
         return null as T;
       }
       if (isRename) console.error('[docs-rename] apiClient: 401 Unauthorized for %s', url);
-      adapter.onUnauthorized();
-      throw new Error('Unauthorized');
+      // A truthy return means "probe says the session is alive — retry once".
+      // Otherwise throw a typed error so the query fails fast (the web app's
+      // retry predicate skips 401) instead of rendering a stale partial list.
+      const shouldRetry = await adapter.onUnauthorized();
+      if (shouldRetry && !retried) {
+        return request<T>(endpoint, options, docsOptions, true);
+      }
+      throw new UnauthorizedError();
     }
 
     if (!response.ok) {

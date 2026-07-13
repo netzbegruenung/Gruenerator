@@ -154,7 +154,7 @@ const PageLayout = ({
       ) : isSidebarOnly ? (
         <div className="fixed top-0 left-0 z-[1002] px-2.5 h-12 flex items-center pointer-events-none">
           <div className="pointer-events-auto">
-            <SidebarToggle />
+            <SidebarToggle variant={pathname.startsWith('/workplace') ? 'ghost' : 'default'} />
           </div>
         </div>
       ) : null}

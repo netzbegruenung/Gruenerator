@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
 import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
 import { authClient } from '../lib/authClient';
+import { sessionDebug } from '../lib/sessionDebug';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
@@ -62,7 +63,7 @@ export interface AuthStore {
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setLoggingOut: (loggingOut: boolean) => void;
-  clearAuth: () => void;
+  clearAuth: (source?: string) => void;
   updateProfile: (profileData: ProfileData) => Promise<ProfileData>;
   updateAvatar: (avatarRobotId: string) => Promise<ProfileData>;
   updateMessageColor: (color: string) => Promise<string>;
@@ -174,7 +175,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   setLoggingOut: (loggingOut: boolean) => set({ isLoggingOut: loggingOut }),
 
-  clearAuth: () => {
+  clearAuth: (source = 'unknown') => {
+    sessionDebug('teardown.clearAuth', { source });
     // CRITICAL: Set logout timestamp to prevent immediate re-auth
     localStorage.setItem(LOGOUT_TIMESTAMP_KEY, Date.now().toString());
 
@@ -317,6 +319,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     try {
+      sessionDebug('logout.begin', {});
       // Step 1: Set logging out state immediately for smooth UX
       set({ isLoggingOut: true });
       setLoggingOutFlag(true);
@@ -356,7 +359,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       // Step 4: Clear local state after backend confirmation (or on backend failure)
       console.log('[AuthStore] Clearing local authentication state...');
-      get().clearAuth();
+      get().clearAuth('logout');
 
       // Step 5: Handle SSO logout if backend provided logout URL
       const ssoLogoutUrlValue =
@@ -402,10 +405,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       // Step 6: Verify logout completion (optional verification)
+      let verifyStillAuthenticated: boolean | undefined;
       try {
         console.log('[AuthStore] Verifying logout completion...');
-        const { data: session } = await authClient.getSession();
+        const { data: session } = await authClient.getSession({
+          query: { disableCookieCache: true },
+        });
 
+        verifyStillAuthenticated = !!session?.user;
         if (session?.user) {
           console.warn(
             '[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.'
@@ -420,15 +427,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         console.warn('[AuthStore] Logout verification failed (non-critical):', error);
       }
 
+      sessionDebug('logout.done', {
+        backendSuccess: backendResponse?.success !== false,
+        ssoLogoutUrl: !!ssoLogoutUrlValue,
+        verifyStillAuthenticated,
+      });
+
       // Step 7: Navigate to home page after successful logout
       console.log('[AuthStore] Logout process completed, redirecting to home page');
       window.location.href = '/';
     } catch (error) {
       console.error('[AuthStore] Critical logout error:', error);
+      sessionDebug('logout.done', { backendSuccess: false, error: true });
 
       // Emergency cleanup: Clear local state even if everything else failed
       try {
-        get().clearAuth();
+        get().clearAuth('logout-emergency');
       } catch (cleanupError) {
         console.error('[AuthStore] Emergency cleanup also failed:', cleanupError);
       }
@@ -464,7 +478,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       // Clear local auth state
-      get().clearAuth();
+      get().clearAuth('delete-account');
 
       return {
         success: true,
@@ -493,7 +507,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           const fallbackData = fallbackResponse.data as { message?: string } | undefined;
 
           // Clear local auth state
-          get().clearAuth();
+          get().clearAuth('delete-account-fallback');
 
           return {
             success: true,

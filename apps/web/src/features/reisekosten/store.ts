@@ -81,6 +81,6 @@ export const useReisekostenStore = create<ReisekostenStore>()(
       storage: createJSONStorage(() => localStorage),
       // Don't persist the transient wizard step or uploaded belege.
       partialize: (s) => ({ state: s.state }),
-    },
-  ),
+    }
+  )
 );
