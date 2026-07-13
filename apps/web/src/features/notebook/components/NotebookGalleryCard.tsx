@@ -24,6 +24,8 @@ export interface NotebookGalleryCardProps {
    * propagation around it, so the node won't navigate the card.
    */
   action?: ReactNode;
+  /** Pink icon + border accent for the "Wissen" notebook surface. Defaults to neutral. */
+  accent?: 'pink';
   className?: string;
 }
 
@@ -42,10 +44,12 @@ const NotebookGalleryCard = memo(
     onActivate,
     menu,
     action,
+    accent,
     className,
   }: NotebookGalleryCardProps) => {
     const Icon = icon ?? FiFolder;
     const MetaIcon = metaIcon ?? FiLayers;
+    const pink = accent === 'pink';
 
     return (
       <div
@@ -59,15 +63,21 @@ const NotebookGalleryCard = memo(
           }
         }}
         className={cn(
-          'group relative flex flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background text-left no-underline',
-          'cursor-pointer transition-all duration-200 ease-out',
-          'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
-          'dark:border-grey-700/60 dark:hover:border-secondary-700',
+          'group relative flex flex-col overflow-hidden rounded-xl border bg-background text-left no-underline',
+          'cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md',
+          pink
+            ? 'border-[#EFC9DD] hover:border-[#D6006E] dark:border-[#4A2A3B] dark:hover:border-[#EC5AA0]'
+            : 'border-grey-200/80 hover:border-secondary-300 dark:border-grey-700/60 dark:hover:border-secondary-700',
           className
         )}
       >
         <div className="flex aspect-[5/4] items-center justify-center bg-grey-50 dark:bg-grey-800/40">
-          <Icon className="size-9 text-grey-400 dark:text-grey-500" />
+          <Icon
+            className={cn(
+              'size-9',
+              pink ? 'text-[#D6006E] dark:text-[#EC5AA0]' : 'text-grey-400 dark:text-grey-500'
+            )}
+          />
         </div>
 
         <div className="flex items-start gap-2 border-t border-grey-100 px-3 py-2.5 dark:border-grey-700/60">
