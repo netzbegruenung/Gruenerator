@@ -584,6 +584,10 @@ export interface ChatGraphState {
   // loop produced nothing (no servers, all failed, no tool used).
   mcpToolContext?: string | null | undefined;
   mcpToolTimeMs?: number | undefined;
+  // Scopes the tool-loop to one connected server (its `mcp_servers.id`), set by a
+  // `@notion`/`@brevo` mention (router) or a conservative classifier hint. Null =
+  // run over all enabled servers (legacy @mcp).
+  mcpServerScope?: string | null | undefined;
 
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;
