@@ -60,7 +60,12 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
           excerpt: 'Klimaneutralität bis 2045.',
           searchMethod: 'vector',
         },
-        { rank: 2, relevance: 'mid', source: 'Grundsatzprogramm', excerpt: 'Kohleausstieg bis 2030.' },
+        {
+          rank: 2,
+          relevance: 'mid',
+          source: 'Grundsatzprogramm',
+          excerpt: 'Kohleausstieg bis 2030.',
+        },
       ],
     });
     const sourceRegistry = createSourceRegistry();
@@ -93,10 +98,10 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
     });
     const sourceRegistry = createSourceRegistry();
     const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry });
-    const out = (await execOf(tools.web_search)(
-      { query: 'Tempolimit' },
-      { toolCallId: 'c1' }
-    )) as { resultCount: number; sources: string };
+    const out = (await execOf(tools.web_search)({ query: 'Tempolimit' }, { toolCallId: 'c1' })) as {
+      resultCount: number;
+      sources: string;
+    };
 
     expect(out.resultCount).toBe(1);
     expect(sourceRegistry.size).toBe(1);
@@ -104,7 +109,12 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
   });
 
   it('reports 0 sources only when the tool genuinely returned no results', async () => {
-    searchExec.mockResolvedValue({ collection: 'grundsatz', query: 'x', resultsCount: 0, results: [] });
+    searchExec.mockResolvedValue({
+      collection: 'grundsatz',
+      query: 'x',
+      resultsCount: 0,
+      results: [],
+    });
     const sourceRegistry = createSourceRegistry();
     const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry });
     await execOf(tools.gruenerator_search)({ query: 'x' }, { toolCallId: 'c1' });
@@ -167,7 +177,10 @@ describe('toolCatalog scrape_url', () => {
   });
 
   it('crawls validated URLs and registers content as sources', async () => {
-    validateUrlForFetch.mockImplementation(async (u: string) => ({ isValid: true, url: new URL(u) }));
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
     selectAndCrawlTopUrls.mockResolvedValue([
       { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
     ]);
@@ -182,7 +195,10 @@ describe('toolCatalog scrape_url', () => {
   });
 
   it('returns an error result when nothing could be crawled', async () => {
-    validateUrlForFetch.mockImplementation(async (u: string) => ({ isValid: true, url: new URL(u) }));
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
     selectAndCrawlTopUrls.mockResolvedValue([
       { url: 'https://example.com/', crawled: false, crawlError: 'timeout' },
     ]);
