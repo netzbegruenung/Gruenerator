@@ -61,6 +61,12 @@ vi.mock('../../middleware/rateLimitMiddleware.js', () => ({
 
 vi.mock('../../middleware/types.js', () => ({}));
 
+const mockCheckDocumentWriteAccess = vi.fn();
+vi.mock('./documentAccess.js', () => ({
+  checkDocumentWriteAccess: (id: string, uid: string): Promise<boolean> =>
+    mockCheckDocumentWriteAccess(id, uid),
+}));
+
 // ─── Import handler after mocks are in place ──────────────────
 
 const { handleAiRequest, aiRequestBodySchema } = await import('./aiController.js');
@@ -69,8 +75,16 @@ const { handleAiRequest, aiRequestBodySchema } = await import('./aiController.js
 
 // The handler is now typed against TypedRequest<AiRequestBody> (validation happens
 // in middleware), so we cast the mock through `unknown` at the test boundary.
-function createMockReq(body: Record<string, unknown> = {}) {
-  return { body } as unknown as Parameters<typeof handleAiRequest>[0];
+const VALID_DOC_ID = '11111111-1111-1111-1111-111111111111';
+
+// The route is authenticated (req.user) and doc-scoped (documentId + write-
+// access check). Default both so provider/streaming tests exercise the happy
+// path; individual tests override to cover 401/403.
+function createMockReq(body: Record<string, unknown> = {}, userId: string | null = 'user-1') {
+  return {
+    body: { documentId: VALID_DOC_ID, ...body },
+    user: userId ? { id: userId } : undefined,
+  } as unknown as Parameters<typeof handleAiRequest>[0];
 }
 
 function createMockRes() {
@@ -112,6 +126,7 @@ function createMockReadableStream(chunks: string[] = ['data: test\n\n']) {
 }
 
 function setupHappyPath() {
+  mockCheckDocumentWriteAccess.mockResolvedValue(true);
   mockIsProviderConfigured.mockReturnValue(true);
   mockGetModel.mockReturnValue({ modelId: 'verdigado-pro' });
   mockInjectDocumentStateMessages.mockImplementation((msgs: unknown[]) => [...msgs]);
@@ -133,6 +148,8 @@ function setupHappyPath() {
 describe('aiController – POST /api/docs/ai', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: authorized. 401/403 tests override user / this mock.
+    mockCheckDocumentWriteAccess.mockResolvedValue(true);
   });
 
   // ── Validation (schema-level) ─────────────────────────────
@@ -176,10 +193,57 @@ describe('aiController – POST /api/docs/ai', () => {
 
     it('accepts a well-formed body and returns the typed value', () => {
       const result = aiRequestBodySchema.safeParse({
+        documentId: VALID_DOC_ID,
         messages: sampleMessages,
         toolDefinitions: sampleToolDefinitions,
       });
       expect(result.success).toBe(true);
+    });
+
+    it('rejects a body without documentId (route is doc-scoped for write-access)', () => {
+      const result = aiRequestBodySchema.safeParse({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects a non-uuid documentId', () => {
+      const result = aiRequestBodySchema.safeParse({
+        documentId: 'not-a-uuid',
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  // ── Authentication + authorization (real access control) ──
+  describe('Access control', () => {
+    it('returns 401 when the request is unauthenticated', async () => {
+      setupHappyPath();
+      const { res, statusFn, jsonFn } = createMockRes();
+      await handleAiRequest(createMockReq({ messages: sampleMessages }, null), res);
+      expect(statusFn).toHaveBeenCalledWith(401);
+      expect(jsonFn).toHaveBeenCalledWith({ error: 'Not authenticated' });
+    });
+
+    it('returns 403 when the user has no write access to the document', async () => {
+      setupHappyPath();
+      mockCheckDocumentWriteAccess.mockResolvedValue(false);
+      const { res, statusFn, jsonFn } = createMockRes();
+      await handleAiRequest(createMockReq({ messages: sampleMessages }), res);
+      expect(statusFn).toHaveBeenCalledWith(403);
+      expect(jsonFn).toHaveBeenCalledWith({ error: 'No edit permission for this document' });
+    });
+
+    it('checks write access against the body documentId + authenticated user', async () => {
+      setupHappyPath();
+      await handleAiRequest(
+        createMockReq({ messages: sampleMessages }, 'user-42'),
+        createMockRes().res
+      );
+      expect(mockCheckDocumentWriteAccess).toHaveBeenCalledWith(VALID_DOC_ID, 'user-42');
     });
   });
 
@@ -396,9 +460,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockLogInfo).toHaveBeenCalledWith(
-        expect.stringContaining('Request received: 1 messages')
-      );
+      expect(mockLogInfo).toHaveBeenCalledWith(expect.stringContaining('1 messages'));
     });
 
     it('logs message count after doc state injection', async () => {
