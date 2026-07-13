@@ -60,7 +60,11 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
 ]);
 
 export function isAgenticLoopEnabled(): boolean {
-  return process.env.CHAT_AGENT_LOOP === 'true';
+  // test-branch: loop ON by default so it can be exercised live without env
+  // config. An explicit CHAT_AGENT_LOOP=false still disables it (escape hatch).
+  // NOTE: this differs from the master-bound PR, which keeps the opt-in
+  // (=== 'true'); do not carry this default to prod without a deliberate flip.
+  return process.env.CHAT_AGENT_LOOP !== 'false';
 }
 
 function resolveBudget(): LoopBudget {
