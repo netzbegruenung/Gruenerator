@@ -228,7 +228,9 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
   });
 
   it('flag off: the demoted band goes back to the LLM tier', async () => {
-    delete process.env.CHAT_AGENT_LOOP;
+    // 'false' disables in BOTH flag variants (opt-in on the PR branch,
+    // default-on on test-branch).
+    process.env.CHAT_AGENT_LOOP = 'false';
     const state = buildState({
       userMessage: 'Welche Position haben die Grünen zur Vorratsdatenspeicherung?',
     });
