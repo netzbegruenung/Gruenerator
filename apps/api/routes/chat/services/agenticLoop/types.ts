@@ -39,7 +39,9 @@ export interface LoopTelemetry {
 }
 
 export const DEFAULT_LOOP_BUDGET: LoopBudget = {
-  maxSteps: 6,
+  // 8 leaves room for a multi-topic turn (up to 6 searches, MAX_SEARCH_CALLS)
+  // plus a step to answer, without force-finishing mid-coverage.
+  maxSteps: 8,
   wallClockMs: 120_000,
   perCallTimeoutMs: 20_000,
 };
