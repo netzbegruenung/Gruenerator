@@ -62,9 +62,9 @@ describe('decideRunAgentic', () => {
   });
 
   it('rescues a factual question mislabelled `direct`', () => {
-    expect(
-      decide({ intent: 'direct', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })
-    ).toBe(true);
+    expect(decide({ intent: 'direct', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })).toBe(
+      true
+    );
   });
 
   it('keeps a greeting mislabelled `direct` on the fast path', () => {
