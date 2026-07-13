@@ -1002,14 +1002,17 @@ export async function executeIntentPipeline(opts: {
             if (step.phase === 'start') {
               const stepId = `mcp_${Date.now()}_${stepCounter++}`;
               stepIds.push(stepId);
-              sse.send('tool_step_start', { stepId, toolName: `${step.server}·${step.tool}` });
+              // Stable toolName so the frontend toolkit renders a card; the
+              // server/tool ride in args for the label (dynamic names aren't
+              // registered in UI_TOOL_NAMES).
+              sse.send('tool_step_start', {
+                stepId,
+                toolName: 'mcp_tool',
+                args: { server: step.server, tool: step.tool },
+              });
             } else {
               const stepId = stepIds.shift() ?? `mcp_${Date.now()}_${stepCounter++}`;
-              sse.send('tool_step_result', {
-                stepId,
-                toolName: `${step.server}·${step.tool}`,
-                ok: step.ok ?? true,
-              });
+              sse.send('tool_step_result', { stepId, toolName: 'mcp_tool', ok: step.ok ?? true });
             }
           },
         } as ChatGraphState;
