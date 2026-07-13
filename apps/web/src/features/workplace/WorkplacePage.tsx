@@ -1,10 +1,8 @@
 import { Suspense, lazy } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { useAuthStore } from '../../stores/authStore';
 import { NOTEBOOK_MAGENTA_BG } from '../notebook/notebookTheme';
-import { useTourAutostart } from '../tours/useTourAutostart';
 
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
 import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
@@ -30,13 +28,6 @@ const TAB_BACKGROUND: Record<string, string> = {
 const WorkplacePage = () => {
   const { pathname } = useLocation();
   const tab = workplaceTabFromPathname(pathname);
-  const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  useTourAutostart('workplace', tab === 'chat' && !!user, () => {
-    void import('../tours/workplaceTour').then((m) =>
-      m.startWorkplaceTour((path) => void navigate(path))
-    );
-  });
 
   return (
     <ErrorBoundary>
