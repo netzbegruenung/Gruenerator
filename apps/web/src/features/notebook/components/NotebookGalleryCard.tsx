@@ -72,12 +72,7 @@ const NotebookGalleryCard = memo(
         )}
       >
         <div className="flex aspect-[5/4] items-center justify-center bg-grey-50 dark:bg-grey-800/40">
-          <Icon
-            className={cn(
-              'size-9',
-              pink ? 'text-[#D6006E] dark:text-[#EC5AA0]' : 'text-grey-400 dark:text-grey-500'
-            )}
-          />
+          <Icon className="size-9 text-grey-400 dark:text-grey-500" />
         </div>
 
         <div className="flex items-start gap-2 border-t border-grey-100 px-3 py-2.5 dark:border-grey-700/60">
