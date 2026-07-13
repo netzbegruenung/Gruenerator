@@ -9,6 +9,7 @@
  * - Save conversation to mem0 memory
  */
 
+import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
@@ -27,6 +28,7 @@ import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
+import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
@@ -59,6 +61,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   social_post: 'social_post',
   scrape_url: 'scrape_url',
   bundestag: 'bundestag',
+  chat_history: 'search_chat_history',
 };
 
 /**
@@ -271,6 +274,10 @@ export interface PersistParams {
    *  avatar/badge rehydrates on thread reload. Null/omitted for the default
    *  universal chat (no badge). */
   agentId?: string | null;
+  /** Real tool steps from the agentic loop. When present they are persisted
+   *  as-is (they already carry the per-tool result shapes the UI cards read),
+   *  replacing the intent-fabricated tool calls. */
+  agenticSteps?: PersistedStep[];
 }
 
 /**
@@ -293,18 +300,25 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     requestId,
     memoryEnabled,
     agentId,
+    agenticSteps,
   } = params;
 
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
 
   try {
-    const toolCalls = buildToolCalls(
-      classifiedState,
-      finalState,
-      generatedImage,
-      sharepicVariants,
-      socialPost ?? null
-    );
+    // Agentic loop: persist the real executed steps (already in the
+    // {toolCallId, toolName, args, result} shape the cards rehydrate from)
+    // instead of fabricating tool calls from the intent.
+    const toolCalls =
+      agenticSteps && agenticSteps.length > 0
+        ? agenticSteps
+        : buildToolCalls(
+            classifiedState,
+            finalState,
+            generatedImage,
+            sharepicVariants,
+            socialPost ?? null
+          );
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
@@ -352,15 +366,20 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
+      const titlePromise = generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
       // Auto-tag from the same first exchange. Triggered here (not only via the
       // client generate-title endpoint) so every flow — web, mobile, resumed —
       // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
-      generateThreadTags(threadId, userText, fullText).catch((err) =>
+      const tagsPromise = generateThreadTags(threadId, userText, fullText).catch((err) =>
         log.warn('[ChatGraph] Thread tag generation failed:', err)
       );
+      // Embed the thread for semantic recall AFTER title + tags land, so the
+      // recall point carries them. Fire-and-forget: recall is best-effort.
+      Promise.allSettled([titlePromise, tagsPromise])
+        .then(() => upsertThreadRecallPoint(threadId))
+        .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {

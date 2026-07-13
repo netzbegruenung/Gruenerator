@@ -5,7 +5,7 @@
  * and the search/image/summary pipeline execution.
  */
 
-import { findBestMatch } from '@gruenerator/shared/utils';
+import { buildChatThreadSlug, findBestMatch } from '@gruenerator/shared/utils';
 
 import {
   briefGeneratorNode,
@@ -15,6 +15,7 @@ import {
   imageEditNode,
   summarizeNode,
   computeNode,
+  mcpToolNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { env } from '../../../config/env.js';
@@ -23,6 +24,14 @@ import { createLogger } from '../../../utils/logger.js';
 
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
+import {
+  recallPastChats,
+  recallOfficeDocuments,
+  rerankRecall,
+  getThreadRecallContext,
+  formatPastChatsBlock,
+  formatOfficeDocsBlock,
+} from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
 import {
   detectPreferredVariant,
@@ -41,6 +50,7 @@ import type {
   ImageAttachment,
   PendingAction,
   SearchIntent,
+  SearchResult,
   SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -979,6 +989,112 @@ export async function executeIntentPipeline(opts: {
       if (finalState.computedResult) {
         finalState.computedResultFresh = true;
         sse.send('compute', { compute: finalState.computedResult });
+      }
+    } else if (currentIntent === 'chat_history') {
+      // Recall the user's own past work — chat threads (deep-reading the top
+      // match) plus office documents (docs/presentations/sheets). Runs its own
+      // retrieval (not searchNode, which targets party documents/web).
+      const userId = finalState.agentConfig.userId;
+      if (userId) {
+        sse.send('search_start', { message: 'Durchsuche frühere Inhalte…' });
+        const query =
+          finalState.searchQuery ||
+          (finalState.messages.length
+            ? (extractTextContent(
+                finalState.messages[finalState.messages.length - 1].content
+              ) as string)
+            : '');
+        const dateFrom = finalState.detectedFilters?.date_from;
+        const dateTo = finalState.detectedFilters?.date_to;
+        const [rawChats, rawOfficeDocs] = await Promise.all([
+          recallPastChats(userId, query, {
+            limit: 5,
+            ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
+            ...(dateFrom && { startDate: new Date(dateFrom) }),
+            ...(dateTo && { endDate: new Date(dateTo) }),
+          }),
+          recallOfficeDocuments(userId, query, 5),
+        ]);
+        // Cross-source rerank so the most relevant few survive across chats +
+        // office content, rather than 5 of each.
+        const { chats: hits, officeDocs } = await rerankRecall(query, rawChats, rawOfficeDocs, 6);
+
+        const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
+
+        const searchResults: SearchResult[] = [
+          ...hits.map((h) => ({
+            source: 'chat_history',
+            title: h.threadTitle ?? 'Unbenannter Chat',
+            content: h.snippet,
+            url: `/chat/${h.threadSlugSuffix ? buildChatThreadSlug(h.threadTitle, h.threadSlugSuffix) : h.threadId}`,
+          })),
+          ...officeDocs.map((d) => ({
+            source: 'office_document',
+            title: d.title ?? 'Unbenanntes Dokument',
+            content: d.snippet || d.kind,
+            url: d.url,
+          })),
+        ];
+
+        const contextBlocks = [
+          hits.length ? formatPastChatsBlock(hits, deepRead) : '',
+          formatOfficeDocsBlock(officeDocs),
+        ].filter(Boolean);
+        finalState = {
+          ...finalState,
+          searchResults,
+          chatHistoryContext: contextBlocks.length ? contextBlocks.join('\n\n') : null,
+        } as ChatGraphState;
+
+        const payloadResults: SearchResultPayload[] = searchResults.map((r) => ({
+          source: r.source,
+          title: r.title,
+          content: r.content,
+          ...(r.url != null && { url: r.url }),
+        }));
+        sse.send('search_complete', {
+          message: PROGRESS_MESSAGES.searchComplete(searchResults.length),
+          resultCount: searchResults.length,
+          results: payloadResults,
+        });
+      }
+    } else if (currentIntent === 'mcp') {
+      // EXPERIMENTAL: external MCP tool-loop. Gated per-user by enabledTools.mcp
+      // unless @mcp forces it. mcpToolNode never throws — a dead/empty server
+      // yields null context and the turn falls back to a normal `direct` answer.
+      const mcpEnabled = forcedTool || enabledTools?.['mcp'] !== false;
+      if (mcpEnabled) {
+        // Correlate tool_step_start/result pairs: calls are sequential, so a
+        // FIFO queue of step ids is sufficient.
+        const stepIds: string[] = [];
+        let stepCounter = 0;
+        const mcpState = {
+          ...finalState,
+          onMcpProgress: (step: {
+            phase: 'start' | 'result';
+            server: string;
+            tool: string;
+            ok?: boolean;
+          }) => {
+            if (step.phase === 'start') {
+              const stepId = `mcp_${Date.now()}_${stepCounter++}`;
+              stepIds.push(stepId);
+              // Stable toolName so the frontend toolkit renders a card; the
+              // server/tool ride in args for the label (dynamic names aren't
+              // registered in UI_TOOL_NAMES).
+              sse.send('tool_step_start', {
+                stepId,
+                toolName: 'mcp_tool',
+                args: { server: step.server, tool: step.tool },
+              });
+            } else {
+              const stepId = stepIds.shift() ?? `mcp_${Date.now()}_${stepCounter++}`;
+              sse.send('tool_step_result', { stepId, toolName: 'mcp_tool', ok: step.ok ?? true });
+            }
+          },
+        } as ChatGraphState;
+        const mcpResult = await mcpToolNode(mcpState);
+        finalState = { ...finalState, ...mcpResult } as ChatGraphState;
       }
     } else if (
       currentIntent !== 'direct' &&

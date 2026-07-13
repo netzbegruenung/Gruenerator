@@ -1,0 +1,52 @@
+/* One-shot "sunrise" for the chat-tab warm radial glow. The gradient is the
+   permanent resting state (initial-values below match the design); only the
+   entrance animation runs once and settles into it (animation-fill-mode: forwards).
+   Registered @property values are what makes the gradient stops interpolable. */
+
+@property --wp-sunrise-y {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 52%;
+}
+
+@property --wp-sunrise-glow {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.workplace-chat-sunrise {
+  background-color: #fefcf5;
+  background-image: radial-gradient(
+    88% 58% at 50% var(--wp-sunrise-y),
+    rgb(233 214 150 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+    rgb(233 214 150 / calc(0.18 * var(--wp-sunrise-glow))) 40%,
+    rgb(255 255 255 / 0) 74%
+  );
+  animation: workplace-sunrise 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes workplace-sunrise {
+  from {
+    --wp-sunrise-y: 82%;
+    --wp-sunrise-glow: 0;
+  }
+  to {
+    --wp-sunrise-y: 52%;
+    --wp-sunrise-glow: 1;
+  }
+}
+
+.dark .workplace-chat-sunrise {
+  background-color: transparent;
+  background-image: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workplace-chat-sunrise {
+    animation: none;
+    --wp-sunrise-y: 52%;
+    --wp-sunrise-glow: 1;
+  }
+}

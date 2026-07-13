@@ -42,6 +42,7 @@ export { notificationsContract } from './notificationsContract.js';
 export { emailContract } from './emailContract.js';
 export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
+export { mcpServersContract } from './mcpServersContract.js';
 export { imageEditContract } from './imageEditContract.js';
 export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { userTemplatesContract } from './userTemplatesContract.js';

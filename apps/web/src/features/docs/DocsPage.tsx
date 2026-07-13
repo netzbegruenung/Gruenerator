@@ -11,7 +11,7 @@ import {
   type TemplateType,
 } from '@gruenerator/docs';
 import { instantiateUserTemplate, type UserTemplateSummary } from '@gruenerator/shared';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, isUnauthorizedError } from '@gruenerator/shared/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -317,7 +317,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
         // SPA navigation (not adapter.navigateToDocument, which reloads and
         // drops nav-state): the seed workbook rides `location.state` into the
         // Univer editor, which applies it on first open.
-        navigate(`/office/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
+        void navigate(`/office/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
       } catch (err) {
         console.error('Failed to create sheet from template:', err);
       }
@@ -347,7 +347,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
           documentSubtype: 'presentations',
         });
         // SPA navigation carries the seed slides via nav-state into the editor.
-        navigate(`/office/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
+        void navigate(`/office/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
       } catch (err) {
         console.error('Failed to create presentation from template:', err);
       }
@@ -440,10 +440,10 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
           void navigate(`/studio/templates/${result.type}`);
         } else if (kind === 'doc') {
           const doc = await generateDocumentMutation.mutateAsync(description);
-          navigate(`/office/${doc.id}`);
+          void navigate(`/office/${doc.id}`);
         } else if (kind === 'board') {
           const data = await generateBoard.mutateAsync(description);
-          navigate(
+          void navigate(
             `/boards/${data.board.id}`,
             data.generatedStructure
               ? { state: { generatedStructure: data.generatedStructure } }
@@ -452,11 +452,11 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
         } else if (kind === 'sheet') {
           const res = await getContractsClient().sheets.generate({ body: { description } });
           if (res.status !== 201) throw new Error(`Sheet generation failed (${res.status})`);
-          navigate(`/office/${res.body.id}`);
+          void navigate(`/office/${res.body.id}`);
         } else {
           const res = await getContractsClient().presentations.generate({ body: { description } });
           if (res.status !== 201) throw new Error(`Presentation generation failed (${res.status})`);
-          navigate(`/office/${res.body.id}`);
+          void navigate(`/office/${res.body.id}`);
         }
       } catch (err) {
         console.error('Composer create failed:', err);
@@ -629,7 +629,9 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
               ))}
             </>
           )
-        ) : isLoading ? (
+        ) : isLoading || isUnauthorizedError(docsError) ? (
+          // On a 401 the session teardown+redirect is already in flight — show
+          // the skeleton, never a partial/stale grid or an error flash.
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
