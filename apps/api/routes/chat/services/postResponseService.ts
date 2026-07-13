@@ -27,6 +27,7 @@ import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
+import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
@@ -271,6 +272,10 @@ export interface PersistParams {
    *  avatar/badge rehydrates on thread reload. Null/omitted for the default
    *  universal chat (no badge). */
   agentId?: string | null;
+  /** Real tool steps from the agentic loop. When present they are persisted
+   *  as-is (they already carry the per-tool result shapes the UI cards read),
+   *  replacing the intent-fabricated tool calls. */
+  agenticSteps?: PersistedStep[];
 }
 
 /**
@@ -293,18 +298,25 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     requestId,
     memoryEnabled,
     agentId,
+    agenticSteps,
   } = params;
 
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
 
   try {
-    const toolCalls = buildToolCalls(
-      classifiedState,
-      finalState,
-      generatedImage,
-      sharepicVariants,
-      socialPost ?? null
-    );
+    // Agentic loop: persist the real executed steps (already in the
+    // {toolCallId, toolName, args, result} shape the cards rehydrate from)
+    // instead of fabricating tool calls from the intent.
+    const toolCalls =
+      agenticSteps && agenticSteps.length > 0
+        ? agenticSteps
+        : buildToolCalls(
+            classifiedState,
+            finalState,
+            generatedImage,
+            sharepicVariants,
+            socialPost ?? null
+          );
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
