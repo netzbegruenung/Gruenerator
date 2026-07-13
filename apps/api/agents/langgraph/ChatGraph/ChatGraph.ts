@@ -573,6 +573,7 @@ function routeAfterClassification(
     share_doc: 'share_doc',
     create_sheet: 'create_sheet',
     create_presentation: 'create_presentation',
+    chat_history: 'chat_history',
     direct: 'direct',
   };
 

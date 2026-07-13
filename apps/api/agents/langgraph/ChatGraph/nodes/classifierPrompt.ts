@@ -33,6 +33,7 @@ VERFÜGBARE TOOLS:
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
+- chat_history: Frühere Chats DIESES Nutzers mit dir durchsuchen oder wieder aufgreifen - "was haben wir letztes Mal besprochen", "finde unseren Chat über X", "erinnerst du dich an unser Gespräch zu Y", "mach da weiter wo wir aufgehört haben", "worüber haben wir letzte Woche geredet". NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
@@ -77,6 +78,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 4b. Eigenständige rechnende Tabelle/Spreadsheet erstellen? → create_sheet
 4c. Präsentation / Foliensatz / Slides erstellen? → create_presentation
 5. Dokument mit Gruppe teilen? → share_doc
+5b. Bezug auf ein FRÜHERES GESPRÄCH mit dir/dem Assistenten ("letztes Mal", "unser Chat über", "erinnerst du dich", "mach da weiter")? → chat_history
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
@@ -87,7 +89,8 @@ SCHRITT 3 - TOOL WÄHLEN:
 10. Alles andere (kreativ, Textbearbeitung, Erstelle/Schreib X) → direct
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
-Wenn intent search/research/web/examples/social_post ist, erstelle eine optimierte Suchquery:
+Wenn intent search/research/web/examples/social_post/chat_history ist, erstelle eine optimierte Suchquery:
+- Bei chat_history: extrahiere das THEMA des gesuchten Gesprächs (z.B. "unser Chat über den Newsletter" → "Newsletter"). Zeitangaben ("letzte Woche", "gestern") gehören in date_from/date_to (Schritt 7), nicht in die Query.
 - Entferne Aufgabenanweisungen (schreib, erstelle, formuliere, verfasse...)
 - Behalte NUR das faktische Thema für die Suche
 - Beispiel: "Schreib eine Pressemitteilung über die Klimapolitik der Grünen" → "Klimapolitik der Grünen"
@@ -169,7 +172,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,

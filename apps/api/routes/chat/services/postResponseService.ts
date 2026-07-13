@@ -9,6 +9,7 @@
  * - Save conversation to mem0 memory
  */
 
+import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
@@ -59,6 +60,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   social_post: 'social_post',
   scrape_url: 'scrape_url',
   bundestag: 'bundestag',
+  chat_history: 'search_chat_history',
 };
 
 /**
@@ -352,15 +354,20 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
+      const titlePromise = generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
       // Auto-tag from the same first exchange. Triggered here (not only via the
       // client generate-title endpoint) so every flow — web, mobile, resumed —
       // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
-      generateThreadTags(threadId, userText, fullText).catch((err) =>
+      const tagsPromise = generateThreadTags(threadId, userText, fullText).catch((err) =>
         log.warn('[ChatGraph] Thread tag generation failed:', err)
       );
+      // Embed the thread for semantic recall AFTER title + tags land, so the
+      // recall point carries them. Fire-and-forget: recall is best-effort.
+      Promise.allSettled([titlePromise, tagsPromise])
+        .then(() => upsertThreadRecallPoint(threadId))
+        .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {

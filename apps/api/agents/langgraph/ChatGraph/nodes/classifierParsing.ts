@@ -17,6 +17,14 @@ import type { ClassifierLLMResponse } from './classifierFilters.js';
 const log = createLogger('ChatGraph:Classifier');
 
 /**
+ * Phrases that reference an earlier conversation with the assistant. Used both
+ * to add the `chat_history` search source (combined queries) and to defensively
+ * upgrade a misclassified `direct` intent to the `chat_history` tool.
+ */
+const CHAT_HISTORY_KEYWORDS =
+  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört)\b/i;
+
+/**
  * Parse JSON response from classifier, with error handling.
  * Handles extended response format with typoAnalysis and contentType.
  */
@@ -44,6 +52,7 @@ export function parseClassifierResponse(
     'save_as_doc',
     'modify_doc',
     'modify_board',
+    'chat_history',
     'direct',
   ];
 
@@ -67,6 +76,14 @@ export function parseClassifierResponse(
       log.debug(
         `[Classifier] Content type: ${parsed.contentType}, needsResearch: ${parsed.needsResearch}`
       );
+    }
+
+    // Defensive upgrade: the LLM sometimes calls a clear past-conversation
+    // reference "direct". If the text plainly points at an earlier chat, route
+    // it to the chat_history tool instead.
+    if (parsed.intent === 'direct' && CHAT_HISTORY_KEYWORDS.test(userContent)) {
+      log.info('[Classifier] Upgraded direct → chat_history (past-conversation reference)');
+      parsed.intent = 'chat_history';
     }
 
     // If LLM returns 'person', route to web instead
@@ -379,9 +396,7 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
   }
 
   // References to past conversations → include chat_history source
-  const chatHistoryKeywords =
-    /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen)\b/i;
-  if (chatHistoryKeywords.test(q)) {
+  if (CHAT_HISTORY_KEYWORDS.test(q)) {
     const base: SearchSource[] = hasPartyKeywords
       ? ['documents', 'chat_history']
       : ['chat_history'];

@@ -1,0 +1,243 @@
+/**
+ * Past Chat Recall Service
+ *
+ * Lets the assistant recall the user's OWN earlier conversations — both as
+ * start-of-chat context (see chatGraphContractRouter) and as an explicit tool
+ * (the `chat_history` intent). Wraps the low-level ILIKE primitive
+ * `searchChatHistory` and, when thread-level embeddings exist, merges in
+ * semantic matches so a fresh first message can surface a topically related
+ * past thread even without shared keywords.
+ *
+ * This is deliberately separate from mem0 fact memory: mem0 stores distilled
+ * facts about the user; this returns raw conversation excerpts with titles and
+ * dates the model can reference naturally.
+ */
+
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
+import { createLogger } from '../../../utils/logger.js';
+import { toIsoString } from '../../../utils/toIsoString.js';
+
+import { searchChatHistory } from './chatSearchService.js';
+
+import type { ChatSearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+
+const log = createLogger('PastChatRecallService');
+
+const DEEP_READ_MAX_MESSAGES = 10;
+const DEEP_READ_MAX_CHARS = 4_000;
+
+export interface PastChatRecallOptions {
+  excludeThreadId?: string;
+  limit?: number;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+/**
+ * Search the user's own past threads. Keyword (ILIKE) and — when Qdrant
+ * thread-recall points exist — semantic results are merged, deduped by thread,
+ * keyword-first (precise) then semantic extras (fills in when the query shares
+ * no literal words with an old thread). Semantic failures degrade to ILIKE-only.
+ */
+export async function recallPastChats(
+  userId: string,
+  query: string,
+  options: PastChatRecallOptions = {}
+): Promise<ChatSearchResult[]> {
+  const { excludeThreadId, limit = 3, startDate, endDate } = options;
+
+  const keywordPromise = searchChatHistory(userId, query, {
+    ownedOnly: true,
+    limit,
+    ...(excludeThreadId != null && { excludeThreadId }),
+    ...(startDate != null && { startDate }),
+    ...(endDate != null && { endDate }),
+  });
+
+  // Semantic is best-effort: a Qdrant/Mistral outage must never break recall.
+  const semanticPromise = query.trim()
+    ? searchThreadRecall(userId, query, limit).catch((err) => {
+        log.warn(`[Recall] Semantic thread search failed (using keyword only): ${err}`);
+        return [] as string[];
+      })
+    : Promise.resolve<string[]>([]);
+
+  const [keywordHits, semanticThreadIds] = await Promise.all([keywordPromise, semanticPromise]);
+
+  const seen = new Set(keywordHits.map((h) => h.threadId));
+  if (excludeThreadId) seen.add(excludeThreadId);
+
+  const semanticOnlyIds = semanticThreadIds.filter((id) => !seen.has(id));
+  const semanticHits =
+    semanticOnlyIds.length > 0 ? await hydrateThreadsAsResults(userId, semanticOnlyIds) : [];
+
+  return [...keywordHits, ...semanticHits].slice(0, limit);
+}
+
+/**
+ * Deep-read a single thread for the tool path: its compaction summary if one
+ * exists, else the last N user/assistant messages. Ownership is enforced with
+ * the same predicate as the owned-only search.
+ */
+export async function getThreadRecallContext(
+  threadId: string,
+  userId: string,
+  opts: { maxMessages?: number; maxChars?: number } = {}
+): Promise<{ title: string | null; updatedAt: string; transcript: string } | null> {
+  const { maxMessages = DEEP_READ_MAX_MESSAGES, maxChars = DEEP_READ_MAX_CHARS } = opts;
+  const db = getPostgresInstance();
+
+  try {
+    const threadRows = (await db.query(
+      `SELECT title, updated_at, compaction_summary
+       FROM chat_threads
+       WHERE id = $1::uuid
+         AND (user_id = $2 OR permissions ? $2::text)
+         AND COALESCE(status, 'regular') = 'regular'`,
+      [threadId, userId]
+    )) as Array<{
+      title: string | null;
+      updated_at: Date | string;
+      compaction_summary: string | null;
+    }>;
+
+    if (threadRows.length === 0) return null;
+    const thread = threadRows[0];
+
+    let transcript: string;
+    if (thread.compaction_summary?.trim()) {
+      transcript = thread.compaction_summary.trim().slice(0, maxChars);
+    } else {
+      const messageRows = (await db.query(
+        `SELECT role, content
+         FROM chat_messages
+         WHERE thread_id = $1::uuid
+           AND role IN ('user', 'assistant')
+           AND content IS NOT NULL
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [threadId, maxMessages]
+      )) as Array<{ role: string; content: string }>;
+
+      transcript = messageRows
+        .reverse()
+        .map((m) => `[${m.role}] ${m.content}`)
+        .join('\n')
+        .slice(0, maxChars);
+    }
+
+    return {
+      title: thread.title,
+      updatedAt: toIsoString(thread.updated_at),
+      transcript,
+    };
+  } catch (err) {
+    log.warn(`[Recall] Deep-read failed for thread ${threadId}: ${err}`);
+    return null;
+  }
+}
+
+/**
+ * German system-prompt block shared by the start-of-chat injection and the
+ * `chat_history` tool. Framed so the model treats these as PAST conversations
+ * (with dates + titles) it may reference, not as citable sources.
+ */
+export function formatPastChatsBlock(
+  results: ChatSearchResult[],
+  deepRead?: { title: string | null; transcript: string } | null
+): string {
+  const lines: string[] = [
+    '## RELEVANTE VERGANGENE GESPRÄCHE (KONTEXT – KEINE QUELLEN, NICHT ZITIEREN)',
+    '',
+    'Dies sind Auszüge aus früheren Chats des Nutzers mit dir. Du darfst dich darauf',
+    'beziehen ("In unserem Gespräch vom 12.03. hatten wir…"), aber nur wenn es zur',
+    'aktuellen Anfrage passt. Erfinde keine Details, die über die Auszüge hinausgehen.',
+    '',
+  ];
+
+  for (const r of results) {
+    const title = r.threadTitle?.trim() || 'Unbenannter Chat';
+    const date = formatGermanDate(r.threadUpdatedAt);
+    lines.push(`### „${title}" (Gespräch vom ${date})`);
+    lines.push(`[${r.messageRole}] ${r.snippet}`);
+    lines.push('');
+  }
+
+  if (deepRead?.transcript?.trim()) {
+    const title = deepRead.title?.trim() || 'Unbenannter Chat';
+    lines.push(`#### Vollständiger Verlauf des relevantesten Gesprächs „${title}":`);
+    lines.push(deepRead.transcript.trim());
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+function formatGermanDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'unbekannt';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+
+/**
+ * Turn semantic-only thread ids into ChatSearchResult rows: thread metadata plus
+ * the most recent user/assistant message as a snippet. Preserves the semantic
+ * ranking order of the incoming ids.
+ */
+async function hydrateThreadsAsResults(
+  userId: string,
+  threadIds: string[]
+): Promise<ChatSearchResult[]> {
+  const db = getPostgresInstance();
+
+  try {
+    const rows = (await db.query(
+      `SELECT
+         t.id AS thread_id,
+         t.title AS thread_title,
+         t.agent_id,
+         t.slug_suffix AS thread_slug_suffix,
+         t.updated_at AS thread_updated_at,
+         t.compaction_summary,
+         (
+           SELECT m.content FROM chat_messages m
+           WHERE m.thread_id = t.id AND m.role IN ('user', 'assistant') AND m.content IS NOT NULL
+           ORDER BY m.created_at DESC LIMIT 1
+         ) AS snippet_content
+       FROM chat_threads t
+       WHERE t.id = ANY($1::uuid[])
+         AND (t.user_id = $2 OR t.permissions ? $2::text)
+         AND COALESCE(t.status, 'regular') = 'regular'`,
+      [threadIds, userId]
+    )) as Array<{
+      thread_id: string;
+      thread_title: string | null;
+      agent_id: string;
+      thread_slug_suffix: string | null;
+      thread_updated_at: Date | string;
+      compaction_summary: string | null;
+      snippet_content: string | null;
+    }>;
+
+    const byId = new Map(rows.map((r) => [r.thread_id, r]));
+
+    return threadIds
+      .map((id) => byId.get(id))
+      .filter((r): r is NonNullable<typeof r> => r != null)
+      .map((r) => ({
+        threadId: r.thread_id,
+        threadTitle: r.thread_title,
+        threadSlugSuffix: r.thread_slug_suffix,
+        agentId: r.agent_id,
+        snippet: (r.snippet_content || r.compaction_summary || r.thread_title || '').slice(0, 200),
+        messageRole: 'assistant' as const,
+        matchedAt: toIsoString(r.thread_updated_at),
+        threadUpdatedAt: toIsoString(r.thread_updated_at),
+      }));
+  } catch (err) {
+    log.warn(`[Recall] Hydration of semantic hits failed: ${err}`);
+    return [];
+  }
+}

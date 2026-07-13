@@ -5,7 +5,7 @@
  * and the search/image/summary pipeline execution.
  */
 
-import { findBestMatch } from '@gruenerator/shared/utils';
+import { buildChatThreadSlug, findBestMatch } from '@gruenerator/shared/utils';
 
 import {
   briefGeneratorNode,
@@ -23,6 +23,11 @@ import { createLogger } from '../../../utils/logger.js';
 
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
+import {
+  recallPastChats,
+  getThreadRecallContext,
+  formatPastChatsBlock,
+} from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
 import {
   detectPreferredVariant,
@@ -41,6 +46,7 @@ import type {
   ImageAttachment,
   PendingAction,
   SearchIntent,
+  SearchResult,
   SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -979,6 +985,56 @@ export async function executeIntentPipeline(opts: {
       if (finalState.computedResult) {
         finalState.computedResultFresh = true;
         sse.send('compute', { compute: finalState.computedResult });
+      }
+    } else if (currentIntent === 'chat_history') {
+      // Search the user's own past threads and deep-read the top match, so the
+      // model can continue an earlier conversation. Runs its own retrieval
+      // (not searchNode, which targets party documents/web).
+      const userId = finalState.agentConfig.userId;
+      if (userId) {
+        sse.send('search_start', { message: 'Durchsuche vergangene Gespräche…' });
+        const query =
+          finalState.searchQuery ||
+          (finalState.messages.length
+            ? (extractTextContent(
+                finalState.messages[finalState.messages.length - 1].content
+              ) as string)
+            : '');
+        const dateFrom = finalState.detectedFilters?.date_from;
+        const dateTo = finalState.detectedFilters?.date_to;
+        const hits = await recallPastChats(userId, query, {
+          limit: 5,
+          ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
+          ...(dateFrom && { startDate: new Date(dateFrom) }),
+          ...(dateTo && { endDate: new Date(dateTo) }),
+        });
+
+        const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
+
+        const searchResults: SearchResult[] = hits.map((h) => ({
+          source: 'chat_history',
+          title: h.threadTitle ?? 'Unbenannter Chat',
+          content: h.snippet,
+          url: `/chat/${h.threadSlugSuffix ? buildChatThreadSlug(h.threadTitle, h.threadSlugSuffix) : h.threadId}`,
+        }));
+
+        finalState = {
+          ...finalState,
+          searchResults,
+          chatHistoryContext: hits.length ? formatPastChatsBlock(hits, deepRead) : null,
+        } as ChatGraphState;
+
+        const payloadResults: SearchResultPayload[] = searchResults.map((r) => ({
+          source: r.source,
+          title: r.title,
+          content: r.content,
+          ...(r.url != null && { url: r.url }),
+        }));
+        sse.send('search_complete', {
+          message: PROGRESS_MESSAGES.searchComplete(hits.length),
+          resultCount: hits.length,
+          results: payloadResults,
+        });
       }
     } else if (
       currentIntent !== 'direct' &&

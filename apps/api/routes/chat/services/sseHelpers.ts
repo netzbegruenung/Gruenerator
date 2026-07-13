@@ -326,6 +326,11 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
   edit_current_board: ['Passe Board an...', 'Aktualisiere...', 'Pflege...'],
   share_doc: ['Teile...', 'Sende...', 'Reiche weiter...'],
+  chat_history: [
+    'Blättere in alten Gesprächen...',
+    'Krame in Erinnerungen...',
+    'Suche vergangene Chats...',
+  ],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
 };
 
