@@ -41,8 +41,15 @@ export interface LoopDeps {
 }
 const defaultDeps: LoopDeps = { streamText: streamTextReal, generateText: generateTextReal };
 
-const GATHER_SUFFIX =
-  '\n\nWICHTIG (Recherchephase): Deine EINZIGE Aufgabe ist es jetzt, mit den Tools Belege für die Frage zu sammeln. Verlass dich NICHT auf dein eigenes Wissen — rufe für jede Sach-/Faktenfrage mindestens ein passendes Such-Tool auf (Programm-, Web-, Bundestag- oder Abgeordneten-Tool). Schreibe in dieser Phase KEINE Antwort; sobald du genug Belege hast, beende die Tool-Aufrufe.';
+const GATHER_SUFFIX = [
+  '',
+  '',
+  'RECHERCHE-STRATEGIE (diese Phase sammelt NUR Belege mit Tools und schreibt KEINE Antwort):',
+  '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat.',
+  '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
+  '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
+  '- Schreibe in dieser Phase KEINE Antwort; sobald du genug Belege hast, beende die Tool-Aufrufe.',
+].join('\n');
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
 function tryLenientJsonParse(raw: string): unknown {
