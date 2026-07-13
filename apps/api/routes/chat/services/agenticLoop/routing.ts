@@ -49,11 +49,14 @@ export interface AgenticDecisionInput {
   hasSecondaryIntent: boolean;
   /** image_edit / vision turns stay single-pass. */
   hasImageAttachments: boolean;
-  /** Resolved model can drive native multi-step tool use. */
-  toolCapable: boolean;
 }
 
-/** Single source of truth for the runAgentic gate. */
+/**
+ * Single source of truth for the runAgentic gate. Note there is NO
+ * tool-capability check: with the planner/executor split (see loopEngine), a
+ * fixed fast planner does every tool call, so ANY selected model can drive the
+ * loop — the model choice only decides unified-vs-split MODE inside the loop.
+ */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
@@ -64,7 +67,6 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     (!p.forcedTool || p.isMcpTurn) &&
     !p.isCompound &&
     !p.hasSecondaryIntent &&
-    !p.hasImageAttachments &&
-    p.toolCapable
+    !p.hasImageAttachments
   );
 }

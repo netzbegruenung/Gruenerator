@@ -370,6 +370,22 @@ export function isAgenticToolCapable(provider: string, _modelName: string): bool
 }
 
 /**
+ * Whether the SELECTED model drives the tool loop directly (unified single-model
+ * pass) vs. delegating tool orchestration to the fast planner (planner/executor
+ * split: INTERMEDIATE_MODEL gathers, selected model writes the answer).
+ *
+ * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
+ * fastest and highest-fidelity. Everything else splits: the fixed fast planner
+ * does every tool call (so tool-calling reliability no longer depends on the
+ * user's model) and the selected model only writes prose — which is why ANY
+ * model, including slow "thinking" lanes and non-tool-callers, is now selectable
+ * for the loop.
+ */
+export function prefersUnifiedLoop(provider: string, _modelName: string): boolean {
+  return provider === 'mistral';
+}
+
+/**
  * Cheap, slot-free check of whether the model that WILL be used (user selection
  * or agent default) can drive the agentic loop. Mistral lanes never acquire an
  * overflow slot, so this can decide the agentic branch before the heavier

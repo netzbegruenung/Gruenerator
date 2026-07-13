@@ -28,7 +28,6 @@ import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { selectionIsToolCapable } from './agents/providers.js';
 import {
   streamAgenticResponse,
   isAgenticLoopEnabled,
@@ -612,10 +611,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         isCompound,
         hasSecondaryIntent: !!classifiedState.secondaryIntent,
         hasImageAttachments: imageAttachments.length > 0,
-        toolCapable: selectionIsToolCapable(
-          classifiedState.agentConfig.provider as string,
-          modelId ?? undefined
-        ),
       });
 
       sse.send('intent', {
