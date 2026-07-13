@@ -84,6 +84,14 @@ export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
 // request. Handler code uses `?? undefined` at call sites that need
 // `T | undefined` (it's only ~3 fields, so a transform helper is overkill).
 
+/**
+ * Client shell that sent the request. Absent/null means 'web' (covers old
+ * clients and the Tauri desktop app, which ships the web frontend). The
+ * backend redirects web-only features (reel edit, sharepic) on 'app'.
+ */
+export const clientPlatformSchema = z.enum(['web', 'app']);
+export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
+
 export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
@@ -106,6 +114,7 @@ export const chatStreamBodySchema = z.object({
   // interrupt for tools listed here; clients without the capability (mobile,
   // voice) keep the legacy prompt-guidance path.
   clientTools: z.array(z.string()).nullish(),
+  platform: clientPlatformSchema.nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   sheetIds: z.array(z.string()).nullish(),

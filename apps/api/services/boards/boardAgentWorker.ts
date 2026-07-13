@@ -196,7 +196,7 @@ async function processTask(task: AgentTask): Promise<void> {
     const deliverAsDocument = async (): Promise<void> => {
       const title = deriveTitle(task.task_text, content);
       const doc = await createDocumentWithContent(title, content, 'blank', task.requested_by);
-      const relativeUrl = `/docs/${doc.id}`;
+      const relativeUrl = `/office/${doc.id}`;
 
       // Share the document with everyone who can access the board, and record it
       // in the card's "Grünerator-Dokumente" list (a reliable Postgres write; the

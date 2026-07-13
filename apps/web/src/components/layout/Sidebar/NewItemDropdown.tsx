@@ -64,7 +64,7 @@ const NewItemDropdown = memo(function NewItemDropdown({
   const handleCreateDoc = useCallback(() => {
     createEmptyDoc.mutate(undefined, {
       onSuccess: (data) => {
-        void navigate(`/docs/${data.id}`);
+        void navigate(`/office/${data.id}`);
         onClose();
       },
     });

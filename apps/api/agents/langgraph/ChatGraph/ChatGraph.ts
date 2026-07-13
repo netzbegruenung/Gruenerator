@@ -53,6 +53,7 @@ import type {
   ImageAttachment,
   ThreadAttachment,
   UserLocale,
+  ClientPlatform,
   SocialTextPlatform,
   SocialPostPayload,
   ChartData,
@@ -96,6 +97,9 @@ const ChatStateAnnotation = Annotation.Root({
   userLocale: Annotation<UserLocale>({
     reducer: (x, y) => y ?? x,
   }),
+  clientPlatform: Annotation<ClientPlatform>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Attachment context
   attachmentContext: Annotation<string | null>({
@@ -108,6 +112,9 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? [],
   }),
   hasTabularAttachment: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  clientCanRunPython: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
   }),
 
@@ -802,12 +809,14 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     },
     aiWorkerPool: input.aiWorkerPool,
     userLocale: input.userLocale || 'de-DE',
+    clientPlatform: input.clientPlatform || 'web',
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
+    clientCanRunPython: input.clientCanRunPython ?? false,
 
     // Notebook scoping
     notebookIds: input.notebookIds || [],

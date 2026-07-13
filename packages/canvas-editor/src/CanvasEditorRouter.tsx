@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
 import type { StockImageAttribution } from './common/imageSourceTypes';
-import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
@@ -36,7 +35,6 @@ export interface CanvasInitialPropsMap {
   'zitat-pure': { quote: string; name: string };
   info: { header: string; body: string };
   veranstaltung: VeranstaltungInitialProps;
-  'veranstaltung-plakat': VeranstaltungInitialProps;
   simple: { headline: string; subtext: string; imageSrc: string } & BackgroundImageProps;
   slider: { label: string; headline: string; subtext: string };
   dreizeilen: {
@@ -50,10 +48,6 @@ export interface CanvasInitialPropsMap {
     backgroundColor: string;
     currentImageSrc: string;
   } & BackgroundImageProps;
-  'pres-title': PresentationInitialProps;
-  'pres-image': PresentationInitialProps;
-  'pres-content': PresentationInitialProps;
-  presentation: PresentationInitialProps;
   profilbild: { transparentImage: string; backgroundColor: string };
 }
 
@@ -66,14 +60,6 @@ interface VeranstaltungInitialProps extends BackgroundImageProps {
   locationName: string;
   address: string;
   imageSrc: string;
-}
-
-interface PresentationInitialProps extends BackgroundImageProps {
-  title: string;
-  subtitle: string;
-  bodyText: string;
-  bodyText2: string;
-  currentImageSrc: string;
 }
 
 // Compare two values with special handling for arrays
@@ -110,6 +96,8 @@ export interface ControllableCanvasWrapperProps {
   imageSrc?: string;
   onExport: (base64: string) => void;
   onCancel: () => void;
+  /** Pure observation hook fired with the image of every page download. */
+  onDownload?: (base64: string) => void;
   onStateChange?: (newState: CanvasState) => void;
   /** Pre-populated pages for heterogeneous multi-page mode (e.g. slider slides) */
   initialPages?: InitialPageDef[];
@@ -122,10 +110,10 @@ export interface ControllableCanvasWrapperProps {
   /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
   externalMobileMode?: boolean;
   /**
-   * When provided, the editor enters collaborative mode: layers/config/formState
-   * are bound to the supplied Y.Doc. The local initialState is used only as a
-   * seed when the Y.Doc is empty; subsequent changes flow through Y.Doc and
-   * onStateChange is suppressed to prevent fighting Yjs updates.
+   * When provided, the editor enters collaborative mode: pages (state,
+   * layers, config) are bound to the supplied Y.Doc. The local initialState
+   * is used only as a seed when the Y.Doc is empty; subsequent changes flow
+   * through the Y.Doc and onStateChange is suppressed.
    */
   collaborative?: {
     ydoc: Y.Doc;
@@ -144,12 +132,16 @@ export interface ControllableCanvasWrapperProps {
    * this callback. Used by collab hosts to open their invite/permissions dialog.
    */
   onInvitePeople?: () => void;
+  /** Collab mode: fresh stage render after local edits settle (see CanvasEditorProps). */
+  onCollabSnapshot?: (base64: string) => void;
   /**
    * Seeds the per-instance AutoSaveStore so reloads update the existing
    * gallery record instead of creating a new draft. Routes that load an
    * existing share by token should pass it through here.
    */
   initialShareToken?: string | null;
+  /** Reports auto-save share tokens to the host (see CanvasEditorProps). */
+  onAutoSaveShareToken?: (token: string) => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -158,6 +150,7 @@ export function ControllableCanvasWrapper({
   imageSrc,
   onExport,
   onCancel,
+  onDownload,
   onStateChange,
   initialPages,
   onReady,
@@ -169,7 +162,9 @@ export function ControllableCanvasWrapper({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  onCollabSnapshot,
   initialShareToken,
+  onAutoSaveShareToken,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -181,47 +176,10 @@ export function ControllableCanvasWrapper({
   const prevInitialStateRef = useRef<CanvasState>(initialState);
   const readyFiredRef = useRef(false);
 
-  // Strip `pages` — slider deck page defs live in the `pages` Y.Array, not
-  // formState. Without this, initialState for a slider deck writes a stale
-  // multi-KB pages blob into the formState Y.Map that is never read back.
-  const formStateFallback = useMemo((): Record<string, unknown> => {
-    const { pages: _, ...rest } = initialState as Record<string, unknown>;
-    return rest;
-  }, [initialState]);
-
-  const { formState: yFormState, updateFormState } = useYjsFormState({
-    ydoc: collaborative?.ydoc ?? null,
-    isSynced: collaborative?.isSynced ?? false,
-    fallback: formStateFallback,
-  });
-
-  const effectiveState = isCollab ? yFormState : internalState;
-
-  // One-shot heal for docs from before template callbacks dual-wrote into
-  // pages[i].state: their text edits live only in root formState, while the
-  // mounted page renders from the stale page seed. Copy differing formState
-  // values into the page state map (single-page docs only — for multi-page
-  // docs formState mixes the last edits of ALL pages and can't be attributed).
-  // The non-local origin lets useYjsPageStateSync apply the values to the
-  // already-mounted canvas as well.
-  const healedRef = useRef(false);
-  useEffect(() => {
-    if (!collaborative?.ydoc || !collaborative.isSynced || healedRef.current) return;
-    healedRef.current = true;
-    const ydoc = collaborative.ydoc;
-    const pagesArr = ydoc.getArray<Y.Map<unknown>>('pages');
-    const formState = ydoc.getMap<unknown>('formState');
-    if (pagesArr.length !== 1 || formState.size === 0) return;
-    const stateY = pagesArr.get(0).get('state');
-    if (!(stateY instanceof Y.Map)) return;
-    ydoc.transact(() => {
-      formState.forEach((value, key) => {
-        if ((stateY as Y.Map<unknown>).get(key) !== value) {
-          (stateY as Y.Map<unknown>).set(key, value);
-        }
-      });
-    }, 'canvas-form-state-heal');
-  }, [collaborative?.ydoc, collaborative?.isSynced]);
+  // In collab mode `initialState` is only a seed — pages in the Y.Doc are the
+  // single source of truth (legacy root-formState docs are healed on open by
+  // pagesDoc.foldLegacyFormStateIntoFirstPage).
+  const effectiveState = internalState;
 
   // Load config dynamically when type changes (for config-driven canvases)
   // Now includes 'zitat' and 'dreizeilen' for unified multi-page support
@@ -231,23 +189,16 @@ export function ControllableCanvasWrapper({
       'zitat-pure',
       'info',
       'veranstaltung',
-      'veranstaltung-plakat',
       'simple',
       'dreizeilen',
       'slider',
       'freeform',
-      'pres-title',
-      'pres-image',
-      'pres-content',
-      'presentation',
       'profilbild',
     ].includes(type);
 
-    // 'presentation' is an alias — load the default pres-title config
-    const configType = type === 'presentation' ? 'pres-title' : type;
-    if (needsConfig && isValidCanvasType(configType)) {
+    if (needsConfig && isValidCanvasType(type)) {
       setConfigLoading(true);
-      loadCanvasConfig(configType)
+      loadCanvasConfig(type)
         .then(setConfig)
         .catch((error) => {
           console.error(`Failed to load canvas config for type "${type}":`, error);
@@ -286,15 +237,15 @@ export function ControllableCanvasWrapper({
 
   const handlePartChange = useCallback(
     (change: Partial<CanvasState>) => {
-      if (isCollab) {
-        updateFormState(change);
-        return;
-      }
+      // Collab persistence happens through the per-page dual-write in
+      // CanvasEditor (wrapped callbacks → pages[i].state Y.Map); there is no
+      // root-level bucket to update anymore.
+      if (isCollab) return;
       const newState = { ...internalState, ...change };
       setInternalState(newState);
       onStateChange?.(newState);
     },
-    [internalState, onStateChange, isCollab, updateFormState]
+    [internalState, onStateChange, isCollab]
   );
 
   // Create callbacks object for GenericCanvas
@@ -353,7 +304,6 @@ export function ControllableCanvasWrapper({
             body: str(effectiveState.body),
           } satisfies CanvasInitialPropsMap['info'];
         case 'veranstaltung':
-        case 'veranstaltung-plakat':
           return {
             eventTitle: str(effectiveState.eventTitle),
             beschreibung: str(effectiveState.beschreibung),
@@ -393,18 +343,6 @@ export function ControllableCanvasWrapper({
             currentImageSrc: bgSrc(),
             ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['freeform'];
-        case 'pres-title':
-        case 'pres-image':
-        case 'pres-content':
-        case 'presentation':
-          return {
-            title: str(effectiveState.title),
-            subtitle: str(effectiveState.subtitle),
-            bodyText: str(effectiveState.bodyText),
-            bodyText2: str(effectiveState.bodyText2),
-            currentImageSrc: bgSrc(),
-            ...bgImageProps(),
-          } satisfies PresentationInitialProps;
         case 'profilbild':
           return {
             transparentImage: str(effectiveState.transparentImage) || imageSrc || '',
@@ -437,7 +375,6 @@ export function ControllableCanvasWrapper({
         case 'info':
           return createCallbacks(['header', 'body']);
         case 'veranstaltung':
-        case 'veranstaltung-plakat':
           return createCallbacks(['eventTitle', 'beschreibung', ...BG_IMAGE_KEYS]);
         case 'simple':
           return createCallbacks(['headline', 'subtext', ...BG_IMAGE_KEYS]);
@@ -449,11 +386,6 @@ export function ControllableCanvasWrapper({
           // backgroundMode must persist alongside the image — the background
           // image element only renders when backgroundMode === 'image'.
           return createCallbacks(['backgroundMode', ...BG_IMAGE_KEYS]);
-        case 'pres-title':
-        case 'pres-image':
-        case 'pres-content':
-        case 'presentation':
-          return createCallbacks(['title', 'subtitle', 'bodyText', 'bodyText2', ...BG_IMAGE_KEYS]);
         default:
           return {};
       }
@@ -465,25 +397,21 @@ export function ControllableCanvasWrapper({
       case 'zitat-pure':
       case 'info':
       case 'veranstaltung':
-      case 'veranstaltung-plakat':
       case 'simple':
       case 'slider':
       case 'dreizeilen':
       case 'freeform':
-      case 'pres-title':
-      case 'pres-image':
-      case 'pres-content':
-      case 'presentation':
       case 'profilbild':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
           <CanvasEditor
             key={componentKey}
-            initialConfigId={(type === 'presentation' ? 'pres-title' : type) as CanvasConfigId}
+            initialConfigId={type as CanvasConfigId}
             initialProps={buildInitialProps()}
             onExport={onExport}
             onCancel={onCancel}
+            onDownload={onDownload}
             callbacks={buildCallbacks()}
             maxPages={config.multiPage?.maxPages ?? 30}
             initialPages={initialPages}
@@ -495,7 +423,9 @@ export function ControllableCanvasWrapper({
             chromeCenter={chromeCenter}
             chromeRight={chromeRight}
             onInvitePeople={onInvitePeople}
+            onCollabSnapshot={onCollabSnapshot}
             initialShareToken={initialShareToken}
+            onAutoSaveShareToken={onAutoSaveShareToken}
           />
         );
 

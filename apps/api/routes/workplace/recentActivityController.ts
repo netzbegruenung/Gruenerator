@@ -1,9 +1,12 @@
-import { type BoardContent, type BoardType } from '@gruenerator/contracts';
+import { type BoardContent, type BoardPreview, type BoardType } from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { CANVAS_ACCESS_WHERE, CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
 import { createLogger } from '../../utils/logger.js';
+import { getSharedMediaService } from '../share/shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -48,10 +51,11 @@ export interface RecentActivityItem {
   id: string;
   title: string;
   date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'text';
+  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'canvas';
   href: string;
   emoji?: string | undefined;
   boardType?: 'kanban' | 'whiteboard' | undefined;
+  preview?: BoardPreview | undefined;
   thumbnailUrl?: string | undefined;
   duration?: number | undefined;
   creatorName?: string | undefined;
@@ -59,6 +63,7 @@ export interface RecentActivityItem {
   deleteEndpoint?: string | undefined;
   content?: string | undefined;
   documentType?: string | undefined;
+  blurhash?: string | undefined;
 }
 
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -67,15 +72,23 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : 12;
 
-    const [docs, boards, images, reelProjects, texts] = await Promise.all([
+    const [docs, boards, images, reelProjects, texts, canvases] = await Promise.all([
       fetchRecentDocs(userId, limit),
       fetchRecentBoards(userId, limit),
       fetchRecentImages(userId, limit),
       fetchRecentReelProjects(userId, limit),
       fetchRecentTexts(userId, limit),
+      fetchRecentCanvases(userId, limit),
     ]);
 
-    const items: RecentActivityItem[] = [...docs, ...boards, ...images, ...reelProjects, ...texts];
+    const items: RecentActivityItem[] = [
+      ...docs,
+      ...boards,
+      ...images,
+      ...reelProjects,
+      ...texts,
+      ...canvases,
+    ];
 
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -139,7 +152,7 @@ export async function fetchRecentDocs(
     title: row.title || 'Unbenanntes Dokument',
     date: row.updated_at,
     type: 'doc' as const,
-    href: `/docs/${row.id}`,
+    href: `/office/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
     ...(row.content != null && { content: row.content }),
@@ -188,6 +201,7 @@ export async function fetchRecentBoards(
     }>
   ).map((row) => {
     let boardType: BoardType = 'kanban';
+    let preview: BoardPreview | null = null;
     try {
       // Parse into the contract type (BoardContent) rather than a hand-written cast,
       // so the field name is checked against boardContentSchema. The metadata column
@@ -196,8 +210,9 @@ export async function fetchRecentBoards(
       // typing it through the schema makes that a typecheck error instead.
       const content: BoardContent | null =
         typeof row.content === 'string' ? (JSON.parse(row.content) as BoardContent) : row.content;
-      if (content && typeof content !== 'string' && content.board_type === 'whiteboard') {
-        boardType = 'whiteboard';
+      if (content && typeof content !== 'string') {
+        if (content.board_type === 'whiteboard') boardType = 'whiteboard';
+        preview = content.preview ?? null;
       }
     } catch {
       // default to kanban
@@ -209,6 +224,7 @@ export async function fetchRecentBoards(
       type: 'board' as const,
       href: `/boards/${row.id}`,
       boardType,
+      ...(preview ? { preview } : {}),
       creatorName: row.creator_name,
       deleteEndpoint: `/api/boards/${row.id}`,
     };
@@ -219,32 +235,38 @@ export async function fetchRecentImages(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
-  const rows = await db.query(
-    `SELECT id, share_token, title, thumbnail_path, status, created_at
-    FROM shared_media
-    WHERE user_id = $1 AND media_type = 'image' AND status = 'ready'
-    ORDER BY created_at DESC
-    LIMIT $2`,
-    [userId, limit]
-  );
+  // Status policy lives in the service (USER_VISIBLE_SHARE_STATUSES) — this
+  // surface shows everything the user's own galleries show, drafts included.
+  let rows;
+  try {
+    const service = await getSharedMediaService();
+    rows = await service.getUserShares(userId, 'image', USER_VISIBLE_SHARE_STATUSES, limit);
+  } catch (error) {
+    // Degrade to an empty strip instead of failing the whole Promise.all'd
+    // /recent-activity response (the media service adds an fs dependency the
+    // old raw query didn't have).
+    log.error('Failed to fetch recent images:', error);
+    return [];
+  }
 
-  return (
-    rows as Array<{
-      id: string;
-      share_token: string;
-      title: string;
-      thumbnail_path: string | null;
-      status: string;
-      created_at: string;
-    }>
-  ).map((row) => ({
+  return rows.map((row) => ({
     id: row.share_token,
     title: row.title || 'Ohne Titel',
-    date: row.created_at,
+    date: row.created_at.toISOString(),
     type: 'image' as const,
     href: `/share/${row.share_token}`,
-    thumbnailUrl: row.thumbnail_path ? `/api/share/${row.share_token}/thumbnail` : undefined,
+    // Fresh shares have thumbnail_path=null until the async variants pass
+    // finishes — fall back to the on-demand preview route so the tile isn't
+    // blank. ?w=400 hits the pre-generated variant widths (200/400/800) and
+    // the thumbs/ disk cache instead of streaming the full-size original.
+    thumbnailUrl: row.thumbnail_path
+      ? `/api/share/${row.share_token}/thumbnail`
+      : `/api/share/${row.share_token}/preview?w=400&fmt=webp`,
     deleteEndpoint: `/api/share/${row.share_token}`,
+    // BlurHash (pre-generated by processMediaVariants into image_metadata) gives
+    // the tile an instant placeholder while the /preview variant is still being
+    // generated — otherwise a fresh share renders as a blank plate.
+    blurhash: (row.image_metadata as { blurhash?: string } | null)?.blurhash,
   }));
 }
 
@@ -333,6 +355,51 @@ export async function fetchRecentTexts(
       deleteEndpoint: `/api/auth/texts/${row.id}`,
     };
   });
+}
+
+export async function fetchRecentCanvases(
+  userId: string,
+  limit: number
+): Promise<RecentActivityItem[]> {
+  const rows = await db.query(
+    `SELECT
+      cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url,
+      p.display_name as creator_name,
+      CASE
+        WHEN cd.created_by = $2 THEN 'owner'
+        WHEN cd.permissions ? $3::text THEN 'direct'
+        ELSE 'group'
+      END AS access_type
+    FROM collaborative_documents cd
+    INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+    LEFT JOIN profiles p ON cd.created_by = p.id
+    WHERE ${CANVAS_ACCESS_WHERE}
+    ORDER BY cd.updated_at DESC
+    LIMIT $4`,
+    [CANVAS_SUBTYPE, userId, userId, limit]
+  );
+
+  return (
+    rows as Array<{
+      id: string;
+      title: string;
+      updated_at: string;
+      created_by: string;
+      thumbnail_url: string | null;
+      creator_name: string | null;
+      access_type: string;
+    }>
+  ).map((row) => ({
+    id: row.id,
+    title: row.title || 'Neuer Canvas',
+    date: row.updated_at,
+    type: 'canvas' as const,
+    href: `/studio/canvas/${row.id}`,
+    thumbnailUrl: row.thumbnail_url ?? undefined,
+    creatorName: row.creator_name ?? undefined,
+    accessType: row.access_type,
+    deleteEndpoint: `/api/canvas/${row.id}`,
+  }));
 }
 
 export default router;

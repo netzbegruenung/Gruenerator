@@ -1,5 +1,5 @@
 import { useShareStore } from '@gruenerator/shared/share';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 
@@ -27,6 +27,17 @@ interface CanvasAutoSaveOptions {
   canvasType: string;
   canvasState: Record<string, unknown>;
   enabled?: boolean;
+  /**
+   * Captures the current stage as a data URL for the unmount flush.
+   * Must be safe to call during teardown (return null when the stage is gone).
+   */
+  captureImage?: () => string | null;
+  /**
+   * Reports the share token whenever a save creates or adopts one. Invoked
+   * from the save routine itself so a token resolving after unmount (flush
+   * save, in-flight save) still reaches the host.
+   */
+  onShareToken?: (token: string) => void;
 }
 
 interface CanvasAutoSaveReturn {
@@ -159,6 +170,8 @@ export const useCanvasAutoSave = (
     canvasType: options.canvasType,
     canvasState: options.canvasState,
     enabled: options.enabled,
+    captureImage: options.captureImage,
+    onShareToken: options.onShareToken,
     createImageShare,
     updateImageShare,
     setAutoSaveStatus,
@@ -171,6 +184,8 @@ export const useCanvasAutoSave = (
     canvasType: options.canvasType,
     canvasState: options.canvasState,
     enabled: options.enabled,
+    captureImage: options.captureImage,
+    onShareToken: options.onShareToken,
     createImageShare,
     updateImageShare,
     setAutoSaveStatus,
@@ -256,6 +271,7 @@ export const useCanvasAutoSave = (
           refs.setLastAutoSavedImageSrc(imageSrc);
           refs.setAutoSaveStatus('saved');
           autoSaveStoreApi.getState().setDirty(false);
+          refs.onShareToken?.(share.shareToken);
         } else {
           console.warn('[AutoSave][performAutoSave] api returned no shareToken');
           refs.setAutoSaveStatus('error');
@@ -279,6 +295,50 @@ export const useCanvasAutoSave = (
     return () => clearTimeout(timer);
   }, [generatedImage, performAutoSave]);
 
+  const generatedImageRef = useRef(generatedImage);
+  generatedImageRef.current = generatedImage;
+
+  // Flush a pending save immediately, bypassing the capture/save debounces.
+  // Captures the stage fresh so edits made after the last debounced capture
+  // (or while an element was still selected) are not lost.
+  const flushPendingAutoSave = useCallback(() => {
+    const refs = latestRefs.current;
+    if (refs.enabled === false) return;
+    const storeState = autoSaveStoreApi.getState();
+    if (!storeState.isDirty) return;
+    // Capture BEFORE checking for an in-flight save — the stage dies with the
+    // unmount, but the store object outlives it for the deferred path below.
+    let image: string | null = null;
+    try {
+      image = refs.captureImage?.() ?? null;
+    } catch {
+      image = null;
+    }
+    image = image || generatedImageRef.current;
+    if (!image) return;
+    if (storeState.autoSaveStatus === 'saving') {
+      // A debounced save is in flight with an older snapshot. Dropping here
+      // would lose the newest edits; defer until it settles, then save the
+      // fresh capture (performAutoSave dedupes if it turns out identical).
+      const flushImage = image;
+      const unsubscribe = autoSaveStoreApi.subscribe((s) => {
+        if (s.autoSaveStatus === 'saving') return;
+        unsubscribe();
+        void performAutoSave(flushImage);
+      });
+      return;
+    }
+    void performAutoSave(image);
+  }, [autoSaveStoreApi, performAutoSave]);
+
+  // Unmount flush must be a layout effect: SPA navigation unmounts the editor
+  // and passive-effect cleanup runs after refs are detached (stage already
+  // gone), while layout cleanup still sees the live Konva stage. The save
+  // request itself survives the unmount.
+  useLayoutEffect(() => {
+    return () => flushPendingAutoSave();
+  }, [flushPendingAutoSave]);
+
   // Warn before leaving while a save is in flight or edits are not yet persisted
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -292,8 +352,6 @@ export const useCanvasAutoSave = (
 
   // Expose a retry through the store so UI outside this hook (share section,
   // sidebar tab bar) can re-run a failed save.
-  const generatedImageRef = useRef(generatedImage);
-  generatedImageRef.current = generatedImage;
   useEffect(() => {
     autoSaveStoreApi.getState().setRetryAutoSave(() => {
       const image = generatedImageRef.current;

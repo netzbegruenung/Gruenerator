@@ -1,100 +1,47 @@
-import { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { ALL_ASSETS, LOGO_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
+import { ALL_ASSETS, sortLogoAssets, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
-import {
-  getIllustrationThumbPath,
-  getIllustrationPath,
-} from '../../../utils/illustrations/registry';
-import { SIDEBAR_SECTION, SECTION_LABEL } from '../../sidebarStyles';
+import { SIDEBAR_SECTION } from '../../sidebarStyles';
 import { BadgeSection } from '../BadgeSection';
+import { DiagrammeSection } from '../DiagrammeSection';
 import { FormenSection } from '../FormenSection';
 import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
+import { IllustrationThumb } from '../IllustrationThumb';
 import { RahmenSection } from '../RahmenSection';
 
-import {
-  CATEGORY_CARDS,
-  PREVIEW_COMPONENTS,
-  type AssetView,
-  type CategoryCardDef,
-} from './constants';
+import { CategoryJumpBar, type JumpBarItem } from './CategoryJumpBar';
+import { CategoryStrip, StripTile } from './CategoryStrip';
+import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView } from './constants';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
+import {
+  DiagrammeStripTiles,
+  FormenStripTiles,
+  IconStripTiles,
+  IllustrationStripTiles,
+  MarkeStripTiles,
+  RahmenStripTiles,
+} from './stripTiles';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
 import type { AssetSearchState } from './useAssetSearch';
+import type { BalkenMode } from '../../../primitives';
 import type { AssetInstance } from '../../../utils/canvasAssets';
 import type { ShapeInstance, ShapeType } from '../../../utils/shapes';
 import type {
   IllustrationInstance,
   KawaiiIllustrationType,
-  KawaiiInstance,
   SvgDef,
 } from '../../../utils/illustrations/types';
 
 import { cn } from '../../../utils/cn';
 
 // --- Sub-components ---
-
-function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
-  const { Icon, IconComponent, image, maskImage, label, iconColor, hoverShadow, ring } = card;
-  const usesIconColor = !image && !maskImage && !IconComponent;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
-        'focus-visible:outline-none focus-visible:ring-2',
-        ring
-      )}
-    >
-      <div
-        className={cn(
-          'flex items-center justify-center size-20 rounded-full bg-transparent',
-          'transition-[box-shadow] duration-200 ease-out',
-          hoverShadow
-        )}
-      >
-        <span
-          className={cn(
-            'inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04]',
-            usesIconColor && 'text-3xl',
-            usesIconColor && iconColor
-          )}
-        >
-          {image ? (
-            <img src={image} alt="" className="size-12 object-contain" />
-          ) : maskImage ? (
-            <span
-              aria-hidden
-              className="block size-12 bg-secondary-600 dark:bg-secondary-300"
-              style={{
-                WebkitMaskImage: `url(${maskImage})`,
-                maskImage: `url(${maskImage})`,
-                WebkitMaskSize: 'contain',
-                maskSize: 'contain',
-                WebkitMaskRepeat: 'no-repeat',
-                maskRepeat: 'no-repeat',
-                WebkitMaskPosition: 'center',
-                maskPosition: 'center',
-              }}
-            />
-          ) : IconComponent ? (
-            <IconComponent size={48} />
-          ) : (
-            <Icon />
-          )}
-        </span>
-      </div>
-      <span className="text-xs text-foreground text-center leading-tight max-w-20">{label}</span>
-    </button>
-  );
-}
 
 interface RecentItem {
   id: string;
@@ -107,7 +54,7 @@ interface RecentItem {
   svgDef?: SvgDef;
 }
 
-function RecentItemThumbnail({ item, assetBaseUrl }: { item: RecentItem; assetBaseUrl: string }) {
+function RecentItemThumbnail({ item }: { item: RecentItem }) {
   if (item.kawaiiType) {
     const KawaiiComponent = PREVIEW_COMPONENTS[item.kawaiiType];
     if (KawaiiComponent) {
@@ -117,18 +64,10 @@ function RecentItemThumbnail({ item, assetBaseUrl }: { item: RecentItem; assetBa
 
   if (item.svgDef) {
     return (
-      <img
-        src={getIllustrationThumbPath(item.svgDef, assetBaseUrl)}
+      <IllustrationThumb
+        def={item.svgDef}
         alt={item.label}
         className="w-3/5 h-3/5 object-contain"
-        loading="lazy"
-        onError={(e) => {
-          const img = e.currentTarget;
-          if (!img.dataset.fallback && item.svgDef) {
-            img.dataset.fallback = '1';
-            img.src = getIllustrationPath(item.svgDef, assetBaseUrl);
-          }
-        }}
       />
     );
   }
@@ -142,45 +81,6 @@ function RecentItemThumbnail({ item, assetBaseUrl }: { item: RecentItem; assetBa
       className="w-3/5 h-3/5 rounded"
       style={{ backgroundColor: item.color ?? 'var(--color-grey-400)' }}
     />
-  );
-}
-
-function RecentlyUsedGrid({
-  items,
-  assetBaseUrl,
-  onAddAsset,
-  onAddShape,
-  onAddIllustration,
-}: {
-  items: RecentItem[];
-  assetBaseUrl: string;
-  onAddAsset?: (id: string) => void;
-  onAddShape?: (type: ShapeType) => void;
-  onAddIllustration?: (id: string) => void;
-}) {
-  if (items.length === 0) return null;
-
-  const handleClick = (item: RecentItem) => {
-    if (item.type === 'asset' && onAddAsset) onAddAsset(item.id);
-    else if (item.type === 'shape' && onAddShape && item.shapeType)
-      onAddShape(item.shapeType as ShapeType);
-    else if (item.type === 'illustration' && onAddIllustration) onAddIllustration(item.id);
-  };
-
-  return (
-    <div className="grid grid-cols-3 gap-1.5 w-full">
-      {items.slice(0, 6).map((item) => (
-        <button
-          key={`${item.type}-${item.id}`}
-          type="button"
-          className="aspect-square rounded-lg bg-background-alt border border-transparent cursor-pointer transition-all duration-150 flex items-center justify-center hover:bg-hover-alt hover:border-grey-300 dark:hover:border-grey-600"
-          onClick={() => handleClick(item)}
-          title={item.label}
-        >
-          <RecentItemThumbnail item={item} assetBaseUrl={assetBaseUrl} />
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -224,6 +124,11 @@ function AssetGrid({
 
 // --- Main BrowseView ---
 
+const RECENT_STRIP_ID = 'recent';
+const RECENT_STRIP_COUNT = 8;
+/** Offset (px) below a strip's top at which it counts as the active scroll-spy target */
+const SCROLL_SPY_OFFSET = 48;
+
 interface BrowseViewProps extends ExtendedAssetsSectionProps {
   search: AssetSearchState;
 }
@@ -234,9 +139,19 @@ export function BrowseView(props: BrowseViewProps) {
   const [drillDownQuery, setDrillDownQuery] = useState('');
   const debouncedDrillDownQuery = useDeferredValue(useDebounce(drillDownQuery, 200));
 
+  const [activeStrip, setActiveStrip] = useState<string | null>(null);
+  const rowsRef = useRef<HTMLDivElement | null>(null);
+  const spySuppressed = useRef(false);
+  const spyFrame = useRef(0);
+
   useEffect(() => {
     setDrillDownQuery('');
   }, [activeView]);
+
+  // The rows container remounts (drill-down, search) at scrollTop 0 — restart the spy
+  useEffect(() => {
+    setActiveStrip(null);
+  }, [activeView, search.hasQuery]);
 
   // Auto-navigate to Rahmen drill-down when a frame is selected on canvas
   useEffect(() => {
@@ -245,11 +160,13 @@ export function BrowseView(props: BrowseViewProps) {
     }
   }, [sectionProps.selectedFrameId]);
 
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
   const hasAssetsFeature = sectionProps.onAddAsset !== undefined;
   const hasIconsFeature =
     sectionProps.selectedIcons !== undefined && sectionProps.onIconToggle !== undefined;
   const hasBalkenFeature = sectionProps.onAddBalken !== undefined;
   const hasShapesFeature = sectionProps.onAddShape !== undefined;
+  const hasChartsFeature = sectionProps.onAddChart !== undefined;
   const hasIllustrationsFeature = sectionProps.onAddIllustration !== undefined;
   const hasFramesFeature = sectionProps.onAddFrame !== undefined;
 
@@ -260,9 +177,9 @@ export function BrowseView(props: BrowseViewProps) {
 
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
-      grafiken: hasAssetsFeature,
-      extras: hasBalkenFeature,
+      marke: hasAssetsFeature || (hasBalkenFeature && userLocale === 'de-DE'),
       formen: hasShapesFeature,
+      diagramme: hasChartsFeature,
       rahmen: hasFramesFeature,
       illustrationen: hasIllustrationsFeature,
       icons: hasIconsFeature,
@@ -272,14 +189,14 @@ export function BrowseView(props: BrowseViewProps) {
     hasAssetsFeature,
     hasBalkenFeature,
     hasShapesFeature,
+    hasChartsFeature,
     hasFramesFeature,
     hasIllustrationsFeature,
     hasIconsFeature,
+    userLocale,
   ]);
 
-  const { assetBaseUrl = '' } = useCanvasEditorServices();
-
-  const recentItems = useMemo<RecentItem[]>(() => {
+  const recentStripItems = useMemo<RecentItem[]>(() => {
     const items: RecentItem[] = [];
     if (sectionProps.assetInstances) {
       for (const inst of sectionProps.assetInstances) {
@@ -319,12 +236,91 @@ export function BrowseView(props: BrowseViewProps) {
         }
       }
     }
-    return items;
+    // One tile per distinct asset/shape-type/illustration
+    const seen = new Set<string>();
+    const out: RecentItem[] = [];
+    for (const item of items) {
+      const key = item.type === 'shape' ? `shape-${item.shapeType}` : `${item.type}-${item.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+      if (out.length >= RECENT_STRIP_COUNT) break;
+    }
+    return out;
   }, [
     sectionProps.assetInstances,
     sectionProps.shapeInstances,
     sectionProps.illustrationInstances,
   ]);
+
+  const hasRecent = recentStripItems.length > 0;
+
+  const jumpItems = useMemo<JumpBarItem[]>(() => {
+    const items: JumpBarItem[] = [];
+    if (hasRecent) items.push({ id: RECENT_STRIP_ID, label: 'Zuletzt' });
+    for (const card of availableCategories) items.push({ id: card.id, label: card.label });
+    return items;
+  }, [hasRecent, availableCategories]);
+
+  const currentActiveStrip =
+    activeStrip && jumpItems.some((i) => i.id === activeStrip)
+      ? activeStrip
+      : (jumpItems[0]?.id ?? '');
+
+  const handleJump = (id: string) => {
+    setActiveStrip(id);
+    const root = rowsRef.current;
+    const target = root?.querySelector<HTMLElement>(`[data-strip-id="${id}"]`);
+    if (!root || !target) return;
+    // Silence the spy for the whole programmatic scroll: 'scrollend' where
+    // supported, generous timeout as fallback (smooth-scroll duration is
+    // browser- and distance-dependent).
+    spySuppressed.current = true;
+    if ('onscrollend' in root) {
+      root.addEventListener(
+        'scrollend',
+        () => {
+          spySuppressed.current = false;
+        },
+        { once: true }
+      );
+    } else {
+      window.setTimeout(() => {
+        spySuppressed.current = false;
+      }, 1200);
+    }
+    root.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+  };
+
+  const handleRowsScroll = () => {
+    if (spySuppressed.current || spyFrame.current) return;
+    spyFrame.current = requestAnimationFrame(() => {
+      spyFrame.current = 0;
+      const root = rowsRef.current;
+      if (!root) return;
+      let current: string | null = null;
+      const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 2;
+      const strips = root.querySelectorAll<HTMLElement>('[data-strip-id]');
+      if (atBottom) {
+        // The last strips may be too short to ever reach the spy threshold
+        current = strips[strips.length - 1]?.dataset.stripId ?? null;
+      } else {
+        const threshold = root.scrollTop + SCROLL_SPY_OFFSET;
+        for (const el of strips) {
+          if (el.offsetTop <= threshold) current = el.dataset.stripId ?? null;
+        }
+      }
+      if (current) setActiveStrip(current);
+    });
+  };
+
+  const handleRecentClick = (item: RecentItem) => {
+    if (item.type === 'asset' && sectionProps.onAddAsset) sectionProps.onAddAsset(item.id);
+    else if (item.type === 'shape' && sectionProps.onAddShape && item.shapeType)
+      sectionProps.onAddShape(item.shapeType as ShapeType, item.color);
+    else if (item.type === 'illustration' && sectionProps.onAddIllustration)
+      sectionProps.onAddIllustration(item.id);
+  };
 
   if (activeView !== 'browse') {
     return renderDrillDown();
@@ -332,24 +328,58 @@ export function BrowseView(props: BrowseViewProps) {
 
   return renderBrowse();
 
-  // --- Browse view ---
+  // --- Browse view: library with jump bar + category strips ---
+
+  function renderStripTiles(view: AssetView) {
+    switch (view) {
+      case 'marke':
+        return (
+          <MarkeStripTiles
+            onAddAsset={sectionProps.onAddAsset}
+            onAddBalken={sectionProps.onAddBalken}
+            recommendedAssetIds={sectionProps.recommendedAssetIds}
+          />
+        );
+      case 'formen':
+        return <FormenStripTiles onAddShape={sectionProps.onAddShape!} />;
+      case 'diagramme':
+        return <DiagrammeStripTiles onAddChart={sectionProps.onAddChart!} />;
+      case 'rahmen':
+        return <RahmenStripTiles onAddFrame={sectionProps.onAddFrame!} />;
+      case 'illustrationen':
+        return <IllustrationStripTiles onAddIllustration={sectionProps.onAddIllustration!} />;
+      case 'icons':
+        return (
+          <IconStripTiles
+            selectedIcons={sectionProps.selectedIcons ?? []}
+            onIconToggle={sectionProps.onIconToggle!}
+            maxIconSelections={sectionProps.maxIconSelections}
+          />
+        );
+      default:
+        return null;
+    }
+  }
 
   function renderBrowse() {
     return (
-      <div className="flex flex-col gap-4 w-full min-w-0">
-        <SearchInput
-          value={search.searchQuery}
-          onChange={search.setSearchQuery}
-          placeholder="Elemente suchen..."
-        />
+      <div className="flex flex-col h-full min-h-0 w-full min-w-0">
+        <div className="flex-none px-[18px] pt-4">
+          <SearchInput
+            value={search.searchQuery}
+            onChange={search.setSearchQuery}
+            placeholder="Elemente suchen..."
+          />
+        </div>
 
         {search.hasQuery ? (
-          <div className="[contain:layout_style] min-h-[60px]">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-[18px] pb-5 [contain:layout_style]">
             {search.showResults && (
               <SearchResultsGrid
                 results={search.searchResults}
                 onAddAsset={sectionProps.onAddAsset}
                 onAddShape={sectionProps.onAddShape}
+                onAddChart={sectionProps.onAddChart}
                 onAddIllustration={sectionProps.onAddIllustration}
                 onAddFrame={sectionProps.onAddFrame}
                 selectedIcons={sectionProps.selectedIcons}
@@ -368,34 +398,41 @@ export function BrowseView(props: BrowseViewProps) {
           </div>
         ) : (
           <>
-            {recentItems.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className={cn(SECTION_LABEL, 'mb-0')}>Zuletzt verwendet</h4>
-                </div>
-                <RecentlyUsedGrid
-                  items={recentItems}
-                  assetBaseUrl={assetBaseUrl}
-                  onAddAsset={sectionProps.onAddAsset}
-                  onAddShape={sectionProps.onAddShape}
-                  onAddIllustration={sectionProps.onAddIllustration}
-                />
-              </div>
-            )}
-
-            {availableCategories.length > 0 && (
-              <div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-center">
-                  {availableCategories.map((card) => (
-                    <CategoryIconButton
-                      key={card.id}
-                      card={card}
-                      onClick={() => setActiveView(card.id)}
-                    />
+            <CategoryJumpBar
+              items={jumpItems}
+              activeId={currentActiveStrip}
+              onSelect={handleJump}
+            />
+            <div
+              ref={rowsRef}
+              onScroll={handleRowsScroll}
+              className="relative flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-0.5 pb-5"
+            >
+              {hasRecent && (
+                <CategoryStrip id={RECENT_STRIP_ID} title="Zuletzt verwendet">
+                  {recentStripItems.map((item) => (
+                    <StripTile
+                      key={`${item.type}-${item.id}`}
+                      title={item.label}
+                      onClick={() => handleRecentClick(item)}
+                    >
+                      <RecentItemThumbnail item={item} />
+                    </StripTile>
                   ))}
-                </div>
-              </div>
-            )}
+                </CategoryStrip>
+              )}
+
+              {availableCategories.map((card) => (
+                <CategoryStrip
+                  key={card.id}
+                  id={card.id}
+                  title={card.label}
+                  onShowMore={() => setActiveView(card.id)}
+                >
+                  {renderStripTiles(card.id)}
+                </CategoryStrip>
+              ))}
+            </div>
           </>
         )}
       </div>
@@ -408,103 +445,124 @@ export function BrowseView(props: BrowseViewProps) {
     const categoryLabel = CATEGORY_CARDS.find((c) => c.id === activeView)?.label ?? '';
 
     return (
-      <div className="flex flex-col gap-2 w-full min-w-0">
-        <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
+      <div className="flex flex-col h-full min-h-0 w-full min-w-0">
+        <div className="flex-none px-[18px] pt-3">
+          <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
 
-        {activeView !== 'extras' && (
-          <SearchInput
-            value={drillDownQuery}
-            onChange={setDrillDownQuery}
-            placeholder={`${categoryLabel} durchsuchen...`}
-          />
-        )}
+          {activeView !== 'diagramme' && (
+            <SearchInput
+              value={drillDownQuery}
+              onChange={setDrillDownQuery}
+              placeholder={`${categoryLabel} durchsuchen...`}
+            />
+          )}
+        </div>
 
-        {activeView === 'grafiken' && hasAssetsFeature && (
-          <GrafiksSectionContent
-            onAddAsset={sectionProps.onAddAsset!}
-            recommendedAssetIds={sectionProps.recommendedAssetIds}
-            searchQuery={debouncedDrillDownQuery}
-          />
-        )}
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-[18px] pb-5">
+          {activeView === 'marke' && (
+            <MarkeSectionContent
+              onAddAsset={sectionProps.onAddAsset}
+              onAddBalken={sectionProps.onAddBalken}
+              recommendedAssetIds={sectionProps.recommendedAssetIds}
+              searchQuery={debouncedDrillDownQuery}
+            />
+          )}
 
-        {activeView === 'extras' && hasBalkenFeature && (
-          <BadgeSection onAddBalken={sectionProps.onAddBalken} />
-        )}
+          {activeView === 'formen' && hasShapesFeature && (
+            <FormenSection
+              onAddShape={sectionProps.onAddShape!}
+              isExpanded
+              searchQuery={debouncedDrillDownQuery}
+            />
+          )}
 
-        {activeView === 'formen' && hasShapesFeature && (
-          <FormenSection
-            onAddShape={sectionProps.onAddShape!}
-            isExpanded
-            searchQuery={debouncedDrillDownQuery}
-          />
-        )}
+          {activeView === 'diagramme' && hasChartsFeature && (
+            <DiagrammeSection onAddChart={sectionProps.onAddChart!} />
+          )}
 
-        {activeView === 'rahmen' && hasFramesFeature && (
-          <RahmenSection
-            onAddFrame={sectionProps.onAddFrame!}
-            selectedFrame={
-              sectionProps.frameInstances?.find((f) => f.id === sectionProps.selectedFrameId) ??
-              null
-            }
-            onSetFrameImage={sectionProps.onSetFrameImage}
-            onUpdateFrame={sectionProps.onUpdateFrame}
-            onRemoveFrame={sectionProps.onRemoveFrame}
-            searchQuery={debouncedDrillDownQuery}
-          />
-        )}
+          {activeView === 'rahmen' && hasFramesFeature && (
+            <RahmenSection
+              onAddFrame={sectionProps.onAddFrame!}
+              selectedFrame={
+                sectionProps.frameInstances?.find((f) => f.id === sectionProps.selectedFrameId) ??
+                null
+              }
+              onSetFrameImage={sectionProps.onSetFrameImage}
+              onUpdateFrame={sectionProps.onUpdateFrame}
+              onRemoveFrame={sectionProps.onRemoveFrame}
+              searchQuery={debouncedDrillDownQuery}
+            />
+          )}
 
-        {activeView === 'illustrationen' && hasIllustrationsFeature && (
-          <IllustrationenSection
-            onAddIllustration={sectionProps.onAddIllustration!}
-            selectedIllustration={
-              sectionProps.illustrationInstances?.find(
-                (i) => i.id === sectionProps.selectedIllustrationId
-              ) ?? null
-            }
-            onUpdateIllustration={sectionProps.onUpdateIllustration ?? (() => {})}
-            onRemoveIllustration={sectionProps.onRemoveIllustration ?? (() => {})}
-            onDuplicateIllustration={sectionProps.onDuplicateIllustration}
-            isExpanded
-            illustrations={filteredIllustrations}
-          />
-        )}
+          {activeView === 'illustrationen' && hasIllustrationsFeature && (
+            <IllustrationenSection
+              onAddIllustration={sectionProps.onAddIllustration!}
+              selectedIllustration={
+                sectionProps.illustrationInstances?.find(
+                  (i) => i.id === sectionProps.selectedIllustrationId
+                ) ?? null
+              }
+              onUpdateIllustration={sectionProps.onUpdateIllustration ?? (() => {})}
+              onRemoveIllustration={sectionProps.onRemoveIllustration ?? (() => {})}
+              onDuplicateIllustration={sectionProps.onDuplicateIllustration}
+              isExpanded
+              illustrations={filteredIllustrations}
+            />
+          )}
 
-        {activeView === 'icons' && hasIconsFeature && (
-          <IconsSection
-            selectedIcons={sectionProps.selectedIcons ?? []}
-            onIconToggle={sectionProps.onIconToggle ?? (() => {})}
-            maxSelections={sectionProps.maxIconSelections}
-            isExpanded
-            searchQuery={debouncedDrillDownQuery}
-          />
-        )}
+          {activeView === 'icons' && hasIconsFeature && (
+            <IconsSection
+              selectedIcons={sectionProps.selectedIcons ?? []}
+              onIconToggle={sectionProps.onIconToggle ?? (() => {})}
+              maxSelections={sectionProps.maxIconSelections}
+              isExpanded
+              searchQuery={debouncedDrillDownQuery}
+            />
+          )}
+        </div>
       </div>
     );
   }
 }
 
-// --- Grafiken content (shared between browse drill-down and mobile) ---
+// --- Marke drill-down: locale-filtered logos + Balken (DE only) ---
 
-function GrafiksSectionContent({
+const NO_RECOMMENDED_ASSETS: string[] = [];
+
+function MarkeSectionContent({
   onAddAsset,
-  recommendedAssetIds = [],
+  onAddBalken,
+  recommendedAssetIds = NO_RECOMMENDED_ASSETS,
   searchQuery = '',
 }: {
-  onAddAsset: (assetId: string) => void;
+  onAddAsset?: (assetId: string) => void;
+  onAddBalken?: (mode: BalkenMode) => void;
   recommendedAssetIds?: string[];
   searchQuery?: string;
 }) {
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+  const showBalken = userLocale === 'de-DE' && onAddBalken !== undefined;
+
   const sortedAssets = useMemo(() => {
-    const recommended = LOGO_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
-    const others = LOGO_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
-    const all = [...recommended, ...others];
+    const all = sortLogoAssets(recommendedAssetIds, userLocale);
     if (!searchQuery.trim()) return all;
     return all.filter((a) => matchesQuery(searchQuery, a.label, a.tags));
-  }, [recommendedAssetIds, searchQuery]);
+  }, [recommendedAssetIds, userLocale, searchQuery]);
 
   return (
-    <div className={cn(SIDEBAR_SECTION, 'w-full')}>
-      <AssetGrid assets={sortedAssets} onAddAsset={onAddAsset} />
+    <div className={cn(SIDEBAR_SECTION, 'gap-md w-full')}>
+      {onAddAsset && sortedAssets.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h5 className="text-sm font-bold text-[var(--editor-text)] m-0">Logos</h5>
+          <AssetGrid assets={sortedAssets} onAddAsset={onAddAsset} />
+        </section>
+      )}
+      {showBalken && (
+        <section className="flex flex-col gap-2">
+          <h5 className="text-sm font-bold text-[var(--editor-text)] m-0">Balken</h5>
+          <BadgeSection onAddBalken={onAddBalken} />
+        </section>
+      )}
     </div>
   );
 }

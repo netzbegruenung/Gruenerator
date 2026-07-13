@@ -12,8 +12,10 @@ const GrueneratorHomeIcon = (props: SVGProps<SVGSVGElement>) => {
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 768 768"
       fill={pride ? 'url(#ghi-pride)' : 'currentColor'}
-      width="1em"
-      height="1em"
+      // The artwork only fills ~75% of its 768 viewBox, so at 1em it reads
+      // smaller than sibling icons — 1.1em compensates.
+      width="1.1em"
+      height="1.1em"
       {...props}
     >
       <defs>

@@ -41,6 +41,7 @@ import { platformFetch } from '../../utils/platformFetch';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
+import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { PresentationsChatPanel } from './PresentationsChatPanel';
 
@@ -154,6 +155,10 @@ function PresentationsEditorContent() {
   const editorReady = useSyncGate(provider, isSynced);
   const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
 
+  useTourAutostart('presentations', editorReady && !!editorApi && !isGuest && !presenting, () => {
+    void import('../tours/presentationsTour').then((m) => m.startPresentationsTour());
+  });
+
   useEffect(() => {
     if (!authError) return;
     const message = getAuthErrorMessage(authError);
@@ -166,7 +171,7 @@ function PresentationsEditorContent() {
 
   const openPdfExport = useCallback(() => {
     if (!id) return;
-    window.open(`/docs/${id}?present=1&print-pdf`, '_blank', 'noopener');
+    window.open(`/office/${id}?present=1&print-pdf`, '_blank', 'noopener');
   }, [id]);
 
   const handlePptxExport = useCallback(async () => {
@@ -226,7 +231,7 @@ function PresentationsEditorContent() {
         </span>
         <span>Diese Präsentation erfordert eine Anmeldung.</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
         >
           Anmelden
@@ -241,7 +246,7 @@ function PresentationsEditorContent() {
         <span>Präsentation nicht gefunden oder nicht öffentlich</span>
         {isGuest && (
           <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+            href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
             className="text-secondary-600 underline"
           >
             Anmelden
@@ -258,7 +263,7 @@ function PresentationsEditorContent() {
           {getAuthErrorMessage(authError) || 'Verbindung zur Präsentation fehlgeschlagen.'}
         </span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="text-secondary-600 underline"
         >
           Anmelden
@@ -270,9 +275,10 @@ function PresentationsEditorContent() {
   return (
     <div className="h-full flex flex-col relative">
       <EditorTopBar
+        dataTour="presentations-topbar"
         title={docData.title}
         connectionStatus={connectionStatus}
-        onBack={isGuest ? undefined : () => navigate('/docs')}
+        onBack={isGuest ? undefined : () => navigate('/office')}
         editable={isEditable}
         onTitleChange={handleTitleChange}
         rightActions={
@@ -282,7 +288,7 @@ function PresentationsEditorContent() {
                 guestName={guestIdentity.guestName}
                 guestColor={guestIdentity.guestColor}
                 guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
               />
             )}
             {!isGuest && !canEdit && (
@@ -297,6 +303,7 @@ function PresentationsEditorContent() {
                 onClick={() => setChatOpen((v) => !v)}
                 aria-label="Chat"
                 title="Chat"
+                data-tour="presentations-chat-toggle"
               >
                 <FiMessageSquare />
               </button>
@@ -353,6 +360,7 @@ function PresentationsEditorContent() {
                 onClick={() => setDesignPanelOpen((v) => !v)}
                 aria-label="Gestalten"
                 title="Folie gestalten"
+                data-tour="presentations-design"
                 className={`flex h-9 items-center gap-[7px] rounded-full px-3.5 text-sm font-bold text-[#2F4238] dark:text-grey-200 ${
                   designPanelOpen
                     ? 'bg-[#DCE7E0] dark:bg-grey-700'
@@ -381,6 +389,7 @@ function PresentationsEditorContent() {
               }}
               aria-label="Präsentieren"
               title="Präsentieren"
+              data-tour="presentations-present"
               className="flex h-9 items-center gap-2 rounded-full bg-primary-600 px-[18px] text-sm font-bold text-white hover:brightness-110"
             >
               <FiPlay size={13} fill="currentColor" />
@@ -391,7 +400,7 @@ function PresentationsEditorContent() {
       />
 
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col" data-tour="presentations-surface">
           {editorReady && ydoc ? (
             <PresentationEditor
               key={id}
@@ -411,6 +420,7 @@ function PresentationsEditorContent() {
 
         {hasOpenedChat && id && (
           <aside
+            data-tour="presentations-chat"
             className={
               chatOpen
                 ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
