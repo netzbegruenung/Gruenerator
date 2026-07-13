@@ -71,7 +71,7 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
         push(
           'error',
           'reise.belegdatum',
-          `Die ${rate.fristMonate}-Monats-Frist ist überschritten – der Antrag ist nicht mehr erstattungsfähig.`,
+          `Die ${rate.fristMonate}-Monats-Frist ist überschritten – der Antrag ist nicht mehr erstattungsfähig.`
         );
       }
     }
@@ -79,22 +79,34 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
 
   // ── Fahrtkosten ────────────────────────────────────────────────────────────
   if (state.fahrt.bahn && state.fahrt.bahn.betrag > 0 && !state.fahrt.bahn.belegVorhanden) {
-    push('warn', 'fahrt.bahn', 'Bahnkosten angegeben, aber kein Originalbeleg hochgeladen (Pflicht).');
+    push(
+      'warn',
+      'fahrt.bahn',
+      'Bahnkosten angegeben, aber kein Originalbeleg hochgeladen (Pflicht).'
+    );
   }
   if (state.fahrt.oepnv && state.fahrt.oepnv.betrag > 0 && !state.fahrt.oepnv.belegVorhanden) {
-    push('warn', 'fahrt.oepnv', 'ÖPNV-Kosten angegeben, aber kein Originalbeleg hochgeladen (Pflicht).');
+    push(
+      'warn',
+      'fahrt.oepnv',
+      'ÖPNV-Kosten angegeben, aber kein Originalbeleg hochgeladen (Pflicht).'
+    );
   }
 
   const kfz = state.fahrt.kfz;
   if (kfz && kfz.km > 0) {
     if (!kfz.routenplanerVorhanden) {
-      push('warn', 'fahrt.kfz.routenplanerVorhanden', 'Für Kfz-Fahrten muss ein Routenplaner-Ausdruck beigefügt werden.');
+      push(
+        'warn',
+        'fahrt.kfz.routenplanerVorhanden',
+        'Für Kfz-Fahrten muss ein Routenplaner-Ausdruck beigefügt werden.'
+      );
     }
     if (kfz.km > rate.kmObergrenze && !(kfz.dbFlexpreis && kfz.dbFlexpreis > 0)) {
       push(
         'error',
         'fahrt.kfz.dbFlexpreis',
-        `Ab ${rate.kmObergrenze} km ist nur der DB-Flexpreis (2. Kl.) erstattungsfähig – bitte Flexpreis mit Beleg angeben.`,
+        `Ab ${rate.kmObergrenze} km ist nur der DB-Flexpreis (2. Kl.) erstattungsfähig – bitte Flexpreis mit Beleg angeben.`
       );
     }
   }
@@ -102,7 +114,11 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
   const miete = state.fahrt.miete;
   if (miete && miete.betrag > 0) {
     if (!miete.belegVorhanden) {
-      push('warn', 'fahrt.miete', 'Mietwagen/Carsharing nur mit Originalrechnung erstattungsfähig.');
+      push(
+        'warn',
+        'fahrt.miete',
+        'Mietwagen/Carsharing nur mit Originalrechnung erstattungsfähig.'
+      );
     }
     if (!(miete.dbFlexpreis && miete.dbFlexpreis > 0)) {
       push('warn', 'fahrt.miete.dbFlexpreis', 'DB-Flexpreis-Beleg fehlt (bildet die Obergrenze).');
@@ -114,10 +130,18 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
   const taxi = state.fahrt.taxi;
   if (taxi && taxi.betrag > 0) {
     if (!taxi.begruendung.trim()) {
-      push('error', 'fahrt.taxi.begruendung', 'Taxifahrten sind schriftlich zu begründen (Ausnahmefall).');
+      push(
+        'error',
+        'fahrt.taxi.begruendung',
+        'Taxifahrten sind schriftlich zu begründen (Ausnahmefall).'
+      );
     }
     if (!taxi.belegVorhanden) {
-      push('warn', 'fahrt.taxi', 'Taxikosten angegeben, aber keine Quittung hochgeladen (Pflicht).');
+      push(
+        'warn',
+        'fahrt.taxi',
+        'Taxikosten angegeben, aber keine Quittung hochgeladen (Pflicht).'
+      );
     }
   }
 
@@ -128,7 +152,7 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
       push(
         'warn',
         'uebernachtung',
-        'Übernachtung beantragt, aber die Reise erstreckt sich nicht über Nacht – nur bei Anreise vor 6 Uhr oder Rückkehr nach 24 Uhr erstattungsfähig (Regel d).',
+        'Übernachtung beantragt, aber die Reise erstreckt sich nicht über Nacht – nur bei Anreise vor 6 Uhr oder Rückkehr nach 24 Uhr erstattungsfähig (Regel d).'
       );
     }
   }
@@ -140,7 +164,11 @@ export function validateReisekosten(state: ReisekostenState, now: Date = new Dat
     if (!Number.isNaN(beginn.getTime()) && !Number.isNaN(ende.getTime())) {
       const hours = (ende.getTime() - beginn.getTime()) / 3_600_000;
       if (hours > 0 && hours <= rate.eintaegigMinStunden) {
-        push('info', 'verpflegung', 'Abwesenheit ≤ 8 Std – kein Anspruch auf Verpflegungsmehraufwand.');
+        push(
+          'info',
+          'verpflegung',
+          'Abwesenheit ≤ 8 Std – kein Anspruch auf Verpflegungsmehraufwand.'
+        );
       }
     }
   }
