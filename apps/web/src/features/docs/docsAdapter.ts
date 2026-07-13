@@ -1,3 +1,4 @@
+import { sessionDebug } from '../../lib/sessionDebug';
 import { useAuthStore } from '../../stores/authStore';
 import { buildLoginUrl } from '../../utils/authRedirect';
 import { isDesktopApp } from '../../utils/platform';
@@ -73,6 +74,7 @@ export const webAppDocsAdapter: DocsAdapter = {
   },
 
   onUnauthorized: () => {
+    sessionDebug('http.401', { stack: 'docs' });
     const currentPath = window.location.pathname + window.location.search;
     window.location.href = buildLoginUrl(currentPath);
   },

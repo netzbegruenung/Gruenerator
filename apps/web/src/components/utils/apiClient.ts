@@ -10,6 +10,7 @@ import {
   SESSION_EXPIRED_FLAG,
 } from '../../features/auth/storageKeys';
 import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
+import { sessionDebug } from '../../lib/sessionDebug';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
 import { isDesktopApp } from '../../utils/platform';
@@ -86,37 +87,72 @@ async function probeSessionVerdict(): Promise<ProbeVerdict> {
   // Return cached result if recent.
   const now = Date.now();
   if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
+    sessionDebug('probe.start', {
+      cached: true,
+      cachedVerdict: lastProbe.verdict,
+      cachedAgeMs: now - lastProbe.timestamp,
+    });
     return lastProbe.verdict;
   }
 
   // Coalesce in-flight probes.
   if (probeInFlight) {
+    sessionDebug('probe.start', { cached: false, coalesced: true });
     return probeInFlight;
   }
 
+  sessionDebug('probe.start', { cached: false, coalesced: false });
+
   probeInFlight = (async (): Promise<ProbeVerdict> => {
+    const startedAt = Date.now();
     let verdict: ProbeVerdict;
+    let httpStatus: number | undefined;
+    let hasUserInBody = false;
     try {
       // Hit Better Auth's native session endpoint directly. Going through
       // `apiClient` would re-enter the interceptor and infinite-loop;
       // this raw axios call is a peer of `apiClient` so it doesn't
       // share the interceptor chain.
+      //
+      // `disableCookieCache=true` forces a real store lookup: without it,
+      // Better Auth answers from the ≤60s signed `ba.session_data` snapshot,
+      // so a freshly-dead session reads as 'alive' and this whole machinery
+      // retry-loops instead of tearing down — the core of the half-logged-in
+      // bug. The probe is rare (5s cache + coalescing), so the extra Redis/PG
+      // read is negligible.
+      const headers: Record<string, string> = {};
+      if (isDesktopApp()) {
+        // Desktop is bearer-mode (no cookie); without the token the probe
+        // always sees a null session and every 401 reads as 'dead'.
+        const token = await getDesktopToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
       const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
+        params: { disableCookieCache: 'true' },
         withCredentials: useCredentials,
+        headers,
         timeout: 10_000,
       });
+      httpStatus = response.status;
       const data = response.data as { user?: unknown } | null | undefined;
-      verdict = data != null && data.user != null ? 'alive' : 'dead';
+      hasUserInBody = data != null && data.user != null;
+      verdict = hasUserInBody ? 'alive' : 'dead';
     } catch (probeError) {
       // Only a definitive 401/403 from the probe proves the session is
       // dead. Anything else (timeout, network error, 5xx) is an infra
       // signal, not a session signal.
-      const status = (probeError as AxiosError).response?.status;
-      verdict = status === 401 || status === 403 ? 'dead' : 'indeterminate';
+      httpStatus = (probeError as AxiosError).response?.status;
+      verdict = httpStatus === 401 || httpStatus === 403 ? 'dead' : 'indeterminate';
     } finally {
       probeInFlight = null;
     }
     lastProbe = { timestamp: Date.now(), verdict };
+    sessionDebug('probe.verdict', {
+      verdict,
+      httpStatus,
+      hasUserInBody,
+      durationMs: Date.now() - startedAt,
+    });
     return verdict;
   })();
 
@@ -193,6 +229,7 @@ export const notifyAuthConfirmed = (): void => {
  * redirect to /login so the next page load can't re-seed a stale true.
  */
 function wipeAllAuthCaches(): void {
+  sessionDebug('cache.clear', { source: 'wipeAllAuthCaches' });
   for (const key of ALL_AUTH_LOCAL_KEYS) {
     try {
       localStorage.removeItem(key);
@@ -224,6 +261,7 @@ function wipeAllAuthCaches(): void {
  *     logged out" branch and skips the auto-reauth machinery.
  */
 function markBackendDeadSession(): void {
+  sessionDebug('cache.clear', { source: 'markBackendDeadSession' });
   try {
     localStorage.removeItem(INSTANT_AUTH_CACHE);
   } catch {
@@ -236,12 +274,28 @@ function markBackendDeadSession(): void {
   }
 }
 
-function performLoginRedirect(): void {
+function performLoginRedirect(source: string): void {
   const now = Date.now();
   const recent = readRedirectTimestamps()
     .filter((ts) => now - ts < CIRCUIT_BREAKER_WINDOW_MS)
     .concat(now);
   writeRedirectTimestamps(recent);
+
+  const breakerTripped = recent.length >= CIRCUIT_BREAKER_THRESHOLD;
+  sessionDebug('teardown.redirect', {
+    source,
+    redirectCount: recent.length,
+    breakerTripped,
+  });
+  // A session teardown is NEVER benign — this fires on every dead-session
+  // redirect, not just circuit-breaker trips, closing the telemetry blind
+  // spot where ordinary half-logged-in deaths went unreported. The attached
+  // sessionDebug ring buffer carries the full lead-up.
+  captureAuthIssue({
+    stage: 'session-teardown',
+    cause: new Error(`session teardown via ${source}`),
+    extras: { source, redirectCount: recent.length, breakerTripped },
+  });
 
   // Tell the login page WHY the user landed there. sessionStorage so it
   // survives the full-page navigation but stays scoped to this tab; the
@@ -268,6 +322,10 @@ function performLoginRedirect(): void {
     console.warn(
       '[apiClient] Auth-redirect circuit breaker tripped — wiping all auth state and forcing clean /login'
     );
+    sessionDebug('breaker.tripped', {
+      redirectCount: recent.length,
+      windowMs: CIRCUIT_BREAKER_WINDOW_MS,
+    });
     captureAuthIssue({
       stage: 'redirect-loop',
       cause: new Error(
@@ -306,7 +364,15 @@ const sharedApiClient = createApiClient({
   baseURL,
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
   getAuthToken: isDesktopApp() ? async () => getDesktopToken() : undefined,
-  onUnauthorized: async () => {
+  onUnauthorized: async (info) => {
+    sessionDebug('http.401', {
+      stack: 'shared',
+      endpoint: info?.url,
+      method: info?.method,
+      status: info?.status,
+      requestId: info?.requestId,
+      code: info?.code,
+    });
     if (_isLoggingOut || isPublicPage() || window.location.pathname === '/login') {
       return false;
     }
@@ -314,10 +380,11 @@ const sharedApiClient = createApiClient({
     if (verdict === 'alive') {
       // Session is actually healthy — tell the shared client to retry
       // the original request. The cookie just got rotated mid-flight.
+      sessionDebug('retry.after-probe', { stack: 'shared', endpoint: info?.url });
       return true;
     }
     if (verdict === 'dead') {
-      performLoginRedirect();
+      performLoginRedirect('shared-401');
     }
     return false;
   },
@@ -393,13 +460,29 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401 && !_isLoggingOut) {
+      const errorBody = error.response.data as { code?: string; requestId?: string } | undefined;
+      sessionDebug('http.401', {
+        stack: 'legacy-axios',
+        endpoint: config?.url,
+        method: config?.method,
+        status: 401,
+        code: errorBody?.code,
+        requestId: errorBody?.requestId ?? error.response.headers?.['x-request-id'],
+      });
       const verdict = await probeSessionVerdict();
       if (verdict === 'alive' && config && !config._retried401) {
         config._retried401 = true;
-        return apiClient.request(config);
+        sessionDebug('retry.after-probe', { stack: 'legacy-axios', endpoint: config.url });
+        const retryResult = await apiClient.request(config);
+        sessionDebug('retry.result', {
+          stack: 'legacy-axios',
+          endpoint: config.url,
+          status: retryResult.status,
+        });
+        return retryResult;
       }
       if (verdict === 'dead' && !isPublicPage() && window.location.pathname !== '/login') {
-        performLoginRedirect();
+        performLoginRedirect('legacy-axios-401');
       }
       // Always reject otherwise so the caller's `.catch` / TanStack Query
       // error handler can surface a sensible error state. Swallowing to
