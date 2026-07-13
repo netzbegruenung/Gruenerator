@@ -25,6 +25,7 @@ import type {
   SocialPostPayload,
   SearchIntent,
   ClientPlatform,
+  SharepicVariant,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -574,6 +575,11 @@ export interface ChatGraphState {
   generatedImage: GeneratedImageResult | null;
   imageTimeMs: number;
   imageEditDescriptions: { original: string | null; edited: string | null } | null;
+
+  // Compound generation (agentic loop): mount signal for the sharepic fat tool
+  // and its per-turn result (shared-ref merge, like generatedImage).
+  compoundGeneration?: boolean;
+  sharepicVariants?: SharepicVariant[] | null;
 
   // Document summarization
   summaryContext: string | null;

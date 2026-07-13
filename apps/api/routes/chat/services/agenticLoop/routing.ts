@@ -29,6 +29,22 @@ export function looksLikeToolableQuestion(raw: string): boolean {
   return t.includes('?') || TOOLABLE_QUESTION_RE.test(t);
 }
 
+/**
+ * Compound research+generation detector (Phase 3n slice): a sharepic turn that
+ * ALSO carries an explicit research/facts signal enters the loop with the
+ * sharepic fat tool mounted, so search + generation compose in one turn.
+ * Pure "Mach ein Sharepic zu Solarenergie" must stay false — "zu X" alone is
+ * a topic, not a research ask — keeping the single-pass fixed-text contract.
+ */
+const GENERATION_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
+const RESEARCH_SIGNAL_RE =
+  /\b(recherchier\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*)\b/i;
+
+export function looksLikeCompoundGeneration(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  return GENERATION_NOUN_RE.test(t) && RESEARCH_SIGNAL_RE.test(t);
+}
+
 export interface AgenticDecisionInput {
   /** CHAT_AGENT_LOOP flag resolved by the caller. */
   loopEnabled: boolean;
@@ -36,7 +52,7 @@ export interface AgenticDecisionInput {
    *  module stays free of the heavy agenticRespondService import. */
   agenticIntents: ReadonlySet<string>;
   intent: string;
-  /** Last user message text — only consulted for the `direct` rescue. */
+  /** Last user message text — consulted for the `direct` rescue. */
   lastUserText: string;
   /** An @tool mention pinned a deterministic single-pass tool. */
   forcedTool: boolean;
@@ -44,9 +60,12 @@ export interface AgenticDecisionInput {
   isMcpTurn: boolean;
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
-  /** A generation secondaryIntent (search + sharepic): single-pass fan-out
-   *  until Phase 3n fat tools exist, else the secondary is silently dropped. */
-  hasSecondaryIntent: boolean;
+  /** A generation secondaryIntent (search + image/chart/...): single-pass
+   *  fan-out — entering the loop would silently drop the secondary. Exception:
+   *  scrape_url on a compound-generation turn (the loop scrapes itself). */
+  secondaryIntent: string | null;
+  /** Compound research+generation sharepic turn (fat tool mounted). */
+  compoundGeneration: boolean;
   /** image_edit / vision turns stay single-pass. */
   hasImageAttachments: boolean;
 }
@@ -58,15 +77,19 @@ export interface AgenticDecisionInput {
  * loop — the model choice only decides unified-vs-split MODE inside the loop.
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
+  const compoundSharepic = p.intent === 'sharepic' && p.compoundGeneration;
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
-    (p.intent === 'direct' && looksLikeToolableQuestion(p.lastUserText));
+    (p.intent === 'direct' && looksLikeToolableQuestion(p.lastUserText)) ||
+    compoundSharepic;
+  const secondaryAllowed =
+    p.secondaryIntent == null || (compoundSharepic && p.secondaryIntent === 'scrape_url');
   return (
     p.loopEnabled &&
     inLoopSet &&
     (!p.forcedTool || p.isMcpTurn) &&
     !p.isCompound &&
-    !p.hasSecondaryIntent &&
+    secondaryAllowed &&
     !p.hasImageAttachments
   );
 }
