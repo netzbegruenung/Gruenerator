@@ -97,8 +97,9 @@ function tryLenientJsonParse(raw: string): unknown {
 function buildToolUsageBlock(maxSteps: number): string {
   return [
     'ARBEITSWEISE MIT TOOLS:',
-    '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen sowie zu recherchieren.',
-    '- Rufe Tools auf, bis du genug für eine fundierte Antwort weißt. Verfeinere die Suche, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche).',
+    '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen, Bundestags-Dokumente (DIP) und Abgeordneten-Abstimmungsdaten (abgeordnetenwatch) abzurufen sowie Dokumente zusammenzufassen.',
+    '- NUTZE das passende Tool DIREKT, statt anzubieten es zu tun. Frage NIEMALS "Soll ich das für dich suchen/tun?" — wenn du ein Tool dafür hast, ruf es einfach auf. Frag nur zurück, wenn dir eine echte Angabe fehlt (z.B. um welche Person/Abstimmung es geht).',
+    '- Rufe Tools auf, bis du genug für eine fundierte Antwort weißt. Verfeinere die Suche, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
     `- Du hast maximal ${maxSteps} Schritte. Danach antwortest du mit dem, was du hast.`,
     '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen im Feld "sources" der Tool-Ergebnisse entsprechen.',
     '- Passt kein Tool (Begrüßung, kreative Aufgabe, einfache Folgefrage), antworte direkt ohne Tool-Aufruf.',
@@ -213,9 +214,13 @@ export async function streamAgenticResponse(params: {
       maxOutputTokens: Math.max(agentConfig.params.max_tokens ?? 2000, 4000),
       abortSignal,
       // Force-finish (LobeHub): strip tools on the final step so the model must
-      // write an answer instead of the loop hard-truncating mid tool call.
+      // write an answer instead of the loop hard-truncating mid tool call. Also
+      // force-finish once an image was generated — the model can't see it and
+      // otherwise re-calls generate_image, burning the daily quota.
       prepareStep: ({ stepNumber }) =>
-        stepNumber >= budget.maxSteps - 1 ? { toolChoice: 'none' as const } : {},
+        stepNumber >= budget.maxSteps - 1 || finalState.generatedImage
+          ? { toolChoice: 'none' as const }
+          : {},
       // Lenient one-shot arg repair; otherwise the invalid-args error is surfaced
       // to the model as a tool error (via the loop) and it self-corrects.
       experimental_repairToolCall: async ({ toolCall, error }) => {
