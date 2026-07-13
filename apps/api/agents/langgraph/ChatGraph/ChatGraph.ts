@@ -583,6 +583,8 @@ function routeAfterClassification(
     chat_history: 'chat_history',
     mcp: 'mcp',
     direct: 'direct',
+    // Demoted loop turns are never user-disableable (the loop gates its own tools).
+    agentic: 'direct',
   };
 
   const toolKey = intentToToolKey[intent];

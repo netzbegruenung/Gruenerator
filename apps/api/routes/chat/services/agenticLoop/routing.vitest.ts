@@ -105,6 +105,18 @@ describe('decideRunAgentic', () => {
     // No tool-capability gate: the split lets any model into the loop.
     expect(decide({ intent: 'search' })).toBe(true);
   });
+
+  it("demoted 'agentic' intent enters the loop — and still respects every kill-switch", () => {
+    const agentic = new Set([...AGENTIC, 'agentic']);
+    expect(decide({ intent: 'agentic', agenticIntents: agentic })).toBe(true);
+    // Kill-switches must beat the demotion (the router then degrades to search).
+    expect(decide({ intent: 'agentic', agenticIntents: agentic, loopEnabled: false })).toBe(false);
+    expect(decide({ intent: 'agentic', agenticIntents: agentic, isCompound: true })).toBe(false);
+    expect(decide({ intent: 'agentic', agenticIntents: agentic, forcedTool: true })).toBe(false);
+    expect(decide({ intent: 'agentic', agenticIntents: agentic, hasImageAttachments: true })).toBe(
+      false
+    );
+  });
 });
 
 // Battle-test prompts from live testing: hard factual questions the classifier

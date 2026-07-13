@@ -63,11 +63,12 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'bundestag',
   'abgeordnetenwatch',
   'image',
+  // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
+  // skipped the LLM classifier entirely.
+  'agentic',
 ]);
 
-export function isAgenticLoopEnabled(): boolean {
-  return process.env.CHAT_AGENT_LOOP === 'true';
-}
+export { isAgenticLoopEnabled } from './flags.js';
 
 /** Tools counted against the per-turn search budget (loopGuards). */
 const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
