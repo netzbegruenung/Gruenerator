@@ -57,6 +57,10 @@ interface NotebookStartpageProps {
    * the 2a KI / Manuelle Recherche experience.
    */
   omniComposer?: boolean;
+  /** Paint the signature magenta gradient as the page background. Disabled when
+   *  embedded in a surface that paints its own tint (workplace "Wissen" tab).
+   *  Defaults to true. */
+  pageGradient?: boolean;
   footer?: ReactNode;
 }
 
@@ -145,6 +149,7 @@ export function NotebookStartpage({
   manualSearchNotebookId,
   notebookId,
   omniComposer = false,
+  pageGradient = true,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
@@ -193,7 +198,12 @@ export function NotebookStartpage({
   //     only. No segmented tabs, no browse sub-tabs. ---
   if (omniComposer) {
     return (
-      <PageContainer maxWidth="lg" noPadTop gradient={false} bgClassName={NOTEBOOK_MAGENTA_BG}>
+      <PageContainer
+        maxWidth="lg"
+        noPadTop
+        gradient={false}
+        bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
+      >
         <div className="flex flex-col items-center px-6 pb-6 pt-10 md:px-20 md:pt-16">
           <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
           <div className="w-full max-w-3xl">
@@ -241,7 +251,12 @@ export function NotebookStartpage({
     ) : undefined;
 
   return (
-    <PageContainer maxWidth="lg" noPadTop gradient={false} bgClassName={NOTEBOOK_MAGENTA_BG}>
+    <PageContainer
+      maxWidth="lg"
+      noPadTop
+      gradient={false}
+      bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
+    >
       <div className={HERO_FILL}>
         {/* Segmented tab control — only when Manuelle Recherche exists. */}
         {manualSearchAvailable && (

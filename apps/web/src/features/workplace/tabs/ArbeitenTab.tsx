@@ -17,7 +17,7 @@ const ArbeitenTab = () => {
   const isAustrian = locale === 'de-AT';
 
   return (
-    <PageContainer maxWidth="lg" noPadTop className="max-md:pt-lg">
+    <PageContainer maxWidth="lg" noPadTop gradient={false} className="max-md:pt-lg">
       <div data-tour="arbeiten-create">
         <DocsHome />
       </div>
