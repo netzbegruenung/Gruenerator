@@ -159,6 +159,10 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
       'toolable default-direct',
       'Worin unterscheidet sich die deutsche von der österreichischen Position zur Atomkraft?',
     ],
+    // Live failure (18:51): reached the LLM (returned ungrounded `direct`)
+    // because "worüber" + no "?" slipped the toolable check. Must now demote.
+    ['worüber, no qmark', 'worüber hat franziska brantner zuletzt im bundestag gesprochen'],
+    ['verb-first polar', 'Hat Robert Habeck sich zuletzt zur Kernkraft geäußert'],
   ];
 
   it.each(demoted)('%s → intent=agentic, NO LLM call', async (_label, userMessage) => {

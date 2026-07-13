@@ -14,6 +14,13 @@ describe('looksLikeToolableQuestion', () => {
     ['imperative', 'Nenne mir drei zentrale Klimaziele der Grünen.'],
     ['research verb', 'Recherchiere die grüne Position zum Tempolimit bitte.'],
     ['no qmark but interrogative', 'Erkläre mir die grüne Position zur Kindergrundsicherung'],
+    // Live failure (18:51): no "?" and "worüber" was missing from the regex →
+    // slipped to the flaky LLM classifier → ungrounded `direct` answer.
+    ['worüber, no qmark', 'worüber hat franziska brantner zuletzt im bundestag gesprochen'],
+    ['woran', 'Woran arbeitet die Fraktion gerade beim Klimaschutz'],
+    ['womit', 'Womit begründen die Grünen das Tempolimit'],
+    ['verb-first polar (hat)', 'Hat Robert Habeck sich zur Kernkraft geäußert'],
+    ['verb-first (gibt es)', 'Gibt es einen Beschluss der Grünen zur Vermögensteuer'],
     // Hard battle-test cases (must all reach the loop):
     ['false premise', 'Warum haben die Grünen das Verbrenner-Aus ab 2035 abgelehnt?'],
     [
@@ -37,6 +44,10 @@ describe('looksLikeToolableQuestion', () => {
     ['identity', 'Was kannst du?'],
     ['thanks', 'Danke dir, super gemacht.'],
     ['creative imperative', 'Schreib mir ein kurzes Gedicht über Windkraft.'],
+    // Verb-first breadth must NOT swallow content imperatives (generation):
+    ['creative "mach"', 'Mach mir einen Instagram-Post über Solarenergie'],
+    ['creative "erstelle"', 'Erstelle einen Antrag zur Radwege-Förderung'],
+    ['creative "schreib"', 'Schreib eine Pressemitteilung zur Wärmewende'],
     ['empty', '   '],
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
