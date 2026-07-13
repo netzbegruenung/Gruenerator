@@ -1,4 +1,5 @@
 import { Globe } from 'lucide-react';
+import { FaSlack } from 'react-icons/fa';
 import {
   HiCalendar,
   HiChat,
@@ -23,7 +24,6 @@ import {
   SiNextcloud,
   SiNotion,
   SiSignal,
-  SiSlack,
   SiTelegram,
   SiTrello,
   SiWhatsapp,
@@ -49,7 +49,7 @@ export const LINK_ICONS: LinkIconEntry[] = [
   { key: 'whatsapp', label: 'WhatsApp', icon: SiWhatsapp },
   { key: 'telegram', label: 'Telegram', icon: SiTelegram },
   { key: 'discord', label: 'Discord', icon: SiDiscord },
-  { key: 'slack', label: 'Slack', icon: SiSlack },
+  { key: 'slack', label: 'Slack', icon: FaSlack },
   { key: 'mattermost', label: 'Mattermost', icon: SiMattermost },
   { key: 'canva', label: 'Canva', icon: CanvaLogoIcon },
   { key: 'figma', label: 'Figma', icon: SiFigma },

@@ -16,7 +16,11 @@ import { type ModelMessage } from 'ai';
 
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
-import { getLoopPlannerModel, LOOP_PLANNER_MODEL, prefersUnifiedLoop } from '../../agents/providers.js';
+import {
+  getLoopPlannerModel,
+  LOOP_PLANNER_MODEL,
+  prefersUnifiedLoop,
+} from '../../agents/providers.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';

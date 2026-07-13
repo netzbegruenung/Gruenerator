@@ -12,6 +12,7 @@ import { threadsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { deleteThreadRecallPoint } from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
@@ -290,6 +291,9 @@ export const threadsContractRouter = s.router(threadsContract, {
       // Drop orphaned Qdrant vectors of embedded attachments BEFORE the CASCADE
       // removes the rows we read document_ids from. Best-effort (won't throw).
       await deleteThreadAttachmentVectors(threadId, userId);
+
+      // Remove the thread's semantic recall point too. Best-effort.
+      await deleteThreadRecallPoint(threadId);
 
       await postgres.query(`DELETE FROM chat_threads WHERE id = $1`, [threadId]);
 
