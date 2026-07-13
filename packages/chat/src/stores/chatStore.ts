@@ -414,7 +414,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 13,
+      version: 14,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -509,14 +509,20 @@ export const useAgentStore = create<AgentState>()(
           delete state.selectedAgentId;
           delete state.threadMode;
         }
+        if (version < 14) {
+          // selectedModel / selectedProvider are no longer persisted — every
+          // session starts on 'Automatisch' instead of a saved user default.
+          delete state.selectedModel;
+          delete state.selectedProvider;
+        }
         return state;
       },
       partialize: (state) => ({
         // selectedAgentId and threadMode are deliberately NOT persisted: they are
         // transient chat context. The URL (/agents/:slug) is the source of truth
         // for the active agent; persisting it leaked the last agent into new chats.
-        selectedProvider: state.selectedProvider,
-        selectedModel: state.selectedModel,
+        // selectedModel/selectedProvider are session-only too: the picker always
+        // starts on 'Automatisch'.
         currentThreadId: state.currentThreadId,
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,

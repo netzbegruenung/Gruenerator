@@ -177,7 +177,7 @@ const NotebookEditorWolkeSection = ({
             Verbinde sie einmal und du kannst hier ganze Ordner als Quelle hinzufügen.
           </p>
           <Button asChild type="button" size="sm" className="mt-xs">
-            <Link to="/profile/wolke">Wolke verbinden →</Link>
+            <Link to="/profile/verbindungen">Wolke verbinden →</Link>
           </Button>
         </div>
       ) : (

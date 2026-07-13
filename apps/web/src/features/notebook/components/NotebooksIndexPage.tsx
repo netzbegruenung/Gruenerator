@@ -475,6 +475,8 @@ function NotebooksIndexPage() {
       showStats={false}
       showExamples={false}
       hideGlobalChat
+      omniComposer
+      pageGradient={false}
     />
   );
 }

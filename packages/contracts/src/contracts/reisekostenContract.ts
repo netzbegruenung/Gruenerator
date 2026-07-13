@@ -68,5 +68,5 @@ export const reisekostenContract = c.router(
       summary: 'Generate the filled Reisekosten PDF',
     },
   },
-  { pathPrefix: '' },
+  { pathPrefix: '' }
 );
