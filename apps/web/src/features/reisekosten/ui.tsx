@@ -9,7 +9,9 @@ const inputCls =
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-border bg-card shadow-sm ${className}`}>{children}</div>
+    <div className={`rounded-lg border border-border bg-card shadow-sm ${className}`}>
+      {children}
+    </div>
   );
 }
 
@@ -177,7 +179,8 @@ type ButtonVariant = 'brand' | 'brand-outline' | 'outline';
 
 const buttonVariants: Record<ButtonVariant, string> = {
   brand: 'bg-primary text-white hover:opacity-90',
-  'brand-outline': 'border border-primary text-primary hover:bg-primary-50 dark:hover:bg-primary-900',
+  'brand-outline':
+    'border border-primary text-primary hover:bg-primary-50 dark:hover:bg-primary-900',
   outline: 'border border-border text-foreground hover:border-primary hover:bg-background-alt',
 };
 

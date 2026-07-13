@@ -12,7 +12,7 @@ import {
   PopoverTrigger,
   StatusBanner,
 } from '@gruenerator/ui';
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type JSX, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
 import rehypeRaw from 'rehype-raw';
@@ -129,11 +129,23 @@ interface NotebookManualSearchProps {
    * AND hides the facet-filter UI. User notebooks have no Qdrant facets.
    */
   notebookId?: string;
+  /**
+   * Rendered in place of the "Gib einen Suchbegriff ein…" empty state while no
+   * search has run — the notebook browse sub-tabs (Zuletzt/Agenten/Statistiken).
+   */
+  browseSlot?: ReactNode;
+  /** Seed query executed on mount (omni composer → "Manuell recherchieren"). */
+  initialQuery?: string;
 }
 
-export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManualSearchProps) {
+export function NotebookManualSearch({
+  collectionIds,
+  notebookId,
+  browseSlot,
+  initialQuery,
+}: NotebookManualSearchProps) {
   const hideFilters = !!notebookId;
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ?? '');
   const [hasSearched, setHasSearched] = useState(false);
   const lastQueryRef = useRef('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -215,7 +227,22 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
     [executeSearch, query]
   );
 
+  // Run the seeded query once on mount (deliberately not re-run when
+  // executeSearch's identity changes — filter changes re-search via the
+  // debounced effect below).
+  useEffect(() => {
+    if (!initialQuery || initialQuery.trim().length < 2) return;
+    const timer = setTimeout(() => executeSearch(initialQuery), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Debounced re-search when filters/sort/mode change after the first search.
+  // `hasSearched` is read as a gate but deliberately NOT a dependency: its
+  // false→true transition happens *inside* the first executeSearch, and
+  // re-running this effect on it would fire the identical query a second time
+  // ~300ms later (once per first/seeded search). Real filter/sort/mode changes
+  // still re-search via activeFilters/searchMode/sortBy/executeSearch.
   useEffect(() => {
     if (!hasSearched || !lastQueryRef.current) return;
     clearTimeout(debounceRef.current);
@@ -223,7 +250,8 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
       executeSearch(lastQueryRef.current);
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [activeFilters, searchMode, sortBy, hasSearched, executeSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilters, searchMode, sortBy, executeSearch]);
 
   const sortIndicator = sortBy !== 'relevance' ? ` · sortiert nach ${SORT_LABELS[sortBy]}` : '';
   const modeLabel = MODE_OPTIONS.find((o) => o.value === searchMode)?.label ?? 'Hybrid';
@@ -467,14 +495,16 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
         </div>
       )}
 
-      {!hasSearched && !isLoading && (
-        <div className="flex flex-col items-center justify-center py-2xl text-center">
-          <IoSearch className="mb-sm size-12 text-grey-300 dark:text-grey-600" />
-          <p className="text-sm text-grey-500 dark:text-grey-400">
-            Gib einen Suchbegriff ein, um in diesem Notizbuch zu suchen.
-          </p>
-        </div>
-      )}
+      {!hasSearched &&
+        !isLoading &&
+        (browseSlot ?? (
+          <div className="flex flex-col items-center justify-center py-2xl text-center">
+            <IoSearch className="mb-sm size-12 text-grey-300 dark:text-grey-600" />
+            <p className="text-sm text-grey-500 dark:text-grey-400">
+              Gib einen Suchbegriff ein, um in diesem Notizbuch zu suchen.
+            </p>
+          </div>
+        ))}
     </div>
   );
 }

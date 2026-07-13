@@ -277,7 +277,7 @@ const TransferPage = () => {
                         Um Dateien zu teilen, verbinde zuerst deine Wolke (Nextcloud).
                       </p>
                       <Link
-                        to="/profile/wolke"
+                        to="/profile/verbindungen"
                         className="font-medium text-primary-600 hover:underline dark:text-primary-400"
                       >
                         Wolke verbinden →

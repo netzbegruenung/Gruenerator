@@ -28,6 +28,13 @@ export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
  */
 export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards' && s !== 'canvas');
 
+/**
+ * The user's own "office" content for recall — docs, boards, sheets,
+ * presentations (everything except `canvas`, which is the sharepic surface with
+ * its own gallery). Broader than DOCS_ONLY_SUBTYPES because recall wants boards.
+ */
+export const OFFICE_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'canvas');
+
 /** Marker for permissions auto-granted when a user visits an 'authenticated' share link */
 export const GRANTED_BY_SHARE_LINK = 'auto:share_link';
 

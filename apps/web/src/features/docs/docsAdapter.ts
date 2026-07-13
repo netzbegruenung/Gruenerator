@@ -1,5 +1,6 @@
+import { handleUnauthorized } from '../../components/utils/apiClient';
+import { sessionDebug } from '../../lib/sessionDebug';
 import { useAuthStore } from '../../stores/authStore';
-import { buildLoginUrl } from '../../utils/authRedirect';
 import { isDesktopApp } from '../../utils/platform';
 
 import type { DocsAdapter } from '@gruenerator/docs';
@@ -72,9 +73,11 @@ export const webAppDocsAdapter: DocsAdapter = {
     return {};
   },
 
-  onUnauthorized: () => {
-    const currentPath = window.location.pathname + window.location.search;
-    window.location.href = buildLoginUrl(currentPath);
+  onUnauthorized: async () => {
+    sessionDebug('http.401', { stack: 'docs' });
+    // Route through the shared authority (probe → retry/atomic-teardown/stay)
+    // instead of an unconditional redirect that races the other stacks.
+    return (await handleUnauthorized('docs')) === 'retry';
   },
 
   getDocumentUrl: (id) => `/office/${id}`,
