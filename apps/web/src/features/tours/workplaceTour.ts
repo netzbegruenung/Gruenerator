@@ -88,8 +88,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
       {
         element: SEL.arbeitenTools,
         popover: {
-          title: 'Werkzeuge',
-          description: 'Alle Grüneratoren im Überblick — von Pressemitteilung bis Wahlprogramm.',
+          title: 'Weitere Tools',
+          description:
+            'Praktische Helfer: Fotos begrünen, Reels untertiteln, Scans digitalisieren, Audio transkribieren und mehr.',
           side: 'top',
           onNextClick: crossTab('/workplace/wissen', SEL.wissen, (drv) => drv.moveNext()),
         },
