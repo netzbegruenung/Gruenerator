@@ -26,8 +26,9 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
 
 describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
-    // regolo Mistral-small-4 when configured, else litellm/verdigado-pro — never
-    // qwen (Chinese), gpt-oss (tool-call fail) or a think model.
+    // Native Mistral (mistral-medium-2604) when configured — the most reliable
+    // tool-caller — else litellm/verdigado-pro. Never qwen (Chinese), gpt-oss
+    // (tool-call fail) or a think model.
     const planner = loopPlannerModelName();
     expect(['verdigado-pro', 'mistral-medium-2604']).toContain(planner);
   });
