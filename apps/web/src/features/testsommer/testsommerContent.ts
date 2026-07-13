@@ -455,16 +455,16 @@ export const TESTSOMMER_MARKUP = `<div id="dc-root" style="font-family: 'PT Sans
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
               <label style="display: flex; flex-direction: column; gap: 8px;">
                 <span style="font-size: 13px; font-weight: 700; color: var(--grey-700);">Name <span style="color: var(--grey-400); font-weight: 400;">(optional)</span></span>
-                <input type="text" placeholder="Dein Name" style="font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; transition: border-color .2s, box-shadow .2s;">
+                <input type="text" name="name" autocomplete="name" placeholder="Dein Name" style="font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; transition: border-color .2s, box-shadow .2s;">
               </label>
               <label style="display: flex; flex-direction: column; gap: 8px;">
                 <span style="font-size: 13px; font-weight: 700; color: var(--grey-700);">E-Mail</span>
-                <input type="email" required placeholder="du@beispiel.de" style="font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; transition: border-color .2s, box-shadow .2s;">
+                <input type="email" name="email" autocomplete="email" required placeholder="du@beispiel.de" style="font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; transition: border-color .2s, box-shadow .2s;">
               </label>
             </div>
             <label style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
               <span style="font-size: 13px; font-weight: 700; color: var(--grey-700);">Teststrecke</span>
-              <select style="font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; transition: border-color .2s, box-shadow .2s;">
+              <select name="track" style="font-family: inherit; font-size: 15px; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; transition: border-color .2s, box-shadow .2s;">
                 <option>Sharepics — grünes Canva</option>
                 <option>Grüne Dokumente</option>
                 <option>Grüne Agent*innen</option>
@@ -474,12 +474,13 @@ export const TESTSOMMER_MARKUP = `<div id="dc-root" style="font-family: 'PT Sans
             </label>
             <label style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
               <span style="font-size: 13px; font-weight: 700; color: var(--grey-700);">Nachricht</span>
-              <textarea rows="5" required placeholder="Was hakt, was fehlt, was überrascht?" style="font-family: inherit; font-size: 15px; line-height: 1.5; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; resize: vertical; transition: border-color .2s, box-shadow .2s;"></textarea>
+              <textarea name="message" rows="5" required placeholder="Was hakt, was fehlt, was überrascht?" style="font-family: inherit; font-size: 15px; line-height: 1.5; padding: 12px 14px; border: 1px solid var(--grey-200); border-radius: 10px; background: #fff; color: var(--grey-800); outline: none; resize: vertical; transition: border-color .2s, box-shadow .2s;"></textarea>
             </label>
             <div style="display: flex; align-items: center; gap: 18px; margin-top: 28px; flex-wrap: wrap;">
-              <button type="submit" style="font-family: inherit; background: var(--accent); color: #fff; border: none; border-radius: 24px; padding: 13px 26px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background .2s;">Feedback senden →</button>
+              <button id="fb-submit" type="submit" style="font-family: inherit; background: var(--accent); color: #fff; border: none; border-radius: 24px; padding: 13px 26px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background .2s;">Feedback senden →</button>
               <span style="font-size: 13px; color: var(--grey-400);">Oder per Support-Chat (DE) / Helpdesk (AT).</span>
             </div>
+            <p id="fb-error" role="alert" style="display:none; margin: 16px 0 0; font-size: 14px; color: #c0392b;"></p>
           </form>
         </div>
         <div id="fb-sent-wrap" style="display:none;">
