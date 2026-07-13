@@ -13,8 +13,19 @@
  * hard. Kept deliberately narrow (≥4 words + a question mark or interrogative)
  * so greetings ("Wer bist du?", "Wie geht's?") stay on the fast path.
  */
+// Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
+// original list missed — live failure: "worüber hat X im Bundestag gesprochen"
+// slipped the net (no "?" either) and reached the flaky LLM classifier, which
+// returned `direct` and answered ungrounded.
 const TOOLABLE_QUESTION_RE =
-  /\b(wie|was|welche[rs]?|wer|wen|wem|wann|warum|wieso|weshalb|wo|wohin|woher|wof[üu]r|nenne|zeige?|liste|finde|vergleiche|recherchiere|suche?|erkl[äa]re|gib)\b/i;
+  /\b(wie|was|welche[rs]?|wer|wen|wem|wann|warum|wieso|weshalb|wo|wohin|woher|wof[üu]r|wor(?:über|an|auf|aus|in|um)|womit|wovon|wonach|wobei|wozu|wodurch|inwiefern|inwieweit|nenne|zeige?|liste|finde|vergleiche|recherchiere|suche?|erkl[äa]re|gib)\b/i;
+
+// German polar/verb-first questions carry no question word — "hat X … gesprochen",
+// "gibt es …", "kann man …". Match a LEADING finite auxiliary/modal verb only
+// (NOT content imperatives like "schreib"/"mach"/"erstelle", which are creative
+// generation and must stay on the fast path).
+const VERB_FIRST_RE =
+  /^(hat|haben|hatte|h[äa]tte|ist|sind|war|waren|gibt|gab|kann|k[öo]nnen|konnte|wird|wurde|werden|soll\w*|muss|m[üu]ssen|darf|d[üu]rfen|welche[rs]?)\b/i;
 
 // Greetings/identity/thanks are ABOUT THE ASSISTANT, not the world — length
 // can't separate "Wie hat X abgestimmt?" (factual) from "Hallo, wer bist du?"
@@ -26,7 +37,7 @@ export function looksLikeToolableQuestion(raw: string): boolean {
   const t = (raw ?? '').trim();
   if (t.split(/\s+/).filter(Boolean).length < 3) return false;
   if (CHITCHAT_RE.test(t)) return false;
-  return t.includes('?') || TOOLABLE_QUESTION_RE.test(t);
+  return t.includes('?') || TOOLABLE_QUESTION_RE.test(t) || VERB_FIRST_RE.test(t);
 }
 
 /**
