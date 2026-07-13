@@ -687,7 +687,7 @@ async function resolveSharepicAuthorName(userId?: string): Promise<string> {
  * `sharepic_complete` (including error payloads) and returns the variants
  * ([] on failure) so callers never have to duplicate the SSE handling.
  */
-async function runSharepicGeneration(opts: {
+export async function runSharepicGeneration(opts: {
   state: ChatGraphState;
   sse: SSEWriter;
   req?: Request | undefined;
