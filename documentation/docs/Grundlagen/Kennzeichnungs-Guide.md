@@ -26,6 +26,12 @@ Diese Pflicht entfällt,
 Mit anderen Worten: Wenn wir die Texte **selbst prüfen, überarbeiten und die Verantwortung übernehmen**, ist eine Kennzeichnung nicht notwendig.
 Da wir dies beim Grünerator ohnehin **immer tun**, empfehle ich, zumindest bei Social-Media-Texten und Pressemitteilungen darauf zu verzichten. Bei Wahlprogrammen oder längeren Texten empfehle ich, kenntlich zu machen, wie KI genutzt wurde, etwa zur Recherche oder zum Vergleich mit anderen Programmen.
 
-## Muster-Kennzeichnung
+### Bilder und Videos immer kennzeichnen
 
-Dieser Beitrag wurde mit dem Grünerator, der Grünen KI, erstellt.
+KI-generierte oder mit KI bearbeitete Bilder und Videos müssen **immer gekennzeichnet** werden.
+
+## Präzise Kennzeichnung
+
+Wenn Inhalte gekennzeichnet werden, muss die Kennzeichnung immer präzise benennen, wofür der Grünerator eingesetzt wurde. Zum Beispiel:
+
+> Bei diesem Wahlprogramm wurde die Rechtschreibung mit dem Grünerator, der grünen KI, korrigiert.
