@@ -239,23 +239,6 @@ interface AnweisungenResponse {
   knowledge?: KnowledgeEntry[];
 }
 
-interface NotebookCollectionsResponse {
-  success: boolean;
-  message?: string;
-  collections?: NotebookCollection[];
-}
-
-interface NotebookCollectionMutationResponse {
-  success?: boolean;
-  message?: string;
-  collection: NotebookCollection;
-}
-
-interface NotebookCollectionUpdateResponse {
-  success: boolean;
-  message?: string;
-}
-
 interface SavedTextsResponse {
   success: boolean;
   message?: string;
@@ -266,12 +249,6 @@ interface SavedTextSingleResponse {
   success: boolean;
   message?: string;
   data: SavedText;
-}
-
-interface UserTemplatesResponse {
-  success: boolean;
-  message?: string;
-  data?: UserTemplate[];
 }
 
 interface AvailableDocumentsResponse {
@@ -438,24 +415,27 @@ export const profileApiService = {
 
   // === Q&A COLLECTIONS ===
   async getNotebookCollections(): Promise<NotebookCollection[]> {
-    const response = await apiClient.get<NotebookCollectionsResponse>('/auth/notebook-collections');
-    const json = response.data;
+    const response = await getContractsClient().notebookCollections.listCollections();
 
-    if (!json.success) {
-      throw new Error(json.message ?? 'Failed to fetch Q&A collections');
+    if (response.status !== 200 || !response.body.success) {
+      throw new Error('Failed to fetch Q&A collections');
     }
 
-    return json.collections ?? [];
+    // Contract collection schema vs the app's richer NotebookCollection domain
+    // type describe the same rows but aren't mutually assignable; boundary cast.
+    return response.body.collections as unknown as NotebookCollection[];
   },
 
   async createQACollection(collectionData: NotebookCollectionInput): Promise<NotebookCollection> {
-    const selectionMode = collectionData.selectionMode || 'documents';
+    const selectionMode: 'documents' | 'wolke' =
+      collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents';
     const body = {
       name: collectionData.name,
       description: collectionData.description,
       custom_prompt: collectionData.custom_prompt,
       selection_mode: selectionMode,
-      document_ids: selectionMode === 'documents' ? collectionData.documents || [] : [],
+      document_ids:
+        selectionMode === 'documents' ? (collectionData.documents || []).map(String) : [],
       wolke_share_link_ids: selectionMode === 'wolke' ? collectionData.wolkeShareLinks || [] : [],
       auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : false,
       remove_missing_on_sync:
@@ -475,28 +455,23 @@ export const profileApiService = {
         : {}),
     };
 
-    const response = await apiClient.post<NotebookCollectionMutationResponse>(
-      '/auth/notebook-collections',
-      body
-    );
-    const json = response.data;
+    const response = await getContractsClient().notebookCollections.createCollection({ body });
 
-    if (!json?.success) {
-      const err = new Error(
-        json?.message ?? 'Failed to create Q&A collection'
-      ) as ApiErrorWithResponse;
+    if (response.status !== 201) {
+      const err = new Error('Failed to create Q&A collection') as ApiErrorWithResponse;
       err.response = { status: 400 };
       throw err;
     }
 
-    return json.collection;
+    return response.body.collection as unknown as NotebookCollection;
   },
 
   async updateQACollection(
     collectionId: string | number,
     collectionData: NotebookCollectionInput
   ): Promise<{ success: boolean; message?: string }> {
-    const selectionMode = collectionData.selectionMode || 'documents';
+    const selectionMode: 'documents' | 'wolke' =
+      collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents';
     const body = {
       name: collectionData.name,
       description: collectionData.description,
@@ -506,7 +481,7 @@ export const profileApiService = {
       // document set. Omitting it signals a metadata-only edit (e.g. inline rename)
       // so the backend leaves existing documents untouched instead of 400-ing on [].
       ...(selectionMode === 'documents' && Array.isArray(collectionData.documents)
-        ? { document_ids: collectionData.documents }
+        ? { document_ids: collectionData.documents.map(String) }
         : {}),
       wolke_share_link_ids: selectionMode === 'wolke' ? collectionData.wolkeShareLinks || [] : [],
       auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : undefined,
@@ -527,55 +502,48 @@ export const profileApiService = {
         : {}),
     };
 
-    const response = await apiClient.put<NotebookCollectionUpdateResponse>(
-      `/auth/notebook-collections/${collectionId}`,
-      body
-    );
-    const json = response.data;
+    const response = await getContractsClient().notebookCollections.updateCollection({
+      params: { id: String(collectionId) },
+      body,
+    });
 
-    if (!json?.success) {
-      const err = new Error(
-        json?.message ?? 'Failed to update Q&A collection'
-      ) as ApiErrorWithResponse;
+    if (response.status !== 200) {
+      const err = new Error('Failed to update Q&A collection') as ApiErrorWithResponse;
       err.response = { status: 400 };
       throw err;
     }
 
-    return json;
+    return { success: response.body.success, message: response.body.message };
   },
 
   async syncQACollection(
     collectionId: string | number
   ): Promise<{ success: boolean; message?: string }> {
-    const response = await apiClient.post<NotebookCollectionUpdateResponse>(
-      `/auth/notebook-collections/${collectionId}/sync`
-    );
-    const json = response.data;
+    const response = await getContractsClient().notebookCollections.syncCollection({
+      params: { id: String(collectionId) },
+    });
 
-    if (!json?.success) {
-      const err = new Error(
-        json?.message ?? 'Failed to sync Q&A collection'
-      ) as ApiErrorWithResponse;
+    if (response.status !== 200) {
+      const err = new Error('Failed to sync Q&A collection') as ApiErrorWithResponse;
       err.response = { status: 400 };
       throw err;
     }
 
-    return json;
+    return { success: response.body.success, message: response.body.message };
   },
 
   async deleteQACollection(
     collectionId: string | number
   ): Promise<{ success: boolean; message?: string }> {
-    const response = await apiClient.delete<NotebookCollectionUpdateResponse>(
-      `/auth/notebook-collections/${collectionId}`
-    );
-    const json = response.data;
+    const response = await getContractsClient().notebookCollections.deleteCollection({
+      params: { id: String(collectionId) },
+    });
 
-    if (!json.success) {
-      throw new Error(json.message ?? 'Failed to delete Q&A collection');
+    if (response.status !== 200) {
+      throw new Error('Failed to delete Q&A collection');
     }
 
-    return json;
+    return { success: response.body.success, message: response.body.message };
   },
 
   // === USER TEXTS ===
@@ -630,82 +598,75 @@ export const profileApiService = {
 
   // === USER TEMPLATES ===
   async getUserTemplates(): Promise<UserTemplate[]> {
-    const response = await apiClient.get<UserTemplatesResponse>('/auth/user-templates');
-    const data = response.data;
+    const response = await getContractsClient().userTemplates.list();
 
-    if (!data.success) {
-      throw new Error(data.message ?? 'Failed to fetch templates');
+    if (response.status !== 200 || !response.body.success) {
+      throw new Error('Failed to fetch templates');
     }
 
-    return data.data ?? [];
+    // Contract's template schema vs the app's UserTemplate domain type describe
+    // the same rows but aren't mutually assignable; boundary cast.
+    return response.body.data as unknown as UserTemplate[];
   },
 
   async updateTemplateTitle(
     templateId: string | number,
     newTitle: string
   ): Promise<UserTemplateResponse> {
-    const response = await apiClient.post<UserTemplateResponse>(
-      `/auth/user-templates/${templateId}/metadata`,
-      {
-        title: newTitle.trim(),
-      }
-    );
-    const result = response.data;
+    const response = await getContractsClient().userTemplates.updateMetadata({
+      params: { id: String(templateId) },
+      body: { title: newTitle.trim() },
+    });
 
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to update template title');
+    if (response.status !== 200) {
+      throw new Error('Failed to update template title');
     }
 
-    return result;
+    return { success: response.body.success, message: response.body.message };
   },
 
   async deleteTemplate(templateId: string | number): Promise<UserTemplateResponse> {
-    const response = await apiClient.delete<UserTemplateResponse>(
-      `/auth/user-templates/${templateId}`
-    );
-    const result = response.data;
+    const response = await getContractsClient().userTemplates.remove({
+      params: { id: String(templateId) },
+    });
 
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to delete template');
+    if (response.status !== 200) {
+      throw new Error('Failed to delete template');
     }
 
-    return result;
+    return { success: response.body.success, message: response.body.message };
   },
 
   async updateTemplateVisibility(
     templateId: string | number,
     isPrivate: boolean
   ): Promise<UserTemplateResponse> {
-    const response = await apiClient.put<UserTemplateResponse>(
-      `/auth/user-templates/${templateId}`,
-      {
-        is_private: isPrivate,
-      }
-    );
-    const result = response.data;
+    const response = await getContractsClient().userTemplates.update({
+      params: { id: String(templateId) },
+      body: { is_private: isPrivate },
+    });
 
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to update template visibility');
+    if (response.status !== 200) {
+      throw new Error('Failed to update template visibility');
     }
 
-    return result;
+    return { success: response.body.success, message: response.body.message };
   },
 
   async updateTemplate(
     templateId: string | number,
     data: UserTemplateUpdateData
   ): Promise<UserTemplateResponse> {
-    const response = await apiClient.put<UserTemplateResponse>(
-      `/auth/user-templates/${templateId}`,
-      data
-    );
-    const result = response.data;
+    const response = await getContractsClient().userTemplates.update({
+      params: { id: String(templateId) },
+      body: data,
+    });
 
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to update template');
+    if (response.status !== 200) {
+      throw new Error('Failed to update template');
     }
 
-    return result;
+    return { success: response.body.success, message: response.body.message };
   },
 
   // === AVAILABLE DOCUMENTS (for Q&A) ===

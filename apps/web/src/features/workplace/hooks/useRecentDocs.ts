@@ -1,6 +1,5 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
-
-import apiClient from '../../../components/utils/apiClient';
 
 export interface RecentDoc {
   id: string;
@@ -15,8 +14,11 @@ function useRecentDocs(limit = 5, enabled = true) {
   const query = useQuery<RecentDoc[]>({
     queryKey: ['workplace-recent-docs', limit],
     queryFn: async () => {
-      const response = await apiClient.get(`/docs?limit=${limit}`);
-      return response.data as RecentDoc[];
+      const res = await getContractsClient().docs.listDocuments({
+        query: { limit: String(limit) },
+      });
+      if (res.status !== 200) throw new Error('Failed to load recent documents');
+      return res.body as RecentDoc[];
     },
     staleTime: 5 * 60 * 1000,
     enabled,

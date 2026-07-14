@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -58,10 +59,16 @@ export function EditorStep({ projectId }: EditorStepProps) {
   // Load project data
   useEffect(() => {
     setLoading(true);
-    apiClient
-      .get<{ project?: SubtitlerProject }>(`/subtitler/projects/${projectId}`)
+    getContractsClient()
+      .subtitler.getProject({ params: { projectId } })
       .then((res) => {
-        const p = res.data?.project;
+        if (res.status !== 200) {
+          setLoading(false);
+          return;
+        }
+        // Contract SubtitlerProject is nullability-wide; the local shape is a
+        // tight subset the editor reads off.
+        const p = res.body.project as unknown as SubtitlerProject;
         if (!p) {
           setLoading(false);
           return;
@@ -103,15 +110,18 @@ export function EditorStep({ projectId }: EditorStepProps) {
     }
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
-      apiClient
-        .put(`/subtitler/projects/${project.id}`, {
-          styleSettings: {
-            fontSize: subtitleStyle.fontSize,
-            bottomOffset: subtitleStyle.bottomOffset,
-            backgroundColor: subtitleStyle.backgroundColor,
-            backgroundOpacity: subtitleStyle.backgroundOpacity,
-            borderWidth: subtitleStyle.borderWidth,
-            shadowBlur: subtitleStyle.shadowBlur,
+      getContractsClient()
+        .subtitler.updateProject({
+          params: { projectId: project.id },
+          body: {
+            styleSettings: {
+              fontSize: subtitleStyle.fontSize,
+              bottomOffset: subtitleStyle.bottomOffset,
+              backgroundColor: subtitleStyle.backgroundColor,
+              backgroundOpacity: subtitleStyle.backgroundOpacity,
+              borderWidth: subtitleStyle.borderWidth,
+              shadowBlur: subtitleStyle.shadowBlur,
+            },
           },
         })
         .catch(() => {});

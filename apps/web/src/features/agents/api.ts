@@ -7,7 +7,6 @@ import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 
@@ -150,11 +149,13 @@ export function useSharedSystemAgents() {
     queryFn: async (): Promise<SharedAgentEntry[]> => {
       const results = await Promise.all(
         userGroups.map(async (group) => {
-          const { data } = await apiClient.get<{
-            success: boolean;
-            content?: { system_agents?: Array<{ id: string }> };
-          }>(`/auth/groups/${group.id}/content`);
-          const ids = data.content?.system_agents?.map((s) => s.id) ?? [];
+          const res = await getContractsClient().groups.listGroupContent({
+            params: { groupId: group.id },
+          });
+          // Content buckets are loose records by contract; narrow per-bucket.
+          const bucket =
+            res.status === 200 ? (res.body.content.system_agents as Array<{ id: string }>) : [];
+          const ids = bucket.map((s) => s.id);
           return { group, ids };
         })
       );
@@ -194,11 +195,12 @@ export function useSharedUserAgents() {
     queryFn: async (): Promise<SharedAgentEntry[]> => {
       const results = await Promise.all(
         userGroups.map(async (group) => {
-          const { data } = await apiClient.get<{
-            success: boolean;
-            content?: { user_agents?: Agent[] };
-          }>(`/auth/groups/${group.id}/content`);
-          return { group, agents: data.content?.user_agents ?? [] };
+          const res = await getContractsClient().groups.listGroupContent({
+            params: { groupId: group.id },
+          });
+          const agents =
+            res.status === 200 ? (res.body.content.user_agents as unknown as Agent[]) : [];
+          return { group, agents };
         })
       );
 

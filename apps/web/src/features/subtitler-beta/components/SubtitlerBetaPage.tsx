@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button, Skeleton, VideoCard } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -80,8 +81,11 @@ function ProjectPicker({ onSelectProject }: { onSelectProject: (projectId: strin
   const { data: projectsWithSubtitles = [], isLoading } = useQuery<ProjectListItem[]>({
     queryKey: ['subtitler-beta', 'projects'],
     queryFn: async () => {
-      const res = await apiClient.get<{ projects: ProjectListItem[] }>('/subtitler/projects');
-      return res.data?.projects ?? [];
+      const res = await getContractsClient().subtitler.listProjects();
+      if (res.status !== 200) return [];
+      // Contract SubtitlerProject is nullability-wide; ProjectListItem is the
+      // tight local subset the picker reads off.
+      return res.body.projects as unknown as ProjectListItem[];
     },
   });
 
@@ -158,10 +162,13 @@ function SubtitlerBetaPageInner() {
     (projectId: string) => {
       setLoading(true);
       setError(null);
-      apiClient
-        .get<{ project: SubtitlerProject }>(`/subtitler/projects/${projectId}`)
+      getContractsClient()
+        .subtitler.getProject({ params: { projectId } })
         .then((res) => {
-          const p = res.data?.project;
+          if (res.status !== 200) throw new Error('Projekt konnte nicht geladen werden.');
+          // Contract SubtitlerProject is nullability-wide; the local shape is a
+          // tight subset the beta editor reads off.
+          const p = res.body.project as unknown as SubtitlerProject;
           if (!p) {
             setError('Projekt nicht gefunden.');
             setLoading(false);
@@ -224,15 +231,18 @@ function SubtitlerBetaPageInner() {
 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
-      apiClient
-        .put(`/subtitler/projects/${project.id}`, {
-          styleSettings: {
-            fontSize: subtitleStyle.fontSize,
-            bottomOffset: subtitleStyle.bottomOffset,
-            backgroundColor: subtitleStyle.backgroundColor,
-            backgroundOpacity: subtitleStyle.backgroundOpacity,
-            borderWidth: subtitleStyle.borderWidth,
-            shadowBlur: subtitleStyle.shadowBlur,
+      getContractsClient()
+        .subtitler.updateProject({
+          params: { projectId: project.id },
+          body: {
+            styleSettings: {
+              fontSize: subtitleStyle.fontSize,
+              bottomOffset: subtitleStyle.bottomOffset,
+              backgroundColor: subtitleStyle.backgroundColor,
+              backgroundOpacity: subtitleStyle.backgroundOpacity,
+              borderWidth: subtitleStyle.borderWidth,
+              shadowBlur: subtitleStyle.shadowBlur,
+            },
           },
         })
         .catch(() => {});
