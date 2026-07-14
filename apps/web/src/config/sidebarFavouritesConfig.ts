@@ -13,12 +13,14 @@ export interface FavouriteItemConfig {
 }
 
 const TOOL_ITEMS: FavouriteItemConfig[] = [
-  { id: 'docs', title: 'Docs', path: '/workplace/arbeiten', icon: getIcon('navigation', 'docs')! },
+  { id: 'docs', title: 'Docs', path: '/docs', icon: getIcon('navigation', 'docs')! },
+  { id: 'boards', title: 'Boards', path: '/boards', icon: getIcon('navigation', 'boards')! },
+  { id: 'sheets', title: 'Tabellen', path: '/sheets', icon: getIcon('navigation', 'sheets')! },
   {
-    id: 'boards',
-    title: 'Boards',
-    path: '/workplace/arbeiten',
-    icon: getIcon('navigation', 'boards')!,
+    id: 'presentations',
+    title: 'Präsentationen',
+    path: '/presentations',
+    icon: getIcon('navigation', 'presentations')!,
   },
   { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
