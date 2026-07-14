@@ -3,7 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { isDesktopApp } from '../utils/platform';
 
-import { SHOW_AGENT_CREATOR } from './featureFlags';
+import { SHOW_AGENT_CREATOR, SHOW_RECURRING_TASKS } from './featureFlags';
 
 /**
  * Route configuration interface
@@ -204,9 +204,7 @@ const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
-const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
-const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
-const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
+const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const OfficeListRedirect = lazy(() =>
@@ -292,6 +290,10 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
       ] satisfies RouteConfig[])
     : []),
+  // EXPERIMENTAL — recurring agent tasks management. Off unless SHOW_RECURRING_TASKS.
+  ...(SHOW_RECURRING_TASKS
+    ? ([{ path: '/wiederkehrend', component: RecurringTasksPage }] satisfies RouteConfig[])
+    : []),
   // Agentura — the agents & skills marketplace. Detail "product pages" sit
   // under /agentura/agent/<slug> and /agentura/skill/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.
@@ -369,9 +371,6 @@ const standardRoutes: RouteConfig[] = [
       Promise.resolve({ default: createRedirect('/experiments/monitor/feed') })
     ),
   },
-  { path: '/briefing', component: BriefingPage },
-  { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
-  { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },

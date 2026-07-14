@@ -162,6 +162,11 @@ const envSchema = z.object({
   HOCUSPOCUS_ENABLED: boolFlag(false),
   YJS_ENABLED: boolFlag(false),
 
+  // ── EXPERIMENTAL: recurring agent tasks ("Wiederkehrende Aufgabe") ──────
+  // Gates the recurring_tasks router mount, the scheduler worker, and the chat
+  // create_recurring_task intent. Off by default; flip on test-branch to validate.
+  RECURRING_TASKS_ENABLED: boolFlag(false),
+
   // ── Scraping / crawling ────────────────────────────────────────────────
   CRAWLER_MODE: z.string().optional(),
   CONTENT_SYNC_EMAIL: z.string().trim().optional(),
