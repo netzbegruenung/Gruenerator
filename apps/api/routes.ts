@@ -68,6 +68,8 @@ import { mountNotificationsContractRouter } from './routes/notifications/notific
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { mountRecurringTasksContractRouter } from './routes/recurringTasks/recurringTasksContractRouter.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
@@ -127,7 +129,6 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
-import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
@@ -599,6 +600,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
+  // EXPERIMENTAL: recurring agent tasks. Mounted only when the flag is on; the
+  // scheduler worker (server.ts) is gated by the same flag.
+  if (process.env.RECURRING_TASKS_ENABLED === 'true') {
+    app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
+    mountRecurringTasksContractRouter(app);
+  }
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix
