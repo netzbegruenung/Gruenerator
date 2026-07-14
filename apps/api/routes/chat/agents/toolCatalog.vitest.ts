@@ -236,6 +236,25 @@ describe('toolCatalog domain tool mounting', () => {
       genCatalog({ kind: 'board', enabledTools: { create_board: false } }).toolNames
     ).not.toContain('create_board');
   });
+
+  it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
+    // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
+    // open doc must not create a NEW one, even on a compound turn.
+    for (const editKey of ['edit_current_doc', 'edit_current_board']) {
+      for (const kind of ['sharepic', 'presentation', 'sheet', 'document', 'board'] as const) {
+        const names = genCatalog({ kind, enabledTools: { [editKey]: true } }).toolNames;
+        expect(names, `${kind} must not mount in an ${editKey} surface`).not.toContain(
+          TOOL_FOR[kind]
+        );
+      }
+      // generate_image is also a NEW artifact — gated off in an editor surface.
+      expect(
+        genCatalog({ intent: 'agentic', kind: null, enabledTools: { [editKey]: true } }).toolNames
+      ).not.toContain('generate_image');
+    }
+    // Control: outside an editor surface, generate_image still mounts on agentic.
+    expect(genCatalog({ intent: 'agentic', kind: null }).toolNames).toContain('generate_image');
+  });
 });
 
 describe('toolCatalog scrape_url', () => {
