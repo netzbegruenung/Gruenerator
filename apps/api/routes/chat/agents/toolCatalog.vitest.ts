@@ -236,6 +236,19 @@ describe('toolCatalog domain tool mounting', () => {
       genCatalog({ kind: 'board', enabledTools: { create_board: false } }).toolNames
     ).not.toContain('create_board');
   });
+
+  it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
+    // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
+    // open doc must not create a NEW one, even on a compound turn.
+    for (const editKey of ['edit_current_doc', 'edit_current_board']) {
+      for (const kind of ['sharepic', 'presentation', 'sheet', 'document', 'board'] as const) {
+        const names = genCatalog({ kind, enabledTools: { [editKey]: true } }).toolNames;
+        expect(names, `${kind} must not mount in an ${editKey} surface`).not.toContain(
+          TOOL_FOR[kind]
+        );
+      }
+    }
+  });
 });
 
 describe('toolCatalog scrape_url', () => {
