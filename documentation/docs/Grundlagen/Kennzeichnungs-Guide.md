@@ -29,6 +29,7 @@ Da wir dies beim Grünerator ohnehin **immer tun**, empfehle ich, zumindest bei 
 ### Bilder und Videos immer kennzeichnen
 
 KI-generierte oder mit KI bearbeitete Bilder und Videos müssen **immer gekennzeichnet** werden.
+Bei Bildern fügt der Grünerator diese Kennzeichnung automatisch hinzu.
 
 ## Präzise Kennzeichnung
 
