@@ -51,7 +51,7 @@ const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
 
 // ── Scope ───────────────────────────────────────────────────────────────────
 // Feature/tutorial docs only — folders that describe the app UI. Content archives
-// (newsletter, briefings, intern, landesverbaende) and concept docs (llm-basics,
+// (newsletter, intern, landesverbaende) and concept docs (llm-basics,
 // Grundlagen) are intentionally excluded: they have nothing to verify against code.
 const SCOPE_FOLDERS = [
   'ueber-den-gruenerator',
@@ -261,7 +261,6 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
     let finalText = '';
     let endedBadly: string | null = null;
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- claude-agent-sdk query() returns a Query (AsyncGenerator); the rule mis-types it
     for await (const message of query({
       prompt: buildUserPrompt(docPath, content),
       options: {

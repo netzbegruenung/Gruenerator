@@ -8,6 +8,8 @@ declare global {
     readonly VITE_BACKEND_URL: string;
     // Opt-in flag to expose the agent creator on a non-dev deploy.
     readonly VITE_SHOW_AGENT_CREATOR?: string;
+    // EXPERIMENTAL — opt-in flag to expose the recurring-tasks management surface.
+    readonly VITE_SHOW_RECURRING_TASKS?: string;
   }
 
   // Umami analytics

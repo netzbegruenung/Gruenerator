@@ -50,6 +50,8 @@ export const searchIntentSchema = z.enum([
   'share_doc',
   'create_sheet',
   'create_presentation',
+  // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
+  'create_recurring_task',
   'chat_history',
   'mcp',
   'direct',

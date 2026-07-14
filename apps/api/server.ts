@@ -35,6 +35,7 @@ import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
+import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
@@ -283,6 +284,12 @@ async function startWorker(): Promise<void> {
   // Fires due board schedules (recurring KI-Spalte runs) → enqueues agent tasks.
   // Cluster-safe: the claim advances next_run_at under FOR UPDATE SKIP LOCKED.
   startBoardScheduleWorker();
+
+  // EXPERIMENTAL: fires due standalone recurring tasks (recurring_tasks) → runs the
+  // agent + delivers inline. Same cluster-safe claim pattern. Off unless flag set.
+  if (env.RECURRING_TASKS_ENABLED) {
+    startRecurringTaskWorker();
+  }
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression
