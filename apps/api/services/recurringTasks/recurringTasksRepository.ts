@@ -38,6 +38,7 @@ export function toApiTask(row: RecurringTask): ApiRecurringTask {
     instruction: row.instruction,
     agentIdentifier: row.agent_identifier,
     delivery: row.delivery,
+    emailNotify: row.email_notify,
     recurrence: rruleStringToRecurrence(row.rrule),
     timezone: row.timezone,
     enabled: row.enabled,
@@ -111,8 +112,8 @@ export async function createRecurringTask(
   const { rrule, nextRunAt } = resolveSchedule(body.recurrence, body.timezone);
   const rows = await db.query<RecurringTask>(
     `INSERT INTO recurring_tasks
-       (user_id, agent_identifier, title, instruction, delivery, rrule, timezone, enabled, locale, next_run_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       (user_id, agent_identifier, title, instruction, delivery, email_notify, rrule, timezone, enabled, locale, next_run_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       userId,
@@ -120,6 +121,7 @@ export async function createRecurringTask(
       body.title,
       body.instruction,
       body.delivery,
+      body.emailNotify,
       rrule,
       body.timezone,
       body.enabled,
@@ -160,6 +162,7 @@ export async function updateRecurringTask(
             enabled = $9,
             rrule = $10,
             next_run_at = $11,
+            email_notify = $12,
             updated_at = now()
       WHERE id = $1 AND user_id = $2
       RETURNING *`,
@@ -175,6 +178,7 @@ export async function updateRecurringTask(
       body.enabled ?? existing.enabled,
       rrule,
       nextRunAt,
+      body.emailNotify ?? existing.email_notify,
     ]
   );
   return rows[0] ? toApiTask(rows[0]) : undefined;

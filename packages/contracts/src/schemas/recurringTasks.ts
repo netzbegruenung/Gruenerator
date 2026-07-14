@@ -30,6 +30,8 @@ export const recurringTaskSchema = z.object({
   /** Agent to run (own / group / system). Null → the default universal agent. */
   agentIdentifier: z.string().nullable(),
   delivery: recurringTaskDeliverySchema,
+  /** Whether a completed run additionally notifies the user by email. */
+  emailNotify: z.boolean(),
   recurrence: scheduleRecurrenceSchema,
   timezone: z.string(),
   enabled: z.boolean(),
@@ -47,6 +49,7 @@ export const createRecurringTaskBodySchema = z.object({
   instruction: z.string().min(1).max(4000),
   agentIdentifier: z.string().max(64).nullish(),
   delivery: recurringTaskDeliverySchema.default('document'),
+  emailNotify: z.boolean().default(true),
   recurrence: scheduleRecurrenceSchema,
   timezone: z.string().min(1).default('Europe/Berlin'),
   locale: z.string().default('de-DE'),

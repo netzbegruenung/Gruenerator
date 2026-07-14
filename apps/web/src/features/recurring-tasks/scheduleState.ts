@@ -39,6 +39,8 @@ export interface ScheduleState {
   bymonthday: number;
   delivery: RecurringTaskDelivery;
   timezone: string;
+  /** Additionally notify by email when a run completes (in-app is always on). */
+  emailNotify: boolean;
 }
 
 export const DEFAULT_SCHEDULE: ScheduleState = {
@@ -49,6 +51,7 @@ export const DEFAULT_SCHEDULE: ScheduleState = {
   bymonthday: 1,
   delivery: 'document',
   timezone: 'Europe/Berlin',
+  emailNotify: true,
 };
 
 /** ScheduleState → the wire recurrence (omitting the fields the frequency ignores). */
@@ -66,7 +69,7 @@ export function scheduleToRecurrence(s: ScheduleState): ScheduleRecurrence {
 
 /** A saved task → editable ScheduleState (for the builder's edit mode). */
 export function recurrenceToSchedule(
-  task: Pick<RecurringTask, 'recurrence' | 'delivery' | 'timezone'>
+  task: Pick<RecurringTask, 'recurrence' | 'delivery' | 'timezone' | 'emailNotify'>
 ): ScheduleState {
   const r = task.recurrence;
   return {
@@ -77,6 +80,7 @@ export function recurrenceToSchedule(
     bymonthday: r.bymonthday ?? 1,
     delivery: task.delivery,
     timezone: task.timezone,
+    emailNotify: task.emailNotify,
   };
 }
 
