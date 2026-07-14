@@ -39,6 +39,8 @@ export const recurring_tasks = pgTable(
     title: text('title').notNull(),
     instruction: text('instruction').notNull(),
     delivery: text('delivery').$type<RecurringTaskDelivery>().notNull().default('document'),
+    // Whether a completed run additionally notifies by email (in-app is always on).
+    email_notify: boolean('email_notify').notNull().default(true),
     // iCalendar RRULE, e.g. "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9;BYMINUTE=0".
     rrule: text('rrule').notNull(),
     // IANA timezone the RRULE is interpreted in.

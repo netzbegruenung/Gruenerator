@@ -119,10 +119,10 @@ export function RecurrenceFields({ value, onChange }: RecurrenceFieldsProps) {
           Lieferung
           <select
             className={selectCls}
-            value={value.delivery}
+            value={value.delivery === 'summary' ? 'document' : value.delivery}
             onChange={(e) => patch({ delivery: e.target.value as RecurringTaskDelivery })}
           >
-            {(Object.keys(DELIVERY_LABEL) as RecurringTaskDelivery[]).map((d) => (
+            {(['document', 'thread'] as const).map((d) => (
               <option key={d} value={d}>
                 {DELIVERY_LABEL[d]}
               </option>
@@ -130,6 +130,16 @@ export function RecurrenceFields({ value, onChange }: RecurrenceFieldsProps) {
           </select>
         </label>
       </div>
+
+      <label className="flex items-center gap-sm text-sm font-medium">
+        <input
+          type="checkbox"
+          className="h-4 w-4"
+          checked={value.emailNotify}
+          onChange={(e) => patch({ emailNotify: e.target.checked })}
+        />
+        Zusätzlich per E-Mail benachrichtigen
+      </label>
     </div>
   );
 }
