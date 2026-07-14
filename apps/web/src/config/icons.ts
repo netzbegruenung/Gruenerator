@@ -66,6 +66,8 @@ import {
   PiDesktop,
   PiChartBar,
   PiReceipt,
+  PiTable,
+  PiPresentation,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -144,6 +146,8 @@ export type NavigationIconName =
   | 'messenger'
   | 'docs'
   | 'boards'
+  | 'sheets'
+  | 'presentations'
   | 'gruppen'
   | 'notebooks'
   | 'research'
@@ -262,6 +266,8 @@ export const ICONS: IconRegistry = {
     messenger: PiChatCircle,
     docs: HiOutlineDocumentText,
     boards: PiSquaresFour,
+    sheets: PiTable,
+    presentations: PiPresentation,
     gruppen: HiUserGroup,
     notebooks: FaBook,
     research: PiBrain,

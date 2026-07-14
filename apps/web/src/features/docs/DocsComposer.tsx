@@ -42,6 +42,8 @@ interface DocsComposerProps {
   isGenerating: boolean;
   /** Offer sharepic detection/creation (gated: SHOW_SHAREPIC_STUDIO, not de-AT). */
   sharepicEnabled?: boolean;
+  /** Lock every create to one kind (type-scoped landing pages), bypassing keyword detection. */
+  forcedKind?: DocKind;
   onGenerate: (kind: DocKind, prompt: string) => void;
   onSelectTemplate: (kind: DocKind, id: string) => void;
   onImport: (kind: ImportKind) => void;
@@ -77,6 +79,7 @@ export function DocsComposer({
   featureIndex,
   isGenerating,
   sharepicEnabled = false,
+  forcedKind,
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -98,7 +101,7 @@ export function DocsComposer({
   );
 
   const query = q.trim();
-  const detectedKind = detectDocType(query, sharepicEnabled);
+  const detectedKind = forcedKind ?? detectDocType(query, sharepicEnabled);
 
   const lcQuery = query.toLowerCase();
   const matchedItems = lcQuery
