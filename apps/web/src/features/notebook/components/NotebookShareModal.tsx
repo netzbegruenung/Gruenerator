@@ -8,6 +8,7 @@
  */
 import {
   Button,
+  CopyLinkRow,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,8 +24,7 @@ import {
   Separator,
   Switch,
 } from '@gruenerator/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiCheck, FiCopy } from 'react-icons/fi';
+import { useEffect, useMemo, useRef } from 'react';
 import { HiTrash } from 'react-icons/hi';
 
 import { useAuthStore } from '../../../stores/authStore';
@@ -53,30 +53,6 @@ interface NotebookShareModalProps {
   shareUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function ShareLinkRow({ shareUrl }: { shareUrl: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [shareUrl]);
-
-  return (
-    <div className="flex gap-xs">
-      <input
-        readOnly
-        value={shareUrl}
-        onFocus={(e) => e.currentTarget.select()}
-        className="flex-1 rounded-md border border-grey-200 bg-grey-50 px-sm py-xs text-xs text-grey-600 outline-none dark:border-grey-700 dark:bg-grey-800 dark:text-grey-300"
-      />
-      <Button size="sm" variant="outline" onClick={handleCopy} className="gap-xs">
-        {copied ? <FiCheck size={14} /> : <FiCopy size={14} />}
-        {copied ? 'Kopiert' : 'Link kopieren'}
-      </Button>
-    </div>
-  );
 }
 
 const SHARE_MODE_LABELS: Record<NotebookShareMode, string> = {
@@ -192,7 +168,7 @@ export function NotebookShareModal({
                 </p>
               ) : (
                 <>
-                  <ShareLinkRow shareUrl={shareUrl} />
+                  <CopyLinkRow value={shareUrl} copyLabel="Link kopieren" copiedLabel="Kopiert" />
                   <p className="mt-xs text-xs text-grey-500">
                     {shareMode === 'authenticated'
                       ? 'Eingeloggte Nutzer*innen mit diesem Link können das Notebook öffnen.'
