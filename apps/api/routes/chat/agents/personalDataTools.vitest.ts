@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
@@ -95,11 +97,16 @@ type SseEvent = { type: string; payload: unknown };
 function fakeSse(sink: SseEvent[]) {
   return { send: (type: string, payload: unknown) => sink.push({ type, payload }) };
 }
-function ctx(userId: string | null, sink: SseEvent[] = []): PersonalToolCtx {
+function ctx(
+  userId: string | null,
+  sink: SseEvent[] = [],
+  registry = createSourceRegistry()
+): PersonalToolCtx {
   return {
     state: { agentConfig: userId ? { userId } : {} } as unknown as ChatGraphState,
     sse: fakeSse(sink) as unknown as PersonalToolCtx['sse'],
     threadId: 't1',
+    sourceRegistry: registry,
   };
 }
 function exec(tool: unknown, input: unknown) {
@@ -152,6 +159,22 @@ describe('find_content', () => {
       results: Array<{ url: string }>;
     };
     expect(out.results[0].url).toBe('/boards/b1');
+  });
+
+  // The live bug: split-mode synth reads ONLY the source registry, so a tool that
+  // just returns `{ results }` was invisible → "keine Dokumente liegen mir vor".
+  it('registers results into the source registry so the split-mode synth can ground', async () => {
+    searchOfficeContent.mockResolvedValue([
+      { id: 'd1', title: 'Klimaplan', document_subtype: 'docs', content: 'Auszug' },
+    ]);
+    const registry = createSourceRegistry();
+    await exec(makeFindContentTool(ctx('u1', [], registry)), {
+      action: 'search',
+      query: 'klima',
+      limit: 5,
+    });
+    expect(registry.size).toBe(1);
+    expect(registry.renderAll()).toContain('Klimaplan');
   });
 });
 
