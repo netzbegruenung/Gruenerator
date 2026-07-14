@@ -52,6 +52,7 @@ export {
 } from './components/avatar';
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
+export { CopyLinkRow } from './components/copy-link-row';
 export { Fab, type FabProps } from './components/fab';
 export { Checkbox } from './components/checkbox';
 export {
