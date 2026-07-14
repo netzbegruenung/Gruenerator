@@ -1,6 +1,5 @@
 import { RiRepeatLine, RiSpyLine } from 'react-icons/ri';
 
-import { SHOW_RECURRING_TASKS } from './featureFlags';
 import { getIcon } from './icons';
 
 import type { IconType } from './icons';
@@ -28,19 +27,14 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     path: '/agentura',
     icon: RiSpyLine,
   },
-  // EXPERIMENTAL — only listed when the recurring-tasks feature is enabled, so
-  // the tool never links to an unregistered route (route uses the same flag).
-  ...(SHOW_RECURRING_TASKS
-    ? [
-        {
-          id: 'recurring-tasks',
-          title: 'Wiederkehrende Aufgaben',
-          description: 'Agent*innen regelmäßig automatisch laufen lassen',
-          path: '/wiederkehrend',
-          icon: RiRepeatLine,
-        },
-      ]
-    : []),
+  // EXPERIMENTAL — recurring agent tasks management surface.
+  {
+    id: 'recurring-tasks',
+    title: 'Wiederkehrende Aufgaben',
+    description: 'Agent*innen regelmäßig automatisch laufen lassen',
+    path: '/wiederkehrend',
+    icon: RiRepeatLine,
+  },
   {
     id: 'monitor',
     title: 'Monitor',
