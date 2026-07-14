@@ -504,7 +504,6 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
       });
     } else {
       // Streaming transcription — Voxtral only (Whisper has no streaming API)
-      // eslint-disable-next-line @typescript-eslint/await-thenable -- transcribeFromBufferStream yields an async-iterable stream
       for await (const event of mistralVoiceService.transcribeFromBufferStream(
         audioBuffer,
         filename,
@@ -658,7 +657,6 @@ router.post(
           speakerMap,
         });
       } else {
-        // eslint-disable-next-line @typescript-eslint/await-thenable -- transcribeFromBufferStream yields an async-iterable stream
         for await (const event of mistralVoiceService.transcribeFromBufferStream(
           audioBuffer,
           filename,

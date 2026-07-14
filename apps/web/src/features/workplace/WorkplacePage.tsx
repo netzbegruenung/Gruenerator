@@ -22,6 +22,7 @@ const WissenTab = lazy(() => import('./tabs/WissenTab'));
 const TAB_BACKGROUND: Record<string, string> = {
   chat: 'workplace-chat-sunrise',
   arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
+  // "Wissen" adopts the notebook 2a magenta radial as a full-page surface.
   wissen: NOTEBOOK_MAGENTA_BG,
 };
 

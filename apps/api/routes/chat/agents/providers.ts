@@ -344,15 +344,17 @@ export function getModel(provider: string, modelId: string): LanguageModel {
 
 /**
  * Whether a resolved model can drive the agentic chat tool loop (native
- * function calling with multi-step tool use). Conservative on purpose: only
- * Mistral is enabled for now — it's the primary EU provider and our strongest
- * tool-caller (mistral-medium-2604). The overflow lanes (Gemma/GPT-OSS via
- * litellm/regolo) and Qwen are NOT gated in yet; a non-tool-capable user
- * selection stays on the single-pass pipeline rather than being silently
- * swapped (the informed-consent boundary in resolveModel).
+ * function calling with multi-step tool use).
+ *
+ * test-branch: PERMISSIVE — mistral + litellm (Verdigado, a confirmed
+ * tool-caller) + regolo (Gemma-4 / GPT-OSS / Qwen) are all allowed so every
+ * model selection can be verified live. The master-bound PR keeps this
+ * Mistral-only; promote a provider to prod only after its tool-calling is
+ * confirmed here (watch for Regolo GPT-OSS leaking reasoning into content
+ * instead of emitting tool_calls).
  */
 export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
-  return provider === 'mistral';
+  return provider === 'mistral' || provider === 'litellm' || provider === 'regolo';
 }
 
 /**
