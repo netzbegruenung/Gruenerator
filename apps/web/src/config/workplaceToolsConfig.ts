@@ -16,36 +16,59 @@ export interface WorkplaceToolItem {
   devOnly?: boolean;
 }
 
-const NEWSLETTER_URL =
-  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
+// The office suite, surfaced as its own "Office" row on the Arbeiten tab. Same
+// tile shape as WORKPLACE_TOOLS so it renders identically; each points at its
+// type-scoped landing page.
+export const OFFICE_TOOLS: WorkplaceToolItem[] = [
+  {
+    id: 'docs',
+    title: 'Docs',
+    description: 'Dokumente schreiben',
+    path: '/docs',
+    icon: getIcon('navigation', 'docs')!,
+  },
+  {
+    id: 'boards',
+    title: 'Boards',
+    description: 'Planen & organisieren',
+    path: '/boards',
+    icon: getIcon('navigation', 'boards')!,
+  },
+  {
+    id: 'sheets',
+    title: 'Tabellen',
+    description: 'Daten & Kalkulationen',
+    path: '/sheets',
+    icon: getIcon('navigation', 'sheets')!,
+  },
+  {
+    id: 'presentations',
+    title: 'Präsentationen',
+    description: 'Folien & Vorträge',
+    path: '/presentations',
+    icon: getIcon('navigation', 'presentations')!,
+  },
+];
 
 export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'agents',
     title: 'Agentura',
-    description: 'KI-Agent*innen & Skills entdecken',
+    description: 'Agent*innen & Skills',
     path: '/agentura',
     icon: RiSpyLine,
   },
   {
-    id: 'monitor',
-    title: 'Monitor',
-    description: 'Themen und Erwähnungen beobachten',
-    path: '/experiments/monitor',
-    icon: getIcon('navigation', 'monitor')!,
-    devOnly: true,
-  },
-  {
     id: 'gruen-veraendern',
-    title: 'Bild mit KI begrünen',
-    description: 'Eigene Fotos grüner machen',
+    title: 'Bild begrünen',
+    description: 'Fotos grüner machen',
     path: '/studio/ki/green-edit',
     icon: getIcon('navigation', 'imagine')!,
   },
   {
     id: 'reels-untertitel',
     title: 'Reel untertiteln',
-    description: 'Untertitel für Social-Clips',
+    description: 'Untertitel für Clips',
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
   },
@@ -57,47 +80,32 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     icon: getIcon('navigation', 'vorlagen')!,
   },
   {
-    id: 'transfer',
-    title: 'Transfer',
-    description: 'Dateien sicher übertragen',
-    path: '/transfer',
-    icon: getIcon('actions', 'upload')!,
-    devOnly: true,
-  },
-  {
     id: 'scanner',
     title: 'Text digitalisieren',
-    description: 'Fotos & Scans in Text umwandeln',
+    description: 'Fotos & Scans zu Text',
     path: '/scanner',
     icon: getIcon('navigation', 'scanner')!,
   },
   {
     id: 'zeichenzaehler',
     title: 'Zeichenzähler',
-    description: 'Zeichen, Wörter & Social-Limits zählen',
+    description: 'Zeichen & Wörter zählen',
     path: '/zeichenzaehler',
     icon: getIcon('navigation', 'zeichenzaehler')!,
   },
   {
     id: 'transkription',
-    title: 'Audio mit KI transkribieren',
-    description: 'Meetings & Interviews verschriftlichen',
+    title: 'Audio transkribieren',
+    description: 'Meetings verschriftlichen',
     path: '/transkription',
     icon: getIcon('navigation', 'transkription')!,
   },
   {
     id: 'apps',
-    title: 'Mit ChatGPT & co verbinden',
-    description: 'Grünerator in ChatGPT & Claude nutzen',
+    title: 'Mit ChatGPT verbinden',
+    description: 'In ChatGPT & Claude nutzen',
     path: '/apps',
     icon: getIcon('actions', 'link')!,
-  },
-  {
-    id: 'newsletter',
-    title: 'Newsletter',
-    description: 'Updates & Neuigkeiten abonnieren',
-    href: NEWSLETTER_URL,
-    icon: getIcon('navigation', 'presse-social')!,
   },
 ];
 
