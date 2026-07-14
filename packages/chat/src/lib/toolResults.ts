@@ -120,6 +120,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   mcp_tool: { label: 'MCP-Tool', iconKey: 'external-link' },
   sharepic_edit: { label: 'Sharepic', iconKey: 'image' },
   reel_edit: { label: 'Reel', iconKey: 'image' },
+  find_content: { label: 'Meine Inhalte', iconKey: 'search' },
+  documents: { label: 'Dokumente', iconKey: 'file' },
+  boards_tasks: { label: 'Boards & Aufgaben', iconKey: 'file' },
+  groups: { label: 'Gruppen', iconKey: 'user' },
+  media: { label: 'Medien', iconKey: 'image' },
+  notebooks: { label: 'Notizbücher', iconKey: 'book' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {
