@@ -3,7 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { isDesktopApp } from '../utils/platform';
 
-import { SHOW_AGENT_CREATOR, SHOW_RECURRING_TASKS } from './featureFlags';
+import { SHOW_AGENT_CREATOR } from './featureFlags';
 
 /**
  * Route configuration interface
@@ -290,10 +290,8 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
       ] satisfies RouteConfig[])
     : []),
-  // EXPERIMENTAL — recurring agent tasks management. Off unless SHOW_RECURRING_TASKS.
-  ...(SHOW_RECURRING_TASKS
-    ? ([{ path: '/wiederkehrend', component: RecurringTasksPage }] satisfies RouteConfig[])
-    : []),
+  // EXPERIMENTAL — recurring agent tasks management.
+  { path: '/wiederkehrend', component: RecurringTasksPage },
   // Agentura — the agents & skills marketplace. Detail "product pages" sit
   // under /agentura/agent/<slug> and /agentura/skill/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.

@@ -286,10 +286,8 @@ async function startWorker(): Promise<void> {
   startBoardScheduleWorker();
 
   // EXPERIMENTAL: fires due standalone recurring tasks (recurring_tasks) → runs the
-  // agent + delivers inline. Same cluster-safe claim pattern. Off unless flag set.
-  if (env.RECURRING_TASKS_ENABLED) {
-    startRecurringTaskWorker();
-  }
+  // agent + delivers inline. Same cluster-safe claim pattern.
+  startRecurringTaskWorker();
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression

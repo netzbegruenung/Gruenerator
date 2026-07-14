@@ -3,7 +3,7 @@
  *
  * Covers apps/api/routes/recurringTasks/recurringTasksContractRouter.ts. All
  * routes require authentication (requireAuth applied at the /api/recurring-tasks
- * prefix in routes.ts) AND are gated behind the RECURRING_TASKS_ENABLED flag.
+ * prefix in routes.ts).
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
