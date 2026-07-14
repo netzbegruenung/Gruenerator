@@ -37,6 +37,13 @@ export interface CreateNotificationParams {
   metadata?: Record<string, unknown> | undefined;
   actionUrl?: string | undefined;
   groupKey?: string | undefined;
+  /**
+   * Per-call channel override. A provided channel replaces the user's stored
+   * preference for THIS notification (in-app stays the durable floor); omitted
+   * channels fall back to `shouldDeliver`. Used e.g. by recurring tasks whose
+   * own email toggle governs the completion email.
+   */
+  channelOverride?: Partial<ChannelPreferences> | undefined;
 }
 
 export interface NotificationListOptions {

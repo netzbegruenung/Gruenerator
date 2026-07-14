@@ -136,6 +136,7 @@ function AgentEditor({
               agentIdentifier: agentId,
               recurrence: scheduleToRecurrence(schedule),
               delivery: schedule.delivery,
+              emailNotify: schedule.emailNotify,
               timezone: schedule.timezone,
               locale: form.locale,
               enabled: true,
@@ -160,6 +161,7 @@ function AgentEditor({
               instruction: form.systemRole.trim(),
               recurrence: scheduleToRecurrence(schedule),
               delivery: schedule.delivery,
+              emailNotify: schedule.emailNotify,
               timezone: schedule.timezone,
             },
           });
