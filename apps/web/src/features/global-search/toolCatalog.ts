@@ -85,13 +85,40 @@ const CATALOG: ToolCatalogEntry[] = [
     icon: nav('vorlagen'),
     keywords: ['vorlagen', 'vorlage', 'template', 'design'],
   },
+  // ids/paths mirror the getDirectMenuItems() nav entries so featureIndex
+  // dedupes them (catalog is indexed first → its richer keywords win), while
+  // each type gets its own synonym set for search.
   {
-    id: 'tool-docs',
-    title: 'Dokumente & Boards',
-    subtitle: 'Schreiben, Boards & Präsentationen',
+    id: 'docs',
+    title: 'Docs',
+    subtitle: 'Dokumente schreiben',
     path: '/docs',
     icon: nav('docs'),
-    keywords: ['docs', 'dokument', 'text', 'schreiben', 'boards', 'praesentation', 'sheets'],
+    keywords: ['docs', 'dokument', 'text', 'schreiben', 'brief', 'antrag'],
+  },
+  {
+    id: 'boards',
+    title: 'Boards',
+    subtitle: 'Planen & organisieren',
+    path: '/boards',
+    icon: nav('boards'),
+    keywords: ['boards', 'board', 'kanban', 'planen', 'aufgaben', 'todo', 'whiteboard'],
+  },
+  {
+    id: 'sheets',
+    title: 'Tabellen',
+    subtitle: 'Daten & Kalkulationen',
+    path: '/sheets',
+    icon: nav('sheets'),
+    keywords: ['tabellen', 'tabelle', 'sheet', 'excel', 'kalkulation', 'budget', 'daten'],
+  },
+  {
+    id: 'presentations',
+    title: 'Präsentationen',
+    subtitle: 'Folien & Vorträge',
+    path: '/presentations',
+    icon: nav('presentations'),
+    keywords: ['praesentation', 'praesi', 'folien', 'slides', 'vortrag', 'pitch', 'deck'],
   },
   {
     id: 'tool-notebooks',
