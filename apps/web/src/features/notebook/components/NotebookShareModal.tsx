@@ -23,7 +23,8 @@ import {
   Separator,
   Switch,
 } from '@gruenerator/ui';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FiCheck, FiCopy } from 'react-icons/fi';
 import { HiTrash } from 'react-icons/hi';
 
 import { useAuthStore } from '../../../stores/authStore';
@@ -48,8 +49,34 @@ import type {
 
 interface NotebookShareModalProps {
   notebookId: string;
+  /** Absolute URL of the notebook's viewer page, used for the copy-link row. */
+  shareUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function ShareLinkRow({ shareUrl }: { shareUrl: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    void navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [shareUrl]);
+
+  return (
+    <div className="flex gap-xs">
+      <input
+        readOnly
+        value={shareUrl}
+        onFocus={(e) => e.currentTarget.select()}
+        className="flex-1 rounded-md border border-grey-200 bg-grey-50 px-sm py-xs text-xs text-grey-600 outline-none dark:border-grey-700 dark:bg-grey-800 dark:text-grey-300"
+      />
+      <Button size="sm" variant="outline" onClick={handleCopy} className="gap-xs">
+        {copied ? <FiCheck size={14} /> : <FiCopy size={14} />}
+        {copied ? 'Kopiert' : 'Link kopieren'}
+      </Button>
+    </div>
+  );
 }
 
 const SHARE_MODE_LABELS: Record<NotebookShareMode, string> = {
@@ -64,7 +91,12 @@ const EDIT_POLICY_LABELS: Record<NotebookEditPolicy, string> = {
   all_members: 'Alle Mitglieder der geteilten Gruppen',
 };
 
-export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookShareModalProps) {
+export function NotebookShareModal({
+  notebookId,
+  shareUrl,
+  open,
+  onOpenChange,
+}: NotebookShareModalProps) {
   const settingsQuery = useNotebookShareSettings(notebookId, open);
   const groupSharesQuery = useNotebookGroupShares(notebookId, open);
   const myGroupsQuery = useMyGroupsForSharing(open);
@@ -149,6 +181,25 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <p className="mb-xs text-sm font-semibold">Link zum Teilen</p>
+              {shareMode === 'private' ? (
+                <p className="text-xs text-grey-500">
+                  Solange das Notebook privat ist, kann nur die Eigentümer*in es öffnen. Stelle die
+                  Sichtbarkeit oben um, um einen Link zu teilen.
+                </p>
+              ) : (
+                <>
+                  <ShareLinkRow shareUrl={shareUrl} />
+                  <p className="mt-xs text-xs text-grey-500">
+                    {shareMode === 'authenticated'
+                      ? 'Eingeloggte Nutzer*innen mit diesem Link können das Notebook öffnen.'
+                      : 'Mitglieder der geteilten Gruppen können das Notebook über diesen Link öffnen.'}
+                  </p>
+                </>
+              )}
             </div>
 
             {shareMode === 'groups' ? (
