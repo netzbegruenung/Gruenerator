@@ -33,11 +33,24 @@ const VERB_FIRST_RE =
 const CHITCHAT_RE =
   /^(hallo|hi|hey|servus|moin|na\b|guten (morgen|tag|abend)|danke|thx|wer bist du|was (kannst|bist) du|wie geht|wie heißt du|hilfe|test)\b/i;
 
+// Personal-data asks ("meine Dokumente", "zeig meine offenen Aufgaben", "welche
+// Boards habe ich") don't always carry a question word — a bare possessive + a
+// personal-content noun ("meine Boards") slips both the question-word and
+// verb-first nets. Route them into the loop so the personal-data resource tools
+// (find_content/documents/boards_tasks/notebooks) are reachable.
+const PERSONAL_DATA_RE =
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
+
 export function looksLikeToolableQuestion(raw: string): boolean {
   const t = (raw ?? '').trim();
   if (t.split(/\s+/).filter(Boolean).length < 3) return false;
   if (CHITCHAT_RE.test(t)) return false;
-  return t.includes('?') || TOOLABLE_QUESTION_RE.test(t) || VERB_FIRST_RE.test(t);
+  return (
+    t.includes('?') ||
+    TOOLABLE_QUESTION_RE.test(t) ||
+    VERB_FIRST_RE.test(t) ||
+    PERSONAL_DATA_RE.test(t)
+  );
 }
 
 /**
