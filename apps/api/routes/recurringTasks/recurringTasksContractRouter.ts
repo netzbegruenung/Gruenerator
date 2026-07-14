@@ -1,9 +1,8 @@
 /**
  * EXPERIMENTAL — ts-rest contract router for recurring agent task CRUD.
  *
- * requireAuth is applied at the /api/recurring-tasks prefix in routes.ts, and the
- * whole mount is gated behind env.RECURRING_TASKS_ENABLED. Owner-scoped throughout
- * (getAuthedUser); mirrors userAgentsContractRouter.
+ * requireAuth is applied at the /api/recurring-tasks prefix in routes.ts. Owner-scoped
+ * throughout (getAuthedUser); mirrors userAgentsContractRouter.
  */
 import { recurringTasksContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
@@ -129,8 +128,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
 });
 
 /**
- * Mount the ts-rest recurring-tasks contract router. Call from routes.ts ONLY when
- * env.RECURRING_TASKS_ENABLED is on. requireAuth is applied at the prefix.
+ * Mount the ts-rest recurring-tasks contract router. requireAuth is applied at the prefix.
  */
 export function mountRecurringTasksContractRouter(app: Application): void {
   createExpressEndpoints(recurringTasksContract, recurringTasksContractRouter, app, {

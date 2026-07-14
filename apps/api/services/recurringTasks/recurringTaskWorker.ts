@@ -4,8 +4,8 @@
  * Built on the shared createIntervalWorker. Each tick claims due tasks
  * (FOR UPDATE SKIP LOCKED → cluster-safe, advances next_run_at in the txn) and runs
  * each through recurringTaskRunner. Unlike the board schedule worker there is no
- * separate queue: the runner executes the agent + delivers inline. Gated by
- * env.RECURRING_TASKS_ENABLED at the call site (server.ts).
+ * separate queue: the runner executes the agent + delivers inline. Started from
+ * server.ts.
  */
 import { createIntervalWorker } from '../../utils/intervalWorker.js';
 
