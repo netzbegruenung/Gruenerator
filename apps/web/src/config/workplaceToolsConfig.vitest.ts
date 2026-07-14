@@ -14,13 +14,23 @@ const byId = (id: string): WorkplaceToolItem => {
   return tool;
 };
 
+// The catalog currently has no external-link entries, so build one to exercise
+// the `href` branch of the favouritable guard.
+const externalTool: WorkplaceToolItem = {
+  id: 'external-fixture',
+  title: 'External',
+  description: '',
+  href: 'https://example.com',
+  icon: byId('vorlagen').icon,
+};
+
 describe('isFavouritableTool', () => {
   it('accepts internal-route tools', () => {
     expect(isFavouritableTool(byId('vorlagen'))).toBe(true);
   });
 
   it('rejects external-link tools', () => {
-    expect(isFavouritableTool(byId('newsletter'))).toBe(false);
+    expect(isFavouritableTool(externalTool)).toBe(false);
   });
 });
 
@@ -64,7 +74,7 @@ describe('sidebar favourites registration', () => {
     expect(getFavouriteItemsById(['vorlagen'])).toHaveLength(1);
   });
 
-  it('does not register external-link workplace tools', () => {
-    expect(isFavouritableItem('newsletter')).toBe(false);
+  it('does not register unknown tool ids', () => {
+    expect(isFavouritableItem('external-fixture')).toBe(false);
   });
 });
