@@ -68,7 +68,6 @@ import { mountNotificationsContractRouter } from './routes/notifications/notific
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
-import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
@@ -128,6 +127,7 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
