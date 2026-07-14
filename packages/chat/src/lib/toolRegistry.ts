@@ -45,6 +45,12 @@ export const UI_TOOL_NAMES = z.enum([
   'ask_human',
   'run_python',
   'mcp_tool',
+  'find_content',
+  'documents',
+  'boards_tasks',
+  'groups',
+  'media',
+  'notebooks',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -151,6 +157,18 @@ function parseLinkPreviewVM(args: unknown, result: unknown): ToolResultVM {
   };
 }
 
+// Personal-data resource tools (find_content/documents/boards_tasks/notebooks)
+// return `{ results: [{title, url, snippet}] }` for list/search actions → a
+// clickable citation list; other actions (get/get_cards) return a detail object
+// → the generic key-value fallback. One parser covers both.
+function parsePersonalDataVM(args: unknown, result: unknown): ToolResultVM {
+  const items = getArray(result, 'results');
+  if (items && items.length) {
+    return { kind: 'citations', citations: parseSearchCitations(result) };
+  }
+  return parseGenericFallback(args, result);
+}
+
 function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['parse']) {
   return { meta: getToolMeta(name), kind, parse };
 }
@@ -200,6 +218,12 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   ask_human: entry('ask_human', 'interactive', () => ({ kind: 'interactive' })),
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
+  find_content: entry('find_content', 'citations', parsePersonalDataVM),
+  documents: entry('documents', 'citations', parsePersonalDataVM),
+  boards_tasks: entry('boards_tasks', 'citations', parsePersonalDataVM),
+  groups: entry('groups', 'citations', parsePersonalDataVM),
+  media: entry('media', 'citations', parsePersonalDataVM),
+  notebooks: entry('notebooks', 'citations', parsePersonalDataVM),
 };
 
 /** Lookup that degrades gracefully for unregistered tool names. */
