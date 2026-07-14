@@ -62,6 +62,8 @@ import {
   sitesContract,
   subtitlerContract,
   reisekostenContract,
+  imagePickerContract,
+  sharesReadContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -217,6 +219,8 @@ const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
+const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
+const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -264,6 +268,8 @@ export interface ContractsClient {
   sites: ReturnType<typeof _sitesClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
   reisekosten: ReturnType<typeof _reisekostenClient>;
+  imagePicker: ReturnType<typeof _imagePickerClient>;
+  sharesRead: ReturnType<typeof _sharesReadClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -328,6 +334,8 @@ export function getContractsClient(): ContractsClient {
     sites: _sitesClient(),
     subtitler: _subtitlerClient(),
     reisekosten: _reisekostenClient(),
+    imagePicker: _imagePickerClient(),
+    sharesRead: _sharesReadClient(),
   };
 
   return _client;
