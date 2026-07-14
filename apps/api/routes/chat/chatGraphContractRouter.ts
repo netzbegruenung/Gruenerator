@@ -34,7 +34,11 @@ import {
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
-import { compoundGenerationKind, decideRunAgentic } from './services/agenticLoop/routing.js';
+import {
+  compoundGenerationKind,
+  looksLikeCompoundEdit,
+  decideRunAgentic,
+} from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
@@ -102,6 +106,19 @@ const log = createLogger('chatGraphContractRouter');
 
 /** Cap best-effort past-chat recall so it never delays the user-facing stream. */
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
+
+/** Render the loop's gathered sources into a reference block for a compound-edit
+ *  turn — the material the docs/boards AI composes the insert from (title +
+ *  content per source, capped so the docs-AI system prompt stays bounded). */
+function renderReferenceFromResults(results: ChatGraphState['searchResults'] | undefined): string {
+  if (!results?.length) return '';
+  const block = results
+    .slice(0, 12)
+    .map((r) => `${r.title ?? 'Quelle'}\n${(r.content ?? '').trim()}`)
+    .filter((s2) => s2.trim())
+    .join('\n\n---\n\n');
+  return block.length > 8000 ? block.slice(0, 8000) : block;
+}
 
 const s = initServer();
 
@@ -619,8 +636,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // "mach mir eine Tabelle draus" (which only reaches direct@0.50 → agentic)
       // still mounts the sheet tool. Computed AFTER the app platform gate +
       // refinement branches, so app redirects and refinements are unaffected.
+      // Editor sidebars (docs/sheets/presentations/boards) EDIT the open
+      // document — never create a NEW one. Signalled by an edit_current_* tool
+      // being enabled + a current doc/board in scope.
+      const isEditorSurface =
+        enabledTools?.['edit_current_doc'] === true ||
+        enabledTools?.['edit_current_board'] === true;
+      const editTarget: 'doc' | 'board' | null = rawCurrentDocument?.id
+        ? 'doc'
+        : rawCurrentBoard?.id
+          ? 'board'
+          : null;
       const compoundKind =
-        !forcedTool && !sharepicRefinement
+        !forcedTool && !sharepicRefinement && !isEditorSurface
           ? compoundGenerationKind(classifiedState.intent, lastUserText)
           : null;
       const compoundGeneration = compoundKind != null;
@@ -628,20 +656,31 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.compoundGeneration = true;
         classifiedState.compoundGenerationKind = compoundKind;
       }
+      // Compound "research + edit the OPEN doc/board": research loop, then emit
+      // the doc/board edit with the gathered sources as reference material. Only
+      // in an editor surface with a current target and both a research + edit
+      // signal — pure edits stay single-pass, pure research stays a normal loop.
+      const compoundEdit =
+        isEditorSurface && editTarget != null && !forcedTool && looksLikeCompoundEdit(lastUserText);
+      if (compoundEdit) classifiedState.compoundEdit = true;
       // The whole routing decision lives in the pure, unit-tested decideRunAgentic
       // (agenticLoop/routing.ts) — including the `direct`-question rescue.
-      const runAgentic = decideRunAgentic({
-        loopEnabled: isAgenticLoopEnabled(),
-        agenticIntents: AGENTIC_INTENTS,
-        intent: classifiedState.intent,
-        lastUserText,
-        forcedTool: !!forcedTool,
-        isMcpTurn,
-        isCompound,
-        secondaryIntent: classifiedState.secondaryIntent ?? null,
-        compoundGeneration,
-        hasImageAttachments: imageAttachments.length > 0,
-      });
+      // compoundEdit forces the loop even for an edit_current_* intent (which
+      // isn't otherwise a loop intent).
+      const runAgentic =
+        compoundEdit ||
+        decideRunAgentic({
+          loopEnabled: isAgenticLoopEnabled(),
+          agenticIntents: AGENTIC_INTENTS,
+          intent: classifiedState.intent,
+          lastUserText,
+          forcedTool: !!forcedTool,
+          isMcpTurn,
+          isCompound,
+          secondaryIntent: classifiedState.secondaryIntent ?? null,
+          compoundGeneration,
+          hasImageAttachments: imageAttachments.length > 0,
+        });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
       // of the loop must not strand in executeIntentPipeline, which has no
@@ -1328,7 +1367,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // "Substantive" = ≥200 chars, which skips the brief edit-confirmation
       // ("Ich passe das Dokument an…") that respondNode itself just emitted
       // and lands on the earlier turn that actually contains the content.
-      if (finalState.intent === 'edit_current_doc' && rawCurrentDocument?.id) {
+      // compoundEdit (research + edit) forces this even when the intent isn't
+      // edit_current_doc: the research loop just ran, and its gathered sources
+      // become the reference material (instead of a prior assistant turn).
+      if (
+        (finalState.intent === 'edit_current_doc' || (compoundEdit && editTarget === 'doc')) &&
+        rawCurrentDocument?.id
+      ) {
         const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
         const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
         const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
@@ -1338,17 +1383,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             .reverse()
             .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
             .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
-        const cappedPrev =
-          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        const referenceContent = compoundEdit
+          ? renderReferenceFromResults(finalState.searchResults)
+          : prevAssistantText.length > 8000
+            ? prevAssistantText.slice(0, 8000)
+            : prevAssistantText;
         const hasSelection = !!rawCurrentDocument.selectionText;
         sse.send('trigger_doc_edit', {
           targetDocumentId: rawCurrentDocument.id,
           userPrompt: lastUserText,
           useSelection: hasSelection,
-          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+          ...(referenceContent.trim() ? { referenceContent } : {}),
         });
         log.info(
-          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, refContentChars: ${cappedPrev.length})`
+          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, compoundEdit: ${compoundEdit}, refContentChars: ${referenceContent.length})`
         );
       }
 
@@ -1357,7 +1405,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // with the user's prompt. The boards-editor frontend calls POST
       // /api/boards/:id/ai to plan operations, then applies them to the live
       // Yjs board. ChatGraph never edits the board itself — classify + forward.
-      if (finalState.intent === 'edit_current_board' && rawCurrentBoard?.id) {
+      if (
+        (finalState.intent === 'edit_current_board' || (compoundEdit && editTarget === 'board')) &&
+        rawCurrentBoard?.id
+      ) {
         const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
         const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
         const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
@@ -1367,15 +1418,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             .reverse()
             .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
             .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
-        const cappedPrev =
-          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        const referenceContent = compoundEdit
+          ? renderReferenceFromResults(finalState.searchResults)
+          : prevAssistantText.length > 8000
+            ? prevAssistantText.slice(0, 8000)
+            : prevAssistantText;
         sse.send('trigger_board_action', {
           targetBoardId: rawCurrentBoard.id,
           userPrompt: lastUserText,
-          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+          ...(referenceContent.trim() ? { referenceContent } : {}),
         });
         log.info(
-          `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (refContentChars: ${cappedPrev.length})`
+          `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (compoundEdit: ${compoundEdit}, refContentChars: ${referenceContent.length})`
         );
       }
 
