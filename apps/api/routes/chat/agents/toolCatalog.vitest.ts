@@ -247,7 +247,13 @@ describe('toolCatalog domain tool mounting', () => {
           TOOL_FOR[kind]
         );
       }
+      // generate_image is also a NEW artifact — gated off in an editor surface.
+      expect(
+        genCatalog({ intent: 'agentic', kind: null, enabledTools: { [editKey]: true } }).toolNames
+      ).not.toContain('generate_image');
     }
+    // Control: outside an editor surface, generate_image still mounts on agentic.
+    expect(genCatalog({ intent: 'agentic', kind: null }).toolNames).toContain('generate_image');
   });
 });
 

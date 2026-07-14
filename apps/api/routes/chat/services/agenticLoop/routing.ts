@@ -76,18 +76,35 @@ export function looksLikeCompoundGeneration(raw: string): boolean {
 const EDIT_SIGNAL_RE =
   /\b(einf[üu]g\w*|hinzuf[üu]g\w*|erg[äa]nz\w*|[üu]berarbeit\w*|aktualisier\w*|einarbeit\w*|einbau\w*|einpfleg\w*)\b|\bf[üu]g\w*\b[^.?!]*\b(hinzu|ein)\b|\b(als|ins?|in die|in der|in den)\s+(folie|abschnitt|dokument|tabelle|pr[äa]sentation|kapitel|spalte|zeile|karte|liste)\b/i;
 
+// An EXPLICIT research verb (not the broad RESEARCH_SIGNAL_RE, whose content
+// nouns "aktuell/programm/position/daten" are everyday words in a pure edit like
+// "Aktualisiere die Daten in der Tabelle" or "Überarbeite die aktuelle Folie" —
+// those must stay single-pass, not force a research loop).
+const RESEARCH_VERB_RE = /\b(recherchier\w*|such\w*|finde|informier\w*|nachschlag\w*|google)\b/i;
+
 /**
  * A compound "research + edit the OPEN doc/board" turn (editor sidebars only):
- * an explicit research signal AND an edit instruction. The caller gates this on
- * an editor surface (an edit_current_* tool enabled + a current doc/board), then
+ * an EXPLICIT research verb AND an edit instruction. The caller gates this on an
+ * editor surface (an edit_current_* tool enabled + a current doc/board), then
  * runs the research loop and emits the doc/board edit with the freshly-gathered
  * sources as reference material. Pure edits ("füge eine Abschlussfolie hinzu" —
- * no research) stay single-pass; pure research (no edit verb) stays a normal
- * loop answer.
+ * no research; "Aktualisiere die Daten" — a content noun but no research verb)
+ * stay single-pass; pure research (no edit verb) stays a normal loop answer.
  */
 export function looksLikeCompoundEdit(raw: string): boolean {
   const t = (raw ?? '').trim();
-  return RESEARCH_SIGNAL_RE.test(t) && EDIT_SIGNAL_RE.test(t);
+  return RESEARCH_VERB_RE.test(t) && EDIT_SIGNAL_RE.test(t);
+}
+
+/**
+ * Editor-surface predicate shared by the router and the tool catalog so both
+ * layers agree on "this sidebar edits the open artifact and must never spawn a
+ * NEW one". Keyed on an edit_current_* tool being enabled.
+ */
+export function isEditorSurface(enabledTools: Record<string, boolean> | undefined): boolean {
+  return (
+    enabledTools?.['edit_current_doc'] === true || enabledTools?.['edit_current_board'] === true
+  );
 }
 
 export type CompoundGenerationKind = 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board';

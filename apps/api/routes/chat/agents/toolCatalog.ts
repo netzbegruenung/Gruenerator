@@ -36,6 +36,7 @@ import { z } from 'zod';
 import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
+import { isEditorSurface } from '../services/agenticLoop/routing.js';
 
 import {
   makeAbgeordnetenwatchTool,
@@ -200,12 +201,17 @@ NUTZE WENN:
     tools.summarize = makeSummaryTool({ sse, state });
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
+    // — they must never spawn a NEW artifact (image OR create fat tool). Gated
+    // server-side (the frontend not setting the tools:false is not enough).
+    const editorSurface = isEditorSurface(state.enabledTools);
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
     // 'agentic' (demoted) turns also mount it — image phrasings the confident
     // heuristic misses land there; idempotency + forceFinish cap quota at one
-    // image per turn.
+    // image per turn. Never in an editor surface (that would create a new image).
     if (
+      !editorSurface &&
       (state.intent === 'image' || state.intent === 'agentic') &&
       state.enabledTools?.['image'] !== false
     ) {
@@ -218,14 +224,7 @@ NUTZE WENN:
     // The sharepic key is load-bearing (`sharepic` drives card rehydration +
     // follow-up edits); presentation/sheet/document persist via createdDocument;
     // board renders from the `done` event.
-    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
-    // — they must never spawn a NEW artifact. Signalled by an edit-current-*
-    // tool being enabled. Gate the create fat tools off entirely there (the
-    // frontend not setting create_*:false is not enough — enforce server-side).
-    const isEditorSurface =
-      state.enabledTools?.['edit_current_doc'] === true ||
-      state.enabledTools?.['edit_current_board'] === true;
-    if (state.compoundGeneration === true && loop.req && !isEditorSurface) {
+    if (state.compoundGeneration === true && loop.req && !editorSurface) {
       const kind = state.compoundGenerationKind;
       const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
       if (kind === 'sharepic' && enabled('sharepic')) {
