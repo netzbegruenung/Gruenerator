@@ -33,6 +33,7 @@ import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   ChatGraphState,
+  CreatedDocument,
   GeneratedImageResult,
   ResearchToolResult,
   SearchResult,
@@ -263,6 +264,9 @@ export interface PersistParams {
   sharepicVariants: SharepicVariant[];
   /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
   socialPost?: SocialPostPayload | null;
+  /** Presentation/sheet created by a compound loop turn — persisted as message
+   *  metadata so the document card rehydrates on reload. */
+  createdDocument?: CreatedDocument | null;
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
@@ -293,6 +297,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     generatedImage,
     sharepicVariants,
     socialPost,
+    createdDocument,
     isNewThread,
     lastUserMessage,
     processedMeta,
@@ -303,7 +308,11 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     agenticSteps,
   } = params;
 
-  if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
+  if (
+    !threadId ||
+    (!fullText && !generatedImage && sharepicVariants.length === 0 && !createdDocument)
+  )
+    return;
 
   try {
     // Agentic loop: persist the real executed steps (already in the
@@ -336,6 +345,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             generationTimeMs: generatedImage.generationTimeMs,
           }
         : undefined,
+      // Presentation/sheet from a compound loop turn — same metadata shape the
+      // single-pass handlers persist, so the document card rehydrates on reload.
+      ...(createdDocument && { createdDocument }),
       // Deterministic calculation (computeNode / run_python) incl. base64
       // figures/files (capped) so the Berechnung card survives reloads. Gated
       // on computedResultFresh: clients forward the LAST result with every

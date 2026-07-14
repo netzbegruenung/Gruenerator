@@ -5,6 +5,8 @@ import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js'
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateBoardTool,
+  makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
@@ -25,8 +27,12 @@ vi.mock('../../../agents/langgraph/ChatGraph/nodes/imageNode.js', () => ({
   imageNode: (s: unknown): Promise<unknown> => imageNode(s),
 }));
 const runSharepicGeneration = vi.fn<(o: unknown) => Promise<unknown>>();
+const runDocGeneration = vi.fn<(o: unknown) => Promise<unknown>>();
+const runBoardGeneration = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../services/intentExecutionService.js', () => ({
   runSharepicGeneration: (o: unknown): Promise<unknown> => runSharepicGeneration(o),
+  runDocGeneration: (o: unknown): Promise<unknown> => runDocGeneration(o),
+  runBoardGeneration: (o: unknown): Promise<unknown> => runBoardGeneration(o),
 }));
 
 type SseEvent = { type: string; payload: unknown };
@@ -359,5 +365,182 @@ describe('makeCreateSharepicTool (Phase 3n fat tool)', () => {
     const out = (await exec(makeTool(state), { text: 'a' })) as { ok: boolean };
     expect(out.ok).toBe(true);
     expect(runSharepicGeneration).not.toHaveBeenCalled();
+  });
+});
+
+describe('makeCreateDocTool (compound presentation/sheet fat tool)', () => {
+  beforeEach(() => runDocGeneration.mockReset());
+
+  const DOC = {
+    documentId: 'doc-1',
+    title: 'Artenschutz – Grüne Positionen',
+    subtype: 'presentations' as const,
+    url: '/office/doc-1',
+  };
+
+  function makeTool(
+    kind: 'presentation' | 'sheet' | 'document',
+    state: ChatGraphState,
+    events: SseEvent[] = []
+  ) {
+    return makeCreateDocTool({
+      kind,
+      sse: fakeSse(events) as Parameters<typeof makeCreateDocTool>[0]['sse'],
+      state,
+      req: {} as Parameters<typeof makeCreateDocTool>[0]['req'],
+    });
+  }
+
+  const withUser = (over: Partial<ChatGraphState> = {}): ChatGraphState =>
+    ({
+      ...baseState,
+      intent: 'create_presentation',
+      agentConfig: { userId: 'u1' },
+      aiWorkerPool: {},
+      createdDocument: null,
+      ...over,
+    }) as unknown as ChatGraphState;
+
+  it('passes the researched prompt through, emits document_created, merges state, returns the card', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    const events: SseEvent[] = [];
+    const state = withUser();
+
+    const out = (await exec(makeTool('presentation', state, events), {
+      prompt: 'Artenschutz: Wiedervernässung von Mooren, Flächenstilllegung, [1][2]',
+    })) as { document: typeof DOC; note: string };
+
+    const passed = runDocGeneration.mock.calls[0][0] as { kind: string; userContent: string };
+    expect(passed.kind).toBe('presentation');
+    expect(passed.userContent).toContain('Artenschutz');
+    expect(out.document).toEqual(DOC);
+    expect(state.createdDocument).toEqual(DOC);
+    const created = events.find((e) => e.type === 'document_created');
+    expect(created?.payload).toEqual(DOC);
+  });
+
+  it('is idempotent per turn: a second call never regenerates', async () => {
+    runDocGeneration.mockResolvedValue(DOC);
+    const state = withUser();
+    const tool = makeTool('presentation', state);
+
+    await exec(tool, { prompt: 'a' });
+    const second = (await exec(tool, { prompt: 'völlig anderer auftrag' })) as {
+      ok: boolean;
+      note: string;
+    };
+    expect(second.ok).toBe(true);
+    expect(second.note).toMatch(/NICHT erneut/);
+    expect(runDocGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('failure returns {error} WITHOUT merging state — a retry stays possible', async () => {
+    runDocGeneration.mockResolvedValueOnce(null);
+    runDocGeneration.mockResolvedValueOnce(DOC);
+    const state = withUser();
+    const tool = makeTool('sheet', state);
+
+    const failed = (await exec(tool, { prompt: 'a' })) as { error: string };
+    expect(failed.error).toMatch(/fehlgeschlagen/);
+    expect(state.createdDocument ?? null).toBeNull();
+    const retried = (await exec(tool, { prompt: 'b' })) as { document: typeof DOC };
+    expect(retried.document).toEqual(DOC);
+    expect(runDocGeneration).toHaveBeenCalledTimes(2);
+  });
+
+  it('no user session → {error}, never calls the generator', async () => {
+    const state = withUser({ agentConfig: {} as ChatGraphState['agentConfig'] });
+    const out = (await exec(makeTool('presentation', state), { prompt: 'a' })) as { error: string };
+    expect(out.error).toMatch(/nicht möglich/);
+    expect(runDocGeneration).not.toHaveBeenCalled();
+  });
+
+  it('kind=document generates a text doc (dynamic subtype) and emits the card', async () => {
+    const TEXTDOC = {
+      documentId: 'd9',
+      title: 'Positionspapier Artenschutz',
+      subtype: 'docs',
+      url: '/office/d9',
+    };
+    runDocGeneration.mockResolvedValue(TEXTDOC);
+    const events: SseEvent[] = [];
+    const state = withUser({ intent: 'agentic' });
+    const out = (await exec(makeTool('document', state, events), {
+      prompt: 'Positionspapier zum Artenschutz mit den recherchierten Fakten',
+    })) as { document: typeof TEXTDOC };
+    expect((runDocGeneration.mock.calls[0][0] as { kind: string }).kind).toBe('document');
+    expect(out.document).toEqual(TEXTDOC);
+    expect(state.createdDocument).toEqual(TEXTDOC);
+    expect(events.find((e) => e.type === 'document_created')?.payload).toEqual(TEXTDOC);
+  });
+});
+
+describe('makeCreateBoardTool (compound board fat tool)', () => {
+  beforeEach(() => runBoardGeneration.mockReset());
+
+  const BOARD = {
+    boardId: 'b1',
+    title: 'Artenschutz-Maßnahmen',
+    boardGeneratedStructure: { rows: [] },
+  };
+
+  const withUser = (over: Partial<ChatGraphState> = {}): ChatGraphState =>
+    ({
+      ...baseState,
+      intent: 'agentic',
+      agentConfig: { userId: 'u1' },
+      aiWorkerPool: {},
+      createdBoard: null,
+      ...over,
+    }) as unknown as ChatGraphState;
+
+  function makeTool(state: ChatGraphState) {
+    return makeCreateBoardTool({
+      state,
+      req: {} as Parameters<typeof makeCreateBoardTool>[0]['req'],
+    });
+  }
+
+  it('creates the board, stashes state.createdBoard, returns id + link note (NO document_created)', async () => {
+    runBoardGeneration.mockResolvedValue(BOARD);
+    const state = withUser();
+    const out = (await exec(makeTool(state), { prompt: 'Aufgaben zum Artenschutz' })) as {
+      board: { boardId: string };
+      note: string;
+    };
+    expect(out.board.boardId).toBe('b1');
+    expect(out.note).toMatch(/boards\/b1/);
+    // Shared-ref merge for the router's done-event lift.
+    expect(state.createdBoard).toEqual(BOARD);
+  });
+
+  it('is idempotent per turn: a second call never regenerates', async () => {
+    runBoardGeneration.mockResolvedValue(BOARD);
+    const state = withUser();
+    const tool = makeTool(state);
+    await exec(tool, { prompt: 'a' });
+    const second = (await exec(tool, { prompt: 'anders' })) as { ok: boolean; note: string };
+    expect(second.ok).toBe(true);
+    expect(second.note).toMatch(/NICHT erneut/);
+    expect(runBoardGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('failure returns {error} WITHOUT merging state — retry stays possible', async () => {
+    runBoardGeneration.mockResolvedValueOnce(null);
+    runBoardGeneration.mockResolvedValueOnce(BOARD);
+    const state = withUser();
+    const tool = makeTool(state);
+    const failed = (await exec(tool, { prompt: 'a' })) as { error: string };
+    expect(failed.error).toMatch(/fehlgeschlagen/);
+    expect(state.createdBoard ?? null).toBeNull();
+    const retried = (await exec(tool, { prompt: 'b' })) as { board: { boardId: string } };
+    expect(retried.board.boardId).toBe('b1');
+  });
+
+  it('no user session → {error}, never calls the generator', async () => {
+    const state = withUser({ agentConfig: {} as ChatGraphState['agentConfig'] });
+    const out = (await exec(makeTool(state), { prompt: 'a' })) as { error: string };
+    expect(out.error).toMatch(/nicht möglich/);
+    expect(runBoardGeneration).not.toHaveBeenCalled();
   });
 });
