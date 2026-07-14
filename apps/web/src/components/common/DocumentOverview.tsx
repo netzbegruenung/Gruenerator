@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,6 @@ import { useFilteredAndGroupedItems } from '../../hooks/useFilteredAndGroupedIte
 import { useSearchState } from '../../hooks/useSearchState';
 import { useExportStore } from '../../stores/core/exportStore';
 import { cn } from '../../utils/cn';
-import apiClient from '../utils/apiClient';
 import {
   truncateForPreview,
   stripMarkdownForPreview,
@@ -505,15 +505,13 @@ const DocumentOverview = ({
     setPreviewError(null);
 
     try {
-      interface DocContentResponse {
-        data: { ocr_text?: string; markdown_content?: string };
+      const res = await getContractsClient().documents.getContent({ params: { id: item.id } });
+      if (res.status !== 200) {
+        throw new Error('Dokument-Inhalt konnte nicht geladen werden');
       }
-      const response = await apiClient.get<DocContentResponse>(`/documents/${item.id}/content`);
-      const data = response.data;
       const enhancedItem: DocumentItem = {
         ...item,
-        full_content: data.data.ocr_text ?? 'Kein Text extrahiert',
-        markdown_content: data.data.markdown_content,
+        full_content: res.body.data.ocr_text ?? 'Kein Text extrahiert',
       };
 
       setSelectedItem(enhancedItem);
@@ -535,12 +533,11 @@ const DocumentOverview = ({
     const existing = item.markdown_content || item.full_content || item.ocr_text;
     if (existing) return existing;
 
-    interface DocContentResponse {
-      data: { ocr_text?: string; markdown_content?: string };
+    const res = await getContractsClient().documents.getContent({ params: { id: item.id } });
+    if (res.status !== 200) {
+      throw new Error('Dokument-Inhalt konnte nicht geladen werden');
     }
-    const response = await apiClient.get<DocContentResponse>(`/documents/${item.id}/content`);
-    const data = response.data;
-    return data.data.markdown_content ?? data.data.ocr_text ?? '';
+    return res.body.data.ocr_text ?? '';
   };
 
   const handleExportDOCX = async (item: DocumentItem) => {
