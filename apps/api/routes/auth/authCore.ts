@@ -18,7 +18,7 @@ import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
 import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
 
-import type { AuthRequest, LocaleUpdateBody } from './types.js';
+import type { AuthRequest } from './types.js';
 
 const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -228,6 +228,10 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
 // shape; the old `res.json({ user: req.user })` duplicate here was dead,
 // shadowed code and has been removed.
 
+// NOTE: `PUT /locale` is owned by the ts-rest `userProfileContract`
+// (userProfileContractRouter), which mounts before this router. It persists the
+// locale AND refreshes Better Auth's session cookie cache so the switch is
+// visible immediately. `GET /locale` remains here as a simple session read.
 router.get('/locale', ensureAuthenticated, (req: AuthRequest, res: Response): void => {
   try {
     const userLocale = req.user?.locale || 'de-DE';
@@ -237,34 +241,5 @@ router.get('/locale', ensureAuthenticated, (req: AuthRequest, res: Response): vo
     res.status(500).json({ success: false, error: 'Failed to get locale' });
   }
 });
-
-router.put(
-  '/locale',
-  ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const { locale } = req.body as LocaleUpdateBody;
-
-      if (!locale || !['de-DE', 'de-AT'].includes(locale)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid locale. Must be de-DE or de-AT',
-        });
-        return;
-      }
-
-      const { getProfileService } = await import('../../services/user/ProfileService.js');
-      const profileService = getProfileService();
-
-      await profileService.updateProfile(req.user!.id, { locale });
-      req.user!.locale = locale;
-
-      res.json({ success: true, message: 'Locale updated successfully', locale });
-    } catch (error) {
-      log.error('[Auth /locale PUT] Error:', error);
-      res.status(500).json({ success: false, error: 'Failed to update locale' });
-    }
-  }
-);
 
 export default router;

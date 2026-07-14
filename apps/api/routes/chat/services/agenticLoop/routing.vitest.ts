@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
+  compoundGenerationKind,
   decideRunAgentic,
 } from './routing.js';
 
@@ -241,7 +242,27 @@ describe('decideRunAgentic — battle-test prompts', () => {
     ).toBe(false);
   });
 
-  it('pure sharepic stays single-pass (fixed-text contract) — compoundGeneration false', () => {
+  it('compound research+presentation and research+sheet enter the loop (fat tool per intent)', () => {
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_presentation',
+        compoundGeneration: true,
+        lastUserText:
+          'Recherchiere grüne Positionen zum Artenschutz und erstelle eine Präsentation dazu',
+      })
+    ).toBe(true);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_sheet',
+        compoundGeneration: true,
+        lastUserText: 'Such die aktuellen Zahlen zur Windkraft und mach eine Tabelle draus',
+      })
+    ).toBe(true);
+  });
+
+  it('pure sharepic/presentation stays single-pass (fixed-text contract) — compoundGeneration false', () => {
     expect(
       decideRunAgentic({
         ...base,
@@ -250,15 +271,32 @@ describe('decideRunAgentic — battle-test prompts', () => {
         lastUserText: 'Mach mir ein Sharepic zu Solarenergie',
       })
     ).toBe(false);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_presentation',
+        compoundGeneration: false,
+        lastUserText: 'Erstelle eine Präsentation zu Solarenergie',
+      })
+    ).toBe(false);
   });
 
-  it('compoundGeneration cannot smuggle a NON-sharepic intent into the loop', () => {
-    // The flag is only meaningful for sharepic turns — a mis-set flag on e.g.
-    // social_post must not open the gate.
+  it('compoundGeneration cannot smuggle a NON-generation intent into the loop', () => {
+    // The flag only opens the gate for the generation intents in
+    // COMPOUND_GENERATION_INTENTS — a mis-set flag on e.g. social_post or
+    // save_as_doc must not open it.
     expect(
       decideRunAgentic({
         ...base,
         intent: 'social_post',
+        compoundGeneration: true,
+        lastUserText: 'x',
+      })
+    ).toBe(false);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'save_as_doc',
         compoundGeneration: true,
         lastUserText: 'x',
       })
@@ -283,6 +321,13 @@ describe('looksLikeCompoundGeneration', () => {
     ],
     ['abstimmung + sharepic', 'Wie hat die Fraktion abgestimmt? Pack das in ein Sharepic'],
     ['beschluss + share-pic', 'Mach ein Share-Pic zum BDK-Beschluss über den Kohleausstieg'],
+    [
+      'recherchiere + präsentation',
+      'Recherchiere grüne Positionen zum Artenschutz und erstelle eine Präsentation dazu',
+    ],
+    ['zahlen + folien', 'Such aktuelle Zahlen zur Windkraft und mach Folien daraus'],
+    ['position + tabelle', 'Vergleiche die Positionen zum Tempolimit in einer Tabelle'],
+    ['fakten + sheet', 'Ich brauche ein Sheet mit den Fakten zur Kindergrundsicherung'],
   ];
   it.each(compound)('routes compound research+generation into the loop: %s', (_l, q) => {
     expect(looksLikeCompoundGeneration(q)).toBe(true);
@@ -296,6 +341,8 @@ describe('looksLikeCompoundGeneration', () => {
     ['plain search, no generation noun', 'Recherchiere die Position der Grünen zum Tempolimit'],
     ['plain facts ask', 'Welche aktuellen Zahlen gibt es zur Windkraft?'],
     ['image not sharepic', 'Recherchiere das Thema und mal mir ein Bild dazu'],
+    ['topic-only presentation', 'Erstelle eine Präsentation zu Solarenergie'],
+    ['topic-only sheet', 'Mach mir eine Tabelle für die Mitgliederliste'],
     ['empty', '   '],
   ];
   it.each(singlePass)('keeps a single-pass turn out: %s', (_l, q) => {
@@ -307,5 +354,63 @@ describe('looksLikeCompoundGeneration', () => {
     expect(
       looksLikeCompoundGeneration('Suche nach "Sharepic Vorlagen" und fasse die Fakten zusammen')
     ).toBe(true);
+  });
+});
+
+// compoundGenerationKind decides WHICH fat tool mounts. The critical cases are
+// the DEMOTED (`agentic`) turns: the classifier only reached direct@0.50 for
+// "mach mir eine Tabelle", so the kind must be recovered from the text noun.
+describe('compoundGenerationKind', () => {
+  it('uses the explicit generation intent when the classifier named it', () => {
+    expect(compoundGenerationKind('sharepic', 'Recherchiere X und mach ein Sharepic')).toBe(
+      'sharepic'
+    );
+    expect(
+      compoundGenerationKind('create_presentation', 'Recherchiere X und erstelle eine Präsentation')
+    ).toBe('presentation');
+    expect(compoundGenerationKind('create_sheet', 'Such Zahlen und mach eine Tabelle')).toBe(
+      'sheet'
+    );
+  });
+
+  it('recovers the kind from the text noun on a DEMOTED `agentic` turn (the sheet bug)', () => {
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Such die aktuellen Zahlen zu Balkonkraftwerken und mach mir eine Tabelle draus'
+      )
+    ).toBe('sheet');
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere Artenschutz und mach ein Board dazu')
+    ).toBe('board');
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein Dokument dazu')).toBe(
+      'document'
+    );
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und mach Folien daraus')).toBe(
+      'presentation'
+    );
+    expect(compoundGenerationKind('direct', 'Such Fakten und mach ein Sharepic')).toBe('sharepic');
+  });
+
+  it('returns null without a research signal (pure generation stays single-pass)', () => {
+    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
+  });
+
+  it('returns null for a non-generation turn even with a research signal', () => {
+    expect(compoundGenerationKind('search', 'Recherchiere die Position zum Tempolimit')).toBe(null);
+    expect(compoundGenerationKind('agentic', 'Wie hat die Fraktion abgestimmt?')).toBe(null);
+  });
+
+  it('prefers the most specific artifact when the text names several', () => {
+    // sharepic (most specific product) wins over the generic "Dokument".
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X, mach ein Sharepic und ein Dokument')
+    ).toBe('sharepic');
   });
 });
