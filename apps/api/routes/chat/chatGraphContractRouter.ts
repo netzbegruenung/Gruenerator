@@ -45,6 +45,7 @@ import {
   handleBoardCreation,
   handleSheetCreation,
   handlePresentationCreation,
+  handleRecurringTaskCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
@@ -994,6 +995,29 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(actualThreadId != null && { actualThreadId }),
           userId,
           userContent: lastUserText as string,
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
+      // === EXPERIMENTAL: create_recurring_task intent ===
+      // Flag-gated: only fires when RECURRING_TASKS_ENABLED. Falls through to the
+      // normal pipeline if extraction fails or the flag is off.
+      if (
+        !runAgentic &&
+        process.env.RECURRING_TASKS_ENABLED === 'true' &&
+        classifiedState.intent === 'create_recurring_task'
+      ) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handleRecurringTaskCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+          agentId: agentId ?? null,
+          userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
         if (created) return { status: 200 as const, body: undefined };
       }

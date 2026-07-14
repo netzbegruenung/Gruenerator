@@ -135,6 +135,8 @@ export const INTENT_KEYWORDS: Record<
     | 'save_as_doc'
     | 'create_sheet'
     | 'create_presentation'
+    // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
+    | 'create_recurring_task'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
