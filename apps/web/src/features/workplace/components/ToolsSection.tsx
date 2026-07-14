@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
 import {
+  OFFICE_TOOLS,
   WORKPLACE_TOOLS,
   filterWorkplaceTools,
   isFavouritableTool,
@@ -151,6 +152,19 @@ const ToolsSection = React.memo(() => {
 });
 
 ToolsSection.displayName = 'ToolsSection';
+
+export const OfficeSection = React.memo(() => (
+  <>
+    <SectionHeading title="Office" />
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-sm">
+      {OFFICE_TOOLS.map((tool) => (
+        <ToolTile key={tool.id} tool={tool} />
+      ))}
+    </div>
+  </>
+));
+
+OfficeSection.displayName = 'OfficeSection';
 
 export const FavoritesSection = React.memo(() => (
   <>
