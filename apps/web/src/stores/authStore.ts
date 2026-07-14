@@ -608,10 +608,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         if (result.status !== 200) {
           const body: unknown = result.body;
           const message =
-            body &&
-            typeof body === 'object' &&
-            'message' in body &&
-            typeof body.message === 'string'
+            body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
               ? body.message
               : 'Sprache konnte nicht gespeichert werden.';
           console.error('[AuthStore] Error updating locale:', result.status, message);
