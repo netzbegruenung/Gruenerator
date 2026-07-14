@@ -25,3 +25,10 @@ export const SHOW_CANVAS_EDITOR = import.meta.env.DEV;
  * boards/docs collaborative canvas.
  */
 export const SHOW_SHAREPIC_STUDIO = true;
+
+/**
+ * EXPERIMENTAL — the recurring agent tasks ("Wiederkehrende Aufgabe") management
+ * surface. Off by default; the backend is gated by RECURRING_TASKS_ENABLED. Uses
+ * an env override so it can be flipped on test without a code change.
+ */
+export const SHOW_RECURRING_TASKS = import.meta.env.VITE_SHOW_RECURRING_TASKS === 'true';
