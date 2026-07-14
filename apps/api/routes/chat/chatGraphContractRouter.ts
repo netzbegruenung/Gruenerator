@@ -628,6 +628,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.compoundGeneration = true;
         classifiedState.compoundGenerationKind = compoundKind;
       }
+      // Conversational board add ("häng den fertigen Post an mein Kanban-Board"):
+      // the classifier labels it modify_board, but the single-pass confirm path
+      // needs an explicit @board target (rawBoardIds) and otherwise degrades to
+      // "kopiere den Text manuell in die Karte". With NO board mention AND no open
+      // board editor, demote to `agentic` so the loop's boards_tasks tool resolves
+      // the board by name and adds the card via confirm. An @board mention or an
+      // open board keep the direct single-pass path.
+      if (
+        classifiedState.intent === 'modify_board' &&
+        (!rawBoardIds || rawBoardIds.length === 0) &&
+        !rawCurrentBoard &&
+        !forcedTool
+      ) {
+        classifiedState.intent = 'agentic';
+      }
+
       // The whole routing decision lives in the pure, unit-tested decideRunAgentic
       // (agenticLoop/routing.ts) — including the `direct`-question rescue.
       const runAgentic = decideRunAgentic({
