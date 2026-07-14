@@ -118,35 +118,6 @@ export const TAB_INDEX_CONFIG = {
     deleteMemoryButton: 1470, // Base for individual memory delete buttons
   },
 
-  // Profile Page - ContentManagementTab (merged DocumentsTab and CanvaTab)
-  PROFILE_CONTENT_MANAGEMENT: {
-    // Vertical navigation (1100-1199)
-    documentsTab: 1100,
-    qaTab: 1110,
-
-    // Document overview (1200-1299)
-    addContentButton: 1200,
-    searchInput: 1210,
-    filterSelect: 1220,
-    documentCard: 1230, // Base for document cards
-    editButton: 1240,
-    deleteButton: 1250,
-    shareButton: 1260,
-    templateButton: 1270,
-
-    // Q&A creator (1300-1399)
-    qaQuestionInput: 1300,
-    qaAnswerTextarea: 1310,
-    qaSourceInput: 1320,
-    qaSaveButton: 1330,
-    qaCancelButton: 1340,
-
-    // Modals - conditional (1400-1499)
-    modalInput: 1400,
-    modalButton: 1410,
-    modalClose: 1420,
-  },
-
   // Profile Page - CustomGeneratorsTab
   PROFILE_GENERATORS: {
     // Navigation (1100-1199)
@@ -281,7 +252,6 @@ export const {
   PROFILE_INFO,
   PROFILE_GROUPS,
   PROFILE_INTELLIGENCE,
-  PROFILE_CONTENT_MANAGEMENT,
   PROFILE_GENERATORS,
   PROFILE_LABOR,
 } = TAB_INDEX_CONFIG;

@@ -8,7 +8,6 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
-const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const WolkeManagementTab = lazy(() => import('../components/profile/tabs/WolkeManagement'));
 
 const TAB_MAPPING: Record<string, string> = PROFILE_MENU_ITEMS.reduce<Record<string, string>>(
@@ -35,11 +34,6 @@ const ProfilePage = () => {
 
   // Handle invalid tab URLs and redirects
   useEffect(() => {
-    if (tab === 'dokumente' || tab === 'grafik' || tab === 'anweisungen' || tab === 'vorlagen') {
-      void navigate('/profile/inhalte', { replace: true });
-      return;
-    }
-
     if (tab === 'gruppen') {
       void navigate('/gruppen', { replace: true });
       return;
@@ -47,11 +41,6 @@ const ProfilePage = () => {
 
     if (tab === 'grueneratoren') {
       void navigate('/agentura', { replace: true });
-      return;
-    }
-
-    if (tab === 'integrationen' || tab === 'canva') {
-      void navigate('/profile/inhalte', { replace: true });
       return;
     }
 
@@ -149,14 +138,6 @@ const ProfilePage = () => {
               canManageAccount={() =>
                 typeof canManageAccount === 'function' ? canManageAccount() : !!canManageAccount
               }
-            />
-          )}
-
-          {activeTab === 'inhalte' && (
-            <ContentManagementTab
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'inhalte'}
             />
           )}
 
