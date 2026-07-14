@@ -218,7 +218,14 @@ NUTZE WENN:
     // The sharepic key is load-bearing (`sharepic` drives card rehydration +
     // follow-up edits); presentation/sheet/document persist via createdDocument;
     // board renders from the `done` event.
-    if (state.compoundGeneration === true && loop.req) {
+    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
+    // — they must never spawn a NEW artifact. Signalled by an edit-current-*
+    // tool being enabled. Gate the create fat tools off entirely there (the
+    // frontend not setting create_*:false is not enough — enforce server-side).
+    const isEditorSurface =
+      state.enabledTools?.['edit_current_doc'] === true ||
+      state.enabledTools?.['edit_current_board'] === true;
+    if (state.compoundGeneration === true && loop.req && !isEditorSurface) {
       const kind = state.compoundGenerationKind;
       const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
       if (kind === 'sharepic' && enabled('sharepic')) {
