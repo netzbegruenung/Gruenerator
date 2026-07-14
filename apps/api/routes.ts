@@ -600,12 +600,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
-  // EXPERIMENTAL: recurring agent tasks. Mounted only when the flag is on; the
-  // scheduler worker (server.ts) is gated by the same flag.
-  if (process.env.RECURRING_TASKS_ENABLED === 'true') {
-    app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
-    mountRecurringTasksContractRouter(app);
-  }
+  // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
+  app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
+  mountRecurringTasksContractRouter(app);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix

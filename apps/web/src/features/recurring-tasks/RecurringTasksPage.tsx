@@ -1,7 +1,6 @@
 /**
  * EXPERIMENTAL — management surface for recurring agent tasks. Create, list,
- * pause/resume, run-now and delete. Gated by SHOW_RECURRING_TASKS + the backend
- * RECURRING_TASKS_ENABLED flag. Kept dependency-light on purpose (experimental).
+ * pause/resume, run-now and delete. Kept dependency-light on purpose (experimental).
  */
 import {
   type RecurringTask,
