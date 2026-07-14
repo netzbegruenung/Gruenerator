@@ -54,14 +54,60 @@ import { aggregateRecentActivity } from '../../workplace/recentActivityControlle
 import { hasWriteAccess } from '../confirmController.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 
-import type { ChatGraphState, PendingAction } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ChatGraphState,
+  PendingAction,
+  SearchResult,
+} from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
-/** Context every resource tool closes over. Read actions use only `state`. */
+/** Context every resource tool closes over. */
 export interface PersonalToolCtx {
   state: ChatGraphState;
   sse: SSEWriter;
   threadId: string | null;
+  /** Per-turn source registry — MUST be fed so the split-mode synth model (which
+   *  never sees tool return values, only `renderAll()`) can ground its answer. */
+  sourceRegistry: SourceRegistry;
+}
+
+/**
+ * Register grounding lines into the per-turn source registry. Critical for split
+ * mode: the synthesizer model has no tools and reads ONLY the rendered sources,
+ * so a tool that merely returns `{ results }` is invisible to it (observed live:
+ * "keine Aufgabenlisten liegen mir vor" while the tool had returned taskCount=1).
+ */
+function ground(
+  reg: SourceRegistry,
+  items: Array<{ title: string; content: string; url?: string }>
+): void {
+  if (items.length === 0) return;
+  reg.register(
+    items.map((i): SearchResult => ({
+      source: 'eigene-inhalte',
+      title: i.title,
+      content: i.content,
+      ...(i.url ? { url: i.url } : {}),
+    }))
+  );
+}
+
+/** Grounding lines from clickable result rows (list/search actions). */
+function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
+  ground(
+    reg,
+    rows.map((r) => ({
+      title: r.title,
+      content: [r.type, r.title, r.snippet].filter(Boolean).join(' — '),
+      ...(r.url ? { url: r.url } : {}),
+    }))
+  );
+}
+
+/** A single status/outcome line (write actions, confirmations). */
+function groundNote(reg: SourceRegistry, title: string, content: string): void {
+  ground(reg, [{ title, content }]);
 }
 
 /** A clickable result row — the frontend registry lifts `{ title, url }` into a citation list. */
@@ -109,7 +155,7 @@ function notebookHelper(): NotebookQdrantHelper {
 // ---------------------------------------------------------------------------
 
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
-  const { state } = ctx;
+  const { state, sourceRegistry } = ctx;
   return tool({
     description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher) oder listet die zuletzt bearbeiteten.
 
@@ -135,6 +181,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
             officeSnippet(h.document_subtype, h.content)
           )
         );
+        groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
 
@@ -142,6 +189,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
       const results = items.map((it) =>
         makeRow(it.title, it.href, it.documentType ?? it.type, it.content)
       );
+      groundRows(sourceRegistry, results);
       return { resultCount: results.length, results };
     },
   });
@@ -152,7 +200,7 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
 // ---------------------------------------------------------------------------
 
 export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
-  const { state, sse, threadId } = ctx;
+  const { state, sse, threadId, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
@@ -179,6 +227,7 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         const results = docs.map((d) =>
           makeRow(d.title, officeUrl(d.document_subtype, d.id), officeKindLabel(d.document_subtype))
         );
+        groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
 
@@ -188,13 +237,10 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'get') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
-        return {
-          document: {
-            title: match.title,
-            url: officeUrl(match.document_subtype, match.id),
-            type: officeKindLabel(match.document_subtype),
-          },
-        };
+        const url = officeUrl(match.document_subtype, match.id);
+        const kind = officeKindLabel(match.document_subtype);
+        ground(sourceRegistry, [{ title: match.title, content: `${kind}: ${match.title}`, url }]);
+        return { document: { title: match.title, url, type: kind } };
       }
 
       if (action === 'rename') {
@@ -206,16 +252,17 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
           'UPDATE collaborative_documents SET title = $1, updated_at = NOW() WHERE id = $2',
           [title.trim(), id]
         );
-        return { ok: true, note: `Dokument in „${title.trim()}" umbenannt.` };
+        const note = `Dokument in „${title.trim()}" umbenannt.`;
+        groundNote(sourceRegistry, 'Umbenannt', note);
+        return { ok: true, note };
       }
 
       if (action === 'delete') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
         if (!confirm) {
-          return {
-            needsConfirmation: true,
-            note: `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`,
-          };
+          const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
+          groundNote(sourceRegistry, 'Bestätigung nötig', ask);
+          return { needsConfirmation: true, note: ask };
         }
         const rows = (await db.query(
           'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
@@ -228,7 +275,9 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
           'UPDATE collaborative_documents SET is_deleted = true, updated_at = NOW() WHERE id = $1',
           [id]
         );
-        return { ok: true, note: `Dokument „${match.title}" wurde gelöscht.` };
+        const note = `Dokument „${match.title}" wurde gelöscht.`;
+        groundNote(sourceRegistry, 'Gelöscht', note);
+        return { ok: true, note };
       }
 
       // share_to_group → build a share_doc confirm (reuses confirmController).
@@ -261,10 +310,9 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         { key: 'Gruppe', value: group.name },
         { key: 'Berechtigung', value: permission === 'editor' ? 'Bearbeiten' : 'Nur lesen' },
       ]);
-      return {
-        ok: true,
-        note: `Bestätigung zum Teilen von „${match.title}" mit „${group.name}" angefordert.`,
-      };
+      const note = `Bestätigung zum Teilen von „${match.title}" mit „${group.name}" angefordert.`;
+      groundNote(sourceRegistry, 'Teilen', note);
+      return { ok: true, note };
     },
   });
 }
@@ -288,7 +336,7 @@ function collectCards(board: BoardState) {
 }
 
 export function makeBoardsTasksTool(ctx: PersonalToolCtx): Tool {
-  const { state, sse, threadId } = ctx;
+  const { state, sse, threadId, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Boards (Kanban) und deren Karten/Aufgaben.
 
@@ -329,6 +377,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         const results = boards.map((b) =>
           makeRow(b.title, `/boards/${b.id}`, 'Board', officeSnippet('boards', b.content))
         );
+        groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
 
@@ -337,6 +386,14 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         const board = await loadBoardState(boardId, userId);
         if (!board) return { error: 'Board nicht gefunden oder kein Zugriff.' };
         const cards = collectCards(board);
+        ground(
+          sourceRegistry,
+          cards.map((c) => ({
+            title: c.title,
+            content: `Karte „${c.title}" (Status: ${c.status ?? '—'}${c.dueDate ? `, fällig ${c.dueDate}` : ''}${c.assignees.length ? `, zuständig: ${c.assignees.join(', ')}` : ''}) auf Board „${board.title}"`,
+            url: `/boards/${board.id}`,
+          }))
+        );
         return { board: { id: board.id, title: board.title }, cardCount: cards.length, cards };
       }
 
@@ -356,6 +413,17 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
               tasks.push({ ...c, board: board.title, boardId: b.id });
             }
           }
+        }
+        ground(
+          sourceRegistry,
+          tasks.map((t) => ({
+            title: String(t.title),
+            content: `Aufgabe „${String(t.title)}" (Status: ${t.status ?? '—'}${t.dueDate ? `, fällig ${String(t.dueDate)}` : ''}${Array.isArray(t.assignees) && t.assignees.length ? `, zuständig: ${(t.assignees as string[]).join(', ')}` : ''}) auf Board „${String(t.board)}"`,
+            url: `/boards/${String(t.boardId)}`,
+          }))
+        );
+        if (tasks.length === 0) {
+          groundNote(sourceRegistry, 'Aufgaben', 'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.');
         }
         const note =
           boards.length >= MAX_BOARDS
@@ -389,10 +457,9 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           { key: 'Board', value: board.title },
           { key: 'Aufgabe', value: args.title.trim() },
         ]);
-        return {
-          ok: true,
-          note: `Bestätigung zum Hinzufügen von „${args.title.trim()}" angefordert.`,
-        };
+        const note = `Bestätigung zum Hinzufügen von „${args.title.trim()}" zu „${board.title}" angefordert.`;
+        groundNote(sourceRegistry, 'Karte hinzufügen', note);
+        return { ok: true, note };
       }
 
       // Direct card edits (edit_card/move_card/set_due/assign) — need write access.
@@ -414,7 +481,9 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
                 : { assignee: args.assignee ?? '' };
         const result = await updateCard(boardId, cardId, changes);
         if (result.applied.length === 0) return { ok: true, note: 'Keine Änderung nötig.' };
-        return { ok: true, note: `Karte aktualisiert (${result.applied.join(', ')}).` };
+        const note = `Karte aktualisiert (${result.applied.join(', ')}).`;
+        groundNote(sourceRegistry, 'Karte bearbeitet', note);
+        return { ok: true, note };
       } catch (err) {
         return {
           error: err instanceof Error ? err.message : 'Karte konnte nicht bearbeitet werden.',
@@ -429,7 +498,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 // ---------------------------------------------------------------------------
 
 export function makeGroupsTool(ctx: PersonalToolCtx): Tool {
-  const { state } = ctx;
+  const { state, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die Gruppen der Person.
 
@@ -452,6 +521,7 @@ NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find).
         const results = groups.map((g) =>
           makeRow(g.name, groupUrl(g), 'Gruppe', `${g.member_count} Mitglieder`)
         );
+        groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
 
@@ -464,6 +534,7 @@ NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find).
           `${g.role || 'Mitglied'} · ${g.member_count} Mitglieder`
         )
       );
+      groundRows(sourceRegistry, results);
       return { resultCount: results.length, results };
     },
   });
@@ -474,7 +545,7 @@ NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find).
 // ---------------------------------------------------------------------------
 
 export function makeMediaTool(ctx: PersonalToolCtx): Tool {
-  const { state } = ctx;
+  const { state, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos) und Sharepics (Social-Grafiken).
 
@@ -530,6 +601,7 @@ NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), lö
             );
           }
         }
+        groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
 
@@ -544,13 +616,14 @@ NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), lö
       const [kind, handle] = ref.split(':', 2);
       if (kind === 'reel') {
         await getSubtitlerProjectService().deleteProject(userId, handle);
+        groundNote(sourceRegistry, 'Gelöscht', 'Reel wurde gelöscht.');
         return { ok: true, note: 'Reel wurde gelöscht.' };
       }
       if (kind === 'sharepic') {
         const ok = await getSharedMediaService().deleteShare(userId, handle);
-        return ok
-          ? { ok: true, note: 'Sharepic wurde gelöscht.' }
-          : { error: 'Sharepic nicht gefunden oder kein Zugriff.' };
+        if (!ok) return { error: 'Sharepic nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, 'Gelöscht', 'Sharepic wurde gelöscht.');
+        return { ok: true, note: 'Sharepic wurde gelöscht.' };
       }
       return { error: 'Unbekannter Medien-Verweis.' };
     },
@@ -562,7 +635,7 @@ NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), lö
 // ---------------------------------------------------------------------------
 
 export function makeNotebooksTool(ctx: PersonalToolCtx): Tool {
-  const { state } = ctx;
+  const { state, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Notizbücher (Sammlungen von Quellen/Dokumenten).
 
@@ -589,6 +662,7 @@ NUTZE FÜR: Notizbücher auflisten (list), umbenennen (rename), löschen (delete
             c.description || `${c.document_count} Dokument(e)`
           )
         );
+        groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
 
@@ -601,18 +675,21 @@ NUTZE FÜR: Notizbücher auflisten (list), umbenennen (rename), löschen (delete
       if (action === 'rename') {
         if (!name?.trim()) return { error: 'rename braucht name.' };
         await helper.updateNotebookCollection(id, { name: name.trim() });
-        return { ok: true, note: `Notizbuch in „${name.trim()}" umbenannt.` };
+        const note = `Notizbuch in „${name.trim()}" umbenannt.`;
+        groundNote(sourceRegistry, 'Umbenannt', note);
+        return { ok: true, note };
       }
 
       // delete
       if (!confirm) {
-        return {
-          needsConfirmation: true,
-          note: `Soll das Notizbuch „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`,
-        };
+        const ask = `Soll das Notizbuch „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
+        groundNote(sourceRegistry, 'Bestätigung nötig', ask);
+        return { needsConfirmation: true, note: ask };
       }
       await helper.deleteNotebookCollection(id);
-      return { ok: true, note: `Notizbuch „${collection.name}" wurde gelöscht.` };
+      const note = `Notizbuch „${collection.name}" wurde gelöscht.`;
+      groundNote(sourceRegistry, 'Gelöscht', note);
+      return { ok: true, note };
     },
   });
 }
