@@ -215,7 +215,12 @@ NUTZE WENN:
     // model picks them), each gated by enabledTools so an agent can opt out.
     // Mutations reuse the confirm_action flow / write-access checks (see
     // personalDataTools.ts); reads only touch user-scoped services.
-    const personalCtx: PersonalToolCtx = { state, sse, threadId: loop.threadId ?? null };
+    const personalCtx: PersonalToolCtx = {
+      state,
+      sse,
+      threadId: loop.threadId ?? null,
+      sourceRegistry,
+    };
     if (state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
     }
