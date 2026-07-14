@@ -77,43 +77,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
   };
 
-  // Type-scoped office landing pages.
-  items.docs = {
-    id: 'docs',
-    path: '/docs',
-    title: 'Docs',
-    description: 'Dokumente schreiben',
-    icon: getIcon('navigation', 'docs'),
-    activePaths: ['/docs'],
-  };
-
-  items.boards = {
-    id: 'boards',
-    path: '/boards',
-    title: 'Boards',
-    description: 'Planen & organisieren',
-    icon: getIcon('navigation', 'boards'),
-    activePaths: ['/boards'],
-  };
-
-  items.sheets = {
-    id: 'sheets',
-    path: '/sheets',
-    title: 'Tabellen',
-    description: 'Daten & Kalkulationen',
-    icon: getIcon('navigation', 'sheets'),
-    activePaths: ['/sheets'],
-  };
-
-  items.presentations = {
-    id: 'presentations',
-    path: '/presentations',
-    title: 'Präsentationen',
-    description: 'Folien & Vorträge',
-    icon: getIcon('navigation', 'presentations'),
-    activePaths: ['/presentations'],
-  };
-
   // No `path`: the sidebar opens the global search palette instead of
   // navigating. Consumers that render nav targets (DesktopHome, featureIndex)
   // already skip path-less entries.
