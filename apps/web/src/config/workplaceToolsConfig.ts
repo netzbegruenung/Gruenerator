@@ -1,4 +1,4 @@
-import { RiRepeatLine, RiSpyLine } from 'react-icons/ri';
+import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
 
@@ -26,14 +26,6 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     description: 'KI-Agent*innen & Skills entdecken',
     path: '/agentura',
     icon: RiSpyLine,
-  },
-  // EXPERIMENTAL — recurring agent tasks management surface.
-  {
-    id: 'recurring-tasks',
-    title: 'Wiederkehrende Aufgaben',
-    description: 'Agent*innen regelmäßig automatisch laufen lassen',
-    path: '/wiederkehrend',
-    icon: RiRepeatLine,
   },
   {
     id: 'monitor',

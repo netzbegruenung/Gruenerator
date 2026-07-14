@@ -124,7 +124,13 @@ export type PreparedAgentState = Awaited<ReturnType<typeof prepareAgentState>>;
  */
 export async function generateFromState(
   prepared: PreparedAgentState,
-  opts: { longForm: boolean; slotLabel: string; contextBlock?: string }
+  opts: {
+    longForm: boolean;
+    slotLabel: string;
+    contextBlock?: string;
+    /** Restrict the search tools to the resolved agent's own `enabledTools`. */
+    restrictToAgentTools?: boolean;
+  }
 ): Promise<string> {
   const { finalState, userMessage } = prepared;
   const baseSystemMessage = await buildSystemMessage(finalState);
@@ -161,7 +167,12 @@ export async function generateFromState(
       model: resolution.model,
       system: systemMessage,
       messages: [taskMessage],
-      tools: createSearchTools(agentConfig),
+      tools: createSearchTools(
+        agentConfig,
+        opts.restrictToAgentTools && agentConfig.enabledTools
+          ? { enabledToolKeys: agentConfig.enabledTools }
+          : {}
+      ),
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
       maxOutputTokens: opts.longForm
         ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)

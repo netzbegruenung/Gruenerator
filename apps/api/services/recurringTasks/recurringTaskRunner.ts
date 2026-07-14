@@ -51,6 +51,9 @@ export async function runRecurringTask(task: RecurringTask): Promise<void> {
     content = await generateFromState(prepared, {
       longForm,
       slotLabel: `recurring-task-${task.id}`,
+      // Honor the bound agent's tool selection; the default universal agent
+      // (no agent_identifier) keeps the full tool set.
+      restrictToAgentTools: !!task.agent_identifier,
     });
 
     // Empty-suppression: nothing to deliver → record 'empty', bump the counter,

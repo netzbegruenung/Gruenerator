@@ -1,5 +1,6 @@
 import { type DraftedAgentSpec } from '@gruenerator/contracts';
 import { useCallback, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import AgentEditor from './AgentEditor';
 import { EMPTY_FORM, type FormState } from './agentFormState';
@@ -34,12 +35,14 @@ function specToFormState(spec: DraftedAgentSpec): Partial<FormState> {
  */
 function AgentCreatorPage() {
   const draftMut = useDraftAgent();
+  const [searchParams] = useSearchParams();
+  const variant = searchParams.get('mode') === 'recurring' ? 'recurring' : 'agent';
   const [description, setDescription] = useState('');
   const [initialState, setInitialState] = useState<Partial<FormState> | null>(null);
   const [phase, setPhase] = useState<'start' | 'build'>('start');
   const [error, setError] = useState<string | null>(null);
 
-  useDocumentTitle('Neuer Agent');
+  useDocumentTitle(variant === 'recurring' ? 'Neuer wiederkehrender Agent' : 'Neuer Agent');
 
   const handleGenerate = useCallback(async () => {
     if (description.trim().length === 0) return;
@@ -67,6 +70,7 @@ function AgentCreatorPage() {
       <AgentEditor
         mode="create"
         initialState={{ ...EMPTY_FORM, ...initialState }}
+        variant={variant}
         onCancel={handleBack}
       />
     );
