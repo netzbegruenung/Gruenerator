@@ -87,7 +87,6 @@ async function fetchInstagramPosts(
     { waitSecs: DEFAULT_WAIT_SECS }
   );
 
-  // eslint-disable-next-line @typescript-eslint/await-thenable -- apify-client listItems() returns an awaitable PaginatedIterator (official usage)
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   const posts: RawPost[] = [];
 
@@ -124,7 +123,6 @@ async function fetchFacebookPosts(
     { waitSecs: DEFAULT_WAIT_SECS }
   );
 
-  // eslint-disable-next-line @typescript-eslint/await-thenable -- apify-client listItems() returns an awaitable PaginatedIterator (official usage)
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
   const posts: RawPost[] = [];
 

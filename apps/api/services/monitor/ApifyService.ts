@@ -54,7 +54,6 @@ export async function getRecentInstagramPosts(
       { waitSecs: DEFAULT_WAIT_SECS }
     );
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- apify-client listItems() returns an awaitable PaginatedIterator (official usage)
     const { items } = await apify.dataset(run.defaultDatasetId).listItems();
 
     const results: CollectedItem[] = [];
@@ -105,7 +104,6 @@ export async function getRecentFacebookPosts(
       { waitSecs: DEFAULT_WAIT_SECS }
     );
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- apify-client listItems() returns an awaitable PaginatedIterator (official usage)
     const { items } = await apify.dataset(run.defaultDatasetId).listItems();
 
     const results: CollectedItem[] = [];
