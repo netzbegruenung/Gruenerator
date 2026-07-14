@@ -2,11 +2,12 @@ import { useComposerRuntime } from '@assistant-ui/react';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { FiBook, FiCornerDownLeft, FiLayers, FiSearch } from 'react-icons/fi';
+import { FiBook, FiCornerDownLeft, FiFilter, FiLayers, FiSearch } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import { useResearchFilters } from '../manual-search/useResearchFilters';
 
 import {
   buildSystemTargets,
@@ -15,6 +16,12 @@ import {
   matchTargetsByName,
   type OmniTarget,
 } from './omniIntent';
+import { OmniResultsPanel } from './OmniResultsPanel';
+import {
+  describeParsedFilters,
+  parseResearchIntent,
+  type ParsedResearchIntent,
+} from './parseResearchIntent';
 
 import type { IconType } from 'react-icons';
 
@@ -109,7 +116,15 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [resultsFor, setResultsFor] = useState<ParsedResearchIntent | null>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Topic/type facet vocabulary for the NL parser (all searchable collections,
+  // cached by React Query — the gallery below warms the same data).
+  const { filterFields, setFiltersEnabled } = useResearchFilters();
+  useEffect(() => {
+    setFiltersEnabled(true);
+  }, [setFiltersEnabled]);
 
   useEffect(
     () => () => {
@@ -149,6 +164,15 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
       .slice(0, MAX_OPEN_MATCHES);
   }, [question, targets, entityMatches]);
 
+  const parsedIntent = useMemo(
+    () => parseResearchIntent(question, { targets, filterFields }),
+    [question, targets, filterFields]
+  );
+  // Offer the filtered search only when a concrete filter (date/topic/type/recency)
+  // was recognised — a bare region name still routes to that notebook's chat.
+  const hasResearchFilters =
+    Object.keys(parsedIntent.filters).length > 0 || parsedIntent.sortBy != null;
+
   const askInNotebook = (target: OmniTarget) => {
     if (!question) return;
     // freshConversation so the routed question opens a clean thread rather than
@@ -164,6 +188,35 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
     setOpen(false);
   };
 
+  const runFilteredSearch = () => {
+    if (!question) return;
+    setResultsFor(parsedIntent);
+    setActive(0);
+    setOpen(false);
+  };
+
+  const filteredSummary = [
+    ...describeParsedFilters(parsedIntent).map((c) => c.label),
+    ...(parsedIntent.sortBy === 'date_desc' ? ['neueste zuerst'] : []),
+  ].join(' · ');
+
+  const filteredOption: Option[] = hasResearchFilters
+    ? [
+        {
+          key: 'filtered-search',
+          onSelect: runFilteredSearch,
+          render: () => (
+            <OptionRow
+              chip={<NeutralChip icon={FiFilter} />}
+              title="Gefiltert durchsuchen"
+              subtitle={filteredSummary || `Trefferliste für „${question}"`}
+              showEnterHint
+            />
+          ),
+        },
+      ]
+    : [];
+
   const entityAskOptions: Option[] = entityMatches.map(({ target }, i) => ({
     key: `ask-${target.key}`,
     onSelect: () => askInNotebook(target),
@@ -172,7 +225,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
         chip={<TargetChip target={target} />}
         title={`Im Notebook „${target.title}" fragen`}
         subtitle={`„${question}"`}
-        showEnterHint={i === 0 && questionIntent}
+        showEnterHint={i === 0 && questionIntent && !hasResearchFilters}
       />
     ),
   }));
@@ -185,7 +238,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
         chip={<NeutralChip icon={FiLayers} />}
         title="Alle Notebooks fragen"
         subtitle={`„${question}"`}
-        showEnterHint={questionIntent && entityMatches.length === 0}
+        showEnterHint={questionIntent && entityMatches.length === 0 && !hasResearchFilters}
       />
     ),
   };
@@ -221,13 +274,16 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
       ]
     : [];
 
-  // Question → ask options lead; keyword lookup → open/research options lead.
-  const options: Option[] = questionIntent
-    ? [...entityAskOptions, aggregateOption, ...openOptions, ...manualOption]
-    : [...openOptions, ...manualOption, ...entityAskOptions, aggregateOption];
+  // Concrete NL filters → filtered search leads; question → ask options lead;
+  // keyword lookup → open/research options lead.
+  const options: Option[] = hasResearchFilters
+    ? [...filteredOption, ...entityAskOptions, aggregateOption, ...openOptions, ...manualOption]
+    : questionIntent
+      ? [...entityAskOptions, aggregateOption, ...openOptions, ...manualOption]
+      : [...openOptions, ...manualOption, ...entityAskOptions, aggregateOption];
 
   const clampedActive = Math.min(active, Math.max(0, options.length - 1));
-  const showDropdown = open && question.length > 0 && options.length > 0;
+  const showDropdown = open && question.length > 0 && options.length > 0 && !resultsFor;
   const detectedTarget = questionIntent ? (entityMatches[0]?.target ?? null) : null;
   const DetectedIcon = detectedTarget?.icon ?? FiBook;
 
@@ -277,6 +333,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
               setQ(e.target.value);
               setActive(0);
               setOpen(true);
+              setResultsFor(null);
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => {
@@ -347,6 +404,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           ))}
         </div>
       )}
+
+      {resultsFor && <OmniResultsPanel parsed={resultsFor} />}
     </div>
   );
 }
