@@ -66,6 +66,7 @@ export {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  recurringTasksContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -125,6 +126,7 @@ export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
+export * from './schemas/recurringTasks.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
