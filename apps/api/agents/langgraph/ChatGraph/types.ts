@@ -107,6 +107,19 @@ export interface GeneratedImageResult {
   generationTimeMs: number;
 }
 
+/** A collaborative document (presentation / sheet / text doc) created within a
+ *  turn — the shape emitted on the `document_created` SSE and persisted as
+ *  message metadata (`createdDocument`) for thread-reload rehydration. `subtype`
+ *  is a free string ('presentations' | 'sheets' | 'docs' | 'blank' | …) because
+ *  text-doc generation picks the subtype at runtime; the SSE contract is
+ *  `z.string()` too. */
+export interface CreatedDocument {
+  documentId: string;
+  title: string;
+  subtype: string;
+  url: string;
+}
+
 /**
  * Source prefixes used in SearchResult.source to identify result provenance.
  * Use these instead of raw strings to avoid silent mismatches across the pipeline.
@@ -576,10 +589,21 @@ export interface ChatGraphState {
   imageTimeMs: number;
   imageEditDescriptions: { original: string | null; edited: string | null } | null;
 
-  // Compound generation (agentic loop): mount signal for the sharepic fat tool
-  // and its per-turn result (shared-ref merge, like generatedImage).
+  // Compound generation (agentic loop): mount signal for the generation fat
+  // tools and their per-turn result (shared-ref merge, like generatedImage).
   compoundGeneration?: boolean;
+  // Which generation fat tool to mount — derived from intent OR (for a demoted
+  // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
+  // create_sheet even though the intent is `agentic`, not `create_sheet`.
+  compoundGenerationKind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
   sharepicVariants?: SharepicVariant[] | null;
+  // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
+  // router into the persisted assistant message's `createdDocument` metadata.
+  createdDocument?: CreatedDocument | null;
+  // Board fat tool result (compound turns) — boards have no `document_created`
+  // card path, so this is lifted into the loop's `done` event (boardId +
+  // boardGeneratedStructure) the way the single-pass board handler does.
+  createdBoard?: { boardId: string; title: string; boardGeneratedStructure: unknown } | null;
 
   // Document summarization
   summaryContext: string | null;

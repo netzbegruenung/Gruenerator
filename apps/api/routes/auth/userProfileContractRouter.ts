@@ -18,12 +18,13 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../../config/betterAuth.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
+import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { UserProfile } from '../../services/user/types.js';
-import type { Application, Request } from 'express';
+import type { Application, Request, Response } from 'express';
 
 const log = createLogger('userProfileContract');
 
@@ -33,6 +34,27 @@ function getUserId(req: Request): string {
 
 function getUser(req: Request): UserProfile {
   return req.user as UserProfile;
+}
+
+/**
+ * Re-read the session from the DB (bypassing the 300s `ba.session_data` cookie
+ * cache) and forward the refreshed Set-Cookie to the browser. A profile write
+ * via Drizzle bypasses Better Auth, so its cached copy of the user — which
+ * server-side readers like the chat graph resolve `locale` from — stays stale
+ * for up to 300s and the change silently reverts. `getSession` with
+ * `disableCookieCache` forces a fresh DB read and re-writes the cache cookie.
+ */
+async function refreshSessionCookieCache(req: Request, res: Response): Promise<void> {
+  try {
+    const betterAuthResponse = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+      query: { disableCookieCache: true },
+      asResponse: true,
+    });
+    forwardBetterAuthCookies(res, betterAuthResponse);
+  } catch (err) {
+    log.warn('[Profile Contract] session cache refresh threw: %s', (err as Error).message);
+  }
 }
 
 const s = initServer();
@@ -285,6 +307,45 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         body: {
           success: false as const,
           message: err.message || 'Fehler beim Aktualisieren der Nachrichtenfarbe.',
+        },
+      };
+    }
+  },
+
+  updateLocale: async (args) => {
+    try {
+      const user = getUser(args.req);
+      const profileService = getProfileService();
+      const { locale } = args.body;
+
+      await profileService.updateProfile(user.id, { locale });
+
+      // Keep the in-memory user for the rest of this request consistent...
+      const sessionUser = args.req.user as UserProfile | undefined;
+      if (sessionUser) sessionUser.locale = locale;
+      // ...and refresh Better Auth's cookie cache so the next getSession()
+      // (page reload, new request, chat) sees the new locale instead of the
+      // stale cached one — otherwise the switch reverts within ~5 min.
+      await refreshSessionCookieCache(args.req, args.res);
+
+      log.debug(`[Profile Contract PUT /locale] User ${user.id} locale set to ${locale}`);
+
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          locale,
+          message: 'Sprache erfolgreich aktualisiert!',
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Profile Contract PUT /locale] Error:', err);
+      return {
+        status: 500 as const,
+        body: {
+          success: false as const,
+          message: err.message || 'Fehler beim Aktualisieren der Sprache.',
         },
       };
     }
