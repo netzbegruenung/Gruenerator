@@ -275,12 +275,13 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Workplace home with three tab routes (Chat / Arbeiten / Wissen). sidebarOnly
-  // for all three so the tab row keeps its position; Wissen additionally needs
-  // the h-dvh flex chain for the embedded notebook chat surface.
-  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace/arbeiten', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace/wissen', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // Workplace (Chat / Arbeiten / Wissen). ONE splat route so all three tabs
+  // resolve to the same route entry: WorkplacePage then stays mounted across tab
+  // switches (RouteComponent keys the page by config path) instead of remounting
+  // the whole surface each time — it derives the active tab from the pathname and
+  // only swaps the tab content. sidebarOnly keeps the tab row in place; Wissen's
+  // h-dvh flex chain for the embedded notebook chat surface still applies.
+  { path: '/workplace/*', component: WorkplacePage, layoutMode: 'sidebarOnly' },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
   // stays available so existing agents remain usable.
