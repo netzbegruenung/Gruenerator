@@ -40,6 +40,8 @@ import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateBoardTool,
+  makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
@@ -209,21 +211,37 @@ NUTZE WENN:
     ) {
       tools.generate_image = makeImageTool({ sse, state });
     }
-    // Sharepic fat tool (Phase 3n slice): ONLY for compound research+generation
-    // turns — pure "mach ein Sharepic" keeps its direct dispatch + fixed text.
-    // Catalog key `sharepic` is load-bearing (persisted toolName drives card
-    // rehydration + follow-up edits).
-    if (
-      state.compoundGeneration === true &&
-      loop.req &&
-      state.enabledTools?.['sharepic'] !== false
-    ) {
-      tools.sharepic = makeCreateSharepicTool({
-        sse,
-        state,
-        req: loop.req,
-        threadId: loop.threadId ?? null,
-      });
+    // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
+    // generation KIND the router derived (from intent OR — for a demoted
+    // `agentic` turn — the text noun). Pure "mach ein Sharepic" keeps its direct
+    // dispatch + fixed text (compoundGenerationKind is null → nothing mounted).
+    // The sharepic key is load-bearing (`sharepic` drives card rehydration +
+    // follow-up edits); presentation/sheet/document persist via createdDocument;
+    // board renders from the `done` event.
+    if (state.compoundGeneration === true && loop.req) {
+      const kind = state.compoundGenerationKind;
+      const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
+      if (kind === 'sharepic' && enabled('sharepic')) {
+        tools.sharepic = makeCreateSharepicTool({
+          sse,
+          state,
+          req: loop.req,
+          threadId: loop.threadId ?? null,
+        });
+      } else if (kind === 'presentation' && enabled('create_presentation')) {
+        tools.create_presentation = makeCreateDocTool({
+          kind: 'presentation',
+          sse,
+          state,
+          req: loop.req,
+        });
+      } else if (kind === 'sheet' && enabled('create_sheet')) {
+        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+      } else if (kind === 'document' && enabled('create_document')) {
+        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+      } else if (kind === 'board' && enabled('create_board')) {
+        tools.create_board = makeCreateBoardTool({ state, req: loop.req });
+      }
     }
   }
 

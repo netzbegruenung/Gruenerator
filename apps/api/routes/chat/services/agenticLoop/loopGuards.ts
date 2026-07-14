@@ -136,6 +136,19 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
+/** True when the smaller token set (≥2 tokens) is fully contained in the larger
+ *  — a pure narrowing/widening of the same query ("Balkonkraftwerke 2024 Anzahl
+ *  Deutschland" ⊂ "Anzahl Balkonkraftwerke Deutschland 2023 2024", or
+ *  "Vermögensteuer Grüne" ⊂ "Vermögensteuer Grüne Abschaffung"), i.e. a
+ *  redundant re-search Jaccard misses. The ≥2 floor keeps distinct single-topic
+ *  queries that merely share one word (Atomkraft vs Tempolimit) out. */
+function isTokenSubset(a: Set<string>, b: Set<string>): boolean {
+  const [small, large] = a.size <= b.size ? [a, b] : [b, a];
+  if (small.size < 2) return false;
+  for (const t of small) if (!large.has(t)) return false;
+  return true;
+}
+
 /** Human-readable form of a tool input for the duplicate error message. */
 function describeInput(input: unknown): string {
   if (input && typeof input === 'object') {
@@ -191,7 +204,11 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       const tokens = inputTokens(input);
       if (nearDuplicateJaccard > 0 && tokens.size > 0) {
         const priorSets = priorTokens.get(toolName) ?? [];
-        if (priorSets.some((p) => jaccard(tokens, p) >= nearDuplicateJaccard)) {
+        if (
+          priorSets.some(
+            (p) => jaccard(tokens, p) >= nearDuplicateJaccard || isTokenSubset(tokens, p)
+          )
+        ) {
           const prior = priorInputs.get(toolName) ?? [];
           return `Zu ähnlich zu einer bereits gelaufenen Suche (${prior.join(' | ')}). Wechsle das THEMA oder antworte jetzt mit den vorhandenen Ergebnissen.`;
         }
