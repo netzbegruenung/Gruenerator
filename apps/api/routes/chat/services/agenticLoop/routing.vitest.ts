@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
+  looksLikeCompoundEdit,
   compoundGenerationKind,
   decideRunAgentic,
 } from './routing.js';
@@ -412,5 +413,38 @@ describe('compoundGenerationKind', () => {
     expect(
       compoundGenerationKind('agentic', 'Recherchiere X, mach ein Sharepic und ein Dokument')
     ).toBe('sharepic');
+  });
+});
+
+// looksLikeCompoundEdit gates the "research + edit the OPEN doc/board" path
+// (editor sidebars): must fire on research+edit, stay out for pure edits and
+// pure research.
+describe('looksLikeCompoundEdit', () => {
+  const compound: [string, string][] = [
+    [
+      'recherche + folie',
+      'Recherchiere die Grünen-Position zu Tempolimit und füg sie als Folie ein',
+    ],
+    ['zahlen + einfügen', 'Such aktuelle Zahlen zur Windkraft und füge sie ins Dokument ein'],
+    ['fakten + ergänzen', 'Ergänze die Präsentation um die recherchierten Fakten zum Artenschutz'],
+    ['position + einarbeiten', 'Arbeite die Position zur Kindergrundsicherung in die Folie ein'],
+    ['programm + tabelle', 'Recherchiere die Programmpunkte und trag sie in die Tabelle ein'],
+  ];
+  it.each(compound)('routes research+edit into the compound-edit path: %s', (_l, q) => {
+    expect(looksLikeCompoundEdit(q)).toBe(true);
+  });
+
+  const singlePass: [string, string][] = [
+    // Pure edit — no research → single-pass edit_current_doc.
+    ['pure edit', 'Füge eine Abschlussfolie mit Call-to-Action hinzu'],
+    ['pure edit 2', 'Mach die Kopfzeile fett'],
+    ['formatting', 'Formuliere Folie 3 knackiger'],
+    // Pure research — no edit verb → normal loop answer.
+    ['pure research', 'Recherchiere die Position der Grünen zum Tempolimit'],
+    ['pure facts', 'Welche aktuellen Zahlen gibt es zur Windkraft?'],
+    ['empty', '   '],
+  ];
+  it.each(singlePass)('keeps a non-compound-edit turn out: %s', (_l, q) => {
+    expect(looksLikeCompoundEdit(q)).toBe(false);
   });
 });
