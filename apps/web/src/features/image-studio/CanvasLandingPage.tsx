@@ -109,7 +109,7 @@ const CanvasLandingContent = () => {
     <PageContainer maxWidth="lg" noPadTop bgClassName="bg-[#FBF0F5] dark:bg-transparent">
       <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
         <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
-          {firstName ? `Deine Grafiken, ${firstName}` : 'Deine Grafiken'}
+          {firstName ? `Deine Bilder & Grafiken, ${firstName}` : 'Bilder & Grafiken'}
         </h1>
 
         <DocsComposer
