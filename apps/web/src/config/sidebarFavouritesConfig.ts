@@ -1,7 +1,12 @@
 import { SYSTEM_NOTEBOOKS } from '../features/notebook/config/notebooksConfig';
 
 import { getIcon } from './icons';
-import { WORKPLACE_TOOLS, isFavouritableTool } from './workplaceToolsConfig';
+import {
+  CANVAS_TOOLS,
+  TOOL_MENUS,
+  WORKPLACE_TOOLS,
+  isFavouritableTool,
+} from './workplaceToolsConfig';
 
 import type { IconType } from './icons';
 
@@ -22,6 +27,7 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
     path: '/presentations',
     icon: getIcon('navigation', 'presentations')!,
   },
+  { id: 'canvas', title: 'Canvas', path: '/canvas', icon: getIcon('navigation', 'sharepic')! },
   { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
   {
@@ -49,19 +55,29 @@ const NOTEBOOK_ITEMS: FavouriteItemConfig[] = SYSTEM_NOTEBOOKS.map((nb) => ({
 // Workplace "Tools" tiles are favouritable straight from the grid. Only their
 // id/title/path/icon are needed to resolve a pinned favourite in the sidebar,
 // and only internal-route tools qualify (external-link tiles can't be pinned).
-const WORKPLACE_TOOL_ITEMS: FavouriteItemConfig[] = WORKPLACE_TOOLS.filter(isFavouritableTool).map(
-  (tool) => ({
+const WORKPLACE_TOOL_ITEMS: FavouriteItemConfig[] = [...WORKPLACE_TOOLS, ...CANVAS_TOOLS]
+  .filter(isFavouritableTool)
+  .map((tool) => ({
     id: tool.id,
     title: tool.title,
     path: tool.path,
     icon: tool.icon,
-  })
+  }));
+
+// Dropdown-card tools are favouritable from within the menu; register their
+// internal-route entries so pinned ids resolve in the sidebar.
+const MENU_TOOL_ITEMS: FavouriteItemConfig[] = TOOL_MENUS.flatMap((menu) =>
+  menu.items.flatMap((item) =>
+    item.path && !item.href
+      ? [{ id: item.id, title: item.title, path: item.path, icon: item.icon }]
+      : []
+  )
 );
 
 const FAVOURITE_ITEMS: FavouriteItemConfig[] = [...TOOL_ITEMS, ...NOTEBOOK_ITEMS];
 
 const FAVOURITE_ITEMS_MAP = new Map(
-  [...FAVOURITE_ITEMS, ...WORKPLACE_TOOL_ITEMS].map((item) => [item.id, item])
+  [...FAVOURITE_ITEMS, ...WORKPLACE_TOOL_ITEMS, ...MENU_TOOL_ITEMS].map((item) => [item.id, item])
 );
 
 export const getFavouriteItemsById = (ids: string[]): FavouriteItemConfig[] =>
