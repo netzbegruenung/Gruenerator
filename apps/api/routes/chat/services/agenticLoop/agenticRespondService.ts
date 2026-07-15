@@ -261,6 +261,9 @@ export async function streamAgenticResponse(params: {
         finalState.createdBoard != null
           ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${finalState.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Link (/boards/${finalState.createdBoard.boardId}).`
           : '',
+        finalState.compoundEdit === true
+          ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
+          : '',
       ]
         .filter(Boolean)
         .map((n) => `\n\n${n}`)
