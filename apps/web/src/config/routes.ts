@@ -212,6 +212,22 @@ const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const OfficeListRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/workplace/arbeiten') })
 );
+const DocsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.DocsLandingPage }))
+);
+const BoardsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.BoardsLandingPage }))
+);
+const SheetsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.SheetsLandingPage }))
+);
+const PresentationsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({
+    default: m.PresentationsLandingPage,
+  }))
+);
+const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const CanvasRedirect = lazy(() => Promise.resolve({ default: createRedirect('/canvas') }));
 const WissenRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/workplace/wissen') })
 );
@@ -572,12 +588,12 @@ const standardRoutes: RouteConfig[] = [
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
-  // `:category` routes below) are all prod-visible. Creation is a public research
-  // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
-  // Studio landing is folded into the workplace "Arbeiten" tab; the creation
-  // wizard (/studio/:category…), gallery, video and canvas routes stay.
-  { path: '/studio', component: OfficeListRedirect },
+  // "/canvas": the sharepic/graphics landing page. The old /studio landing now
+  // redirects here; the creation wizard (/studio/:category…), gallery, video and
+  // canvas editor routes stay — the Canvas create flow navigates into them.
+  // Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
+  { path: '/canvas', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio', component: CanvasRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
@@ -596,14 +612,18 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Office overview lives in the workplace "Arbeiten" tab; the editor stays.
+  // Combined office overview still lives in the workplace "Arbeiten" tab; each
+  // type also has a dedicated, type-scoped landing page below. The editors stay.
   { path: '/office', component: OfficeListRedirect },
   // Dispatches to the BlockNote or Univer editor by document_subtype.
   { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
-  // Legacy /docs URLs → /office
-  { path: '/docs', component: OfficeListRedirect },
+  // Type-scoped landing pages. Static paths precede their `:id` siblings so the
+  // list route wins over the editor route.
+  { path: '/docs', component: DocsLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/docs/:id', component: DocumentToOfficeRedirect },
-  { path: '/boards', component: OfficeListRedirect },
+  { path: '/sheets', component: SheetsLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/presentations', component: PresentationsLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/boards', component: BoardsLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder

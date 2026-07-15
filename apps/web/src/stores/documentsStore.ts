@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
@@ -44,12 +45,6 @@ interface DocumentDeleteResponse {
 interface DocumentMetadataResponse {
   success: boolean;
   message?: string;
-}
-
-interface DocumentRefreshResponse {
-  success: boolean;
-  message?: string;
-  data: Document;
 }
 
 interface DocumentSearchResponse {
@@ -670,23 +665,25 @@ export const useDocumentsStore = create<DocumentsStore>()(
       refreshDocument: async (documentId) => {
         try {
           console.log('[DocumentsStore] Refreshing document:', documentId);
-          const response = await apiClient.get<DocumentRefreshResponse>(
-            `/documents/${documentId}/content`
-          );
-          const result = response.data;
-
-          if (result.success) {
-            set((state) => {
-              const docIndex = state.documents.findIndex((doc) => doc.id === documentId);
-              if (docIndex !== -1) {
-                state.documents[docIndex] = { ...state.documents[docIndex], ...result.data };
-              }
-            });
-            console.log('[DocumentsStore] Document refreshed successfully');
-            return result.data;
-          } else {
-            throw new Error(result.message ?? 'Failed to refresh document');
+          const res = await getContractsClient().documents.getContent({
+            params: { id: documentId },
+          });
+          if (res.status !== 200) {
+            throw new Error('Failed to refresh document');
           }
+          // The contract types the row with honest wire types (string status,
+          // nullable filename/created_at/page_count) that are wider than this
+          // store's narrower Document domain type — a true type boundary, so a
+          // documented cast is the assertion. Merge only the returned fields.
+          const data = res.body.data as unknown as Partial<Document>;
+          set((state) => {
+            const docIndex = state.documents.findIndex((doc) => doc.id === documentId);
+            if (docIndex !== -1) {
+              state.documents[docIndex] = { ...state.documents[docIndex], ...data };
+            }
+          });
+          console.log('[DocumentsStore] Document refreshed successfully');
+          return res.body.data as unknown as Document;
         } catch (error) {
           console.error('[DocumentsStore] Error refreshing document:', error);
           throw error;
