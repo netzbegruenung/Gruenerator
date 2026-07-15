@@ -18,7 +18,7 @@ export interface FavouriteItemConfig {
 }
 
 const TOOL_ITEMS: FavouriteItemConfig[] = [
-  { id: 'docs', title: 'Docs', path: '/docs', icon: getIcon('navigation', 'docs')! },
+  { id: 'docs', title: 'Dokumente', path: '/docs', icon: getIcon('navigation', 'docs')! },
   { id: 'boards', title: 'Boards', path: '/boards', icon: getIcon('navigation', 'boards')! },
   { id: 'sheets', title: 'Tabellen', path: '/sheets', icon: getIcon('navigation', 'sheets')! },
   {
@@ -27,7 +27,12 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
     path: '/presentations',
     icon: getIcon('navigation', 'presentations')!,
   },
-  { id: 'canvas', title: 'Canvas', path: '/canvas', icon: getIcon('navigation', 'sharepic')! },
+  {
+    id: 'canvas',
+    title: 'Bild & Grafik',
+    path: '/canvas',
+    icon: getIcon('navigation', 'sharepic')!,
+  },
   { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
   {
