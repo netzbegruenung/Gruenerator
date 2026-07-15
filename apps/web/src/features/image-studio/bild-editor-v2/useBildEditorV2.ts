@@ -1,5 +1,7 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { DEFAULT_STYLE_VARIANT, useKiImageGeneration } from '@gruenerator/shared/image-studio';
+import { useShareStore } from '@gruenerator/shared/share';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { editAiImage, removeImageBackground } from '../services/imageEditingService';
@@ -8,6 +10,16 @@ import { type BevAspect, type BevMode, type BevSettings, type BevVersion } from 
 
 const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
+
+// Maps a produced version to the imageType used by the share/recent-activity
+// feed (`upload` never persists — an uploaded source isn't a creation).
+const SHARE_IMAGE_TYPE: Record<Exclude<BevVersion['kind'], 'upload'>, string> = {
+  create: 'pure-create',
+  edit: 'universal-edit',
+  green: 'green-edit',
+  outpaint: 'pure-create',
+  nobg: 'universal-edit',
+};
 const MAX_EDIT_IMAGES = 8; // contract cap: active version + references
 
 const STATUS_TEXTS = [
@@ -150,6 +162,8 @@ export function useBildEditorV2() {
   const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { generatePureCreate } = useKiImageGeneration();
+  const { createImageShare } = useShareStore();
+  const queryClient = useQueryClient();
 
   const hasVersions = versions.length > 0;
   const screen: 'start' | 'result' = hasVersions ? 'result' : 'start';
@@ -220,8 +234,21 @@ export function useBildEditorV2() {
       });
       // Once an image exists the default action is refining it.
       setMode((m) => (m === 'erstellen' ? 'bearbeiten' : m));
+      // Persist generated/edited results to the share store so they surface in
+      // the workplace „Zuletzt erstellt" feed (uploads are sources, not creations).
+      if (kind !== 'upload') {
+        void createImageShare({
+          imageData: image,
+          title: (forPrompt || 'KI-Bild').slice(0, 100),
+          imageType: SHARE_IMAGE_TYPE[kind],
+          status: 'ready',
+          metadata: { prompt: forPrompt, source: 'bild-editor' },
+        })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
+          .catch(() => {});
+      }
     },
-    [addVersion]
+    [addVersion, createImageShare, queryClient]
   );
 
   const runCreate = useCallback(
@@ -285,7 +312,9 @@ export function useBildEditorV2() {
     if (!res.data.success || !res.data.image?.base64) {
       throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
     }
-    commitImage(res.data.image.base64, `Vergrößert · ${settings.aspect}`, 'outpaint', active.id);
+    const raw = res.data.image.base64;
+    const dataUrl = raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`;
+    commitImage(dataUrl, `Vergrößert · ${settings.aspect}`, 'outpaint', active.id);
   }, [active, settings.aspect, settings.kiLabel, commitImage]);
 
   const runRemoveBg = useCallback(async () => {
