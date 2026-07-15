@@ -12,24 +12,24 @@ import {
   PopoverTrigger,
   StatusBanner,
 } from '@gruenerator/ui';
-import { type JSX, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { HiArrowsUpDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
-import rehypeRaw from 'rehype-raw';
 
 import IndexCard from '../../../components/common/IndexCard';
-import { Markdown } from '../../../components/common/Markdown/Markdown';
 import SearchBar from '../../search/components/SearchBar';
 import ActiveFilterChips from '../manual-search/ActiveFilterChips';
 import ResearchFilterPanel from '../manual-search/ResearchFilterPanel';
-import { useResearch, type ResearchResult } from '../manual-search/useResearch';
+import { resultToCardProps } from '../manual-search/researchResultCard';
+import { useResearch } from '../manual-search/useResearch';
 import {
+  activeFiltersToApi,
+  mergeParsedFilters,
   useResearchFilters,
   type SearchMode,
   type SortOption,
 } from '../manual-search/useResearchFilters';
-
-import type { Components } from 'react-markdown';
+import { parseResearchIntent } from '../omni/parseResearchIntent';
 
 import { cn } from '@/utils/cn';
 
@@ -50,77 +50,6 @@ const SORT_LABELS: Record<SortOption, string> = {
   date_desc: 'Neueste zuerst',
   date_asc: 'Älteste zuerst',
 };
-
-function formatPublishedDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-// Inline-friendly component map for search snippets: demote h1–h6 to bold
-// spans (a header rendered as h1 inside a 200-char teaser is visually absurd),
-// collapse horizontal rules to a soft separator, keep paragraphs as spans so
-// the snippet stays inline.
-const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
-  h1: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
-  h2: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
-  h3: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
-  h4: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
-  h5: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
-  h6: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
-  hr: (): JSX.Element => <span className="mx-1 text-grey-400"> · </span>,
-};
-
-const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
-
-function resultToCardProps(result: ResearchResult) {
-  const similarityPercent = Math.round(result.similarity_score * 100);
-  const tags = result.collection_name ? [result.collection_name] : [];
-  const chunkLabel =
-    result.chunk_count === 1 ? '1 Textabschnitt' : `${result.chunk_count} Textabschnitte`;
-
-  const metaParts = [`${chunkLabel} · ${similarityPercent}% Relevanz`];
-  if (result.published_at) metaParts.push(formatPublishedDate(result.published_at));
-
-  return {
-    title: result.title,
-    description: (
-      <Markdown
-        inline
-        rehypePlugins={SNIPPET_REHYPE_PLUGINS}
-        components={SNIPPET_MARKDOWN_COMPONENTS}
-      >
-        {result.relevant_content ?? ''}
-      </Markdown>
-    ),
-    tags,
-    meta: (
-      <div className="flex w-full items-center justify-between">
-        <span className="text-xs text-grey-500">{metaParts.join(' · ')}</span>
-        {result.source_url && (
-          <a
-            href={result.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-primary-500 hover:underline"
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          >
-            Quelle öffnen
-          </a>
-        )}
-      </div>
-    ),
-    onClick: result.source_url
-      ? () => window.open(result.source_url!, '_blank', 'noopener,noreferrer')
-      : undefined,
-  };
-}
 
 interface NotebookManualSearchProps {
   collectionIds: string[];
@@ -156,6 +85,7 @@ export function NotebookManualSearch({
   const {
     filterFields,
     filtersLoading,
+    filtersEnabled,
     setFiltersEnabled,
     activeFilters,
     activeFilterCount,
@@ -163,6 +93,7 @@ export function NotebookManualSearch({
     setDateFilter,
     clearFilter,
     clearAllFilters,
+    applyParsedFilters,
     removeFilterValue,
     searchMode,
     setSearchMode,
@@ -202,40 +133,86 @@ export function NotebookManualSearch({
     }
   }, [filterFields, clearFilter]);
 
+  // Signature of the last search actually dispatched — lets the debounced
+  // re-search skip an identical follow-up (e.g. the one triggered when
+  // runParsedSearch applies its own parsed filters). Prevents a duplicate fetch.
+  const lastSigRef = useRef('');
+
   const executeSearch = useCallback(
-    (searchQuery: string) => {
+    (
+      searchQuery: string,
+      override?: { filters?: Record<string, unknown>; sortBy?: SortOption }
+    ) => {
       if (!searchQuery || searchQuery.trim().length < 2) return;
-      lastQueryRef.current = searchQuery;
-      setHasSearched(true);
       // Always pass the notebook's collectionIds explicitly — never relies on the
       // hook's selectedCollectionIds. Defense in depth: search can't escape scope.
+      const scopedCollectionIds = collectionIds.length > 0 ? collectionIds : undefined;
+      const apiFilters = override ? override.filters : buildApiFilters();
+      const effectiveSort = override?.sortBy ?? sortBy;
+      const sig = JSON.stringify([
+        searchQuery,
+        apiFilters ?? null,
+        searchMode,
+        effectiveSort,
+        scopedCollectionIds ?? null,
+      ]);
+      if (sig === lastSigRef.current) return;
+      lastSigRef.current = sig;
+      lastQueryRef.current = searchQuery;
+      setHasSearched(true);
       void search({
         query: searchQuery,
-        collectionIds: collectionIds.length > 0 ? collectionIds : undefined,
-        filters: buildApiFilters(),
+        collectionIds: scopedCollectionIds,
+        filters: apiFilters,
         mode: searchMode,
-        sortBy,
+        sortBy: effectiveSort,
       });
     },
     [collectionIds, buildApiFilters, searchMode, sortBy, search]
   );
 
-  const handleSearch = useCallback(
-    (q?: string) => {
-      executeSearch(q || query);
+  // Explicit submit (typed / seeded query): parse the natural-language query into
+  // date/topic/type filters (region is fixed — this notebook is the scope), reflect
+  // them as removable chips (unioned with the user's manual selections), and search
+  // with them merged in. User notebooks (hideFilters) carry no facets, so only the
+  // sort hint applies. Chip/mode/sort adjustments re-search via the plain
+  // executeSearch below, which does NOT re-parse.
+  const runParsedSearch = useCallback(
+    (searchQuery: string) => {
+      if (!searchQuery || searchQuery.trim().length < 2) return;
+      const parsed = parseResearchIntent(searchQuery, { filterFields, scopeFixed: true });
+      const parsedFilters = hideFilters ? {} : parsed.filters;
+      applyParsedFilters(parsedFilters, parsed.sortBy);
+      executeSearch(searchQuery, {
+        filters: hideFilters
+          ? undefined
+          : activeFiltersToApi(mergeParsedFilters(activeFilters, parsedFilters)),
+        sortBy: parsed.sortBy ?? sortBy,
+      });
     },
-    [executeSearch, query]
+    [activeFilters, filterFields, hideFilters, sortBy, applyParsedFilters, executeSearch]
   );
 
-  // Run the seeded query once on mount (deliberately not re-run when
-  // executeSearch's identity changes — filter changes re-search via the
-  // debounced effect below).
+  const handleSearch = useCallback(
+    (q?: string) => {
+      runParsedSearch(q || query);
+    },
+    [runParsedSearch, query]
+  );
+
+  // Run the seeded query once — but only after the facet vocabulary has loaded,
+  // otherwise the parser can't recognise topic/type filters (user notebooks have
+  // no facets, so they seed immediately).
+  const didSeedRef = useRef(false);
   useEffect(() => {
+    if (didSeedRef.current) return;
     if (!initialQuery || initialQuery.trim().length < 2) return;
-    const timer = setTimeout(() => executeSearch(initialQuery), 0);
-    return () => clearTimeout(timer);
+    const facetsReady = hideFilters || (filtersEnabled && !filtersLoading);
+    if (!facetsReady) return;
+    didSeedRef.current = true;
+    runParsedSearch(initialQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialQuery, hideFilters, filtersEnabled, filtersLoading]);
 
   // Debounced re-search when filters/sort/mode change after the first search.
   // `hasSearched` is read as a gate but deliberately NOT a dependency: its
