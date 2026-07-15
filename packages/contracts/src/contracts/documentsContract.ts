@@ -10,6 +10,7 @@
  * in routes.ts before this contract is mounted.
  */
 import { initContract } from '@ts-rest/core';
+import { z } from 'zod';
 
 import {
   systemFullTextResponseSchema,
@@ -23,6 +24,8 @@ import {
   documentsValidationErrorSchema,
   documentStatusesRequestSchema,
   documentStatusesResponseSchema,
+  documentContentResponseSchema,
+  documentContentErrorSchema,
 } from '../schemas/documents.js';
 
 const c = initContract();
@@ -76,6 +79,23 @@ export const documentsContract = c.router(
         500: syncStatusErrorSchema,
       },
       summary: 'Get Wolke sync status for the current user',
+    },
+
+    /**
+     * GET /api/documents/:id/content
+     * Metadata + full OCR text for a single owned document.
+     */
+    getContent: {
+      method: 'GET',
+      path: '/api/documents/:id/content',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: documentContentResponseSchema,
+        401: documentsAuthErrorSchema,
+        404: documentContentErrorSchema,
+        500: documentContentErrorSchema,
+      },
+      summary: 'Get a document’s metadata and full OCR text',
     },
 
     /**

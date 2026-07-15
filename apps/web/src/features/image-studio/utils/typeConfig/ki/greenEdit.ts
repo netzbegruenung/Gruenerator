@@ -16,6 +16,8 @@ export const greenEditTypeConfig: KiTypeConfig = {
   id: IMAGE_STUDIO_TYPES.GREEN_EDIT,
   category: IMAGE_STUDIO_CATEGORIES.KI,
   subcategory: KI_SUBCATEGORIES.EDIT,
+  // Hidden from the KI type selectors; the /imagine/green-edit route still works.
+  hidden: true,
   label: 'Grün verwandeln',
   description: 'Verwandle dein Bild in eine grüne Vision',
   icon: HiPhotograph,

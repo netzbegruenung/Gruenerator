@@ -12,6 +12,8 @@ import { sheetTemplates } from '../sheets/sheetTemplates';
 import { DOC_TYPE_META, type DocKind } from './docTypeMeta';
 
 interface TemplateGalleryModalProps {
+  /** Restrict the gallery to a single content type (type-scoped landing pages). */
+  scope?: Exclude<DocKind, 'sharepic'>;
   onClose: () => void;
   onCreateBlank: (kind: DocKind) => void;
   onSelectDocTemplate: (id: TemplateType) => void;
@@ -118,6 +120,7 @@ function BlankCard({ kind, onSelect }: { kind: DocKind; onSelect: () => void }) 
 }
 
 export default function TemplateGalleryModal({
+  scope,
   onClose,
   onCreateBlank,
   onSelectDocTemplate,
@@ -128,8 +131,12 @@ export default function TemplateGalleryModal({
   sharepicEnabled = false,
   onSelectSharepicTemplate,
 }: TemplateGalleryModalProps) {
-  const [tab, setTab] = useState<TabKey>('all');
-  const tabs = sharepicEnabled ? [...BASE_TABS, SHAREPIC_TAB] : BASE_TABS;
+  const [tab, setTab] = useState<TabKey>(scope ?? 'all');
+  const tabs = scope
+    ? BASE_TABS.filter((t) => t.key === scope)
+    : sharepicEnabled
+      ? [...BASE_TABS, SHAREPIC_TAB]
+      : BASE_TABS;
 
   const { data: userTemplates = [] } = useQuery<UserTemplateSummary[]>({
     queryKey: ['user-templates', 'docs-and-boards'],
@@ -268,7 +275,7 @@ export default function TemplateGalleryModal({
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 px-[26px] pt-[14px]">
+        <div className={cn('flex flex-wrap gap-1.5 px-[26px] pt-[14px]', scope && 'hidden')}>
           {tabs.map((t) => (
             <button
               key={t.key}
