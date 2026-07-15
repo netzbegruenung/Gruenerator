@@ -138,6 +138,7 @@ import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import { mountWordpressContractRouter } from './routes/wordpress/wordpressContractRouter.js';
+import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
@@ -640,6 +641,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountEmailContractRouter(app);
   app.use('/api/email', standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
+  // ts-rest contract router for /api/recent-activity — mounts BEFORE the legacy
+  // router so the typed GET matches first; requireAuth at the prefix guarantees
+  // req.user for both the contract handler and the legacy fall-through.
+  app.use('/api/recent-activity', requireAuth);
+  mountRecentActivityContractRouter(app);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first; /stream SSE falls through to legacy.
