@@ -1,4 +1,9 @@
-import { type BoardContent, type BoardPreview, type BoardType } from '@gruenerator/contracts';
+import {
+  type BoardContent,
+  type BoardPreview,
+  type BoardType,
+  type RecentActivityItem,
+} from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -47,24 +52,9 @@ const SUBTYPE_EMOJI: Record<string, string> = {
   presentations: '🎬',
 };
 
-export interface RecentActivityItem {
-  id: string;
-  title: string;
-  date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'canvas';
-  href: string;
-  emoji?: string | undefined;
-  boardType?: 'kanban' | 'whiteboard' | undefined;
-  preview?: BoardPreview | undefined;
-  thumbnailUrl?: string | undefined;
-  duration?: number | undefined;
-  creatorName?: string | undefined;
-  accessType?: string | undefined;
-  deleteEndpoint?: string | undefined;
-  content?: string | undefined;
-  documentType?: string | undefined;
-  blurhash?: string | undefined;
-}
+// Row shape is derived from the ts-rest schema (recentActivityItemSchema) so the
+// aggregation and the wire contract cannot drift. Re-exported for the fetchers.
+export type { RecentActivityItem };
 
 // One failing source (e.g. the canvas JOIN) must degrade to a missing strip,
 // not a 500 that blanks the whole "Zuletzt" section. Each fetcher is wrapped
