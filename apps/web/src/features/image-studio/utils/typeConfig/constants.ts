@@ -40,7 +40,6 @@ export const IMAGE_STUDIO_TYPES = {
 
   // KI types (FLUX API-based)
   GREEN_EDIT: 'green-edit',
-  ALLY_MAKER: 'ally-maker',
   UNIVERSAL_EDIT: 'universal-edit',
   PURE_CREATE: 'pure-create',
   AI_EDITOR: 'ai-editor',
@@ -91,7 +90,6 @@ export const URL_TYPE_MAP: Record<string, ImageStudioType> = {
   'dreizeilen-at': IMAGE_STUDIO_TYPES.DREIZEILEN_AT,
   'freeform-at': IMAGE_STUDIO_TYPES.FREEFORM_AT,
   'green-edit': IMAGE_STUDIO_TYPES.GREEN_EDIT,
-  'ally-maker': IMAGE_STUDIO_TYPES.ALLY_MAKER,
   'universal-edit': IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT,
   'pure-create': IMAGE_STUDIO_TYPES.PURE_CREATE,
   'ai-editor': IMAGE_STUDIO_TYPES.AI_EDITOR,

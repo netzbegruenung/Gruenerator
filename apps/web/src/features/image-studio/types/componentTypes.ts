@@ -49,6 +49,5 @@ export type UrlTypeMapKey =
   | 'text2sharepic'
   | 'ki'
   | 'green-edit'
-  | 'ally-maker'
   | 'universal-edit'
   | 'pure-create';
