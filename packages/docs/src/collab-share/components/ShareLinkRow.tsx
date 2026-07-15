@@ -1,6 +1,4 @@
-import { Button } from '@gruenerator/ui';
-import { useCallback, useState } from 'react';
-import { FiCheck, FiCopy } from 'react-icons/fi';
+import { CopyLinkRow } from '@gruenerator/ui';
 
 interface ShareLinkRowProps {
   shareUrl: string;
@@ -13,14 +11,6 @@ export const ShareLinkRow = ({
   linkPermission,
   onLinkPermissionChange,
 }: ShareLinkRowProps) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [shareUrl]);
-
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
@@ -34,16 +24,7 @@ export const ShareLinkRow = ({
           <option value="viewer">Kann ansehen</option>
         </select>
       </div>
-      <div className="flex gap-2">
-        <input
-          readOnly
-          value={shareUrl}
-          className="flex-1 rounded-md border border-grey-200 bg-grey-50 px-2.5 py-1.5 text-xs text-grey-600 outline-none dark:border-grey-700 dark:bg-grey-800"
-        />
-        <Button size="sm" variant="outline" onClick={handleCopy}>
-          {copied ? <FiCheck size={14} /> : <FiCopy size={14} />}
-        </Button>
-      </div>
+      <CopyLinkRow value={shareUrl} />
     </div>
   );
 };
