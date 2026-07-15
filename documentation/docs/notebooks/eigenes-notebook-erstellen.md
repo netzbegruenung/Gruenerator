@@ -13,7 +13,7 @@ Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen
 
 ## Schritt-für-Schritt
 
-Der Editor führt dich durch **drei Schritte**: **Quellen → Details → Überprüfen**. Das Veröffentlichen ist bewusst kein Teil der Erstellung — es passiert später über das **„Teilen"**-Menü (siehe [Notebook teilen](#dein-notebook-teilen-und-verffentlichen)).
+Der Editor führt dich durch **drei Schritte**: **Quellen → Details → Überprüfen**. Das Veröffentlichen ist bewusst kein Teil der Erstellung — es passiert später über das **„Teilen"**-Menü (siehe [Notebook teilen](#dein-notebook-teilen-und-veröffentlichen)).
 
 ### Schritt 1: Zur Notebook-Übersicht
 
@@ -91,7 +91,7 @@ Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kanns
 Im Abschnitt **„Eigene"** erscheint jedes deiner Notebooks als Karte. Ein **Klick** auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** der Karte erreichst du weitere Aktionen:
 
 - **Bearbeiten** — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per **„Alle Quellen aktualisieren"** neu synchronisieren.
-- **Teilen** — Untermenü mit **„Link kopieren"** (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe [Notebook teilen](#dein-notebook-teilen-und-verffentlichen)).
+- **Teilen** — Untermenü mit **„Link kopieren"** (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im **„Teilen"**-Button auf der Bearbeiten-Seite (siehe [Notebook teilen](#dein-notebook-teilen-und-veröffentlichen)).
 - **Löschen** — entfernt das Notebook unwiderruflich. **Wichtig:** Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden.
 
 ## Häufige Fragen
