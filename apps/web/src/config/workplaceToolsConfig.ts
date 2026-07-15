@@ -117,6 +117,13 @@ const NEWSLETTER_URL =
 // below (TOOL_MENUS) to keep the row compact.
 export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
+    id: 'bild-editor',
+    title: 'Bild-Editor',
+    description: 'KI-Bilder erstellen & bearbeiten',
+    path: '/bild-editor',
+    icon: getIcon('navigation', 'imagine')!,
+  },
+  {
     id: 'agents',
     title: 'Agentura',
     description: 'Agent*innen & Skills',
