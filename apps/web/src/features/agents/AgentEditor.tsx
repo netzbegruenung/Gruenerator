@@ -33,6 +33,9 @@ const selectCls =
   'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
 
+// A recurring task's instruction is the agent's Anleitung; the contract caps it.
+const MAX_TASK_INSTRUCTION = 4000;
+
 type Section = 'grund' | 'tools' | 'wissen' | 'zeitplan';
 
 function toggle(list: string[], value: string): string[] {
@@ -112,6 +115,18 @@ function AgentEditor({
   const handleSave = async () => {
     setError(null);
     try {
+      // Block early when this save also writes a recurring task whose instruction
+      // (= the Anleitung) would exceed the contract cap — otherwise create mode
+      // would persist the agent and then fail the task on every retry.
+      const writesTask = variant === 'recurring' || recurringTaskId != null;
+      if (writesTask && form.systemRole.trim().length > MAX_TASK_INSTRUCTION) {
+        setError(
+          `Die Anleitung ist zu lang für eine wiederkehrende Aufgabe (max. ${MAX_TASK_INSTRUCTION} Zeichen). Bitte kürze sie.`
+        );
+        setSection('grund');
+        return;
+      }
+
       const payload = formToPayload(form);
       if (mode === 'create') {
         // Create the agent once; keep its id so a failed follow-up task call can

@@ -78,7 +78,8 @@ export function recurrenceToSchedule(
     minute: r.minute,
     byweekday: r.byweekday ?? [0],
     bymonthday: r.bymonthday ?? 1,
-    delivery: task.delivery,
+    // 'summary' is no longer offered in the builder — surface legacy tasks as document.
+    delivery: task.delivery === 'summary' ? 'document' : task.delivery,
     timezone: task.timezone,
     emailNotify: task.emailNotify,
   };
