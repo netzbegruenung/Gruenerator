@@ -17,7 +17,11 @@ function captionFor(bev: ReturnType<typeof useBildEditorV2>): string {
   if (a.kind === 'upload') return `V${a.num} · Hochgeladen`;
   if (a.kind === 'create') return `V${a.num} · KI-erstellt`;
   const parent = bev.versions.find((p) => p.id === a.parentId);
-  return `V${a.num} · Bearbeitung von V${parent?.num ?? '?'}`;
+  const parentLabel = `V${parent?.num ?? '?'}`;
+  if (a.kind === 'green') return `V${a.num} · Grün verwandelt aus ${parentLabel}`;
+  if (a.kind === 'outpaint') return `V${a.num} · Vergrößert aus ${parentLabel}`;
+  if (a.kind === 'nobg') return `V${a.num} · Freigestellt aus ${parentLabel}`;
+  return `V${a.num} · Bearbeitung von ${parentLabel}`;
 }
 
 export default function BildEditorV2Page() {
