@@ -1,14 +1,24 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { FiChevronDown } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
 import {
+  OFFICE_TOOLS,
+  TOOL_MENUS,
   WORKPLACE_TOOLS,
   filterWorkplaceTools,
   isFavouritableTool,
   sortToolsByFavourites,
   type WorkplaceToolItem,
+  type WorkplaceToolMenu,
 } from '../../../config/workplaceToolsConfig';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 
@@ -68,7 +78,12 @@ const CHIP_BASE =
   'flex flex-none items-center justify-center rounded-xl text-secondary-600 transition-colors duration-150 ' +
   'group-hover:bg-secondary-50 dark:text-secondary-400 dark:group-hover:bg-secondary-900/30';
 
-function SectionHeading({ title, badge }: { title: string; badge?: string }) {
+// Shared tool-grid: auto-fit so each row stretches its tiles to fill the width
+// (no trailing empty cells), fitting up to ~5 across at the lg container and
+// wrapping down responsively on narrower viewports.
+export const TOOL_GRID = 'grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-sm';
+
+export function SectionHeading({ title, badge }: { title: string; badge?: string }) {
   return (
     <div className="mb-md flex items-center gap-sm">
       <h2 className="m-0 text-xl font-semibold text-foreground-heading">{title}</h2>
@@ -81,16 +96,16 @@ function SectionHeading({ title, badge }: { title: string; badge?: string }) {
   );
 }
 
-function ToolTile({ tool }: { tool: WorkplaceToolItem }) {
+export function ToolTile({ tool }: { tool: WorkplaceToolItem }) {
   const Icon = tool.icon;
   const favouritable = isFavouritableTool(tool);
-  const className = `${CARD_BASE} gap-3 rounded-2xl p-md`;
+  const className = `${CARD_BASE} gap-2 rounded-2xl px-3 py-md`;
   const body = (
     <>
       <span className={`${CHIP_BASE} size-12 text-[22px]`}>
         <Icon />
       </span>
-      <span className={`min-w-0 flex-1${favouritable ? ' pr-6' : ''}`}>
+      <span className={`min-w-0 flex-1${favouritable ? ' pr-2' : ''}`}>
         <h3 className="m-0 text-[15px] font-semibold leading-tight text-foreground-heading">
           {tool.title}
         </h3>
@@ -110,6 +125,75 @@ function ToolTile({ tool }: { tool: WorkplaceToolItem }) {
     <Link to={tool.path ?? '/'} className={className}>
       {body}
     </Link>
+  );
+}
+
+// A tool card that opens a dropdown of related tools instead of navigating.
+// Same tile surface as ToolTile, with a caret and a Radix dropdown menu.
+function DropdownToolTile({ menu }: { menu: WorkplaceToolMenu }) {
+  const Icon = menu.icon;
+  const navigate = useNavigate();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`${CARD_BASE} w-full gap-2 rounded-2xl px-3 py-md text-left`}
+        >
+          <span className={`${CHIP_BASE} size-12 text-[22px]`}>
+            <Icon />
+          </span>
+          <span className="min-w-0 flex-1 pr-5">
+            <h3 className="m-0 text-[15px] font-semibold leading-tight text-foreground-heading">
+              {menu.title}
+            </h3>
+            <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
+              {menu.description}
+            </span>
+          </span>
+          <FiChevronDown
+            aria-hidden
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-grey-400"
+            size={16}
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[264px] p-1.5">
+        {menu.items.map((item) => {
+          const ItemIcon = item.icon;
+          const favouritable = Boolean(item.path) && !item.href;
+          return (
+            <DropdownMenuItem
+              key={item.id}
+              className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2"
+              onClick={() => {
+                if (item.href) window.open(item.href, '_blank', 'noopener,noreferrer');
+                else if (item.path) void navigate(item.path);
+              }}
+            >
+              <span className={`${CHIP_BASE} size-10 rounded-lg text-[19px]`}>
+                <ItemIcon />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-semibold leading-tight text-foreground-heading">
+                  {item.title}
+                </span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
+                  {item.description}
+                </span>
+              </span>
+              {favouritable && (
+                // Stop pointerdown so the star toggles the favourite without
+                // Radix selecting (and navigating away from) the menu item.
+                <span onPointerDown={(e) => e.stopPropagation()}>
+                  <FavouriteStar id={item.id} size={15} />
+                </span>
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -134,16 +218,20 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 
 const ToolsSection = React.memo(() => {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
-  const tools = useMemo(
+  const tiles = useMemo(
     () => sortToolsByFavourites(filterWorkplaceTools(WORKPLACE_TOOLS), favouriteIds),
     [favouriteIds]
   );
+
   return (
     <>
       <SectionHeading title="Tools" />
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-sm">
-        {tools.map((tool) => (
+      <div className={TOOL_GRID}>
+        {tiles.map((tool) => (
           <ToolTile key={tool.id} tool={tool} />
+        ))}
+        {TOOL_MENUS.map((menu) => (
+          <DropdownToolTile key={menu.id} menu={menu} />
         ))}
       </div>
     </>
@@ -151,6 +239,19 @@ const ToolsSection = React.memo(() => {
 });
 
 ToolsSection.displayName = 'ToolsSection';
+
+export const OfficeSection = React.memo(() => (
+  <>
+    <SectionHeading title="Office" />
+    <div className={TOOL_GRID}>
+      {OFFICE_TOOLS.map((tool) => (
+        <ToolTile key={tool.id} tool={tool} />
+      ))}
+    </div>
+  </>
+));
+
+OfficeSection.displayName = 'OfficeSection';
 
 export const FavoritesSection = React.memo(() => (
   <>
