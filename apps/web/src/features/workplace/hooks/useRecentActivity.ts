@@ -1,28 +1,10 @@
-import { type BoardPreview } from '@gruenerator/contracts';
+import { type RecentActivityItem } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
-import apiClient from '../../../components/utils/apiClient';
-
-export type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'canvas';
-
-export interface RecentItem {
-  id: string;
-  title: string;
-  date: string;
-  type: RecentItemType;
-  href: string;
-  emoji?: string;
-  boardType?: 'kanban' | 'whiteboard';
-  preview?: BoardPreview;
-  thumbnailUrl?: string;
-  duration?: number;
-  creatorName?: string;
-  accessType?: string;
-  deleteEndpoint?: string;
-  content?: string;
-  documentType?: string;
-  blurhash?: string;
-}
+// Row shape comes straight from the ts-rest contract — no hand-written mirror.
+export type RecentItem = RecentActivityItem;
+export type RecentItemType = RecentActivityItem['type'];
 
 // The cache key every recent-activity consumer shares. It has three writers —
 // this query, the ReelsSection strip, and the /auth/init post-login seed — so
@@ -35,10 +17,13 @@ export const RECENT_ACTIVITY_KEY = ['recent-activity'] as const;
 // Fetch the backend maximum (capped at 30 server-side) so the "Mehr anzeigen"
 // expansion has more than the collapsed grid to reveal without a refetch.
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 30 },
+  const res = await getContractsClient().recentActivity.getRecentActivity({
+    query: { limit: '30' },
   });
-  return res.data?.items ?? [];
+  if (res.status !== 200) {
+    throw new Error('Aktivitäten konnten nicht geladen werden.');
+  }
+  return res.body.items;
 };
 
 export function useRecentActivity() {
