@@ -19,12 +19,13 @@ import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 function AgentSettingsPage() {
   const { identifier } = useParams<{ identifier: string }>();
   const { data: agent, isLoading } = useUserAgent(identifier);
-  // Await the task list too so the schedule seeds correctly on first mount.
   const { data: recurringTasks = [], isLoading: tasksLoading } = useRecurringTasks();
 
   useDocumentTitle(agent ? `${agent.title} bearbeiten` : 'Agent bearbeiten');
 
-  if (isLoading || tasksLoading) {
+  // Only the agent gates the editor render — the recurring-task lookup must not
+  // block editing a plain agent.
+  if (isLoading) {
     return (
       <PageContainer maxWidth="md">
         <p className="text-foreground-muted">Lädt…</p>
@@ -39,12 +40,17 @@ function AgentSettingsPage() {
     );
   }
 
-  const task = recurringTasks.find((t) => t.agentIdentifier === agent.identifier);
+  // A recurring agent has exactly one task (the builder creates them 1:1); take
+  // the first match. Undefined while the list is still loading.
+  const task = tasksLoading
+    ? undefined
+    : recurringTasks.find((t) => t.agentIdentifier === agent.identifier);
 
   return (
     <AgentEditor
-      // Remount on identifier change so the form re-seeds from the loaded agent.
-      key={agent.identifier}
+      // Remount on identifier change, and once the task list resolves, so the
+      // schedule seeds without blocking the editor on that fetch.
+      key={`${agent.identifier}:${tasksLoading ? 'pending' : 'ready'}`}
       mode="edit"
       identifier={agent.identifier}
       initialState={hydrateFormState(agent)}

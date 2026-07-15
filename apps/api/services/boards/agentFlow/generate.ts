@@ -169,7 +169,9 @@ export async function generateFromState(
       messages: [taskMessage],
       tools: createSearchTools(
         agentConfig,
-        opts.restrictToAgentTools && agentConfig.enabledTools
+        // Only restrict when the agent has a non-empty selection; an empty/absent
+        // list means "no per-agent narrowing", not "no tools at all".
+        opts.restrictToAgentTools && agentConfig.enabledTools?.length
           ? { enabledToolKeys: agentConfig.enabledTools }
           : {}
       ),

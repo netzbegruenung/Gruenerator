@@ -110,8 +110,9 @@ export async function runRecurringTask(task: RecurringTask): Promise<void> {
       ...(delivered.actionUrl != null && { actionUrl: delivered.actionUrl }),
       metadata: { taskId: task.id, delivery: task.delivery },
       groupKey: `recurring-task-${task.id}`,
-      // Per-task email toggle governs the completion email; in-app stays on.
-      channelOverride: { email: task.email_notify },
+      // The per-task toggle can only SUPPRESS the completion email; when on it
+      // defers to the user's global prefs (never forces past a global opt-out).
+      ...(task.email_notify ? {} : { channelOverride: { email: false } }),
     });
     log.info(`Recurring task ${task.id} completed (${task.delivery})`);
   } catch (error) {
