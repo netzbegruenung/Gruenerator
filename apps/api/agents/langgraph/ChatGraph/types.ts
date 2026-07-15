@@ -596,6 +596,10 @@ export interface ChatGraphState {
   // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
   // create_sheet even though the intent is `agentic`, not `create_sheet`.
   compoundGenerationKind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
+  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
+  // research loop, then emits trigger_doc_edit/trigger_board_action with the
+  // gathered sources as reference material. Synth writes only a short confirm.
+  compoundEdit?: boolean;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.
