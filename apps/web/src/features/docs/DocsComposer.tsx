@@ -44,6 +44,11 @@ interface DocsComposerProps {
   sharepicEnabled?: boolean;
   /** Lock every create to one kind (type-scoped landing pages), bypassing keyword detection. */
   forcedKind?: DocKind;
+  /** Offer the "… importieren" options (doc/sheet/wolke). Off for sharepic-only surfaces. */
+  allowImports?: boolean;
+  /** Placeholder rotation. Defaults to the office examples; override per surface. */
+  promptExamples?: string[];
+  promptExamplesShort?: string[];
   onGenerate: (kind: DocKind, prompt: string) => void;
   onSelectTemplate: (kind: DocKind, id: string) => void;
   onImport: (kind: ImportKind) => void;
@@ -80,6 +85,8 @@ export function DocsComposer({
   isGenerating,
   sharepicEnabled = false,
   forcedKind,
+  promptExamples = PROMPT_EXAMPLES,
+  promptExamplesShort = PROMPT_EXAMPLES_SHORT,
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -292,7 +299,7 @@ export function DocsComposer({
         <div className="relative min-w-0 flex-1">
           {query.length === 0 && (
             <TypingAnimation
-              words={isMobile ? PROMPT_EXAMPLES_SHORT : PROMPT_EXAMPLES}
+              words={isMobile ? promptExamplesShort : promptExamples}
               loop
               className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-[#9AA8A1]"
               typeSpeed={45}

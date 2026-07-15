@@ -226,6 +226,8 @@ const PresentationsLandingPage = lazy(() =>
     default: m.PresentationsLandingPage,
   }))
 );
+const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const CanvasRedirect = lazy(() => Promise.resolve({ default: createRedirect('/canvas') }));
 const WissenRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/workplace/wissen') })
 );
@@ -586,12 +588,12 @@ const standardRoutes: RouteConfig[] = [
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
-  // `:category` routes below) are all prod-visible. Creation is a public research
-  // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
-  // Studio landing is folded into the workplace "Arbeiten" tab; the creation
-  // wizard (/studio/:category…), gallery, video and canvas routes stay.
-  { path: '/studio', component: OfficeListRedirect },
+  // "/canvas": the sharepic/graphics landing page. The old /studio landing now
+  // redirects here; the creation wizard (/studio/:category…), gallery, video and
+  // canvas editor routes stay — the Canvas create flow navigates into them.
+  // Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
+  { path: '/canvas', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio', component: CanvasRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
