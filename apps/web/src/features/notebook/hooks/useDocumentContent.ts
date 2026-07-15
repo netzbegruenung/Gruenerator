@@ -1,6 +1,5 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback } from 'react';
-
-import apiClient from '../../../components/utils/apiClient';
 
 interface UseDocumentContentResult {
   content: string | null;
@@ -21,10 +20,13 @@ export function useDocumentContent(): UseDocumentContentResult {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get<{ ocr_text?: string; content?: string }>(
-        `/auth/documents/${documentId}/content`
-      );
-      const text = response.data?.ocr_text ?? response.data?.content ?? '';
+      const res = await getContractsClient().documents.getContent({ params: { id: documentId } });
+      if (res.status !== 200) {
+        setError('Dokument konnte nicht geladen werden');
+        setContent(null);
+        return;
+      }
+      const text = res.body.data.ocr_text ?? '';
       setContent(
         text.length > MAX_DISPLAY_LENGTH
           ? text.slice(0, MAX_DISPLAY_LENGTH) + '\n\n[… Dokument gekürzt]'
