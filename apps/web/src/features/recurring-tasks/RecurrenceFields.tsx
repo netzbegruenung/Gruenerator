@@ -119,7 +119,7 @@ export function RecurrenceFields({ value, onChange }: RecurrenceFieldsProps) {
           Lieferung
           <select
             className={selectCls}
-            value={value.delivery === 'summary' ? 'document' : value.delivery}
+            value={value.delivery}
             onChange={(e) => patch({ delivery: e.target.value as RecurringTaskDelivery })}
           >
             {(['document', 'thread'] as const).map((d) => (
