@@ -43,8 +43,8 @@ export interface WorkplaceToolMenu {
 export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'docs',
-    title: 'Docs',
-    description: 'Dokumente schreiben',
+    title: 'Dokumente',
+    description: 'Texte schreiben',
     path: '/docs',
     icon: getIcon('navigation', 'docs')!,
   },
@@ -71,8 +71,8 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'canvas',
-    title: 'Canvas',
-    description: 'Grafiken für Social',
+    title: 'Bild & Grafik',
+    description: 'KI-Bilder und Sharepics',
     path: '/canvas',
     icon: getIcon('navigation', 'sharepic')!,
   },

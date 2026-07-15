@@ -90,8 +90,8 @@ const CATALOG: ToolCatalogEntry[] = [
   // each type gets its own synonym set for search.
   {
     id: 'docs',
-    title: 'Docs',
-    subtitle: 'Dokumente schreiben',
+    title: 'Dokumente',
+    subtitle: 'Texte schreiben',
     path: '/docs',
     icon: nav('docs'),
     keywords: ['docs', 'dokument', 'text', 'schreiben', 'brief', 'antrag'],
