@@ -123,6 +123,10 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
+// Bild-Editor v2 — focused KI generate/edit/outpaint flow with version tree
+const BildEditorV2Page = lazy(
+  () => import('../features/image-studio/bild-editor-v2/BildEditorV2Page')
+);
 const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
@@ -586,6 +590,7 @@ const standardRoutes: RouteConfig[] = [
     devOnly: true,
   },
   // Studio Routes - KI routes redirect to /imagine
+  { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
   // "/canvas": the sharepic/graphics landing page. The old /studio landing now
