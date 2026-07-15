@@ -125,6 +125,41 @@ export type DocumentProcessingProgress = z.infer<typeof documentProcessingProgre
 export type DocumentStatusesRequest = z.infer<typeof documentStatusesRequestSchema>;
 export type DocumentStatusesResponse = z.infer<typeof documentStatusesResponseSchema>;
 
+// ── document content (GET /:id/content) ─────────────────────────────────────
+
+/**
+ * GET /api/documents/:id/content
+ * Metadata (from Postgres) + full OCR text (from Qdrant) for one document.
+ * `filename`/`created_at` mirror the nullable Drizzle columns; the remaining
+ * fields are coalesced to their column defaults by the handler so callers get
+ * a stable shape. A Qdrant miss degrades to `ocr_text: ''` (never a 500).
+ */
+export const documentContentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  filename: z.string().nullable(),
+  page_count: z.number().nullable(),
+  status: z.string(),
+  vector_count: z.number(),
+  source_type: z.string(),
+  ocr_text: z.string(),
+  created_at: z.union([z.string(), z.date()]),
+});
+
+export const documentContentResponseSchema = z.object({
+  success: z.literal(true),
+  data: documentContentSchema,
+});
+
+/** 404 (not found / access denied) and 500 share the `{ success:false, message }` shape. */
+export const documentContentErrorSchema = z.object({
+  success: z.literal(false),
+  message: z.string(),
+});
+
+export type DocumentContent = z.infer<typeof documentContentSchema>;
+export type DocumentContentResponse = z.infer<typeof documentContentResponseSchema>;
+
 // ── Shared error schema ──────────────────────────────────────────────────────
 
 export const documentsAuthErrorSchema = z.object({ error: z.string() });
