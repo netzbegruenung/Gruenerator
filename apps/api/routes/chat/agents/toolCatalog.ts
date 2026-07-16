@@ -47,6 +47,15 @@ import {
   makeImageTool,
   makeSummaryTool,
 } from './domainTools.js';
+import {
+  makeBoardsTasksTool,
+  makeDocumentsTool,
+  makeFindContentTool,
+  makeGroupsTool,
+  makeMediaTool,
+  makeNotebooksTool,
+  type PersonalToolCtx,
+} from './personalDataTools.js';
 import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
@@ -205,6 +214,36 @@ NUTZE WENN:
     // — they must never spawn a NEW artifact (image OR create fat tool). Gated
     // server-side (the frontend not setting the tools:false is not enough).
     const editorSurface = isEditorSurface(state.enabledTools);
+
+    // Personal-data resource tools: the user's OWN documents, boards, tasks,
+    // groups, media and notebooks (read + light management). Always mounted (the
+    // model picks them), each gated by enabledTools so an agent can opt out.
+    // Mutations reuse the confirm_action flow / write-access checks (see
+    // personalDataTools.ts); reads only touch user-scoped services.
+    const personalCtx: PersonalToolCtx = {
+      state,
+      sse,
+      threadId: loop.threadId ?? null,
+      sourceRegistry,
+    };
+    if (state.enabledTools?.['find_content'] !== false) {
+      tools.find_content = makeFindContentTool(personalCtx);
+    }
+    if (state.enabledTools?.['documents'] !== false) {
+      tools.documents = makeDocumentsTool(personalCtx);
+    }
+    if (state.enabledTools?.['boards_tasks'] !== false) {
+      tools.boards_tasks = makeBoardsTasksTool(personalCtx);
+    }
+    if (state.enabledTools?.['groups'] !== false) {
+      tools.groups = makeGroupsTool(personalCtx);
+    }
+    if (state.enabledTools?.['media'] !== false) {
+      tools.media = makeMediaTool(personalCtx);
+    }
+    if (state.enabledTools?.['notebooks'] !== false) {
+      tools.notebooks = makeNotebooksTool(personalCtx);
+    }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
     // 'agentic' (demoted) turns also mount it — image phrasings the confident
