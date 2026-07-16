@@ -1,14 +1,13 @@
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { spacing, lightTheme, darkTheme } from '../../theme';
-import { ComposerCard } from '../common';
 
 /**
- * Gallery hero — reuses the startpage's structure (welcome + ComposerCard). The
- * composer sends the question into the multi-source aggregate notebook's chat; the
- * screen owns the locale-aware target and wires it via `onSend`.
+ * Minimal notebook hero — a big centered heading over the Wissen pink gradient,
+ * mirroring the web notebook "2a" redesign. The composer itself is bottom-pinned
+ * (see the Wissen screen's BottomComposerBar), ChatGPT-style.
  */
-export function NotebooksHero({ onSend }: { onSend: (text: string) => void }) {
+export function NotebooksHero() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -16,29 +15,28 @@ export function NotebooksHero({ onSend }: { onSend: (text: string) => void }) {
     <View style={styles.hero}>
       <Text style={[styles.title, { color: theme.text }]}>Was möchtest du wissen?</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-        Durchsucht Programme, Fraktionstexte und mehr – alle Quellen parallel.
+        Durchsucht alle Quellen parallel.
       </Text>
-      <View style={styles.composer}>
-        <ComposerCard placeholder="Stell deine Frage an alle Quellen..." onSend={onSend} />
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   hero: {
+    alignItems: 'center',
+    paddingTop: spacing.large,
     marginBottom: spacing.large,
   },
   title: {
     fontFamily: 'Raleway_700Bold',
-    fontSize: 28,
+    fontSize: 30,
+    letterSpacing: -0.5,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    marginTop: spacing.xxsmall,
-  },
-  composer: {
-    marginTop: spacing.medium,
+    marginTop: spacing.xsmall,
+    textAlign: 'center',
   },
 });
