@@ -1,4 +1,4 @@
-import { LoginProviders, type LoginProvider } from '@gruenerator/shared/auth';
+import { LoginProviders, type LoginProvider, type LoginProviderId } from '@gruenerator/shared/auth';
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -116,6 +116,14 @@ const LoginPage = ({
     setLoginIntent();
   };
 
+  // Netzbegrünung is no longer part of the default provider set; it stays
+  // reachable only via the special link /login?provider=netzbegruenung, which
+  // re-adds it alongside the defaults.
+  const enabledProviders: LoginProviderId[] | undefined =
+    new URLSearchParams(location.search).get('provider') === 'netzbegruenung'
+      ? ['gruenes-netz', 'gruene-oesterreich', 'netzbegruenung']
+      : undefined;
+
   const getHeaderContent = () => {
     if (mode === 'required') {
       return (
@@ -147,6 +155,7 @@ const LoginPage = ({
   const loginProviders = (
     <>
       <LoginProviders
+        enabledProviders={enabledProviders}
         redirectTo={intendedRedirect}
         apiBaseUrl={AUTH_BASE_URL}
         disabled={isAuthenticating}
