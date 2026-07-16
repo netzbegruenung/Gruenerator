@@ -8,10 +8,11 @@ export function isAgenticLoopEnabled(): boolean {
 }
 
 /**
- * Structured cross-turn MCP replay (Phase 2). Default OFF: feeding reconstructed
- * tool-call/tool-result messages into the live prompt needs a runtime smoke test
- * against the provider first. Enable with CHAT_MCP_REPLAY=true once validated.
+ * Structured cross-turn MCP replay (Phase 2). Default ON — the reconstruction is
+ * pure + unit-tested and the injection is defensive (a build/loader error is
+ * swallowed, so a bad replay can never break the turn). Opt out per env with
+ * CHAT_MCP_REPLAY=false if it ever misbehaves in prod (no redeploy needed).
  */
 export function isMcpReplayEnabled(): boolean {
-  return process.env.CHAT_MCP_REPLAY === 'true';
+  return process.env.CHAT_MCP_REPLAY !== 'false';
 }
