@@ -13,12 +13,15 @@ export type AppRoute =
   | '/'
   | '/start'
   | '/profile'
+  // Arbeiten (merged Docs + Tools) tab
+  | '/(tabs)/(arbeiten)'
   // Tools routes
   | '/(tabs)/(tools)'
   | '/(tabs)/(tools)/reel'
   | '/(tabs)/(tools)/ki-bildgenerierung'
   | '/(tabs)/(tools)/image-studio'
   | '/(tabs)/(tools)/scanner'
+  | '/(tabs)/(tools)/vorlagen'
   // Recherche routes
   | '/(tabs)/(recherche)'
   | '/(tabs)/(recherche)/research'
@@ -30,6 +33,7 @@ export type AppRoute =
   | '/(focused)/notebook-detail'
   | '/(focused)/agents'
   | '/(focused)/gruppen'
+  | '/(focused)/bild-editor'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/style'
   | '/(focused)/image-studio-create/ki-input'
