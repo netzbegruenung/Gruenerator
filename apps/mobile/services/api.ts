@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { isAxiosError } from 'axios';
 
+import { DEV_AUTH_BYPASS } from './devAuth';
 import { secureStorage } from './storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
@@ -25,6 +26,10 @@ export function initializeApiClient(): void {
     // endpoint ONCE before destroying local auth. `skipAuthRefresh` exempts the
     // probe from this very interceptor so it can't recurse.
     onUnauthorized: async (): Promise<boolean> => {
+      // DEV bypass (Tier 1, no backend): a fake user is authed client-side, so
+      // real API calls 401. Never wipe the store or retry — just let the call
+      // fail; otherwise the first data fetch bounces the emulator to login.
+      if (DEV_AUTH_BYPASS) return false;
       try {
         const client = getGlobalApiClient();
         const probeConfig: AuthRequestConfig = { skipAuthRefresh: true };
