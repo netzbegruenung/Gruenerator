@@ -71,6 +71,9 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
 
           case 'LOG':
             break;
+
+          default:
+            break;
         }
       } catch (err) {
         console.warn('[WebViewEditor] Failed to parse message', err);

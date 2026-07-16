@@ -4,6 +4,7 @@ import {
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
+  isEditorSurface,
   compoundGenerationKind,
   decideRunAgentic,
 } from './routing.js';
@@ -427,18 +428,27 @@ describe('looksLikeCompoundEdit', () => {
     ],
     ['zahlen + einfügen', 'Such aktuelle Zahlen zur Windkraft und füge sie ins Dokument ein'],
     ['fakten + ergänzen', 'Ergänze die Präsentation um die recherchierten Fakten zum Artenschutz'],
-    ['position + einarbeiten', 'Arbeite die Position zur Kindergrundsicherung in die Folie ein'],
-    ['programm + tabelle', 'Recherchiere die Programmpunkte und trag sie in die Tabelle ein'],
+    [
+      'recherche + einarbeiten',
+      'Recherchiere die Position zur Kindergrundsicherung und arbeite sie in die Folie ein',
+    ],
+    ['recherche + tabelle', 'Recherchiere die Programmpunkte und trag sie in die Tabelle ein'],
   ];
   it.each(compound)('routes research+edit into the compound-edit path: %s', (_l, q) => {
     expect(looksLikeCompoundEdit(q)).toBe(true);
   });
 
   const singlePass: [string, string][] = [
-    // Pure edit — no research → single-pass edit_current_doc.
+    // Pure edit — no research verb → single-pass edit_current_doc.
     ['pure edit', 'Füge eine Abschlussfolie mit Call-to-Action hinzu'],
     ['pure edit 2', 'Mach die Kopfzeile fett'],
     ['formatting', 'Formuliere Folie 3 knackiger'],
+    // Edit verb + a content NOUN but NO research verb → must stay single-pass
+    // (the over-match the review caught: 'Daten'/'aktuell'/'Programm' are
+    // everyday words, not a request to research).
+    ['aktualisier + daten noun', 'Aktualisiere die Daten in der Tabelle'],
+    ['überarbeit + aktuell noun', 'Überarbeite die aktuelle Folie'],
+    ['ergänz + programm noun', 'Ergänze das Programm um einen Titel'],
     // Pure research — no edit verb → normal loop answer.
     ['pure research', 'Recherchiere die Position der Grünen zum Tempolimit'],
     ['pure facts', 'Welche aktuellen Zahlen gibt es zur Windkraft?'],
@@ -446,5 +456,15 @@ describe('looksLikeCompoundEdit', () => {
   ];
   it.each(singlePass)('keeps a non-compound-edit turn out: %s', (_l, q) => {
     expect(looksLikeCompoundEdit(q)).toBe(false);
+  });
+});
+
+describe('isEditorSurface', () => {
+  it('true when an edit_current_* tool is enabled, false otherwise', () => {
+    expect(isEditorSurface({ edit_current_doc: true })).toBe(true);
+    expect(isEditorSurface({ edit_current_board: true })).toBe(true);
+    expect(isEditorSurface({ search: true, web: true })).toBe(false);
+    expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
+    expect(isEditorSurface(undefined)).toBe(false);
   });
 });

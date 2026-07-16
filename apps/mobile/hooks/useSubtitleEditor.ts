@@ -89,7 +89,7 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
     if (player && duration === 0 && player.duration > 0) {
       setDuration(player.duration);
     }
-  }, [player?.duration, duration, setDuration]);
+  }, [player, player?.duration, duration, setDuration]);
 
   useEffect(() => {
     if (timelineRef?.current && activeSegmentId !== null) {
