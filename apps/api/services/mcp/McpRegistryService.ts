@@ -60,6 +60,7 @@ const SEEDS: Seed[] = [
   ['trivago', 'https://mcp.trivago.com/mcp', 'oauth', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
+  ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
