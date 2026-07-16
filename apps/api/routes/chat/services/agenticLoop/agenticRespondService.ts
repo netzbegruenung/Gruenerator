@@ -25,6 +25,7 @@ import {
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
+import { getThreadLastMcpServer, setThreadLastMcpServer } from '../threadPersistenceService.js';
 
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards } from './loopGuards.js';
@@ -195,10 +196,22 @@ export async function streamAgenticResponse(params: {
     // internal search tools in ONE loop (single-pass, no separate mcp node).
     const userId = agentConfig.userId;
     if (finalState.intent === 'mcp' && userId) {
-      mcpCatalog = await loadMcpCatalog({
-        userId,
-        scope: finalState.mcpServerScope ?? null,
-      });
+      // Scope precedence: explicit @mention/name-match > this thread's sticky
+      // last-used server > null (fan out over all connected servers).
+      const explicitScope = finalState.mcpServerScope ?? null;
+      let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+      mcpCatalog = await loadMcpCatalog({ userId, scope });
+      // A STALE sticky scope (server since deleted) must NOT fake the
+      // "mentioned service is disconnected" notice — that honesty signal is only
+      // for an EXPLICIT mention. Silently retry unscoped instead.
+      if (!explicitScope && scope && mcpCatalog.scopedServerMissing) {
+        mcpCatalog = await loadMcpCatalog({ userId, scope: null });
+        scope = null;
+      }
+      // Remember the server actually used, so the next unscoped turn re-scopes.
+      if (threadId && scope && !mcpCatalog.scopedServerMissing && mcpCatalog.labels.size > 0) {
+        void setThreadLastMcpServer(threadId, scope);
+      }
       Object.assign(tools, mcpCatalog.tools);
     }
 

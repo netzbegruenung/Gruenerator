@@ -197,6 +197,28 @@ export async function touchThread(threadId: string): Promise<void> {
   ]);
 }
 
+/**
+ * Sticky MCP scope: the last connected server this thread's agentic loop was
+ * scoped to. Read as the fallback when a follow-up names no server; written
+ * (fire-and-forget) after a scoped MCP turn. A stale id (server since deleted)
+ * simply resolves to no config → the loop falls back to the fan-out.
+ */
+export async function getThreadLastMcpServer(threadId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(`SELECT last_mcp_server_id FROM chat_threads WHERE id = $1`, [
+    threadId,
+  ]);
+  return (result[0]?.last_mcp_server_id as string) || null;
+}
+
+export async function setThreadLastMcpServer(threadId: string, serverId: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(`UPDATE chat_threads SET last_mcp_server_id = $1 WHERE id = $2`, [
+    serverId,
+    threadId,
+  ]);
+}
+
 export interface ThreadSettings {
   custom_system_prompt: string | null;
   custom_enabled_tools: Record<string, boolean> | null;
