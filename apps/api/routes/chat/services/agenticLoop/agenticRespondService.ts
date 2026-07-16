@@ -25,10 +25,16 @@ import {
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
-import { getThreadLastMcpServer, setThreadLastMcpServer } from '../threadPersistenceService.js';
+import {
+  getRecentMcpSteps,
+  getThreadLastMcpServer,
+  setThreadLastMcpServer,
+} from '../threadPersistenceService.js';
 
+import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards } from './loopGuards.js';
+import { buildMcpReplayMessages } from './mcpReplay.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { DEFAULT_LOOP_BUDGET, type LoopBudget, type PersistedStep } from './types.js';
 import { wrapToolsForLoop } from './wrapTools.js';
@@ -164,6 +170,7 @@ export async function streamAgenticResponse(params: {
   let responseStarted = false;
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
+  let mcpReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
 
@@ -213,6 +220,15 @@ export async function streamAgenticResponse(params: {
         void setThreadLastMcpServer(threadId, scope);
       }
       Object.assign(tools, mcpCatalog.tools);
+
+      // Structured cross-turn replay (flag-gated until runtime-validated): feed
+      // the model this thread's prior MCP tool-calls so a follow-up remembers
+      // them. Validity-gated to tools mounted THIS turn (see buildMcpReplayMessages).
+      if (isMcpReplayEnabled() && threadId && mcpCatalog.labels.size > 0) {
+        const catalogNames = new Set(Object.keys(mcpCatalog.tools));
+        const recent = await getRecentMcpSteps(threadId);
+        mcpReplayMessages = buildMcpReplayMessages(recent, catalogNames);
+      }
     }
 
     const wrapped = wrapToolsForLoop(tools, {
@@ -352,7 +368,12 @@ export async function streamAgenticResponse(params: {
       toolSystem,
       buildSynthSystem,
       getSourcesBlock: () => sourceRegistry.renderAll(),
-      messages,
+      // Prepend the reconstructed MCP tool-call/result history just before the
+      // current user message so tool_call↔result pairs stay adjacent + valid.
+      messages:
+        mcpReplayMessages.length > 0 && messages.length > 0
+          ? [...messages.slice(0, -1), ...mcpReplayMessages, messages[messages.length - 1]]
+          : messages,
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
       maxOutputTokens: Math.max(agentConfig.params.max_tokens ?? 2000, 4000),
