@@ -335,7 +335,7 @@ describe('every SearchIntent has a handler path', () => {
       'controller emits trigger_board_action SSE for the boards assistant live edit (client-side executor)',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
-    mcp: 'EXPERIMENTAL — routes to respond, controller runs mcpToolNode (external MCP tool-loop) and injects result',
+    mcp: "EXPERIMENTAL — always runs the agentic loop (streamAgenticResponse); mcpCatalog mounts the user's connected MCP tools into the same loop",
     chat_history:
       'handled via chat_history branch in executeIntentPipeline — recall tool-loop over the own threads (flag-gated), else recallContext injection',
     agentic:
