@@ -587,6 +587,7 @@ export interface ChatThreadRow {
   custom_enabled_tools: Record<string, unknown> | null;
   notebook_collection_id: string | null;
   notebook_collection_ids: Record<string, unknown> | null;
+  last_mcp_server_id: string | null;
 }
 
 export interface ChatMessageRow {

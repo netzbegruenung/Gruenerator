@@ -290,7 +290,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // old threads; no mention emits it anymore) still runs unscoped over all
       // enabled servers for back-compat. Not in TOOL_PRIORITY, so resolved here;
       // the forced flag lets the loop run even if enabledTools.mcp is off, and
-      // mcpToolNode no-ops safely when the user has no servers.
+      // the agentic mcpCatalog no-ops safely when the user has no servers.
       const mcpScopedToken = forcedTools?.find((t) => t.startsWith('mcp:'));
       const mcpForced = !!forcedTools?.includes('mcp') || !!mcpScopedToken;
       if (mcpForced) {
