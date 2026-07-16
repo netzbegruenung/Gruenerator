@@ -141,6 +141,8 @@ export const confirmActionTypeSchema = z.enum([
   'modify_doc',
   'modify_board',
   'share_doc',
+  'create_group',
+  'join_group',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 
