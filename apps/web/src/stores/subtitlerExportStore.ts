@@ -1,4 +1,5 @@
 import { type ApiErrorBody } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import axios from 'axios';
 import { create } from 'zustand';
 
@@ -46,18 +47,6 @@ interface ExportParams {
 }
 
 type ExportPreferences = Omit<ExportParams, 'subtitles'>;
-
-interface ExportStartResponse {
-  exportToken?: string;
-}
-
-interface ExportProgressResponse {
-  status?: 'starting' | 'exporting' | 'complete' | 'error';
-  progress?: number;
-  timeRemaining?: number | null;
-  projectId?: string | null;
-  error?: string;
-}
 
 function extractAxiosErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
@@ -182,20 +171,20 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     });
 
     try {
-      // Call the export API
-      const response = await apiClient.post<ExportStartResponse>(
-        '/subtitler/export',
-        exportParams,
-        {
-          // We need raw response for video streaming, but apiClient handles JSON by default
-          // For now, we'll handle JSON responses
-        }
-      );
+      // Call the export API via the ts-rest contract client.
+      const res = await getContractsClient().subtitler.postExport({
+        body: {
+          ...exportParams,
+          subtitles: exportParams.subtitles as unknown as Record<string, unknown>[] | undefined,
+        },
+      });
 
-      const jsonData = response.data;
-      const exportToken = jsonData.exportToken;
+      if (res.status !== 202) {
+        throw new Error((res.body as { error?: string })?.error ?? 'Failed to start export');
+      }
 
-      console.log('[SubtitlerExportStore] JSON response data:', jsonData);
+      const exportToken = res.body.exportToken;
+      console.log('[SubtitlerExportStore] Export started, token:', exportToken);
 
       if (!exportToken) {
         throw new Error('No export token in JSON response');
@@ -241,17 +230,22 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       if (
         currentState.status === EXPORT_STATUS.COMPLETE ||
         currentState.status === EXPORT_STATUS.ERROR ||
-        currentState.status === EXPORT_STATUS.IDLE
+        currentState.status === EXPORT_STATUS.IDLE ||
+        !currentState.exportToken
       ) {
         get().stopPolling();
         return;
       }
+      const exportToken = currentState.exportToken;
 
       try {
-        const response = await apiClient.get<ExportProgressResponse>(
-          `/subtitler/export-progress/${currentState.exportToken}`
-        );
-        const progressData = response.data;
+        const res = await getContractsClient().subtitler.getExportProgress({
+          params: { exportToken },
+        });
+        if (res.status !== 200) {
+          throw new Error((res.body as { error?: string })?.error ?? 'Export progress not found');
+        }
+        const progressData = res.body;
         console.log('[SubtitlerExportStore] Progress update:', progressData);
 
         set({
@@ -262,7 +256,8 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
         if (progressData.status === 'exporting') {
           set({
             progress: progressData.progress ?? 0,
-            timeRemaining: progressData.timeRemaining ?? null,
+            timeRemaining:
+              typeof progressData.timeRemaining === 'number' ? progressData.timeRemaining : null,
           });
         } else if (progressData.status === 'complete') {
           set({
