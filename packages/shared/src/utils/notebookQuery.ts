@@ -148,5 +148,9 @@ export function parseNotebookQuery(text: string): NotebookQueryFilters {
     .join(' ')
     .trim();
 
-  return { region, dateFrom, dateTo, topic };
+  const result: NotebookQueryFilters = { topic };
+  if (region) result.region = region;
+  if (dateFrom) result.dateFrom = dateFrom;
+  if (dateTo) result.dateTo = dateTo;
+  return result;
 }
