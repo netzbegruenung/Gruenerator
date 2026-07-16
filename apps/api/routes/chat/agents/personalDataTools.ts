@@ -37,6 +37,7 @@ import {
   resolveCardDisplay,
   type BoardState,
 } from '../../../services/boards/BoardService.js';
+import { getGroupByToken } from '../../../services/groups/groupMutations.js';
 import { findGroups, listUserGroups } from '../../../services/groups/groupQueries.js';
 import {
   getSharedMediaService,
@@ -84,12 +85,14 @@ function ground(
 ): void {
   if (items.length === 0) return;
   reg.register(
-    items.map((i): SearchResult => ({
-      source: 'eigene-inhalte',
-      title: i.title,
-      content: i.content,
-      ...(i.url ? { url: i.url } : {}),
-    }))
+    items.map(
+      (i): SearchResult => ({
+        source: 'eigene-inhalte',
+        title: i.title,
+        content: i.content,
+        ...(i.url ? { url: i.url } : {}),
+      })
+    )
   );
 }
 
@@ -204,10 +207,15 @@ export function makeDocumentsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Dokumente, Tabellen und Präsentationen (nicht Boards — dafür 'boards_tasks').
 
-NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt.`,
+NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umbenennen (rename), löschen (delete), mit einer Gruppe teilen (share_to_group). Umbenennen wirkt sofort; Löschen und Teilen werden der Person zur Bestätigung angezeigt. Um das GERADE ERSTELLTE Dokument zu teilen, share_to_group nur mit groupName aufrufen (id weglassen).`,
     inputSchema: z.object({
       action: z.enum(['list', 'get', 'rename', 'delete', 'share_to_group']),
-      id: z.string().optional().describe('Dokument-ID (get/rename/delete/share)'),
+      id: z
+        .string()
+        .optional()
+        .describe(
+          'Dokument-ID (get/rename/delete/share; bei share weglassen für das zuletzt erstellte Dokument)'
+        ),
       title: z.string().optional().describe('Neuer Titel (nur bei action="rename")'),
       groupName: z.string().optional().describe('Zielgruppe (nur bei action="share_to_group")'),
       permission: z.enum(['viewer', 'editor']).default('viewer'),
@@ -281,7 +289,18 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
       }
 
       // share_to_group → build a share_doc confirm (reuses confirmController).
-      if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+      // Compound "erstelle ein Dokument … und teile es mit meiner Gruppe": when
+      // called WITHOUT an id, fall back to the document just created this turn
+      // (persisted into state.createdDocument by the compound create tool). Read
+      // it directly — no dependency on it surfacing in the fresh listUserDocuments
+      // above (avoids a create→list race). Only when no id was given: an explicit
+      // but unresolvable id must surface "not found", not silently redirect.
+      const shareTarget = match
+        ? { id: match.id, title: match.title }
+        : !id && state.createdDocument
+          ? { id: state.createdDocument.documentId, title: state.createdDocument.title }
+          : null;
+      if (!shareTarget) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
       if (!groupName?.trim()) return { error: 'share_to_group braucht groupName.' };
       if (!threadId) return { error: 'Teilen ist in diesem Kontext nicht möglich.' };
       // Only share into groups the caller is a MEMBER of (findGroups also returns
@@ -294,23 +313,23 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         threadId,
         userId,
         title: 'Dokument teilen',
-        preview: `„${match.title}" → ${group.name}`,
+        preview: `„${shareTarget.title}" → ${group.name}`,
         createdAt: Date.now(),
         type: 'share_doc',
         payload: {
-          docId: match.id,
-          docTitle: match.title,
+          docId: shareTarget.id,
+          docTitle: shareTarget.title,
           groupId: group.id,
           groupName: group.name,
           permissionLevel: permission,
         },
       };
       await emitToolConfirmAction(sse, action_, [
-        { key: 'Dokument', value: match.title },
+        { key: 'Dokument', value: shareTarget.title },
         { key: 'Gruppe', value: group.name },
         { key: 'Berechtigung', value: permission === 'editor' ? 'Bearbeiten' : 'Nur lesen' },
       ]);
-      const note = `Bestätigung zum Teilen von „${match.title}" mit „${group.name}" angefordert.`;
+      const note = `Bestätigung zum Teilen von „${shareTarget.title}" mit „${group.name}" angefordert.`;
       groundNote(sourceRegistry, 'Teilen', note);
       return { ok: true, note };
     },
@@ -423,7 +442,11 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           }))
         );
         if (tasks.length === 0) {
-          groundNote(sourceRegistry, 'Aufgaben', 'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.');
+          groundNote(
+            sourceRegistry,
+            'Aufgaben',
+            'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.'
+          );
         }
         const note =
           boards.length >= MAX_BOARDS
@@ -498,21 +521,72 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 // ---------------------------------------------------------------------------
 
 export function makeGroupsTool(ctx: PersonalToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
+  const { state, sse, threadId, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die Gruppen der Person.
 
-NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find). Zum Teilen von Inhalten mit einer Gruppe nutze 'documents' action="share_to_group".`,
+NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find), eine neue Gruppe anlegen (create, braucht name), einer Gruppe per Einladungslink/-token beitreten (join, braucht joinToken). Erstellen und Beitreten werden der Person zur Bestätigung angezeigt. Zum Teilen von Inhalten mit einer Gruppe nutze 'documents' action="share_to_group".`,
     inputSchema: z.object({
-      action: z.enum(['list', 'find']),
+      action: z.enum(['list', 'find', 'create', 'join']),
       query: z.string().optional().describe('Gruppenname (nur bei action="find")'),
+      name: z.string().optional().describe('Name der neuen Gruppe (nur bei action="create")'),
+      description: z
+        .string()
+        .optional()
+        .describe('Optionale Beschreibung der neuen Gruppe (nur bei action="create")'),
+      joinToken: z
+        .string()
+        .optional()
+        .describe('Einladungs-Token/-Link der Gruppe (nur bei action="join")'),
       limit: z.number().int().min(1).max(30).default(15),
     }),
-    execute: async ({ action, query, limit }) => {
+    execute: async ({ action, query, name, description, joinToken, limit }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
       const groupUrl = (g: { name: string; slug_suffix: string | null; id: string }) =>
         `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
+
+      if (action === 'create') {
+        const groupName = name?.trim();
+        if (!groupName) return { error: 'create braucht einen name.' };
+        if (!threadId) return { error: 'Erstellen ist in diesem Kontext nicht möglich.' };
+        const pending: PendingAction = {
+          actionId: newActionId(),
+          threadId,
+          userId,
+          title: 'Gruppe erstellen',
+          preview: `„${groupName}" anlegen`,
+          createdAt: Date.now(),
+          type: 'create_group',
+          payload: { name: groupName, description: description?.trim() || null },
+        };
+        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: groupName }]);
+        const note = `Bestätigung zum Erstellen der Gruppe „${groupName}" angefordert.`;
+        groundNote(sourceRegistry, 'Gruppe erstellen', note);
+        return { ok: true, note };
+      }
+
+      if (action === 'join') {
+        const token = joinToken?.trim();
+        if (!token) return { error: 'join braucht einen joinToken.' };
+        if (!threadId) return { error: 'Beitreten ist in diesem Kontext nicht möglich.' };
+        const group = await getGroupByToken(token);
+        if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
+        const pending: PendingAction = {
+          actionId: newActionId(),
+          threadId,
+          userId,
+          title: 'Gruppe beitreten',
+          preview: `„${group.name}" beitreten`,
+          createdAt: Date.now(),
+          type: 'join_group',
+          payload: { joinToken: token, groupName: group.name },
+        };
+        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: group.name }]);
+        const note = `Bestätigung zum Beitritt zur Gruppe „${group.name}" angefordert.`;
+        groundNote(sourceRegistry, 'Gruppe beitreten', note);
+        return { ok: true, note };
+      }
 
       if (action === 'find') {
         const q = (query ?? '').trim();

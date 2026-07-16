@@ -1,8 +1,7 @@
 /**
- * Read-only group queries for chat tools. The group ts-rest handlers keep their
- * logic inline (raw SQL, no service layer), so these small helpers give the chat
- * loop a reusable, user-scoped way to list/find the caller's groups without
- * duplicating a handler. Write operations (create/join) stay in the handlers.
+ * Read-only group queries for chat tools — user-scoped list/find helpers shared
+ * by the chat loop and the `groups` tool. Write operations (create / join by
+ * token) live in the sibling `groupMutations.ts`.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { likeContainsPattern } from '../../utils/sqlLike.js';
