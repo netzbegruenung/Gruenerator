@@ -66,6 +66,18 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'share-2',
     confirmLabel: 'Teilen',
   },
+  create_group: {
+    title: 'Gruppe erstellen',
+    description: 'Eine neue Gruppe wird angelegt, mit dir als Administrator*in.',
+    icon: 'users',
+    confirmLabel: 'Erstellen',
+  },
+  join_group: {
+    title: 'Gruppe beitreten',
+    description: 'Du trittst der Gruppe über den Einladungslink bei.',
+    icon: 'user-plus',
+    confirmLabel: 'Beitreten',
+  },
 };
 
 export function buildPendingAction(opts: {
@@ -211,6 +223,11 @@ export async function emitConfirmAction(opts: {
       break;
     case 'modify_board':
       metadataEntries = [{ key: 'Board', value: pendingAction.payload.boardId }];
+      break;
+    default:
+      // Tool-initiated types (create_group/join_group) never come through the
+      // single-pass buildPendingAction; keep the switch total for the union.
+      metadataEntries = [];
       break;
   }
 

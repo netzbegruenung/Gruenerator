@@ -24,6 +24,7 @@ const resolveCardDisplay = vi.fn();
 const updateCard = vi.fn();
 const listUserGroups = vi.fn();
 const findGroups = vi.fn();
+const getGroupByToken = vi.fn();
 const hasWriteAccess = vi.fn();
 const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
@@ -55,6 +56,9 @@ vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
 vi.mock('../../../services/groups/groupQueries.js', () => ({
   listUserGroups: (...a: unknown[]) => listUserGroups(...a),
   findGroups: (...a: unknown[]) => findGroups(...a),
+}));
+vi.mock('../../../services/groups/groupMutations.js', () => ({
+  getGroupByToken: (...a: unknown[]) => getGroupByToken(...a),
 }));
 vi.mock('../../workplace/recentActivityController.js', () => ({
   aggregateRecentActivity: (...a: unknown[]) => aggregateRecentActivity(...a),
@@ -208,10 +212,10 @@ describe('documents', () => {
       limit: 15,
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
-    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining('UPDATE collaborative_documents'), [
-      'Neu',
-      'd1',
-    ]);
+    expect(dbQuery).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE collaborative_documents'),
+      ['Neu', 'd1']
+    );
   });
 
   it('delete without confirm asks for confirmation and does NOT delete', async () => {
@@ -259,7 +263,9 @@ describe('documents', () => {
 
   it('share_to_group emits a share_doc confirm for a member group', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Doc', document_subtype: 'docs' }]);
-    findGroups.mockResolvedValue([{ id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'member' }]);
+    findGroups.mockResolvedValue([
+      { id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'member' },
+    ]);
     const out = (await exec(makeDocumentsTool(ctx('u1')), {
       action: 'share_to_group',
       id: 'd1',
@@ -269,13 +275,47 @@ describe('documents', () => {
       limit: 15,
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [unknown, { type: string; payload: unknown }];
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: unknown },
+    ];
     expect(action.type).toBe('share_doc');
     expect(action.payload).toMatchObject({
       docId: 'd1',
       groupId: 'g1',
       permissionLevel: 'editor',
     });
+  });
+
+  // Compound "erstelle ein Dokument … und teile es mit meiner Gruppe": share_to_group
+  // with no id targets the doc just created this turn (state.createdDocument), even
+  // before it surfaces in listUserDocuments.
+  it('share_to_group falls back to the just-created document when no id is given', async () => {
+    listUserDocuments.mockResolvedValue([]);
+    findGroups.mockResolvedValue([
+      { id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'member' },
+    ]);
+    const c = ctx('u1');
+    (c.state as unknown as { createdDocument: unknown }).createdDocument = {
+      documentId: 'new1',
+      title: 'Klimaplan',
+      subtype: 'docs',
+      url: '/office/new1',
+    };
+    const out = (await exec(makeDocumentsTool(c), {
+      action: 'share_to_group',
+      groupName: 'Klima',
+      permission: 'viewer',
+      confirm: false,
+      limit: 15,
+    })) as { ok?: boolean };
+    expect(out.ok).toBe(true);
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: unknown },
+    ];
+    expect(action.type).toBe('share_doc');
+    expect(action.payload).toMatchObject({ docId: 'new1', docTitle: 'Klimaplan', groupId: 'g1' });
   });
 });
 
@@ -287,8 +327,19 @@ describe('boards_tasks', () => {
     boardType: 'kanban',
     fields: [],
     rows: [
-      { id: 'r1', snap: { cardTitle: 'Plakate', statusLabel: 'Offen', dueDate: '2026-08-01', assigneeNames: ['Mia'] } },
-      { id: 'r2', snap: { cardTitle: 'Idee', statusLabel: 'Ideen', dueDate: null, assigneeNames: [] } },
+      {
+        id: 'r1',
+        snap: {
+          cardTitle: 'Plakate',
+          statusLabel: 'Offen',
+          dueDate: '2026-08-01',
+          assigneeNames: ['Mia'],
+        },
+      },
+      {
+        id: 'r2',
+        snap: { cardTitle: 'Idee', statusLabel: 'Ideen', dueDate: null, assigneeNames: [] },
+      },
     ],
   };
   beforeEach(() => {
@@ -328,7 +379,10 @@ describe('boards_tasks', () => {
       limit: 15,
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [unknown, { type: string; payload: { rows: unknown[] } }];
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: { rows: unknown[] } },
+    ];
     expect(action.type).toBe('modify_board');
     expect(action.payload.rows).toHaveLength(1);
     expect(updateCard).not.toHaveBeenCalled();
@@ -374,6 +428,58 @@ describe('groups', () => {
     expect(out.results[0].title).toBe('Klima');
     expect(out.results[0].url).toContain('/gruppen/');
   });
+
+  it('create without a name → error, no confirm', async () => {
+    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'create', limit: 15 })) as {
+      error?: string;
+    };
+    expect(out.error).toMatch(/name/);
+    expect(emitToolConfirmAction).not.toHaveBeenCalled();
+  });
+
+  it('create emits a create_group confirm with name + description', async () => {
+    const out = (await exec(makeGroupsTool(ctx('u1')), {
+      action: 'create',
+      name: 'Klima-AG',
+      description: 'Für den Klimaschutz',
+      limit: 15,
+    })) as { ok?: boolean };
+    expect(out.ok).toBe(true);
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: unknown },
+    ];
+    expect(action.type).toBe('create_group');
+    expect(action.payload).toMatchObject({ name: 'Klima-AG', description: 'Für den Klimaschutz' });
+  });
+
+  it('join with an unknown token → error, no confirm', async () => {
+    getGroupByToken.mockResolvedValue(null);
+    const out = (await exec(makeGroupsTool(ctx('u1')), {
+      action: 'join',
+      joinToken: 'deadbeef',
+      limit: 15,
+    })) as { error?: string };
+    expect(out.error).toMatch(/Einladungslink/);
+    expect(emitToolConfirmAction).not.toHaveBeenCalled();
+  });
+
+  it('join emits a join_group confirm naming the resolved group', async () => {
+    getGroupByToken.mockResolvedValue({ id: 'g1', name: 'Klima' });
+    const out = (await exec(makeGroupsTool(ctx('u1')), {
+      action: 'join',
+      joinToken: 'tok123',
+      limit: 15,
+    })) as { ok?: boolean };
+    expect(out.ok).toBe(true);
+    expect(getGroupByToken).toHaveBeenCalledWith('tok123');
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: unknown },
+    ];
+    expect(action.type).toBe('join_group');
+    expect(action.payload).toMatchObject({ joinToken: 'tok123', groupName: 'Klima' });
+  });
 });
 
 // --- media -------------------------------------------------------------------
@@ -381,7 +487,11 @@ describe('media', () => {
   it('list merges reels and sharepics with follow-up refs', async () => {
     getUserProjects.mockResolvedValue([{ id: 'p1', title: 'Reel A', status: 'exported' }]);
     getUserShares.mockResolvedValue([{ share_token: 'tok', title: 'Pic', media_type: 'image' }]);
-    const out = (await exec(makeMediaTool(ctx('u1')), { action: 'list', type: 'all', limit: 15 })) as {
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'all',
+      limit: 15,
+    })) as {
       results: Array<{ type: string; ref?: string }>;
     };
     const refs = out.results.map((r) => r.ref);
