@@ -116,7 +116,6 @@ import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js'
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
-import subtitlerSocialRouter from './routes/subtitler/socialController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
@@ -613,14 +612,25 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
   mountRecurringTasksContractRouter(app);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
-  // requireAuth must run before the contract mount — createExpressEndpoints
-  // registers handlers directly on the app, bypassing the legacy prefix
-  // middleware. Same pattern as /api/transfer below.
+  // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
+  // registers handlers directly on the app, bypassing the legacy prefix middleware.
+  // Same pattern as /api/transfer below.
+  //   - project routes require auth (reject unauthenticated)
+  //   - share routes: optionalAuth populates req.user so write handlers can
+  //     check it, without rejecting the public getShare/thumbnail/preview reads
+  //   - standardMutationLimiter guards writes across the whole prefix (it skips
+  //     GETs, so the 2s progress-polling endpoints are unaffected)
   app.use('/api/subtitler/projects', requireAuth);
+  app.use('/api/subtitler/share', optionalAuth);
+  // Read limiter for the public share GETs (getShare / listMyShares) — the
+  // prefix-wide standardMutationLimiter below skips GETs, so without this the
+  // migrated share reads would be unthrottled. Writes get both limiters.
+  app.use('/api/subtitler/share', publicReadLimiter);
+  app.use('/api/subtitler', standardMutationLimiter);
   mountSubtitlerContractRouter(app);
-  app.use('/api/subtitler', standardMutationLimiter, subtitlerRouter);
-  app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
-  app.use('/api/subtitler/projects', standardMutationLimiter, subtitlerProjectRouter);
+  // Legacy routers — binary/streaming routes only (contract handles all JSON).
+  app.use('/api/subtitler', subtitlerRouter);
+  app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
   // Populate req.user for /api/share without rejecting unauthenticated reads.
   // The contract router below checks req.user.id per write handler; the legacy
