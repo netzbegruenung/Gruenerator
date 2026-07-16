@@ -1,9 +1,22 @@
 import { type AutoProgress, type ExportProgress } from '@gruenerator/contracts';
+import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { Paths, File as ExpoFile, DownloadTask, UploadType } from 'expo-file-system';
 
 import { secureStorage } from './storage';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
+/**
+ * Base URL for the binary upload/download routes (native uploader / DownloadTask
+ * need a full URL). Read from the SAME global axios client the contract client
+ * uses so JSON and binary calls always hit the same host — otherwise an uploadId
+ * created against one host would 404 on the other. Falls back to the env value.
+ */
+function binaryBaseUrl(): string {
+  return (
+    getGlobalApiClient().defaults.baseURL ||
+    process.env.EXPO_PUBLIC_API_URL ||
+    'https://gruenerator.eu/api'
+  );
+}
 
 /**
  * Short, human-readable message from an error response body. API errors are
@@ -20,6 +33,12 @@ function serverErrorMessage(status: number, body: string | null): string {
     }
   }
   return `HTTP ${status}`;
+}
+
+/** Error message from a ts-rest contract response body. */
+function contractErrorMessage(status: number, body: unknown): string {
+  const b = body as { error?: string } | null;
+  return b?.error ?? `HTTP ${status}`;
 }
 
 export type AutoProgressResponse = AutoProgress;
@@ -40,6 +59,8 @@ export interface ManualResultResponse {
  * `File.slice()` loads the whole file into the JS heap (OOM on large videos),
  * and accumulating stream chunks in JS is quadratic. Native streaming has none
  * of those costs and no base64 inflation. Pass `signal` to cancel mid-upload.
+ *
+ * Binary upload — stays on the native uploader, not the JSON contract client.
  */
 export async function uploadVideo(
   fileUri: string,
@@ -50,7 +71,7 @@ export async function uploadVideo(
   const fileName = fileUri.split('/').pop() || 'video.mp4';
 
   const file = new ExpoFile(fileUri);
-  const task = file.createUploadTask(`${API_BASE_URL}/subtitler/upload-binary`, {
+  const task = file.createUploadTask(`${binaryBaseUrl()}/subtitler/upload-binary`, {
     uploadType: UploadType.BINARY_CONTENT,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -86,11 +107,9 @@ export async function uploadVideo(
  * the local abort is what stops the in-flight transfer; this frees server state.
  */
 export async function cancelUpload(uploadId: string): Promise<void> {
-  const token = await secureStorage.getToken();
-  await fetch(`${API_BASE_URL}/subtitler/cleanup/${uploadId}`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  }).catch(() => {});
+  await getContractsClient()
+    .subtitler.postCleanup({ params: { uploadId } })
+    .catch(() => {});
 }
 
 /**
@@ -102,25 +121,12 @@ export async function startAutoProcess(
   userId?: string,
   locale: string = 'de-DE'
 ): Promise<void> {
-  const token = await secureStorage.getToken();
-
-  const response = await fetch(`${API_BASE_URL}/subtitler/process-auto`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
-      uploadId,
-      locale,
-      userId: userId || null,
-    }),
+  const res = await getContractsClient().subtitler.postProcessAuto({
+    body: { uploadId, locale, userId: userId || null },
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
+  if (res.status !== 202) {
     throw new Error(
-      `Verarbeitung konnte nicht gestartet werden: ${serverErrorMessage(response.status, errorText)}`
+      `Verarbeitung konnte nicht gestartet werden: ${contractErrorMessage(res.status, res.body)}`
     );
   }
 }
@@ -130,24 +136,19 @@ export async function startAutoProcess(
  * GET /api/subtitler/auto-progress/:uploadId
  */
 export async function getAutoProgress(uploadId: string): Promise<AutoProgressResponse> {
-  const token = await secureStorage.getToken();
-
-  const response = await fetch(`${API_BASE_URL}/subtitler/auto-progress/${uploadId}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get progress: ${response.status}`);
+  const res = await getContractsClient().subtitler.getAutoProgress({ params: { uploadId } });
+  if (res.status !== 200) {
+    throw new Error(`Failed to get progress: ${res.status}`);
   }
-
-  const data = (await response.json()) as AutoProgressResponse;
-  return data;
+  return res.body;
 }
 
 /**
  * Download processed video to local cache
  * GET /api/subtitler/auto-download/:uploadId
  * Returns local file URI
+ *
+ * Binary download — stays on the native download task, not the JSON contract client.
  */
 export async function downloadVideo(
   uploadId: string,
@@ -165,7 +166,7 @@ export async function downloadVideo(
   // Use the resumable DownloadTask (SDK 56) instead of the fire-and-forget
   // File.downloadFileAsync so we can report progress for these large reel videos.
   const task = new DownloadTask(
-    `${API_BASE_URL}/subtitler/auto-download/${uploadId}`,
+    `${binaryBaseUrl()}/subtitler/auto-download/${uploadId}`,
     destination,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -195,26 +196,17 @@ export async function startManualProcess(
   stylePreference: string = 'shadow',
   heightPreference: string = 'tief'
 ): Promise<void> {
-  const token = await secureStorage.getToken();
-
-  const response = await fetch(`${API_BASE_URL}/subtitler/process`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
+  const res = await getContractsClient().subtitler.postProcess({
+    body: {
       uploadId,
       subtitlePreference: 'manual',
       stylePreference,
-      heightPreference,
-    }),
+      heightPreference: heightPreference as 'standard' | 'tief',
+    },
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
+  if (res.status !== 202) {
     throw new Error(
-      `Transkription konnte nicht gestartet werden: ${serverErrorMessage(response.status, errorText)}`
+      `Transkription konnte nicht gestartet werden: ${contractErrorMessage(res.status, res.body)}`
     );
   }
 }
@@ -228,31 +220,19 @@ export async function getManualResult(
   stylePreference: string = 'shadow',
   heightPreference: string = 'tief'
 ): Promise<ManualResultResponse> {
-  const token = await secureStorage.getToken();
-
-  const params = new URLSearchParams({
-    subtitlePreference: 'manual',
-    stylePreference,
-    heightPreference,
+  const res = await getContractsClient().subtitler.getResult({
+    params: { uploadId },
+    query: { subtitlePreference: 'manual', stylePreference, heightPreference },
   });
 
-  const response = await fetch(`${API_BASE_URL}/subtitler/result/${uploadId}?${params}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to get manual result: ${response.status}`);
+  if (res.status !== 200) {
+    throw new Error(`Failed to get manual result: ${res.status}`);
   }
 
-  interface ManualResultRaw {
-    status: ManualResultResponse['status'];
-    subtitles?: string | null;
-    data?: string | null;
-  }
-  const responseData = (await response.json()) as ManualResultRaw;
+  const subtitles = res.body.subtitles;
   return {
-    status: responseData.status,
-    data: responseData.subtitles ?? responseData.data ?? null,
+    status: res.body.status as ManualResultResponse['status'],
+    data: typeof subtitles === 'string' ? subtitles : null,
   };
 }
 
@@ -271,31 +251,21 @@ export async function exportVideo(params: {
   stylePreference: string;
   heightPreference: string;
 }): Promise<string> {
-  const token = await secureStorage.getToken();
-
-  const response = await fetch(`${API_BASE_URL}/subtitler/export`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
+  const res = await getContractsClient().subtitler.postExport({
+    body: {
       ...(params.uploadId ? { uploadId: params.uploadId } : {}),
       ...(params.projectId ? { projectId: params.projectId } : {}),
       ...(params.userId ? { userId: params.userId } : {}),
-      subtitles: params.subtitles,
+      subtitles: params.subtitles as Record<string, unknown>[],
       stylePreference: params.stylePreference,
       heightPreference: params.heightPreference,
-    }),
+    },
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Export fehlgeschlagen: ${serverErrorMessage(response.status, errorText)}`);
+  if (res.status !== 202) {
+    throw new Error(`Export fehlgeschlagen: ${contractErrorMessage(res.status, res.body)}`);
   }
-
-  const data = (await response.json()) as { exportToken: string };
-  return data.exportToken;
+  return res.body.exportToken;
 }
 
 /**
@@ -303,24 +273,24 @@ export async function exportVideo(params: {
  * GET /api/subtitler/export-progress/:exportToken
  */
 export async function pollExportProgress(exportToken: string): Promise<ExportProgressResponse> {
-  const response = await fetch(`${API_BASE_URL}/subtitler/export-progress/${exportToken}`);
-
-  if (!response.ok) {
-    throw new Error(`Export-Fortschritt konnte nicht abgerufen werden: ${response.status}`);
+  const res = await getContractsClient().subtitler.getExportProgress({ params: { exportToken } });
+  if (res.status !== 200) {
+    throw new Error(`Export-Fortschritt konnte nicht abgerufen werden: ${res.status}`);
   }
-
-  return (await response.json()) as ExportProgressResponse;
+  return res.body;
 }
 
 /**
  * Download exported video to local cache
  * GET /api/subtitler/export-download/:exportToken
+ *
+ * Binary download — stays on the native download helper, not the JSON contract client.
  */
 export async function downloadExportedVideo(exportToken: string): Promise<string> {
   const destination = new ExpoFile(Paths.cache, `export_${exportToken}.mp4`);
 
   const file = await ExpoFile.downloadFileAsync(
-    `${API_BASE_URL}/subtitler/export-download/${exportToken}`,
+    `${binaryBaseUrl()}/subtitler/export-download/${exportToken}`,
     destination,
     { idempotent: true }
   );
