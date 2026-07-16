@@ -14,6 +14,7 @@ import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/i
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
+import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
@@ -68,6 +69,7 @@ import { mountNotificationsContractRouter } from './routes/notifications/notific
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
@@ -127,7 +129,6 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
-import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
@@ -137,6 +138,7 @@ import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import { mountWordpressContractRouter } from './routes/wordpress/wordpressContractRouter.js';
+import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
@@ -340,6 +342,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the prefix because every route requires authentication.
   app.use('/api/auth/templates', requireAuth);
   mountTemplateInteractionsContractRouter(app);
+  // ts-rest contract router for user prompts (custom_prompts + saved_prompts
+  // CRUD) — mounts BEFORE authRouter so contract routes match first; the
+  // legacy userCustomPrompts router keeps the semantic-search / discovery
+  // endpoints. requireAuth at the prefixes because every route requires auth.
+  app.use('/api/auth/custom_prompts', requireAuth);
+  app.use('/api/auth/saved_prompts', requireAuth);
+  mountPromptsContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections. requireAuth is
   // applied at the prefix because all routes require authentication.
@@ -632,6 +641,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountEmailContractRouter(app);
   app.use('/api/email', standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
+  // ts-rest contract router for /api/recent-activity — mounts BEFORE the legacy
+  // router so the typed GET matches first; requireAuth at the prefix guarantees
+  // req.user for both the contract handler and the legacy fall-through.
+  app.use('/api/recent-activity', requireAuth);
+  mountRecentActivityContractRouter(app);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first; /stream SSE falls through to legacy.

@@ -9,7 +9,7 @@ _Newsletter Juli 2026_
 
 ---
 
-Hallo {{ contact.VORNAME | default : " " }},
+Hallo \{\{ contact.VORNAME | default : " " \}\},
 
 normalerweise stelle ich dir ein neues Feature vor. Heute sind es gleich vier – und alle auf einmal.
 
