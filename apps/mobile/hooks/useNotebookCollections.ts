@@ -42,9 +42,10 @@ export function useNotebookCollections() {
 
   useEffect(() => {
     void fetchCollections();
+    const timers = pollTimers.current;
     return () => {
-      pollTimers.current.forEach((timer) => clearInterval(timer));
-      pollTimers.current.clear();
+      timers.forEach((timer) => clearInterval(timer));
+      timers.clear();
     };
   }, [fetchCollections]);
 

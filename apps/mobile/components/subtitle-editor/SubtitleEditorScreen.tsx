@@ -206,14 +206,15 @@ export function SubtitleEditorScreen({
   }, [saveChanges, onSaved]);
 
   const exportHook = useSubtitleExport(saveChanges);
+  const { startExport, reset: resetExport } = exportHook;
 
   const handleExport = useCallback(() => {
-    void exportHook.startExport();
-  }, [exportHook.startExport]);
+    void startExport();
+  }, [startExport]);
 
   const handleBackToEditor = useCallback(() => {
-    exportHook.reset();
-  }, [exportHook.reset]);
+    resetExport();
+  }, [resetExport]);
 
   const handleGoHome = useCallback(() => {
     void router.replace('/(tabs)/start');

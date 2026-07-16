@@ -5,6 +5,7 @@
 export { threadsContract } from './threadsContract.js';
 export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
+export { recentActivityContract } from './recentActivityContract.js';
 export { itemUsageContract } from './itemUsageContract.js';
 export { searchContract } from './searchContract.js';
 export { globalSearchContract } from './globalSearchContract.js';
@@ -57,3 +58,4 @@ export { contentSyncContract } from './contentSyncContract.js';
 export { monitorContract } from './monitorContract.js';
 export { sitesContract } from './sitesContract.js';
 export { reisekostenContract } from './reisekostenContract.js';
+export { promptsContract } from './promptsContract.js';

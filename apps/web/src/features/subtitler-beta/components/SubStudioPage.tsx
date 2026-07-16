@@ -1,8 +1,8 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { useHistoryStore } from '../stores/historyStore';
 import { useWizardStore, type WizardStep } from '../stores/wizardStore';
@@ -84,10 +84,14 @@ function SubStudioPageInner() {
     if (!paramProjectId || !user?.id || deepLinkLoadedRef.current) return;
     deepLinkLoadedRef.current = true;
 
-    apiClient
-      .get<{ project?: { subtitles?: string | null } }>(`/subtitler/projects/${paramProjectId}`)
+    getContractsClient()
+      .subtitler.getProject({ params: { projectId: paramProjectId } })
       .then((res) => {
-        const p = res.data?.project;
+        if (res.status !== 200) {
+          setSearchParams({}, { replace: true });
+          return;
+        }
+        const p = res.body.project;
         if (!p) return;
 
         if (p.subtitles) {

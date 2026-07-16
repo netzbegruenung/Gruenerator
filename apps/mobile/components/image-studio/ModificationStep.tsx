@@ -83,7 +83,7 @@ export function ModificationStep({
       return;
     }
     debouncedRegenerate();
-  }, [modifications]);
+  }, [modifications, debouncedRegenerate]);
 
   return (
     <View style={styles.container}>
