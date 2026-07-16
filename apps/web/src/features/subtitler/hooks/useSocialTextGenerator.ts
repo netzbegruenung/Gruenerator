@@ -1,21 +1,12 @@
 /**
  * Hook for generating social media text from subtitles
  *
- * Takes subtitle content and generates social media post text using AI.
- * Now uses generic useApiAction hook with full type safety.
- *
- * Reduced from ~37 lines to ~18 lines by eliminating duplicate pattern.
+ * Takes subtitle content and generates social media post text using AI
+ * via the ts-rest contract client (`subtitler.generateSocial`).
  */
 
-import { useApiAction } from './useApiAction';
-
-interface GenerateSocialTextRequest {
-  subtitles: string;
-}
-
-interface SocialTextResponse {
-  content?: string;
-}
+import { getContractsClient } from '@gruenerator/shared/api';
+import { useState, useCallback } from 'react';
 
 /**
  * Hook for generating social media text from subtitles
@@ -29,29 +20,44 @@ interface SocialTextResponse {
  * ```
  */
 export const useSocialTextGenerator = () => {
-  const { data, loading, error, execute, reset } = useApiAction<GenerateSocialTextRequest, string>({
-    endpoint: '/subtitler/generate-social',
-    transformResponse: (response) => {
-      // Extract content from API response
-      if (typeof response === 'object' && response !== null) {
-        const responseObj = response as SocialTextResponse;
-        return responseObj.content || String(response);
-      }
-      return String(response);
-    },
-  });
+  const [socialText, setSocialText] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Generate social text from subtitles
-   */
-  const generateSocialText = async (subtitles?: string): Promise<string | undefined> => {
-    if (!subtitles) return undefined;
-    return execute({ subtitles });
-  };
+  const generateSocialText = useCallback(
+    async (subtitles?: string): Promise<string | undefined> => {
+      if (!subtitles) return undefined;
+      setIsGenerating(true);
+      setError(null);
+      try {
+        const res = await getContractsClient().subtitler.generateSocial({ body: { subtitles } });
+        if (res.status !== 200) {
+          throw new Error(
+            (res.body as { error?: string })?.error ?? 'Fehler bei der Erstellung des Textes'
+          );
+        }
+        const content = res.body.content;
+        setSocialText(content);
+        return content;
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Fehler bei der Erstellung des Textes');
+        return undefined;
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    []
+  );
+
+  const reset = useCallback(() => {
+    setSocialText('');
+    setError(null);
+    setIsGenerating(false);
+  }, []);
 
   return {
-    socialText: data || '',
-    isGenerating: loading,
+    socialText,
+    isGenerating,
     error,
     generateSocialText,
     reset,

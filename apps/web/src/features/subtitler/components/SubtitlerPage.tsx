@@ -9,7 +9,6 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
@@ -376,9 +375,9 @@ const SubtitlerPage = (): React.ReactElement => {
     // Send cleanup signal before reset
     if (uploadInfo?.uploadId) {
       console.log(`[SubtitlerPage] Manual cleanup on reset for uploadId: ${uploadInfo.uploadId}`);
-      fetch(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`, { method: 'DELETE' }).catch(
-        (error) => console.warn('[SubtitlerPage] Cleanup request failed:', error)
-      );
+      void getContractsClient()
+        .subtitler.deleteCleanup({ params: { uploadId: uploadInfo.uploadId } })
+        .catch((error) => console.warn('[SubtitlerPage] Cleanup request failed:', error));
     }
 
     // Reset export store
@@ -393,7 +392,7 @@ const SubtitlerPage = (): React.ReactElement => {
       setAutoSavedProjectId(null);
       resetSocialText();
     }, 300);
-  }, [resetSocialText, uploadInfo?.uploadId, baseURL, resetExport, goToStep]);
+  }, [resetSocialText, uploadInfo?.uploadId, resetExport, goToStep]);
 
   // Function to go back to the editor without resetting everything
   const handleEditAgain = useCallback(() => {
@@ -420,13 +419,17 @@ const SubtitlerPage = (): React.ReactElement => {
   const handleStartAutoProcessing = useCallback(
     async (uploadId: string): Promise<void> => {
       try {
-        const response = await apiClient.post('/subtitler/process-auto', {
-          uploadId,
-          locale: 'de-DE',
-          userId: user?.id || null,
+        const res = await getContractsClient().subtitler.postProcessAuto({
+          body: { uploadId, locale: 'de-DE', userId: user?.id || null },
         });
-        if (response.status === 202) {
+        if (res.status === 202) {
           console.log('[SubtitlerPage] Auto processing started for:', uploadId);
+        } else {
+          const msg =
+            (res.body as { error?: string })?.error ||
+            'Fehler beim Starten der automatischen Verarbeitung.';
+          setError(msg);
+          goToStep('upload');
         }
       } catch (error) {
         console.error('[SubtitlerPage] Error starting auto processing:', error);
