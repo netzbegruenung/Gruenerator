@@ -192,7 +192,7 @@ export async function streamAgenticResponse(params: {
 
     // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
     // (dynamicTool) into the same catalog, so the model composes them with the
-    // internal search tools in ONE loop (no mcpToolNode double-LLM).
+    // internal search tools in ONE loop (single-pass, no separate mcp node).
     const userId = agentConfig.userId;
     if (finalState.intent === 'mcp' && userId) {
       mcpCatalog = await loadMcpCatalog({
