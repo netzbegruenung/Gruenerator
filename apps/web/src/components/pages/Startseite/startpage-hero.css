@@ -1,0 +1,395 @@
+/* Full-screen "sunrise" hero for the public start page.
+   Theme-aware via the app's [data-theme] tokens (variables.css). The resting
+   backdrop is a soft green radial; opening the login crossfades it to warm
+   yellow. Both layers are fixed (Home renders in the noChrome layout, so there
+   is no transform ancestor and position:fixed behaves). */
+
+@property --sp-sunrise-y {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 118%;
+}
+@property --sp-sunrise-spread {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 55%;
+}
+
+/* ── Backdrop: green at rest, yellow while the login is open ── */
+.sp-sunrise {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  --sp-sunrise-opacity: 1;
+  opacity: var(--sp-sunrise-opacity);
+  background: radial-gradient(
+    130% 95% at 50% var(--sp-sunrise-y),
+    #a9dc74 0%,
+    #cfeaa1 14%,
+    rgba(128, 182, 70, 0.22) var(--sp-sunrise-spread),
+    transparent 78%
+  );
+  animation: sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+[data-theme='dark'] .sp-sunrise {
+  --sp-sunrise-opacity: 0.4;
+}
+
+.sp-sunrise-warm {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    130% 95% at 50% 50%,
+    #ffe14d 0%,
+    #ffe98f 14%,
+    rgba(255, 236, 0, 0.22) 55%,
+    transparent 78%
+  );
+  transition: opacity 1.2s ease;
+}
+.sp-sunrise-warm.is-on {
+  opacity: 1;
+}
+[data-theme='dark'] .sp-sunrise-warm.is-on {
+  opacity: 0.4;
+}
+
+@keyframes sp-sunrise-in {
+  from {
+    --sp-sunrise-y: 118%;
+    --sp-sunrise-spread: 40%;
+    opacity: 0;
+  }
+  to {
+    --sp-sunrise-y: 50%;
+    --sp-sunrise-spread: 55%;
+    opacity: var(--sp-sunrise-opacity);
+  }
+}
+
+/* ── Hero: single centred column ── */
+.sp-hero {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 24px;
+  /* light-theme locals; overridden for dark below */
+  --sp-wordmark: #2f4f40;
+  --sp-obr: rgba(47, 79, 64, 0.35);
+  --sp-obr-hover: #2f4f40;
+  --sp-more-hover-bg: rgba(255, 255, 255, 0.5);
+}
+[data-theme='dark'] .sp-hero {
+  --sp-wordmark: #cfe3d8;
+  --sp-obr: rgba(207, 227, 216, 0.4);
+  --sp-obr-hover: #cfe3d8;
+  --sp-more-hover-bg: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Top bar ── */
+.sp-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 32px;
+}
+.sp-wordmark {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--sp-wordmark);
+}
+.sp-wordmark-dot {
+  color: #52907a;
+}
+.sp-eyebrow {
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--font-color);
+  opacity: 0.55;
+}
+
+/* ── Headline ── */
+.sp-headline {
+  margin: 0 0 40px;
+  max-width: 22ch;
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-weight: 600;
+  font-size: clamp(2.6rem, 2rem + 2.4vw, 3.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--font-color-h);
+}
+
+/* ── Call to action ── */
+.sp-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.sp-cta-row,
+.sp-providers {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sp-login,
+.sp-provider {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  text-decoration: none;
+  color: #111111;
+  background: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 34px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease;
+}
+.sp-login svg,
+.sp-provider svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.sp-login:hover,
+.sp-provider:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+.sp-login:active,
+.sp-provider:active {
+  transform: translateY(0);
+}
+.sp-login:focus-visible,
+.sp-provider:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 4px;
+}
+
+/* Outlined secondary "Mehr erfahren" */
+.sp-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--sp-wordmark);
+  background: transparent;
+  border: 2px solid var(--sp-obr);
+  border-radius: 999px;
+  padding: 12px 30px;
+  cursor: pointer;
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+.sp-more:hover {
+  transform: translateY(-2px);
+  border-color: var(--sp-obr-hover);
+  background: var(--sp-more-hover-bg);
+}
+.sp-more:active {
+  transform: translateY(0);
+}
+.sp-more:focus-visible {
+  outline: 2px solid var(--sp-obr-hover);
+  outline-offset: 4px;
+}
+
+/* Ghost "Zurück" under the provider buttons */
+.sp-back {
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--font-color);
+  opacity: 0.66;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.sp-back:hover {
+  opacity: 1;
+}
+.sp-back:focus-visible {
+  outline: 2px solid var(--font-color-h);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.sp-hint {
+  margin: 0;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: 0.9rem;
+  color: var(--font-color);
+  opacity: 0.66;
+  letter-spacing: 0.01em;
+}
+
+/* ── Scroll cue ── */
+.sp-cue {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--font-color);
+  opacity: 0.72;
+  padding: 8px 10px;
+  transition:
+    opacity 0.2s ease,
+    color 0.2s ease;
+}
+.sp-cue:hover {
+  opacity: 1;
+  color: var(--font-color-h);
+}
+.sp-cue:focus-visible {
+  outline: 2px solid var(--font-color-h);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+.sp-cue-chev {
+  width: 22px;
+  height: 22px;
+  animation: sp-bob 1.9s ease-in-out infinite;
+}
+@keyframes sp-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateY(5px);
+    opacity: 1;
+  }
+}
+
+/* ── Content rises over the fixed sunrise as a rounded sheet ── */
+.sp-content {
+  position: relative;
+  z-index: 1;
+  border-top-left-radius: 32px;
+  border-top-right-radius: 32px;
+  box-shadow: 0 -26px 70px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+  background: var(--background-color);
+}
+[data-theme='dark'] .sp-content {
+  box-shadow: 0 -26px 70px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Phone ── */
+@media (max-width: 768px) {
+  .sp-hero {
+    padding: 72px 24px 88px;
+  }
+  .sp-topbar {
+    padding: 18px 20px;
+  }
+  .sp-wordmark {
+    font-size: 1.15rem;
+  }
+  .sp-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+  }
+  .sp-headline {
+    margin-bottom: 32px;
+    font-size: clamp(2rem, 6vw + 1rem, 2.5rem);
+    line-height: 1.18;
+    max-width: 16ch;
+  }
+  /* Stack the CTA full-width; the outlined "Mehr erfahren" drops out on phone
+     (the bottom chevron already handles scroll-to-content). */
+  .sp-cta-row,
+  .sp-providers {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+  }
+  .sp-more {
+    display: none;
+  }
+  .sp-login,
+  .sp-provider {
+    width: 100%;
+    min-height: 54px;
+  }
+  .sp-cue {
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    padding: 10px 20px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .sp-cue-chev {
+    width: 20px;
+    height: 20px;
+  }
+  .sp-content {
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-sunrise {
+    animation: none;
+    --sp-sunrise-y: 50%;
+    --sp-sunrise-spread: 55%;
+    opacity: var(--sp-sunrise-opacity);
+  }
+  .sp-sunrise-warm {
+    transition: none;
+  }
+  .sp-cue-chev {
+    animation: none;
+  }
+  .sp-login,
+  .sp-provider,
+  .sp-more {
+    transition: box-shadow 0.2s ease;
+  }
+}
