@@ -57,8 +57,6 @@ export interface ProfileRow {
   prompts: boolean;
   interactive_antrag_enabled: boolean;
   nextcloud_share_links: Record<string, unknown>[];
-  wordpress_sites: Record<string, unknown>[];
-  wordpress_enabled: boolean;
   document_mode: string;
   user_defaults: Record<string, unknown>;
   docs: boolean;
