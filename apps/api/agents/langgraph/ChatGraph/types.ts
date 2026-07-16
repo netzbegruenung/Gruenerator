@@ -776,6 +776,16 @@ export interface ShareDocPayload {
   permissionLevel: 'viewer' | 'editor';
 }
 
+export interface CreateGroupPayload {
+  name: string;
+  description: string | null;
+}
+
+export interface JoinGroupPayload {
+  joinToken: string;
+  groupName: string;
+}
+
 /**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
@@ -792,6 +802,8 @@ export type PendingAction = {
   | { type: 'modify_doc'; payload: ModifyDocPayload }
   | { type: 'modify_board'; payload: ModifyBoardPayload }
   | { type: 'share_doc'; payload: ShareDocPayload }
+  | { type: 'create_group'; payload: CreateGroupPayload }
+  | { type: 'join_group'; payload: JoinGroupPayload }
 );
 
 /**
