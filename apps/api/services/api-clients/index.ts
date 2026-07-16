@@ -8,17 +8,6 @@ export type {
   DownloadFileResult,
 } from './nextcloudApiClient.js';
 
-export { default as WordPressApiClient } from './wordpressApiClient.js';
-export type {
-  WPPost,
-  WPCategory,
-  CreatePostOptions,
-  PostResult,
-  ConnectionResult,
-  PostsListResult,
-  GetPostsParams,
-} from './wordpressApiClient.js';
-
 export { default as oparlApiClient } from './oparlApiClient.js';
 export type {
   OparlEndpoint,

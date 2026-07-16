@@ -163,7 +163,6 @@ export const auth = betterAuth({
       boards: { type: 'boolean', required: false, defaultValue: false },
       bundestag_api_enabled: { type: 'boolean', required: false, defaultValue: false },
       memory_enabled: { type: 'boolean', required: false, defaultValue: false },
-      wordpress_enabled: { type: 'boolean', required: false, defaultValue: false },
     },
   },
 
