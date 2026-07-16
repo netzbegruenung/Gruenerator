@@ -1,4 +1,4 @@
-import { FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
+import { FaCloud, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { PiGlobe } from 'react-icons/pi';
 
@@ -22,7 +22,6 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
-  { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'verbindungen', label: 'Verbindungen', path: '/profile/verbindungen', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
 ];

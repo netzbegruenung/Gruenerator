@@ -21,6 +21,7 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
   globalSearchContract,
@@ -81,6 +82,7 @@ export {
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/recentActivity.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
