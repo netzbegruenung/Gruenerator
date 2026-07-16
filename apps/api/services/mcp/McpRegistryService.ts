@@ -46,6 +46,10 @@ const SEEDS: Seed[] = [
   ['SISTRIX', 'https://api.sistrix.com/mcp/', 'bearer', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com', 'Analyse & SEO'],
   ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
   ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
+  ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
+  ['Typeform', 'https://api.typeform.com/mcp', 'oauth', 'Formulare bauen, Automationen und Antworten verwalten.', 'https://typeform.com', 'Formulare'],
+  ['Typeform (EU)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare bauen und Antworten verwalten (EU-Rechenzentrum).', 'https://typeform.com', 'Formulare'],
+  ['Zoom', 'https://zoom.us/mcp/meeting/streamable', 'oauth', 'Meetings planen, Aufzeichnungen und Zusammenfassungen abrufen.', 'https://zoom.us', 'Kommunikation'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
