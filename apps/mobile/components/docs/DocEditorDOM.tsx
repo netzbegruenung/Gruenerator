@@ -693,7 +693,7 @@ function EditorContent({
       window.removeEventListener('slash-select', handleSlashSelect);
       window.removeEventListener('undo-redo-action', handleUndoRedo);
     };
-  }, [sendMessage, setTyping]);
+  }, [sendMessage, setTyping, userId, userName]);
 
   // Bridge chat messages to native — only re-fire when messages change, not callback identity
   useEffect(() => {
@@ -938,77 +938,91 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
       const id = (props.pendingAction as { type: string; id: number }).id;
       window.dispatchEvent(new CustomEvent('suggestion-select', { detail: { id } }));
     }
-  }, [props.pendingAction, props.actionCounter]);
+  }, [props.pendingAction, props.actionCounter, props.documentId]);
+
+  const {
+    onConnectionStatusChange,
+    onAuthError,
+    onChatMessagesChange,
+    onLocalUserIdChange,
+    onTypingUsersChange,
+    onCollaboratorsChange,
+    onActiveStylesChange,
+    onDocSnapshotChange,
+    onUndoRedoStateChange,
+    onSuggestionModeChange,
+    onSuggestionsChange,
+  } = props;
 
   const handleConnectionStatusChange = useCallback(
-    (status: string) => props.onConnectionStatusChange(status),
-    [props.onConnectionStatusChange]
+    (status: string) => onConnectionStatusChange(status),
+    [onConnectionStatusChange]
   );
 
   const handleAuthError = useCallback(
-    (reason: string) => props.onAuthError?.(reason) ?? Promise.resolve(),
-    [props.onAuthError]
+    (reason: string) => onAuthError?.(reason) ?? Promise.resolve(),
+    [onAuthError]
   );
 
   const handleChatMessagesChange = useCallback(
-    (messagesJson: string) => props.onChatMessagesChange(messagesJson),
-    [props.onChatMessagesChange]
+    (messagesJson: string) => onChatMessagesChange(messagesJson),
+    [onChatMessagesChange]
   );
 
   const handleLocalUserIdChange = useCallback(
-    (userId: string) => props.onLocalUserIdChange(userId),
-    [props.onLocalUserIdChange]
+    (userId: string) => onLocalUserIdChange(userId),
+    [onLocalUserIdChange]
   );
 
   const handleTypingUsersChange = useCallback(
-    (usersJson: string) => props.onTypingUsersChange(usersJson),
-    [props.onTypingUsersChange]
+    (usersJson: string) => onTypingUsersChange(usersJson),
+    [onTypingUsersChange]
   );
 
   const handleCollaboratorsChange = useCallback(
     async (collaboratorsJson: string) => {
-      if (props.onCollaboratorsChange) {
-        await props.onCollaboratorsChange(collaboratorsJson);
+      if (onCollaboratorsChange) {
+        await onCollaboratorsChange(collaboratorsJson);
       }
     },
-    [props.onCollaboratorsChange]
+    [onCollaboratorsChange]
   );
 
   const handleActiveStylesChange = useCallback(
     async (stylesJson: string) => {
-      if (props.onActiveStylesChange) {
-        await props.onActiveStylesChange(stylesJson);
+      if (onActiveStylesChange) {
+        await onActiveStylesChange(stylesJson);
       }
     },
-    [props.onActiveStylesChange]
+    [onActiveStylesChange]
   );
 
   const handleDocSnapshotChange = useCallback(
     (markdown: string, selectionText: string) => {
-      props.onDocSnapshotChange?.(markdown, selectionText);
+      onDocSnapshotChange?.(markdown, selectionText);
     },
-    [props.onDocSnapshotChange]
+    [onDocSnapshotChange]
   );
 
   const handleUndoRedoStateChange = useCallback(
     (canUndo: boolean, canRedo: boolean) => {
-      props.onUndoRedoStateChange?.(canUndo, canRedo);
+      onUndoRedoStateChange?.(canUndo, canRedo);
     },
-    [props.onUndoRedoStateChange]
+    [onUndoRedoStateChange]
   );
 
   const handleSuggestionModeChange = useCallback(
     (enabled: boolean) => {
-      props.onSuggestionModeChange?.(enabled);
+      onSuggestionModeChange?.(enabled);
     },
-    [props.onSuggestionModeChange]
+    [onSuggestionModeChange]
   );
 
   const handleSuggestionsChange = useCallback(
     (json: string) => {
-      props.onSuggestionsChange?.(json);
+      onSuggestionsChange?.(json);
     },
-    [props.onSuggestionsChange]
+    [onSuggestionsChange]
   );
 
   return (
