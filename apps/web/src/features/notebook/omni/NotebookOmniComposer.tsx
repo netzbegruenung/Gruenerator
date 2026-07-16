@@ -2,11 +2,12 @@ import { useComposerRuntime } from '@assistant-ui/react';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { FiBook, FiCornerDownLeft, FiLayers, FiSearch } from 'react-icons/fi';
+import { FiBook, FiCornerDownLeft, FiFilter, FiLayers, FiSearch } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import { useResearchFilters } from '../manual-search/useResearchFilters';
 
 import {
   buildSystemTargets,
@@ -15,6 +16,12 @@ import {
   matchTargetsByName,
   type OmniTarget,
 } from './omniIntent';
+import { OmniResultsPanel } from './OmniResultsPanel';
+import {
+  describeParsedFilters,
+  parseResearchIntent,
+  type ParsedResearchIntent,
+} from './parseResearchIntent';
 
 import type { IconType } from 'react-icons';
 
@@ -53,7 +60,7 @@ function TargetChip({ target, size = 26 }: { target: OmniTarget; size?: number }
   const icon = Math.round(size * 0.55);
   return (
     <span
-      className="flex flex-none items-center justify-center rounded-lg bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+      className="flex flex-none items-center justify-center rounded-lg bg-[#FBE4F0] text-[#B4005C] dark:bg-[#3A1E2C] dark:text-[#F2A9CE]"
       style={{ width: size, height: size }}
     >
       <Icon style={{ width: icon, height: icon }} />
@@ -109,7 +116,15 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [resultsFor, setResultsFor] = useState<ParsedResearchIntent | null>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Topic/type facet vocabulary for the NL parser (all searchable collections,
+  // cached by React Query — the gallery below warms the same data).
+  const { filterFields, setFiltersEnabled } = useResearchFilters();
+  useEffect(() => {
+    setFiltersEnabled(true);
+  }, [setFiltersEnabled]);
 
   useEffect(
     () => () => {
@@ -149,6 +164,15 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
       .slice(0, MAX_OPEN_MATCHES);
   }, [question, targets, entityMatches]);
 
+  const parsedIntent = useMemo(
+    () => parseResearchIntent(question, { targets, filterFields }),
+    [question, targets, filterFields]
+  );
+  // Offer the filtered search only when a concrete filter (date/topic/type/recency)
+  // was recognised — a bare region name still routes to that notebook's chat.
+  const hasResearchFilters =
+    Object.keys(parsedIntent.filters).length > 0 || parsedIntent.sortBy != null;
+
   const askInNotebook = (target: OmniTarget) => {
     if (!question) return;
     // freshConversation so the routed question opens a clean thread rather than
@@ -164,6 +188,35 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
     setOpen(false);
   };
 
+  const runFilteredSearch = () => {
+    if (!question) return;
+    setResultsFor(parsedIntent);
+    setActive(0);
+    setOpen(false);
+  };
+
+  const filteredSummary = [
+    ...describeParsedFilters(parsedIntent).map((c) => c.label),
+    ...(parsedIntent.sortBy === 'date_desc' ? ['neueste zuerst'] : []),
+  ].join(' · ');
+
+  const filteredOption: Option[] = hasResearchFilters
+    ? [
+        {
+          key: 'filtered-search',
+          onSelect: runFilteredSearch,
+          render: () => (
+            <OptionRow
+              chip={<NeutralChip icon={FiFilter} />}
+              title="Gefiltert durchsuchen"
+              subtitle={filteredSummary || `Trefferliste für „${question}"`}
+              showEnterHint
+            />
+          ),
+        },
+      ]
+    : [];
+
   const entityAskOptions: Option[] = entityMatches.map(({ target }, i) => ({
     key: `ask-${target.key}`,
     onSelect: () => askInNotebook(target),
@@ -172,7 +225,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
         chip={<TargetChip target={target} />}
         title={`Im Notebook „${target.title}" fragen`}
         subtitle={`„${question}"`}
-        showEnterHint={i === 0 && questionIntent}
+        showEnterHint={i === 0 && questionIntent && !hasResearchFilters}
       />
     ),
   }));
@@ -185,7 +238,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
         chip={<NeutralChip icon={FiLayers} />}
         title="Alle Notebooks fragen"
         subtitle={`„${question}"`}
-        showEnterHint={questionIntent && entityMatches.length === 0}
+        showEnterHint={questionIntent && entityMatches.length === 0 && !hasResearchFilters}
       />
     ),
   };
@@ -221,13 +274,16 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
       ]
     : [];
 
-  // Question → ask options lead; keyword lookup → open/research options lead.
-  const options: Option[] = questionIntent
-    ? [...entityAskOptions, aggregateOption, ...openOptions, ...manualOption]
-    : [...openOptions, ...manualOption, ...entityAskOptions, aggregateOption];
+  // Concrete NL filters → filtered search leads; question → ask options lead;
+  // keyword lookup → open/research options lead.
+  const options: Option[] = hasResearchFilters
+    ? [...filteredOption, ...entityAskOptions, aggregateOption, ...openOptions, ...manualOption]
+    : questionIntent
+      ? [...entityAskOptions, aggregateOption, ...openOptions, ...manualOption]
+      : [...openOptions, ...manualOption, ...entityAskOptions, aggregateOption];
 
   const clampedActive = Math.min(active, Math.max(0, options.length - 1));
-  const showDropdown = open && question.length > 0 && options.length > 0;
+  const showDropdown = open && question.length > 0 && options.length > 0 && !resultsFor;
   const detectedTarget = questionIntent ? (entityMatches[0]?.target ?? null) : null;
   const DetectedIcon = detectedTarget?.icon ?? FiBook;
 
@@ -256,7 +312,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
 
   return (
     <div className="relative mx-auto w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#9DBDAE] focus-within:shadow-[0_0_0_4px_rgba(95,133,117,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
+      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#E48DB6] focus-within:shadow-[0_0_0_4px_rgba(214,0,110,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
         <div className="relative min-w-0 flex-1">
           {question.length === 0 && (
             <TypingAnimation
@@ -277,6 +333,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
               setQ(e.target.value);
               setActive(0);
               setOpen(true);
+              setResultsFor(null);
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => {
@@ -290,7 +347,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
 
         {detectedTarget && (
           <span
-            className="flex flex-none items-center gap-1.5 rounded-full bg-primary-50 px-[11px] py-[5px] text-[12.5px] font-bold text-primary-700 max-[420px]:px-1.5 dark:bg-primary-900/30 dark:text-primary-300"
+            className="flex flex-none items-center gap-1.5 rounded-full bg-[#FBE4F0] px-[11px] py-[5px] text-[12.5px] font-bold text-[#B4005C] max-[420px]:px-1.5 dark:bg-[#3A1E2C] dark:text-[#F2A9CE]"
             aria-label={`Erkanntes Notebook: ${detectedTarget.title}`}
           >
             <DetectedIcon className="h-[13px] w-[13px]" />
@@ -304,7 +361,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           onClick={runPrimary}
           disabled={question.length === 0}
           aria-label="Fragen oder suchen"
-          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#4C8A6E] text-white transition-[background,transform] hover:bg-[#3E7A5F] active:scale-95 disabled:opacity-50"
+          className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#D6006E] text-white transition-[background,transform] hover:bg-[#B4005C] active:scale-95 disabled:opacity-50"
         >
           <svg
             viewBox="0 0 24 24"
@@ -347,6 +404,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
           ))}
         </div>
       )}
+
+      {resultsFor && <OmniResultsPanel parsed={resultsFor} />}
     </div>
   );
 }

@@ -1,9 +1,8 @@
 import { Suspense, lazy } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { useAuthStore } from '../../stores/authStore';
-import { useTourAutostart } from '../tours/useTourAutostart';
+import { NOTEBOOK_MAGENTA_BG } from '../notebook/notebookTheme';
 
 import WorkplaceChatTab from './tabs/WorkplaceChatTab';
 import WorkplaceTabs, { workplaceTabFromPathname } from './WorkplaceTabs';
@@ -17,24 +16,18 @@ import './workplace-sunrise.css';
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 const WissenTab = lazy(() => import('./tabs/WissenTab'));
 
-// Per-tab page tints from the design (light mode only; dark keeps the theme
-// background). Chat gets the warm radial glow behind the centered hero.
+// Per-tab page tints from the design. Chat gets the warm radial glow behind the
+// centered hero (light + dark handled in workplace-sunrise.css); Wissen shares
+// the notebook magenta gradient (pink light / deep-green dark).
 const TAB_BACKGROUND: Record<string, string> = {
-  chat: 'workplace-chat-sunrise dark:bg-transparent',
+  chat: 'workplace-chat-sunrise',
   arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
-  wissen: 'bg-[#FEFDF9] dark:bg-transparent',
+  wissen: NOTEBOOK_MAGENTA_BG,
 };
 
 const WorkplacePage = () => {
   const { pathname } = useLocation();
   const tab = workplaceTabFromPathname(pathname);
-  const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  useTourAutostart('workplace', tab === 'chat' && !!user, () => {
-    void import('../tours/workplaceTour').then((m) =>
-      m.startWorkplaceTour((path) => void navigate(path))
-    );
-  });
 
   return (
     <ErrorBoundary>

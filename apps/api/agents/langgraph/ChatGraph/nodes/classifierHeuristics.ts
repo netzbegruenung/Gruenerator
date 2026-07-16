@@ -135,6 +135,8 @@ export const INTENT_KEYWORDS: Record<
     | 'save_as_doc'
     | 'create_sheet'
     | 'create_presentation'
+    // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
+    | 'create_recurring_task'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
@@ -147,6 +149,8 @@ export const INTENT_KEYWORDS: Record<
     | 'artifact'
     // compute is detected by dedicated count/math/unit/date patterns, not keywords.
     | 'compute'
+    // agentic is a router disposition (loop demotion), never keyword-matched.
+    | 'agentic'
     // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
     | 'social_post'
     // chat_history is detected by the dedicated past-conversation regex, not keywords.

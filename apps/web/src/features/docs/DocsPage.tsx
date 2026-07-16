@@ -37,6 +37,7 @@ import { generateSharepicFromPrompt } from '../../services/sharepicPromptService
 import { useAuthStore } from '../../stores/authStore';
 import useImageStudioStore from '../../stores/imageStudioStore';
 import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
+import { useFeatureIndex } from '../global-search/useFeatureIndex';
 import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
 import {
   getPresentationTemplate,
@@ -82,6 +83,21 @@ type UnifiedItem =
     }
   | { kind: 'board'; data: Board; sortKey: number };
 
+// A single office content type. The type-scoped landing pages (/docs, /boards,
+// /sheets, /presentations) pass one of these; the unscoped Arbeiten tab passes none.
+export type OfficeScope = Exclude<DocKind, 'sharepic'>;
+
+// Per-scope hero heading + page-background tint. Tints echo each type's accent
+// from DOC_TYPE_META and go transparent in dark mode (like the Arbeiten tab).
+const SCOPE_META: Record<OfficeScope, { heading: string; bgClassName: string }> = {
+  doc: { heading: 'Deine Dokumente', bgClassName: 'bg-[#F4FAF6] dark:bg-transparent' },
+  board: { heading: 'Deine Boards', bgClassName: 'bg-[#FBF6ED] dark:bg-transparent' },
+  sheet: { heading: 'Deine Tabellen', bgClassName: 'bg-[#F1F7FA] dark:bg-transparent' },
+  pres: { heading: 'Deine Präsentationen', bgClassName: 'bg-[#F6F2FB] dark:bg-transparent' },
+};
+
+export const getScopeBgClassName = (scope: OfficeScope) => SCOPE_META[scope].bgClassName;
+
 // Personal documents collapse to this many rows; "Alle anzeigen" reveals the rest
 // so the group sections below stay reachable without scrolling past a long grid.
 const COLLAPSED_ROWS = 2;
@@ -110,11 +126,18 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
   return columns;
 }
 
-function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
+export function DocumentsContent({
+  showRecents = true,
+  scope,
+}: {
+  showRecents?: boolean;
+  scope?: OfficeScope;
+}) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
   const firstName = useFirstName();
   const locale = useAuthStore((s) => s.locale);
+  const featureIndex = useFeatureIndex();
   const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
   // Sharepic creation routes into the canvas editor — a research preview
   // (SHOW_SHAREPIC_STUDIO); AT users create via the external bildgenerator.
@@ -154,6 +177,9 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
     const groupMap = new Map<string, { groupName: string; docs: UnifiedItem[] }>();
 
     for (const doc of documents) {
+      // Scoped pages (e.g. /sheets) only surface their own document subtype.
+      if (scope && subtypeToKind(doc.document_subtype) !== scope) continue;
+
       const item: UnifiedItem = {
         kind: 'document',
         data: doc,
@@ -176,12 +202,16 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
       }
     }
 
-    for (const board of boards) {
-      personal.push({
-        kind: 'board',
-        data: board,
-        sortKey: new Date(board.updated_at).getTime(),
-      });
+    // Boards are their own resource; only the boards scope (or the unscoped
+    // Arbeiten tab) lists them.
+    if (!scope || scope === 'board') {
+      for (const board of boards) {
+        personal.push({
+          kind: 'board',
+          data: board,
+          sortKey: new Date(board.updated_at).getTime(),
+        });
+      }
     }
 
     personal.sort((a, b) => b.sortKey - a.sortKey);
@@ -196,9 +226,9 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
     return {
       personalItems: personal,
       groupDocsByGroup: sortedGroups,
-      hasAnyItems: documents.length > 0 || boards.length > 0,
+      hasAnyItems: personal.length > 0 || sortedGroups.length > 0,
     };
-  }, [documents, boards]);
+  }, [documents, boards, scope]);
 
   const personalGridRef = useRef<HTMLDivElement>(null);
   const personalColumns = useGridColumns(personalGridRef);
@@ -509,12 +539,13 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
       sortKey: new Date(b.updated_at).getTime(),
     }));
     return [...docItems, ...boardItems]
+      .filter((item) => !scope || item.kind === scope)
       .sort((a, b) => b.sortKey - a.sortKey)
       .map(({ sortKey: _sortKey, ...rest }) => rest);
-  }, [documents, boards]);
+  }, [documents, boards, scope]);
 
-  const composerTemplates: ComposerTemplate[] = useMemo(
-    () => [
+  const composerTemplates: ComposerTemplate[] = useMemo(() => {
+    const all: ComposerTemplate[] = [
       ...templates
         .filter((t) => t.id !== 'blank')
         .map((t) => ({
@@ -554,24 +585,30 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
             description: t.description ?? 'Sharepic-Vorlage',
           }))
         : []),
-    ],
-    [sharepicEnabled]
-  );
+    ];
+    return scope ? all.filter((t) => t.kind === scope) : all;
+  }, [sharepicEnabled, scope]);
 
   return (
     <>
       <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
         <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
-          {firstName
-            ? `Willkommen im Grünerator Workplace, ${firstName}`
-            : 'Willkommen im Grünerator Workplace'}
+          {scope
+            ? firstName
+              ? `${SCOPE_META[scope].heading}, ${firstName}`
+              : SCOPE_META[scope].heading
+            : firstName
+              ? `Willkommen im Grünerator Workplace, ${firstName}`
+              : 'Willkommen im Grünerator Workplace'}
         </h1>
 
         <DocsComposer
           items={composerItems}
           templates={composerTemplates}
+          featureIndex={featureIndex}
           isGenerating={creating}
           sharepicEnabled={sharepicEnabled}
+          forcedKind={scope}
           onGenerate={handleComposerCreate}
           onSelectTemplate={handleComposerTemplate}
           onImport={handleComposerImport}
@@ -646,9 +683,22 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-grey-500 dark:text-grey-400">
             <FiFile size={40} className="text-grey-300 dark:text-grey-600" />
             <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
-            <Button onClick={() => handleTemplateSelect('blank')}>
+            <Button
+              onClick={() => {
+                if (scope === 'board') handleCreateBoard('kanban');
+                else if (scope === 'sheet') void handleCreateSheet();
+                else if (scope === 'pres') void handleCreatePresentation();
+                else void handleTemplateSelect('blank');
+              }}
+            >
               <FiPlus size={16} />
-              Erstes Dokument erstellen
+              {scope === 'board'
+                ? 'Erstes Board erstellen'
+                : scope === 'sheet'
+                  ? 'Erste Tabelle erstellen'
+                  : scope === 'pres'
+                    ? 'Erste Präsentation erstellen'
+                    : 'Erstes Dokument erstellen'}
             </Button>
           </div>
         ) : (
@@ -734,6 +784,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
       {showGallery && (
         <Suspense fallback={null}>
           <LazyTemplateGalleryModal
+            scope={scope}
             onClose={() => setShowGallery(false)}
             onCreateBlank={(kind) => {
               if (kind === 'doc') void handleTemplateSelect('blank');

@@ -115,18 +115,6 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
-  'qwen-regolo': {
-    kind: 'single',
-    provider: 'regolo',
-    model: 'qwen3.5-122b',
-    contextWindow: 32768,
-  },
-  'qwen3.6-regolo': {
-    kind: 'single',
-    provider: 'regolo',
-    model: 'qwen3.6-27b',
-    contextWindow: 32768,
-  },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
@@ -365,6 +353,106 @@ export function getModel(provider: string, modelId: string): LanguageModel {
  */
 export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
   return provider === 'mistral';
+}
+
+/**
+ * Whether the SELECTED model drives the tool loop directly (unified single-model
+ * pass) vs. delegating tool orchestration to the fast planner (planner/executor
+ * split: INTERMEDIATE_MODEL gathers, selected model writes the answer).
+ *
+ * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
+ * fastest and highest-fidelity. Everything else splits: the fixed fast planner
+ * does every tool call (so tool-calling reliability no longer depends on the
+ * user's model) and the selected model only writes prose — which is why ANY
+ * model, including slow "thinking" lanes and non-tool-callers, is now selectable
+ * for the loop.
+ */
+export function prefersUnifiedLoop(provider: string, _modelName: string): boolean {
+  return provider === 'mistral';
+}
+
+/**
+ * Split-mode model policy — the planner/executor split gives us two independent
+ * slots, so we point each at its best NON-CHINESE model instead of forcing the
+ * user's (often slow) lane model into both roles:
+ *
+ *  - PLANNER (gather): needs fast, reliable NATIVE tool-calling; its prose is
+ *    discarded. Prefer the cheaper regolo Mistral-small-4 (verified tool-caller,
+ *    the user's requested tool model); fall back to always-up litellm/verdigado-
+ *    pro when regolo is absent (it proved flaky in the test env — steps=0).
+ *  - SYNTH (write): needs the best GERMAN WRITER and must NEVER be a reasoning
+ *    model — litellm/verdigado-think as the synthesizer is the 18–76s latency
+ *    culprit. For `auto` (and any think-lane selection) we write with gemma-4
+ *    (best prose, 31b = fast); an explicit non-think model selection is honored.
+ *
+ * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
+ */
+// Planner = native Mistral Small (mistral-small-latest): the planner only calls
+// tools + formulates queries (the synth writes the prose), so Small's tool-
+// calling is plenty — and it's faster/cheaper, cutting multi-step gather latency.
+// Reliability of "does it actually call the generation tool" is now backstopped
+// by the afterGather guarantee (agenticRespondService), so Small's lighter
+// judgment is safe. Native (not regolo — steps=0 gather regression). Bump to
+// mistral-medium-2604 here if Small proves weak on multi-step gather.
+// litellm/verdigado-pro is the cross-provider fallback if the Mistral API is down.
+const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-small-latest' };
+const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+// Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
+// litellm/verdigado-pro (fast, non-think) when regolo is absent.
+const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
+const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
+
+/** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
+ *  Chinese lanes (qwen — excluded by policy), and gpt-oss (verified tool-call
+ *  fail / reasoning leak). Any of these in the synth slot is rewritten to the
+ *  best-writer lane. */
+const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
+
+function loopPlannerChoice(): { provider: Provider; model: string } {
+  // Prefer the native Mistral tool-caller; fall back to litellm/verdigado-pro
+  // only when the Mistral API isn't configured.
+  if (isProviderConfigured('mistral')) return LOOP_PLANNER_PRIMARY;
+  if (isProviderConfigured('litellm')) return LOOP_PLANNER_FALLBACK;
+  return LOOP_PLANNER_PRIMARY;
+}
+
+function loopSynthWriterChoice(): { provider: Provider; model: string } {
+  return isProviderConfigured('regolo') ? LOOP_SYNTH_PRIMARY : LOOP_SYNTH_FALLBACK;
+}
+
+/** Human-readable planner model name (for the [Agentic] log line). */
+export function loopPlannerModelName(): string {
+  return loopPlannerChoice().model;
+}
+
+export function getLoopPlannerModel(): LanguageModel {
+  const p = loopPlannerChoice();
+  return getModel(p.provider, p.model);
+}
+
+/**
+ * Synthesizer for the split's write phase. `auto` (or any think-lane selection)
+ * writes with the best-writer lane; an explicit fast model is honored as-is.
+ * Returns the name too so the caller can log which model actually wrote.
+ */
+/** Pure synth-model DECISION (no model instantiation) — env-free & unit-testable.
+ *  `null` provider means "honor the resolved model as-is". */
+export function loopSynthChoice(
+  resolvedModelName: string,
+  isAuto: boolean
+): { provider: Provider | null; model: string } {
+  const useWriter = isAuto || AVOID_AS_SYNTH.test(resolvedModelName);
+  if (!useWriter) return { provider: null, model: resolvedModelName };
+  return loopSynthWriterChoice();
+}
+
+export function getLoopSynthModel(
+  resolution: { model: LanguageModel; modelName: string },
+  isAuto: boolean
+): { model: LanguageModel; name: string } {
+  const choice = loopSynthChoice(resolution.modelName, isAuto);
+  if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
+  return { model: getModel(choice.provider, choice.model), name: choice.model };
 }
 
 /**

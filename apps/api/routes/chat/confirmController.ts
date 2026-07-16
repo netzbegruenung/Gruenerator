@@ -34,7 +34,7 @@ router.use(express.json());
  * Check if a user has write access to a collaborative_documents row.
  * Checks: owner → direct permission (owner/editor) → group share (write: true).
  */
-async function hasWriteAccess(documentId: string, userId: string): Promise<boolean> {
+export async function hasWriteAccess(documentId: string, userId: string): Promise<boolean> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const pg = getPostgresInstance();
 

@@ -21,6 +21,7 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
   globalSearchContract,
@@ -66,6 +67,7 @@ export {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  recurringTasksContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -73,12 +75,14 @@ export {
   monitorContract,
   sitesContract,
   reisekostenContract,
+  promptsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/recentActivity.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
@@ -125,6 +129,7 @@ export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
+export * from './schemas/recurringTasks.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
@@ -148,3 +153,4 @@ export * from './sheetsYdoc.js';
 export * from './presentationsYdoc.js';
 
 export * from './schemas/scanner.js';
+export * from './schemas/prompts.js';

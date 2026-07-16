@@ -1,31 +1,18 @@
 /**
- * Type definitions for Custom Prompts
+ * Type definitions for Custom Prompts.
+ *
+ * Shapes derive from the ts-rest contract (@gruenerator/contracts) — the
+ * request/response schema is the single source of truth, don't hand-duplicate
+ * it here.
  */
+import {
+  type CustomPrompt as ContractCustomPrompt,
+  type CreateCustomPromptBody,
+  type UpdateCustomPromptBody,
+} from '@gruenerator/contracts';
 
-export interface CustomPrompt {
-  id: string;
-  name: string;
-  slug: string;
-  prompt: string;
-  description?: string;
-  is_public: boolean;
-  is_active: boolean;
-  usage_count: number;
-  created_at: string;
-  updated_at?: string;
-  is_owner?: boolean;
-  owner_first_name?: string;
-  owner_last_name?: string;
-  saved_at?: string;
-}
+export type CustomPrompt = ContractCustomPrompt;
 
-export interface CustomPromptCreateData {
-  prompt: string;
-  is_public?: boolean;
-}
+export type CustomPromptCreateData = CreateCustomPromptBody;
 
-export interface CustomPromptUpdateData {
-  id: string;
-  prompt?: string;
-  is_public?: boolean;
-}
+export type CustomPromptUpdateData = UpdateCustomPromptBody & { id: string };

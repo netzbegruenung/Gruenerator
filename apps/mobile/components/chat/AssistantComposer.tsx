@@ -128,7 +128,7 @@ export function AssistantComposer({
       selectionRef.current = cursorPosition;
       setMention(null);
     },
-    [aui, mention]
+    [aui, mention, inputRef]
   );
 
   const attachPicked = useCallback(

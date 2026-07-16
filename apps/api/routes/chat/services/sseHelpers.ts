@@ -338,6 +338,11 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   create_sheet: ['Erstelle Tabelle...', 'Baue Spreadsheet...', 'Fülle Zellen...'],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
+  create_recurring_task: [
+    'Richte wiederkehrende Aufgabe ein...',
+    'Plane den Rhythmus...',
+    'Speichere den Zeitplan...',
+  ],
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
   modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
@@ -350,6 +355,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   ],
   mcp: ['Verbinde Tools...', 'Rufe externes Tool auf...', 'Frage verbundenen Dienst...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
+  agentic: ['Schaue selbst nach...', 'Lege los...', 'Greife zu den Tools...'],
 };
 
 /**

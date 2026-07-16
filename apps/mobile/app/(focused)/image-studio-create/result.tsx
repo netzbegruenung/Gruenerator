@@ -86,6 +86,8 @@ export default function ResultScreen() {
       hasTriggeredGeneration.current = true;
       void handleGenerate();
     }
+    // Run once on mount to kick off generation; the ref guard makes this a one-shot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNewGeneration = () => {

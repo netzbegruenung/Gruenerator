@@ -7,6 +7,7 @@
  *   GET    /api/auth/profile/beta-features
  *   PATCH  /api/auth/profile/beta-features
  *   PATCH  /api/auth/profile/message-color
+ *   PUT    /api/auth/locale
  *   GET    /api/auth/profile/user-defaults
  *   PATCH  /api/auth/profile/user-defaults
  *   DELETE /api/auth/delete-account
@@ -21,6 +22,7 @@ import {
   avatarUpdateBodySchema,
   betaFeatureToggleBodySchema,
   messageColorUpdateBodySchema,
+  localeUpdateBodySchema,
   userDefaultUpdateBodySchema,
   deleteAccountBodySchema,
   getProfileResponseSchema,
@@ -29,6 +31,7 @@ import {
   getBetaFeaturesResponseSchema,
   updateBetaFeaturesResponseSchema,
   updateMessageColorResponseSchema,
+  updateLocaleResponseSchema,
   getUserDefaultsResponseSchema,
   updateUserDefaultsResponseSchema,
   deleteAccountResponseSchema,
@@ -129,6 +132,24 @@ export const userProfileContract = c.router(
         500: userProfileErrorResponseSchema,
       },
       summary: 'Update chat message color',
+    },
+
+    /**
+     * PUT /api/auth/locale
+     * Update the user's audience locale (de-DE / de-AT). Persists to the
+     * profiles row AND refreshes Better Auth's session cookie cache so the
+     * new locale is visible immediately to server-side readers (e.g. chat).
+     */
+    updateLocale: {
+      method: 'PUT',
+      path: '/api/auth/locale',
+      body: localeUpdateBodySchema,
+      responses: {
+        200: updateLocaleResponseSchema,
+        400: userProfileErrorResponseSchema,
+        500: userProfileErrorResponseSchema,
+      },
+      summary: 'Update user locale (de-DE / de-AT)',
     },
 
     /**

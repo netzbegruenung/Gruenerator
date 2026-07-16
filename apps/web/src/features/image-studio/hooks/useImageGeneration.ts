@@ -478,11 +478,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         return response.data.image.base64;
       }
 
-      if (
-        type === IMAGE_STUDIO_TYPES.GREEN_EDIT ||
-        type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
-        type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT
-      ) {
+      if (type === IMAGE_STUDIO_TYPES.GREEN_EDIT || type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT) {
         const imageToUse = formData.uploadedImage;
         if (!imageToUse) {
           throw new Error('Kein Bild ausgewahlt');
@@ -503,8 +499,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           textInstruction = formData.selectedInfrastructure
             .map((i) => i.label || i.value)
             .join(', ');
-        } else if (type === IMAGE_STUDIO_TYPES.ALLY_MAKER && formData.allyPlacement) {
-          textInstruction = `Regenbogen-Tattoo auf ${formData.allyPlacement.label || formData.allyPlacement.value}`;
         }
 
         formDataToSend.append('text', textInstruction);
@@ -551,7 +545,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           }
         } else if (
           type === IMAGE_STUDIO_TYPES.GREEN_EDIT ||
-          type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
           type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT
         ) {
           if (!kiData.uploadedImage) {
