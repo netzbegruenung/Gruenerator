@@ -16,6 +16,10 @@ const BRAND: Record<string, string> = {
   SISTRIX: '#E5195F',
   Zapier: '#FF4A00',
   'Google Maps': '#4285F4',
+  Tally: '#F24E43',
+  Typeform: '#262627',
+  'Typeform (EU)': '#262627',
+  Zoom: '#2D8CFF',
 };
 
 export function mcpBrandColor(title: string): string {
