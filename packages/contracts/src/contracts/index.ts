@@ -36,7 +36,6 @@ export { imagePickerContract } from './imagePickerContract.js';
 export { videoContract } from './videoContract.js';
 export { textGenerationContract } from './textGenerationContract.js';
 export { sharepicContract } from './sharepicContract.js';
-export { wordpressContract } from './wordpressContract.js';
 export { transferContract } from './transferContract.js';
 export { unsplashContract } from './unsplashContract.js';
 export { notificationsContract } from './notificationsContract.js';

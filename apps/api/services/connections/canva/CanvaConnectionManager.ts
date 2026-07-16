@@ -3,7 +3,7 @@
  *
  * One Canva connection per user, persisted as the `canva_connection` JSONB
  * column on `profiles`. Tokens are encrypted at rest with the shared credential
- * encryption helper (same scheme as WordPress app passwords).
+ * encryption helper.
  */
 
 import { env } from '../../../config/env.js';

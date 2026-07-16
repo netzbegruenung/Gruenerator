@@ -1,7 +1,6 @@
 import { useShareLinks, useSharedWithMeLinks } from '@gruenerator/wolke';
 import { motion } from 'motion/react';
 import { lazy, memo, useCallback, useState } from 'react';
-import { FaWordpress } from 'react-icons/fa6';
 import { FiCloud } from 'react-icons/fi';
 
 import AutoBackupSection from '../../../../../wolke/components/AutoBackupSection';
@@ -11,11 +10,6 @@ import SharedWolkeConnectionCard from '../../../../../wolke/components/SharedWol
 import WolkeAddForm from '../../../../../wolke/components/WolkeAddForm';
 import WolkeConnectionCard from '../../../../../wolke/components/WolkeConnectionCard';
 import WolkeSetupWizard from '../../../../../wolke/components/WolkeSetupWizard';
-import WordPressSetupModal from '../../../../../wordpress/components/WordPressSetupModal';
-import {
-  useWordPressSites,
-  useDeleteWordPressSite,
-} from '../../../../../wordpress/hooks/useWordPress';
 
 const CanvaSection = lazy(() => import('../../../../../canva/components/CanvaSection'));
 const McpSection = lazy(() => import('../../../../../mcp/components/McpSection'));
@@ -230,7 +224,6 @@ const WolkeManagementView = memo(
             )}
           </div>
         </CloudCard>
-        {import.meta.env.DEV && <WordPressSection />}
         {import.meta.env.DEV && (
           <CanvaSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
         )}
@@ -239,73 +232,6 @@ const WolkeManagementView = memo(
     );
   }
 );
-
-const WordPressSection = memo(() => {
-  const { data: sites = [], isLoading } = useWordPressSites();
-  const deleteSite = useDeleteWordPressSite();
-  const [showSetup, setShowSetup] = useState(false);
-
-  return (
-    <div className="mt-xl">
-      <div className="flex items-center gap-sm mb-md">
-        <FaWordpress className="w-6 h-6 text-foreground-heading" />
-        <h2 className="text-xl font-semibold text-foreground-heading m-0">WordPress</h2>
-        <span className="text-xs bg-secondary-100 text-secondary-700 px-sm py-0.5 rounded-full font-medium">
-          Dev
-        </span>
-      </div>
-
-      {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade Verbindungen...</p>}
-
-      {!isLoading && sites.length > 0 && (
-        <div className="flex flex-col gap-sm mb-md">
-          {sites.map((site) => (
-            <div
-              key={site.id}
-              className="flex items-center justify-between p-md rounded-lg border border-grey-200 dark:border-grey-700 bg-background-pure"
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground-heading">
-                  {site.label || site.site_url.replace(/^https?:\/\//, '')}
-                </span>
-                <span className="text-xs text-grey-400">{site.site_url}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => deleteSite.mutate(site.id)}
-                disabled={deleteSite.isPending}
-                className="text-xs text-grey-400 hover:text-[var(--error-red)] transition-colors cursor-pointer bg-transparent border-none"
-              >
-                Entfernen
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setShowSetup(true)}
-        className={cn(
-          'px-lg py-sm rounded-lg font-medium text-sm cursor-pointer transition-all duration-200',
-          'bg-none border border-grey-300 text-foreground hover:bg-grey-50 hover:border-grey-400',
-          'flex items-center gap-sm'
-        )}
-      >
-        <FaWordpress size={16} />
-        WordPress-Seite verbinden
-      </button>
-
-      {showSetup && (
-        <WordPressSetupModal
-          onClose={() => setShowSetup(false)}
-          onSuccess={() => setShowSetup(false)}
-        />
-      )}
-    </div>
-  );
-});
-WordPressSection.displayName = 'WordPressSection';
 
 WolkeManagementView.displayName = 'WolkeManagementView';
 
