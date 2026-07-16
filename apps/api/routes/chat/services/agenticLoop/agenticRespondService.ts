@@ -221,13 +221,18 @@ export async function streamAgenticResponse(params: {
       }
       Object.assign(tools, mcpCatalog.tools);
 
-      // Structured cross-turn replay (flag-gated until runtime-validated): feed
-      // the model this thread's prior MCP tool-calls so a follow-up remembers
-      // them. Validity-gated to tools mounted THIS turn (see buildMcpReplayMessages).
+      // Structured cross-turn replay: feed the model this thread's prior MCP
+      // tool-calls so a follow-up remembers them. Validity-gated to tools mounted
+      // THIS turn (see buildMcpReplayMessages). Defensive: any loader/build error
+      // just skips replay — it must never break the turn.
       if (isMcpReplayEnabled() && threadId && mcpCatalog.labels.size > 0) {
-        const catalogNames = new Set(Object.keys(mcpCatalog.tools));
-        const recent = await getRecentMcpSteps(threadId);
-        mcpReplayMessages = buildMcpReplayMessages(recent, catalogNames);
+        try {
+          const catalogNames = new Set(Object.keys(mcpCatalog.tools));
+          const recent = await getRecentMcpSteps(threadId);
+          mcpReplayMessages = buildMcpReplayMessages(recent, catalogNames);
+        } catch (err) {
+          log.warn(`[Agentic] MCP replay skipped: ${err instanceof Error ? err.message : err}`);
+        }
       }
     }
 
