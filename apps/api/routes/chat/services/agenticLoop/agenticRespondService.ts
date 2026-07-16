@@ -25,9 +25,16 @@ import {
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
+import {
+  getRecentMcpSteps,
+  getThreadLastMcpServer,
+  setThreadLastMcpServer,
+} from '../threadPersistenceService.js';
 
+import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards } from './loopGuards.js';
+import { buildMcpReplayMessages } from './mcpReplay.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { DEFAULT_LOOP_BUDGET, type LoopBudget, type PersistedStep } from './types.js';
 import { wrapToolsForLoop } from './wrapTools.js';
@@ -163,6 +170,7 @@ export async function streamAgenticResponse(params: {
   let responseStarted = false;
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
+  let mcpReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
 
@@ -192,14 +200,40 @@ export async function streamAgenticResponse(params: {
 
     // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
     // (dynamicTool) into the same catalog, so the model composes them with the
-    // internal search tools in ONE loop (no mcpToolNode double-LLM).
+    // internal search tools in ONE loop (single-pass, no separate mcp node).
     const userId = agentConfig.userId;
     if (finalState.intent === 'mcp' && userId) {
-      mcpCatalog = await loadMcpCatalog({
-        userId,
-        scope: finalState.mcpServerScope ?? null,
-      });
+      // Scope precedence: explicit @mention/name-match > this thread's sticky
+      // last-used server > null (fan out over all connected servers).
+      const explicitScope = finalState.mcpServerScope ?? null;
+      let scope = explicitScope ?? (threadId ? await getThreadLastMcpServer(threadId) : null);
+      mcpCatalog = await loadMcpCatalog({ userId, scope });
+      // A STALE sticky scope (server since deleted) must NOT fake the
+      // "mentioned service is disconnected" notice — that honesty signal is only
+      // for an EXPLICIT mention. Silently retry unscoped instead.
+      if (!explicitScope && scope && mcpCatalog.scopedServerMissing) {
+        mcpCatalog = await loadMcpCatalog({ userId, scope: null });
+        scope = null;
+      }
+      // Remember the server actually used, so the next unscoped turn re-scopes.
+      if (threadId && scope && !mcpCatalog.scopedServerMissing && mcpCatalog.labels.size > 0) {
+        void setThreadLastMcpServer(threadId, scope);
+      }
       Object.assign(tools, mcpCatalog.tools);
+
+      // Structured cross-turn replay: feed the model this thread's prior MCP
+      // tool-calls so a follow-up remembers them. Validity-gated to tools mounted
+      // THIS turn (see buildMcpReplayMessages). Defensive: any loader/build error
+      // just skips replay — it must never break the turn.
+      if (isMcpReplayEnabled() && threadId && mcpCatalog.labels.size > 0) {
+        try {
+          const catalogNames = new Set(Object.keys(mcpCatalog.tools));
+          const recent = await getRecentMcpSteps(threadId);
+          mcpReplayMessages = buildMcpReplayMessages(recent, catalogNames);
+        } catch (err) {
+          log.warn(`[Agentic] MCP replay skipped: ${err instanceof Error ? err.message : err}`);
+        }
+      }
     }
 
     const wrapped = wrapToolsForLoop(tools, {
@@ -339,7 +373,12 @@ export async function streamAgenticResponse(params: {
       toolSystem,
       buildSynthSystem,
       getSourcesBlock: () => sourceRegistry.renderAll(),
-      messages,
+      // Prepend the reconstructed MCP tool-call/result history just before the
+      // current user message so tool_call↔result pairs stay adjacent + valid.
+      messages:
+        mcpReplayMessages.length > 0 && messages.length > 0
+          ? [...messages.slice(0, -1), ...mcpReplayMessages, messages[messages.length - 1]]
+          : messages,
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
       maxOutputTokens: Math.max(agentConfig.params.max_tokens ?? 2000, 4000),

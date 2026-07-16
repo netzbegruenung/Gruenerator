@@ -163,7 +163,6 @@ class ProfileService {
         'boards',
         'bundestag_api_enabled',
         'memory_enabled',
-        'wordpress_enabled',
         'deutschlandmodus',
         'is_admin',
         'content_management',

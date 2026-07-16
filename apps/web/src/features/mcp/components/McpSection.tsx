@@ -17,6 +17,23 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { FiServer, FiSearch, FiLock, FiCheck } from 'react-icons/fi';
+import {
+  SiNotion,
+  SiCoda,
+  SiHubspot,
+  SiBrevo,
+  SiStatista,
+  SiZapier,
+  SiGooglemaps,
+  SiTypeform,
+  SiZoom,
+  SiTodoist,
+  SiMiro,
+  SiIfttt,
+  SiBookingdotcom,
+  SiExpedia,
+  SiTrivago,
+} from 'react-icons/si';
 
 import {
   useMcpServers,
@@ -37,6 +54,8 @@ import {
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
+
+import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
@@ -60,15 +79,44 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAut
 
 // ── Presentation helpers ─────────────────────────────────────────────────────
 
-const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => (
-  <div
-    className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
-    style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
-    aria-hidden
-  >
-    {title.charAt(0).toUpperCase()}
-  </div>
-));
+// Real vendor logos where Simple Icons ships one; keyword-matched so it works on
+// both a title ("Notion") and a connected server's host ("mcp.notion.com"). Any
+// service without a match keeps the coloured-monogram fallback below.
+const BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
+  [/notion/i, SiNotion],
+  [/coda/i, SiCoda],
+  [/hubspot/i, SiHubspot],
+  [/brevo/i, SiBrevo],
+  [/statista/i, SiStatista],
+  [/zapier/i, SiZapier],
+  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
+  [/typeform/i, SiTypeform],
+  [/zoom/i, SiZoom],
+  [/todoist/i, SiTodoist],
+  [/miro/i, SiMiro],
+  [/ifttt/i, SiIfttt],
+  [/booking/i, SiBookingdotcom],
+  [/expedia/i, SiExpedia],
+  [/trivago/i, SiTrivago],
+];
+
+function brandIcon(label: string): IconType | null {
+  for (const [re, Icon] of BRAND_ICONS) if (re.test(label)) return Icon;
+  return null;
+}
+
+const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => {
+  const Icon = brandIcon(title);
+  return (
+    <div
+      className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
+      style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
+      aria-hidden
+    >
+      {Icon ? <Icon size={size * 0.5} /> : title.charAt(0).toUpperCase()}
+    </div>
+  );
+});
 McpLogo.displayName = 'McpLogo';
 
 const authLabel: Record<McpRegistryEntry['authHint'], string> = {
@@ -629,6 +677,29 @@ interface AvailableItem {
   entry: McpRegistryEntry;
 }
 
+// Display order for category pills + grouped sections. Anything not listed
+// (a future category) sorts alphabetically after these; uncategorised → "Weitere".
+const CATEGORY_ORDER = [
+  'Produktivität',
+  'CRM & Marketing',
+  'Analyse & SEO',
+  'Finanzen',
+  'Formulare',
+  'Dokumente',
+  'Automatisierung',
+  'Kommunikation',
+  'Reisen',
+  'Karten',
+] as const;
+const UNCATEGORISED = 'Weitere';
+
+function orderCategories(present: Iterable<string>): string[] {
+  const set = new Set(present);
+  const known = CATEGORY_ORDER.filter((c) => set.has(c));
+  const extra = [...set].filter((c) => !(CATEGORY_ORDER as readonly string[]).includes(c)).sort();
+  return [...known, ...extra];
+}
+
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: servers = [], isLoading } = useMcpServers();
   const [search, setSearch] = useState('');
@@ -653,11 +724,22 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   );
 
   const cats = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of available) if (it.category) set.add(it.category);
-    return ['Alle', ...Array.from(set)];
+    const present: string[] = [];
+    for (const it of available) if (it.category) present.push(it.category);
+    return ['Alle', ...orderCategories(present)];
   }, [available]);
   const filtered = cat === 'Alle' ? available : available.filter((it) => it.category === cat);
+  // On "Alle", group into ordered category sections; a specific pick stays flat.
+  const groups = useMemo(() => {
+    if (cat !== 'Alle') return null;
+    const byCat = new Map<string, AvailableItem[]>();
+    for (const it of available) {
+      const c = it.category ?? UNCATEGORISED;
+      (byCat.get(c) ?? byCat.set(c, []).get(c)!).push(it);
+    }
+    const order = [...orderCategories(byCat.keys()), UNCATEGORISED];
+    return [...byCat.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+  }, [available, cat]);
   const activeCount = servers.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
@@ -810,22 +892,48 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
         {registryLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
 
-        {!registryLoading && filtered.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-            {filtered.map((it) => (
-              <CardShell
-                key={it.key}
-                title={it.entry.title}
-                description={it.entry.description}
-                badge={authLabel[it.entry.authHint]}
-                recommended={it.entry.recommended}
-                category={it.category}
-                connecting={connecting === it.entry.url}
-                onConnect={() => handlePickMcp(it.entry)}
-              />
-            ))}
-          </div>
-        )}
+        {!registryLoading &&
+          filtered.length > 0 &&
+          (cat === 'Alle' && groups ? (
+            <div className="flex flex-col gap-lg">
+              {groups.map(([c, items]) => (
+                <div key={c}>
+                  <h4 className="m-0 mb-sm text-xs font-bold tracking-widest uppercase text-grey-500">
+                    {c}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
+                    {items.map((it) => (
+                      <CardShell
+                        key={it.key}
+                        title={it.entry.title}
+                        description={it.entry.description}
+                        badge={authLabel[it.entry.authHint]}
+                        recommended={it.entry.recommended}
+                        category={it.category}
+                        connecting={connecting === it.entry.url}
+                        onConnect={() => handlePickMcp(it.entry)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
+              {filtered.map((it) => (
+                <CardShell
+                  key={it.key}
+                  title={it.entry.title}
+                  description={it.entry.description}
+                  badge={authLabel[it.entry.authHint]}
+                  recommended={it.entry.recommended}
+                  category={it.category}
+                  connecting={connecting === it.entry.url}
+                  onConnect={() => handlePickMcp(it.entry)}
+                />
+              ))}
+            </div>
+          ))}
 
         {!registryLoading && filtered.length === 0 && (
           <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center bg-background-pure">

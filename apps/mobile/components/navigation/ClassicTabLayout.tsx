@@ -5,17 +5,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lightTheme, darkTheme, colors } from '../../theme';
 import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
-import { NotebookIcon } from '../icons/WebMirrorIcons';
+
+import { useTabTint } from './useTabTint';
 
 export function ClassicTabLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
+  const tint = useTabTint();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary[600],
+        tabBarActiveTintColor: tint,
         tabBarInactiveTintColor: colorScheme === 'dark' ? colors.grey[300] : theme.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.background,
@@ -37,40 +39,32 @@ export function ClassicTabLayout() {
       <Tabs.Screen
         name="start"
         options={{
-          title: 'Start',
+          title: 'Chat',
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <GrueneratorLoadingIcon size={size} color={color} loading={false} />
           ),
         }}
       />
-      <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
-        name="(docs)"
+        name="(arbeiten)"
         options={{
-          title: 'Docs',
+          title: 'Arbeiten',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="(tools)"
-        options={{
-          title: 'Tools',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="briefcase" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="(recherche)"
         options={{
-          title: 'Notebooks',
+          title: 'Wissen',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <NotebookIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="book" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="(docs)" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="(tools)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="profile"
         options={{
