@@ -631,41 +631,6 @@ export interface Mem0MemoryHistoryRow {
 }
 
 // ---------------------------------------------------------------------------
-// SECTION: BRIEFING AGENTS
-// ---------------------------------------------------------------------------
-
-export interface BriefingAgentRow {
-  id: string;
-  user_id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  config: Record<string, unknown>;
-  schedule_type: string;
-  schedule_hour: number;
-  schedule_timezone: string;
-  delivery_email: string | null;
-  created_at: Date;
-  updated_at: Date;
-  last_executed_at: Date | null;
-  execution_count: number;
-  consecutive_empty_count: number;
-}
-
-export interface BriefingExecutionRow {
-  id: string;
-  agent_id: string;
-  status: string;
-  results_count: number;
-  results_summary: string | null;
-  results_raw: Record<string, unknown> | null;
-  started_at: Date;
-  completed_at: Date | null;
-  duration_ms: number | null;
-  error_message: string | null;
-}
-
-// ---------------------------------------------------------------------------
 // SECTION: NOTIFICATIONS
 // ---------------------------------------------------------------------------
 
@@ -788,8 +753,6 @@ export interface Database {
   chat_messages: ChatMessageRow;
   chat_thread_attachments: ChatThreadAttachmentRow;
   mem0_memory_history: Mem0MemoryHistoryRow;
-  briefing_agents: BriefingAgentRow;
-  briefing_executions: BriefingExecutionRow;
   notifications: NotificationRow;
   monitor_snapshots: MonitorSnapshotRow;
   monitor_articles: MonitorArticleRow;

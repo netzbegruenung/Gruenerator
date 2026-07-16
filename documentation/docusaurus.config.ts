@@ -60,8 +60,7 @@ const config: Config = {
           // Hidden until ready — remove entries to re-enable in the sidebar.
           // intern: dev-only LV-Korpus analysis pages, internal.
           // monitor: Themen-Monitor not online yet.
-          // briefings: Briefing-Archiv hidden for now.
-          exclude: ['intern/**', 'monitor/**', 'briefings/**'],
+          exclude: ['intern/**', 'monitor/**'],
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
