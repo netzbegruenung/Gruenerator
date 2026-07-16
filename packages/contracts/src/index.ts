@@ -21,6 +21,7 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
   globalSearchContract,
@@ -73,12 +74,14 @@ export {
   monitorContract,
   sitesContract,
   reisekostenContract,
+  promptsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/recentActivity.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
@@ -148,3 +151,4 @@ export * from './sheetsYdoc.js';
 export * from './presentationsYdoc.js';
 
 export * from './schemas/scanner.js';
+export * from './schemas/prompts.js';

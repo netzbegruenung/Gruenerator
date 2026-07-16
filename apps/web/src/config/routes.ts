@@ -123,6 +123,10 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 
 // Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
+// Bild-Editor v2 — focused KI generate/edit/outpaint flow with version tree
+const BildEditorV2Page = lazy(
+  () => import('../features/image-studio/bild-editor-v2/BildEditorV2Page')
+);
 const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
@@ -212,6 +216,22 @@ const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const OfficeListRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/workplace/arbeiten') })
 );
+const DocsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.DocsLandingPage }))
+);
+const BoardsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.BoardsLandingPage }))
+);
+const SheetsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.SheetsLandingPage }))
+);
+const PresentationsLandingPage = lazy(() =>
+  import('../features/docs/OfficeLandingPage').then((m) => ({
+    default: m.PresentationsLandingPage,
+  }))
+);
+const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+const CanvasRedirect = lazy(() => Promise.resolve({ default: createRedirect('/canvas') }));
 const WissenRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/workplace/wissen') })
 );
@@ -275,12 +295,13 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Workplace home with three tab routes (Chat / Arbeiten / Wissen). sidebarOnly
-  // for all three so the tab row keeps its position; Wissen additionally needs
-  // the h-dvh flex chain for the embedded notebook chat surface.
-  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace/arbeiten', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace/wissen', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // Workplace (Chat / Arbeiten / Wissen). ONE splat route so all three tabs
+  // resolve to the same route entry: WorkplacePage then stays mounted across tab
+  // switches (RouteComponent keys the page by config path) instead of remounting
+  // the whole surface each time — it derives the active tab from the pathname and
+  // only swaps the tab content. sidebarOnly keeps the tab row in place; Wissen's
+  // h-dvh flex chain for the embedded notebook chat surface still applies.
+  { path: '/workplace/*', component: WorkplacePage, layoutMode: 'sidebarOnly' },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
   // stays available so existing agents remain usable.
@@ -569,14 +590,15 @@ const standardRoutes: RouteConfig[] = [
     devOnly: true,
   },
   // Studio Routes - KI routes redirect to /imagine
+  { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
-  // `:category` routes below) are all prod-visible. Creation is a public research
-  // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
-  // Studio landing is folded into the workplace "Arbeiten" tab; the creation
-  // wizard (/studio/:category…), gallery, video and canvas routes stay.
-  { path: '/studio', component: OfficeListRedirect },
+  // "/canvas": the sharepic/graphics landing page. The old /studio landing now
+  // redirects here; the creation wizard (/studio/:category…), gallery, video and
+  // canvas editor routes stay — the Canvas create flow navigates into them.
+  // Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
+  { path: '/canvas', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/studio', component: CanvasRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
@@ -595,14 +617,18 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Office overview lives in the workplace "Arbeiten" tab; the editor stays.
+  // Combined office overview still lives in the workplace "Arbeiten" tab; each
+  // type also has a dedicated, type-scoped landing page below. The editors stay.
   { path: '/office', component: OfficeListRedirect },
   // Dispatches to the BlockNote or Univer editor by document_subtype.
   { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
-  // Legacy /docs URLs → /office
-  { path: '/docs', component: OfficeListRedirect },
+  // Type-scoped landing pages. Static paths precede their `:id` siblings so the
+  // list route wins over the editor route.
+  { path: '/docs', component: DocsLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/docs/:id', component: DocumentToOfficeRedirect },
-  { path: '/boards', component: OfficeListRedirect },
+  { path: '/sheets', component: SheetsLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/presentations', component: PresentationsLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/boards', component: BoardsLandingPage, layoutMode: 'sidebarOnly' },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder

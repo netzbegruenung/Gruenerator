@@ -20,6 +20,7 @@ import {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
   globalSearchContract,
@@ -64,6 +65,7 @@ import {
   reisekostenContract,
   imagePickerContract,
   sharesReadContract,
+  promptsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -177,6 +179,7 @@ const CLIENT_OPTS = {
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
+const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
@@ -221,11 +224,13 @@ const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
 const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
 const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
+const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
+  recentActivity: ReturnType<typeof _recentActivityClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   search: ReturnType<typeof _searchClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
@@ -270,6 +275,7 @@ export interface ContractsClient {
   reisekosten: ReturnType<typeof _reisekostenClient>;
   imagePicker: ReturnType<typeof _imagePickerClient>;
   sharesRead: ReturnType<typeof _sharesReadClient>;
+  prompts: ReturnType<typeof _promptsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -292,6 +298,7 @@ export function getContractsClient(): ContractsClient {
     threads: _threadsClient(),
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
+    recentActivity: _recentActivityClient(),
     itemUsage: _itemUsageClient(),
     search: _searchClient(),
     globalSearch: _globalSearchClient(),
@@ -336,6 +343,7 @@ export function getContractsClient(): ContractsClient {
     reisekosten: _reisekostenClient(),
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
+    prompts: _promptsClient(),
   };
 
   return _client;

@@ -1,0 +1,77 @@
+/* Bild-Editor v2 — motion primitives ported 1:1 from the Claude design.
+   Keyframes are referenced by inline `animation:` styles in the page so the
+   exact timing/easing from the mockup is preserved. */
+
+@keyframes bwfade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bwpulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes bwgradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes bwbreathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.015);
+  }
+}
+
+@keyframes bwsheen {
+  0% {
+    transform: translateX(-120%) skewX(-14deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-14deg);
+  }
+}
+
+@keyframes bwreveal {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-bev2] *,
+  [data-bev2]::before,
+  [data-bev2]::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,9 +1,9 @@
 /**
  * Hook for custom prompts data operations
  */
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../../components/utils/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 
 import type { CustomPrompt, CustomPromptCreateData, CustomPromptUpdateData } from './types';
@@ -25,8 +25,9 @@ export const useCustomPromptsData = (options: UseCustomPromptsOptions = {}) => {
   const query = useQuery<CustomPrompt[], Error>({
     queryKey: QUERY_KEYS.customPrompts(user?.id),
     queryFn: async (): Promise<CustomPrompt[]> => {
-      const response = await apiClient.get<{ prompts: CustomPrompt[] }>('/auth/custom_prompts');
-      return response.data?.prompts ?? [];
+      const res = await getContractsClient().prompts.listCustomPrompts();
+      if (res.status === 200) return res.body.prompts;
+      throw new Error('Prompts konnten nicht geladen werden.');
     },
     enabled: enabled && !!user?.id && isActive,
     staleTime: 5 * 60 * 1000,
@@ -44,8 +45,9 @@ export const useSavedPromptsData = (options: UseCustomPromptsOptions = {}) => {
   const query = useQuery<CustomPrompt[], Error>({
     queryKey: QUERY_KEYS.savedPrompts(user?.id),
     queryFn: async (): Promise<CustomPrompt[]> => {
-      const response = await apiClient.get<{ prompts: CustomPrompt[] }>('/auth/saved_prompts');
-      return response.data?.prompts ?? [];
+      const res = await getContractsClient().prompts.listSavedPrompts();
+      if (res.status === 200) return res.body.prompts;
+      throw new Error('Gespeicherte Prompts konnten nicht geladen werden.');
     },
     enabled: enabled && !!user?.id && isActive,
     staleTime: 5 * 60 * 1000,
@@ -62,8 +64,9 @@ export const usePromptMutations = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: CustomPromptCreateData): Promise<CustomPrompt> => {
-      const response = await apiClient.post<{ prompt: CustomPrompt }>('/auth/custom_prompts', data);
-      return response.data?.prompt;
+      const res = await getContractsClient().prompts.createCustomPrompt({ body: data });
+      if (res.status === 200 && res.body.prompt) return res.body.prompt;
+      throw new Error('Prompt konnte nicht erstellt werden.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
@@ -72,12 +75,10 @@ export const usePromptMutations = () => {
 
   const updateMutation = useMutation({
     mutationFn: async (data: CustomPromptUpdateData): Promise<CustomPrompt> => {
-      const { id, ...updateData } = data;
-      const response = await apiClient.put<{ prompt: CustomPrompt }>(
-        `/auth/custom_prompts/${id}`,
-        updateData
-      );
-      return response.data?.prompt;
+      const { id, ...body } = data;
+      const res = await getContractsClient().prompts.updateCustomPrompt({ params: { id }, body });
+      if (res.status === 200 && res.body.prompt) return res.body.prompt;
+      throw new Error('Prompt konnte nicht aktualisiert werden.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
@@ -86,7 +87,10 @@ export const usePromptMutations = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (promptId: string): Promise<void> => {
-      await apiClient.delete(`/auth/custom_prompts/${promptId}`);
+      const res = await getContractsClient().prompts.deleteCustomPrompt({
+        params: { id: promptId },
+      });
+      if (res.status !== 200) throw new Error('Prompt konnte nicht gelöscht werden.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customPrompts(user?.id) });
@@ -95,7 +99,8 @@ export const usePromptMutations = () => {
 
   const unsaveMutation = useMutation({
     mutationFn: async (promptId: string): Promise<void> => {
-      await apiClient.delete(`/auth/saved_prompts/${promptId}`);
+      const res = await getContractsClient().prompts.deleteSavedPrompt({ params: { promptId } });
+      if (res.status !== 200) throw new Error('Prompt konnte nicht entfernt werden.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.savedPrompts(user?.id) });
