@@ -38,7 +38,7 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
 
   registry: async (args) => {
     try {
-      const page = McpRegistryService.list({
+      const page = await McpRegistryService.list({
         ...(args.query.search !== undefined && { search: args.query.search }),
         ...(args.query.cursor !== undefined && { cursor: args.query.cursor }),
       });

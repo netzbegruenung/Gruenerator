@@ -708,7 +708,13 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
   const [bearerEntry, setBearerEntry] = useState<McpRegistryEntry | null>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
-  const { data: registry, isLoading: registryLoading } = useMcpRegistry(search);
+  // Debounced so typing doesn't hit the external MCP registry on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+  const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
@@ -740,6 +746,12 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     const order = [...orderCategories(byCat.keys()), UNCATEGORISED];
     return [...byCat.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
   }, [available, cat]);
+  // "Server suchen": remote servers found in the open MCP registry for this
+  // search term (backend-populated), minus anything already connected/curated.
+  const externalServers = useMemo(
+    () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
+    [registry, connectedUrls]
+  );
   const activeCount = servers.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
@@ -787,6 +799,15 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     }
     // bearer / unknown → one-step token dialog right on the card.
     setBearerEntry(entry);
+  };
+
+  // Registry hits have no declared auth — prefill the add-form so the user picks
+  // the auth type (and can eyeball the URL) instead of us guessing bearer/OAuth.
+  const handlePickExternal = (entry: McpRegistryEntry) => {
+    setPrefill({ name: entry.title, url: entry.url, authType: 'none' });
+    requestAnimationFrame(() =>
+      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
   };
 
   const hasConnected = servers.length > 0;
@@ -860,7 +881,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-grey-400 pointer-events-none" />
           <input
             className={cn(inputClass, 'h-12 pl-11')}
-            placeholder="Dienst suchen (z. B. Notion, Google Drive, HubSpot) …"
+            placeholder="Server suchen …"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -935,11 +956,44 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
             </div>
           ))}
 
-        {!registryLoading && filtered.length === 0 && (
+        {/* Server suchen — remote hits from the open MCP registry */}
+        {!registryLoading && externalServers.length > 0 && (
+          <div className="mt-lg">
+            <div className="flex items-baseline gap-sm mb-sm">
+              <h4 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
+                Weitere Server im offenen Register
+              </h4>
+              <span className="text-xs text-grey-400">{externalServers.length}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
+              {externalServers.map((entry) => (
+                <CardShell
+                  key={entry.url}
+                  title={entry.title}
+                  description={entry.description}
+                  badge={authLabel[entry.authHint]}
+                  recommended={false}
+                  category={undefined}
+                  connecting={connecting === entry.url}
+                  onConnect={() => handlePickExternal(entry)}
+                />
+              ))}
+            </div>
+            {registry?.nextCursor && (
+              <p className="mt-sm text-xs text-grey-400">
+                Weitere Treffer vorhanden – verfeinere die Suche für passendere Ergebnisse.
+              </p>
+            )}
+          </div>
+        )}
+
+        {!registryLoading && filtered.length === 0 && externalServers.length === 0 && (
           <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center bg-background-pure">
             <div className="text-sm font-semibold text-foreground">Kein Dienst gefunden</div>
             <div className="mt-1 text-xs text-grey-500">
-              Passe die Suche an oder wähle eine andere Kategorie.
+              {debouncedSearch
+                ? 'Auch im offenen MCP-Register nichts gefunden. Passe die Suche an.'
+                : 'Passe die Suche an oder wähle eine andere Kategorie.'}
             </div>
           </div>
         )}
