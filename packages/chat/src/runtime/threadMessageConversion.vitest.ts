@@ -201,6 +201,47 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect((custom.bahnData as { station?: string })?.station).toBe('Bonn Hbf');
   });
 
+  it('keeps the board when a raw bahn step follows the condensed one', () => {
+    const board = {
+      kind: 'timetable',
+      station: 'Köln Hbf',
+      date: '2026-07-17',
+      hour: '09',
+      entries: [
+        {
+          id: 'e1',
+          category: 'ICE',
+          number: '204',
+          line: null,
+          departureTime: '09:11',
+          departurePlatform: '5',
+          arrivalTime: null,
+          arrivalPlatform: null,
+          destination: 'Hamburg-Altona',
+          via: [],
+        },
+      ],
+    };
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'bahn__get_planned_timetable',
+          args: {},
+          result: { content: JSON.stringify(board) },
+        },
+        // promptHint step 3: raw changes lookup AFTER the condensed board.
+        {
+          toolCallId: 'tc2',
+          toolName: 'bahn__get_full_timetable_changes',
+          args: {},
+          result: { content: '{"@station":"Köln Hbf","s":[{"raw":true}]}' },
+        },
+      ],
+    });
+    expect((custom.bahnData as { station?: string })?.station).toBe('Köln Hbf');
+  });
+
   it('ignores a raw (non-condensed) bahn tool result', () => {
     const custom = customOf({
       toolCalls: [
