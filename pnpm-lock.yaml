@@ -542,7 +542,7 @@ importers:
         specifier: ^13.1.1
         version: 13.1.1(@expo/config-plugins@57.0.3(typescript@6.0.3))(@react-native/assets-registry@0.86.0)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
       '@tanstack/react-query':
-        specifier: ^5.100.9
+        specifier: ^5.101.2
         version: 5.101.2(react@19.2.3)
       axios:
         specifier: '>=1.15.2'
@@ -692,7 +692,7 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       zustand:
-        specifier: ^5.0.13
+        specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.14)(immer@11.1.11)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@expo/ngrok':
@@ -714,7 +714,7 @@ importers:
         specifier: ^0.4.0
         version: 0.4.3(expo@57.0.4)
       globals:
-        specifier: ^17.6.0
+        specifier: ^17.7.0
         version: 17.7.0
       typescript:
         specifier: ~6.0.3
