@@ -63,6 +63,8 @@ import {
   sitesContract,
   subtitlerContract,
   reisekostenContract,
+  imagePickerContract,
+  sharesReadContract,
   promptsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
@@ -220,6 +222,8 @@ const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
+const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
+const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
 const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
@@ -269,6 +273,8 @@ export interface ContractsClient {
   sites: ReturnType<typeof _sitesClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
   reisekosten: ReturnType<typeof _reisekostenClient>;
+  imagePicker: ReturnType<typeof _imagePickerClient>;
+  sharesRead: ReturnType<typeof _sharesReadClient>;
   prompts: ReturnType<typeof _promptsClient>;
 }
 
@@ -335,6 +341,8 @@ export function getContractsClient(): ContractsClient {
     sites: _sitesClient(),
     subtitler: _subtitlerClient(),
     reisekosten: _reisekostenClient(),
+    imagePicker: _imagePickerClient(),
+    sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
   };
 
