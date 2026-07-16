@@ -659,8 +659,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // so it may still enter the loop, which mounts that server's MCP tools.
       // System MCP intents (bahn/wetter/news) force the gate the same way: the
       // legacy pipeline has no executor for them, the loop mounts their tools.
+      // `umfragen` is a native domain tool (PolitPro service) — always
+      // available, so it forces the gate unconditionally.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
+        classifiedState.intent === 'umfragen' ||
         (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
@@ -755,7 +758,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (
         !runAgentic &&
         classifiedState.intent != null &&
-        ['bahn', 'reise', 'wetter', 'news'].includes(classifiedState.intent)
+        ['bahn', 'reise', 'hotel', 'wetter', 'news', 'umfragen'].includes(classifiedState.intent)
       ) {
         classifiedState.intent = 'web';
       }

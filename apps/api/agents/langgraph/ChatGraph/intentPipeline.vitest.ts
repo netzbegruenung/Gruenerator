@@ -51,8 +51,10 @@ const ALL_INTENTS: SearchIntent[] = [
   'bundestag',
   'bahn',
   'reise',
+  'hotel',
   'wetter',
   'news',
+  'umfragen',
   'image',
   'image_edit',
   'sharepic',
@@ -325,6 +327,10 @@ describe('every SearchIntent has a handler path', () => {
     bahn: 'EXPERIMENTAL system MCP source — forces the agentic loop (isMcpTurn in router); systemMcpCatalog mounts the Deutsche-Bahn tools; router degrades a killed loop turn to web',
     reise:
       'EXPERIMENTAL umbrella travel intent — forces the agentic loop; systemMcpCatalog mounts bahn + hotel (trivago) + wetter together; router degrades a killed loop turn to web',
+    hotel:
+      'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the trivago hotel-search tools; router degrades a killed loop turn to web',
+    umfragen:
+      'EXPERIMENTAL native domain tool — forces the agentic loop; toolCatalog mounts makeUmfragenTool (PolitPro Sonntagsfrage + Meinungsbild); router degrades a killed loop turn to web',
     wetter:
       'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the Open-Meteo/DWD tools; router degrades a killed loop turn to web',
     news: 'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the ARD/tagesschau tools (citations via sourceRegistry); router degrades a killed loop turn to web',

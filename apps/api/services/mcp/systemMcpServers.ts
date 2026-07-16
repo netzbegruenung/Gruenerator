@@ -57,6 +57,7 @@ const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string }> = {
 const INTENT_SOURCES: Record<string, SystemMcpKey[]> = {
   bahn: ['bahn'],
   reise: ['bahn', 'hotel', 'wetter'],
+  hotel: ['hotel'],
   wetter: ['wetter'],
   news: ['news'],
 };
@@ -131,6 +132,7 @@ export function getSystemMcpSource(key: SystemMcpKey): SystemMcpSource | null {
 export const SYSTEM_MCP_INTENTS: ReadonlySet<SearchIntent> = new Set([
   'bahn',
   'reise',
+  'hotel',
   'wetter',
   'news',
 ] as SearchIntent[]);

@@ -163,8 +163,10 @@ export const INTENT_KEYWORDS: Record<
     // Klimapolitik, Nachrichten über X).
     | 'bahn'
     | 'reise'
+    | 'hotel'
     | 'wetter'
     | 'news'
+    | 'umfragen'
   >,
   string[]
 > = {

@@ -62,10 +62,9 @@ describe('getSystemMcpSources (env matrix)', () => {
 
     process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
     expect(getSourcesForIntent('reise').map((s) => s.key)).toEqual(['bahn', 'hotel', 'wetter']);
-    // hotel is reachable only through reise — it is no intent of its own.
-    expect(getSourcesForIntent('hotel')).toEqual([]);
     // single-source intents stay single-source.
     expect(getSourcesForIntent('bahn').map((s) => s.key)).toEqual(['bahn']);
+    expect(getSourcesForIntent('hotel').map((s) => s.key)).toEqual(['hotel']);
     expect(getSourcesForIntent('wetter').map((s) => s.key)).toEqual(['wetter']);
   });
 
