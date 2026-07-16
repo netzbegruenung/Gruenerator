@@ -41,6 +41,9 @@ export const searchIntentSchema = z.enum([
   'bahn',
   // Umbrella travel intent — mounts bahn + hotel (trivago) + wetter together.
   'reise',
+  'hotel',
+  // Wahlumfragen (Sonntagsfrage via PolitPro + Meinungsbild) — native domain tool.
+  'umfragen',
   'wetter',
   'news',
   'image',

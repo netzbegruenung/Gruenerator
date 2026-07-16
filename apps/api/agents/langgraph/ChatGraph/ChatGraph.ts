@@ -563,8 +563,10 @@ function routeAfterClassification(
     // never user-disableable, so map to 'direct' like agentic.
     bahn: 'direct',
     reise: 'direct',
+    hotel: 'direct',
     wetter: 'direct',
     news: 'direct',
+    umfragen: 'direct',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',

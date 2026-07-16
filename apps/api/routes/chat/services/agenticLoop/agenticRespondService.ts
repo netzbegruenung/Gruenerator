@@ -75,8 +75,10 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'abgeordnetenwatch',
   'bahn',
   'reise',
+  'hotel',
   'wetter',
   'news',
+  'umfragen',
   'image',
   // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
   // skipped the LLM classifier entirely.
@@ -114,7 +116,7 @@ function resolveBudget(): LoopBudget {
 function buildToolUsageBlock(maxSteps: number): string {
   return [
     'ARBEITSWEISE MIT TOOLS:',
-    '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen, Bundestags-Dokumente (DIP) und Abgeordneten-Abstimmungsdaten (abgeordnetenwatch) abzurufen sowie Dokumente zusammenzufassen.',
+    '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen, Bundestags-Dokumente (DIP), Abgeordneten-Abstimmungsdaten (abgeordnetenwatch) und aktuelle Wahlumfragen (Sonntagsfrage, bundesweit + Bundesländer) abzurufen sowie Dokumente zusammenzufassen.',
     '- Für grüne Positionen, Programme und Beschlüsse ZUERST die interne Dokumentsuche (gruenerator_search). Nutze die Websuche NUR ergänzend, wenn intern nichts Passendes zu finden ist oder es um tagesaktuelle Ereignisse geht.',
     '- NUTZE das passende Tool DIREKT, statt anzubieten es zu tun. Frage NIEMALS "Soll ich das für dich suchen/tun?" — wenn du ein Tool dafür hast, ruf es einfach auf. Frag nur zurück, wenn dir eine echte Angabe fehlt (z.B. um welche Person/Abstimmung es geht).',
     '- Rufe so WENIGE Tools wie möglich auf. Sobald die ersten Ergebnisse deine Frage beantworten, antworte SOFORT — such nicht zur Absicherung weiter und wiederhole keine ähnlichen Suchen. Verfeinere oder wechsle das Tool NUR, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',

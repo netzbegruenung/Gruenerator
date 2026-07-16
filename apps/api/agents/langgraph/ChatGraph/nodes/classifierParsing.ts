@@ -46,8 +46,10 @@ export function parseClassifierResponse(
     'bundestag',
     'bahn',
     'reise',
+    'hotel',
     'wetter',
     'news',
+    'umfragen',
     'sharepic',
     'image',
     'image_edit',
@@ -306,6 +308,18 @@ export function parseClassifierResponse(
       intent: 'news',
       searchQuery: userContent,
       reasoning: 'Fallback: news detected in response',
+    };
+  if (intentFieldPattern('hotel').test(content))
+    return {
+      intent: 'hotel',
+      searchQuery: null,
+      reasoning: 'Fallback: hotel detected in response',
+    };
+  if (intentFieldPattern('umfragen').test(content))
+    return {
+      intent: 'umfragen',
+      searchQuery: null,
+      reasoning: 'Fallback: umfragen detected in response',
     };
   if (intentFieldPattern('direct').test(content))
     return {
