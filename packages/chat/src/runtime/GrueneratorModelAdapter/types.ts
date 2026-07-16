@@ -24,6 +24,7 @@ export type GrueneratorMessageMetadata = {
   artifactData?: import('../../stores/artifactLiveStore').ActiveArtifact;
   computeData?: import('../../hooks/useChatGraphStream').ComputeData;
   bundestagData?: import('@gruenerator/contracts').BundestagPayload;
+  bahnData?: import('@gruenerator/contracts').BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

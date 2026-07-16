@@ -25,6 +25,7 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
+import { isSystemIntentAvailable } from '../../services/mcp/systemMcpServers.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
@@ -656,7 +657,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // For an `mcp` turn the forcedTool flag means "the user picked this
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
-      const isMcpTurn = classifiedState.intent === 'mcp';
+      // System MCP intents (bahn/wetter/news) force the gate the same way: the
+      // legacy pipeline has no executor for them, the loop mounts their tools.
+      // `umfragen` is a native domain tool (PolitPro service) — always
+      // available, so it forces the gate unconditionally.
+      const isMcpTurn =
+        classifiedState.intent === 'mcp' ||
+        classifiedState.intent === 'umfragen' ||
+        (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -744,6 +752,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // 'agentic' branch — degrade to plain search.
       if (!runAgentic && classifiedState.intent === 'agentic') {
         classifiedState.intent = 'search';
+      }
+      // Same insurance for system MCP intents: their tools exist only in the
+      // loop, so an edge turn a kill-switch kept out degrades to web search.
+      if (
+        !runAgentic &&
+        classifiedState.intent != null &&
+        ['bahn', 'reise', 'hotel', 'wetter', 'news', 'umfragen'].includes(classifiedState.intent)
+      ) {
+        classifiedState.intent = 'web';
       }
 
       sse.send('intent', {

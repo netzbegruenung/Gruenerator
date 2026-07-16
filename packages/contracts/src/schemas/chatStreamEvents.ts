@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { bahnPayloadSchema } from './bahn.js';
 import { bundestagPayloadSchema } from './bundestag.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
 import { socialPostPayloadSchema } from './socialPost.js';
@@ -34,6 +35,17 @@ export const searchIntentSchema = z.enum([
   'pressemitteilung_examples',
   'abgeordnetenwatch',
   'bundestag',
+  // EXPERIMENTAL first-party system MCP sources (Deutsche Bahn / Open-Meteo /
+  // ARD-Tagesschau) — built-in like bundestag, active only when the matching
+  // SYSTEM_MCP_*_URL env is set (see apps/api services/mcp/systemMcpServers.ts).
+  'bahn',
+  // Umbrella travel intent — mounts bahn + hotel (trivago) + wetter together.
+  'reise',
+  'hotel',
+  // Wahlumfragen (Sonntagsfrage via PolitPro + Meinungsbild) — native domain tool.
+  'umfragen',
+  'wetter',
+  'news',
   'image',
   'image_edit',
   'sharepic',
@@ -333,6 +345,7 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
   bundestag: z.object({ bundestag: bundestagPayloadSchema.passthrough().optional() }).passthrough(),
+  bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)
   // happens in coerceSharepicVariants so ONE malformed variant drops alone
   // instead of killing the whole event.

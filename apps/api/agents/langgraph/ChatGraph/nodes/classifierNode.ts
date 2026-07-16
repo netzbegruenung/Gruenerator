@@ -18,6 +18,10 @@ import {
   McpServerRegistry,
   type McpClassifierServer,
 } from '../../../../services/mcp/McpServerRegistry.js';
+import {
+  SYSTEM_MCP_INTENTS,
+  isSystemIntentAvailable,
+} from '../../../../services/mcp/systemMcpServers.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -172,6 +176,15 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   if (intent === 'mcp' && !result.mcpServerScope) {
     log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');
     intent = 'direct';
+  }
+
+  // System MCP sources are env-gated: without the deploy env URL the intent has
+  // no tools behind it — degrade so the question still gets answered (wetter/
+  // news → web has a chance; a live train query without the source doesn't).
+  if (intent && SYSTEM_MCP_INTENTS.has(intent) && !isSystemIntentAvailable(intent)) {
+    const fallback = intent === 'bahn' ? 'direct' : 'web';
+    log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
+    intent = fallback;
   }
 
   // ── URL context: pasted link(s) → additive scrape_url step ──

@@ -46,6 +46,7 @@ import {
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
+  makeUmfragenTool,
 } from './domainTools.js';
 import {
   makeBoardsTasksTool,
@@ -210,6 +211,7 @@ NUTZE WENN:
     tools.summarize = makeSummaryTool({ sse, state });
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+    tools.umfragen = makeUmfragenTool({ sourceRegistry });
     // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
     // — they must never spawn a NEW artifact (image OR create fat tool). Gated
     // server-side (the frontend not setting the tools:false is not enough).
