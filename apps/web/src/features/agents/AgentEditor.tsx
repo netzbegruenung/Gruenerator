@@ -2,8 +2,16 @@ import { getAgentSlug, USER_SELECTABLE_TOOLS } from '@gruenerator/shared/agents'
 import { isModelEnabledByDefault, TEXT_MODELS } from '@gruenerator/shared/models';
 import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
 import { Button, Input, Textarea } from '@gruenerator/ui';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import { useCreateRecurringTask, useUpdateRecurringTask } from '../recurring-tasks/api';
+import { RecurrenceFields } from '../recurring-tasks/RecurrenceFields';
+import {
+  DEFAULT_SCHEDULE,
+  scheduleToRecurrence,
+  type ScheduleState,
+} from '../recurring-tasks/scheduleState';
 
 import { formToPayload, type FormState, type Locale } from './agentFormState';
 import { AgentPreview } from './AgentPreview';
@@ -25,7 +33,10 @@ const selectCls =
   'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50';
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
 
-type Section = 'grund' | 'tools' | 'wissen';
+// A recurring task's instruction is the agent's Anleitung; the contract caps it.
+const MAX_TASK_INSTRUCTION = 4000;
+
+type Section = 'grund' | 'tools' | 'wissen' | 'zeitplan';
 
 function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -38,6 +49,15 @@ interface AgentEditorProps {
   /** Edit only — drives the PATCH target and the "Im Chat öffnen" link. */
   identifier?: string;
   onCancel?: () => void;
+  /**
+   * `recurring` (create) surfaces the Zeitplan tab and, on save, also creates a
+   * recurring task bound to the new agent. `agent` (default) is the plain builder.
+   */
+  variant?: 'agent' | 'recurring';
+  /** Edit only — the loaded task's schedule, when this agent already has one. */
+  initialSchedule?: ScheduleState | null;
+  /** Edit only — id of the recurring task to PATCH alongside the agent. */
+  recurringTaskId?: string;
 }
 
 /**
@@ -45,16 +65,39 @@ interface AgentEditorProps {
  * Grundlagen / Werkzeuge / Wissen tabs, and a live preview pane alongside. Shared
  * by the create routes and the edit route, so create and edit behave identically.
  */
-function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorProps) {
+function AgentEditor({
+  mode,
+  initialState,
+  identifier,
+  onCancel,
+  variant = 'agent',
+  initialSchedule = null,
+  recurringTaskId,
+}: AgentEditorProps) {
   const navigate = useNavigate();
   const createMut = useCreateUserAgent();
   const updateMut = useUpdateUserAgent(identifier ?? '');
-  const saving = createMut.isPending || updateMut.isPending;
+  const createTaskMut = useCreateRecurringTask();
+  const updateTaskMut = useUpdateRecurringTask();
+  const saving =
+    createMut.isPending ||
+    updateMut.isPending ||
+    createTaskMut.isPending ||
+    updateTaskMut.isPending;
 
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [section, setSection] = useState<Section>('grund');
+
+  // The Zeitplan tab shows for recurring create and when editing an agent that
+  // already has a recurring task. Its state is kept outside FormState — it maps to
+  // the recurring-task call, not the user-agent payload.
+  const showSchedule = variant === 'recurring' || initialSchedule != null;
+  const [schedule, setSchedule] = useState<ScheduleState>(initialSchedule ?? DEFAULT_SCHEDULE);
+  // Holds the agent id after a successful create so a failed follow-up task call
+  // can be retried without creating a duplicate agent.
+  const createdIdentifierRef = useRef<string | null>(null);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
     setJustSaved(false);
@@ -72,18 +115,72 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
   const handleSave = async () => {
     setError(null);
     try {
+      // Block early when this save also writes a recurring task whose instruction
+      // (= the Anleitung) would exceed the contract cap — otherwise create mode
+      // would persist the agent and then fail the task on every retry.
+      const writesTask = variant === 'recurring' || recurringTaskId != null;
+      if (writesTask && form.systemRole.trim().length > MAX_TASK_INSTRUCTION) {
+        setError(
+          `Die Anleitung ist zu lang für eine wiederkehrende Aufgabe (max. ${MAX_TASK_INSTRUCTION} Zeichen). Bitte kürze sie.`
+        );
+        setSection('grund');
+        return;
+      }
+
       const payload = formToPayload(form);
       if (mode === 'create') {
-        const slug = slugifyName(form.title, 'agent');
-        // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`.
-        const created = await createMut.mutateAsync({
-          identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
-          author: 'Eigene*r Agent*in',
-          ...payload,
-        });
-        void navigate(`/agents/${created.identifier}/edit`);
+        // Create the agent once; keep its id so a failed follow-up task call can
+        // retry without spawning a duplicate agent.
+        let agentId = createdIdentifierRef.current;
+        if (!agentId) {
+          const slug = slugifyName(form.title, 'agent');
+          // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`.
+          const created = await createMut.mutateAsync({
+            identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
+            author: 'Eigene*r Agent*in',
+            ...payload,
+          });
+          agentId = created.identifier;
+          createdIdentifierRef.current = agentId;
+        }
+        if (variant === 'recurring') {
+          try {
+            await createTaskMut.mutateAsync({
+              title: form.title.trim(),
+              instruction: form.systemRole.trim(),
+              agentIdentifier: agentId,
+              recurrence: scheduleToRecurrence(schedule),
+              delivery: schedule.delivery,
+              emailNotify: schedule.emailNotify,
+              timezone: schedule.timezone,
+              locale: form.locale,
+              enabled: true,
+            });
+          } catch {
+            setError(
+              'Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
+            );
+            return;
+          }
+          void navigate('/agentura?cat=wiederkehrend');
+        } else {
+          void navigate(`/agents/${agentId}/edit`);
+        }
       } else {
         await updateMut.mutateAsync(payload);
+        if (recurringTaskId) {
+          await updateTaskMut.mutateAsync({
+            id: recurringTaskId,
+            patch: {
+              title: form.title.trim(),
+              instruction: form.systemRole.trim(),
+              recurrence: scheduleToRecurrence(schedule),
+              delivery: schedule.delivery,
+              emailNotify: schedule.emailNotify,
+              timezone: schedule.timezone,
+            },
+          });
+        }
         setJustSaved(true);
       }
     } catch (err) {
@@ -106,6 +203,7 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
     { key: 'grund' as const, label: 'Grundlagen' },
     { key: 'tools' as const, label: `Werkzeuge${toolCount ? ` · ${toolCount}` : ''}` },
     { key: 'wissen' as const, label: `Wissen${notebookCount ? ` · ${notebookCount}` : ''}` },
+    ...(showSchedule ? [{ key: 'zeitplan' as const, label: 'Zeitplan' }] : []),
   ];
 
   return (
@@ -362,6 +460,19 @@ function AgentEditor({ mode, initialState, identifier, onCancel }: AgentEditorPr
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {section === 'zeitplan' && (
+            <div>
+              <div className="mb-md">
+                <h2 className="m-0 text-base font-bold text-foreground-heading">Zeitplan</h2>
+                <p className="m-0 mt-1 text-sm text-foreground-muted">
+                  Wann und wie oft der Agent automatisch läuft. Ausgeführt wird dabei die Anleitung
+                  des Agenten; das Ergebnis wird wie gewählt geliefert.
+                </p>
+              </div>
+              <RecurrenceFields value={schedule} onChange={setSchedule} />
             </div>
           )}
         </div>

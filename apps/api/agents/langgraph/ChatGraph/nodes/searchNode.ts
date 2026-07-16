@@ -1540,6 +1540,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'modify_board':
       case 'share_doc':
       case 'edit_current_doc':
+      case 'create_recurring_task':
       case 'direct':
         // These intents are handled by other graph nodes; no search needed.
         break;
