@@ -282,6 +282,31 @@ export function parseClassifierResponse(
       searchQuery: null,
       reasoning: 'Fallback: summary detected in response',
     };
+  // System MCP intents — specific tokens, safe before the broad direct/search.
+  if (intentFieldPattern('reise').test(content))
+    return {
+      intent: 'reise',
+      searchQuery: null,
+      reasoning: 'Fallback: reise detected in response',
+    };
+  if (intentFieldPattern('bahn').test(content))
+    return {
+      intent: 'bahn',
+      searchQuery: null,
+      reasoning: 'Fallback: bahn detected in response',
+    };
+  if (intentFieldPattern('wetter').test(content))
+    return {
+      intent: 'wetter',
+      searchQuery: null,
+      reasoning: 'Fallback: wetter detected in response',
+    };
+  if (intentFieldPattern('news').test(content))
+    return {
+      intent: 'news',
+      searchQuery: userContent,
+      reasoning: 'Fallback: news detected in response',
+    };
   if (intentFieldPattern('direct').test(content))
     return {
       intent: 'direct',
