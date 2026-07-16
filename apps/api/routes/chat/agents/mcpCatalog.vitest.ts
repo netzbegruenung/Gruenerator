@@ -66,7 +66,7 @@ describe('loadMcpCatalog', () => {
     expect(cat.scopedServerMissing).toBe(false);
   });
 
-  it('namespaces tools per server index and labels them', async () => {
+  it('namespaces tools per stable server key (mcp_servers.id) and labels them', async () => {
     getConnectionConfigs.mockResolvedValue([
       { id: 'a', name: 'Notion', url: 'https://x', authType: 'none', token: null },
       { id: 'b', name: 'Brevo', url: 'https://y', authType: 'none', token: null },
@@ -78,12 +78,35 @@ describe('loadMcpCatalog', () => {
     );
     const cat = await loadMcpCatalog({ userId: 'u1', scope: null });
     const names = Object.keys(cat.tools).sort();
-    expect(names).toEqual(['s0__search_page', 's1__send']);
-    expect(cat.labels.get('s0__search_page')).toEqual({
+    // `m<serverKey>__<tool>` where serverKey = id without dashes, first 8 chars.
+    expect(names).toEqual(['ma__search_page', 'mb__send']);
+    expect(cat.labels.get('ma__search_page')).toEqual({
       serverName: 'Notion',
       toolName: 'search page',
     });
     expect(saveToolsSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it('tool name is stable across turns (derived from server id, not index)', async () => {
+    const configs = [
+      {
+        id: '9f8c7b6a-1111-2222-3333-444455556666',
+        name: 'Notion',
+        url: 'https://x',
+        authType: 'none',
+        token: null,
+      },
+    ];
+    getConnectionConfigs.mockResolvedValue(configs);
+    listTools.mockResolvedValue([
+      { name: 'search page', description: 'find', inputSchema: { type: 'object' } },
+    ]);
+    const a = await loadMcpCatalog({ userId: 'u1', scope: null });
+    const b = await loadMcpCatalog({ userId: 'u1', scope: null });
+    const nameA = Object.keys(a.tools)[0];
+    expect(nameA).toBe('m9f8c7b6a__search_page');
+    expect(Object.keys(b.tools)[0]).toBe(nameA);
+    expect(nameA).toMatch(/^[a-zA-Z0-9_-]{1,64}$/);
   });
 
   it('execute() returns {content} on success and {error} on failure', async () => {
@@ -95,13 +118,13 @@ describe('loadMcpCatalog', () => {
     ]);
     callTool.mockResolvedValueOnce({ ok: true, content: 'Seiteninhalt' });
     const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
-    const ok = (await toolExec(cat.tools, 's0__get')({ q: 1 }, { toolCallId: 'c1' })) as {
+    const ok = (await toolExec(cat.tools, 'ma__get')({ q: 1 }, { toolCallId: 'c1' })) as {
       content?: string;
     };
     expect(ok.content).toBe('Seiteninhalt');
 
     callTool.mockResolvedValueOnce({ ok: false, content: 'MCP-Client nicht verbunden.' });
-    const err = (await toolExec(cat.tools, 's0__get')({}, { toolCallId: 'c2' })) as {
+    const err = (await toolExec(cat.tools, 'ma__get')({}, { toolCallId: 'c2' })) as {
       error?: string;
     };
     expect(err.error).toBe('MCP-Client nicht verbunden.');
@@ -119,7 +142,7 @@ describe('loadMcpCatalog', () => {
       { name: 'ok', description: 'd', inputSchema: { type: 'object' } },
     ]);
     const cat = await loadMcpCatalog({ userId: 'u1', scope: null });
-    expect(Object.keys(cat.tools)).toEqual(['s1__ok']);
+    expect(Object.keys(cat.tools)).toEqual(['mb__ok']);
     expect(close).toHaveBeenCalledWith('Dead');
     await cat.close();
     expect(close).toHaveBeenCalledWith('Live');

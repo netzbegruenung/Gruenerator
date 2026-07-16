@@ -16,6 +16,20 @@ const BRAND: Record<string, string> = {
   SISTRIX: '#E5195F',
   Zapier: '#FF4A00',
   'Google Maps': '#4285F4',
+  Tally: '#F24E43',
+  Typeform: '#262627',
+  'Typeform (EU)': '#262627',
+  Zoom: '#2D8CFF',
+  Todoist: '#E44332',
+  Miro: '#050038',
+  Goodnotes: '#2E7CF6',
+  DocuSign: '#1F1646',
+  IFTTT: '#000000',
+  'Booking.com': '#003580',
+  Expedia: '#00355F',
+  trivago: '#007FAD',
+  'Yahoo Finance': '#6001D2',
+  Jotform: '#FF6100',
 };
 
 export function mcpBrandColor(title: string): string {

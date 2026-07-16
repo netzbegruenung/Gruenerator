@@ -137,7 +137,6 @@ import { mountVideoContractRouter } from './routes/video/videoContractRouter.js'
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
-import { mountWordpressContractRouter } from './routes/wordpress/wordpressContractRouter.js';
 import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
@@ -281,7 +280,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
-  const { default: wordpressApiRouter } = await import('./routes/wordpress/wordpressApi.js');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
@@ -817,12 +815,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
-  // ts-rest contract router — mount before legacy wordpressApiRouter
-  // requireAuth is also inside the legacy router, but we apply it here
-  // since the contract router runs first.
-  app.use('/api/wordpress', requireAuth);
-  mountWordpressContractRouter(app);
-  app.use('/api/wordpress', standardMutationLimiter, requireAuth, wordpressApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   // ts-rest contract router — mount before the legacy sitesRouter so the
   // typed CRUD routes match first; /public/:subdomain and /themes fall

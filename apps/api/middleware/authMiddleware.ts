@@ -41,7 +41,6 @@ const DEV_BYPASS_USER: Express.User = {
   interactive_antrag_enabled: false,
   vorlagen: false,
   video_editor: false,
-  wordpress_enabled: true,
   created_at: new Date(),
   updated_at: new Date(),
 };

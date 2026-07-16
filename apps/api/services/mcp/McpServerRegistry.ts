@@ -2,7 +2,7 @@
  * Per-user registry of external MCP servers (EXPERIMENTAL).
  *
  * Stores server records in the `mcp_servers` table; access tokens are encrypted
- * at rest with the shared credential helper (same scheme as Canva/WordPress).
+ * at rest with the shared credential helper (same scheme as Canva).
  * The chat `mcp`-intent tool-loop reads {@link getConnectionConfigs} to connect
  * to a user's enabled servers; the settings UI drives the CRUD methods.
  *
