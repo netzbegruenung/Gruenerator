@@ -17,6 +17,17 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { FiServer, FiSearch, FiLock, FiCheck } from 'react-icons/fi';
+import {
+  SiNotion,
+  SiCoda,
+  SiHubspot,
+  SiBrevo,
+  SiStatista,
+  SiZapier,
+  SiGooglemaps,
+  SiTypeform,
+  SiZoom,
+} from 'react-icons/si';
 
 import {
   useMcpServers,
@@ -37,6 +48,8 @@ import {
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
+
+import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
@@ -60,15 +73,38 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAut
 
 // ── Presentation helpers ─────────────────────────────────────────────────────
 
-const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => (
-  <div
-    className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
-    style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
-    aria-hidden
-  >
-    {title.charAt(0).toUpperCase()}
-  </div>
-));
+// Real vendor logos where Simple Icons ships one; keyword-matched so it works on
+// both a title ("Notion") and a connected server's host ("mcp.notion.com"). Any
+// service without a match keeps the coloured-monogram fallback below.
+const BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
+  [/notion/i, SiNotion],
+  [/coda/i, SiCoda],
+  [/hubspot/i, SiHubspot],
+  [/brevo/i, SiBrevo],
+  [/statista/i, SiStatista],
+  [/zapier/i, SiZapier],
+  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
+  [/typeform/i, SiTypeform],
+  [/zoom/i, SiZoom],
+];
+
+function brandIcon(label: string): IconType | null {
+  for (const [re, Icon] of BRAND_ICONS) if (re.test(label)) return Icon;
+  return null;
+}
+
+const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => {
+  const Icon = brandIcon(title);
+  return (
+    <div
+      className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
+      style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
+      aria-hidden
+    >
+      {Icon ? <Icon size={size * 0.5} /> : title.charAt(0).toUpperCase()}
+    </div>
+  );
+});
 McpLogo.displayName = 'McpLogo';
 
 const authLabel: Record<McpRegistryEntry['authHint'], string> = {
