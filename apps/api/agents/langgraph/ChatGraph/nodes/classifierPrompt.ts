@@ -23,6 +23,10 @@ VERFÜGBARE TOOLS:
 - social_post: Social-Media-Post ERSTELLEN (Text + passende Sharepic-Grafik in einem) - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Ein Post ist KEINE direct-Aufgabe.
 - abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
 - bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
+- bahn: Konkrete BAHNAUSKUNFT der Deutschen Bahn - Zugverbindungen, Abfahrts-/Ankunftszeiten, Fahrpläne, Verspätungen, Gleise, Bahnhofsausstattung ("welche Zugverbindung von X nach Y", "wann fährt der nächste Zug nach", "Abfahrten in Köln", "hat mein Zug Verspätung", "gibt es Parkplätze am Hbf"). NUR für reine Zug-/Bahnhofsauskünfte, NICHT für Bahnpolitik/Bahnreform/Grüne Verkehrspositionen (→ search) und NICHT für Nachrichten über die Bahn (→ news/web).
+- reise: Kombinierte REISEPLANUNG - Unterkunft/Hotel suchen ODER mehrere Reiseaspekte in einer Anfrage (Zug + Hotel + Wetter): "plane meine Reise nach Berlin", "Hotel in Nürnberg für 2 Nächte", "Zug und Unterkunft für den Parteitag", "Dienstreise nach X organisieren". Reine Zugauskunft → bahn; reine Wetterfrage → wetter; Tourismuspolitik → search.
+- wetter: Konkrete WETTERAUSKUNFT - Vorhersage, aktuelles Wetter, Temperatur, Regen, Luftqualität für einen Ort/Zeitraum ("wie wird das Wetter morgen in X", "regnet es am Samstag", "wie warm wird es", "Pollenbelastung in Y"). NUR für konkrete Wetterdaten, NICHT für Klimapolitik/Klimawandel-Fragen (→ search/web).
+- news: Aktuelle NACHRICHTENLAGE via tagesschau - Schlagzeilen, Meldungen zu einem Thema, Ressort- oder Regional-Nachrichten ("was gibt es Neues zu X", "aktuelle Nachrichten aus Bayern", "was meldet die tagesschau", "Nachrichtenlage zu Y"). Für die aktuelle Berichterstattung; bei allgemeiner Web-Recherche ohne News-Charakter → web.
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
 - compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ direct/search).
@@ -86,6 +90,10 @@ SCHRITT 3 - TOOL WÄHLEN:
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
 6c. Bundestagsdokumente, Plenardebatten, Reden oder Gesetzgebungsverfahren (Drucksachen, Protokolle)? → bundestag
+6d. Hotel-/Unterkunftssuche ODER kombinierte Reiseplanung (Zug + Hotel/Wetter)? → reise
+6e. REINE Zugverbindung/Abfahrtszeit/Fahrplan/Bahnhofsauskunft? → bahn (Bahnpolitik → search)
+6f. Konkrete Wettervorhersage/aktuelles Wetter für einen Ort? → wetter (Klimapolitik → search)
+6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
@@ -175,7 +183,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -230,6 +238,12 @@ export const NON_SEARCH_INTENTS = new Set([
   'modify_board',
   'share_doc',
   'mcp',
+  // System MCP sources: the loop's tools take the model's own arguments — no
+  // Qdrant search-query optimization involved.
+  'bahn',
+  'reise',
+  'wetter',
+  'news',
 ]);
 
 export const CLASSIFIER_CONTEXT_MESSAGES = 5;

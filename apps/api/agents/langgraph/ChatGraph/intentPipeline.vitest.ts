@@ -49,6 +49,10 @@ const ALL_INTENTS: SearchIntent[] = [
   'pressemitteilung_examples',
   'abgeordnetenwatch',
   'bundestag',
+  'bahn',
+  'reise',
+  'wetter',
+  'news',
   'image',
   'image_edit',
   'sharepic',
@@ -60,6 +64,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'save_as_doc',
   'create_sheet',
   'create_presentation',
+  'create_recurring_task',
   'modify_doc',
   'edit_current_doc',
   'edit_current_board',
@@ -317,6 +322,12 @@ describe('every SearchIntent has a handler path', () => {
       'handled via search branch (intent !== direct) — searchNode case calls EnrichedPoliticianService (Abgeordnetenwatch API)',
     bundestag:
       'handled via search branch (intent !== direct) — searchNode case calls BundestagEnrichedService (Bundestag MCP / DIP)',
+    bahn: 'EXPERIMENTAL system MCP source — forces the agentic loop (isMcpTurn in router); systemMcpCatalog mounts the Deutsche-Bahn tools; router degrades a killed loop turn to web',
+    reise:
+      'EXPERIMENTAL umbrella travel intent — forces the agentic loop; systemMcpCatalog mounts bahn + hotel (trivago) + wetter together; router degrades a killed loop turn to web',
+    wetter:
+      'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the Open-Meteo/DWD tools; router degrades a killed loop turn to web',
+    news: 'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the ARD/tagesschau tools (citations via sourceRegistry); router degrades a killed loop turn to web',
     summary: 'handled via summary branch in controller',
     chart: 'routes to respond, chart data handled by controller post-response',
     artifact: 'routes to respond, controller extracts HTML/SVG block into an artifact SSE event',
@@ -328,6 +339,8 @@ describe('every SearchIntent has a handler path', () => {
       'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
     create_presentation:
       'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
+    create_recurring_task:
+      'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     edit_current_doc:
       'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
