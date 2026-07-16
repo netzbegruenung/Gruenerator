@@ -19,6 +19,9 @@ export default [
       // no-unsafe-* rules: inherited from base config at 'error' level (180 violations fixed 2026-04-11)
       // no-floating-promises: inherited at 'error' level (70 violations fixed 2026-04-12)
       '@typescript-eslint/switch-exhaustiveness-check': 'warn',
+      // exhaustive-deps: promoted warn→error (all violations resolved 2026-07-16) to
+      // prevent stale-closure regressions; intentional omissions need a scoped disable.
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   {
