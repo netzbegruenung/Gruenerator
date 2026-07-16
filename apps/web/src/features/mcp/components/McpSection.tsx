@@ -682,6 +682,7 @@ interface AvailableItem {
 const CATEGORY_ORDER = [
   'Produktivität',
   'CRM & Marketing',
+  'Social Media',
   'Analyse & SEO',
   'Finanzen',
   'Formulare',
