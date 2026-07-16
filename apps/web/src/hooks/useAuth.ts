@@ -486,7 +486,15 @@ const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQuery
           if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
           if (notebookCollections)
             queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
-          if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
+          // Only seed recent-activity if nothing has fetched it yet. The
+          // workplace section fetches the same key directly and lazy-mounts, so
+          // its request can resolve before this seed lands — clobbering the
+          // fresh 30-item list (canvases included) with a stale seed made
+          // canvases flicker in and out. The seed keeps its instant-paint job
+          // on the first post-login paint, where the cache is genuinely empty.
+          if (recentActivity && !queryClient.getQueryState(['recent-activity'])?.dataUpdatedAt) {
+            queryClient.setQueryData(['recent-activity'], recentActivity);
+          }
           if (profile) queryClient.setQueryData(['profileData', userId], profile);
         })
         .catch((error: unknown) => {

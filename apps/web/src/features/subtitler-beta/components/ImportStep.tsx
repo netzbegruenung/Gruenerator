@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Skeleton, UploadZone, VideoCard } from '@gruenerator/ui';
 import { Film, Upload } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -39,10 +40,12 @@ export function ImportStep() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   useEffect(() => {
-    apiClient
-      .get<{ projects?: ProjectListItem[] }>('/subtitler/projects')
+    getContractsClient()
+      .subtitler.listProjects()
       .then((res) => {
-        setProjects(res.data?.projects ?? []);
+        // Contract SubtitlerProject is nullability-wide; ProjectListItem is the
+        // tight local subset the picker reads off.
+        setProjects(res.status === 200 ? (res.body.projects as unknown as ProjectListItem[]) : []);
       })
       .catch(() => {})
       .finally(() => setIsLoadingProjects(false));
@@ -65,10 +68,11 @@ export function ImportStep() {
 
   const handleSelectProject = useCallback(
     (projectId: string) => {
-      apiClient
-        .get<{ project?: { subtitles?: string | null } }>(`/subtitler/projects/${projectId}`)
+      getContractsClient()
+        .subtitler.getProject({ params: { projectId } })
         .then((res) => {
-          const p = res.data?.project;
+          if (res.status !== 200) return;
+          const p = res.body.project;
           if (!p) return;
           if (p.subtitles) {
             setTranscript(segmentsToTranscript(p.subtitles));

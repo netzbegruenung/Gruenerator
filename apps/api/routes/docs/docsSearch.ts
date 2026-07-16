@@ -10,6 +10,14 @@ import { likeContainsPattern } from '../../utils/sqlLike.js';
 
 import { DOCS_ONLY_SUBTYPES, OFFICE_SUBTYPES, docsAccessWhere } from './constants.js';
 
+export {
+  officeKind,
+  officeKindLabel,
+  officeSnippet,
+  officeUrl,
+  type OfficeKind,
+} from './officeContentFormat.js';
+
 const db = getPostgresInstance();
 
 type CollabRow = InferSelectModel<typeof collaborative_documents>;
@@ -29,6 +37,27 @@ export async function searchDocuments(
      ORDER BY cd.updated_at DESC
      LIMIT $4`,
     [userId, DOCS_ONLY_SUBTYPES, likeContainsPattern(query), limit]
+  )) as DocSearchHit[];
+}
+
+/**
+ * List the caller's own documents (docs/sheets/presentations — excludes boards),
+ * newest first. Same owned/shared/group access predicate as the docs list
+ * endpoint (`docsAccessWhere`), so a chat tool reusing this can never surface
+ * another user's content. Title-only projection, kept lean for the loop.
+ */
+export async function listUserDocuments(
+  userId: string,
+  limit: number,
+  subtypes: string[] = DOCS_ONLY_SUBTYPES
+): Promise<DocSearchHit[]> {
+  return (await db.query(
+    `SELECT cd.id, cd.title, cd.document_subtype, cd.updated_at
+     FROM collaborative_documents cd
+     WHERE ${docsAccessWhere('$2', '$1')}
+     ORDER BY cd.updated_at DESC
+     LIMIT $3`,
+    [userId, subtypes, limit]
   )) as DocSearchHit[];
 }
 

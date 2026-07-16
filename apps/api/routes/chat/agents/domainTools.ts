@@ -18,12 +18,19 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
+import {
+  runBoardGeneration,
+  runDocGeneration,
+  runSharepicGeneration,
+} from '../services/intentExecutionService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import type { Request } from 'express';
 
 /**
  * `summarize`: map-reduce digest of the turn's attached documents (or, absent
@@ -130,6 +137,251 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
       }
       const sources = sourceRegistry.register(results);
       return { resultCount: results.length, sources: sources ?? '' };
+    },
+  });
+}
+
+/**
+ * `generate_image`: Flux image generation via `imageNode`. Emits
+ * `image_start`/`image_complete` (the latter carries the full image incl.
+ * base64 for the live card). `imageNode` derives subject+style from the last
+ * user message, so the model's `prompt` is injected as a synthetic trailing
+ * user message — that lets the loop steer the image (e.g. from search results).
+ * The result is merged back onto the shared state so the router persists it via
+ * the message-level `generatedImage` metadata (its rehydration path); the model
+ * only gets a lean confirmation (no base64). `image_edit` stays single-pass —
+ * it needs an attachment and the router gate excludes attachment turns.
+ */
+export function makeImageTool(ctx: { sse: SSEWriter; state: ChatGraphState }): Tool {
+  const { sse, state } = ctx;
+  return tool({
+    description: `Generiert ein Bild (Illustration, Foto-Stil oder Sharepic-Motiv) aus einer Beschreibung.
+
+NUTZE WENN der*die Nutzer*in ein Bild/Motiv/eine Illustration erzeugt haben möchte ("mach/generiere/zeichne ein Bild von ..."). Übergib eine präzise Bildbeschreibung auf Deutsch.`,
+    inputSchema: z.object({
+      prompt: z.string().min(1).describe('Bildbeschreibung (Motiv, Stil, Details)'),
+    }),
+    execute: async ({ prompt }) => {
+      // Idempotent per turn: the loop model can't SEE the image it made and
+      // tends to re-call ("try again"), which burns the daily image quota (seen
+      // live: 3 generations for one request). If we already produced one this
+      // turn, acknowledge success instead of generating again.
+      if (state.generatedImage) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Bild erstellt und dem*der Nutzer*in angezeigt. Rufe generate_image NICHT erneut auf; beschreibe das Bild kurz.',
+        };
+      }
+      sse.send('image_start', { message: PROGRESS_MESSAGES.imageStart });
+      const injected = { role: 'user', content: prompt } as ChatGraphState['messages'][number];
+      const result = await imageNode({ ...state, messages: [...state.messages, injected] });
+      // Mirror the single-pass merge so the router persists the image through
+      // the message-level generatedImage metadata (state is the shared ref).
+      state.generatedImage = result.generatedImage ?? null;
+      if (state.generatedImage) {
+        sse.send('image_complete', {
+          message: PROGRESS_MESSAGES.imageComplete,
+          image: state.generatedImage,
+        });
+        return {
+          ok: true,
+          prompt: state.generatedImage.prompt,
+          style: state.generatedImage.style,
+          note: 'Bild erfolgreich erstellt und dem*der Nutzer*in angezeigt. Rufe generate_image NICHT erneut auf; kündige das Bild kurz an.',
+        };
+      }
+      const err = result.error ?? 'Bildgenerierung fehlgeschlagen.';
+      sse.send('image_complete', { message: PROGRESS_MESSAGES.imageError(err), error: err });
+      return { error: err };
+    },
+  });
+}
+
+/**
+ * `sharepic` (Phase 3n fat tool, compound turns only): wraps the complete
+ * single-pass sharepic pipeline (`runSharepicGeneration` — loop-safe: it emits
+ * `sharepic_complete` itself and never ends the turn) so "recherchiere X und
+ * mach ein Sharepic" can compose search + generation in ONE loop. The catalog
+ * key MUST stay `sharepic`: card rehydration and follow-up edits look up the
+ * persisted `toolName === 'sharepic'` with `result.variants`
+ * (threadMessageConversion / getLastSharepicVariant / sharepicEditService), so
+ * returning `{ variants }` verbatim keeps all three consumers unchanged.
+ */
+export function makeCreateSharepicTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  req: Request;
+  threadId: string | null;
+}): Tool {
+  const { sse, state, req, threadId } = ctx;
+  return tool({
+    description: `Erstellt ein Sharepic (Social-Media-Grafik) aus einer Kernaussage.
+
+NUTZE WENN der*die Nutzer*in ein Sharepic/eine Grafik zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib die konkrete, belegte Kernaussage — kein Platzhaltertext.`,
+    inputSchema: z.object({
+      text: z
+        .string()
+        .min(1)
+        .describe('Kernaussage/Thema des Sharepics — konkret, mit den recherchierten Fakten'),
+    }),
+    execute: async ({ text }) => {
+      // Idempotent per turn (mirror of generate_image): variants are expensive
+      // and the model can't see the rendered result, so it tends to re-call.
+      if (state.sharepicVariants?.length) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Sharepic erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige das Sharepic kurz an.',
+        };
+      }
+      sse.send('image_start', { message: 'Erstelle Sharepic-Varianten...' });
+      // runSharepicGeneration reads its topic from the LAST user message —
+      // inject the model's researched text there (same trick as generate_image).
+      const injected = { role: 'user', content: text } as ChatGraphState['messages'][number];
+      const variants = await runSharepicGeneration({
+        state: { ...state, messages: [...state.messages, injected] },
+        sse,
+        req,
+        threadId,
+      });
+      if (variants.length === 0) {
+        // Error SSE already emitted inside runSharepicGeneration.
+        return { error: 'Sharepic-Erstellung fehlgeschlagen.' };
+      }
+      // Shared-ref merge → forceFinish trips and the router lifts the variants
+      // for persistence (like generatedImage).
+      state.sharepicVariants = variants;
+      return {
+        variants,
+        note: 'Sharepic erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an und biete Anpassungen an.',
+      };
+    },
+  });
+}
+
+/**
+ * Compound document fat tool (Phase 3n): presentations and sheets as opaque
+ * loop tools so "recherchiere X und erstelle eine Präsentation/Tabelle" composes
+ * search + generation in ONE turn. Mirrors `makeCreateSharepicTool`: idempotent
+ * per turn (`state.createdDocument`), delegates to the loop-safe
+ * `runDocGeneration` core, emits the same `document_created` SSE the single-pass
+ * handlers do (so the chat card renders live + thread-reload rehydrates via the
+ * persisted message `createdDocument` metadata), and hands the model a lean
+ * value to announce. The `prompt` arg carries the researched, concrete brief.
+ */
+const DOC_LABELS: Record<
+  'presentation' | 'sheet' | 'document',
+  { label: string; artifact: string }
+> = {
+  presentation: {
+    label: 'Präsentation',
+    artifact: 'eine Präsentation (Foliendeck) zu einem Thema',
+  },
+  sheet: { label: 'Tabelle', artifact: 'eine Tabelle/Kalkulation zu einem Thema' },
+  document: { label: 'Dokument', artifact: 'ein Textdokument zu einem Thema' },
+};
+
+export function makeCreateDocTool(ctx: {
+  kind: 'presentation' | 'sheet' | 'document';
+  sse: SSEWriter;
+  state: ChatGraphState;
+  req: Request;
+}): Tool {
+  const { kind, sse, state, req } = ctx;
+  const { label, artifact } = DOC_LABELS[kind];
+  return tool({
+    description: `Erstellt ${artifact}.
+
+NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/Folien' : label === 'Tabelle' ? 'eine Tabelle/Kalkulation' : 'ein Dokument/einen Text'} zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe(
+          `Konkreter Auftrag für ${label === 'Dokument' ? 'das Dokument' : `die ${label}`} — Thema plus die recherchierten Fakten/Inhalte, die vorkommen sollen`
+        ),
+    }),
+    execute: async ({ prompt }) => {
+      // Idempotent per turn (mirror of sharepic/generate_image): generation is
+      // expensive and the model can't see the rendered result, so it re-calls.
+      if (state.createdDocument) {
+        return {
+          ok: true,
+          note: `Es wurde in diesem Turn bereits ${label === 'Dokument' ? 'ein Dokument' : `eine ${label}`} erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: `${label}-Erstellung nicht möglich (keine Nutzer-Sitzung).` };
+      }
+      const created = await runDocGeneration({
+        kind,
+        userContent: prompt,
+        aiWorkerPool: state.aiWorkerPool,
+        req,
+        userId,
+      });
+      if (!created) {
+        return { error: `${label}-Erstellung fehlgeschlagen.` };
+      }
+      // Live card (same event the single-pass handler emits). Shared-ref merge →
+      // forceFinish trips and the router lifts it for message-level persistence.
+      sse.send('document_created', created);
+      state.createdDocument = created;
+      return {
+        document: created,
+        note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+      };
+    },
+  });
+}
+
+/**
+ * Compound board fat tool. Boards have a DIFFERENT contract than documents:
+ * no `document_created`/card path — the board renders from `boardId` +
+ * `boardGeneratedStructure` in the turn's `done` event. So this tool stashes the
+ * descriptor on `state.createdBoard` (shared-ref → router lifts it into the loop
+ * `done` event) and hands the model the board URL to mention. No card
+ * rehydration on reload (matches the single-pass @board-erstellen path).
+ */
+export function makeCreateBoardTool(ctx: { state: ChatGraphState; req: Request }): Tool {
+  const { state, req } = ctx;
+  return tool({
+    description: `Erstellt ein Kanban-Board (Aufgabenboard) zu einem Thema.
+
+NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Inhalten angereicherten Auftrag (Aufgaben/Spalten) — kein Platzhaltertext.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe('Konkreter Auftrag für das Board — Thema plus die Aufgaben/Inhalte'),
+    }),
+    execute: async ({ prompt }) => {
+      if (state.createdBoard) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein Board erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: 'Board-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
+      }
+      const created = await runBoardGeneration({
+        userContent: prompt,
+        aiWorkerPool: state.aiWorkerPool,
+        req,
+        userId,
+      });
+      if (!created) {
+        return { error: 'Board-Erstellung fehlgeschlagen.' };
+      }
+      // Shared-ref merge → forceFinish trips and the router lifts boardId +
+      // structure into the `done` event (boards have no mid-stream card SSE).
+      state.createdBoard = created;
+      return {
+        board: { boardId: created.boardId, title: created.title },
+        note: `Board "${created.title}" erstellt (unter /boards/${created.boardId}). Rufe das Tool NICHT erneut auf; kündige es kurz an und nenne den Link.`,
+      };
     },
   });
 }

@@ -10,8 +10,8 @@ export interface NotebookCreateCardProps {
 /**
  * The "create new notebook" tile. Mirrors {@link NotebookGalleryCard}'s outer
  * footprint (one grid cell, `aspect-[5/4]` body + footer) so it sits flush with
- * the notebook cards, but styled as a dashed primary "add" affordance — the same
- * palette as `ManageAllCard`.
+ * the notebook cards, but styled as a dashed pink "add" affordance to match the
+ * accented notebook cards on the "Wissen" surface.
  */
 const NotebookCreateCard = memo(({ onClick, className }: NotebookCreateCardProps) => {
   return (
@@ -27,19 +27,19 @@ const NotebookCreateCard = memo(({ onClick, className }: NotebookCreateCardProps
       }}
       aria-label="Neues Notebook erstellen"
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-xl border border-dashed border-primary-400 bg-primary-50 text-left no-underline',
+        'group relative flex flex-col overflow-hidden rounded-xl border border-dashed border-[#E9A9C8] bg-[#FDF2F8] text-left no-underline',
         'cursor-pointer transition-all duration-200 ease-out',
-        'hover:-translate-y-0.5 hover:border-primary-500 hover:shadow-md',
-        'dark:border-primary-700 dark:bg-primary-950/30 dark:hover:border-primary-500',
+        'hover:-translate-y-0.5 hover:border-[#D6006E] hover:shadow-md',
+        'dark:border-[#5A2A44] dark:bg-[#2A1B24] dark:hover:border-[#EC5AA0]',
         className
       )}
     >
       <div className="flex aspect-[5/4] items-center justify-center">
-        <FiPlus className="size-9 text-primary-500 transition-transform duration-200 ease-out group-hover:scale-110 dark:text-primary-300" />
+        <FiPlus className="size-9 text-[#D6006E] transition-transform duration-200 ease-out group-hover:scale-110 dark:text-[#EC5AA0]" />
       </div>
 
-      <div className="flex items-center justify-center border-t border-dashed border-primary-300/70 px-3 py-2.5 dark:border-primary-700/70">
-        <span className="truncate text-sm font-medium text-primary-700 dark:text-primary-200">
+      <div className="flex items-center justify-center border-t border-dashed border-[#EFC9DD] px-3 py-2.5 dark:border-[#4A2A3B]">
+        <span className="truncate text-sm font-medium text-[#B4005C] dark:text-[#F2A9CE]">
           Neues Notebook
         </span>
       </div>

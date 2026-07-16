@@ -1,6 +1,7 @@
 ---
 iconKey: PiProjectorScreenChart
 identifier: gruenerator-presentations-editor
+hiddenFromInventory: true
 title: Präsentations-Assistent
 description: 'Beantwortet Fragen zur aktuellen Präsentation, erstellt und ändert Folien, gliedert und formuliert Inhalte.'
 plugins:

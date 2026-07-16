@@ -11,6 +11,8 @@
  *   Tier 4: LLM classification (full context)
  */
 
+import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
+import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
   McpServerRegistry,
@@ -51,6 +53,7 @@ import {
   parseClassifierResponse,
   detectComplexity,
   detectSearchSources,
+  CHAT_HISTORY_KEYWORDS,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -58,6 +61,21 @@ import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
+
+/** Heuristic verdicts eligible for loop demotion (Tier 3.5): the retrieval
+ *  family only — every member is in AGENTIC_INTENTS and none is platform-
+ *  gated. Generation intents (sharepic, social_post, image, ...) and
+ *  interrupt/confirm intents must keep the LLM tier so their gates, HITL and
+ *  fixed UX contracts stay intact. */
+const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<string> = new Set([
+  'search',
+  'web',
+  'examples',
+  'pressemitteilung_examples',
+  'compare',
+  'abgeordnetenwatch',
+  'bundestag',
+]);
 
 // Content-creation agent (öffentlichkeitsarbeit) routing heuristics.
 // Module-scope so V8 doesn't recompile per classification call. Hoisted out
@@ -180,7 +198,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   if (detectedUrls.length > 0) {
     if (!intent || intent === 'direct') {
       intent = 'scrape_url';
-    } else if (!secondaryIntent && intent !== 'scrape_url') {
+    } else if (!secondaryIntent && intent !== 'scrape_url' && intent !== 'agentic') {
+      // 'agentic' turns keep secondary null: the loop has its own scrape_url
+      // tool, and a secondary would kick the turn out of the loop (routing.ts).
       secondaryIntent = 'scrape_url';
     }
     log.info(
@@ -885,6 +905,33 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs,
+      };
+    }
+
+    // ── TIER 3.5: Loop demotion ──
+    // A low-confidence but TOOLABLE verdict skips the LLM call (~800ms) and
+    // hands the turn to the agentic loop, whose model picks the tools itself.
+    // Only retrieval-shaped intents demote — generation/platform-gated intents
+    // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
+    // LLM tier so their gates/HITL/routing stay intact.
+    const demotable =
+      isAgenticLoopEnabled() &&
+      (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
+        (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
+      !CHAT_HISTORY_KEYWORDS.test(userContent);
+    if (demotable) {
+      log.info(
+        `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
+      );
+      return {
+        intent: 'agentic',
+        searchSources: detectSearchSources(userContent, heuristic.intent),
+        searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
+        detectedFilters: heuristicExtractFilters(userContent),
+        reasoning: `Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} below threshold`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
       };
     }
 

@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
@@ -10,8 +11,8 @@ import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
-import { getPublicAppOrigin } from '../../../utils/platform';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
@@ -29,13 +30,6 @@ import type {
 } from '../types';
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface ProjectResponse {
-  success?: boolean;
-  project?: LoadedProject;
-}
 
 import { cn } from '@/utils/cn';
 
@@ -157,10 +151,13 @@ const SubtitlerPage = (): React.ReactElement => {
     if (!projectId || !user?.id || deepLinkLoadedRef.current) return;
     deepLinkLoadedRef.current = true;
 
-    apiClient
-      .get<ProjectResponse>(`/subtitler/projects/${projectId}`)
+    getContractsClient()
+      .subtitler.getProject({ params: { projectId } })
       .then((res) => {
-        const project = res.data?.project;
+        if (res.status !== 200) throw new Error('Projekt konnte nicht geladen werden.');
+        // Contract SubtitlerProject is nullability-wide and lacks `upload_id`;
+        // LoadedProject is the tight local shape the editor reads off.
+        const project = res.body.project as unknown as LoadedProject;
         if (!project) return;
 
         setLoadedProject(project);
@@ -346,9 +343,10 @@ const SubtitlerPage = (): React.ReactElement => {
             videoSize: uploadInfo.size || 0,
           };
 
-          const res = await apiClient.post<ProjectResponse>('/subtitler/projects', projectData);
-          if (res.data?.project?.id) {
-            setAutoSavedProjectId(res.data.project.id);
+          const res = await getContractsClient().subtitler.createProject({ body: projectData });
+          if (res.status === 200 || res.status === 201) {
+            const project = res.body.project;
+            if (project?.id) setAutoSavedProjectId(project.id);
           }
         } catch (err) {
           console.warn('[SubtitlerPage] Failed to auto-create project:', err);

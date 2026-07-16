@@ -6,6 +6,7 @@ import {
   PiMagnifyingGlass,
   PiMapPin,
   PiMegaphone,
+  PiRepeat,
   PiShareNetwork,
   PiSparkle,
   PiStar,
@@ -48,6 +49,7 @@ const SKILL_CATEGORY_DESCRIPTIONS: Record<SkillCategory, string> = {
 export type AgenturaCategoryKey =
   | 'empfohlen'
   | 'meine'
+  | 'wiederkehrend'
   | 'gruppen'
   | 'community'
   | 'gruenerator'
@@ -87,6 +89,15 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     emptyText:
       'Du hast noch keine eigenen Agent*innen erstellt. Leg deine erste über „Neuer Agent" an.',
     emptyIcon: PiSparkle,
+  },
+  {
+    key: 'wiederkehrend',
+    label: 'Wiederkehrende Aufgaben',
+    icon: PiRepeat,
+    description: 'Lass eine*n Agent*in regelmäßig automatisch arbeiten (experimentell).',
+    emptyText:
+      'Noch keine wiederkehrenden Aufgaben. Erstelle eine oder frag im Chat: „Erstelle jeden Montag um 9 Uhr eine Zusammenfassung …“',
+    emptyIcon: PiRepeat,
   },
   {
     key: 'gruppen',

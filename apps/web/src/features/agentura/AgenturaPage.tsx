@@ -27,6 +27,8 @@ import {
   type SharedAgentEntry,
 } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
+import { useRecurringTasks } from '../recurring-tasks/api';
+import { RecurringTasksManager } from '../recurring-tasks/RecurringTasksPage';
 import { useItemUsage } from '../usage/useItemUsage';
 
 import { CapabilityTags } from './components/CapabilityTags';
@@ -132,6 +134,7 @@ function AgenturaPage() {
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
   const { data: agentUsage = {} } = useItemUsage('agent');
+  const { data: recurringTasks = [] } = useRecurringTasks();
 
   const q = search.toLowerCase();
 
@@ -336,6 +339,8 @@ function AgenturaPage() {
         return featuredAgents.length;
       case 'meine':
         return userAgents.length;
+      case 'wiederkehrend':
+        return recurringTasks.length;
       case 'gruppen':
         return sharedAgents.length;
       case 'community':
@@ -351,10 +356,13 @@ function AgenturaPage() {
     }
   };
 
-  // "meine" and "community" stay visible even when empty (CTA / empty state);
-  // every other category appears only once it has entries.
+  // "meine", "community" and "wiederkehrend" stay visible even when empty (CTA /
+  // empty state); every other category appears only once it has entries.
   const isVisible = (cat: AgenturaCategory): boolean =>
-    cat.key === 'meine' || cat.key === 'community' || countFor(cat.key) > 0;
+    cat.key === 'meine' ||
+    cat.key === 'community' ||
+    cat.key === 'wiederkehrend' ||
+    countFor(cat.key) > 0;
 
   const visibleCategories = AGENTURA_CATEGORIES.filter(isVisible);
 
@@ -391,7 +399,10 @@ function AgenturaPage() {
 
   const activeCategory = AGENTURA_CATEGORIES.find((c) => c.key === activeCat);
   const searching = q.length > 0;
-  const items = searching ? searchCards : cardsFor(activeCat);
+  // The recurring-tasks aisle isn't a card grid — it embeds its own management surface.
+  const isRecurring = !searching && activeCat === 'wiederkehrend';
+  const items = searching || isRecurring ? searchCards : cardsFor(activeCat);
+  const headerCount = isRecurring ? recurringTasks.length : items.length;
 
   const title = searching ? 'Suchergebnisse' : (activeCategory?.label ?? '');
   const description = searching
@@ -466,20 +477,22 @@ function AgenturaPage() {
                   {title}
                 </h2>
                 <span className="shrink-0 rounded-full bg-secondary-600/10 px-2 py-0.5 text-xs font-semibold text-secondary-700 dark:text-secondary-300">
-                  {items.length}
+                  {headerCount}
                 </span>
               </div>
               {description && <p className="mt-xs text-sm text-foreground-muted">{description}</p>}
             </div>
             <Button asChild variant="brand" size="brand-sm" className="shrink-0">
-              <Link to="/agents/new">
+              <Link to={isRecurring ? '/agents/new?mode=recurring' : '/agents/new'}>
                 <PiPlus />
-                Neuer Agent
+                {isRecurring ? 'Neuer wiederkehrender Agent' : 'Neuer Agent'}
               </Link>
             </Button>
           </div>
 
-          {items.length > 0 ? (
+          {isRecurring ? (
+            <RecurringTasksManager />
+          ) : items.length > 0 ? (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
               {items}
             </div>

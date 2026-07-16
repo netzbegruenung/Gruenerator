@@ -222,7 +222,9 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     // Mutable per-turn context — apply/restore update `state`/`pages` so later
     // steps (and the read tools) see their own effects without a DB round trip.
     const ctx = { state: initialMergedState, pages: deckPages };
-    const guards = createLoopGuards();
+    // Edit ops legitimately never repeat exactly; turn-wide normalized dedup
+    // would false-positive on similar consecutive ops.
+    const guards = createLoopGuards({ duplicateScope: 'consecutive' });
     const steps: PersistedStep[] = [];
 
     const recordStep = (

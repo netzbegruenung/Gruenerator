@@ -24,7 +24,13 @@ import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoOrNull } from '../../utils/toIsoString.js';
 import { searchChatHistory } from '../chat/services/chatSearchService.js';
-import { searchDocuments } from '../docs/docsSearch.js';
+import {
+  officeKind,
+  officeSnippet,
+  officeUrl,
+  searchDocuments,
+  searchOfficeContent,
+} from '../docs/docsSearch.js';
 
 import type { Application } from 'express';
 
@@ -131,7 +137,38 @@ async function settle(
   }
 }
 
+/** Cap for the composer's office search — a few more than the palette, still scannable. */
+const OFFICE_SEARCH_LIMIT = 8;
+
 export const globalSearchContractRouter = s.router(globalSearchContract, {
+  officeSearch: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const q = args.query.q.trim();
+      const hits = await searchOfficeContent(userId, q, { limit: OFFICE_SEARCH_LIMIT });
+      return {
+        status: 200 as const,
+        body: {
+          query: q,
+          items: hits.map((hit) => ({
+            id: hit.id,
+            kind: officeKind(hit.document_subtype),
+            title: hit.title ?? 'Unbenanntes Dokument',
+            snippet: officeSnippet(hit.document_subtype, hit.content),
+            url: officeUrl(hit.document_subtype, hit.id),
+            updatedAt: toIsoOrNull(hit.updated_at),
+          })),
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[globalSearch.officeSearch] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Office search failed', details: err.message },
+      };
+    }
+  },
   search: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;

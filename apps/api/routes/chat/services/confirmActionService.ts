@@ -229,3 +229,36 @@ export async function emitConfirmAction(opts: {
   await pendingActionStore.store(pendingAction);
   log.info(`[ChatGraph] Confirm action stored: ${pendingAction.actionId} (${pendingAction.type})`);
 }
+
+/** Fresh pending-action id (backend runtime — Date.now/Math.random are fine here). */
+export function newActionId(): string {
+  return `action_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Store + emit a `confirm_action` for a TOOL-initiated pending action (agentic
+ * loop). Reuses the same `CONFIRM_ACTION_CONFIG` card and Redis store as the
+ * single-pass path; the tool builds the `PendingAction` (an EXISTING type —
+ * `modify_board` for add-card, `share_doc` for share) and supplies the preview
+ * rows. Execution is unchanged: `confirmController.executeAction` runs on POST.
+ */
+export async function emitToolConfirmAction(
+  sse: SSEWriter,
+  action: PendingAction,
+  metadata: Array<{ key: string; value: string }>
+): Promise<void> {
+  const cfg = CONFIRM_ACTION_CONFIG[action.type];
+  sse.send('confirm_action', {
+    actionId: action.actionId,
+    type: action.type,
+    title: cfg.title,
+    description: cfg.description,
+    icon: cfg.icon,
+    metadata,
+    confirmLabel: cfg.confirmLabel,
+    cancelLabel: 'Abbrechen',
+    threadId: action.threadId,
+  });
+  await pendingActionStore.store(action);
+  log.info(`[ChatGraph] Tool confirm action stored: ${action.actionId} (${action.type})`);
+}

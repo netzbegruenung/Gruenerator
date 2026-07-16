@@ -36,14 +36,33 @@ import { z } from 'zod';
 import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
+import { isEditorSurface } from '../services/agenticLoop/routing.js';
 
-import { makeAbgeordnetenwatchTool, makeBundestagTool, makeSummaryTool } from './domainTools.js';
+import {
+  makeAbgeordnetenwatchTool,
+  makeBundestagTool,
+  makeCreateBoardTool,
+  makeCreateDocTool,
+  makeCreateSharepicTool,
+  makeImageTool,
+  makeSummaryTool,
+} from './domainTools.js';
+import {
+  makeBoardsTasksTool,
+  makeDocumentsTool,
+  makeFindContentTool,
+  makeGroupsTool,
+  makeMediaTool,
+  makeNotebooksTool,
+  type PersonalToolCtx,
+} from './personalDataTools.js';
 import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
+import type { Request } from 'express';
 
 const log = createLogger('toolCatalog');
 
@@ -74,7 +93,7 @@ export function buildChatToolCatalog(params: {
    * own SSE and run existing ChatGraph nodes. Absent in unit tests → search
    * family only.
    */
-  loop?: { sse: SSEWriter; state: ChatGraphState };
+  loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
 }): ChatToolCatalog {
   const { agentConfig, sourceRegistry, loop } = params;
 
@@ -100,20 +119,31 @@ export function buildChatToolCatalog(params: {
     }
     const decorated: ExecuteFn = async (input, options) => {
       const result = await original(input, options);
-      const results =
+      const raw =
         result &&
         typeof result === 'object' &&
         Array.isArray((result as { results?: unknown }).results)
-          ? ((result as { results: SearchResult[] }).results ?? [])
+          ? ((result as { results: Record<string, unknown>[] }).results ?? [])
           : [];
-      if (results.length === 0) return result;
-      const sources = sourceRegistry.register(results);
+      if (raw.length === 0) return result;
+      // CRITICAL: executeDirectSearch/executeDirectWebSearch items carry their
+      // text in `excerpt` (docs) / `snippet` (web) — NOT `content`. The source
+      // registry keys on `content`, so without this normalisation every result
+      // was skipped as "empty", the model was handed `{ resultCount: 0 }`, and
+      // it answered from its own knowledge with no [N] citations.
+      const mapped: SearchResult[] = raw.map((r) => ({
+        source: String(r.source ?? r.domain ?? 'web'),
+        title: String(r.title ?? r.source ?? r.url ?? 'Quelle'),
+        content: String(r.excerpt ?? r.snippet ?? r.content ?? ''),
+        ...(typeof r.url === 'string' ? { url: r.url } : {}),
+      }));
+      const sources = sourceRegistry.register(mapped);
       if (!sources) return { resultCount: 0, sources: '' };
       // Lean model-facing shape: the numbered `sources` block is the grounding
       // (the raw content lives in the registry → done.citations). Dropping the
       // heavy `results[]` here keeps `sources` intact under result truncation
       // and halves the tokens the model pays per search.
-      return { resultCount: results.length, sources };
+      return { resultCount: mapped.length, sources };
     };
     tools[name] = { ...def, execute: decorated } as ToolSet[string];
   }
@@ -168,23 +198,95 @@ NUTZE WENN:
     },
   });
 
-  // Phase 2b: mount the classified intent's domain tool (loop path only). The
-  // search family above stays available for composition ("suche X und fasse
-  // zusammen"); only the routed intent's specialised tool is added on top.
+  // Domain tools (loop path only). Mounted BROADLY, not gated on the exact
+  // classified intent: the loop's whole point is that the MODEL picks the tool,
+  // and the classifier routinely sends Bundestag/politician questions to plain
+  // `search` (observed live: "Heizungsgesetz der Grünen Bundestagsfraktion" →
+  // intent=search). Intent-gating hid the specialised tool so the model fell
+  // back to generic search. The catalog stays small enough for Mistral (~9
+  // tools); a per-turn selector is Phase 3n.
   if (loop) {
     const { sse, state } = loop;
-    switch (state.intent) {
-      case 'summary':
-        tools.summarize = makeSummaryTool({ sse, state });
-        break;
-      case 'bundestag':
-        tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
-        break;
-      case 'abgeordnetenwatch':
-        tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
-        break;
-      default:
-        break;
+    tools.summarize = makeSummaryTool({ sse, state });
+    tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
+    tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
+    // — they must never spawn a NEW artifact (image OR create fat tool). Gated
+    // server-side (the frontend not setting the tools:false is not enough).
+    const editorSurface = isEditorSurface(state.enabledTools);
+
+    // Personal-data resource tools: the user's OWN documents, boards, tasks,
+    // groups, media and notebooks (read + light management). Always mounted (the
+    // model picks them), each gated by enabledTools so an agent can opt out.
+    // Mutations reuse the confirm_action flow / write-access checks (see
+    // personalDataTools.ts); reads only touch user-scoped services.
+    const personalCtx: PersonalToolCtx = {
+      state,
+      sse,
+      threadId: loop.threadId ?? null,
+      sourceRegistry,
+    };
+    if (state.enabledTools?.['find_content'] !== false) {
+      tools.find_content = makeFindContentTool(personalCtx);
+    }
+    if (state.enabledTools?.['documents'] !== false) {
+      tools.documents = makeDocumentsTool(personalCtx);
+    }
+    if (state.enabledTools?.['boards_tasks'] !== false) {
+      tools.boards_tasks = makeBoardsTasksTool(personalCtx);
+    }
+    if (state.enabledTools?.['groups'] !== false) {
+      tools.groups = makeGroupsTool(personalCtx);
+    }
+    if (state.enabledTools?.['media'] !== false) {
+      tools.media = makeMediaTool(personalCtx);
+    }
+    if (state.enabledTools?.['notebooks'] !== false) {
+      tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // Image is expensive + rate-limited and the classifier routes it reliably,
+    // so it stays intent-scoped (and gated). image_edit stays single-pass.
+    // 'agentic' (demoted) turns also mount it — image phrasings the confident
+    // heuristic misses land there; idempotency + forceFinish cap quota at one
+    // image per turn. Never in an editor surface (that would create a new image).
+    if (
+      !editorSurface &&
+      (state.intent === 'image' || state.intent === 'agentic') &&
+      state.enabledTools?.['image'] !== false
+    ) {
+      tools.generate_image = makeImageTool({ sse, state });
+    }
+    // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
+    // generation KIND the router derived (from intent OR — for a demoted
+    // `agentic` turn — the text noun). Pure "mach ein Sharepic" keeps its direct
+    // dispatch + fixed text (compoundGenerationKind is null → nothing mounted).
+    // The sharepic key is load-bearing (`sharepic` drives card rehydration +
+    // follow-up edits); presentation/sheet/document persist via createdDocument;
+    // board renders from the `done` event.
+    if (state.compoundGeneration === true && loop.req && !editorSurface) {
+      const kind = state.compoundGenerationKind;
+      const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
+      if (kind === 'sharepic' && enabled('sharepic')) {
+        tools.sharepic = makeCreateSharepicTool({
+          sse,
+          state,
+          req: loop.req,
+          threadId: loop.threadId ?? null,
+        });
+      } else if (kind === 'presentation' && enabled('create_presentation')) {
+        tools.create_presentation = makeCreateDocTool({
+          kind: 'presentation',
+          sse,
+          state,
+          req: loop.req,
+        });
+      } else if (kind === 'sheet' && enabled('create_sheet')) {
+        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+      } else if (kind === 'document' && enabled('create_document')) {
+        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+      } else if (kind === 'board' && enabled('create_board')) {
+        tools.create_board = makeCreateBoardTool({ state, req: loop.req });
+      }
     }
   }
 

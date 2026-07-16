@@ -28,6 +28,14 @@ export const messageColorUpdateBodySchema = z.object({
   color: z.string().min(1),
 });
 
+/** Closed set of supported locales — the single vocabulary for DE/AT audience. */
+export const localeSchema = z.enum(['de-DE', 'de-AT']);
+export type SupportedLocale = z.infer<typeof localeSchema>;
+
+export const localeUpdateBodySchema = z.object({
+  locale: localeSchema,
+});
+
 export const userDefaultUpdateBodySchema = z.object({
   generator: z.string().min(1),
   key: z.string().min(1),
@@ -80,7 +88,7 @@ export const userProfileSchema = z.object({
   chat_color: z.string().optional(),
   beta_features: z.record(z.boolean()).default({}),
   user_defaults: z.record(z.record(z.unknown())).default({}),
-  locale: z.enum(['de-DE', 'de-AT']).optional(),
+  locale: localeSchema.optional(),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),
@@ -150,6 +158,12 @@ export const updateBetaFeaturesResponseSchema = z.object({
 export const updateMessageColorResponseSchema = z.object({
   success: z.literal(true),
   messageColor: z.string(),
+  message: z.string(),
+});
+
+export const updateLocaleResponseSchema = z.object({
+  success: z.literal(true),
+  locale: localeSchema,
   message: z.string(),
 });
 

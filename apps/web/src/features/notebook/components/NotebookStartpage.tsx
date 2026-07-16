@@ -9,6 +9,7 @@ import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icon
 
 import PageContainer from '../../../components/common/PageContainer';
 import { useNotebookStats } from '../hooks/useNotebookStats';
+import { NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
 
 import { LastAddedSection } from './LastAddedSection';
@@ -69,11 +70,9 @@ type BrowseTab = 'zuletzt' | 'agenten' | 'stats';
 
 // Signature 2a gradient — pink radial (light) / deep-green radial (dark). Applied
 // as the full-page background so the hero fills the surface like the other
-// workplace pages instead of sitting in a bounded card.
-export const NOTEBOOK_MAGENTA_BG = cn(
-  'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FAEBF3_0%,#FCF4F8_55%,#FEFDFE_100%)]',
-  'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#1E3A2E_0%,#16281F_55%,#0F1D17_100%)]'
-);
+// workplace pages instead of sitting in a bounded card. Defined in the leaf
+// `notebookTheme` module; re-exported here for existing importers.
+export { NOTEBOOK_MAGENTA_BG };
 
 const HERO_FILL = 'relative flex min-h-[calc(100vh-11rem)] flex-col';
 
@@ -204,11 +203,13 @@ export function NotebookStartpage({
         gradient={false}
         bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
       >
-        <div className="flex flex-col items-center px-6 pb-6 pt-10 md:px-20 md:pt-16">
-          <h1 className={cn(HEADING, 'mb-8')}>{title}</h1>
-          <div className="w-full max-w-3xl">
-            <NotebookOmniComposer />
-          </div>
+        {/* Container + heading kept in lockstep with the Arbeiten hero
+            (DocsPage `DocumentsContent`) so the two workplace composers align. */}
+        <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
+          <h1 className="mb-6 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] max-sm:text-2xl">
+            {title}
+          </h1>
+          <NotebookOmniComposer />
         </div>
         {footer}
       </PageContainer>

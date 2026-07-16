@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-const MAX_FAVOURITES = 3;
+const MAX_FAVOURITES = 6;
 
 interface SidebarFavouritesState {
   favouriteIds: string[];

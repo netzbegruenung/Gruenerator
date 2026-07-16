@@ -50,9 +50,14 @@ export const searchIntentSchema = z.enum([
   'share_doc',
   'create_sheet',
   'create_presentation',
+  // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
+  'create_recurring_task',
   'chat_history',
   'mcp',
   'direct',
+  // Loop demotion: low-confidence toolable turns skip the LLM classifier and
+  // let the agentic loop's model pick the tools itself.
+  'agentic',
 ]);
 export type SearchIntent = z.infer<typeof searchIntentSchema>;
 

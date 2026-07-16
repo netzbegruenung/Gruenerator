@@ -13,7 +13,7 @@ import { DocPreview } from '../common/DocPreview';
 const WEB_ORIGIN = 'https://gruenerator.eu';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation' | 'canvas';
+type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'presentation' | 'canvas';
 
 interface RecentItem {
   id: string;
@@ -33,7 +33,6 @@ const TYPE_ICONS: Record<RecentItemType, IoniconsIconName> = {
   board: 'grid-outline',
   image: 'image-outline',
   video: 'videocam-outline',
-  text: 'create-outline',
   presentation: 'easel-outline',
   canvas: 'image-outline',
 };
@@ -43,7 +42,6 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   board: 'Unbenanntes Board',
   image: 'Ohne Titel',
   video: 'Ohne Titel',
-  text: 'Ohne Titel',
   presentation: 'Neue Präsentation',
   canvas: 'Neuer Canvas',
 };
@@ -66,10 +64,8 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
     staleTime: 30_000,
   });
 
-  // Boards have their own section on the start page; text items aren't openable here.
-  const items = allItems
-    .filter((item) => item.type !== 'text' && item.type !== 'board')
-    .slice(0, 6);
+  // Boards have their own section on the start page.
+  const items = allItems.filter((item) => item.type !== 'board').slice(0, 6);
 
   const handleOpen = useCallback(
     (item: RecentItem) => {
