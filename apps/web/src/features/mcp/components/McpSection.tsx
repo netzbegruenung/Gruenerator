@@ -27,6 +27,12 @@ import {
   SiGooglemaps,
   SiTypeform,
   SiZoom,
+  SiTodoist,
+  SiMiro,
+  SiIfttt,
+  SiBookingdotcom,
+  SiExpedia,
+  SiTrivago,
 } from 'react-icons/si';
 
 import {
@@ -86,6 +92,12 @@ const BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
   [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
   [/typeform/i, SiTypeform],
   [/zoom/i, SiZoom],
+  [/todoist/i, SiTodoist],
+  [/miro/i, SiMiro],
+  [/ifttt/i, SiIfttt],
+  [/booking/i, SiBookingdotcom],
+  [/expedia/i, SiExpedia],
+  [/trivago/i, SiTrivago],
 ];
 
 function brandIcon(label: string): IconType | null {
