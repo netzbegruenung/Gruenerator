@@ -109,7 +109,6 @@ export const userProfileSchema = z.object({
   boards: z.boolean().optional(),
   bundestag_api_enabled: z.boolean().optional(),
   memory_enabled: z.boolean().optional(),
-  wordpress_enabled: z.boolean().optional(),
   custom_prompt: z.string().optional(),
   created_at: z.union([z.string(), z.date()]),
   updated_at: z.union([z.string(), z.date()]),

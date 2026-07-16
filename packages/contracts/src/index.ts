@@ -53,7 +53,6 @@ export {
   videoContract,
   textGenerationContract,
   sharepicContract,
-  wordpressContract,
   transferContract,
   unsplashContract,
   notificationsContract,
@@ -115,7 +114,6 @@ export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/textGeneration.js';
 export * from './schemas/sharepic.js';
-export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';

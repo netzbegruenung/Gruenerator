@@ -5,6 +5,3 @@
 
 // Nextcloud exports
 export * from './nextcloud/index.js';
-
-// WordPress exports
-export * from './wordpress/index.js';
