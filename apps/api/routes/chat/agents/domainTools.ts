@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
+import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import {
   runBoardGeneration,
   runDocGeneration,
@@ -137,6 +138,50 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
       }
       const sources = sourceRegistry.register(results);
       return { resultCount: results.length, sources: sources ?? '' };
+    },
+  });
+}
+
+/**
+ * `umfragen`: Wahlumfragen (Sonntagsfrage via PolitPro, national + Bundesländer
+ * + AT-Parlamente) und themenbezogenes Meinungsbild (MRP/GERDA) — the same
+ * `lookupUmfragen` the Monitor uses. Registers one source for the [N] footer
+ * and returns the full formatted block as the model's grounding.
+ */
+export function makeUmfragenTool(ctx: { sourceRegistry: SourceRegistry }): Tool {
+  const { sourceRegistry } = ctx;
+  return tool({
+    description: `Ruft aktuelle Wahlumfragen ab: Sonntagsfrage (Parteiwerte, bundesweit oder pro Bundesland/Österreich) und themenbezogene Meinungsbilder.
+
+NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Thema gefragt wird ("wie stehen die Grünen in Umfragen", "Sonntagsfrage Bayern"). NICHT für Parteipositionen oder Wahlergebnisse.`,
+    inputSchema: z.object({
+      topic: z
+        .string()
+        .describe(
+          'Thema für das Meinungsbild (z.B. "Klimaschutz"); leer für die reine Sonntagsfrage'
+        )
+        .default(''),
+      bundesland: z
+        .string()
+        .optional()
+        .describe(
+          'Bundesland/Region für die Sonntagsfrage (z.B. "Bayern"); weglassen für bundesweit'
+        ),
+    }),
+    execute: async ({ topic, bundesland }) => {
+      const text = await lookupUmfragen(topic ?? '', bundesland).catch(() => null);
+      if (!text) {
+        return { resultCount: 0, sources: '', error: 'Keine Umfragedaten verfügbar.' };
+      }
+      const sources = sourceRegistry.register([
+        {
+          source: 'umfragen',
+          title: `Wahlumfragen${bundesland ? ` ${bundesland}` : ''} (PolitPro)`,
+          content: text,
+          url: 'https://politpro.eu',
+        },
+      ]);
+      return { resultCount: 1, sources: sources ?? '', umfragen: text };
     },
   });
 }

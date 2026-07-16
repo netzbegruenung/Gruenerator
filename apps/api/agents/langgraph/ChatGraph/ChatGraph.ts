@@ -559,6 +559,14 @@ function routeAfterClassification(
     pressemitteilung_examples: 'pressemitteilung_examples',
     abgeordnetenwatch: 'abgeordnetenwatch',
     bundestag: 'bundestag',
+    // System MCP intents route to the agentic loop before this map matters —
+    // never user-disableable, so map to 'direct' like agentic.
+    bahn: 'direct',
+    reise: 'direct',
+    hotel: 'direct',
+    wetter: 'direct',
+    news: 'direct',
+    umfragen: 'direct',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',

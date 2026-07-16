@@ -161,6 +161,60 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     ).toBe('21/50');
   });
 
+  it('rehydrates the LAST persisted bahn__* step onto custom.bahnData', () => {
+    const board = (station: string) => ({
+      kind: 'timetable',
+      station,
+      date: '2026-07-17',
+      hour: '09',
+      entries: [
+        {
+          id: 'e1',
+          category: 'ICE',
+          number: '204',
+          line: null,
+          departureTime: '09:11',
+          departurePlatform: '5',
+          arrivalTime: '09:05',
+          arrivalPlatform: '5',
+          destination: 'Hamburg-Altona',
+          via: ['Düsseldorf Hbf'],
+        },
+      ],
+    });
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'bahn__get_planned_timetable',
+          args: {},
+          result: { content: JSON.stringify(board('Köln Hbf')) },
+        },
+        {
+          toolCallId: 'tc2',
+          toolName: 'bahn__get_planned_timetable',
+          args: {},
+          result: { content: JSON.stringify(board('Bonn Hbf')) },
+        },
+      ],
+    });
+    expect((custom.bahnData as { station?: string })?.station).toBe('Bonn Hbf');
+  });
+
+  it('ignores a raw (non-condensed) bahn tool result', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'bahn__get_station_by_name',
+          args: {},
+          result: { content: '{"number":3320,"name":"Köln Hbf"}' },
+        },
+      ],
+    });
+    expect(custom.bahnData).toBeUndefined();
+  });
+
   it('drops a malformed bundestag tool result', () => {
     const custom = customOf({
       toolCalls: [

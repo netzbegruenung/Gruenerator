@@ -29,6 +29,7 @@ import type {
   ThinkingStepPayload,
   SocialPostPayload,
   BundestagPayload,
+  BahnPayload,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -78,6 +79,7 @@ export type SSEEventType =
   | 'artifact'
   | 'compute'
   | 'bundestag'
+  | 'bahn'
   | 'memory_context'
   | 'completion'
   | 'canvas_operations_start'
@@ -266,6 +268,9 @@ export interface SSEEventPayloads {
   bundestag: {
     bundestag: BundestagPayload;
   };
+  bahn: {
+    bahn: BahnPayload;
+  };
   completion: {
     type?: 'completion';
     // Notebook flow emits `answer`; SearchGraph reuses this event with `text`.
@@ -327,6 +332,12 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
   abgeordnetenwatch: ['Prüfe Abgeordnetenwatch...', 'Rufe Mandatsdaten ab...', 'Zähle Stimmen...'],
   bundestag: ['Durchsuche das DIP...', 'Blättere Drucksachen...', 'Höre Reden nach...'],
+  bahn: ['Suche Zugverbindungen...', 'Frage den Fahrplan ab...', 'Prüfe Abfahrtszeiten...'],
+  reise: ['Plane die Reise...', 'Suche Zug und Unterkunft...', 'Stelle Reiseoptionen zusammen...'],
+  hotel: ['Suche Unterkünfte...', 'Vergleiche Hotels...', 'Prüfe Verfügbarkeiten...'],
+  umfragen: ['Frage Umfragewerte ab...', 'Lese die Sonntagsfrage...', 'Hole PolitPro-Daten...'],
+  wetter: ['Rufe Wettervorhersage ab...', 'Schaue in die Wolken...', 'Frage den DWD...'],
+  news: ['Durchsuche Nachrichten...', 'Lese tagesschau...', 'Hole Schlagzeilen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
