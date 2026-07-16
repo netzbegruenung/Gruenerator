@@ -3,6 +3,7 @@ import type {
   DocumentCreatedEvent,
   SocialPostPayload,
   BundestagPayload,
+  BahnPayload,
 } from '@gruenerator/contracts';
 import type {
   ChatProgress,
@@ -71,6 +72,7 @@ export type ChatMessageMetadata = {
   artifactData?: ActiveArtifact;
   computeData?: ComputeData;
   bundestagData?: BundestagPayload;
+  bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

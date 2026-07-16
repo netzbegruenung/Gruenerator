@@ -90,6 +90,7 @@ export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
+export * from './schemas/bahn.js';
 export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
 export * from './schemas/sheets.js';

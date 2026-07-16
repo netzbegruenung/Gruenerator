@@ -158,6 +158,13 @@ export const INTENT_KEYWORDS: Record<
     // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
     // never keyword-classified (would misfire on generic "tool"/"server" words).
     | 'mcp'
+    // System MCP intents (EXPERIMENTAL) are LLM-classified only — bare keywords
+    // like "bahn"/"wetter"/"news" would hijack policy queries (Bahnreform,
+    // Klimapolitik, Nachrichten über X).
+    | 'bahn'
+    | 'reise'
+    | 'wetter'
+    | 'news'
   >,
   string[]
 > = {
