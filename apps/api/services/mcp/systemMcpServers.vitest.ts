@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   getSourcesForIntent,
-  getSystemMcpSource,
   getSystemMcpSources,
   isSystemIntentAvailable,
   toSystemConnectionConfig,
 } from './systemMcpServers.js';
+
+const sourceByKey = (key: string) => getSystemMcpSources().find((s) => s.key === key) ?? null;
 
 const ENV_KEYS = [
   'SYSTEM_MCP_DB_URL',
@@ -83,19 +84,19 @@ describe('getSystemMcpSources (env matrix)', () => {
 
   it('token env switches auth to shared bearer', () => {
     process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
-    const noToken = getSystemMcpSource('wetter');
+    const noToken = sourceByKey('wetter');
     expect(noToken?.authType).toBe('none');
     expect(noToken?.token).toBeNull();
 
     process.env.SYSTEM_MCP_WEATHER_TOKEN = 'secret';
-    const withToken = getSystemMcpSource('wetter');
+    const withToken = sourceByKey('wetter');
     expect(withToken?.authType).toBe('bearer');
     expect(withToken?.token).toBe('secret');
   });
 
   it('connection config carries a stable system id and the env URL', () => {
     process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
-    const source = getSystemMcpSource('bahn');
+    const source = sourceByKey('bahn');
     expect(source).not.toBeNull();
     const config = toSystemConnectionConfig(source!);
     expect(config.id).toBe('system-bahn');

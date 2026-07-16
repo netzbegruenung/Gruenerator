@@ -25,7 +25,10 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
-import { isSystemIntentAvailable } from '../../services/mcp/systemMcpServers.js';
+import {
+  SYSTEM_TOOL_INTENTS,
+  isSystemIntentAvailable,
+} from '../../services/mcp/systemMcpServers.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
@@ -665,6 +668,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
         (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
+      const isSystemToolIntent =
+        classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -753,14 +758,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!runAgentic && classifiedState.intent === 'agentic') {
         classifiedState.intent = 'search';
       }
-      // Same insurance for system MCP intents: their tools exist only in the
+      // Same insurance for system tool intents: their tools exist only in the
       // loop, so an edge turn a kill-switch kept out degrades to web search.
-      if (
-        !runAgentic &&
-        classifiedState.intent != null &&
-        ['bahn', 'reise', 'hotel', 'wetter', 'news', 'umfragen'].includes(classifiedState.intent)
-      ) {
+      // Backfill the query — these intents are NON_SEARCH, so the classifier
+      // nulled searchQuery and the web branch would otherwise search ''.
+      if (!runAgentic && isSystemToolIntent) {
         classifiedState.intent = 'web';
+        if (!classifiedState.searchQuery && lastUserText) {
+          classifiedState.searchQuery = lastUserText;
+        }
       }
 
       sse.send('intent', {
