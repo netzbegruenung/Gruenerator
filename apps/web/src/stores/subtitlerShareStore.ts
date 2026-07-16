@@ -1,29 +1,7 @@
-import { type ApiErrorBody } from '@gruenerator/contracts';
-import axios from 'axios';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
-import apiClient from '../components/utils/apiClient';
 import { getPublicAppOrigin } from '../utils/platform';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface CreateShareResponse {
-  success: boolean;
-  error?: string;
-  code?: string;
-  share?: Share;
-}
-
-interface SharesListResponse {
-  success: boolean;
-  error?: string;
-  shares?: Share[];
-}
-
-interface DeleteShareResponse {
-  success: boolean;
-  error?: string;
-}
 
 /**
  * Wire shape for a share record. The backend mixes camelCase
@@ -72,25 +50,7 @@ const initialState = {
   isCreatingShare: false,
 };
 
-interface ApiErrorParts {
-  message: string;
-  code: string | null;
-}
-
-function readAxiosError(error: unknown, fallback: string): ApiErrorParts {
-  if (axios.isAxiosError<ApiErrorBody>(error)) {
-    return {
-      message: error.response?.data?.error ?? error.message ?? fallback,
-      code: error.response?.data?.code ?? null,
-    };
-  }
-  return {
-    message: error instanceof Error ? error.message : fallback,
-    code: null,
-  };
-}
-
-export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => ({
+export const useSubtitlerShareStore = create<SubtitlerShareState>((set) => ({
   ...initialState,
 
   createShareFromProject: async (
@@ -100,74 +60,63 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
   ) => {
     set({ isCreatingShare: true, error: null, errorCode: null });
 
-    try {
-      const response = await apiClient.post<CreateShareResponse>('/subtitler/share/from-project', {
-        projectId,
-        title,
-        expiresInDays,
-      });
+    const res = await getContractsClient().subtitler.createShareFromProject({
+      body: { projectId, ...(title != null && { title }), expiresInDays },
+    });
 
-      if (response.data.success && response.data.share) {
-        const newShare = response.data.share;
-        set((state) => ({
-          isCreatingShare: false,
-          currentShare: newShare,
-          shares: [newShare, ...state.shares],
-        }));
-        return newShare;
-      } else {
-        throw new Error(response.data.error ?? 'Failed to create share');
-      }
-    } catch (error: unknown) {
-      const { message, code } = readAxiosError(error, 'Failed to create share');
-      set({ isCreatingShare: false, error: message, errorCode: code });
-      throw new Error(message);
+    if ((res.status === 200 || res.status === 201) && res.body.success && res.body.share) {
+      const share = res.body.share;
+      const newShare: Share = {
+        share_token: share.shareToken,
+        shareToken: share.shareToken,
+        shareUrl: share.shareUrl,
+        expiresAt: typeof share.expiresAt === 'string' ? share.expiresAt : String(share.expiresAt),
+        ...(share.status != null && { status: share.status }),
+      };
+      set((state) => ({
+        isCreatingShare: false,
+        currentShare: newShare,
+        shares: [newShare, ...state.shares],
+      }));
+      return newShare;
     }
+
+    const body = res.body as { error?: string; code?: string };
+    const message = body?.error ?? 'Failed to create share';
+    set({ isCreatingShare: false, error: message, errorCode: body?.code ?? null });
+    throw new Error(message);
   },
 
   fetchUserShares: async () => {
     set({ isLoading: true, error: null });
 
-    try {
-      const response = await apiClient.get<SharesListResponse>('/subtitler/share/my');
+    const res = await getContractsClient().subtitler.listMyShares();
 
-      if (response.data.success) {
-        const shares = response.data.shares ?? [];
-        set({
-          isLoading: false,
-          shares,
-        });
-        return shares;
-      } else {
-        throw new Error(response.data.error ?? 'Failed to fetch shares');
-      }
-    } catch (error: unknown) {
-      const { message } = readAxiosError(error, 'Failed to fetch shares');
-      set({ isLoading: false, error: message });
-      throw new Error(message);
+    if (res.status === 200 && res.body.success) {
+      const shares = (res.body.shares ?? []) as unknown as Share[];
+      set({ isLoading: false, shares });
+      return shares;
     }
+
+    const message = (res.body as { error?: string })?.error ?? 'Failed to fetch shares';
+    set({ isLoading: false, error: message });
+    throw new Error(message);
   },
 
   deleteShare: async (shareToken: string) => {
-    try {
-      const response = await apiClient.delete<DeleteShareResponse>(
-        `/subtitler/share/${shareToken}`
-      );
+    const res = await getContractsClient().subtitler.deleteShare({ params: { shareToken } });
 
-      if (response.data.success) {
-        set((state) => ({
-          shares: state.shares.filter((s: Share) => s.share_token !== shareToken),
-          currentShare: state.currentShare?.shareToken === shareToken ? null : state.currentShare,
-        }));
-        return true;
-      } else {
-        throw new Error(response.data.error ?? 'Failed to delete share');
-      }
-    } catch (error: unknown) {
-      const { message } = readAxiosError(error, 'Failed to delete share');
-      set({ error: message });
-      throw new Error(message);
+    if (res.status === 200 && res.body.success) {
+      set((state) => ({
+        shares: state.shares.filter((s: Share) => s.share_token !== shareToken),
+        currentShare: state.currentShare?.shareToken === shareToken ? null : state.currentShare,
+      }));
+      return true;
     }
+
+    const message = (res.body as { error?: string })?.error ?? 'Failed to delete share';
+    set({ error: message });
+    throw new Error(message);
   },
 
   clearCurrentShare: () => {

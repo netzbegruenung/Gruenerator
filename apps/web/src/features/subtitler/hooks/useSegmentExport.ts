@@ -1,16 +1,7 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
-
-interface ExportProgressResponse {
-  status: 'complete' | 'error' | 'exporting' | string;
-  progress?: number;
-  error?: string;
-}
-
-interface ExportStartApiResponse {
-  exportToken: string;
-}
 
 interface Segment {
   start: number;
@@ -61,10 +52,13 @@ const useSegmentExport = () => {
 
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          const response = await apiClient.get<ExportProgressResponse>(
-            `/subtitler/export-progress/${token}`
-          );
-          const data = response.data;
+          const res = await getContractsClient().subtitler.getExportProgress({
+            params: { exportToken: token },
+          });
+          if (res.status !== 200) {
+            throw new Error((res.body as { error?: string })?.error ?? 'Export progress not found');
+          }
+          const data = res.body;
 
           if (data.status === 'complete') {
             setStatus('complete');
@@ -93,31 +87,36 @@ const useSegmentExport = () => {
       setExportToken(null);
 
       try {
-        const payload: Record<string, unknown> = {
-          uploadId,
-          projectId: options.projectId,
-          segments: segments.map((seg) => ({
-            start: seg.start,
-            end: seg.end,
-          })),
-          includeSubtitles: options.includeSubtitles || false,
-        };
+        const res = await getContractsClient().subtitler.postExportSegments({
+          body: {
+            uploadId,
+            ...(options.projectId != null && { projectId: options.projectId }),
+            segments: segments.map((seg) => ({ start: seg.start, end: seg.end })),
+            includeSubtitles: options.includeSubtitles || false,
+            ...(options.includeSubtitles &&
+              options.subtitleConfig && {
+                subtitleConfig: {
+                  // The contract + segmentExportService consume `startTime`/
+                  // `endTime`; this hook holds `{start,end,text}`, so map — do
+                  // not cast (a cast would send undefined start/end times).
+                  segments: options.subtitleConfig.segments.map((s) => ({
+                    text: s.text,
+                    startTime: s.start,
+                    endTime: s.end,
+                  })),
+                  stylePreference: options.subtitleConfig.stylePreference || 'standard',
+                  heightPreference: options.subtitleConfig.heightPreference || 'tief',
+                  locale: options.subtitleConfig.locale || 'de-DE',
+                },
+              }),
+          },
+        });
 
-        if (options.includeSubtitles && options.subtitleConfig) {
-          payload.subtitleConfig = {
-            segments: options.subtitleConfig.segments,
-            stylePreference: options.subtitleConfig.stylePreference || 'standard',
-            heightPreference: options.subtitleConfig.heightPreference || 'tief',
-            locale: options.subtitleConfig.locale || 'de-DE',
-          };
+        if (res.status !== 202) {
+          throw new Error((res.body as { error?: string })?.error ?? 'Export fehlgeschlagen');
         }
 
-        const response = await apiClient.post<ExportStartApiResponse>(
-          '/subtitler/export-segments',
-          payload
-        );
-
-        const { exportToken: token } = response.data;
+        const token = res.body.exportToken;
         setExportToken(token);
         setStatus('exporting');
         startPolling(token);
