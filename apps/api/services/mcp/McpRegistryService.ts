@@ -58,6 +58,8 @@ const SEEDS: Seed[] = [
   ['Booking.com', 'https://demandapi-mcp.booking.com/v1/mcp/8132308', 'oauth', 'Unterkünfte, Verfügbarkeit und Reisedaten abfragen.', 'https://booking.com', 'Reisen'],
   ['Expedia', 'https://www.expedia.com/mcp', 'oauth', 'Flüge, Hotels und Reisen suchen und planen.', 'https://expedia.com', 'Reisen'],
   ['trivago', 'https://mcp.trivago.com/mcp', 'oauth', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
+  ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
+  ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(

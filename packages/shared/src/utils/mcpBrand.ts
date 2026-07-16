@@ -28,6 +28,8 @@ const BRAND: Record<string, string> = {
   'Booking.com': '#003580',
   Expedia: '#00355F',
   trivago: '#007FAD',
+  'Yahoo Finance': '#6001D2',
+  Jotform: '#FF6100',
 };
 
 export function mcpBrandColor(title: string): string {
