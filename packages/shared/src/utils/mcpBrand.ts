@@ -30,6 +30,7 @@ const BRAND: Record<string, string> = {
   trivago: '#007FAD',
   'Yahoo Finance': '#6001D2',
   Jotform: '#FF6100',
+  'Swat.io': '#12B5A5',
 };
 
 export function mcpBrandColor(title: string): string {
