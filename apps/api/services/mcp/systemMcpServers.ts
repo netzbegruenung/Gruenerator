@@ -104,7 +104,7 @@ const DEFINITIONS: Array<Omit<SystemMcpSource, 'url' | 'authType' | 'token'>> = 
     name: 'trivago',
     capability: 'Hotels: Unterkünfte per trivago suchen und Preise vergleichen.',
     promptHint:
-      'HOTEL-SUCHE: Nutze hotel__trivago-accommodation-search (Zielort/POI) mit arrival/departure im Format YYYY-MM-DD, adults und country "DE". Antworte mit den besten 2-3 Unterkünften (Name, Preis, Bewertung) und nenne trivago als Quelle; Preise sind Vergleichspreise ohne Gewähr. Erfinde keine Unterkünfte oder Preise.',
+      'HOTEL-SUCHE: Nutze hotel__trivago-accommodation-search (Zielort/POI) mit arrival/departure im Format YYYY-MM-DD, adults und country "{{COUNTRY}}". Antworte mit den besten 2-3 Unterkünften (Name, Preis, Bewertung) und nenne trivago als Quelle; Preise sind Vergleichspreise ohne Gewähr. Erfinde keine Unterkünfte oder Preise.',
     toolAllowlist: null,
   },
 ];
@@ -125,16 +125,22 @@ export function getSystemMcpSources(): SystemMcpSource[] {
   return sources;
 }
 
-export function getSystemMcpSource(key: SystemMcpKey): SystemMcpSource | null {
-  return getSystemMcpSources().find((s) => s.key === key) ?? null;
-}
-
 export const SYSTEM_MCP_INTENTS: ReadonlySet<SearchIntent> = new Set([
   'bahn',
   'reise',
   'hotel',
   'wetter',
   'news',
+] as SearchIntent[]);
+
+/**
+ * Every intent that ONLY the agentic loop can execute (system MCP sources plus
+ * the native umfragen tool). Single source for the router's loop-forcing gate,
+ * its kill-switch degrade insurance and the internal-first search exemption.
+ */
+export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
+  ...SYSTEM_MCP_INTENTS,
+  'umfragen',
 ] as SearchIntent[]);
 
 /** The env-configured sources the given system intent mounts (possibly []). */
@@ -149,6 +155,12 @@ export function getSourcesForIntent(intent: string): SystemMcpSource[] {
 export function isSystemIntentAvailable(intent: string): boolean {
   return getSourcesForIntent(intent).length > 0;
 }
+
+/** Sources whose data covers Germany only — de-AT users get the web fallback. */
+export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set([
+  'bahn',
+  'news',
+] as SearchIntent[]);
 
 export function toSystemConnectionConfig(source: SystemMcpSource): McpConnectionConfig {
   return {

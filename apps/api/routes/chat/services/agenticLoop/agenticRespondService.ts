@@ -14,7 +14,10 @@
  */
 import { type ModelMessage } from 'ai';
 
-import { getSourcesForIntent } from '../../../../services/mcp/systemMcpServers.js';
+import {
+  getSourcesForIntent,
+  SYSTEM_TOOL_INTENTS,
+} from '../../../../services/mcp/systemMcpServers.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -170,7 +173,13 @@ export async function streamAgenticResponse(params: {
       // trips it but is answerable from internal docs — it over-opened the web.
       // Genuinely tagesaktuell queries return few/no internal hits, so the
       // "internal came up short" path (minSourcesToSkipWeb) lets the web in.
-      exempt: finalState.intent === 'web' || (finalState.detectedUrls?.length ?? 0) > 0,
+      // System-tool turns are exempt too: their source can be down, and the
+      // systemNote explicitly offers web search as the honest fallback — the
+      // guard must not force a party-document search in front of it.
+      exempt:
+        finalState.intent === 'web' ||
+        (finalState.intent != null && SYSTEM_TOOL_INTENTS.has(finalState.intent)) ||
+        (finalState.detectedUrls?.length ?? 0) > 0,
     },
   });
   const steps: PersistedStep[] = [];
