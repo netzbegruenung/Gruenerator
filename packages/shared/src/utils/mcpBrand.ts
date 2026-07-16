@@ -31,6 +31,7 @@ const BRAND: Record<string, string> = {
   'Yahoo Finance': '#6001D2',
   Jotform: '#FF6100',
   'Swat.io': '#12B5A5',
+  Ansvar: '#1D3557',
 };
 
 export function mcpBrandColor(title: string): string {

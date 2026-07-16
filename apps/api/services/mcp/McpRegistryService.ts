@@ -61,6 +61,7 @@ const SEEDS: Seed[] = [
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
   ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],
+  ['Ansvar', 'https://gateway.ansvar.eu/mcp', 'oauth', 'EU-Recht und Compliance recherchieren — mit verifizierten Zitaten und Quellenangaben.', 'https://ansvar.eu', 'Recht & Compliance'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
