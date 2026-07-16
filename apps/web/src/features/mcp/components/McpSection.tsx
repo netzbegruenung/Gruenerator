@@ -687,6 +687,7 @@ const CATEGORY_ORDER = [
   'Finanzen',
   'Formulare',
   'Dokumente',
+  'Recht & Compliance',
   'Automatisierung',
   'Kommunikation',
   'Reisen',
