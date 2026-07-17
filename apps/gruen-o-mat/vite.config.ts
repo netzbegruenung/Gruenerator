@@ -28,6 +28,11 @@ export default defineConfig(({ command }) => ({
       // shared/utils/textNormalization + shared/search re-export from
       // @gruenerator/query/*; alias to src so Rolldown resolves it (same cascade).
       '@gruenerator/query': path.resolve(__dirname, '../../packages/query/src'),
+      // shared/api/contractsClient re-exports from @gruenerator/contracts; same
+      // cascade rule — alias to src or Rolldown fails:
+      //   "Rolldown failed to resolve import '@gruenerator/contracts'
+      //    from packages/shared/src/api/contractsClient.ts".
+      '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
     },
   },
   build: {
