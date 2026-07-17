@@ -1,31 +1,20 @@
 /**
- * Subtitler Project Controller
- * Handles project CRUD operations.
+ * Subtitler Project Controller — binary/streaming routes only.
+ *
+ * Project CRUD + track-export moved to the ts-rest contract router
+ * (subtitlerContractRouter.ts). Only the binary video/thumbnail stream
+ * endpoints remain here — ts-rest is JSON-only in this repo.
  */
 
 import fs from 'fs';
 
-import {
-  projectDataBodySchema,
-  updateProjectBodySchema,
-  type ProjectDataBody,
-  type UpdateProjectBody,
-} from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { saveOrUpdateProject } from '../../services/subtitler/projectSavingService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { SubtitlerProjectService } from '../../services/subtitler/ProjectService.js';
-
-const projectDataSchema = projectDataBodySchema;
-type ProjectData = ProjectDataBody;
-
-const updateProjectDataSchema = updateProjectBodySchema;
-type UpdateProjectData = UpdateProjectBody;
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-projects');
@@ -41,124 +30,6 @@ async function getProjectService(): Promise<SubtitlerProjectService> {
   }
   return projectService;
 }
-
-// GET / - List user projects
-router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user!.id;
-    const service = await getProjectService();
-    const projects = await service.getUserProjects(userId);
-    res.json({ success: true, projects });
-  } catch (error: unknown) {
-    log.error('Failed to get projects:', error);
-    res.status(500).json({ success: false, error: 'Projekte konnten nicht geladen werden' });
-  }
-});
-
-// GET /:projectId - Get single project
-router.get(
-  '/:projectId',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { projectId } = req.params;
-      const service = await getProjectService();
-      const project = await service.getProject(userId, projectId);
-      res.json({ success: true, project });
-    } catch (error: unknown) {
-      log.error('Failed to get project:', error);
-      const errMsg = error instanceof Error ? error.message : String(error);
-      if (errMsg.includes('not found')) {
-        res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
-      } else {
-        res.status(500).json({ success: false, error: 'Projekt konnte nicht geladen werden' });
-      }
-    }
-  }
-);
-
-// POST / - Create project
-router.post(
-  '/',
-  requireAuth,
-  validateBody(projectDataSchema),
-  async (req: TypedRequest<ProjectData>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-
-      if (!req.body.uploadId) {
-        res.status(400).json({ success: false, error: 'Upload-ID ist erforderlich' });
-        return;
-      }
-
-      const { project, isNew } = await saveOrUpdateProject(userId, req.body);
-
-      res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
-    } catch (error: unknown) {
-      log.error('Failed to create project:', error);
-      res.status(500).json({
-        success: false,
-        error:
-          (error instanceof Error ? error.message : String(error)) ||
-          'Projekt konnte nicht erstellt werden',
-      });
-    }
-  }
-);
-
-// PUT /:projectId - Update project
-router.put(
-  '/:projectId',
-  requireAuth,
-  validateBody(updateProjectDataSchema),
-  async (
-    req: TypedRequest<UpdateProjectData, { projectId: string }>,
-    res: Response
-  ): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { projectId } = req.params;
-
-      const service = await getProjectService();
-      const project = await service.updateProject(userId, projectId, req.body);
-      log.info(`Updated project ${projectId}`);
-      res.json({ success: true, project });
-    } catch (error: unknown) {
-      log.error('Failed to update project:', error);
-      const errMsg = error instanceof Error ? error.message : String(error);
-      if (errMsg.includes('not found') || errMsg.includes('access denied')) {
-        res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
-      } else {
-        res.status(500).json({ success: false, error: 'Projekt konnte nicht aktualisiert werden' });
-      }
-    }
-  }
-);
-
-// DELETE /:projectId - Delete project
-router.delete(
-  '/:projectId',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { projectId } = req.params;
-
-      const service = await getProjectService();
-      await service.deleteProject(userId, projectId);
-      log.info(`Deleted project ${projectId}`);
-      res.json({ success: true });
-    } catch (error: unknown) {
-      log.error('Failed to delete project:', error);
-      if ((error instanceof Error ? error.message : String(error)).includes('not found')) {
-        res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
-      } else {
-        res.status(500).json({ success: false, error: 'Projekt konnte nicht gelöscht werden' });
-      }
-    }
-  }
-);
 
 // GET /:projectId/video - Stream project video
 router.get(
@@ -251,25 +122,6 @@ router.get(
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Thumbnail konnte nicht geladen werden' });
       }
-    }
-  }
-);
-
-// POST /:projectId/export - Track export
-router.post(
-  '/:projectId/export',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ projectId: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { projectId } = req.params;
-
-      const service = await getProjectService();
-      await service.incrementExportCount(userId, projectId);
-      res.json({ success: true });
-    } catch (error: unknown) {
-      log.error('Failed to track export:', error);
-      res.status(500).json({ success: false, error: 'Export konnte nicht getrackt werden' });
     }
   }
 );

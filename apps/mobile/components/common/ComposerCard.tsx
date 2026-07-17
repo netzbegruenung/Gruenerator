@@ -5,16 +5,25 @@ import { View, TextInput, Pressable, StyleSheet, useColorScheme } from 'react-na
 import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
+type ComposerVariant = 'card' | 'compact';
+
 interface ComposerCardProps {
   placeholder?: string;
   onSend: (text: string) => void;
   onSettings?: () => void;
+  /**
+   * `card` (default) = the tall input-on-top/actions-below card (start hero, notebook
+   * hero). `compact` = a single-row bar (input grows, actions inline right) for the
+   * smaller web-style composer and the bottom-pinned composer bars.
+   */
+  variant?: ComposerVariant;
 }
 
 export function ComposerCard({
   placeholder = 'Nachricht eingeben...',
   onSend,
   onSettings,
+  variant = 'card',
 }: ComposerCardProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -35,63 +44,82 @@ export function ComposerCard({
   }, [toggleSpeech]);
 
   const hasText = text.trim().length > 0;
+  const compact = variant === 'compact';
+
+  const settingsButton = onSettings ? (
+    <Pressable onPress={onSettings} style={styles.settingsButton} hitSlop={6}>
+      <Ionicons name="options-outline" size={18} color={theme.textSecondary} />
+    </Pressable>
+  ) : null;
+
+  const sendOrMic = hasText ? (
+    <Pressable onPress={handleSend} style={styles.actionButton}>
+      <Ionicons name={compact ? 'arrow-up' : 'arrow-forward'} size={18} color={colors.white} />
+    </Pressable>
+  ) : (
+    <Pressable
+      onPress={handleVoice}
+      style={[
+        styles.actionButton,
+        isListening ? { backgroundColor: colors.error[500] } : styles.actionButtonMuted,
+      ]}
+    >
+      <Ionicons
+        name={isListening ? 'stop' : 'mic'}
+        size={18}
+        color={isListening ? colors.white : theme.textSecondary}
+      />
+    </Pressable>
+  );
+
+  const input = (
+    <TextInput
+      style={[compact ? styles.inputCompact : styles.input, { color: theme.text }]}
+      placeholder={placeholder}
+      placeholderTextColor={theme.textSecondary}
+      value={text}
+      onChangeText={setText}
+      multiline
+      returnKeyType={compact ? 'send' : 'default'}
+      blurOnSubmit={compact}
+      onSubmitEditing={compact ? handleSend : undefined}
+      textAlignVertical="top"
+    />
+  );
+
+  if (compact) {
+    return (
+      <View
+        style={[
+          styles.compactContainer,
+          { backgroundColor: theme.surface, borderColor: theme.border, shadowColor: colors.black },
+        ]}
+      >
+        {settingsButton}
+        {input}
+        <View style={styles.actions}>{sendOrMic}</View>
+      </View>
+    );
+  }
 
   return (
     <View
       style={[
         styles.container,
-        {
-          backgroundColor: theme.surface,
-          borderColor: theme.border,
-          shadowColor: colors.black,
-        },
+        { backgroundColor: theme.surface, borderColor: theme.border, shadowColor: colors.black },
       ]}
     >
-      <TextInput
-        style={[styles.input, { color: theme.text }]}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        value={text}
-        onChangeText={setText}
-        multiline
-        returnKeyType="send"
-        blurOnSubmit
-        onSubmitEditing={handleSend}
-        textAlignVertical="top"
-      />
-      <View style={styles.actions}>
-        {onSettings && (
-          <Pressable onPress={onSettings} style={styles.settingsButton}>
-            <Ionicons name="options-outline" size={18} color={theme.textSecondary} />
-          </Pressable>
-        )}
-        {hasText ? (
-          <Pressable onPress={handleSend} style={styles.actionButton}>
-            <Ionicons name="arrow-forward" size={18} color={colors.white} />
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={handleVoice}
-            style={[
-              styles.actionButton,
-              isListening
-                ? { backgroundColor: colors.error[500] }
-                : { backgroundColor: 'transparent' },
-            ]}
-          >
-            <Ionicons
-              name={isListening ? 'stop' : 'mic'}
-              size={18}
-              color={isListening ? colors.white : theme.textSecondary}
-            />
-          </Pressable>
-        )}
+      {input}
+      <View style={[styles.actions, styles.actionsCard]}>
+        {settingsButton}
+        {sendOrMic}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // card variant (default)
   container: {
     borderRadius: borderRadius.xlarge,
     borderWidth: 1,
@@ -113,12 +141,39 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     textAlignVertical: 'top',
   },
+  actionsCard: {
+    justifyContent: 'flex-end',
+    marginTop: spacing.xxsmall,
+  },
+  // compact variant (bar)
+  compactContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: borderRadius.pill,
+    borderWidth: 1,
+    paddingLeft: spacing.xsmall,
+    paddingRight: spacing.xxsmall,
+    paddingVertical: spacing.xxsmall,
+    minHeight: 52,
+    gap: spacing.xxsmall,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  inputCompact: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+    maxHeight: 120,
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: spacing.xxsmall,
+  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing.xxsmall,
-    marginTop: spacing.xxsmall,
+    gap: 2,
   },
   settingsButton: {
     width: 34,
@@ -134,5 +189,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionButtonMuted: {
+    backgroundColor: 'transparent',
   },
 });

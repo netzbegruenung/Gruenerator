@@ -9,6 +9,8 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
+import { type PersistedStep } from './agenticLoop/types.js';
+
 import type { UserProfile } from '../../../services/user/types.js';
 import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
@@ -195,6 +197,59 @@ export async function touchThread(threadId: string): Promise<void> {
   await postgres.query(`UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
     threadId,
   ]);
+}
+
+/**
+ * Sticky MCP scope: the last connected server this thread's agentic loop was
+ * scoped to. Read as the fallback when a follow-up names no server; written
+ * (fire-and-forget) after a scoped MCP turn. A stale id (server since deleted)
+ * simply resolves to no config → the loop falls back to the fan-out.
+ */
+export async function getThreadLastMcpServer(threadId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(`SELECT last_mcp_server_id FROM chat_threads WHERE id = $1`, [
+    threadId,
+  ]);
+  return (result[0]?.last_mcp_server_id as string) || null;
+}
+
+export async function setThreadLastMcpServer(threadId: string, serverId: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(`UPDATE chat_threads SET last_mcp_server_id = $1 WHERE id = $2`, [
+    serverId,
+    threadId,
+  ]);
+}
+
+/**
+ * Recent MCP tool steps of a thread, oldest → newest, for cross-turn replay.
+ * Reads the `toolCalls` array persisted on each assistant message's
+ * `tool_results` metadata (see createMessage) and keeps only MCP steps (those
+ * carrying a `serverName`). Bounded so replay stays token-cheap.
+ */
+export async function getRecentMcpSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
+  const postgres = getPostgresInstance();
+  const rows = await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 12`,
+    [threadId]
+  );
+  const steps: PersistedStep[] = [];
+  for (const row of rows as Array<{ tool_results?: unknown }>) {
+    const meta = row.tool_results;
+    const calls =
+      meta && typeof meta === 'object' && Array.isArray((meta as { toolCalls?: unknown }).toolCalls)
+        ? ((meta as { toolCalls: unknown[] }).toolCalls as PersistedStep[])
+        : [];
+    for (const c of calls) {
+      if (c && typeof c === 'object' && typeof (c as PersistedStep).serverName === 'string') {
+        steps.push(c);
+      }
+    }
+    if (steps.length >= limit) break;
+  }
+  return steps.slice(0, limit).reverse();
 }
 
 export interface ThreadSettings {

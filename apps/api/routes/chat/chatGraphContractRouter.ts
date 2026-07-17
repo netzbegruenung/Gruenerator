@@ -25,6 +25,10 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
+import {
+  SYSTEM_TOOL_INTENTS,
+  isSystemIntentAvailable,
+} from '../../services/mcp/systemMcpServers.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
@@ -261,7 +265,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // old threads; no mention emits it anymore) still runs unscoped over all
       // enabled servers for back-compat. Not in TOOL_PRIORITY, so resolved here;
       // the forced flag lets the loop run even if enabledTools.mcp is off, and
-      // mcpToolNode no-ops safely when the user has no servers.
+      // the agentic mcpCatalog no-ops safely when the user has no servers.
       const mcpScopedToken = forcedTools?.find((t) => t.startsWith('mcp:'));
       const mcpForced = !!forcedTools?.includes('mcp') || !!mcpScopedToken;
       if (mcpForced) {
@@ -627,7 +631,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // For an `mcp` turn the forcedTool flag means "the user picked this
       // connector" (via @<server>), NOT "pin a deterministic single-pass tool" —
       // so it may still enter the loop, which mounts that server's MCP tools.
-      const isMcpTurn = classifiedState.intent === 'mcp';
+      // System MCP intents (bahn/wetter/news) force the gate the same way: the
+      // legacy pipeline has no executor for them, the loop mounts their tools.
+      // `umfragen` is a native domain tool (PolitPro service) — always
+      // available, so it forces the gate unconditionally.
+      const isMcpTurn =
+        classifiedState.intent === 'mcp' ||
+        classifiedState.intent === 'umfragen' ||
+        (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
+      const isSystemToolIntent =
+        classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -704,6 +717,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // 'agentic' branch — degrade to plain search.
       if (!runAgentic && classifiedState.intent === 'agentic') {
         classifiedState.intent = 'search';
+      }
+      // Same insurance for system tool intents: their tools exist only in the
+      // loop, so an edge turn a kill-switch kept out degrades to web search.
+      // Backfill the query — these intents are NON_SEARCH, so the classifier
+      // nulled searchQuery and the web branch would otherwise search ''.
+      if (!runAgentic && isSystemToolIntent) {
+        classifiedState.intent = 'web';
+        if (!classifiedState.searchQuery && lastUserText) {
+          classifiedState.searchQuery = lastUserText;
+        }
       }
 
       sse.send('intent', {

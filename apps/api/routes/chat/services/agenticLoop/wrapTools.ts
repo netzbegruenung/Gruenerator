@@ -128,6 +128,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const wrappedExecute: ExecuteFn = async (input, options) => {
       const stepId = options.toolCallId;
       const args = asRecord(input);
+      // MCP connector server title (undefined for internal tools) — persisted so
+      // a later turn can identify + replay which server this call hit.
+      const server = ctx.serverNameFor?.(toolName);
+      const serverMeta = server ? { serverName: server } : {};
 
       // checkDuplicate is the only guard that mutates state (registers the
       // call key). If an earlier guard trips it isn't called, so a blocked
@@ -143,7 +147,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         const result = { error: guardError };
         sendStart(stepId, args);
         sendResult(stepId, false, result);
-        ctx.recordStep({ toolCallId: stepId, toolName, args, result });
+        ctx.recordStep({ toolCallId: stepId, toolName, args, result, ...serverMeta });
         return result;
       }
 
@@ -160,7 +164,13 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       const ok = !isErrorResult(output);
       if (!ok) ctx.guards.noteFailure(toolName);
 
-      ctx.recordStep({ toolCallId: stepId, toolName, args, result: asRecord(output) });
+      ctx.recordStep({
+        toolCallId: stepId,
+        toolName,
+        args,
+        result: asRecord(output),
+        ...serverMeta,
+      });
       sendResult(stepId, ok, output);
 
       // Model-facing payload only — the full result already went to the card /

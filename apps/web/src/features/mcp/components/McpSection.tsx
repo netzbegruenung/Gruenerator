@@ -16,7 +16,24 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiCheck } from 'react-icons/fi';
+import { FiServer, FiSearch, FiLock, FiCheck } from 'react-icons/fi';
+import {
+  SiNotion,
+  SiCoda,
+  SiHubspot,
+  SiBrevo,
+  SiStatista,
+  SiZapier,
+  SiGooglemaps,
+  SiTypeform,
+  SiZoom,
+  SiTodoist,
+  SiMiro,
+  SiIfttt,
+  SiBookingdotcom,
+  SiExpedia,
+  SiTrivago,
+} from 'react-icons/si';
 
 import {
   useMcpServers,
@@ -37,6 +54,8 @@ import {
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
+
+import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
@@ -60,19 +79,58 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAut
 
 // ── Presentation helpers ─────────────────────────────────────────────────────
 
-const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => (
-  <div
-    className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
-    style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
-    aria-hidden
-  >
-    {title.charAt(0).toUpperCase()}
-  </div>
-));
+// Real vendor logos where Simple Icons ships one; keyword-matched so it works on
+// both a title ("Notion") and a connected server's host ("mcp.notion.com"). Any
+// service without a match keeps the coloured-monogram fallback below.
+const BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
+  [/notion/i, SiNotion],
+  [/coda/i, SiCoda],
+  [/hubspot/i, SiHubspot],
+  [/brevo/i, SiBrevo],
+  [/statista/i, SiStatista],
+  [/zapier/i, SiZapier],
+  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
+  [/typeform/i, SiTypeform],
+  [/zoom/i, SiZoom],
+  [/todoist/i, SiTodoist],
+  [/miro/i, SiMiro],
+  [/ifttt/i, SiIfttt],
+  [/booking/i, SiBookingdotcom],
+  [/expedia/i, SiExpedia],
+  [/trivago/i, SiTrivago],
+];
+
+function brandIcon(label: string): IconType | null {
+  for (const [re, Icon] of BRAND_ICONS) if (re.test(label)) return Icon;
+  return null;
+}
+
+const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => {
+  const Icon = brandIcon(title);
+  return (
+    <div
+      className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
+      style={{ background: mcpBrandColor(title), width: size, height: size, fontSize: size * 0.44 }}
+      aria-hidden
+    >
+      {Icon ? <Icon size={size * 0.5} /> : title.charAt(0).toUpperCase()}
+    </div>
+  );
+});
 McpLogo.displayName = 'McpLogo';
+
+const authLabel: Record<McpRegistryEntry['authHint'], string> = {
+  none: 'Ohne Auth',
+  bearer: 'Token',
+  oauth: 'OAuth',
+  unknown: '—',
+};
 
 const inputClass =
   'w-full px-md py-sm rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure text-sm text-foreground focus:border-primary-400 focus:outline-none transition-colors';
+
+const authBadgeClass =
+  'flex-none inline-flex items-center gap-1 px-2 py-1 rounded-full bg-grey-100 dark:bg-grey-800 text-grey-500 text-[11px] font-semibold border border-grey-200 dark:border-grey-700';
 
 const connectBtnClass =
   'text-xs font-semibold px-md py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30 transition-colors cursor-pointer';
@@ -411,12 +469,16 @@ const CardShell = memo(
   ({
     title,
     description,
+    badge,
+    recommended,
     category,
     connecting,
     onConnect,
   }: {
     title: string;
     description: string | null | undefined;
+    badge: string;
+    recommended: boolean;
     category: string | undefined;
     connecting: boolean;
     onConnect: () => void;
@@ -425,13 +487,22 @@ const CardShell = memo(
       <div className="flex items-start gap-md">
         <McpLogo title={title} size={48} />
         <div className="flex-1 min-w-0">
-          <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
+          <div className="flex items-center gap-sm flex-wrap">
+            <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
+            {recommended && (
+              <span className={cn(chipClass, 'rounded-full font-semibold')}>Empfohlen</span>
+            )}
+          </div>
           {description && (
             <p className="mt-1.5 text-xs leading-relaxed text-grey-500 line-clamp-2">
               {description}
             </p>
           )}
         </div>
+        <span className={authBadgeClass}>
+          <FiLock className="w-2.5 h-2.5" />
+          {badge}
+        </span>
       </div>
       <div className="flex items-center justify-between gap-sm mt-md">
         <span className="text-[11px] text-grey-400 font-medium">{category}</span>
@@ -606,14 +677,46 @@ interface AvailableItem {
   entry: McpRegistryEntry;
 }
 
+// Display order for category pills + grouped sections. Anything not listed
+// (a future category) sorts alphabetically after these; uncategorised → "Weitere".
+const CATEGORY_ORDER = [
+  'Produktivität',
+  'CRM & Marketing',
+  'Social Media',
+  'Analyse & SEO',
+  'Finanzen',
+  'Formulare',
+  'Dokumente',
+  'Recht & Compliance',
+  'Automatisierung',
+  'Kommunikation',
+  'Reisen',
+  'Karten',
+] as const;
+const UNCATEGORISED = 'Weitere';
+
+function orderCategories(present: Iterable<string>): string[] {
+  const set = new Set(present);
+  const known = CATEGORY_ORDER.filter((c) => set.has(c));
+  const extra = [...set].filter((c) => !(CATEGORY_ORDER as readonly string[]).includes(c)).sort();
+  return [...known, ...extra];
+}
+
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
   const { data: servers = [], isLoading } = useMcpServers();
   const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
   const [prefill, setPrefill] = useState<McpPrefill | null>(null);
   const [bearerEntry, setBearerEntry] = useState<McpRegistryEntry | null>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
-  const { data: registry, isLoading: registryLoading } = useMcpRegistry(search);
+  // Debounced so typing doesn't hit the external MCP registry on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+  const { data: registry, isLoading: registryLoading } = useMcpRegistry(debouncedSearch);
   const queryClient = useQueryClient();
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
@@ -628,6 +731,29 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     [registry, connectedUrls]
   );
 
+  const cats = useMemo(() => {
+    const present: string[] = [];
+    for (const it of available) if (it.category) present.push(it.category);
+    return ['Alle', ...orderCategories(present)];
+  }, [available]);
+  const filtered = cat === 'Alle' ? available : available.filter((it) => it.category === cat);
+  // On "Alle", group into ordered category sections; a specific pick stays flat.
+  const groups = useMemo(() => {
+    if (cat !== 'Alle') return null;
+    const byCat = new Map<string, AvailableItem[]>();
+    for (const it of available) {
+      const c = it.category ?? UNCATEGORISED;
+      (byCat.get(c) ?? byCat.set(c, []).get(c)!).push(it);
+    }
+    const order = [...orderCategories(byCat.keys()), UNCATEGORISED];
+    return [...byCat.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+  }, [available, cat]);
+  // "Server suchen": remote servers found in the open MCP registry for this
+  // search term (backend-populated), minus anything already connected/curated.
+  const externalServers = useMemo(
+    () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
+    [registry, connectedUrls]
+  );
   const activeCount = servers.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
@@ -675,6 +801,15 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     }
     // bearer / unknown → one-step token dialog right on the card.
     setBearerEntry(entry);
+  };
+
+  // Registry hits have no declared auth — prefill the add-form so the user picks
+  // the auth type (and can eyeball the URL) instead of us guessing bearer/OAuth.
+  const handlePickExternal = (entry: McpRegistryEntry) => {
+    setPrefill({ name: entry.title, url: entry.url, authType: 'none' });
+    requestAnimationFrame(() =>
+      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
   };
 
   const hasConnected = servers.length > 0;
@@ -748,33 +883,120 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-grey-400 pointer-events-none" />
           <input
             className={cn(inputClass, 'h-12 pl-11')}
-            placeholder="Dienst suchen (z. B. Notion, Google Drive, HubSpot) …"
+            placeholder="Server suchen …"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
-        {registryLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
-
-        {!registryLoading && available.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-            {available.map((it) => (
-              <CardShell
-                key={it.key}
-                title={it.entry.title}
-                description={it.entry.description}
-                category={it.category}
-                connecting={connecting === it.entry.url}
-                onConnect={() => handlePickMcp(it.entry)}
-              />
-            ))}
+        {/* Category pills */}
+        {cats.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-md">
+            {cats.map((c) => {
+              const active = c === cat;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCat(c)}
+                  className={cn(
+                    'px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-colors border',
+                    active
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-background-pure text-foreground border-grey-200 dark:border-grey-700 hover:border-primary-300'
+                  )}
+                >
+                  {c}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {!registryLoading && available.length === 0 && (
+        {registryLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
+
+        {!registryLoading &&
+          filtered.length > 0 &&
+          (cat === 'Alle' && groups ? (
+            <div className="flex flex-col gap-lg">
+              {groups.map(([c, items]) => (
+                <div key={c}>
+                  <h4 className="m-0 mb-sm text-xs font-bold tracking-widest uppercase text-grey-500">
+                    {c}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
+                    {items.map((it) => (
+                      <CardShell
+                        key={it.key}
+                        title={it.entry.title}
+                        description={it.entry.description}
+                        badge={authLabel[it.entry.authHint]}
+                        recommended={it.entry.recommended}
+                        category={it.category}
+                        connecting={connecting === it.entry.url}
+                        onConnect={() => handlePickMcp(it.entry)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
+              {filtered.map((it) => (
+                <CardShell
+                  key={it.key}
+                  title={it.entry.title}
+                  description={it.entry.description}
+                  badge={authLabel[it.entry.authHint]}
+                  recommended={it.entry.recommended}
+                  category={it.category}
+                  connecting={connecting === it.entry.url}
+                  onConnect={() => handlePickMcp(it.entry)}
+                />
+              ))}
+            </div>
+          ))}
+
+        {/* Server suchen — remote hits from the open MCP registry */}
+        {!registryLoading && externalServers.length > 0 && (
+          <div className="mt-lg">
+            <div className="flex items-baseline gap-sm mb-sm">
+              <h4 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
+                Weitere Server im offenen Register
+              </h4>
+              <span className="text-xs text-grey-400">{externalServers.length}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
+              {externalServers.map((entry) => (
+                <CardShell
+                  key={entry.url}
+                  title={entry.title}
+                  description={entry.description}
+                  badge={authLabel[entry.authHint]}
+                  recommended={false}
+                  category={undefined}
+                  connecting={connecting === entry.url}
+                  onConnect={() => handlePickExternal(entry)}
+                />
+              ))}
+            </div>
+            {registry?.nextCursor && (
+              <p className="mt-sm text-xs text-grey-400">
+                Weitere Treffer vorhanden – verfeinere die Suche für passendere Ergebnisse.
+              </p>
+            )}
+          </div>
+        )}
+
+        {!registryLoading && filtered.length === 0 && externalServers.length === 0 && (
           <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center bg-background-pure">
             <div className="text-sm font-semibold text-foreground">Kein Dienst gefunden</div>
-            <div className="mt-1 text-xs text-grey-500">Passe die Suche an.</div>
+            <div className="mt-1 text-xs text-grey-500">
+              {debouncedSearch
+                ? 'Auch im offenen MCP-Register nichts gefunden. Passe die Suche an.'
+                : 'Passe die Suche an oder wähle eine andere Kategorie.'}
+            </div>
           </div>
         )}
       </div>

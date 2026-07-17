@@ -128,7 +128,13 @@ export class UserMCPClient {
    * Invoke a tool. Never throws — returns `{ ok:false, content }` on error so
    * the tool-loop can feed the failure back to the model and let it recover.
    */
-  async callTool(toolName: string, args: Record<string, unknown>): Promise<McpCallResult> {
+  async callTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    // System sources condense oversized results themselves (e.g. DB IRIS
+    // timetables, ~46k chars) — they need the full payload before shrinking it.
+    opts?: { maxChars?: number }
+  ): Promise<McpCallResult> {
     if (!this.client) return { ok: false, content: 'MCP-Client nicht verbunden.' };
     try {
       const result = await this.client.callTool({ name: toolName, arguments: args }, undefined, {
@@ -142,7 +148,7 @@ export class UserMCPClient {
           return JSON.stringify(b);
         })
         .join('\n')
-        .slice(0, MAX_TOOL_RESULT_CHARS);
+        .slice(0, opts?.maxChars ?? MAX_TOOL_RESULT_CHARS);
       const isError = (result as { isError?: boolean }).isError === true;
       return { ok: !isError, content: text || (isError ? 'Tool meldete einen Fehler.' : '') };
     } catch (err) {

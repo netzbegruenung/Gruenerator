@@ -17,6 +17,10 @@ export interface PersistedStep {
   toolName: string;
   args: Record<string, unknown>;
   result: Record<string, unknown>;
+  /** MCP connector server title (e.g. "Notion"). Present only for MCP tool
+   *  steps; lets a later turn identify + replay which server was used, since
+   *  the `m<serverKey>__` tool name alone isn't human-readable. */
+  serverName?: string;
 }
 
 /** Bounds for a single loop turn. */

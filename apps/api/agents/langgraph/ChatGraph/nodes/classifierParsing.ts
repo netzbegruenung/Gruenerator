@@ -44,6 +44,12 @@ export function parseClassifierResponse(
     'social_post',
     'abgeordnetenwatch',
     'bundestag',
+    'bahn',
+    'reise',
+    'hotel',
+    'wetter',
+    'news',
+    'umfragen',
     'sharepic',
     'image',
     'image_edit',
@@ -277,6 +283,43 @@ export function parseClassifierResponse(
       intent: 'summary',
       searchQuery: null,
       reasoning: 'Fallback: summary detected in response',
+    };
+  // System MCP intents — specific tokens, safe before the broad direct/search.
+  if (intentFieldPattern('reise').test(content))
+    return {
+      intent: 'reise',
+      searchQuery: null,
+      reasoning: 'Fallback: reise detected in response',
+    };
+  if (intentFieldPattern('bahn').test(content))
+    return {
+      intent: 'bahn',
+      searchQuery: null,
+      reasoning: 'Fallback: bahn detected in response',
+    };
+  if (intentFieldPattern('wetter').test(content))
+    return {
+      intent: 'wetter',
+      searchQuery: null,
+      reasoning: 'Fallback: wetter detected in response',
+    };
+  if (intentFieldPattern('news').test(content))
+    return {
+      intent: 'news',
+      searchQuery: userContent,
+      reasoning: 'Fallback: news detected in response',
+    };
+  if (intentFieldPattern('hotel').test(content))
+    return {
+      intent: 'hotel',
+      searchQuery: null,
+      reasoning: 'Fallback: hotel detected in response',
+    };
+  if (intentFieldPattern('umfragen').test(content))
+    return {
+      intent: 'umfragen',
+      searchQuery: null,
+      reasoning: 'Fallback: umfragen detected in response',
     };
   if (intentFieldPattern('direct').test(content))
     return {
