@@ -8,7 +8,7 @@ import { BevComposer } from './BevComposer';
 import { mintCanvasFromImage } from './canvasHandoff';
 import { useBildEditorV2 } from './useBildEditorV2';
 
-const INK = '#23372e';
+const INK = 'var(--bev-ink)';
 const ACCEPT_IMAGES = { 'image/*': [] as string[] };
 
 function captionFor(bev: ReturnType<typeof useBildEditorV2>): string {
@@ -93,7 +93,7 @@ export default function BildEditorV2Page() {
         // sidebarOnly layout hides the header, so 100dvh fills cleanly.
         height: '100dvh',
         overflow: 'hidden',
-        background: '#fdfbf5',
+        background: 'var(--bev-bg)',
         color: INK,
       }}
     >
@@ -102,7 +102,7 @@ export default function BildEditorV2Page() {
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(120% 95% at 50% 55%, #f7ecce 0%, #faf4e2 45%, #fdfbf5 100%)',
+          background: 'var(--bev-radial)',
         }}
       />
 
@@ -173,9 +173,9 @@ export default function BildEditorV2Page() {
             style={{
               position: 'absolute',
               inset: 10,
-              border: '2px dashed #3d6e5c',
+              border: '2px dashed var(--bev-drag-border)',
               borderRadius: 20,
-              background: 'rgba(247, 236, 206, 0.75)',
+              background: 'var(--bev-drag-bg)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -227,7 +227,9 @@ export default function BildEditorV2Page() {
           >
             {statusText}
           </h1>
-          <div style={{ fontSize: 15, color: '#6b7a70' }}>Dein Bild entsteht – einen Moment …</div>
+          <div style={{ fontSize: 15, color: 'var(--bev-ink-soft)' }}>
+            Dein Bild entsteht – einen Moment …
+          </div>
         </div>
       </div>
 
@@ -250,8 +252,8 @@ export default function BildEditorV2Page() {
           <button
             type="button"
             onClick={resetAll}
-            className="rounded-full bg-transparent px-3 py-1.5 text-[13px] font-semibold transition-colors hover:bg-white/60"
-            style={{ color: '#3d6e5c' }}
+            className="rounded-full bg-transparent px-3 py-1.5 text-[13px] font-semibold transition-colors hover:bg-white/60 dark:hover:bg-white/10"
+            style={{ color: 'var(--bev-accent)' }}
           >
             Neu starten
           </button>
@@ -262,8 +264,8 @@ export default function BildEditorV2Page() {
                   fontSize: 13,
                   fontWeight: 700,
                   color: INK,
-                  background: 'rgba(255,255,255,0.75)',
-                  border: '1px solid rgba(35,55,46,0.08)',
+                  background: 'var(--bev-chip-bg)',
+                  border: '1px solid var(--bev-chip-border)',
                   borderRadius: 999,
                   padding: '6px 16px',
                   boxShadow: 'var(--shadow-sm)',
@@ -278,8 +280,8 @@ export default function BildEditorV2Page() {
               type="button"
               onClick={() => void openInCanvas()}
               disabled={canvasLoading || !active}
-              className="flex items-center gap-1.5 rounded-full border bg-white/70 px-3.5 py-1.5 text-[13px] font-semibold transition-colors hover:bg-white disabled:opacity-60"
-              style={{ color: '#3d6e5c', borderColor: 'rgba(61,110,92,0.28)' }}
+              className="flex items-center gap-1.5 rounded-full border bg-white/70 px-3.5 py-1.5 text-[13px] font-semibold transition-colors hover:bg-white disabled:opacity-60 dark:bg-white/10 dark:hover:bg-white/20"
+              style={{ color: 'var(--bev-accent)', borderColor: 'var(--bev-accent-border)' }}
             >
               <LayoutTemplate className="size-3.5" />
               {canvasLoading ? 'Öffne Canvas …' : 'In Canvas bearbeiten'}
@@ -309,9 +311,9 @@ export default function BildEditorV2Page() {
           <div
             style={{
               borderRadius: 20,
-              background: '#fff',
+              background: 'var(--bev-card)',
               padding: 6,
-              boxShadow: '0 22px 55px -20px rgba(35, 55, 46, 0.32)',
+              boxShadow: 'var(--bev-card-shadow)',
               maxWidth: 'min(640px, 72vw)',
               maxHeight: '100%',
               display: 'flex',
@@ -414,9 +416,9 @@ export default function BildEditorV2Page() {
                     padding: 3,
                     borderRadius: 12,
                     border: `2px solid ${
-                      active && v.id === active.id ? 'var(--color-primary)' : 'rgba(35,55,46,0.12)'
+                      active && v.id === active.id ? 'var(--color-primary)' : 'var(--bev-hairline)'
                     }`,
-                    background: '#fff',
+                    background: 'var(--bev-card)',
                     boxShadow: 'var(--shadow-sm)',
                     cursor: 'pointer',
                     position: 'relative',
@@ -458,9 +460,9 @@ export default function BildEditorV2Page() {
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: '#3d6e5c',
-                background: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(61,110,92,0.25)',
+                color: 'var(--bev-accent)',
+                background: 'var(--bev-chip-bg)',
+                border: '1px solid var(--bev-accent-border)',
                 borderRadius: 999,
                 padding: '4px 12px',
               }}

@@ -85,7 +85,11 @@ function OptionChip({
               color: '#fff',
               borderColor: 'var(--color-primary)',
             }
-          : { background: 'transparent', color: '#3d6e5c', borderColor: 'rgba(61,110,92,0.28)' }
+          : {
+              background: 'transparent',
+              color: 'var(--bev-accent)',
+              borderColor: 'var(--bev-accent-border)',
+            }
       }
     >
       {children}
@@ -164,7 +168,9 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
                     className="flex size-3.5 shrink-0 items-center justify-center rounded-full border"
                     style={{
                       borderColor:
-                        settings.kiLabel === o.id ? 'var(--color-primary)' : 'rgba(35,55,46,0.3)',
+                        settings.kiLabel === o.id
+                          ? 'var(--color-primary)'
+                          : 'var(--bev-radio-border)',
                     }}
                   >
                     {settings.kiLabel === o.id && (
@@ -283,7 +289,7 @@ function ReferenceRow({ bev }: { bev: BildEditorV2 }) {
         disabled={generating}
         onClick={() => inputRef.current?.click()}
         className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors hover:bg-grey-50 disabled:opacity-50 dark:hover:bg-grey-800"
-        style={{ color: '#3d6e5c', borderColor: 'rgba(61,110,92,0.28)' }}
+        style={{ color: 'var(--bev-accent)', borderColor: 'var(--bev-accent-border)' }}
       >
         <ImagePlus className="size-3.5" />
         Referenzbild
