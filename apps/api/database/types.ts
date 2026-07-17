@@ -57,8 +57,6 @@ export interface ProfileRow {
   prompts: boolean;
   interactive_antrag_enabled: boolean;
   nextcloud_share_links: Record<string, unknown>[];
-  wordpress_sites: Record<string, unknown>[];
-  wordpress_enabled: boolean;
   document_mode: string;
   user_defaults: Record<string, unknown>;
   docs: boolean;
@@ -587,6 +585,7 @@ export interface ChatThreadRow {
   custom_enabled_tools: Record<string, unknown> | null;
   notebook_collection_id: string | null;
   notebook_collection_ids: Record<string, unknown> | null;
+  last_mcp_server_id: string | null;
 }
 
 export interface ChatMessageRow {

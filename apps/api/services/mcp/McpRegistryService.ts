@@ -46,6 +46,22 @@ const SEEDS: Seed[] = [
   ['SISTRIX', 'https://api.sistrix.com/mcp/', 'bearer', 'SEO-Metriken, Sichtbarkeit und Keyword-Rankings.', 'https://sistrix.com', 'Analyse & SEO'],
   ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
   ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
+  ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
+  ['Typeform', 'https://api.typeform.com/mcp', 'oauth', 'Formulare bauen, Automationen und Antworten verwalten.', 'https://typeform.com', 'Formulare'],
+  ['Typeform (EU)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare bauen und Antworten verwalten (EU-Rechenzentrum).', 'https://typeform.com', 'Formulare'],
+  ['Zoom', 'https://zoom.us/mcp/meeting/streamable', 'oauth', 'Meetings planen, Aufzeichnungen und Zusammenfassungen abrufen.', 'https://zoom.us', 'Kommunikation'],
+  ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität'],
+  ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
+  ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'oauth', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
+  ['DocuSign', 'https://mcp.docusign.com/mcp', 'oauth', 'Verträge und Signaturen erstellen, senden und verfolgen.', 'https://docusign.com', 'Dokumente'],
+  ['IFTTT', 'https://ifttt.com/mcp', 'oauth', 'Automatisierungen (Applets) über tausende Dienste auslösen.', 'https://ifttt.com', 'Automatisierung'],
+  ['Booking.com', 'https://demandapi-mcp.booking.com/v1/mcp/8132308', 'oauth', 'Unterkünfte, Verfügbarkeit und Reisedaten abfragen.', 'https://booking.com', 'Reisen'],
+  ['Expedia', 'https://www.expedia.com/mcp', 'oauth', 'Flüge, Hotels und Reisen suchen und planen.', 'https://expedia.com', 'Reisen'],
+  ['trivago', 'https://mcp.trivago.com/mcp', 'oauth', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
+  ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
+  ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
+  ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],
+  ['Ansvar', 'https://gateway.ansvar.eu/mcp', 'oauth', 'EU-Recht und Compliance recherchieren — mit verifizierten Zitaten und Quellenangaben.', 'https://ansvar.eu', 'Recht & Compliance'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(
@@ -77,14 +93,98 @@ export function findSeedByUrl(url: string): McpRegistryEntry | null {
   }
 }
 
+const OFFICIAL_REGISTRY_URL = 'https://registry.modelcontextprotocol.io/v0/servers';
+const REGISTRY_TIMEOUT_MS = 6000;
+const REGISTRY_PAGE_SIZE = 30;
+
+interface OfficialServer {
+  name?: string;
+  description?: string;
+  remotes?: Array<{ type?: string; url?: string }>;
+}
+
+/** Prettify a reverse-DNS registry name ("io.github.acme/notion-mcp" → "notion mcp"). */
+function officialTitle(name: string, host: string): string {
+  const seg = name.split('/').pop() ?? name;
+  const cleaned = seg.replace(/[._-]+/g, ' ').trim();
+  return cleaned || host;
+}
+
+/**
+ * Best-effort "Server suchen": search the official MCP registry for REMOTE
+ * servers and map them to McpRegistryEntry (authHint 'unknown' — the registry
+ * doesn't declare auth; the add-form lets the user pick). Curated hosts are
+ * filtered out so we don't double-list. Any error/timeout degrades to an empty
+ * page — the external register never blocks the curated directory. Only a fixed,
+ * trusted host is fetched (search/cursor ride as URL-encoded query params), so no
+ * SSRF surface.
+ */
+async function fetchOfficialRegistry(
+  search: string,
+  cursor: string | undefined
+): Promise<{ servers: McpRegistryEntry[]; nextCursor: string | null }> {
+  const url = new URL(OFFICIAL_REGISTRY_URL);
+  url.searchParams.set('search', search);
+  url.searchParams.set('limit', String(REGISTRY_PAGE_SIZE));
+  if (cursor) url.searchParams.set('cursor', cursor);
+
+  let json: unknown;
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) return { servers: [], nextCursor: null };
+    json = await res.json();
+  } catch {
+    return { servers: [], nextCursor: null };
+  }
+
+  // The registry has wrapped each entry as `{ server, _meta }` in some versions
+  // and as a bare object in others — handle both. Cursor is `metadata.next_cursor`.
+  const root = json as {
+    servers?: Array<OfficialServer & { server?: OfficialServer }>;
+    metadata?: { next_cursor?: string | null; nextCursor?: string | null };
+  };
+  const raw = Array.isArray(root.servers) ? root.servers : [];
+  const seen = new Set(SEED_BY_HOST.keys());
+  const servers: McpRegistryEntry[] = [];
+  for (const item of raw) {
+    const s = item.server ?? item;
+    const remoteUrl = s.remotes?.find((r) => typeof r?.url === 'string' && r.url)?.url;
+    if (!remoteUrl) continue; // remote servers only (skip stdio/npm-only)
+    let host: string;
+    try {
+      host = new URL(remoteUrl).host;
+    } catch {
+      continue;
+    }
+    if (seen.has(host)) continue; // dedup vs curated + within the page
+    seen.add(host);
+    servers.push({
+      name: host,
+      title: officialTitle(s.name ?? host, host),
+      url: remoteUrl,
+      authHint: 'unknown',
+      description: (s.description ?? '').slice(0, 200),
+      websiteUrl: null,
+      recommended: false,
+    });
+  }
+  const nextCursor = root.metadata?.next_cursor ?? root.metadata?.nextCursor ?? null;
+  return { servers, nextCursor: servers.length ? nextCursor : null };
+}
+
 export class McpRegistryService {
   /**
-   * Returns the curated directory, optionally filtered by a search term over
-   * title/description. `servers` is always empty (the open registry firehose is
-   * deliberately not surfaced); the frontend renders `recommended`.
+   * Curated directory (filtered by search over title/description/category) plus,
+   * when a search term is present, remote servers discovered in the official MCP
+   * registry (`servers`, paginated by `nextCursor`). The external "Server suchen"
+   * is best-effort — any failure degrades to an empty `servers` list.
    */
-  static list(params: { search?: string; cursor?: string }): McpRegistryPage {
-    const search = params.search?.trim().toLowerCase() || '';
+  static async list(params: { search?: string; cursor?: string }): Promise<McpRegistryPage> {
+    const term = params.search?.trim() ?? '';
+    const search = term.toLowerCase();
     const recommended = search
       ? RECOMMENDED.filter(
           (e) =>
@@ -93,7 +193,11 @@ export class McpRegistryService {
             (e.category?.toLowerCase().includes(search) ?? false)
         )
       : RECOMMENDED;
-    return { recommended, servers: [], nextCursor: null };
+    // Only poll the open registry on an actual search (no firehose on load).
+    const external = term
+      ? await fetchOfficialRegistry(term, params.cursor)
+      : { servers: [] as McpRegistryEntry[], nextCursor: null };
+    return { recommended, servers: external.servers, nextCursor: external.nextCursor };
   }
 }
 

@@ -127,6 +127,7 @@ export async function* parseSSEStream(
   let receivedArtifactData: ActiveArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
   let receivedBundestagData: import('@gruenerator/contracts').BundestagPayload | null = null;
+  let receivedBahnData: import('@gruenerator/contracts').BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -204,6 +205,7 @@ export async function* parseSSEStream(
     if (receivedArtifactData) custom.artifactData = receivedArtifactData;
     if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedBundestagData) custom.bundestagData = receivedBundestagData;
+    if (receivedBahnData) custom.bahnData = receivedBahnData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -497,6 +499,13 @@ export async function* parseSSEStream(
             bundestag?: import('@gruenerator/contracts').BundestagPayload;
           };
           if (bundestag) receivedBundestagData = bundestag;
+          yield buildResult();
+          break;
+        }
+
+        case 'bahn': {
+          const { bahn } = data as { bahn?: import('@gruenerator/contracts').BahnPayload };
+          if (bahn) receivedBahnData = bahn;
           yield buildResult();
           break;
         }

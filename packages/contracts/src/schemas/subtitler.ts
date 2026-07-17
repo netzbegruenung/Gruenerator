@@ -482,6 +482,53 @@ export const sharePublicResponseSchema = z.object({
   error: z.string().nullish(),
 });
 
+/** 410 body for an expired public share link. */
+export const sharePublicExpiredResponseSchema = z.object({
+  success: z.boolean(),
+  error: z.string(),
+  expired: z.literal(true),
+});
+
+/**
+ * List-row shape returned by GET /api/subtitler/share/my
+ * (`shareService.getUserShares`). snake_case to match the SQL select; most
+ * fields nullable to tolerate legacy rows.
+ */
+export const subtitlerShareRecordSchema = z.object({
+  id: z.string(),
+  share_token: z.string(),
+  title: z.string().nullish(),
+  thumbnail_path: z.string().nullish(),
+  duration: z.number().nullish(),
+  expires_at: z.union([z.string(), z.date()]),
+  download_count: z.number(),
+  created_at: z.union([z.string(), z.date()]).nullish(),
+  status: z.string().nullish(),
+  expired: z.boolean().nullish(),
+});
+
+export const subtitlerSharesListResponseSchema = z.object({
+  success: z.boolean(),
+  shares: z.array(subtitlerShareRecordSchema),
+  error: z.string().nullish(),
+});
+
+export const subtitlerDeleteShareResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().nullish(),
+  error: z.string().nullish(),
+});
+
+// ── Common polling: not_found ───────────────────────────────────────────────
+
+/**
+ * 404 body for the Redis-backed polling GETs (result / export-progress /
+ * auto-progress) when no job/export/auto key exists yet.
+ */
+export const subtitlerNotFoundResponseSchema = z.object({
+  status: z.literal('not_found'),
+});
+
 // ── Social media ────────────────────────────────────────────────────────────
 
 export const generateSocialRequestSchema = z.object({

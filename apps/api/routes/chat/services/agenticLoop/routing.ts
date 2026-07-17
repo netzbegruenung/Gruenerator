@@ -196,9 +196,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
     compoundGen;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
+  // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
+  // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
+  // The single-pass kill-switches below (compound / image / secondary) still apply.
+  const gateOpen = p.isMcpTurn || (p.loopEnabled && inLoopSet);
   return (
-    p.loopEnabled &&
-    inLoopSet &&
+    gateOpen &&
     (!p.forcedTool || p.isMcpTurn) &&
     !p.isCompound &&
     secondaryAllowed &&

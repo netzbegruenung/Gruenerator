@@ -53,7 +53,6 @@ export {
   videoContract,
   textGenerationContract,
   sharepicContract,
-  wordpressContract,
   transferContract,
   unsplashContract,
   notificationsContract,
@@ -91,6 +90,7 @@ export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
+export * from './schemas/bahn.js';
 export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
 export * from './schemas/sheets.js';
@@ -115,7 +115,6 @@ export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/textGeneration.js';
 export * from './schemas/sharepic.js';
-export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';

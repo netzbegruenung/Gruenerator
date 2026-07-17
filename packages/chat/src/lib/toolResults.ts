@@ -9,6 +9,7 @@
 
 import { type SerializableCitation } from '../components/tool-ui/citation/schema';
 
+import { formatNamespacedToolLabel } from './toolMappings';
 import { extractDomain, faviconFromHostname, getHostname } from './urlUtils';
 
 import type {
@@ -129,7 +130,11 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
 };
 
 export function getToolMeta(toolName: string): ToolMeta {
-  return TOOL_METADATA[toolName] ?? { label: toolName, iconKey: 'search' };
+  // Namespaced connector/system tools (s0__x, bahn__x) have no static entry —
+  // format them like the live tool cards do so reloads render identically.
+  return (
+    TOOL_METADATA[toolName] ?? { label: formatNamespacedToolLabel(toolName), iconKey: 'search' }
+  );
 }
 
 /** The user-facing query/question a tool was invoked with, if any. */
