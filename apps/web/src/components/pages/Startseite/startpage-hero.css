@@ -18,7 +18,8 @@
 /* ── Backdrop: green at rest, yellow while the login is open ── */
 .sp-sunrise {
   position: fixed;
-  inset: 0;
+  /* slightly oversized so the idle drift never reveals transparent edges */
+  inset: -6%;
   z-index: 0;
   pointer-events: none;
   --sp-sunrise-opacity: 1;
@@ -30,7 +31,10 @@
     rgba(128, 182, 70, 0.22) var(--sp-sunrise-spread),
     transparent 78%
   );
-  animation: sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, filter;
+  animation:
+    sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    sp-sunrise-idle 24s ease-in-out 2.4s infinite alternate;
 }
 [data-theme='dark'] .sp-sunrise {
   --sp-sunrise-opacity: 0.4;
@@ -71,6 +75,23 @@
   }
 }
 
+/* Barely-perceptible living backdrop: green tones drift within a green-safe
+   hue range while the whole layer breathes a hair. Very slow + tiny on purpose. */
+@keyframes sp-sunrise-idle {
+  0% {
+    transform: translate3d(-1.4%, -0.8%, 0) scale(1);
+    filter: hue-rotate(-5deg);
+  }
+  50% {
+    transform: translate3d(1%, 0.6%, 0) scale(1.025);
+    filter: hue-rotate(6deg);
+  }
+  100% {
+    transform: translate3d(1.4%, 1%, 0) scale(1.01);
+    filter: hue-rotate(12deg);
+  }
+}
+
 /* ── Hero: single centred column ── */
 .sp-hero {
   position: relative;
@@ -108,24 +129,19 @@
   gap: 16px;
   padding: 22px 32px;
 }
-.sp-wordmark {
-  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--sp-wordmark);
+.sp-logo {
+  height: 40px;
+  width: auto;
+  display: block;
 }
-.sp-wordmark-dot {
-  color: #52907a;
+.sp-logo-dark {
+  display: none;
 }
-.sp-eyebrow {
-  font-family: 'PT Sans', Arial, sans-serif;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--font-color);
-  opacity: 0.55;
+[data-theme='dark'] .sp-logo-light {
+  display: none;
+}
+[data-theme='dark'] .sp-logo-dark {
+  display: block;
 }
 
 /* ── Headline ── */
@@ -327,12 +343,8 @@
   .sp-topbar {
     padding: 18px 20px;
   }
-  .sp-wordmark {
-    font-size: 1.15rem;
-  }
-  .sp-eyebrow {
-    font-size: 0.68rem;
-    letter-spacing: 0.09em;
+  .sp-logo {
+    height: 34px;
   }
   .sp-headline {
     margin-bottom: 32px;
@@ -380,6 +392,8 @@
     --sp-sunrise-y: 50%;
     --sp-sunrise-spread: 55%;
     opacity: var(--sp-sunrise-opacity);
+    transform: none;
+    filter: none;
   }
   .sp-sunrise-warm {
     transition: none;
