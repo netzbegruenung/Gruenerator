@@ -7,45 +7,43 @@
 @property --sp-sunrise-y {
   syntax: '<percentage>';
   inherits: false;
-  initial-value: 118%;
+  initial-value: 52%;
 }
-@property --sp-sunrise-spread {
-  syntax: '<percentage>';
+@property --sp-sunrise-glow {
+  syntax: '<number>';
   inherits: false;
-  initial-value: 55%;
+  initial-value: 1;
 }
 
-/* ── Backdrop: green at rest, yellow while the login is open ── */
+/* ── Backdrop: warm chat-tab glow at rest, yellow while the login is open ──
+   Geometry, color, strength and the entrance are copied 1:1 from the
+   workplace chat-tab sunrise (.workplace-chat-sunrise in
+   workplace-sunrise.css) — only the custom-property names differ. */
 .sp-sunrise {
   position: fixed;
-  /* slightly oversized so the idle drift never reveals transparent edges */
-  inset: -6%;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
   --sp-sunrise-opacity: 1;
   opacity: var(--sp-sunrise-opacity);
-  /* Color + strength copied 1:1 from the workplace chat-tab glow
-     (.workplace-chat-sunrise in workplace-sunrise.css). */
   background-color: #fefcf5;
   background-image: radial-gradient(
-    130% 95% at 50% var(--sp-sunrise-y),
-    rgb(233 214 150 / 0.5) 0%,
-    rgb(233 214 150 / 0.18) 40%,
+    88% 58% at 50% var(--sp-sunrise-y),
+    rgb(233 214 150 / calc(0.5 * var(--sp-sunrise-glow))) 0%,
+    rgb(233 214 150 / calc(0.18 * var(--sp-sunrise-glow))) 40%,
     rgb(255 255 255 / 0) 74%
   );
-  will-change: transform;
-  animation:
-    sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards,
-    sp-sunrise-idle 24s ease-in-out 2.4s infinite alternate;
+  animation: sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 [data-theme='dark'] .sp-sunrise {
   background-color: transparent;
   background-image: radial-gradient(
-    130% 95% at 50% var(--sp-sunrise-y),
+    88% 58% at 50% 52%,
     rgb(233 214 150 / 0.1) 0%,
-    rgb(233 214 150 / 0.035) 40%,
+    rgb(233 214 150 / 0.035) 42%,
     rgb(0 0 0 / 0) 74%
   );
+  animation: none;
 }
 
 .sp-sunrise-warm {
@@ -72,28 +70,12 @@
 
 @keyframes sp-sunrise-in {
   from {
-    --sp-sunrise-y: 118%;
-    --sp-sunrise-spread: 40%;
-    opacity: 0;
+    --sp-sunrise-y: 82%;
+    --sp-sunrise-glow: 0;
   }
   to {
-    --sp-sunrise-y: 50%;
-    --sp-sunrise-spread: 55%;
-    opacity: var(--sp-sunrise-opacity);
-  }
-}
-
-/* Barely-perceptible living backdrop: the whole glow breathes a hair.
-   Very slow + tiny on purpose; no color shift so the tone stays exact. */
-@keyframes sp-sunrise-idle {
-  0% {
-    transform: translate3d(-1.4%, -0.8%, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(1%, 0.6%, 0) scale(1.025);
-  }
-  100% {
-    transform: translate3d(1.4%, 1%, 0) scale(1.01);
+    --sp-sunrise-y: 52%;
+    --sp-sunrise-glow: 1;
   }
 }
 
@@ -394,11 +376,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-sunrise {
     animation: none;
-    --sp-sunrise-y: 50%;
-    --sp-sunrise-spread: 55%;
+    --sp-sunrise-y: 52%;
+    --sp-sunrise-glow: 1;
     opacity: var(--sp-sunrise-opacity);
-    transform: none;
-    filter: none;
   }
   .sp-sunrise-warm {
     transition: none;
