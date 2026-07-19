@@ -188,6 +188,23 @@ export const listDocumentsQuerySchema = z.object({
 
 // ── groupShareController schemas ─────────────────────────────────────────────
 
+/** Item of GET /api/docs/groups/me — a group the current user belongs to. */
+export const userGroupSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.string(),
+});
+export const userGroupsListSchema = z.array(userGroupSchema);
+
+/** Item of GET /api/docs/:id/groups — a group a document is shared with. */
+export const documentGroupShareSchema = z.object({
+  group_id: z.string(),
+  group_name: z.string(),
+  permission_level: z.enum(['viewer', 'editor']),
+  shared_at: z.string(),
+});
+export const documentGroupSharesListSchema = z.array(documentGroupShareSchema);
+
 export const addGroupBodySchema = z.object({
   group_id: z.string(),
   permission_level: z.enum(['viewer', 'editor']).nullish(),

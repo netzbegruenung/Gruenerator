@@ -30,6 +30,8 @@ import {
   listDocumentsQuerySchema,
   updateDocumentBodySchema,
   docsMessageResponseSchema,
+  userGroupsListSchema,
+  documentGroupSharesListSchema,
 } from '../schemas/docs.js';
 
 const c = initContract();
@@ -131,6 +133,59 @@ export const docsContract = c.router(
         500: docsErrorSchema,
       },
       summary: 'Disable public sharing for a document',
+    },
+
+    /**
+     * GET /api/docs/groups/me
+     * List the groups the current user belongs to (ShareModal dropdown).
+     * 4-segment path so it never collides with GET /api/docs/:id/groups.
+     */
+    listMyGroups: {
+      method: 'GET',
+      path: '/api/docs/groups/me',
+      responses: {
+        200: userGroupsListSchema,
+        401: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'List the current user groups',
+    },
+
+    /**
+     * GET /api/docs/:id/groups
+     * List the groups a document is shared with. Owner only.
+     */
+    listDocumentGroupShares: {
+      method: 'GET',
+      path: '/api/docs/:id/groups',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: documentGroupSharesListSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'List a document group shares',
+    },
+
+    /**
+     * DELETE /api/docs/:id/groups/:groupId
+     * Unshare a document from a group. Owner only.
+     */
+    removeGroupShare: {
+      method: 'DELETE',
+      path: '/api/docs/:id/groups/:groupId',
+      pathParams: z.object({ id: z.string(), groupId: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: docsMessageResponseSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'Unshare a document from a group',
     },
 
     /**
