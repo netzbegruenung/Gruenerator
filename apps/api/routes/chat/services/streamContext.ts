@@ -149,7 +149,7 @@ export async function buildStreamContext({
   // === Validate ===
   const user = getUser(req);
   if (!user?.id) {
-    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
+    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized, code: 'unauthorized' });
     sse.end();
     return { done: true };
   }
@@ -158,13 +158,17 @@ export async function buildStreamContext({
   const aiWorkerPool = getAIWorkerPool(req);
 
   if (!aiWorkerPool) {
-    sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.aiUnavailable,
+      code: 'provider_unavailable',
+      retryable: true,
+    });
     sse.end();
     return { done: true };
   }
 
   if ((clientMessages as unknown[]).length === 0) {
-    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
+    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
@@ -266,13 +270,13 @@ export async function buildStreamContext({
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
-    sse.send('error', { error: 'Failed to process messages' });
+    sse.send('error', { error: PROGRESS_MESSAGES.invalidRequest, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
 
   if (!modelMessages || !Array.isArray(modelMessages)) {
-    sse.send('error', { error: 'Failed to process messages' });
+    sse.send('error', { error: PROGRESS_MESSAGES.invalidRequest, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
