@@ -72,6 +72,9 @@ interface GrueneratorComposerProps {
   variant?: 'card' | 'pill';
   /** Render-prop slots for surface-specific UI. */
   slots?: {
+    /** Far-left control, where the plus menu sits. Lets a surface that turns
+     * the plus menu off still place a button in that position. */
+    leading?: React.ReactNode;
     /** Above the input — selection chips, contextual hints. */
     aboveInput?: React.ReactNode;
     /** Below the input/toolbar — quick actions, status rows. */
@@ -862,6 +865,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           <div className="flex items-center gap-0.5 px-1.5 py-1">
             {hiddenUploadButton}
             {plusMenuNode}
+            {slots?.leading}
             {composerInput}
             {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
@@ -880,6 +884,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               <div className="flex items-center gap-0.5">
                 {hiddenUploadButton}
                 {plusMenuNode}
+                {slots?.leading}
                 {showToolToggles && <SearchDepthToggleSlot />}
                 {toolbarExtra}
               </div>
