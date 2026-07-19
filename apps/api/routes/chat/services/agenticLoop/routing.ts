@@ -207,9 +207,6 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  intent: string;
-  /** The turn is a "research + edit the open artifact" compound (looksLikeCompoundEdit). */
-  isCompoundEdit: boolean;
   /** A current document/board is actually open (rawCurrentDocument/Board id present). */
   hasEditTarget: boolean;
   forcedTool: boolean;
@@ -220,18 +217,20 @@ export interface EditToolLoopInput {
 
 /**
  * Whether a turn should route into the loop with the surface's `edit_document`
- * tool mounted. Requires the loop on, a resolved surface that HAS a tool path
- * ({@link TOOL_EDIT_SURFACES}) with an open target, and an edit intent — then the
- * same single-pass kill-switches as {@link decideRunAgentic} apply. A surface
+ * tool mounted. An editor sidebar is fundamentally an editing surface, so the
+ * tool is mounted (and loop entry forced) for EVERY substantive turn with an
+ * open target on a tool-path surface ({@link TOOL_EDIT_SURFACES}) — the MODEL
+ * then decides whether to edit. Deliberately NOT gated on the classifier's
+ * `edit_current_*` intent: it routinely mislabels edit asks as `direct`
+ * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
+ * single-pass `direct` turn, both of which must still be able to edit. The same
+ * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
  * without a tool path (doc/board/canvas) returns false → legacy trigger path.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;
   if (!p.surfaceKind || !TOOL_EDIT_SURFACES.has(p.surfaceKind)) return false;
   if (!p.hasEditTarget) return false;
-  const isEditIntent =
-    p.intent === 'edit_current_doc' || p.intent === 'edit_current_board' || p.isCompoundEdit;
-  if (!isEditIntent) return false;
   return !p.forcedTool && !p.isCompound && !p.hasImageAttachments && p.secondaryIntent == null;
 }
 
