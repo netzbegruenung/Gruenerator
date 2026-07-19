@@ -85,10 +85,11 @@ export const TOOL_GRID = 'grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] ga
 const OFFICE_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
 // Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
 // visible (a deliberate scroll tease) at any width — the gap subtraction is what
-// keeps the peek from collapsing as the container grows. ~1.5 tiles on mobile → 6.5
-// on desktop. Gap is 0.75rem at base, 1rem from sm up (matches OFFICE_SCROLL_ROW).
+// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 5.5
+// on desktop, keeping tile size ~140–190px everywhere. Gap is 0.75rem at base, 1rem
+// from sm up (matches OFFICE_SCROLL_ROW).
 const OFFICE_SCROLL_ITEM =
-  'shrink-0 basis-[calc((100%_-_0.75rem)_*_0.6667)] sm:basis-[calc((100%_-_2rem)_*_0.4)] md:basis-[calc((100%_-_3rem)_*_0.2857)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
+  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
 
 // Tile colours (and each tool's matching page gradient) live in the shared
 // `config/toolTheme` registry so a tile and its subpage never drift.
@@ -98,8 +99,8 @@ const OFFICE_SCROLL_ITEM =
 // alignment is what keeps the strip tidy. Internals shrink at lg where the 6.5-up
 // tiles are smallest.
 const OFFICE_TILE_BASE =
-  'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-5 no-underline ' +
-  'transition-shadow duration-150 lg:p-4';
+  'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
+  'transition-shadow duration-150';
 
 // Icon-over-title/desc content shared by the link tiles and the dropdown tile.
 function OfficeTileInner({
@@ -116,17 +117,19 @@ function OfficeTileInner({
   const theme = getToolTheme(styleKey);
   return (
     <>
-      <span className={`flex text-[36px] lg:text-[31px] ${theme?.icon ?? 'text-secondary-600'}`}>
+      <span
+        className={`flex text-[24px] sm:text-[28px] lg:text-[30px] ${theme?.icon ?? 'text-secondary-600'}`}
+      >
         <Icon />
       </span>
       <span className="min-w-0">
         <span
-          className={`block text-[26px] font-bold leading-tight line-clamp-2 lg:text-[23px] ${theme?.title ?? 'text-foreground-heading'}`}
+          className={`block text-[16px] font-bold leading-tight line-clamp-2 sm:text-[19px] lg:text-[22px] ${theme?.title ?? 'text-foreground-heading'}`}
         >
           {title}
         </span>
         <span
-          className={`mt-1 block text-[16px] leading-snug line-clamp-2 lg:text-[14px] ${theme?.desc ?? 'text-muted-foreground'}`}
+          className={`mt-0.5 block min-h-[2.75em] text-[12px] leading-snug line-clamp-2 sm:mt-1 sm:text-[13px] lg:text-[14px] ${theme?.desc ?? 'text-muted-foreground'}`}
         >
           {description}
         </span>
