@@ -40,6 +40,25 @@ export const getDesktopOS = (): DesktopOS => {
 
 export const isMacDesktop = (): boolean => isDesktopApp() && getDesktopOS() === 'macos';
 
+export type VisitorDevice = 'macos' | 'linux' | 'ios' | 'android' | null;
+
+/**
+ * Best-effort UA detection of the visitor's device for the /apps download page.
+ * iPadOS reports a Mac UA but exposes touch points, hence the maxTouchPoints check.
+ */
+export const getVisitorDevice = (): VisitorDevice => {
+  if (typeof navigator === 'undefined') return null;
+  const ua = navigator.userAgent;
+  if (/android/i.test(ua)) return 'android';
+  if (/iphone|ipad|ipod/i.test(ua) || (/mac/i.test(ua) && navigator.maxTouchPoints > 1))
+    return 'ios';
+  if (/mac/i.test(ua)) return 'macos';
+  // ChromeOS UAs contain "X11; CrOS" but can't run the Linux desktop builds.
+  if (/cros/i.test(ua)) return null;
+  if (/linux|x11/i.test(ua)) return 'linux';
+  return null;
+};
+
 const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
 
 /**
