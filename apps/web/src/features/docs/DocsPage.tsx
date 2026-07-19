@@ -454,7 +454,7 @@ export function DocumentsContent({
             return;
           }
           if (result.isKiType) {
-            void navigate('/imagine/pure-create');
+            void navigate('/bild-editor');
             return;
           }
           if (!isCanvasTemplateType(result.type)) {

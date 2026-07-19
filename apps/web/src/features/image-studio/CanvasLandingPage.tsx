@@ -13,7 +13,13 @@ import { useAuthStore } from '../../stores/authStore';
 import useImageStudioStore from '../../stores/imageStudioStore';
 import { DocsComposer, type ComposerTemplate } from '../docs/DocsComposer';
 import { useFeatureIndex } from '../global-search/useFeatureIndex';
-import { SectionHeading, TOOL_GRID, ToolTile } from '../workplace/components/ToolsSection';
+import { useTourAutostart } from '../tours/useTourAutostart';
+import {
+  OFFICE_SCROLL_ITEM,
+  OFFICE_SCROLL_ROW,
+  OfficeTile,
+  SectionHeading,
+} from '../workplace/components/ToolsSection';
 
 import StudioGallerySections from './components/StudioGallerySections';
 import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from './utils/typeConfig';
@@ -36,11 +42,12 @@ const SHAREPIC_PROMPT_EXAMPLES_SHORT = [
 ];
 
 /**
- * "/canvas" — the sharepic/graphics landing page, modelled on the office landing
- * pages: a hero with an AI composer (forced to the sharepic kind) + the sharepic
- * template gallery, then the studio recents (Sharepics / Imagine / Reels) via the
- * shared StudioGallerySections. Creation navigates into the existing
- * /studio/templates/:type and /imagine flows.
+ * "/studio" (Bilder & Videos) — the sharepic/graphics landing page, modelled on
+ * the office landing pages: a hero with an AI composer (forced to the sharepic
+ * kind) + the sharepic template gallery, the colourful tool strip (Vorlagen /
+ * KI-Bilder / Sharepics / Reels), then the studio recents via the shared
+ * StudioGallerySections. Creation navigates into /studio/templates/:type and the
+ * unified Bild-Editor.
  */
 const CanvasLandingContent = () => {
   const navigate = useNavigate();
@@ -52,6 +59,11 @@ const CanvasLandingContent = () => {
   // bildgenerator, so the composer only offers it for DE with the flag on.
   const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
   const [creating, setCreating] = useState(false);
+
+  // Introduce the new Bilder & Videos surface once (like the editor tours).
+  useTourAutostart('studio', true, () => {
+    void import('../tours/studioTour').then((m) => m.startStudioTour());
+  });
 
   const templates: ComposerTemplate[] = useMemo(
     () =>
@@ -79,7 +91,7 @@ const CanvasLandingContent = () => {
           return;
         }
         if (result.isKiType) {
-          void navigate('/imagine/pure-create');
+          void navigate('/bild-editor');
           return;
         }
         if (!isCanvasTemplateType(result.type)) {
@@ -108,9 +120,9 @@ const CanvasLandingContent = () => {
 
   return (
     <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('canvas')}>
-      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
+      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4" data-tour="studio-create">
         <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
-          {firstName ? `Deine Bilder & Grafiken, ${firstName}` : 'Bilder & Grafiken'}
+          {firstName ? `Deine Bilder & Videos, ${firstName}` : 'Bilder & Videos'}
         </h1>
 
         <DocsComposer
@@ -129,11 +141,13 @@ const CanvasLandingContent = () => {
         />
       </div>
 
-      <section className="mb-xl mt-2xl">
+      <section className="mb-xl mt-2xl" data-tour="studio-tools">
         <SectionHeading title="Tools" />
-        <div className={TOOL_GRID}>
+        <div className={OFFICE_SCROLL_ROW}>
           {CANVAS_TOOLS.map((tool) => (
-            <ToolTile key={tool.id} tool={tool} />
+            <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+              <OfficeTile tool={tool} />
+            </div>
           ))}
         </div>
       </section>
