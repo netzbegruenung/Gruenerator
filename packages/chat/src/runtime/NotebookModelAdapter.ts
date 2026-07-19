@@ -13,7 +13,7 @@ import { parseSSELine } from '../lib/sseParser';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
-import { streamErrorMessage } from './streamErrorMessage';
+import { ChatStreamError, streamErrorMessage } from './streamErrorMessage';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
@@ -222,7 +222,7 @@ export function createNotebookModelAdapter(
           content: [
             {
               type: 'text' as const,
-              text: streamErrorMessage(new Error('Keine Antwort vom Server erhalten.')),
+              text: streamErrorMessage(new ChatStreamError('Keine Antwort vom Server erhalten.')),
             },
           ],
         };
@@ -376,8 +376,16 @@ export function createNotebookModelAdapter(
               }
 
               case 'error': {
-                const { error } = data as { error: string };
-                throw new Error(error);
+                const payload = data as {
+                  error?: string;
+                  code?: string;
+                  retryable?: boolean;
+                  retryAfterMs?: number;
+                };
+                throw new ChatStreamError(
+                  payload.error ?? 'Es ist ein Fehler aufgetreten.',
+                  payload
+                );
               }
 
               default: {

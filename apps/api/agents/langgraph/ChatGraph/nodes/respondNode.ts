@@ -15,6 +15,7 @@ import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { isSourceAvailabilityError } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
@@ -254,7 +255,20 @@ export async function formatSearchContext(
     );
   }
 
+  // Infrastructure failure must not read like "no results on this topic":
+  // without this block the model confidently answers "dazu gibt es nichts",
+  // although the sources were simply unreachable.
+  const sourcesUnreachable = state.searchErrors?.some(isSourceAvailabilityError) ?? false;
   if (state.searchResults.length === 0) {
+    if (sourcesUnreachable) {
+      return (
+        `\n\n## HINWEIS: QUELLENSUCHE FEHLGESCHLAGEN\n\n` +
+        `Die Suche in den Quellen ist technisch fehlgeschlagen (Quellen nicht erreichbar) — ` +
+        `das bedeutet NICHT, dass es zum Thema keine Inhalte gibt. ` +
+        `Sag der*dem Nutzer*in transparent, dass die Quellen gerade nicht erreichbar waren, ` +
+        `beantworte nur, was du ohne Quellen sicher weißt, und schlage vor, es später erneut zu versuchen.`
+      );
+    }
     return '';
   }
 
@@ -324,7 +338,11 @@ export async function formatSearchContext(
     })
     .join('\n\n');
 
-  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]`;
+  const degradedNote = sourcesUnreachable
+    ? `\n\nHINWEIS: Ein Teil der Quellen war nicht erreichbar — die Ergebnisse sind unvollständig. Erwähne das, wenn es für die Antwort relevant ist.`
+    : '';
+
+  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]${degradedNote}`;
 }
 
 /**
