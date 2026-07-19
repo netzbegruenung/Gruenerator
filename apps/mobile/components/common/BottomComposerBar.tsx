@@ -47,7 +47,15 @@ export function BottomComposerBar({
   const paddingBottom = keyboardVisible ? spacing.xsmall : idlePadding;
 
   return (
-    <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={keyboardVerticalOffset}>
+    // `automaticOffset`: the bar is nested below the header + inside a flex column,
+    // so its onLayout frame is relative to that parent — not the window. Without this
+    // the padding lift under-shoots by the header + safe-area height and the keyboard
+    // covers the composer. It re-measures the true screen-absolute position instead.
+    <KeyboardAvoidingView
+      behavior="padding"
+      automaticOffset
+      keyboardVerticalOffset={keyboardVerticalOffset}
+    >
       <View style={[styles.wrap, { paddingBottom }]}>
         <ComposerCard
           variant="compact"
