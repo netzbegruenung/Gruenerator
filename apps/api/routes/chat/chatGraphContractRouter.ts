@@ -714,6 +714,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // signal. Respects the SAME single-pass kill-switches as decideRunAgentic
       // (loop flag, notebook-compound, image attachments) so forcing the loop
       // here can't bypass them.
+      const isCompoundEdit = looksLikeCompoundEdit(lastUserText);
       const compoundEdit =
         editorSurface &&
         editTarget != null &&
@@ -721,7 +722,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         isAgenticLoopEnabled() &&
         !isCompound &&
         imageAttachments.length === 0 &&
-        looksLikeCompoundEdit(lastUserText);
+        isCompoundEdit;
       if (compoundEdit) classifiedState.compoundEdit = true;
 
       // Tool-based editor edit: route the turn into the loop with the surface's
@@ -739,7 +740,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         loopEnabled: isAgenticLoopEnabled(),
         surfaceKind: editToolSurfaceKind,
         intent: classifiedState.intent,
-        isCompoundEdit: looksLikeCompoundEdit(lastUserText),
+        isCompoundEdit,
         hasEditTarget: editTarget != null,
         forcedTool: !!forcedTool,
         isCompound,
