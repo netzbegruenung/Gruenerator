@@ -1,23 +1,12 @@
+import { COLLAB_SUBTYPE_VALUES } from '@gruenerator/contracts';
+
 /**
  * All valid subtypes for collaborative_documents.
  * Used by docs, boards, canvas, and any future collaborative content types.
+ * Single-sourced from the contracts package so backend and Zod contract can't
+ * drift (the tuple there also drives `collabSubtypeSchema`).
  */
-export const COLLAB_SUBTYPES = [
-  'blank',
-  'docs',
-  'antrag',
-  'pressemitteilung',
-  'protokoll',
-  'notizen',
-  'redaktionsplan',
-  'checkliste',
-  'einladung',
-  'tabelle',
-  'boards',
-  'canvas',
-  'sheets',
-  'presentations',
-];
+export const COLLAB_SUBTYPES: string[] = [...COLLAB_SUBTYPE_VALUES];
 
 /** @deprecated Use COLLAB_SUBTYPES instead */
 export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
