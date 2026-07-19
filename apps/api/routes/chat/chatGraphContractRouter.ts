@@ -43,6 +43,8 @@ import {
   looksLikeCompoundEdit,
   isEditorSurface,
   decideRunAgentic,
+  resolveEditorSurfaceKind,
+  decideEditToolLoop,
 } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
@@ -722,6 +724,32 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         looksLikeCompoundEdit(lastUserText);
       if (compoundEdit) classifiedState.compoundEdit = true;
 
+      // Tool-based editor edit: route the turn into the loop with the surface's
+      // `edit_document` tool mounted, so the model can search then edit the OPEN
+      // artifact in place (editor_operations SSE) instead of the client
+      // round-trip to /api/{sheets,…}/:id/ai. Enabled by default for surfaces
+      // with a tool path (TOOL_EDIT_SURFACES — currently only sheets, which isn't
+      // live). The still-live surfaces (doc/board/canvas) resolve to a kind not
+      // in that set → editToolLoop false → legacy trigger_doc_edit path unchanged.
+      const editToolSurfaceKind = resolveEditorSurfaceKind(
+        classifiedState.agentConfig?.identifier,
+        enabledTools ?? undefined
+      );
+      const editToolLoop = decideEditToolLoop({
+        loopEnabled: isAgenticLoopEnabled(),
+        surfaceKind: editToolSurfaceKind,
+        intent: classifiedState.intent,
+        isCompoundEdit: looksLikeCompoundEdit(lastUserText),
+        hasEditTarget: editTarget != null,
+        forcedTool: !!forcedTool,
+        isCompound,
+        hasImageAttachments: imageAttachments.length > 0,
+        secondaryIntent: classifiedState.secondaryIntent ?? null,
+      });
+      if (editToolLoop && editToolSurfaceKind) {
+        classifiedState.editToolSurface = editToolSurfaceKind;
+      }
+
       // Conversational board add ("häng den fertigen Post an mein Kanban-Board"):
       // the classifier labels it modify_board, but the single-pass confirm path
       // needs an explicit @board target (rawBoardIds) and otherwise degrades to
@@ -743,6 +771,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // compoundEdit forces the loop even for an edit_current_* intent (which
       // isn't otherwise a loop intent) — its guards above mirror decideRunAgentic's.
       const runAgentic =
+        editToolLoop ||
         compoundEdit ||
         decideRunAgentic({
           loopEnabled: isAgenticLoopEnabled(),
@@ -1474,6 +1503,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // edit_current_doc: the research loop just ran, and its gathered sources
       // become the reference material (instead of a prior assistant turn).
       if (
+        !editToolLoop &&
         (finalState.intent === 'edit_current_doc' || (compoundEdit && editTarget === 'doc')) &&
         rawCurrentDocument?.id
       ) {
@@ -1502,6 +1532,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // /api/boards/:id/ai to plan operations, then applies them to the live
       // Yjs board. ChatGraph never edits the board itself — classify + forward.
       if (
+        !editToolLoop &&
         (finalState.intent === 'edit_current_board' || (compoundEdit && editTarget === 'board')) &&
         rawCurrentBoard?.id
       ) {
