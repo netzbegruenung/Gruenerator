@@ -1,6 +1,6 @@
 import { useInView } from 'motion/react';
 import { lazy, Suspense, useRef, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom';
 
 import ReelMuster from '../../../assets/images/startseite/Reel_Muster.png';
 import { type IconCategory } from '../../../config/icons';
@@ -51,11 +51,11 @@ const featurePClass =
 const featureImageClass =
   'max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.12)]';
 
-const useCaseCardClass =
-  'text-center p-xl bg-background rounded-[var(--spacing-responsive-medium)] shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.2)]';
+// const useCaseCardClass =
+//   'text-center p-xl bg-background rounded-[var(--spacing-responsive-medium)] shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.2)]';
 
-const useCaseIconClass =
-  'flex items-center justify-center w-[60px] h-[60px] bg-secondary-500 rounded-2xl text-white mx-auto mb-md [&_svg]:text-[28px]';
+// const useCaseIconClass =
+//   'flex items-center justify-center w-[60px] h-[60px] bg-secondary-500 rounded-2xl text-white mx-auto mb-md [&_svg]:text-[28px]';
 
 const containerMaxWidth = 'max-w-[1200px] 3xl:max-w-[1500px] 4xl:max-w-[1600px] 5xl:max-w-[1900px]';
 
@@ -136,36 +136,36 @@ const FEATURES: FeatureData[] = [
   },
 ];
 
-interface UseCaseData {
-  icon: { category: IconCategory; name: string };
-  title: string;
-  description: string;
-  link?: string;
-  label?: string;
-}
+// interface UseCaseData {
+//   icon: { category: IconCategory; name: string };
+//   title: string;
+//   description: string;
+//   link?: string;
+//   label?: string;
+// }
 
-const USE_CASES: UseCaseData[] = [
-  {
-    icon: { category: 'navigation', name: 'barrierefreiheit' },
-    title: 'Barrierefreiheit',
-    description: 'Barrierefreie Texte schneller erstellen – verständlich und inklusiv.',
-    link: '/texte?tab=barrierefreiheit',
-    label: 'Zum Barrierefreiheit Grünerator',
-  },
-  {
-    icon: { category: 'navigation', name: 'suche' },
-    title: 'Websuche',
-    description: 'Finde Vorlagen, Inhalte und Beispiele direkt im Web.',
-    link: '/suche',
-    label: 'Zur Websuche',
-  },
-  {
-    icon: { category: 'actions', name: 'lock' },
-    title: 'Sicherheit',
-    description:
-      'Deine Daten werden sicher in Europa verarbeitet und nicht für KI-Training verwendet.',
-  },
-];
+// const USE_CASES: UseCaseData[] = [
+//   {
+//     icon: { category: 'navigation', name: 'barrierefreiheit' },
+//     title: 'Barrierefreiheit',
+//     description: 'Barrierefreie Texte schneller erstellen – verständlich und inklusiv.',
+//     link: '/texte?tab=barrierefreiheit',
+//     label: 'Zum Barrierefreiheit Grünerator',
+//   },
+//   {
+//     icon: { category: 'navigation', name: 'suche' },
+//     title: 'Websuche',
+//     description: 'Finde Vorlagen, Inhalte und Beispiele direkt im Web.',
+//     link: '/suche',
+//     label: 'Zur Websuche',
+//   },
+//   {
+//     icon: { category: 'actions', name: 'lock' },
+//     title: 'Sicherheit',
+//     description:
+//       'Deine Daten werden sicher in Europa verarbeitet und nicht für KI-Training verwendet.',
+//   },
+// ];
 
 const Home = () => {
   const contentRef = useRef<HTMLDivElement>(null);
@@ -212,7 +212,7 @@ const Home = () => {
           </div>
         </section>
 
-        <section className="py-2xl bg-background" aria-labelledby="use-cases-title">
+        {/* <section className="py-2xl bg-background" aria-labelledby="use-cases-title">
           <div className={`${containerMaxWidth} mx-auto px-5 md:px-2xl`}>
             <h2
               id="use-cases-title"
@@ -242,7 +242,7 @@ const Home = () => {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         <Footer />
       </div>

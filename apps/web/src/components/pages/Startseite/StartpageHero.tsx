@@ -101,10 +101,17 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
 
       <section className={`sp-hero${loginOpen ? ' is-login' : ''}`}>
         <div className="sp-topbar">
-          <span className="sp-wordmark">
-            Grünerator<span className="sp-wordmark-dot">.</span>
-          </span>
-          <span className="sp-eyebrow">KI für die Grünen</span>
+          <img
+            src="/images/gruenerator_logo_gruen.svg"
+            alt="Grünerator"
+            className="sp-logo sp-logo-light"
+          />
+          <img
+            src="/images/gruenerator_logo_weiss.svg"
+            alt="Grünerator"
+            aria-hidden="true"
+            className="sp-logo sp-logo-dark"
+          />
         </div>
 
         <h1 className="sr-only">Grünerator – die Grüne KI, exklusiv für Grüne Mitglieder</h1>
