@@ -33,6 +33,7 @@ import {
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
+import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -178,6 +179,118 @@ export const docsContractRouter = s.router(docsContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to delete document', details: message },
+      };
+    }
+  },
+
+  listMyGroups: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const groups = (await db.query(
+        `SELECT g.id, g.name, gm.role
+         FROM groups g
+         INNER JOIN group_memberships gm ON gm.group_id = g.id
+         WHERE gm.user_id = $1
+         ORDER BY g.name ASC`,
+        [userId]
+      )) as { id: string; name: string; role: string }[];
+      return { status: 200 as const, body: groups };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.listMyGroups] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to fetch user groups', details: message },
+      };
+    }
+  },
+
+  listDocumentGroupShares: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+
+      const doc = (await db.query(
+        'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+        [id]
+      )) as { created_by: string }[];
+      if (doc.length === 0) return { status: 404 as const, body: { error: 'Document not found' } };
+      if (doc[0].created_by !== userId) {
+        return {
+          status: 403 as const,
+          body: { error: 'Only document owner can manage group sharing' },
+        };
+      }
+
+      const shares = (await db.query(
+        `SELECT gcs.group_id, g.name as group_name, gcs.permissions, gcs.shared_at
+         FROM group_content_shares gcs
+         INNER JOIN groups g ON g.id = gcs.group_id
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1
+         ORDER BY gcs.shared_at DESC`,
+        [id]
+      )) as {
+        group_id: string;
+        group_name: string;
+        permissions: { write?: boolean } | null;
+        shared_at: string;
+      }[];
+
+      return {
+        status: 200 as const,
+        body: shares.map((s) => ({
+          group_id: s.group_id,
+          group_name: s.group_name,
+          permission_level: shareToPermissionLevel(s.permissions),
+          shared_at: s.shared_at,
+        })),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.listDocumentGroupShares] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to fetch group shares', details: message },
+      };
+    }
+  },
+
+  removeGroupShare: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id, groupId } = args.params;
+
+      const doc = (await db.query(
+        'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+        [id]
+      )) as { created_by: string }[];
+      if (doc.length === 0) return { status: 404 as const, body: { error: 'Document not found' } };
+      if (doc[0].created_by !== userId) {
+        return {
+          status: 403 as const,
+          body: { error: 'Only document owner can unshare from groups' },
+        };
+      }
+
+      const result = (await db.query(
+        `DELETE FROM group_content_shares
+         WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2
+         RETURNING id`,
+        [id, groupId]
+      )) as unknown[];
+      if (result.length === 0)
+        return { status: 404 as const, body: { error: 'Group share not found' } };
+
+      return {
+        status: 200 as const,
+        body: { message: 'Document unshared from group successfully' },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.removeGroupShare] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to unshare document from group', details: message },
       };
     }
   },

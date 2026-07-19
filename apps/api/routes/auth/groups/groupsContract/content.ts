@@ -4,7 +4,7 @@
  * into `s.router(...)` in `index.ts` stays fully type-inferred.
  */
 
-import { groupsContract } from '@gruenerator/contracts';
+import { groupsContract, type GroupContentResponse } from '@gruenerator/contracts';
 
 import { normalizeSharePermissions } from '../../../../services/groups/groupSharePermissions.js';
 import { notifyGroupMembers } from '../../../../services/notifications/index.js';
@@ -492,7 +492,16 @@ export const contentRoutes = {
         if (key) groupContent[key] = items;
       });
 
-      return { status: 200 as const, body: { success: true as const, content: groupContent } };
+      // Boundary assertion: the buckets are hydrated as loose records here; the
+      // contract types the homogeneous collaborative_documents bucket (id +
+      // subtype enum, passthrough). The hydrated rows always carry those fields.
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          content: groupContent as unknown as GroupContentResponse['content'],
+        },
+      };
     } catch (error) {
       return groupErrorResponse('listGroupContent', 'Fehler beim Laden der Gruppeninhalte.', error);
     }
