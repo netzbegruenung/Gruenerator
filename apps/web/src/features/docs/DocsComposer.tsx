@@ -295,7 +295,7 @@ export function DocsComposer({
 
   return (
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#9DBDAE] focus-within:shadow-[0_0_0_4px_rgba(95,133,117,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
+      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500">
         <div className="relative min-w-0 flex-1">
           {query.length === 0 && (
             <TypingAnimation
