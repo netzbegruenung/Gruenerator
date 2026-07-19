@@ -32,7 +32,10 @@ const BENIGN_MESSAGE_PATTERNS: RegExp[] = [
   /ECONNRESET|ECONNABORTED|aborted|premature close/i,
 ];
 
-function isBenign(message: string): boolean {
+const BENIGN_CODES = new Set(['unauthorized', 'aborted']);
+
+function isBenign(message: string, code?: string): boolean {
+  if (code && BENIGN_CODES.has(code)) return true;
   return BENIGN_MESSAGE_PATTERNS.some((re) => re.test(message));
 }
 
@@ -53,7 +56,7 @@ function isBenign(message: string): boolean {
  */
 export function captureSseError(opts: SseErrorOptions): void {
   try {
-    if (isBenign(opts.message)) {
+    if (isBenign(opts.message, opts.code)) {
       log.debug(`[sse] benign error suppressed: ${opts.message}`);
       return;
     }
