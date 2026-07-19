@@ -7,15 +7,18 @@
 @property --sp-sunrise-y {
   syntax: '<percentage>';
   inherits: false;
-  initial-value: 118%;
+  initial-value: 52%;
 }
-@property --sp-sunrise-spread {
-  syntax: '<percentage>';
+@property --sp-sunrise-glow {
+  syntax: '<number>';
   inherits: false;
-  initial-value: 55%;
+  initial-value: 1;
 }
 
-/* ── Backdrop: green at rest, yellow while the login is open ── */
+/* ── Backdrop: warm chat-tab glow at rest, yellow while the login is open ──
+   Geometry, color, strength and the entrance are copied 1:1 from the
+   workplace chat-tab sunrise (.workplace-chat-sunrise in
+   workplace-sunrise.css) — only the custom-property names differ. */
 .sp-sunrise {
   position: fixed;
   inset: 0;
@@ -23,17 +26,24 @@
   pointer-events: none;
   --sp-sunrise-opacity: 1;
   opacity: var(--sp-sunrise-opacity);
-  background: radial-gradient(
-    130% 95% at 50% var(--sp-sunrise-y),
-    #a9dc74 0%,
-    #cfeaa1 14%,
-    rgba(128, 182, 70, 0.22) var(--sp-sunrise-spread),
-    transparent 78%
+  background-color: #fefcf5;
+  background-image: radial-gradient(
+    88% 58% at 50% var(--sp-sunrise-y),
+    rgb(233 214 150 / calc(0.5 * var(--sp-sunrise-glow))) 0%,
+    rgb(233 214 150 / calc(0.18 * var(--sp-sunrise-glow))) 40%,
+    rgb(255 255 255 / 0) 74%
   );
   animation: sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 [data-theme='dark'] .sp-sunrise {
-  --sp-sunrise-opacity: 0.4;
+  background-color: transparent;
+  background-image: radial-gradient(
+    88% 58% at 50% 52%,
+    rgb(233 214 150 / 0.1) 0%,
+    rgb(233 214 150 / 0.035) 42%,
+    rgb(0 0 0 / 0) 74%
+  );
+  animation: none;
 }
 
 .sp-sunrise-warm {
@@ -60,14 +70,12 @@
 
 @keyframes sp-sunrise-in {
   from {
-    --sp-sunrise-y: 118%;
-    --sp-sunrise-spread: 40%;
-    opacity: 0;
+    --sp-sunrise-y: 82%;
+    --sp-sunrise-glow: 0;
   }
   to {
-    --sp-sunrise-y: 50%;
-    --sp-sunrise-spread: 55%;
-    opacity: var(--sp-sunrise-opacity);
+    --sp-sunrise-y: 52%;
+    --sp-sunrise-glow: 1;
   }
 }
 
@@ -108,24 +116,19 @@
   gap: 16px;
   padding: 22px 32px;
 }
-.sp-wordmark {
-  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--sp-wordmark);
+.sp-logo {
+  height: 40px;
+  width: auto;
+  display: block;
 }
-.sp-wordmark-dot {
-  color: #52907a;
+.sp-logo-dark {
+  display: none;
 }
-.sp-eyebrow {
-  font-family: 'PT Sans', Arial, sans-serif;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--font-color);
-  opacity: 0.55;
+[data-theme='dark'] .sp-logo-light {
+  display: none;
+}
+[data-theme='dark'] .sp-logo-dark {
+  display: block;
 }
 
 /* ── Headline ── */
@@ -327,12 +330,8 @@
   .sp-topbar {
     padding: 18px 20px;
   }
-  .sp-wordmark {
-    font-size: 1.15rem;
-  }
-  .sp-eyebrow {
-    font-size: 0.68rem;
-    letter-spacing: 0.09em;
+  .sp-logo {
+    height: 34px;
   }
   .sp-headline {
     margin-bottom: 32px;
@@ -377,8 +376,8 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-sunrise {
     animation: none;
-    --sp-sunrise-y: 50%;
-    --sp-sunrise-spread: 55%;
+    --sp-sunrise-y: 52%;
+    --sp-sunrise-glow: 1;
     opacity: var(--sp-sunrise-opacity);
   }
   .sp-sunrise-warm {
