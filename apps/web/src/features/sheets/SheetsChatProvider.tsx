@@ -10,7 +10,7 @@ import {
   type ChatRequestContext,
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
-import { chatThreadResponseSchema } from '@gruenerator/contracts';
+import { chatThreadResponseSchema, sheetOperationSchema } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { applySheetOperations, serializeSheetContext, type FUniver } from '@gruenerator/sheets';
 import { useMemo, useRef, type ReactNode } from 'react';
@@ -87,9 +87,13 @@ export function SheetsChatProvider({
           edit_current_doc: edit,
         },
       }),
+      // Sheets aren't live yet, so there's no legacy trigger_doc_edit path to
+      // preserve: the loop's edit_document tool plans the ops server-side and
+      // streams them as editor_operations, and we apply them in place via the
+      // Univer Facade (which flows through the collab bridge + native undo).
       registerEditHandler: (ctx) =>
-        useChatConfigStore.getState().registerDocumentEditHandler(documentId, async (payload) => {
-          if (payload.targetDocumentId !== documentId) return;
+        useChatConfigStore.getState().registerEditorOpsHandler(documentId, async (payload) => {
+          if (payload.targetId !== documentId || payload.surface !== 'sheet') return;
           const { toast } = await import('sonner');
           if (!ctx.getAiEditEnabled()) {
             toast.info('KI-Bearbeitung ist deaktiviert — es wurde nichts an der Tabelle geändert.');
@@ -100,49 +104,29 @@ export function SheetsChatProvider({
             toast.error('Die Tabelle ist noch nicht geladen.');
             return;
           }
-          try {
-            const result = await getContractsClient().sheets.ai({
-              params: { id: documentId },
-              body: {
-                userPrompt: payload.userPrompt,
-                sheetContext: serializeSheetContext(workbook),
-                ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
-              },
+          // Defence in depth: the wire carries ops as unknown[]; re-validate each
+          // against the op schema so one malformed op drops alone.
+          const ops = [];
+          for (const raw of payload.operations) {
+            const parsed = sheetOperationSchema.safeParse(raw);
+            if (parsed.success) ops.push(parsed.data);
+          }
+          if (ops.length === 0) {
+            toast.info('Es wurde keine Tabellen-Änderung erkannt — nichts wurde geändert.');
+            return;
+          }
+          const { applied, skipped } = applySheetOperations(workbook, ops);
+          if (applied > 0) {
+            // Dedup + short duration: a stable id collapses repeated edits into one
+            // toast, and an explicit duration stops sonner from keeping the toast
+            // alive over the composer.
+            toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`, {
+              id: 'sheet-edit-applied',
+              duration: 2000,
             });
-            if (result.status === 401) {
-              // Session died mid-edit. The contracts client already routed this
-              // through onUnauthorized (probe → redirect on a dead session); show a
-              // clear message instead of the generic failure toast — and never let a
-              // transparently-retried write fall through to a false success toast.
-              toast.error('Sitzung abgelaufen — bitte neu anmelden.');
-              return;
-            }
-            if (result.status !== 200) {
-              toast.error('Tabellen-Aktion fehlgeschlagen.');
-              return;
-            }
-            if (result.body.operations.length === 0) {
-              toast.info('Es wurde keine Tabellen-Änderung erkannt — nichts wurde geändert.');
-              return;
-            }
-            const { applied, skipped } = applySheetOperations(workbook, result.body.operations);
-            if (applied > 0) {
-              // Dedup + short duration: a stable id collapses repeated edits into one
-              // toast, and an explicit duration stops sonner from keeping the toast
-              // alive (its dismiss timer pauses while the cursor hovers the region,
-              // which otherwise piles them up over the composer).
-              toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`, {
-                id: 'sheet-edit-applied',
-                duration: 2000,
-              });
-            }
-            if (skipped.length > 0) {
-              toast.warning(skipped.join(' · '));
-            }
-          } catch (err) {
-            toast.error(
-              `Tabellen-Aktion fehlgeschlagen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`
-            );
+          }
+          if (skipped.length > 0) {
+            toast.warning(skipped.join(' · '));
           }
         }),
     }),

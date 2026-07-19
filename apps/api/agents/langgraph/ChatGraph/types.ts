@@ -609,6 +609,10 @@ export interface ChatGraphState {
   // research loop, then emits trigger_doc_edit/trigger_board_action with the
   // gathered sources as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
+  // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the resolved editor surface
+  // whose `edit_document`/`edit_board` tool the loop mounts. Set only when the
+  // per-surface flag is on; null/undefined keeps the legacy trigger_doc_edit path.
+  editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

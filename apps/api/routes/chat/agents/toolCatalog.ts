@@ -48,6 +48,7 @@ import {
   makeSummaryTool,
   makeUmfragenTool,
 } from './domainTools.js';
+import { makeEditArtifactTool } from './editorTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
@@ -216,6 +217,16 @@ NUTZE WENN:
     // — they must never spawn a NEW artifact (image OR create fat tool). Gated
     // server-side (the frontend not setting the tools:false is not enough).
     const editorSurface = isEditorSurface(state.enabledTools);
+
+    // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the loop edits the OPEN
+    // artifact in place via `edit_document` instead of the client round-trip to
+    // the bespoke /api/{sheets,…}/:id/ai endpoint. Mounted only when the router
+    // resolved + flagged the surface (state.editToolSurface set); otherwise the
+    // legacy trigger_doc_edit path stays in force. appliedOpsLog is per-turn.
+    if (state.editToolSurface) {
+      const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
+      if (editTool) tools.edit_document = editTool;
+    }
 
     // Personal-data resource tools: the user's OWN documents, boards, tasks,
     // groups, media and notebooks (read + light management). Always mounted (the

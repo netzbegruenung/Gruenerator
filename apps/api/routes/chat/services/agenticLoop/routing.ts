@@ -192,13 +192,21 @@ export function resolveEditorSurfaceKind(
   return null;
 }
 
+/**
+ * Editor surfaces with a tool-based edit path implemented — the loop plans ops
+ * and streams `editor_operations` instead of the client round-trip. These are
+ * NOT live yet, so there is no legacy behaviour to protect and no rollout flag:
+ * the tool path is simply the default for them. The still-live surfaces
+ * (`doc`, `board`, `canvas`) are absent here and keep the trigger_doc_edit path.
+ * Add a surface once its editorTools branch AND client ops handler are wired.
+ */
+export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set(['sheet']);
+
 export interface EditToolLoopInput {
-  /** CHAT_AGENT_LOOP flag — the edit tool only exists inside the loop. */
+  /** CHAT_AGENT_LOOP — the edit tool only exists inside the loop. */
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  /** Surfaces the CHAT_EDIT_TOOL_SURFACES flag has enabled the tool for. */
-  flaggedSurfaces: ReadonlySet<EditorSurfaceKind>;
   intent: string;
   /** The turn is a "research + edit the open artifact" compound (looksLikeCompoundEdit). */
   isCompoundEdit: boolean;
@@ -211,16 +219,15 @@ export interface EditToolLoopInput {
 }
 
 /**
- * Whether a turn should route into the loop with the surface's `edit_document`/
- * `edit_board` tool mounted. Requires the loop + per-surface flag on, a resolved
- * and flagged surface with an open target, and an edit intent — then the same
- * single-pass kill-switches as {@link decideRunAgentic} apply. When the flag is
- * off (`flaggedSurfaces` empty) this is always false, so the legacy
- * trigger_doc_edit path is unaffected.
+ * Whether a turn should route into the loop with the surface's `edit_document`
+ * tool mounted. Requires the loop on, a resolved surface that HAS a tool path
+ * ({@link TOOL_EDIT_SURFACES}) with an open target, and an edit intent — then the
+ * same single-pass kill-switches as {@link decideRunAgentic} apply. A surface
+ * without a tool path (doc/board/canvas) returns false → legacy trigger path.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;
-  if (!p.surfaceKind || !p.flaggedSurfaces.has(p.surfaceKind)) return false;
+  if (!p.surfaceKind || !TOOL_EDIT_SURFACES.has(p.surfaceKind)) return false;
   if (!p.hasEditTarget) return false;
   const isEditIntent =
     p.intent === 'edit_current_doc' || p.intent === 'edit_current_board' || p.isCompoundEdit;

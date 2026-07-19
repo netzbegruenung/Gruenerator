@@ -10,7 +10,6 @@ import {
   resolveEditorSurfaceKind,
   decideEditToolLoop,
   type EditToolLoopInput,
-  type EditorSurfaceKind,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -499,7 +498,6 @@ describe('decideEditToolLoop', () => {
   const base: EditToolLoopInput = {
     loopEnabled: true,
     surfaceKind: 'sheet',
-    flaggedSurfaces: new Set<EditorSurfaceKind>(['sheet']),
     intent: 'edit_current_doc',
     isCompoundEdit: false,
     hasEditTarget: true,
@@ -509,15 +507,18 @@ describe('decideEditToolLoop', () => {
     secondaryIntent: null,
   };
 
-  it('enters the loop for a flagged surface with an edit intent and open target', () => {
+  it('enters the loop for a tool-path surface with an edit intent and open target', () => {
     expect(decideEditToolLoop(base)).toBe(true);
   });
 
-  it('is a no-op when the surface is not flagged (default rollout state)', () => {
-    expect(decideEditToolLoop({ ...base, flaggedSurfaces: new Set() })).toBe(false);
+  it('keeps the legacy trigger path for a surface without a tool implementation', () => {
+    // doc/board/canvas are still live and have no tool path yet.
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(false);
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
   });
 
-  it('requires the loop flag', () => {
+  it('requires the loop to be enabled', () => {
     expect(decideEditToolLoop({ ...base, loopEnabled: false })).toBe(false);
   });
 
@@ -538,9 +539,7 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, secondaryIntent: 'image' })).toBe(false);
   });
 
-  it('rejects a surface not present in the flagged set', () => {
-    expect(
-      decideEditToolLoop({ ...base, surfaceKind: 'board', flaggedSurfaces: new Set(['sheet']) })
-    ).toBe(false);
+  it('rejects a null surface', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: null })).toBe(false);
   });
 });
