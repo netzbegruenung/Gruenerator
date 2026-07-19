@@ -976,7 +976,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'landesverband',
       baseUrl: 'https://gruene-saar.de',
       cms: 'wordpress',
-      maxAgeYears: 4,
+      maxAgeYears: 5,
       contentPaths: [
         {
           type: 'presse',
