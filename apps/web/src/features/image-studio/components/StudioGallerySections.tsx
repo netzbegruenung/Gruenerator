@@ -1,7 +1,10 @@
 import { isCanvasTemplateType, type CanvasListItem } from '@gruenerator/contracts';
-import { CardGrid, SectionHeader } from '@gruenerator/ui';
-import { Download, Share2 } from 'lucide-react';
-import { useState, useMemo, useCallback } from 'react';
+import { useShareStore } from '@gruenerator/shared';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { CardActionsMenu, CardGrid, DropdownMenuItem, SectionHeader } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
+import { Download, Pencil, Share2 } from 'lucide-react';
+import { useState, useMemo, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
@@ -59,6 +62,7 @@ const PreviewCard = ({
   priority,
   fallbackEmoji,
   onClick,
+  actions,
 }: {
   title: string;
   /** External/non-shared-media thumbnail URL (e.g. template previews). */
@@ -69,14 +73,21 @@ const PreviewCard = ({
   priority?: boolean;
   fallbackEmoji?: string;
   onClick: () => void;
+  /** Optional kebab menu (rename/delete), overlaid top-right, shown on hover. */
+  actions?: ReactNode;
 }) => (
   <div
-    className="group flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
+    className="group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
     onClick={onClick}
     role="button"
     tabIndex={0}
     onKeyDown={(e) => e.key === 'Enter' && onClick()}
   >
+    {actions && (
+      <div className="absolute right-1.5 top-1.5 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
+        {actions}
+      </div>
+    )}
     <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-square">
       {shareToken ? (
         <SharedMediaImage
@@ -112,8 +123,67 @@ const StudioGallerySections = () => {
   const [previewItem, setPreviewItem] = useState<RecentGalleryItem | null>(null);
   const [shareItem, setShareItem] = useState<RecentGalleryItem | null>(null);
 
-  const { items: recentGalleryItems, lastFetch: galleryLastFetch } =
-    useRecentGalleryItems(RECENT_GALLERY_OPTIONS);
+  const {
+    items: recentGalleryItems,
+    lastFetch: galleryLastFetch,
+    refresh: refreshGallery,
+  } = useRecentGalleryItems(RECENT_GALLERY_OPTIONS);
+
+  const queryClient = useQueryClient();
+  const deleteShare = useShareStore((s) => s.deleteShare);
+
+  // Rename/delete for the two sharepic backends. Canvas docs support both via the
+  // contracts client; published shares only support delete (no title-only endpoint).
+  const handleRenameCanvas = useCallback(
+    (item: CanvasListItem) => {
+      const next = window.prompt('Neuer Titel:', item.title || 'Sharepic');
+      if (next === null) return;
+      const title = next.trim();
+      if (!title || title === item.title) return;
+      void getContractsClient()
+        .canvas.update({ params: { id: item.id }, body: { title } })
+        .then((result) => {
+          if (result.status === 200) {
+            void queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] });
+          } else {
+            console.error('[StudioGallerySections] canvas rename failed', result.status);
+          }
+        })
+        .catch((err: unknown) =>
+          console.error('[StudioGallerySections] canvas rename failed', err)
+        );
+    },
+    [queryClient]
+  );
+
+  const handleDeleteCanvas = useCallback(
+    (item: CanvasListItem) => {
+      if (!window.confirm('Sharepic wirklich löschen?')) return;
+      void getContractsClient()
+        .canvas.remove({ params: { id: item.id } })
+        .then((result) => {
+          if (result.status === 200) {
+            void queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] });
+          } else {
+            console.error('[StudioGallerySections] canvas delete failed', result.status);
+          }
+        })
+        .catch((err: unknown) =>
+          console.error('[StudioGallerySections] canvas delete failed', err)
+        );
+    },
+    [queryClient]
+  );
+
+  const handleDeleteShare = useCallback(
+    (item: RecentGalleryItem) => {
+      if (!window.confirm('Sharepic wirklich löschen?')) return;
+      void deleteShare(item.shareToken)
+        .then(() => refreshGallery())
+        .catch((err: unknown) => console.error('[StudioGallerySections] share delete failed', err));
+    },
+    [deleteShare, refreshGallery]
+  );
 
   const isAustrianUser = user?.locale === 'de-AT';
 
@@ -266,6 +336,17 @@ const StudioGallerySections = () => {
                       shareThumbnailPreviewUrl(card.item.thumbnail_url ?? undefined)
                     )}
                     onClick={() => void navigate(`/studio/canvas/${card.item.id}`)}
+                    actions={
+                      <CardActionsMenu
+                        onDelete={() => handleDeleteCanvas(card.item)}
+                        className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
+                      >
+                        <DropdownMenuItem onClick={() => handleRenameCanvas(card.item)}>
+                          <Pencil size={14} />
+                          Umbenennen
+                        </DropdownMenuItem>
+                      </CardActionsMenu>
+                    }
                   />
                 ) : (
                   <PreviewCard
@@ -280,6 +361,13 @@ const StudioGallerySections = () => {
                       SHOW_SHAREPIC_STUDIO
                         ? handleGalleryItemEdit(card.item)
                         : setPreviewItem(card.item)
+                    }
+                    // Published shares support delete only (no title-only rename endpoint).
+                    actions={
+                      <CardActionsMenu
+                        onDelete={() => handleDeleteShare(card.item)}
+                        className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
+                      />
                     }
                   />
                 )
