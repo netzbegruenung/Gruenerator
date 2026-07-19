@@ -28,6 +28,8 @@ import {
   createDocumentBodySchema,
   generateDocumentBodySchema,
   listDocumentsQuerySchema,
+  updateDocumentBodySchema,
+  docsMessageResponseSchema,
 } from '../schemas/docs.js';
 
 const c = initContract();
@@ -51,6 +53,47 @@ export const docsContract = c.router(
         500: docsErrorWithDetailsSchema,
       },
       summary: 'Get document metadata by ID',
+    },
+
+    /**
+     * PUT /api/docs/:id
+     * Update a collaborative document's metadata (title/folder) or editor state
+     * (content/wolke_live_sync). Requires edit access (owner / direct editor /
+     * group-write). Scoped server-side to document subtypes (NOT boards/canvas).
+     */
+    updateDocument: {
+      method: 'PUT',
+      path: '/api/docs/:id',
+      pathParams: z.object({ id: z.string() }),
+      body: updateDocumentBodySchema,
+      responses: {
+        200: collaborativeDocumentSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'Update document metadata',
+    },
+
+    /**
+     * DELETE /api/docs/:id
+     * Soft-delete a collaborative document. Owner only. Scoped server-side to
+     * document subtypes (NOT boards/canvas — those delete via their own routes).
+     */
+    deleteDocument: {
+      method: 'DELETE',
+      path: '/api/docs/:id',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: docsMessageResponseSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'Soft-delete a document',
     },
 
     /**
