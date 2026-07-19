@@ -185,6 +185,23 @@ const StudioGallerySections = () => {
     [deleteShare, refreshGallery]
   );
 
+  const handleRenameShare = useCallback(
+    (item: RecentGalleryItem) => {
+      const next = window.prompt('Neuer Titel:', item.title || 'Sharepic');
+      if (next === null) return;
+      const title = next.trim();
+      if (!title || title === item.title) return;
+      void getContractsClient()
+        .sharesRead.renameShare({ params: { shareToken: item.shareToken }, body: { title } })
+        .then((result) => {
+          if (result.status === 200) refreshGallery();
+          else console.error('[StudioGallerySections] share rename failed', result.status);
+        })
+        .catch((err: unknown) => console.error('[StudioGallerySections] share rename failed', err));
+    },
+    [refreshGallery]
+  );
+
   const isAustrianUser = user?.locale === 'de-AT';
 
   // Canvas cards lead to the flag-gated internal editor for both DE and AT
@@ -362,12 +379,16 @@ const StudioGallerySections = () => {
                         ? handleGalleryItemEdit(card.item)
                         : setPreviewItem(card.item)
                     }
-                    // Published shares support delete only (no title-only rename endpoint).
                     actions={
                       <CardActionsMenu
                         onDelete={() => handleDeleteShare(card.item)}
                         className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
-                      />
+                      >
+                        <DropdownMenuItem onClick={() => handleRenameShare(card.item)}>
+                          <Pencil size={14} />
+                          Umbenennen
+                        </DropdownMenuItem>
+                      </CardActionsMenu>
                     }
                   />
                 )

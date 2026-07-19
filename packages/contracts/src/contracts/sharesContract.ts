@@ -26,6 +26,7 @@ import {
   shareListResponseSchema,
   shareListSimpleResponseSchema,
   deleteShareResponseSchema,
+  renameShareBodySchema,
   cloneTemplateResponseSchema,
   listTemplatesResponseSchema,
   getTemplateResponseSchema,
@@ -292,6 +293,19 @@ export const sharesReadContract = c.router(
         500: shareErrorResponseSchema,
       },
       summary: 'Delete a share',
+    },
+    renameShare: {
+      method: 'PATCH',
+      path: '/api/share/:shareToken',
+      pathParams: z.object({ shareToken: z.string() }),
+      body: renameShareBodySchema,
+      responses: {
+        200: deleteShareResponseSchema,
+        401: shareErrorResponseSchema,
+        404: shareErrorResponseSchema,
+        500: shareErrorResponseSchema,
+      },
+      summary: 'Rename a share (title only)',
     },
   },
   { pathPrefix: '' }
