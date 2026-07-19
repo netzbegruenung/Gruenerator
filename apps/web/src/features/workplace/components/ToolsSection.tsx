@@ -4,7 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -15,10 +15,13 @@ import {
   OFFICE_TOOLS,
   TOOL_MENUS,
   WORKPLACE_TOOLS,
+  filterWorkplaceTools,
   isFavouritableTool,
+  sortToolsByFavourites,
   type WorkplaceToolItem,
   type WorkplaceToolMenu,
 } from '../../../config/workplaceToolsConfig';
+import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 
 import type { IconType } from '../../../config/icons';
 
@@ -291,24 +294,33 @@ const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
 ].filter((t): t is WorkplaceToolItem => Boolean(t));
 
 // The single Arbeiten tool row: colored creation tiles + the Weitere dropdown tile,
-// in one horizontal Wissen-style scroll strip.
-export const OfficeSection = React.memo(() => (
-  <>
-    <SectionHeading title="Tools" />
-    <div className={OFFICE_SCROLL_ROW}>
-      {OFFICE_ROW_TOOLS.map((tool) => (
-        <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-          <OfficeTile tool={tool} />
-        </div>
-      ))}
-      {TOOL_MENUS.map((menu) => (
-        <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
-          <OfficeDropdownTile menu={menu} />
-        </div>
-      ))}
-    </div>
-  </>
-));
+// in one horizontal Wissen-style scroll strip. Favourited tools float to the front
+// (default order otherwise); the Weitere dropdown isn't favouritable, so it stays last.
+export const OfficeSection = React.memo(() => {
+  const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
+  const tiles = useMemo(
+    () => sortToolsByFavourites(filterWorkplaceTools(OFFICE_ROW_TOOLS), favouriteIds),
+    [favouriteIds]
+  );
+
+  return (
+    <>
+      <SectionHeading title="Tools" />
+      <div className={OFFICE_SCROLL_ROW}>
+        {tiles.map((tool) => (
+          <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+            <OfficeTile tool={tool} />
+          </div>
+        ))}
+        {TOOL_MENUS.map((menu) => (
+          <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
+            <OfficeDropdownTile menu={menu} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+});
 
 OfficeSection.displayName = 'OfficeSection';
 
