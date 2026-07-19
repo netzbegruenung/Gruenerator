@@ -54,12 +54,12 @@ export function activeFiltersToApi(filters: ActiveFilters): Record<string, unkno
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+// Only fields with a manual UI and reliable population. Dropped 2026-07:
+// `region` is never written to any Qdrant payload (dead facet); `content_type`
+// /`primary_category`/`subcategories` have no manual UI and no NL-parser path,
+// so surfacing them here only fed phantom filters.
 const ALLOWED_FILTER_FIELDS = new Set([
   'published_at',
-  'content_type',
-  'primary_category',
-  'subcategories',
-  'region',
   // NLP-enriched per-document facets
   'themes',
   'persons',
