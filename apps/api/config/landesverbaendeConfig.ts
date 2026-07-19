@@ -1066,6 +1066,9 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // + recentSkip so it only runs in the nightly full crawl, not hourly.
           // NOTE: verify folder contents via NextcloudApiClient.listFolder on first
           // run — if the share is password-protected the WebDAV auth needs the pw.
+          // `path`/`listSelector` are unused placeholders for wolkeShare paths
+          // (discovery comes from the share, not an HTML listing) but the
+          // ContentPath type requires them.
           type: 'beschluss',
           path: '/wolke/kPJQGMzGzm9HD3T/',
           listSelector: '',
