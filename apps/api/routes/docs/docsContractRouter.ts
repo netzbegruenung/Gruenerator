@@ -22,6 +22,11 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
+  softDeleteCollaborativeDocument,
+  updateCollaborativeDocument,
+  type QueryRunner,
+} from '../../services/docs/CollaborativeDocumentService.js';
+import {
   DOCUMENT_GENERATION_PROMPT,
   parseDocumentResponse,
   createDocumentWithContent,
@@ -46,6 +51,11 @@ import type { Application, Request } from 'express';
 
 const log = createLogger('docsContractRouter');
 const db = getPostgresInstance();
+
+// Adapter so CollaborativeDocumentService can run against the live pool while
+// staying unit-testable with a mocked runner.
+const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
+  db.query(sql, params) as Promise<T[]>;
 
 /**
  * Extract the authenticated user id.
@@ -109,6 +119,64 @@ export const docsContractRouter = s.router(docsContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to fetch document', details: message },
+      };
+    }
+  },
+
+  updateDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+      const { title, folder_id, content, wolke_live_sync } = args.body;
+      const result = await updateCollaborativeDocument(runQuery, id, userId, DOCS_ONLY_SUBTYPES, {
+        title,
+        folder_id,
+        content,
+        wolke_live_sync,
+      });
+      if (result.status === 'not_found') {
+        return { status: 404 as const, body: { error: 'Document not found' } };
+      }
+      if (result.status === 'forbidden') {
+        return {
+          status: 403 as const,
+          body: { error: 'Insufficient permissions to edit document' },
+        };
+      }
+      return { status: 200 as const, body: result.document as CollaborativeDocument };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.updateDocument] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to update document', details: message },
+      };
+    }
+  },
+
+  deleteDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+      const result = await softDeleteCollaborativeDocument(
+        runQuery,
+        id,
+        userId,
+        DOCS_ONLY_SUBTYPES
+      );
+      if (result.status === 'not_found') {
+        return { status: 404 as const, body: { error: 'Document not found' } };
+      }
+      if (result.status === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Only owners can delete documents' } };
+      }
+      return { status: 200 as const, body: { message: 'Document deleted successfully' } };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.deleteDocument] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to delete document', details: message },
       };
     }
   },
