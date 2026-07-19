@@ -20,6 +20,36 @@ import { socialPostPayloadSchema } from './socialPost.js';
  */
 
 /**
+ * Machine-readable cause of a chat stream failure — travels on the SSE `error`
+ * event alongside the human-readable German `error` message. The enum types
+ * the backend emitters; the wire schema below deliberately validates `code`
+ * as a plain string so an OLDER client never drops an error event just
+ * because a NEWER backend introduced a code it doesn't know yet.
+ */
+export const chatErrorCodeSchema = z.enum([
+  'rate_limited',
+  'provider_unavailable',
+  'first_token_timeout',
+  'stream_interrupted',
+  'search_degraded',
+  'unauthorized',
+  'invalid_request',
+  'internal',
+]);
+export type ChatErrorCode = z.infer<typeof chatErrorCodeSchema>;
+
+/** Wire payload of the SSE `error` event (see chatErrorCodeSchema for `code`). */
+export const chatErrorEventPayloadSchema = z
+  .object({
+    error: z.string().optional(),
+    code: z.string().optional(),
+    retryable: z.boolean().optional(),
+    retryAfterMs: z.number().optional(),
+  })
+  .passthrough();
+export type ChatErrorEventPayload = z.infer<typeof chatErrorEventPayloadSchema>;
+
+/**
  * Every chat intent the backend classifier can emit — single source of truth
  * for the `intent` SSE event AND the API's `SearchIntent` type (derived via
  * z.infer in apps/api ChatGraph/types.ts, re-exported by packages/chat).
@@ -470,5 +500,5 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       citations: z.array(z.unknown()).optional(),
     })
     .passthrough(),
-  error: z.object({ error: z.string().optional() }).passthrough(),
+  error: chatErrorEventPayloadSchema,
 };
