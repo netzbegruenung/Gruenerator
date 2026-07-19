@@ -9,10 +9,16 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false"
+      }
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_DEV_AUTH_BYPASS": "false"
+      },
       "android": {
         "buildType": "app-bundle"
       }
