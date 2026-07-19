@@ -32,6 +32,7 @@ import { sendLvSyncNotificationEmail } from '../../../email/emailService.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
 import { BaseScraper } from '../../base/BaseScraper.js';
+import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
 
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
@@ -198,6 +199,13 @@ export class LandesverbandScraper extends BaseScraper {
 
     this.log(`\nScraping ${source.name} - ${contentPath.type} from ${contentPath.path}`);
 
+    // Incremental hourly runs skip heavy PDF/OCR/Wolke paths (recentSkip) — those
+    // only run in the nightly full crawl, so PDFs aren't re-fetched every hour.
+    if (recent && contentPath.recentSkip) {
+      this.log(`Incremental run: skipping ${contentPath.type} (${contentPath.path}) — recentSkip`);
+      return result;
+    }
+
     if (contentPath.isPdfArchive) {
       // PDF archive processing with cost optimization
       const pdfLinks = await this.linkExtractor.extractPdfLinks(source, contentPath);
@@ -334,6 +342,98 @@ export class LandesverbandScraper extends BaseScraper {
           console.error(
             `[Landesverband] ✗ PDF error in ${source.id} (${pdf.url}): ${errorMessage}`
           );
+          result.errors++;
+        }
+      }
+    } else if (contentPath.wolkeShare) {
+      // Public Nextcloud "Wolke" share as a content source. etag dedup skips
+      // download+OCR for unchanged files (so this stays cheap on re-runs).
+      const { shareLink, recursive = true } = contentPath.wolkeShare;
+      let collected: Awaited<ReturnType<typeof collectWolkeShareFiles>>;
+      try {
+        collected = await collectWolkeShareFiles(shareLink, recursive, this.log.bind(this));
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Unknown error';
+        console.error(
+          `[Landesverband] Wolke share list failed for ${source.id} (${shareLink}): ${msg}`
+        );
+        result.errors++;
+        return result;
+      }
+
+      const { client, files } = collected;
+      const toProcess = maxDocuments ? files.slice(0, maxDocuments) : files;
+
+      // Dry run: report new vs already-stored, don't download/OCR/store.
+      if (dryRun) {
+        let newCount = 0;
+        let existingCount = 0;
+        for (const file of toProcess) {
+          const points = await scrollDocuments(
+            this.qdrantClient,
+            targetCollection,
+            { must: [{ key: 'source_url', match: { value: file.url } }] },
+            { limit: 1, withPayload: false, withVector: false }
+          );
+          if (points.length > 0) existingCount++;
+          else newCount++;
+        }
+        result.stored = newCount;
+        result.skipped += existingCount;
+        this.log(`[DRY RUN] ${newCount} new Wolke files, ${existingCount} already stored`);
+        return result;
+      }
+
+      this.log(`Processing ${toProcess.length} Wolke file(s)`);
+
+      for (let i = 0; i < toProcess.length; i++) {
+        const file = toProcess[i];
+        try {
+          // Layer-1 dedup: skip the download+OCR when the stored etag matches.
+          if (!forceUpdate && file.etag) {
+            const existing = await scrollDocuments(
+              this.qdrantClient,
+              targetCollection,
+              { must: [{ key: 'source_url', match: { value: file.url } }] },
+              { limit: 1, withPayload: true, withVector: false }
+            );
+            if (existing.length > 0 && existing[0].payload?.wolke_etag === file.etag) {
+              result.skipped++;
+              result.skipReasons['unchanged'] = (result.skipReasons['unchanged'] || 0) + 1;
+              continue;
+            }
+          }
+
+          const text = await extractWolkeFileText(client, file);
+          const title = file.name.replace(/\.[^.]+$/, '');
+          const storeResult = await this.documentProcessor.processAndStoreDocument(
+            source,
+            contentPath.type,
+            file.url,
+            { title, text, publishedAt: null, categories: [] },
+            targetCollection,
+            source.maxAgeYears,
+            file.etag ? { wolke_etag: file.etag } : undefined
+          );
+
+          if (storeResult.stored) {
+            if (storeResult.updated) result.updated++;
+            else {
+              result.stored++;
+              result.newArticles.push({ title, url: file.url, type: contentPath.type });
+            }
+            result.totalVectors += storeResult.vectors || 0;
+            this.log(`✓ Wolke [${i + 1}/${toProcess.length}] ${title}`);
+          } else {
+            result.skipped++;
+            result.skipReasons[storeResult.reason || 'unknown'] =
+              (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+          }
+
+          await this.delay(this.crawlDelay);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`[Landesverband] ✗ Wolke error in ${source.id} (${file.url}): ${msg}`);
           result.errors++;
         }
       }
