@@ -107,6 +107,29 @@ export function isAuiInternalThreadId(id: string | undefined): boolean {
   return !!id && id.startsWith('__');
 }
 
+/**
+ * How an adapter binds a run to a thread id.
+ *
+ * - 'runtime' (default, /chat): prefer the runtime-reported per-run thread id —
+ *   it protects against a rapid thread switch racing the store id (a run
+ *   started in thread A must persist to A even if the user already switched to
+ *   B). aui-internal sentinels are filtered via {@link isAuiInternalThreadId}.
+ * - 'pinned' (embedded surfaces: editor sidebars, one thread per mount): the
+ *   surface-resolved getConfig().threadId is authoritative; the runtime id is
+ *   never consulted, so no aui version can ever leak an internal id into the
+ *   request (the notebook adapter follows the same principle by construction).
+ */
+export type ThreadBinding = 'runtime' | 'pinned';
+
+/** Pure per-run thread-id decision; null = use getConfig().threadId. */
+export function resolveRuntimeThreadId(
+  binding: ThreadBinding,
+  unstableThreadId: string | undefined
+): string | null {
+  if (binding === 'pinned') return null;
+  return unstableThreadId && !isAuiInternalThreadId(unstableThreadId) ? unstableThreadId : null;
+}
+
 export function buildRequestBody(params: BuildRequestBodyParams): Record<string, unknown> {
   const {
     effectiveMode,

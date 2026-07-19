@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRequestBody,
   isAuiInternalThreadId,
+  resolveRuntimeThreadId,
   type BuildRequestBodyParams,
 } from './buildRequestBody';
 import { truncateAttachmentContext } from './truncation';
@@ -30,6 +31,25 @@ describe('isAuiInternalThreadId', () => {
   it('treats missing ids as non-internal (no override either way)', () => {
     expect(isAuiInternalThreadId(undefined)).toBe(false);
     expect(isAuiInternalThreadId('')).toBe(false);
+  });
+});
+
+describe('resolveRuntimeThreadId', () => {
+  const uuid = '0833dc5b-b852-41a8-8177-e8501c49e739';
+
+  it('pinned surfaces never consult the runtime id', () => {
+    expect(resolveRuntimeThreadId('pinned', uuid)).toBe(null);
+    expect(resolveRuntimeThreadId('pinned', '__LOCALID_x')).toBe(null);
+  });
+
+  it('runtime binding uses real per-run ids (thread-switch race protection)', () => {
+    expect(resolveRuntimeThreadId('runtime', uuid)).toBe(uuid);
+  });
+
+  it('runtime binding filters aui-internal sentinels', () => {
+    expect(resolveRuntimeThreadId('runtime', '__DEFAULT_ID__')).toBe(null);
+    expect(resolveRuntimeThreadId('runtime', '__LOCALID_abc')).toBe(null);
+    expect(resolveRuntimeThreadId('runtime', undefined)).toBe(null);
   });
 });
 

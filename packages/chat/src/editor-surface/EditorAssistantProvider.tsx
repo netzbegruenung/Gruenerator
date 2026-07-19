@@ -210,7 +210,12 @@ function EditorAssistantReadyHost({
     [surfaceStore, adapter]
   );
 
-  const modelAdapter = useMemo(() => createGrueneratorModelAdapter(getConfig, {}), [getConfig]);
+  // Pinned binding: one thread per mount, resolved by the surface — the aui
+  // runtime's per-run thread id is never consulted (see ThreadBinding).
+  const modelAdapter = useMemo(
+    () => createGrueneratorModelAdapter(getConfig, {}, { threadBinding: 'pinned' }),
+    [getConfig]
+  );
   const attachmentAdapter = useMemo(
     () => (adapter.attachments === false ? null : new GrueneratorAttachmentAdapter()),
     [adapter.attachments]
