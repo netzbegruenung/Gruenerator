@@ -8,6 +8,34 @@
  */
 import { z } from 'zod';
 
+// ── Collaborative-document subtypes (single source of truth) ────────────────
+
+/**
+ * All valid `document_subtype` values for the polymorphic `collaborative_documents`
+ * table (docs, sheets, presentations, boards, canvas, …). Canonical list —
+ * `apps/api/routes/docs/constants.ts` derives its `COLLAB_SUBTYPES` from this so
+ * backend and contracts can't drift.
+ */
+export const COLLAB_SUBTYPE_VALUES = [
+  'blank',
+  'docs',
+  'antrag',
+  'pressemitteilung',
+  'protokoll',
+  'notizen',
+  'redaktionsplan',
+  'checkliste',
+  'einladung',
+  'tabelle',
+  'boards',
+  'canvas',
+  'sheets',
+  'presentations',
+] as const;
+
+export const collabSubtypeSchema = z.enum(COLLAB_SUBTYPE_VALUES);
+export type CollabSubtype = z.infer<typeof collabSubtypeSchema>;
+
 // ── Shared error schema ─────────────────────────────────────────────────────
 
 export const docsErrorSchema = z.object({ error: z.string() });
@@ -111,8 +139,8 @@ export type PermissionListEntry = z.infer<typeof permissionListEntrySchema>;
 
 export const shareSettingsSchema = z.object({
   is_public: z.boolean(),
-  share_permission: z.string(),
-  share_mode: z.string(),
+  share_permission: z.enum(['editor', 'viewer']),
+  share_mode: z.enum(['private', 'authenticated', 'public']),
 });
 
 export const sharePermissionBodySchema = z.object({
@@ -128,8 +156,24 @@ export const shareModeBodySchema = z.object({
 export const createDocumentBodySchema = z.object({
   title: z.string().nullish(),
   folder_id: z.string().nullish(),
-  document_subtype: z.string().nullish(),
+  document_subtype: collabSubtypeSchema.nullish(),
 });
+
+/**
+ * Body for PUT /api/docs/:id (updateDocument). Replaces the legacy raw controller
+ * route. `content`/`wolke_live_sync` are kept so this fully covers the old PUT
+ * (title/folder rename is the common case; content + live-sync are editor paths).
+ */
+export const updateDocumentBodySchema = z.object({
+  title: z.string().nullish(),
+  folder_id: z.string().nullish(),
+  content: z.string().nullish(),
+  wolke_live_sync: z.boolean().nullish(),
+});
+export type UpdateDocumentBody = z.infer<typeof updateDocumentBodySchema>;
+
+/** Response for DELETE /api/docs/:id and other message-only mutations. */
+export const docsMessageResponseSchema = z.object({ message: z.string() });
 
 export const generateDocumentBodySchema = z.object({
   description: z.string(),

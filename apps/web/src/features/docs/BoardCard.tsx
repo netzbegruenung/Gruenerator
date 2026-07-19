@@ -13,10 +13,12 @@ export const BoardCard = memo(function BoardCard({
   board,
   onDelete,
   onRename,
+  onShare,
 }: {
   board: Board;
   onDelete: (id: string, e: React.MouseEvent) => void;
   onRename: (board: { id: string; title: string }, e: React.MouseEvent) => void;
+  onShare?: (board: { id: string; title: string }, e: React.MouseEvent) => void;
 }) {
   const navigate = useNavigate();
   const isWhiteboard = getBoardType(board) === 'whiteboard';
@@ -58,6 +60,7 @@ export const BoardCard = memo(function BoardCard({
           ariaLabel="Boardoptionen"
           onRename={(e) => onRename(board, e)}
           onDelete={(e) => onDelete(board.id, e)}
+          {...(onShare ? { onShare: (e: React.MouseEvent) => onShare(board, e) } : {})}
         />
       </div>
     </div>
