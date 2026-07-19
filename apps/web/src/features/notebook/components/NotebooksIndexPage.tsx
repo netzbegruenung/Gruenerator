@@ -49,7 +49,7 @@ const NOTEBOOK_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
 // Tile width = (row − its gaps) ÷ an .5 count, so the next card stays ~half visible
 // (a deliberate scroll tease) at any width. Mirrors the Arbeiten tool strip.
 const NOTEBOOK_SCROLL_ITEM =
-  'shrink-0 basis-[calc((100%_-_0.75rem)_*_0.6667)] sm:basis-[calc((100%_-_2rem)_*_0.4)] md:basis-[calc((100%_-_3rem)_*_0.2857)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
+  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
 
 const EMPTY_COLLECTIONS: NotebookCollection[] = [];
 
