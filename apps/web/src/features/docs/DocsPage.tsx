@@ -590,7 +590,7 @@ export function DocumentsContent({
   return (
     <>
       <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-        <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
+        <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] [overflow-wrap:anywhere] max-sm:text-[21px]">
           {scope
             ? firstName
               ? `${SCOPE_META[scope].heading}, ${firstName}`
