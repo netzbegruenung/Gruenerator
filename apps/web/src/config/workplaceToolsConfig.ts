@@ -71,14 +71,15 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'canvas',
-    title: 'Bild & Grafik',
-    description: 'KI-Bilder und Sharepics',
-    path: '/canvas',
+    title: 'Bilder & Videos',
+    description: 'KI-Bilder, Sharepics & Reels',
+    path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
   },
 ];
 
-// Tools surfaced on the /canvas page, pulled from the studio/imagine routes.
+// Tools surfaced on the /studio (Bilder & Videos) landing page. KI-Bilder now
+// lives in the unified Bild-Editor; Reels moved here from the Arbeiten tab.
 export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'canvas-vorlagen',
@@ -88,17 +89,10 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     icon: getIcon('navigation', 'vorlagen')!,
   },
   {
-    id: 'canvas-ki-bearbeiten',
-    title: 'Bild bearbeiten',
-    description: 'Fotos mit KI ändern',
-    path: '/imagine/universal-edit',
-    icon: getIcon('actions', 'edit')!,
-  },
-  {
-    id: 'canvas-ki-erstellen',
-    title: 'Bild erstellen',
-    description: 'KI-Bild generieren',
-    path: '/imagine/pure-create',
+    id: 'canvas-ki',
+    title: 'KI-Bilder',
+    description: 'Erstellen & bearbeiten',
+    path: '/bild-editor',
     icon: getIcon('navigation', 'imagine')!,
   },
   {
@@ -108,14 +102,6 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     path: '/studio/templates',
     icon: getIcon('navigation', 'sharepic')!,
   },
-];
-
-const NEWSLETTER_URL =
-  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
-
-// Creation tools that join the colored "Office" strip on the Arbeiten tab.
-// (Bild-Editor was dropped — "Bild & Grafik" covers KI-Bilder now.)
-export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'reels-untertitel',
     title: 'Reels',
@@ -123,6 +109,15 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     path: '/studio/video',
     icon: getIcon('navigation', 'reel')!,
   },
+];
+
+const NEWSLETTER_URL =
+  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
+
+// Creation tools that join the colored "Office" strip on the Arbeiten tab.
+// (Reels moved to the /studio "Bilder & Videos" landing; "Bilder & Videos"
+// covers KI-Bilder, Sharepics and Reels now.)
+export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'agents',
     title: 'Agentura',
