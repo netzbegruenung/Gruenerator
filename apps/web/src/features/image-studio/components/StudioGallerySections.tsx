@@ -159,7 +159,7 @@ const StudioGallerySections = () => {
         void navigate(`/studio/templates/${directType}`);
       } else if (cat === IMAGE_STUDIO_CATEGORIES.KI) {
         void setCategory(cat, subcat);
-        void navigate('/imagine');
+        void navigate('/bild-editor');
       } else if (cat) {
         void setCategory(cat, subcat);
         void navigate(`/studio/${cat}`);
@@ -223,7 +223,7 @@ const StudioGallerySections = () => {
     onSharepic: () => handleCategorySelect(IMAGE_STUDIO_CATEGORIES.TEMPLATES, null),
     onKiBild: () => {
       setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-      void navigate('/imagine');
+      void navigate('/bild-editor');
     },
     onReel: () => void navigate('/studio/video'),
   });
@@ -295,7 +295,7 @@ const StudioGallerySections = () => {
             title="Imagine"
             onCreate={() => {
               setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-              void navigate('/imagine');
+              void navigate('/bild-editor');
             }}
             createLabel="Neues KI-Bild erstellen"
           />

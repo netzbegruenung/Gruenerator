@@ -65,33 +65,30 @@ const FAVORITES: FavoriteItem[] = [
   },
 ];
 
-// Soft, hover-lift card surface shared by the /canvas tool tiles and favorite
-// pills. Mirrors the workplace's established card idiom (see RecentlyCreatedSection):
-// a hairline border + `bg-background` that, on hover, lifts, deepens its shadow and
-// tints its border toward the brand eucalyptus.
+// Soft, hover-lift card surface for the favorite pills. Mirrors the workplace's
+// established card idiom (see RecentlyCreatedSection): a hairline border +
+// `bg-background` that, on hover, lifts, deepens its shadow and tints its border
+// toward the brand eucalyptus.
 const CARD_BASE =
   'group relative flex items-center bg-background no-underline transition-[transform,box-shadow,border-color] duration-150 ' +
   'border border-grey-200/80 hover:border-secondary-300 hover:shadow-lg dark:border-grey-700/60 dark:hover:border-secondary-700';
 
-// Rounded-square brand chip holding the tool icon (used by ToolTile + dropdown rows).
+// Rounded-square brand chip holding the tool icon (used by dropdown rows + favorites).
 const CHIP_BASE =
   'flex flex-none items-center justify-center rounded-xl text-secondary-600 transition-colors duration-150 ' +
   'group-hover:bg-secondary-50 dark:text-secondary-400 dark:group-hover:bg-secondary-900/30';
 
-// Shared tool-grid for the /canvas tools row: auto-fit so each row stretches its
-// tiles to fill the width, ~5 across at the lg container, wrapping down responsively.
-export const TOOL_GRID = 'grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-sm';
-
 // The colored Office tiles live in a single horizontal strip — same scroll idiom
 // as the Wissen notebook covers: fractional widths keep the next tile half-visible
-// so the scroll affordance is obvious; pt/pb leave room for the hover lift.
-const OFFICE_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
+// so the scroll affordance is obvious; pt/pb leave room for the hover lift. Also
+// reused by the /studio landing tool strip so both read identically.
+export const OFFICE_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
 // Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
 // visible (a deliberate scroll tease) at any width — the gap subtraction is what
 // keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 5.5
 // on desktop, keeping tile size ~140–190px everywhere. Gap is 0.75rem at base, 1rem
 // from sm up (matches OFFICE_SCROLL_ROW).
-const OFFICE_SCROLL_ITEM =
+export const OFFICE_SCROLL_ITEM =
   'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
 
 // Tile colours (and each tool's matching page gradient) live in the shared
@@ -142,7 +139,8 @@ function OfficeTileInner({
 }
 
 // Square color-field Office tile (design 1e) with a favourite star top-right.
-function OfficeTile({ tool }: { tool: WorkplaceToolItem }) {
+// Exported so the /studio landing tool strip renders the same colourful tiles.
+export function OfficeTile({ tool }: { tool: WorkplaceToolItem }) {
   const favouritable = isFavouritableTool(tool);
   return (
     <Link
@@ -231,39 +229,6 @@ export function SectionHeading({ title, badge }: { title: string; badge?: string
   );
 }
 
-// Row-layout tile kept for the /canvas tools section (CanvasLandingPage).
-export function ToolTile({ tool }: { tool: WorkplaceToolItem }) {
-  const Icon = tool.icon;
-  const favouritable = isFavouritableTool(tool);
-  const className = `${CARD_BASE} gap-2 rounded-2xl px-3 py-md`;
-  const body = (
-    <>
-      <span className={`${CHIP_BASE} size-12 text-[22px]`}>
-        <Icon />
-      </span>
-      <span className={`min-w-0 flex-1${favouritable ? ' pr-2' : ''}`}>
-        <h3 className="m-0 text-[15px] font-semibold leading-tight text-foreground-heading">
-          {tool.title}
-        </h3>
-        <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
-          {tool.description}
-        </span>
-      </span>
-      {favouritable && <FavouriteStar id={tool.id} size={15} className="absolute right-2 top-2" />}
-    </>
-  );
-
-  return tool.href ? (
-    <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
-      {body}
-    </a>
-  ) : (
-    <Link to={tool.path ?? '/'} className={className}>
-      {body}
-    </Link>
-  );
-}
-
 function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
   const Icon = favorite.icon;
   return (
@@ -286,12 +251,10 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 const byId = (id: string): WorkplaceToolItem | undefined =>
   WORKPLACE_TOOLS.find((t) => t.id === id);
 
-// Default order: Agentura first, then the office apps, then Reels.
-const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
-  byId('agents'),
-  ...OFFICE_TOOLS,
-  byId('reels-untertitel'),
-].filter((t): t is WorkplaceToolItem => Boolean(t));
+// Default order: Agentura first, then the office apps. (Reels moved to /studio.)
+const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [byId('agents'), ...OFFICE_TOOLS].filter(
+  (t): t is WorkplaceToolItem => Boolean(t)
+);
 
 // The single Arbeiten tool row: colored creation tiles + the Weitere dropdown tile,
 // in one horizontal Wissen-style scroll strip. Favourited tools float to the front

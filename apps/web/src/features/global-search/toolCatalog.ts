@@ -40,10 +40,10 @@ const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-imagine',
     title: 'KI-Bild erstellen',
-    subtitle: 'Bilder mit KI generieren',
-    path: '/imagine',
+    subtitle: 'Bilder mit KI erstellen & bearbeiten',
+    path: '/bild-editor',
     icon: nav('imagine'),
-    keywords: ['imagine', 'ki-bild', 'bild', 'image', 'foto', 'generieren', 'flux', 'ai'],
+    keywords: ['imagine', 'ki-bild', 'bild', 'image', 'foto', 'generieren', 'flux', 'ai', 'editor'],
   },
   {
     id: 'tool-scanner',

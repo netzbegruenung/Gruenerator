@@ -61,6 +61,32 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F3F2F9_0%,#F9F8FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#191622_0%,#110F17_55%,#0B0A0F_100%)]',
   },
+  // Studio landing sub-tools — distinct hues so the strip reads as colourful as
+  // the Arbeiten tools (teal / violet / orange / pink for reels).
+  'canvas-vorlagen': {
+    tile: 'bg-[#DDEEEC] hover:shadow-[0_14px_30px_rgba(30,79,73,0.22)] dark:bg-[#142B28]',
+    icon: 'text-[#1E4F49] dark:text-[#7CC5BC]',
+    title: 'text-[#193F3A] dark:text-[#A2DAD2]',
+    desc: 'text-[#456B66] dark:text-[#6EA69E]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#ECF6F4_0%,#F6FBFA_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#132320_0%,#0E1817_55%,#090F0E_100%)]',
+  },
+  'canvas-ki': {
+    tile: 'bg-[#E9E7F2] hover:shadow-[0_14px_30px_rgba(62,54,99,0.22)] dark:bg-[#1F1B2E]',
+    icon: 'text-[#3E3663] dark:text-[#A99ED1]',
+    title: 'text-[#332B54] dark:text-[#C6BCE4]',
+    desc: 'text-[#5F587E] dark:text-[#8E86AB]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#F3F2F9_0%,#F9F8FC_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#191622_0%,#110F17_55%,#0B0A0F_100%)]',
+  },
+  'canvas-sharepics': {
+    tile: 'bg-[#F6E5D4] hover:shadow-[0_14px_30px_rgba(122,74,31,0.22)] dark:bg-[#2B1D12]',
+    icon: 'text-[#7A4A1F] dark:text-[#CB9A6A]',
+    title: 'text-[#5E3915] dark:text-[#E4C0A0]',
+    desc: 'text-[#8A683F] dark:text-[#AB8864]',
+    gradient:
+      'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF0E6_0%,#FDF8F2_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#221A12_0%,#17120C_55%,#0F0C08_100%)]',
+  },
   'reels-untertitel': {
     tile: 'bg-[#F5DEE6] hover:shadow-[0_14px_30px_rgba(138,62,92,0.22)] dark:bg-[#2B1620]',
     icon: 'text-[#8A3E5C] dark:text-[#CB8AA6]',
