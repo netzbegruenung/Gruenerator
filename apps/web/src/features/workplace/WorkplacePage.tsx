@@ -16,13 +16,19 @@ import './workplace-sunrise.css';
 const ArbeitenTab = lazy(() => import('./tabs/ArbeitenTab'));
 const WissenTab = lazy(() => import('./tabs/WissenTab'));
 
+// Arbeiten mirrors the (weakened) notebook radial gradient, green-tinted — the
+// same shape as NOTEBOOK_MAGENTA_BG in the green family.
+const WORKPLACE_GREEN_BG = cn(
+  'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#EAF4EE_0%,#F5FAF7_55%,#FFFFFF_100%)]',
+  'dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#12241A_0%,#101812_55%,#0C120D_100%)]'
+);
+
 // Per-tab page tints from the design. Chat gets the warm radial glow behind the
-// centered hero (light + dark handled in workplace-sunrise.css); Wissen shares
-// the notebook magenta gradient (pink light / deep-green dark).
+// centered hero (light + dark handled in workplace-sunrise.css); Arbeiten a faint
+// green radial; Wissen the (weakened) notebook magenta gradient.
 const TAB_BACKGROUND: Record<string, string> = {
   chat: 'workplace-chat-sunrise',
-  arbeiten: 'bg-[#F7FBF8] dark:bg-transparent',
-  // "Wissen" adopts the notebook 2a magenta radial as a full-page surface.
+  arbeiten: WORKPLACE_GREEN_BG,
   wissen: NOTEBOOK_MAGENTA_BG,
 };
 

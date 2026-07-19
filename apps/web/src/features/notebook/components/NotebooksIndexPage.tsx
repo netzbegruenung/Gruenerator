@@ -1,7 +1,6 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
-  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -39,16 +38,18 @@ import { VonDerBasisSection } from './VonDerBasisSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
-// Single horizontally-scrollable row of the tall notebook cards — shared by the
-// system and "Eigene" sections so both mirror the workplace "Zuletzt" row.
-// `overflow-x-auto` clips vertically too, so `pt-2`/`pb-2` give the cards' hover
-// lift room; the negative inline margins let the row bleed to the screen edge on
-// small viewports.
-const NOTEBOOK_GRID_CLASS = cn(
-  'grid grid-flow-col gap-md overflow-x-auto pt-2 pb-2',
-  'auto-cols-[42%] sm:auto-cols-[24%] md:auto-cols-[16%] lg:auto-cols-[11rem]',
-  '-mx-4 px-4 lg:mx-0 lg:px-0'
-);
+// Responsive grid of the notebook cards — used by the "Eigene" section. Capped
+// at 5 per row.
+const NOTEBOOK_GRID_CLASS = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-md';
+
+// System notebooks live in a single horizontal strip. Fractional tile widths keep
+// the next card half-visible at the edge so the scroll affordance is obvious; the
+// pt/pb leave room for the hover lift + shadow inside the clipping container.
+const NOTEBOOK_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
+// Tile width = (row − its gaps) ÷ an .5 count, so the next card stays ~half visible
+// (a deliberate scroll tease) at any width. Mirrors the Arbeiten tool strip.
+const NOTEBOOK_SCROLL_ITEM =
+  'shrink-0 basis-[calc((100%_-_0.75rem)_*_0.6667)] sm:basis-[calc((100%_-_2rem)_*_0.4)] md:basis-[calc((100%_-_3rem)_*_0.2857)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
 
 const EMPTY_COLLECTIONS: NotebookCollection[] = [];
 
@@ -56,6 +57,8 @@ const HIDDEN_NOTEBOOK_IDS = [
   'gruenerator-notebook',
   'gruenblog-notebook',
   'boell-stiftung-notebook',
+  // Vorerst ausgeblendet — Kachel wieder einblenden = diese Zeile entfernen.
+  'abgeordnetenwatch-notebook',
 ];
 
 const NotebookCard = memo(
@@ -93,6 +96,7 @@ const NotebookCard = memo(
         title={notebook.title}
         meta={notebook.meta}
         icon={notebook.icon}
+        coverImage={notebook.coverImage}
         accent="pink"
         onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
         menu={
@@ -159,9 +163,11 @@ const NotebookSection = memo(
     return (
       <section className="mt-xl">
         <SectionHeader title={title} />
-        <div className={NOTEBOOK_GRID_CLASS}>
+        <div className={NOTEBOOK_SCROLL_ROW}>
           {filtered.map((notebook) => (
-            <NotebookCard key={notebook.id} notebook={notebook} groups={groups} />
+            <div key={notebook.id} className={NOTEBOOK_SCROLL_ITEM}>
+              <NotebookCard notebook={notebook} groups={groups} />
+            </div>
           ))}
         </div>
       </section>
