@@ -22,7 +22,13 @@ export function permissionLevelToShare(level: 'viewer' | 'editor'): GroupSharePe
 
 /** Fill defaults on a partial `{ read, write, collaborative }` (read defaults on). */
 export function normalizeSharePermissions(
-  p?: Partial<GroupSharePermissions> | null
+  // Nullable + undefined: the HTTP boundary may send explicit nulls or omit
+  // fields (present-but-undefined under exactOptionalPropertyTypes). All unset.
+  p?: {
+    read?: boolean | null | undefined;
+    write?: boolean | null | undefined;
+    collaborative?: boolean | null | undefined;
+  } | null
 ): GroupSharePermissions {
   return {
     read: p?.read ?? true,
