@@ -43,7 +43,9 @@ export interface ContentPath {
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
   disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
-  wpApi?: { categoryId: number; maxPages?: number }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index.
+  wpApi?: { categoryId?: number; categoryIds?: number[]; maxPages?: number; boundByAge?: boolean }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
+  wolkeShare?: { shareLink: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share (wolke.netzbegruenung.de/s/<token>) via WebDAV instead of HTML/WP discovery. Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
+  recentSkip?: boolean; // Optional: skip this content path in the incremental hourly `--recent` run so heavy PDF/OCR/Wolke paths only run in the nightly full crawl. etag/freshness dedup still bounds the nightly cost.
 }
 
 export interface ContentSelectors {
@@ -955,6 +957,137 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         '#',
         'javascript:',
       ],
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // SAARLAND
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      // gruene-saar.de is a WordPress (multisite, /sites/2/) install with a fully
+      // working REST API. Articles publish at root permalinks (/<slug>/), so the
+      // /category/X/ listings are virtual indexes — discover via the WP REST API
+      // (auto-disables the off-path filter). Press releases live under category 7
+      // (pressemitteilungen); the remaining topic categories are unioned into one
+      // "artikel" path via wpApi.categoryIds so a post's own categories still land
+      // as searchable metadata without one source per category.
+      id: 'saarland-lv',
+      name: 'Grüne Saarland',
+      shortName: 'SL',
+      type: 'landesverband',
+      baseUrl: 'https://gruene-saar.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          type: 'presse',
+          path: '/category/pressemitteilungen/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          // gruene-saar.de has imported archive posts back to 2001 whose WP `link`
+          // is a broken title-based permalink that 404s; boundByAge skips everything
+          // older than the 5y window server-side.
+          wpApi: { categoryId: 7, boundByAge: true },
+        },
+        {
+          // Topic categories the user listed (bildung, demokratie-recht, energie,
+          // europa, finanzen, geschlechtergerechtigkeit, gesundheit, kultur,
+          // landwirtschaft, soziales, tierschutz, umwelt, verkehr, wirtschaft,
+          // wissenschaft) unioned in one query. Overlap with pressemitteilungen is
+          // deduped by source_url in Qdrant.
+          type: 'blog',
+          path: '/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: {
+            categoryIds: [
+              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110,
+            ],
+            boundByAge: true,
+          },
+        },
+        {
+          // Satzung, Positionspapiere, Wahlprogramme (PDFs). Dates rarely parse
+          // from these filenames, so processUndatedPdfs keeps them.
+          type: 'beschluss',
+          path: '/dokumente-2/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          maxPages: 1,
+          recentSkip: true,
+        },
+        {
+          // Parteitags-Beschlüsse. PDF filenames/paths carry the LPT date
+          // (/wp-content/uploads/sites/2/YYYY/MM/…), so DateExtractor dates them.
+          type: 'beschluss',
+          path: '/beschluesse/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          maxPages: 1,
+          recentSkip: true,
+        },
+        {
+          type: 'beschluss',
+          path: '/lpt-230507-beschluesse/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          maxPages: 1,
+          recentSkip: true,
+        },
+        {
+          type: 'beschluss',
+          path: '/beschluesse-2404134_kptpr/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          maxPages: 1,
+          recentSkip: true,
+        },
+        {
+          type: 'beschluss',
+          path: '/beschluesse-lpt-08-11-2025/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          maxPages: 1,
+          recentSkip: true,
+        },
+        {
+          // Standalone diversity page (~350 words of policy prose). staticUrls
+          // bypass discovery; disableOffPathFilter keeps the root URL.
+          type: 'blog',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a',
+          staticUrls: ['https://gruene-saar.de/vielfalt/'],
+          disableOffPathFilter: true,
+        },
+        {
+          // Public Nextcloud "Wolke" share (documents/Wahlprüfsteine). etag-deduped
+          // + recentSkip so it only runs in the nightly full crawl, not hourly.
+          // NOTE: verify folder contents via NextcloudApiClient.listFolder on first
+          // run — if the share is password-protected the WebDAV auth needs the pw.
+          type: 'beschluss',
+          path: '/wolke/kPJQGMzGzm9HD3T/',
+          listSelector: '',
+          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/kPJQGMzGzm9HD3T' },
+          recentSkip: true,
+        },
+        {
+          type: 'beschluss',
+          path: '/wolke/nEsxEzSnadTde3w/',
+          listSelector: '',
+          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/nEsxEzSnadTde3w' },
+          recentSkip: true,
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-admin/', '#', 'javascript:'],
     },
   ],
   curatedLists: [
