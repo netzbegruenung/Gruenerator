@@ -2,9 +2,19 @@ import { DocsProvider } from '@gruenerator/docs';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { getToolGradient } from '../../config/toolTheme';
 
 import { webAppDocsAdapter } from './docsAdapter';
-import { DocumentsContent, getScopeBgClassName, type OfficeScope } from './DocsPage';
+import { DocumentsContent, type OfficeScope } from './DocsPage';
+
+// Each office scope shares its colour identity (tile + page gradient) with the
+// matching tool tile on the Arbeiten tab, via the shared toolTheme registry.
+const SCOPE_TOOL_ID: Record<OfficeScope, string> = {
+  doc: 'docs',
+  board: 'boards',
+  sheet: 'sheets',
+  pres: 'presentations',
+};
 
 /**
  * Standalone, type-scoped office landing page — the /docs, /boards, /sheets and
@@ -16,7 +26,7 @@ import { DocumentsContent, getScopeBgClassName, type OfficeScope } from './DocsP
 function OfficeLandingPage({ scope }: { scope: OfficeScope }) {
   return (
     <ErrorBoundary>
-      <PageContainer maxWidth="lg" noPadTop bgClassName={getScopeBgClassName(scope)}>
+      <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient(SCOPE_TOOL_ID[scope])}>
         <DocsProvider adapter={webAppDocsAdapter}>
           <DocumentsContent showRecents scope={scope} />
         </DocsProvider>

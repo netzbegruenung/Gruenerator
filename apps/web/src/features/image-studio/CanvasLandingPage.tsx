@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
+import { getToolGradient } from '../../config/toolTheme';
 import { CANVAS_TOOLS } from '../../config/workplaceToolsConfig';
 import { useFirstName } from '../../hooks/useFirstName';
 import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
@@ -106,7 +107,7 @@ const CanvasLandingContent = () => {
   );
 
   return (
-    <PageContainer maxWidth="lg" noPadTop bgClassName="bg-[#FBF0F5] dark:bg-transparent">
+    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('canvas')}>
       <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
         <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
           {firstName ? `Deine Bilder & Grafiken, ${firstName}` : 'Bilder & Grafiken'}
