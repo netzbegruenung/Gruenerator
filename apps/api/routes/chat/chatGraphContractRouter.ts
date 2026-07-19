@@ -100,7 +100,12 @@ import {
   handleSocialPostTextEdit,
   isSocialTextEditInstruction,
 } from './services/socialPostEditService.js';
-import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
+import {
+  createSSEStream,
+  getIntentMessage,
+  PROGRESS_MESSAGES,
+  sseInternalError,
+} from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import { createMessage, touchThread } from './services/threadPersistenceService.js';
 
@@ -1621,10 +1626,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
-      if (!sse.isEnded()) {
-        sse.send('error', { error: PROGRESS_MESSAGES.internalError });
-        sse.end();
-      }
+      sseInternalError(sse, error);
       return { status: 200 as const, body: undefined };
     }
   },
