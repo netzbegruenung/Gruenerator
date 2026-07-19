@@ -61,6 +61,9 @@ import type { Board } from '../boards/types';
 const LazyShareModal = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
 );
+const LazyShareBoardDialog = lazy(() =>
+  import('../boards/components/ShareBoardDialog').then((m) => ({ default: m.ShareBoardDialog }))
+);
 const LazyTemplateGalleryModal = lazy(() => import('./TemplateGalleryModal'));
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
 const LazySheetImportDialog = lazy(() => import('../sheets/SheetImportDialog'));
@@ -165,6 +168,7 @@ export function DocumentsContent({
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
+  const [shareBoard, setShareBoard] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     kind: 'document' | 'board';
@@ -313,14 +317,26 @@ export function DocumentsContent({
   }, [deleteTarget, deleteDocumentMutation, deleteBoard]);
 
   const handleRenameBoard = useCallback(
-    (board: { id: string; title: string }, e: React.MouseEvent) => {
+    async (board: { id: string; title: string }, e: React.MouseEvent) => {
       e.stopPropagation();
       const newTitle = window.prompt('Neuer Titel:', board.title);
       if (newTitle?.trim() && newTitle.trim() !== board.title) {
-        updateBoard.mutate({ id: board.id, title: newTitle.trim() });
+        try {
+          await updateBoard.mutateAsync({ id: board.id, title: newTitle.trim() });
+        } catch (err) {
+          console.error('Failed to rename board:', err);
+        }
       }
     },
     [updateBoard]
+  );
+
+  const handleShareBoard = useCallback(
+    (board: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setShareBoard(board);
+    },
+    []
   );
 
   const handleCreateSheet = useCallback(async () => {
@@ -730,6 +746,7 @@ export function DocumentsContent({
                         board={item.data}
                         onDelete={handleDeleteBoard}
                         onRename={handleRenameBoard}
+                        onShare={handleShareBoard}
                       />
                     );
                   })}
@@ -810,6 +827,18 @@ export function DocumentsContent({
             documentId={shareDoc.id}
             documentTitle={shareDoc.title}
             onClose={() => setShareDoc(null)}
+          />
+        </Suspense>
+      )}
+
+      {shareBoard && (
+        <Suspense fallback={null}>
+          <LazyShareBoardDialog
+            boardId={shareBoard.id}
+            open
+            onOpenChange={(open) => {
+              if (!open) setShareBoard(null);
+            }}
           />
         </Suspense>
       )}
