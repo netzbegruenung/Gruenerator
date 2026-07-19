@@ -64,7 +64,7 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'presentations',
-    title: 'Präsentationen',
+    title: 'Slides',
     description: 'Folien & Vorträge',
     path: '/presentations',
     icon: getIcon('navigation', 'presentations')!,
@@ -113,15 +113,15 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
 const NEWSLETTER_URL =
   'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
 
-// The "Tools" row link tiles. Utility tools are grouped into the dropdown cards
-// below (TOOL_MENUS) to keep the row compact.
+// Creation tools that join the colored "Office" strip on the Arbeiten tab.
+// (Bild-Editor was dropped — "Bild & Grafik" covers KI-Bilder now.)
 export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
-    id: 'bild-editor',
-    title: 'Bild-Editor',
-    description: 'KI-Bilder erstellen & bearbeiten',
-    path: '/bild-editor',
-    icon: getIcon('navigation', 'imagine')!,
+    id: 'reels-untertitel',
+    title: 'Reels',
+    description: 'Untertitel für Clips',
+    path: '/studio/video',
+    icon: getIcon('navigation', 'reel')!,
   },
   {
     id: 'agents',
@@ -130,39 +130,11 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     path: '/agentura',
     icon: RiSpyLine,
   },
-  {
-    id: 'reels-untertitel',
-    title: 'Reels',
-    description: 'Untertitel für Clips',
-    path: '/studio/video',
-    icon: getIcon('navigation', 'reel')!,
-  },
 ];
 
-// Dropdown tool cards, rendered after the link tiles in the "Tools" row.
+// Single "Weitere" dropdown tile (Verbinden merged in) — the utility tools plus
+// the connect options under one roof. Rendered as a tile in the Office strip.
 export const TOOL_MENUS: WorkplaceToolMenu[] = [
-  {
-    id: 'verbinden',
-    title: 'Verbinden',
-    description: 'Newsletter & MCP',
-    icon: getIcon('actions', 'link')!,
-    items: [
-      {
-        id: 'newsletter',
-        title: 'Newsletter',
-        description: 'Updates abonnieren',
-        href: NEWSLETTER_URL,
-        icon: getIcon('navigation', 'presse-social')!,
-      },
-      {
-        id: 'mcp',
-        title: 'MCP',
-        description: 'ChatGPT & Co verbinden',
-        path: '/apps',
-        icon: getIcon('actions', 'link')!,
-      },
-    ],
-  },
   {
     id: 'weitere',
     title: 'Weitere',
@@ -189,6 +161,20 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         description: 'Audio zu Text',
         path: '/transkription',
         icon: getIcon('navigation', 'transkription')!,
+      },
+      {
+        id: 'newsletter',
+        title: 'Newsletter',
+        description: 'Updates abonnieren',
+        href: NEWSLETTER_URL,
+        icon: getIcon('navigation', 'presse-social')!,
+      },
+      {
+        id: 'mcp',
+        title: 'MCP',
+        description: 'ChatGPT & Co verbinden',
+        path: '/apps',
+        icon: getIcon('actions', 'link')!,
       },
     ],
   },
