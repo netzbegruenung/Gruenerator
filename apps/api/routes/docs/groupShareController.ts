@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
+import {
+  permissionLevelToShare,
+  shareToPermissionLevel,
+} from '../../services/groups/groupSharePermissions.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -118,7 +122,7 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
     const result = shares.map((s) => ({
       group_id: s.group_id,
       group_name: s.group_name,
-      permission_level: s.permissions?.write ? 'editor' : 'viewer',
+      permission_level: shareToPermissionLevel(s.permissions),
       shared_at: s.shared_at,
     }));
 
@@ -185,10 +189,7 @@ router.post(
         return res.status(409).json({ error: 'Document is already shared with this group' });
       }
 
-      const permissions = {
-        read: true,
-        write: permission_level === 'editor',
-      };
+      const permissions = permissionLevelToShare(permission_level);
 
       await db.query(
         `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
@@ -267,10 +268,7 @@ router.put(
         return res.status(403).json({ error: 'Only document owner can update group permissions' });
       }
 
-      const permissions = {
-        read: true,
-        write: permission_level === 'editor',
-      };
+      const permissions = permissionLevelToShare(permission_level);
 
       const result = await db.query(
         `UPDATE group_content_shares

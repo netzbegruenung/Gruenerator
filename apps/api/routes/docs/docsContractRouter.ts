@@ -4,8 +4,9 @@
  * Owns the migrated routes: getDocumentById, listDocuments, createDocument,
  * generateDocument, getChatThread, listPermissions, getShareSettings,
  * enableSharing, disableSharing, setSharePermission, setShareMode,
- * addGroupShare, updateGroupShare. Replaces the legacy share controller
- * entirely; documentController.ts retains only PUT/DELETE/duplicate.
+ * addGroupShare, updateGroupShare, updateDocument, deleteDocument. Replaces the
+ * legacy share controller entirely; documentController.ts retains only
+ * duplicate + save-as-template.
  *
  * Mount BEFORE the legacy docsRouter in routes.ts so ts-rest matches its own
  * routes first; unmatched paths fall through to the legacy router.
