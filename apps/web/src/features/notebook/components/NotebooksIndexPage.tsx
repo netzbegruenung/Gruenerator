@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { NotebookIcon } from '../../../config/icons';
+import { sortToolsByFavourites } from '../../../config/workplaceToolsConfig';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
@@ -157,14 +158,24 @@ const NotebookSection = memo(
     notebooks: NotebookConfigEntry[];
     groups?: GroupSummary[];
   }) => {
-    const filtered = notebooks.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));
-    if (filtered.length === 0) return null;
+    const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
+    // Favourited notebooks float to the front (same store as the sidebar/tool
+    // favourites); the rest keep their curated order.
+    const ordered = useMemo(
+      () =>
+        sortToolsByFavourites(
+          notebooks.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id)),
+          favouriteIds
+        ),
+      [notebooks, favouriteIds]
+    );
+    if (ordered.length === 0) return null;
 
     return (
       <section className="mt-xl">
         <SectionHeader title={title} />
         <div className={NOTEBOOK_SCROLL_ROW}>
-          {filtered.map((notebook) => (
+          {ordered.map((notebook) => (
             <div key={notebook.id} className={NOTEBOOK_SCROLL_ITEM}>
               <NotebookCard notebook={notebook} groups={groups} />
             </div>
