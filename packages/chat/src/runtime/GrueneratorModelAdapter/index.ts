@@ -12,7 +12,7 @@ import { streamErrorMessage } from '../streamErrorMessage';
 
 import { getClientToolExecutor } from '../clientTools';
 
-import { buildRequestBody } from './buildRequestBody';
+import { buildRequestBody, isAuiInternalThreadId } from './buildRequestBody';
 import { parseSSEStream } from './parseSSEStream';
 import { truncateAttachmentContext } from './truncation';
 
@@ -146,16 +146,26 @@ export function createGrueneratorModelAdapter(
       // thread switches; a fresh thread has no remoteId snapshot yet, so fall
       // back to the store id that initialize() just set.
       //
-      // BUT assistant-ui's *local* runtime (editor sidebars: docs/sheets/boards/
-      // presentations via useLocalRuntime) reports the local thread-list sentinel
-      // "__DEFAULT_ID__" as unstable_threadId. That is not a real thread — letting
-      // it override would make contextProviders.get(threadId) miss (providers are
-      // registered under the real getChatThread id), so currentDocument never
-      // reaches the backend and edit_current_doc never classifies. Ignore it.
+      // BUT assistant-ui reports its INTERNAL ids as unstable_threadId too: the
+      // legacy local sentinel "__DEFAULT_ID__" AND — since useLocalRuntime was
+      // rebuilt on the remote-thread-list machinery (aui 0.14.2x) — initialized
+      // local threads as "__LOCALID_<id>" (editor sidebars: docs/sheets/boards/
+      // presentations/canvas). Neither is a real server thread — letting one
+      // override would make the backend drop the non-UUID (a NEW thread per
+      // message, chat lost on reload) and contextProviders.get(threadId) miss
+      // (providers are registered under the real getChatThread id), so
+      // currentDocument never reaches the backend and the editor never edits.
+      // All aui-internal ids are "__"-prefixed; real remoteIds are server UUIDs.
       const runtimeThreadId =
-        options.unstable_threadId && options.unstable_threadId !== '__DEFAULT_ID__'
+        options.unstable_threadId && !isAuiInternalThreadId(options.unstable_threadId)
           ? options.unstable_threadId
           : null;
+      if (!runtimeThreadId && options.unstable_threadId && !baseConfig.threadId) {
+        console.warn(
+          '[ChatAdapter] ignoring aui-internal thread id with no surface threadId — request will create a new thread',
+          options.unstable_threadId
+        );
+      }
       const config = runtimeThreadId ? { ...baseConfig, threadId: runtimeThreadId } : baseConfig;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
