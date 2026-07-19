@@ -195,10 +195,10 @@ export function isFavouritableTool(tool: WorkplaceToolItem): tool is WorkplaceTo
  * Favourited tools float to the front, ordered by when they were pinned; the
  * rest keep their curated order. Stable within each group.
  */
-export function sortToolsByFavourites(
-  tools: WorkplaceToolItem[],
+export function sortToolsByFavourites<T extends { id: string }>(
+  tools: T[],
   favouriteIds: string[]
-): WorkplaceToolItem[] {
+): T[] {
   const favRank = new Map(favouriteIds.map((id, index) => [id, index]));
   return tools
     .map((tool, index) => ({ tool, index }))
