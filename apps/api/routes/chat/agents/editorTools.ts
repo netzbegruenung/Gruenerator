@@ -1,11 +1,11 @@
 /**
  * Editor edit tool for the agentic loop.
  *
- * Mounted only when the router resolved an editor surface flagged via
- * CHAT_EDIT_TOOL_SURFACES (see routing.decideEditToolLoop / flags). Lets the loop
- * model edit the OPEN artifact mid-conversation — search first, then edit, and
- * write an answer that knows what it changed — replacing the old client
- * round-trip to /api/{sheets,presentations,boards}/:id/ai.
+ * Mounted only when the router resolved an editor surface with a tool path
+ * (see routing.decideEditToolLoop / TOOL_EDIT_SURFACES). Lets the loop model edit
+ * the OPEN artifact mid-conversation — search first, then edit, and write an
+ * answer that knows what it changed — replacing the old client round-trip to
+ * /api/{sheets,presentations,boards}/:id/ai.
  *
  * Strategy (v1): plan-and-send. `execute` calls the existing per-surface
  * op-planning core (Mistral-Medium prompt, unchanged) with the loop's gathered

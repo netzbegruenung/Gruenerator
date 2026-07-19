@@ -11,6 +11,7 @@ describe('editor-surface registration lifecycle', () => {
       contextProviders: new Map(),
       documentEditHandlers: new Map(),
       boardActionHandlers: new Map(),
+      editorOpsHandlers: new Map(),
     });
   });
 
@@ -46,6 +47,16 @@ describe('editor-surface registration lifecycle', () => {
 
     // The newer handler must survive the stale unregister.
     expect(useChatConfigStore.getState().documentEditHandlers.get('doc-1')).toBe(second);
+  });
+
+  it('registers and unregisters an editor-operations handler symmetrically', () => {
+    const store = useChatConfigStore.getState();
+    const handler = vi.fn();
+    const unregister = store.registerEditorOpsHandler('sheet-1', handler);
+
+    expect(useChatConfigStore.getState().editorOpsHandlers.get('sheet-1')).toBe(handler);
+    unregister();
+    expect(useChatConfigStore.getState().editorOpsHandlers.has('sheet-1')).toBe(false);
   });
 
   it('routes the context provider registry per thread', async () => {
