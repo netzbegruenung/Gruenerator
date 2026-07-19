@@ -4,8 +4,34 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildRequestBody, type BuildRequestBodyParams } from './buildRequestBody';
+import {
+  buildRequestBody,
+  isAuiInternalThreadId,
+  type BuildRequestBodyParams,
+} from './buildRequestBody';
 import { truncateAttachmentContext } from './truncation';
+
+describe('isAuiInternalThreadId', () => {
+  it('flags the legacy local sentinel', () => {
+    expect(isAuiInternalThreadId('__DEFAULT_ID__')).toBe(true);
+  });
+
+  it('flags initialized local threads (aui 0.14.2x remote-thread-list machinery)', () => {
+    // These override the surface-resolved threadId if let through: the backend
+    // drops the non-UUID (new thread per message) and the context-provider
+    // lookup misses (currentDocument never sent) — the sheets-editor bug.
+    expect(isAuiInternalThreadId('__LOCALID_abc123')).toBe(true);
+  });
+
+  it('passes real server thread ids through', () => {
+    expect(isAuiInternalThreadId('0833dc5b-b852-41a8-8177-e8501c49e739')).toBe(false);
+  });
+
+  it('treats missing ids as non-internal (no override either way)', () => {
+    expect(isAuiInternalThreadId(undefined)).toBe(false);
+    expect(isAuiInternalThreadId('')).toBe(false);
+  });
+});
 
 describe('truncateAttachmentContext', () => {
   it('empty input → undefined', () => {
