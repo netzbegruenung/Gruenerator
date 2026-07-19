@@ -18,6 +18,7 @@ import {
   computeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
+import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
@@ -41,7 +42,7 @@ import {
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
-import { PROGRESS_MESSAGES } from './sseHelpers.js';
+import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
@@ -1417,8 +1418,16 @@ export async function executeIntentPipeline(opts: {
             if (r.relevance != null) result.relevance = r.relevance;
             return result;
           }) || [];
+        // Degraded search (Qdrant/web source unreachable) must be
+        // distinguishable from a genuine zero-hit — both for the user
+        // (warning toast + status copy) and for monitoring.
+        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
         sse.send('search_complete', {
-          message: PROGRESS_MESSAGES.searchComplete(resultCount),
+          message:
+            searchDegraded && resultCount === 0
+              ? PROGRESS_MESSAGES.searchDegraded
+              : PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
           ...(currentIntent === 'research' && finalState.researchMeta

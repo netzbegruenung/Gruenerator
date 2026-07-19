@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
 
 import { PrivacyCounter } from '../services/counters/index.js';
+import { AiProviderError } from '../services/providers/providerErrors.js';
 
 import config from './worker.config.js';
 
@@ -114,7 +115,8 @@ class AIWorkerPool {
       clearTimeout(timeout);
 
       console.error(`[AIWorkerPool] Error for request ${requestId}:`, error);
-      reject(new Error(error));
+      const errorInfo = (message as WorkerErrorMessage).errorInfo;
+      reject(errorInfo ? new AiProviderError(error, errorInfo) : new Error(error));
     } else {
       console.warn(`[AIWorkerPool] Unknown message type: ${type}`);
       this.pendingRequests.delete(requestId);
