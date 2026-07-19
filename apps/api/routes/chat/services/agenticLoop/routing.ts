@@ -157,6 +157,77 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
   return null;
 }
 
+/**
+ * The five embedded editor surfaces whose sidebar can drive a tool-based edit of
+ * the OPEN artifact inside the agentic loop (see editorTools). Distinct from
+ * {@link CompoundGenerationKind} (which is about spawning a NEW artifact).
+ */
+export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
+
+const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
+  ['gruenerator-sheets-editor', 'sheet'],
+  ['gruenerator-presentations-editor', 'presentation'],
+  ['gruenerator-boards-editor', 'board'],
+  ['gruenerator-sharepic-editor', 'canvas'],
+  ['gruenerator-docs-editor', 'doc'],
+];
+
+/**
+ * Resolves which editor surface (if any) a turn belongs to. Prefers the dedicated
+ * editor agent's identifier; falls back to the enabled edit_current_* tool so a
+ * turn on a custom agent inside an editor sidebar still resolves. Returns null for
+ * every non-editor turn (the common case), so the caller can early-out cheaply.
+ */
+export function resolveEditorSurfaceKind(
+  agentIdentifier: string | undefined,
+  enabledTools: Record<string, boolean> | undefined
+): EditorSurfaceKind | null {
+  if (agentIdentifier) {
+    for (const [id, kind] of EDITOR_AGENT_KIND) {
+      if (agentIdentifier === id) return kind;
+    }
+  }
+  if (enabledTools?.['edit_current_board'] === true) return 'board';
+  if (enabledTools?.['edit_current_doc'] === true) return 'doc';
+  return null;
+}
+
+export interface EditToolLoopInput {
+  /** CHAT_AGENT_LOOP flag — the edit tool only exists inside the loop. */
+  loopEnabled: boolean;
+  /** Surface resolved via {@link resolveEditorSurfaceKind}. */
+  surfaceKind: EditorSurfaceKind | null;
+  /** Surfaces the CHAT_EDIT_TOOL_SURFACES flag has enabled the tool for. */
+  flaggedSurfaces: ReadonlySet<EditorSurfaceKind>;
+  intent: string;
+  /** The turn is a "research + edit the open artifact" compound (looksLikeCompoundEdit). */
+  isCompoundEdit: boolean;
+  /** A current document/board is actually open (rawCurrentDocument/Board id present). */
+  hasEditTarget: boolean;
+  forcedTool: boolean;
+  isCompound: boolean;
+  hasImageAttachments: boolean;
+  secondaryIntent: string | null;
+}
+
+/**
+ * Whether a turn should route into the loop with the surface's `edit_document`/
+ * `edit_board` tool mounted. Requires the loop + per-surface flag on, a resolved
+ * and flagged surface with an open target, and an edit intent — then the same
+ * single-pass kill-switches as {@link decideRunAgentic} apply. When the flag is
+ * off (`flaggedSurfaces` empty) this is always false, so the legacy
+ * trigger_doc_edit path is unaffected.
+ */
+export function decideEditToolLoop(p: EditToolLoopInput): boolean {
+  if (!p.loopEnabled) return false;
+  if (!p.surfaceKind || !p.flaggedSurfaces.has(p.surfaceKind)) return false;
+  if (!p.hasEditTarget) return false;
+  const isEditIntent =
+    p.intent === 'edit_current_doc' || p.intent === 'edit_current_board' || p.isCompoundEdit;
+  if (!isEditIntent) return false;
+  return !p.forcedTool && !p.isCompound && !p.hasImageAttachments && p.secondaryIntent == null;
+}
+
 export interface AgenticDecisionInput {
   /** CHAT_AGENT_LOOP flag resolved by the caller. */
   loopEnabled: boolean;
