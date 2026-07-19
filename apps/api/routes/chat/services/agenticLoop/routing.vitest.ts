@@ -7,6 +7,9 @@ import {
   isEditorSurface,
   compoundGenerationKind,
   decideRunAgentic,
+  resolveEditorSurfaceKind,
+  decideEditToolLoop,
+  type EditToolLoopInput,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -466,5 +469,77 @@ describe('isEditorSurface', () => {
     expect(isEditorSurface({ search: true, web: true })).toBe(false);
     expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
     expect(isEditorSurface(undefined)).toBe(false);
+  });
+});
+
+describe('resolveEditorSurfaceKind', () => {
+  it('maps each dedicated editor agent to its surface', () => {
+    expect(resolveEditorSurfaceKind('gruenerator-sheets-editor', undefined)).toBe('sheet');
+    expect(resolveEditorSurfaceKind('gruenerator-presentations-editor', undefined)).toBe(
+      'presentation'
+    );
+    expect(resolveEditorSurfaceKind('gruenerator-boards-editor', undefined)).toBe('board');
+    expect(resolveEditorSurfaceKind('gruenerator-sharepic-editor', undefined)).toBe('canvas');
+    expect(resolveEditorSurfaceKind('gruenerator-docs-editor', undefined)).toBe('doc');
+  });
+
+  it('falls back to the enabled edit_current_* tool for a custom agent', () => {
+    expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_board: true })).toBe('board');
+    expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_doc: true })).toBe('doc');
+  });
+
+  it('returns null for a non-editor turn', () => {
+    expect(resolveEditorSurfaceKind('gruenerator-chat', { search: true })).toBeNull();
+    expect(resolveEditorSurfaceKind(undefined, undefined)).toBeNull();
+  });
+});
+
+describe('decideEditToolLoop', () => {
+  const base: EditToolLoopInput = {
+    loopEnabled: true,
+    surfaceKind: 'sheet',
+    intent: 'edit_current_doc',
+    isCompoundEdit: false,
+    hasEditTarget: true,
+    forcedTool: false,
+    isCompound: false,
+    hasImageAttachments: false,
+    secondaryIntent: null,
+  };
+
+  it('enters the loop for a tool-path surface with an edit intent and open target', () => {
+    expect(decideEditToolLoop(base)).toBe(true);
+  });
+
+  it('keeps the legacy trigger path for a surface without a tool implementation', () => {
+    // doc/board/canvas are still live and have no tool path yet.
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(false);
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
+  });
+
+  it('requires the loop to be enabled', () => {
+    expect(decideEditToolLoop({ ...base, loopEnabled: false })).toBe(false);
+  });
+
+  it('requires an open edit target', () => {
+    expect(decideEditToolLoop({ ...base, hasEditTarget: false })).toBe(false);
+  });
+
+  it('requires an edit intent (or a compound edit)', () => {
+    expect(decideEditToolLoop({ ...base, intent: 'search' })).toBe(false);
+    expect(decideEditToolLoop({ ...base, intent: 'search', isCompoundEdit: true })).toBe(true);
+    expect(decideEditToolLoop({ ...base, intent: 'edit_current_board' })).toBe(true);
+  });
+
+  it('honours the same kill-switches as decideRunAgentic', () => {
+    expect(decideEditToolLoop({ ...base, forcedTool: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, isCompound: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, hasImageAttachments: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, secondaryIntent: 'image' })).toBe(false);
+  });
+
+  it('rejects a null surface', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: null })).toBe(false);
   });
 });
