@@ -293,8 +293,8 @@ export const docsContractRouter = s.router(docsContract, {
         created_by: string;
         permissions: Record<string, { level?: string }> | null;
         is_public: boolean;
-        share_permission?: string | null;
-        share_mode?: string | null;
+        share_permission?: 'editor' | 'viewer' | null;
+        share_mode?: 'private' | 'authenticated' | 'public' | null;
       }
 
       const result = (await db.query(
@@ -783,8 +783,8 @@ interface OwnedShareRow {
   created_by: string;
   permissions: Record<string, { level?: string }> | null;
   is_public: boolean;
-  share_permission?: string | null;
-  share_mode?: string | null;
+  share_permission?: 'editor' | 'viewer' | null;
+  share_mode?: 'private' | 'authenticated' | 'public' | null;
 }
 
 type ShareLookupResult =
