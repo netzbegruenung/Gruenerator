@@ -87,16 +87,14 @@ type UnifiedItem =
 // /sheets, /presentations) pass one of these; the unscoped Arbeiten tab passes none.
 export type OfficeScope = Exclude<DocKind, 'sharepic'>;
 
-// Per-scope hero heading + page-background tint. Tints echo each type's accent
-// from DOC_TYPE_META and go transparent in dark mode (like the Arbeiten tab).
-const SCOPE_META: Record<OfficeScope, { heading: string; bgClassName: string }> = {
-  doc: { heading: 'Deine Dokumente', bgClassName: 'bg-[#F4FAF6] dark:bg-transparent' },
-  board: { heading: 'Deine Boards', bgClassName: 'bg-[#FBF6ED] dark:bg-transparent' },
-  sheet: { heading: 'Deine Tabellen', bgClassName: 'bg-[#F1F7FA] dark:bg-transparent' },
-  pres: { heading: 'Deine Präsentationen', bgClassName: 'bg-[#F6F2FB] dark:bg-transparent' },
+// Per-scope hero heading. The page-background tint now comes from the shared
+// toolTheme registry (OfficeLandingPage), so it stays in sync with the tool tile.
+const SCOPE_META: Record<OfficeScope, { heading: string }> = {
+  doc: { heading: 'Deine Dokumente' },
+  board: { heading: 'Deine Boards' },
+  sheet: { heading: 'Deine Tabellen' },
+  pres: { heading: 'Deine Präsentationen' },
 };
-
-export const getScopeBgClassName = (scope: OfficeScope) => SCOPE_META[scope].bgClassName;
 
 // Personal documents collapse to this many rows; "Alle anzeigen" reveals the rest
 // so the group sections below stay reachable without scrolling past a long grid.
@@ -614,6 +612,7 @@ export function DocumentsContent({
           onImport={handleComposerImport}
         />
 
+        {/* Vorerst ausgeblendet, damit sich die Höhe von Arbeiten- und Wissen-Hero angleicht.
         <div className="mt-[18px] text-center">
           <button
             type="button"
@@ -623,6 +622,7 @@ export function DocumentsContent({
             oder wähle aus einer Vorlage
           </button>
         </div>
+        */}
       </div>
 
       <DismissableBanner
