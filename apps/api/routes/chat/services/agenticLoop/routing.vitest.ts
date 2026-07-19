@@ -498,8 +498,6 @@ describe('decideEditToolLoop', () => {
   const base: EditToolLoopInput = {
     loopEnabled: true,
     surfaceKind: 'sheet',
-    intent: 'edit_current_doc',
-    isCompoundEdit: false,
     hasEditTarget: true,
     forcedTool: false,
     isCompound: false,
@@ -507,7 +505,9 @@ describe('decideEditToolLoop', () => {
     secondaryIntent: null,
   };
 
-  it('enters the loop for a tool-path surface with an edit intent and open target', () => {
+  it('mounts the edit tool for any substantive sheet turn with an open target', () => {
+    // Not gated on the classifier intent — a `direct`-classified edit ask and a
+    // short "ja ab a1" follow-up must both be able to edit.
     expect(decideEditToolLoop(base)).toBe(true);
   });
 
@@ -524,12 +524,6 @@ describe('decideEditToolLoop', () => {
 
   it('requires an open edit target', () => {
     expect(decideEditToolLoop({ ...base, hasEditTarget: false })).toBe(false);
-  });
-
-  it('requires an edit intent (or a compound edit)', () => {
-    expect(decideEditToolLoop({ ...base, intent: 'search' })).toBe(false);
-    expect(decideEditToolLoop({ ...base, intent: 'search', isCompoundEdit: true })).toBe(true);
-    expect(decideEditToolLoop({ ...base, intent: 'edit_current_board' })).toBe(true);
   });
 
   it('honours the same kill-switches as decideRunAgentic', () => {

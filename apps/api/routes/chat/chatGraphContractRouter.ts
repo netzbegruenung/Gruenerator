@@ -739,8 +739,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const editToolLoop = decideEditToolLoop({
         loopEnabled: isAgenticLoopEnabled(),
         surfaceKind: editToolSurfaceKind,
-        intent: classifiedState.intent,
-        isCompoundEdit,
         hasEditTarget: editTarget != null,
         forcedTool: !!forcedTool,
         isCompound,
@@ -749,6 +747,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       });
       if (editToolLoop && editToolSurfaceKind) {
         classifiedState.editToolSurface = editToolSurfaceKind;
+        log.info(
+          `[ChatGraph] editToolLoop active — surface=${editToolSurfaceKind}, edit_document mounted (classifier intent=${classifiedState.intent})`
+        );
       }
 
       // Conversational board add ("häng den fertigen Post an mein Kanban-Board"):
