@@ -44,6 +44,7 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
+import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -589,17 +590,17 @@ export function DocumentsContent({
 
   return (
     <>
-      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-        <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] [overflow-wrap:anywhere] max-sm:text-[21px]">
-          {scope
+      <WorkplaceHero
+        title={
+          scope
             ? firstName
               ? `${SCOPE_META[scope].heading}, ${firstName}`
               : SCOPE_META[scope].heading
             : firstName
               ? `Willkommen im Grünerator Workplace, ${firstName}`
-              : 'Willkommen im Grünerator Workplace'}
-        </h1>
-
+              : 'Willkommen im Grünerator Workplace'
+        }
+      >
         <DocsComposer
           items={composerItems}
           templates={composerTemplates}
@@ -611,19 +612,7 @@ export function DocumentsContent({
           onSelectTemplate={handleComposerTemplate}
           onImport={handleComposerImport}
         />
-
-        {/* Vorerst ausgeblendet, damit sich die Höhe von Arbeiten- und Wissen-Hero angleicht.
-        <div className="mt-[18px] text-center">
-          <button
-            type="button"
-            onClick={() => setShowGallery(true)}
-            className="text-[13.5px] font-semibold text-[#4C8A6E] transition-colors hover:text-[#3E7A5F]"
-          >
-            oder wähle aus einer Vorlage
-          </button>
-        </div>
-        */}
-      </div>
+      </WorkplaceHero>
 
       <DismissableBanner
         storageKey="gruenerator_docs_experimental_warning_dismissed"
