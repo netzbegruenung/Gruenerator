@@ -36,7 +36,16 @@ export class WpApiExtractor {
   ): Promise<string[]> {
     if (!contentPath.wpApi) return [];
 
-    const { categoryId, maxPages = 50 } = contentPath.wpApi;
+    const { categoryId, categoryIds, maxPages = 50 } = contentPath.wpApi;
+    // Union several categories in one query (comma-separated = WP OR). Falls back
+    // to the single categoryId. Dedup by URL still happens downstream in Qdrant.
+    const categories = (
+      categoryIds?.length ? categoryIds : categoryId != null ? [categoryId] : []
+    ).join(',');
+    if (!categories) {
+      log(`[WP API] no categoryId/categoryIds configured for ${contentPath.type}, skipping`);
+      return [];
+    }
     const perPage = 100;
     // Incremental window: restrict to posts changed since `modifiedAfter`, newest
     // first, so an hourly run pulls the handful of recent edits instead of the
@@ -51,7 +60,7 @@ export class WpApiExtractor {
     let page = 1;
 
     while (page <= maxPages) {
-      const url = `${source.baseUrl}/wp-json/wp/v2/posts?categories=${categoryId}&per_page=${perPage}&page=${page}&_fields=link${recentQuery}`;
+      const url = `${source.baseUrl}/wp-json/wp/v2/posts?categories=${categories}&per_page=${perPage}&page=${page}&_fields=link${recentQuery}`;
       let response: Response;
       try {
         response = await this.fetchUrl(url);
