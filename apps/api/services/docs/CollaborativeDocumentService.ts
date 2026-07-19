@@ -72,10 +72,13 @@ export async function checkEditAccess(
 }
 
 export interface UpdateFields {
-  title?: string | null;
-  folder_id?: string | null;
-  content?: string | null;
-  wolke_live_sync?: boolean | null;
+  // `| undefined` is deliberate: the HTTP boundary (ts-rest nullish body) hands
+  // us present-but-undefined keys, which exactOptionalPropertyTypes forbids
+  // otherwise. Undefined and null are both treated as "not provided" below.
+  title?: string | null | undefined;
+  folder_id?: string | null | undefined;
+  content?: string | null | undefined;
+  wolke_live_sync?: boolean | null | undefined;
 }
 
 export type UpdateResult =
