@@ -400,7 +400,7 @@ const ImageGallery = () => {
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser: locale === 'de-AT',
     onSharepic: () => void navigate('/studio/templates'),
-    onKiBild: () => void navigate('/imagine'),
+    onKiBild: () => void navigate('/bild-editor'),
     onReel: () => void navigate('/studio/video'),
   });
 

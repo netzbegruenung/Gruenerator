@@ -14,13 +14,6 @@ const CreatorSection: React.FC = memo(() => {
       <div className="flex flex-col items-center gap-1 text-center">
         <button
           type="button"
-          onClick={() => void navigate('/bild-editor')}
-          className="text-[13.5px] font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-        >
-          Oder editiere / erstelle ein Bild
-        </button>
-        <button
-          type="button"
           onClick={() =>
             void import('../../tours/workplaceTour').then((m) =>
               m.startWorkplaceTour((path) => void navigate(path))
