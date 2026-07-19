@@ -544,6 +544,25 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: ['HE', 'HE-F'] },
   },
+  'saarland-system': {
+    id: 'saarland-system',
+    key: 'saarland',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Saarland',
+    description: 'Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'SL' },
+  },
   // Previously missing → getSearchParams('examples-system') silently fell back.
   'examples-system': {
     id: 'examples-system',

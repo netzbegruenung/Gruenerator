@@ -148,6 +148,19 @@ export const LANDESVERBAENDE = [
     hub: { slug: 'gruene-hessen', name: 'Grüne Hessen' },
   },
   {
+    id: 'saarland',
+    title: 'Saarland',
+    codes: 'SL',
+    notebookId: 'saarland-notebook',
+    homepage: 'https://gruene-saar.de',
+    themes:
+      'Strukturwandel und Industrie (Stahl, Automobil), Energiewende, Mobilität und ÖPNV (Saarbahn), Bildung, Gesundheit und Krankenhäuser, Grenzregion zu Frankreich',
+    audience: 'de-DE',
+    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-saarland',
+    buergerAgentId: 'gruenerator-buergeranfragen-saarland',
+    hub: { slug: 'gruene-saarland', name: 'Grüne Saarland' },
+  },
+  {
     id: 'schleswig-holstein',
     title: 'Schleswig-Holstein',
     codes: 'SH',
