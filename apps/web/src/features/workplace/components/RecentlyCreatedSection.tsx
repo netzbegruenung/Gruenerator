@@ -9,7 +9,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
-import React, { memo, useCallback, useState } from 'react';
+import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
 import { FaVideo } from 'react-icons/fa';
 import { FiClock, FiFileText, FiGrid, FiImage, FiMonitor } from 'react-icons/fi';
 import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
@@ -24,6 +24,12 @@ import {
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+
+// Collaborative docs/boards share via the full link+group ShareModal (same as
+// the docs/boards overview cards), not the plain copy-link used for other types.
+const LazyShareModal = lazy(() =>
+  import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
+);
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
@@ -440,6 +446,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
   const { data: items = [], isLoading, isError, refetch } = useRecentActivity();
 
   const [expanded, setExpanded] = useState(false);
+  const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
 
@@ -500,6 +507,12 @@ const RecentlyCreatedSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
+    // Docs & boards are collaborative_documents — open the full ShareModal
+    // (link + group sharing). Everything else keeps the plain copy-link.
+    if (item.type === 'doc' || item.type === 'board') {
+      setShareDoc({ id: item.id, title: item.title });
+      return;
+    }
     void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
@@ -578,6 +591,16 @@ const RecentlyCreatedSection: React.FC = memo(() => {
             </button>
           )}
         </>
+      )}
+
+      {shareDoc && (
+        <Suspense fallback={null}>
+          <LazyShareModal
+            documentId={shareDoc.id}
+            documentTitle={shareDoc.title}
+            onClose={() => setShareDoc(null)}
+          />
+        </Suspense>
       )}
     </section>
   );
