@@ -36,7 +36,7 @@ export class WpApiExtractor {
   ): Promise<string[]> {
     if (!contentPath.wpApi) return [];
 
-    const { categoryId, categoryIds, maxPages = 50 } = contentPath.wpApi;
+    const { categoryId, categoryIds, maxPages = 50, boundByAge = false } = contentPath.wpApi;
     // Union several categories in one query (comma-separated = WP OR). Falls back
     // to the single categoryId. Dedup by URL still happens downstream in Qdrant.
     const categories = (
@@ -50,11 +50,19 @@ export class WpApiExtractor {
     // Incremental window: restrict to posts changed since `modifiedAfter`, newest
     // first, so an hourly run pulls the handful of recent edits instead of the
     // whole category. Catches edits to existing posts, not just new ones.
-    const recentQuery = modifiedAfter
-      ? `&modified_after=${modifiedAfter.toISOString()}&orderby=modified&order=desc`
-      : '';
+    let recentQuery = '';
     if (modifiedAfter) {
+      recentQuery = `&modified_after=${modifiedAfter.toISOString()}&orderby=modified&order=desc`;
       log(`[WP API] incremental: posts modified after ${modifiedAfter.toISOString()}`);
+    } else if (boundByAge && source.maxAgeYears != null) {
+      // Full run: bound discovery to the age window server-side so we don't fetch
+      // (and 404 on) years of ancient archive posts the store-stage filter drops.
+      const after = new Date();
+      after.setFullYear(after.getFullYear() - source.maxAgeYears);
+      recentQuery = `&after=${after.toISOString()}`;
+      log(
+        `[WP API] bounded: posts published after ${after.toISOString()} (${source.maxAgeYears}y)`
+      );
     }
     const links = new Set<string>();
     let page = 1;
