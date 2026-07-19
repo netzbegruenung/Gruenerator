@@ -72,8 +72,7 @@ const NOTEBOOK_PATHS = {
 
 /**
  * Branded notebook covers (in `apps/web/public/notebook-covers/`, optimized webp).
- * Partial by design — notebooks without an entry keep the ghost-icon tile. The
- * extra `saarland.webp` ships ready for when that LV launches.
+ * Partial by design — notebooks without an entry keep the ghost-icon tile.
  */
 const NOTEBOOK_COVERS: Partial<Record<NotebookId, string>> = {
   'gruene-notebook': '/notebook-covers/bundesverband.webp',
@@ -85,6 +84,7 @@ const NOTEBOOK_COVERS: Partial<Record<NotebookId, string>> = {
   'bayern-notebook': '/notebook-covers/bayern.webp',
   'sachsen-anhalt-notebook': '/notebook-covers/sachsen-anhalt.webp',
   'hessen-notebook': '/notebook-covers/hessen.webp',
+  'saarland-notebook': '/notebook-covers/saarland.webp',
   'kommunalwiki-notebook': '/notebook-covers/kommunalwiki.webp',
 };
 
