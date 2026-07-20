@@ -67,6 +67,8 @@ export function createUniverInstance({
 }: CreateUniverInstanceOptions): {
   univer: Univer;
   univerAPI: FUniver;
+  /** Update the comment/note author after creation (e.g. once auth resolves). */
+  setCurrentUser: (user: SheetCurrentUser) => void;
 } {
   const { univer, univerAPI } = createUniver({
     locale: LocaleType.DE_DE,
@@ -123,10 +125,11 @@ export function createUniverInstance({
   univer.registerPlugin(UniverSheetsZenEditorPlugin);
 
   // Attribute thread comments/notes to the real user. The Facade exposes only
-  // getCurrentUser(), so set it through the injected service.
-  if (currentUser) {
-    univer.__getInjector().get(UserManagerService).setCurrentUser(currentUser);
-  }
+  // getCurrentUser(), so set it through the injected service. Exposed as a
+  // setter too, so the caller can re-apply it once auth resolves post-mount.
+  const setCurrentUser = (user: SheetCurrentUser) =>
+    univer.__getInjector().get(UserManagerService).setCurrentUser(user);
+  if (currentUser) setCurrentUser(currentUser);
 
-  return { univer, univerAPI };
+  return { univer, univerAPI, setCurrentUser };
 }
