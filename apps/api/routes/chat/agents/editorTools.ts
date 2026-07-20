@@ -140,7 +140,7 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
         return { error: `Es ist keine ${spec.noun} geöffnet, die bearbeitet werden könnte.` };
       }
 
-      const referenceContent = ctx.sourceRegistry.renderAll() || null;
+      const referenceContent = ctx.sourceRegistry.renderReference() || null;
       const appliedNote =
         ctx.appliedOpsLog.length > 0
           ? `\n\nBEREITS IN DIESEM TURN ANGEWENDET (plane darauf aufbauend, wiederhole diese Änderungen nicht):\n- ${ctx.appliedOpsLog.join('\n- ')}`
