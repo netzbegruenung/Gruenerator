@@ -183,14 +183,7 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
       }),
       z.object({
         kind: z.literal('date'),
-        operator: z.enum([
-          'after',
-          'before',
-          'between',
-          'equal',
-          'on_or_after',
-          'on_or_before',
-        ]),
+        operator: z.enum(['after', 'before', 'between', 'equal', 'on_or_after', 'on_or_before']),
         /** ISO date (yyyy-mm-dd). */
         date: z.string(),
         /** Upper bound for 'between'. */
@@ -271,3 +264,17 @@ export const generateSheetResponseSchema = z.object({
 });
 
 export type GenerateSheetResponse = z.infer<typeof generateSheetResponseSchema>;
+
+/**
+ * Response for GET /api/sheets/:id/content — the decoded workbook snapshot
+ * (loadSheetState) for a read-only viewer, without a live collab connection.
+ * `workbook` is the opaque Univer IWorkbookData JSON (null for an empty sheet);
+ * the client renders it, so it stays a permissive record here.
+ */
+export const sheetContentResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  workbook: z.record(z.string(), z.unknown()).nullable(),
+});
+
+export type SheetContentResponse = z.infer<typeof sheetContentResponseSchema>;

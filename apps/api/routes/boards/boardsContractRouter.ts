@@ -381,7 +381,6 @@ export const boardsContractRouter = s.router(boardsContract, {
     }
   },
 
-
   duplicateBoard: async (args) => {
     try {
       const { id } = args.params;
