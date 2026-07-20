@@ -172,6 +172,8 @@ export const groupDetailSchema = z.object({
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
   audience: groupAudienceSchema.nullish(),
+  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  group_type: z.enum(['standard', 'personal']).nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
 });
@@ -201,8 +203,11 @@ export const groupTokenRefSchema = z.object({ id: z.string(), name: z.string() }
 // ── Request bodies ─────────────────────────────────────────────────────────────
 
 export const createGroupBodySchema = z.object({
-  name: z.string().min(1, 'Gruppenname ist erforderlich.'),
+  name: z.string().min(1, 'Space-Name ist erforderlich.'),
   description: z.string().nullish(),
+  // 'personal' = a solo Space (hidden from team discovery, lean UI). Omitted =
+  // a normal team Space.
+  groupType: z.enum(['standard', 'personal']).optional(),
 });
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>;
 
