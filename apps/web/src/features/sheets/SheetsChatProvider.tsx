@@ -115,7 +115,11 @@ export function SheetsChatProvider({
             toast.info('Es wurde keine Tabellen-Änderung erkannt — nichts wurde geändert.');
             return;
           }
-          const { applied, skipped } = applySheetOperations(workbook, ops);
+          const { applied, skipped } = await applySheetOperations(
+            workbook,
+            ops,
+            univerAPIRef.current ?? undefined
+          );
           if (applied > 0) {
             // Dedup + short duration: a stable id collapses repeated edits into one
             // toast, and an explicit duration stops sonner from keeping the toast

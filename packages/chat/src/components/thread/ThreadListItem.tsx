@@ -143,18 +143,6 @@ export function GrueneratorThreadListItem() {
             <p className="truncate text-sm">
               <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
             </p>
-            {tags.length > 0 && (
-              <div className="mt-0.5 flex flex-wrap gap-1 overflow-hidden">
-                {tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="max-w-full truncate rounded bg-secondary-100 px-1.5 py-0.5 text-[10px] leading-tight text-foreground-muted dark:bg-secondary-800/60"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </ThreadListItemPrimitive.Trigger>
 
