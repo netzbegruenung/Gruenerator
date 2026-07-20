@@ -26,6 +26,69 @@ const KEY_SEEDED = '_seeded';
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
 
+// Well-known board field IDs — duplicated from apps/api BoardService.FIELD_IDS
+// on purpose (this service has zero cross-package deps, per CLAUDE.md).
+export const BOARD_FIELD_IDS = {
+  TITLE: 'field-title',
+  STATUS: 'field-status',
+  DESCRIPTION: 'field-description',
+  DUE_DATE: 'field-due-date',
+  LABELS: 'field-labels',
+  ASSIGNEE: 'field-assignee',
+  LINKED_DOCS: 'field-linked-docs',
+} as const;
+
+const MAX_ROWS_PER_CALL = 50;
+
+interface NewBoardRow {
+  title: string;
+  status?: string;
+  description?: string;
+  dueDate?: string | null;
+}
+
+export const isNewBoardRow = (v: unknown): v is NewBoardRow => {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.title === 'string' &&
+    (r.status === undefined || typeof r.status === 'string') &&
+    (r.description === undefined || typeof r.description === 'string') &&
+    (r.dueDate === undefined || r.dueDate === null || typeof r.dueDate === 'string')
+  );
+};
+
+/**
+ * Append task cards to a board's live Yjs doc. Mirrors apps/api
+ * BoardService.addRowsToBoard's cell layout so a card created here is
+ * indistinguishable from one created in the browser.
+ */
+export function appendRowsToBoardDoc(doc: Y.Doc, rows: NewBoardRow[], userId: string): void {
+  const yRows = doc.getArray<Y.Map<unknown>>('rows');
+  const now = new Date().toISOString();
+  doc.transact(() => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const newRow = new Y.Map<unknown>();
+      newRow.set('id', `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`);
+      newRow.set('createdBy', userId);
+      newRow.set('createdAt', now);
+
+      const cells = new Y.Map<unknown>();
+      cells.set(BOARD_FIELD_IDS.TITLE, row.title);
+      cells.set(BOARD_FIELD_IDS.STATUS, row.status ?? '');
+      cells.set(BOARD_FIELD_IDS.DESCRIPTION, row.description ?? '');
+      cells.set(BOARD_FIELD_IDS.DUE_DATE, row.dueDate ?? null);
+      cells.set(BOARD_FIELD_IDS.LABELS, []);
+      cells.set(BOARD_FIELD_IDS.ASSIGNEE, '');
+      cells.set(BOARD_FIELD_IDS.LINKED_DOCS, '[]');
+      newRow.set('cells', cells);
+
+      yRows.push([newRow]);
+    }
+  }, TRANSACT_ORIGIN);
+}
+
 interface InternalApiDeps {
   server: Server;
   persistence: PostgresPersistence;
@@ -485,6 +548,45 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Create task cards on a board's LIVE doc so they appear without a reload
+  // (the async board agent has no browser session to apply them client-side).
+  router.post('/board/:boardId/rows', async (req, res) => {
+    const { boardId } = req.params;
+    const body = (req.body ?? {}) as { rows?: unknown; userId?: unknown };
+    const userId = typeof body.userId === 'string' ? body.userId : '';
+    if (!Array.isArray(body.rows) || body.rows.length === 0 || !body.rows.every(isNewBoardRow)) {
+      res
+        .status(400)
+        .json({
+          error: 'rows must be a non-empty array of {title, status?, description?, dueDate?}',
+        });
+      return;
+    }
+    if (body.rows.length > MAX_ROWS_PER_CALL) {
+      res.status(400).json({ error: `at most ${MAX_ROWS_PER_CALL} rows per call` });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(boardId);
+      try {
+        await connection.transact((doc) => {
+          appendRowsToBoardDoc(doc, body.rows as NewBoardRow[], userId);
+        });
+        log.info(`Appended ${body.rows.length} row(s) to board ${boardId}`);
+        res.json({ ok: true, added: body.rows.length });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST rows failed for board ${boardId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.use('/internal', router);
-  log.info('Internal API registered at /internal/canvas/* and /internal/board/*/comment-bump');
+  log.info(
+    'Internal API registered at /internal/canvas/*, /internal/board/*/comment-bump and /internal/board/*/rows'
+  );
 }
