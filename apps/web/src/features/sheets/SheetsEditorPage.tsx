@@ -32,6 +32,7 @@ import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
+import { SheetFormatMenu } from './SheetFormatMenu';
 import { SheetsChatPanel } from './SheetsChatPanel';
 
 const ShareModal = lazyWithRetry(() =>
@@ -110,6 +111,11 @@ function SheetsEditorContent() {
   useEffect(() => {
     if (chatOpen && !hasOpenedChat) setHasOpenedChat(true);
   }, [chatOpen, hasOpenedChat]);
+
+  const currentUser = useMemo(
+    () => (user ? { userID: String(user.id), name: user.display_name ?? 'Unbekannt' } : null),
+    [user]
+  );
 
   const collabConfig = useCollaborationConfig();
   const { ydoc, provider, isConnected, isSynced, isLocalLoaded, authError } = useCollaboration({
@@ -256,6 +262,7 @@ function SheetsEditorContent() {
                 >
                   <FiCornerUpRight />
                 </button>
+                <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
               </>
             )}
             {!isGuest && (
@@ -284,6 +291,7 @@ function SheetsEditorContent() {
               darkMode={darkMode}
               onReady={setUniverAPI}
               seedWorkbook={seedWorkbook}
+              currentUser={currentUser}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">

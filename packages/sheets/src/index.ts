@@ -1,4 +1,5 @@
 export { SheetsEditor, type SheetsEditorProps } from './components/SheetsEditor.js';
+export { type SheetCurrentUser } from './lib/createUniverInstance.js';
 export { attachYjsBridge, type AwarenessLike, type SheetsBridge } from './collab/bridge.js';
 export {
   SHEET_YDOC_KEYS,
