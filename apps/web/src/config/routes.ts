@@ -233,7 +233,6 @@ const CollabCanvasStudioPage = lazy(
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
-const MonitorUebersichtPage = lazy(() => import('../features/monitor/pages/MonitorUebersichtPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
 const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
@@ -346,7 +345,14 @@ const standardRoutes: RouteConfig[] = [
   // production-visible at /experiments/monitor*.
   { path: '/experiments', component: ExperimentsIndexPage },
   { path: '/experiments/reisekosten', component: ReisekostenPage },
-  { path: '/experiments/monitor', component: MonitorUebersichtPage },
+  // The Monitor overview was dissolved — its content moved into the standalone
+  // Themen/Umfragen pages. Bare /experiments/monitor now lands on Themen.
+  {
+    path: '/experiments/monitor',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
+    ),
+  },
   { path: '/experiments/monitor/themen', component: MonitorThemenPage },
   { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },
   { path: '/experiments/monitor/umfragen', component: MonitorUmfragenPage },
@@ -355,7 +361,9 @@ const standardRoutes: RouteConfig[] = [
   // Legacy /monitor* redirects → /experiments/monitor* (old links/bookmarks).
   {
     path: '/monitor',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/experiments/monitor') })),
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
+    ),
   },
   {
     path: '/monitor/themen',
