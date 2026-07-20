@@ -15,7 +15,15 @@ import {
   SelectValue,
 } from '@gruenerator/ui';
 import { useMemo, type ReactNode } from 'react';
-import { PiArrowsDownUp, PiMagnifyingGlass, PiPlus, PiSparkle, PiStorefront } from 'react-icons/pi';
+import {
+  PiArrowsDownUp,
+  PiMagnifyingGlass,
+  PiMapPin,
+  PiPlus,
+  PiRepeat,
+  PiSparkle,
+  PiStorefront,
+} from 'react-icons/pi';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
@@ -28,15 +36,18 @@ import {
 } from '../agents/api';
 import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 import { useRecurringTasks } from '../recurring-tasks/api';
-import { RecurringTasksManager } from '../recurring-tasks/RecurringTasksPage';
 import { useItemUsage } from '../usage/useItemUsage';
 
 import { CapabilityTags } from './components/CapabilityTags';
 import { CategoryNav, type AisleNavItem } from './components/CategoryNav';
 import { MarketCard } from './components/MarketCard';
+import { RecurringTaskCard } from './components/RecurringTaskCard';
 import {
   AGENTURA_CATEGORIES,
   DEFAULT_CATEGORY,
+  SKILL_CATEGORY_ICONS,
+  SKILL_CATEGORY_LABELS,
+  SKILL_CATEGORY_ORDER,
   SORT_LABELS,
   SORT_VALUES,
   type AgenturaCategory,
@@ -45,17 +56,32 @@ import {
 } from './lib/categories';
 import { isLandesverbandIdentifier, landesverbandRegion } from './lib/lookups';
 
+import type { IconType } from 'react-icons';
+
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
-import { getToolGradient } from '@/config/toolTheme';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
 
 const FEATURED_LIMIT = 6;
 
+const GRID =
+  'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]';
+
 function matchesQuery(haystack: string[], q: string): boolean {
   return haystack.some((v) => v.toLowerCase().includes(q));
+}
+
+function EmptyState({ icon: Icon, text }: { icon: IconType; text: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-grey-300 bg-background-alt/40 p-2xl text-center dark:border-grey-700">
+      <span className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-lg bg-hover-alt text-foreground-muted">
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className="mx-auto max-w-[380px] text-sm text-foreground-muted">{text}</p>
+    </div>
+  );
 }
 
 /**
@@ -87,6 +113,16 @@ interface AgentEntry {
   editable: boolean;
 }
 
+interface MarketSection {
+  key: string;
+  heading?: string;
+  icon?: IconType;
+  action?: ReactNode;
+  cards: ReactNode[];
+  /** Muted line shown when this headed section has no cards. */
+  emptyHint?: string;
+}
+
 function AgenturaPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -109,14 +145,16 @@ function AgenturaPage() {
     );
   };
 
-  // Switching category also clears any active search (mockup behaviour).
+  // Switching category always pins it explicitly (and clears any active search).
+  // A bare param is resolved dynamically (own agents → "meine", else "empfohlen"),
+  // so we must not drop it — otherwise "Empfohlen" would be unreachable for users
+  // who own agents.
   const selectCategory = (key: AgenturaCategoryKey) => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
         next.delete('q');
-        if (key === DEFAULT_CATEGORY) next.delete('cat');
-        else next.set('cat', key);
+        next.set('cat', key);
         return next;
       },
       { replace: true }
@@ -288,91 +326,158 @@ function AgenturaPage() {
     });
   const sortSkills = (skills: AgentListItem[]) => sortBy(skills, sort, (s) => s.title);
 
-  // Cards for a single category, in the active sort order.
-  const cardsFor = (key: AgenturaCategoryKey): ReactNode[] => {
+  // Landesverband agent + skill cards, grouped by region (agents before skills).
+  const lvCards = (): ReactNode[] =>
+    [
+      ...lvSystemAgents.map((agent) => ({
+        region: landesverbandRegion(agent.identifier),
+        order: 0,
+        node: agentCard({ agent, isUser: false, editable: false }),
+      })),
+      ...lvSkills.map((skill) => ({
+        region: landesverbandRegion(skill.identifier),
+        order: 1,
+        node: skillCard(skill),
+      })),
+    ]
+      .sort((a, b) => a.region.localeCompare(b.region) || a.order - b.order)
+      .map((e) => e.node);
+
+  // A market aisle renders as one or more sections; only `gruenerator` and `meine`
+  // use headed sub-sections, every other aisle is a single unheaded card grid.
+  const sectionsFor = (key: AgenturaCategoryKey): MarketSection[] => {
     if (key === 'empfohlen')
-      return sortAgentEntries(
-        featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-      ).map(agentCard);
-    if (key === 'meine')
-      return sortAgentEntries(
-        userAgents.map((a) => ({ agent: a, isUser: true, editable: true }))
-      ).map(agentCard);
-    if (key === 'gruppen')
-      return sortAgentEntries(
-        sharedAgents.map((e) => ({ agent: e.agent, isUser: false, editable: false }))
-      ).map(agentCard);
-    if (key === 'community')
-      return sortAgentEntries(
-        communityAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-      ).map(agentCard);
-    if (key === 'gruenerator')
-      return sortAgentEntries(
-        generalSystemAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-      ).map(agentCard);
-    if (key === 'landesverbaende') {
-      const entries = [
-        ...lvSystemAgents.map((agent) => ({
-          region: landesverbandRegion(agent.identifier),
-          order: 0,
-          node: agentCard({ agent, isUser: false, editable: false }),
-        })),
-        ...lvSkills.map((skill) => ({
-          region: landesverbandRegion(skill.identifier),
-          order: 1,
-          node: skillCard(skill),
-        })),
-      ].sort((a, b) => a.region.localeCompare(b.region) || a.order - b.order);
-      return entries.map((e) => e.node);
-    }
-    if (key === 'favoriten')
       return [
-        ...sortAgentEntries(favoriteAgents).map(agentCard),
-        ...sortSkills(favoriteSkills).map(skillCard),
+        {
+          key: 'empfohlen',
+          cards: sortAgentEntries(
+            featuredAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+          ).map(agentCard),
+        },
       ];
-    // skill category
-    return sortSkills(byCategory.get(key) ?? []).map(skillCard);
+    if (key === 'meine')
+      return [
+        {
+          key: 'meine-agents',
+          cards: sortAgentEntries(
+            userAgents.map((a) => ({ agent: a, isUser: true, editable: true }))
+          ).map(agentCard),
+        },
+        {
+          key: 'meine-recurring',
+          heading: 'Wiederkehrende Aufgaben',
+          icon: PiRepeat,
+          action: (
+            <Link
+              to="/agents/new?mode=recurring"
+              className="inline-flex items-center gap-xs text-sm font-medium text-secondary-700 hover:underline dark:text-secondary-300"
+            >
+              <PiPlus className="h-4 w-4" />
+              Neue wiederkehrende Aufgabe
+            </Link>
+          ),
+          cards: recurringTasks.map((task) => (
+            <RecurringTaskCard key={`r-${task.id}`} task={task} />
+          )),
+          emptyHint:
+            'Noch keine wiederkehrenden Aufgaben. Lass einen Grünerator regelmäßig automatisch arbeiten (experimentell).',
+        },
+      ];
+    if (key === 'gruppen')
+      return [
+        {
+          key: 'gruppen',
+          cards: sortAgentEntries(
+            sharedAgents.map((e) => ({ agent: e.agent, isUser: false, editable: false }))
+          ).map(agentCard),
+        },
+      ];
+    if (key === 'community')
+      return [
+        {
+          key: 'community',
+          cards: sortAgentEntries(
+            communityAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+          ).map(agentCard),
+        },
+      ];
+    if (key === 'gruenerator') {
+      const sections: MarketSection[] = [
+        {
+          key: 'off-agents',
+          cards: sortAgentEntries(
+            generalSystemAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+          ).map(agentCard),
+        },
+      ];
+      const lv = lvCards();
+      if (lv.length)
+        sections.push({ key: 'off-lv', heading: 'Landesverbände', icon: PiMapPin, cards: lv });
+      for (const cat of SKILL_CATEGORY_ORDER) {
+        const cards = sortSkills(byCategory.get(cat) ?? []).map(skillCard);
+        if (cards.length)
+          sections.push({
+            key: `off-${cat}`,
+            heading: SKILL_CATEGORY_LABELS[cat],
+            icon: SKILL_CATEGORY_ICONS[cat],
+            cards,
+          });
+      }
+      return sections;
+    }
+    // favoriten
+    return [
+      {
+        key: 'favoriten',
+        cards: [
+          ...sortAgentEntries(favoriteAgents).map(agentCard),
+          ...sortSkills(favoriteSkills).map(skillCard),
+        ],
+      },
+    ];
   };
+
+  const skillTotal = useMemo(
+    () => [...byCategory.values()].reduce((sum, list) => sum + list.length, 0),
+    [byCategory]
+  );
 
   const countFor = (key: AgenturaCategoryKey): number => {
     switch (key) {
       case 'empfohlen':
         return featuredAgents.length;
       case 'meine':
-        return userAgents.length;
-      case 'wiederkehrend':
-        return recurringTasks.length;
+        return userAgents.length + recurringTasks.length;
       case 'gruppen':
         return sharedAgents.length;
       case 'community':
         return communityAgents.length;
       case 'gruenerator':
-        return generalSystemAgents.length;
-      case 'landesverbaende':
-        return lvSystemAgents.length + lvSkills.length;
+        return generalSystemAgents.length + lvSystemAgents.length + lvSkills.length + skillTotal;
       case 'favoriten':
         return favoriteAgents.length + favoriteSkills.length;
-      default:
-        return byCategory.get(key)?.length ?? 0;
     }
   };
 
-  // "meine", "community" and "wiederkehrend" stay visible even when empty (CTA /
-  // empty state); every other category appears only once it has entries.
+  // "meine" and "community" stay visible even when empty (CTA / empty state);
+  // every other category appears only once it has entries.
   const isVisible = (cat: AgenturaCategory): boolean =>
-    cat.key === 'meine' ||
-    cat.key === 'community' ||
-    cat.key === 'wiederkehrend' ||
-    countFor(cat.key) > 0;
+    cat.key === 'meine' || cat.key === 'community' || countFor(cat.key) > 0;
 
   const visibleCategories = AGENTURA_CATEGORIES.filter(isVisible);
 
   const requestedCat =
     catParam && AGENTURA_CATEGORIES.some((c) => c.key === catParam) ? catParam : null;
+  // Once a user owns Grüneratoren, the market opens on "Meine Grüneratoren";
+  // otherwise on "Empfohlen". An explicit ?cat= always wins.
+  const fallbackCat: AgenturaCategoryKey =
+    userAgents.length > 0 && visibleCategories.some((c) => c.key === 'meine')
+      ? 'meine'
+      : DEFAULT_CATEGORY;
   const activeCat: AgenturaCategoryKey =
     requestedCat && visibleCategories.some((c) => c.key === requestedCat)
       ? requestedCat
-      : (visibleCategories.find((c) => c.key === DEFAULT_CATEGORY)?.key ??
+      : (visibleCategories.find((c) => c.key === fallbackCat)?.key ??
         visibleCategories[0]?.key ??
         DEFAULT_CATEGORY);
 
@@ -400,10 +505,11 @@ function AgenturaPage() {
 
   const activeCategory = AGENTURA_CATEGORIES.find((c) => c.key === activeCat);
   const searching = q.length > 0;
-  // The recurring-tasks aisle isn't a card grid — it embeds its own management surface.
-  const isRecurring = !searching && activeCat === 'wiederkehrend';
-  const items = searching || isRecurring ? searchCards : cardsFor(activeCat);
-  const headerCount = isRecurring ? recurringTasks.length : items.length;
+  const sections = searching ? [] : sectionsFor(activeCat);
+  const totalCards = searching
+    ? searchCards.length
+    : sections.reduce((sum, s) => sum + s.cards.length, 0);
+  const headerCount = searching ? searchCards.length : totalCards;
 
   const title = searching ? 'Suchergebnisse' : (activeCategory?.label ?? '');
   const description = searching
@@ -418,7 +524,7 @@ function AgenturaPage() {
     : (activeCategory?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
 
   return (
-    <PageContainer maxWidth="lg" bgClassName={getToolGradient('agents')}>
+    <PageContainer maxWidth="lg">
       <header className="mb-lg">
         <div className="flex items-center gap-sm">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary-600/10 text-secondary-700 dark:text-secondary-300">
@@ -429,7 +535,7 @@ function AgenturaPage() {
           </h1>
         </div>
         <p className="mt-sm max-w-[560px] text-sm text-foreground-muted">
-          Dein Markt für Agent*innen und Skills — wähle links eine Kategorie oder such direkt im
+          Dein Markt für Grüneratoren und Skills — wähle links eine Kategorie oder such direkt im
           Markt.
         </p>
       </header>
@@ -484,26 +590,49 @@ function AgenturaPage() {
               {description && <p className="mt-xs text-sm text-foreground-muted">{description}</p>}
             </div>
             <Button asChild variant="brand" size="brand-sm" className="shrink-0">
-              <Link to={isRecurring ? '/agents/new?mode=recurring' : '/agents/new'}>
+              <Link to="/agents/new">
                 <PiPlus />
-                {isRecurring ? 'Neuer wiederkehrender Agent' : 'Neuer Agent'}
+                Neuer Grünerator
               </Link>
             </Button>
           </div>
 
-          {isRecurring ? (
-            <RecurringTasksManager />
-          ) : items.length > 0 ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
-              {items}
+          {searching ? (
+            searchCards.length > 0 ? (
+              <div className={GRID}>{searchCards}</div>
+            ) : (
+              <EmptyState icon={EmptyIcon} text={emptyText} />
+            )
+          ) : totalCards > 0 ? (
+            <div className="flex flex-col gap-xl">
+              {sections.map((sec) =>
+                sec.cards.length === 0 && !sec.emptyHint ? null : (
+                  <section key={sec.key}>
+                    {sec.heading && (
+                      <div className="mb-md flex flex-wrap items-center justify-between gap-sm">
+                        <div className="flex items-center gap-xs">
+                          {sec.icon && <sec.icon className="h-4 w-4 text-foreground-muted" />}
+                          <h3 className="m-0 text-sm font-semibold uppercase tracking-wide text-foreground-muted">
+                            {sec.heading}
+                          </h3>
+                          <span className="text-xs font-semibold text-foreground-muted">
+                            {sec.cards.length}
+                          </span>
+                        </div>
+                        {sec.action}
+                      </div>
+                    )}
+                    {sec.cards.length > 0 ? (
+                      <div className={GRID}>{sec.cards}</div>
+                    ) : (
+                      <p className="text-sm text-foreground-muted">{sec.emptyHint}</p>
+                    )}
+                  </section>
+                )
+              )}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-grey-300 bg-background-alt/40 p-2xl text-center dark:border-grey-700">
-              <span className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-lg bg-hover-alt text-foreground-muted">
-                <EmptyIcon className="h-5 w-5" />
-              </span>
-              <p className="mx-auto max-w-[380px] text-sm text-foreground-muted">{emptyText}</p>
-            </div>
+            <EmptyState icon={EmptyIcon} text={emptyText} />
           )}
         </div>
       </div>
