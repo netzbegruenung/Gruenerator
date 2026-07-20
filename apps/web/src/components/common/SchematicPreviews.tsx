@@ -113,11 +113,32 @@ BoardPreviewBody.displayName = 'BoardPreviewBody';
 // first; faint placeholder bars stand in until a preview exists.
 const TABLE_PREVIEW_ROWS = 4;
 
+const EMPTY_TABLE_ROWS = 3;
+
 export const TablePreviewBody = memo(({ content }: { content?: string }) => {
   const rows = content ? parseTablePreview(content) : [];
   const dataRows = rows.slice(1).filter((row) => row.some((cell) => cell.length > 0));
 
-  if (dataRows.length === 0) return <PlaceholderBars />;
+  // Empty table: keep the calm row rhythm, but with faint Label · Wert bars —
+  // reads as an empty spreadsheet rather than a blank document.
+  if (dataRows.length === 0) {
+    return (
+      <div className="flex h-full flex-col justify-center px-6" aria-hidden>
+        {Array.from({ length: EMPTY_TABLE_ROWS }, (_, idx) => (
+          <div
+            key={`tempty-${idx}`}
+            className={cn(
+              'flex items-center justify-between gap-3 py-[7px]',
+              idx > 0 && 'border-t border-grey-100 dark:border-grey-700/50'
+            )}
+          >
+            <span className="h-2 w-24 rounded-full bg-grey-200 dark:bg-grey-700/50" />
+            <span className="h-2 w-10 rounded-full bg-grey-200 dark:bg-grey-700/50" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col justify-center px-6" aria-hidden>
