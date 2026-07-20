@@ -452,6 +452,47 @@ export async function streamAgenticResponse(params: {
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
     });
 
+    // Edit guarantee (mirror of afterGather for editor surfaces): on an
+    // explicit edit intent the artifact MUST be edited — a model that only
+    // narrates the change as text ("Formatiere A1:C1 fett…", observed live)
+    // would otherwise leave the sheet untouched while sounding successful.
+    // Force-invoke the mounted edit tool with the user's ask + gathered sources.
+    const editIntent =
+      finalState.intent === 'edit_current_doc' || finalState.intent === 'edit_current_board';
+    if (
+      finalState.editToolSurface &&
+      editIntent &&
+      !steps.some((s) => s.toolName === 'edit_document')
+    ) {
+      const editTool = tools['edit_document'] as
+        | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
+        | undefined;
+      if (editTool?.execute) {
+        const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+        const userAsk =
+          typeof lastUser?.content === 'string'
+            ? lastUser.content
+            : (lastUser?.content ?? [])
+                .map((part) => (part.type === 'text' ? part.text : ''))
+                .join(' ')
+                .trim();
+        if (userAsk) {
+          const sourcesBlock = sourceRegistry.renderAll();
+          const instruction = sourcesBlock
+            ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
+            : userAsk;
+          log.info('[Agentic] edit intent ended without edit_document call — forcing edit');
+          try {
+            await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
+          } catch (err) {
+            log.warn(
+              `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
+            );
+          }
+        }
+      }
+    }
+
     if (text.trim().length === 0) {
       text =
         'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
