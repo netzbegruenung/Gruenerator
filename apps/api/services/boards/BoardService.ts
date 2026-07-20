@@ -379,6 +379,31 @@ export async function getCardSnapshot(
 }
 
 /**
+ * Resolve the status/column id for agent-created cards: the source card's own
+ * column, else the board's first status option, else '' (uncategorised). Loads
+ * the board doc once and destroys it.
+ */
+export async function resolveNewCardColumn(boardId: string, sourceCardId: string): Promise<string> {
+  const ydoc = await loadBoardYjsDoc(boardId);
+  if (!ydoc) return '';
+  try {
+    const fields = ydoc.getArray('fields').toJSON() as FieldDef[];
+    const rows = ydoc.getArray('rows').toJSON() as RowDef[];
+    const sourceStatus = rows.find((r) => r.id === sourceCardId)?.cells?.[FIELD_IDS.STATUS];
+    if (typeof sourceStatus === 'string' && sourceStatus) return sourceStatus;
+
+    const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
+    const options = Array.isArray(statusField?.typeOptions?.options)
+      ? (statusField?.typeOptions?.options as Array<{ id?: unknown }>)
+      : [];
+    const firstId = options[0]?.id;
+    return typeof firstId === 'string' ? firstId : '';
+  } finally {
+    ydoc.destroy();
+  }
+}
+
+/**
  * Build the notification `metadata` payload that the rich board email template reads.
  * Fetches the card snapshot once per event; omits empty fields so an unavailable
  * snapshot (deleted card, whiteboard) degrades to the generic email cleanly.

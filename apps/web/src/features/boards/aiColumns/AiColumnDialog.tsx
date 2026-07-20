@@ -123,6 +123,12 @@ function AiColumnForm({
   const [wantDoc, setWantDoc] = useState(
     initial?.outputs.some((o) => o.type === 'document') ?? false
   );
+  const [wantSheet, setWantSheet] = useState(
+    initial?.outputs.some((o) => o.type === 'sheet') ?? false
+  );
+  const [wantPresentation, setWantPresentation] = useState(
+    initial?.outputs.some((o) => o.type === 'presentation') ?? false
+  );
   const [wantEmail, setWantEmail] = useState(
     initial?.outputs.some((o) => o.type === 'email') ?? false
   );
@@ -142,6 +148,8 @@ function AiColumnForm({
     const outputs: BoardFlowOutput[] = [
       { type: 'comment' },
       ...(wantDoc ? [{ type: 'document' as const }] : []),
+      ...(wantSheet ? [{ type: 'sheet' as const }] : []),
+      ...(wantPresentation ? [{ type: 'presentation' as const }] : []),
       ...(wantEmail ? [{ type: 'email' as const }] : []),
     ];
     onConfirm({ source, task, outputs });
@@ -269,6 +277,22 @@ function AiColumnForm({
                 onChange={(e) => setWantDoc(e.target.checked)}
               />
               {OUTPUT_UI.document.label}
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={wantSheet}
+                onChange={(e) => setWantSheet(e.target.checked)}
+              />
+              {OUTPUT_UI.sheet.label}
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={wantPresentation}
+                onChange={(e) => setWantPresentation(e.target.checked)}
+              />
+              {OUTPUT_UI.presentation.label}
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
