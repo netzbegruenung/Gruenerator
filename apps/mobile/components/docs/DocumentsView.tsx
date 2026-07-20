@@ -1,6 +1,7 @@
 import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useCallback, useState, useMemo, type ReactNode } from 'react';
@@ -19,9 +20,17 @@ import {
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
+import { officeTypeColor } from '../../theme/officeColors';
 import { BottomSheet } from '../common/BottomSheet';
 import { DocPreview } from '../common/DocPreview';
 import { Fab } from '../common/Fab';
+import {
+  isDocFamily,
+  kindFromSubtype,
+  officeIconFor,
+  pushOfficeItem,
+  type OfficeItem,
+} from '../office/officeItem';
 
 import { AIDocumentCreatorSheet } from './AIDocumentCreatorSheet';
 import { NativeShareModal } from './NativeShareModal';
@@ -40,7 +49,7 @@ const TEMPLATE_ICONS: Record<string, IoniconsIconName> = {
 
 /**
  * Documents body without the surrounding ScreenScaffold, so it can render both
- * standalone (the /(tabs)/(docs) route) and inside the merged Arbeiten tab.
+ * standalone (the /(tabs)/(office) route) and inside the merged Arbeiten tab.
  *
  * `header` scrolls above the document grid (the Arbeiten tab feeds its Werkzeuge
  * grid in here so tools + docs read as one page). `showSearch` hides the doc
@@ -50,10 +59,16 @@ export function DocumentsView({
   header,
   showSearch = true,
   showFab = true,
+  extraItems,
 }: {
   header?: ReactNode;
   showSearch?: boolean;
   showFab?: boolean;
+  /**
+   * Non-doc Office items (boards + canvas) merged into the list. Passed only by
+   * the Office tab; the Arbeiten tab omits it and stays docs-only.
+   */
+  extraItems?: OfficeItem[];
 } = {}) {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -77,11 +92,26 @@ export function DocumentsView({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
-  const filteredDocuments = useMemo(() => {
-    if (!searchQuery.trim()) return documents;
+  // Normalize docs (+ merged boards/canvas) into one type-tagged list, newest
+  // first. Sheets/presentations already arrive in `documents` via /docs — the
+  // subtype decides which viewer they open.
+  const officeItems = useMemo<OfficeItem[]>(() => {
+    const docItems: OfficeItem[] = documents.map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      updatedAt: doc.updated_at,
+      kind: kindFromSubtype(doc.document_subtype),
+      content: doc.content,
+    }));
+    const merged = extraItems ? [...docItems, ...extraItems] : docItems;
+    return merged.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [documents, extraItems]);
+
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return officeItems;
     const q = searchQuery.toLowerCase();
-    return documents.filter((doc) => (doc.title || 'Unbenannt').toLowerCase().includes(q));
-  }, [documents, searchQuery]);
+    return officeItems.filter((it) => (it.title || 'Unbenannt').toLowerCase().includes(q));
+  }, [officeItems, searchQuery]);
 
   const { prefetchRecentDocs } = useDocsStore();
 
@@ -156,71 +186,82 @@ export function DocumentsView({
     });
   };
 
-  const renderDocument = ({
-    item,
-  }: {
-    item: { id: string; title: string; updated_at: string; content?: string };
-  }) => (
-    <TouchableOpacity
-      style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-      onPress={() => {
-        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } });
-      }}
-      activeOpacity={0.7}
-    >
-      {item.content ? (
-        <DocPreview content={item.content} style={styles.cardThumbnailDoc} />
-      ) : (
-        <View style={[styles.cardThumbnail, { backgroundColor: theme.surface }]}>
-          <Ionicons name="document-text" size={36} color={colors.grey[300]} />
-        </View>
-      )}
-      <View style={styles.cardInfoRow}>
-        <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
-          {item.title || 'Unbenannt'}
-        </Text>
-        <TouchableOpacity
-          onPress={() => handleOpenActions(item.id, item.title)}
-          style={styles.cardMenuButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
-        </TouchableOpacity>
-      </View>
-      <Text style={[styles.cardDate, { color: theme.textSecondary }]}>
-        {formatDate(item.updated_at)}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderListItem = ({
-    item,
-  }: {
-    item: { id: string; title: string; updated_at: string };
-  }) => (
-    <TouchableOpacity
-      style={[styles.listCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-      onPress={() => router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } })}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="document-text" size={24} color={colors.grey[300]} style={styles.listIcon} />
-      <View style={styles.listInfo}>
-        <Text style={[styles.listTitle, { color: theme.text }]} numberOfLines={1}>
-          {item.title || 'Unbenannt'}
-        </Text>
-        <Text style={[styles.listDate, { color: theme.textSecondary }]}>
-          {formatDate(item.updated_at)}
-        </Text>
-      </View>
+  const renderDocument = ({ item }: { item: OfficeItem }) => {
+    const typeColor = officeTypeColor(item.kind, colorScheme === 'dark');
+    const showActions = isDocFamily(item.kind);
+    return (
       <TouchableOpacity
-        onPress={() => handleOpenActions(item.id, item.title)}
-        style={styles.cardMenuButton}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+        onPress={() => pushOfficeItem(router, item)}
+        activeOpacity={0.7}
       >
-        <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
+        {item.kind === 'canvas' && item.thumbnailUrl ? (
+          <Image
+            source={{ uri: item.thumbnailUrl }}
+            style={styles.cardThumbnail}
+            contentFit="cover"
+            transition={150}
+          />
+        ) : item.kind === 'doc' && item.content ? (
+          <DocPreview content={item.content} style={styles.cardThumbnailDoc} />
+        ) : (
+          <View style={[styles.cardThumbnail, { backgroundColor: typeColor.tile }]}>
+            <Ionicons name={officeIconFor(item.kind)} size={36} color={typeColor.icon} />
+          </View>
+        )}
+        <View style={styles.cardInfoRow}>
+          <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
+            {item.title || 'Unbenannt'}
+          </Text>
+          {showActions && (
+            <TouchableOpacity
+              onPress={() => handleOpenActions(item.id, item.title)}
+              style={styles.cardMenuButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={[styles.cardDate, { color: theme.textSecondary }]}>
+          {formatDate(item.updatedAt)}
+        </Text>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
+
+  const renderListItem = ({ item }: { item: OfficeItem }) => {
+    const typeColor = officeTypeColor(item.kind, colorScheme === 'dark');
+    const showActions = isDocFamily(item.kind);
+    return (
+      <TouchableOpacity
+        style={[styles.listCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+        onPress={() => pushOfficeItem(router, item)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.listIconTile, { backgroundColor: typeColor.tile }]}>
+          <Ionicons name={officeIconFor(item.kind)} size={18} color={typeColor.icon} />
+        </View>
+        <View style={styles.listInfo}>
+          <Text style={[styles.listTitle, { color: theme.text }]} numberOfLines={1}>
+            {item.title || 'Unbenannt'}
+          </Text>
+          <Text style={[styles.listDate, { color: theme.textSecondary }]}>
+            {formatDate(item.updatedAt)}
+          </Text>
+        </View>
+        {showActions && (
+          <TouchableOpacity
+            onPress={() => handleOpenActions(item.id, item.title)}
+            style={styles.cardMenuButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -298,7 +339,7 @@ export function DocumentsView({
       )}
 
       {/* Document Grid */}
-      {isLoading && documents.length === 0 ? (
+      {isLoading && officeItems.length === 0 ? (
         <View style={styles.gridContent}>
           {header}
           <View style={styles.gridRow}>
@@ -364,7 +405,7 @@ export function DocumentsView({
             ))}
           </View>
         </View>
-      ) : filteredDocuments.length === 0 && searchQuery.trim() ? (
+      ) : filteredItems.length === 0 && searchQuery.trim() ? (
         <View style={styles.emptyState}>
           <Ionicons name="search-outline" size={48} color={theme.textSecondary} />
           <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Ergebnisse</Text>
@@ -375,14 +416,14 @@ export function DocumentsView({
       ) : viewMode === 'grid' ? (
         <FlatList
           key={`grid-${gridCols}`}
-          data={filteredDocuments}
+          data={filteredItems}
           keyExtractor={(item) => item.id}
           renderItem={renderDocument}
           numColumns={gridCols}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={[
             styles.gridContent,
-            filteredDocuments.length === 0 && styles.listEmpty,
+            filteredItems.length === 0 && styles.listEmpty,
           ]}
           ListHeaderComponent={header ? <View>{header}</View> : undefined}
           ListEmptyComponent={renderEmptyState}
@@ -399,12 +440,12 @@ export function DocumentsView({
       ) : (
         <FlatList
           key="list"
-          data={filteredDocuments}
+          data={filteredItems}
           keyExtractor={(item) => item.id}
           renderItem={renderListItem}
           contentContainerStyle={[
             styles.listContent,
-            filteredDocuments.length === 0 && styles.listEmpty,
+            filteredItems.length === 0 && styles.listEmpty,
           ]}
           ListHeaderComponent={header ? <View>{header}</View> : undefined}
           ListEmptyComponent={renderEmptyState}
@@ -611,7 +652,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 8,
   },
-  listIcon: {
+  listIconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   listInfo: {

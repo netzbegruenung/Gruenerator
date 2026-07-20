@@ -12,6 +12,9 @@ export interface Document {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  // 'docs' (or a text-doc subtype like 'antrag'), 'sheets', 'presentations'.
+  // Boards/canvas never appear here — they have their own list endpoints.
+  document_subtype?: string;
 }
 
 export interface CreateDocumentPayload {
