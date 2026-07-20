@@ -2,9 +2,9 @@
  * ts-rest contract router for sheets (Univer spreadsheets).
  *
  * Sheets are collaborative_documents rows (subtype 'sheets'); CRUD, sharing
- * and permissions run through the polymorphic /api/docs/* endpoints. This
- * router only owns the sheet-specific AI planning route, mirroring the boards
- * plan-then-apply pattern.
+ * and permissions run through the polymorphic /api/docs/* endpoints. Sheet
+ * EDITING is tool-based (the agentic loop's edit_document tool → sheetAiService
+ * → `editor_operations` SSE) — this router only owns the direct generator.
  */
 
 import { sheetsContract } from '@gruenerator/contracts';
