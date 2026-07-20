@@ -1,7 +1,7 @@
 // Split from the tour modules so done-checks don't pull driver.js into page
 // chunks. Every tour shows exactly once (flag set at START, not completion, so
 // an abandoned tour never auto-replays); /profile offers a reset.
-export type TourId = 'workplace' | 'docs' | 'sheets' | 'presentations' | 'canvas';
+export type TourId = 'workplace' | 'docs' | 'sheets' | 'presentations' | 'canvas' | 'studio';
 
 const TOUR_KEYS: Record<TourId, string> = {
   workplace: 'gruenerator-workplace-tour-v1',
@@ -9,6 +9,7 @@ const TOUR_KEYS: Record<TourId, string> = {
   sheets: 'gruenerator-tour-sheets-v1',
   presentations: 'gruenerator-tour-presentations-v1',
   canvas: 'gruenerator-tour-canvas-v1',
+  studio: 'gruenerator-tour-studio-v1',
 };
 
 export function isTourDone(id: TourId): boolean {

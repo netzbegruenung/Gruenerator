@@ -8,6 +8,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
 
 import PageContainer from '../../../components/common/PageContainer';
+import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import { useNotebookStats } from '../hooks/useNotebookStats';
 import { NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
@@ -203,14 +204,9 @@ export function NotebookStartpage({
         gradient={false}
         bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
       >
-        {/* Container + heading kept in lockstep with the Arbeiten hero
-            (DocsPage `DocumentsContent`) so the two workplace composers align. */}
-        <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-          <h1 className="mb-6 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] max-sm:text-2xl">
-            {title}
-          </h1>
+        <WorkplaceHero title={title}>
           <NotebookOmniComposer />
-        </div>
+        </WorkplaceHero>
         {footer}
       </PageContainer>
     );
