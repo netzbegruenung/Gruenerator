@@ -44,6 +44,7 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
+import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -90,16 +91,14 @@ type UnifiedItem =
 // /sheets, /presentations) pass one of these; the unscoped Arbeiten tab passes none.
 export type OfficeScope = Exclude<DocKind, 'sharepic'>;
 
-// Per-scope hero heading + page-background tint. Tints echo each type's accent
-// from DOC_TYPE_META and go transparent in dark mode (like the Arbeiten tab).
-const SCOPE_META: Record<OfficeScope, { heading: string; bgClassName: string }> = {
-  doc: { heading: 'Deine Dokumente', bgClassName: 'bg-[#F4FAF6] dark:bg-transparent' },
-  board: { heading: 'Deine Boards', bgClassName: 'bg-[#FBF6ED] dark:bg-transparent' },
-  sheet: { heading: 'Deine Tabellen', bgClassName: 'bg-[#F1F7FA] dark:bg-transparent' },
-  pres: { heading: 'Deine Präsentationen', bgClassName: 'bg-[#F6F2FB] dark:bg-transparent' },
+// Per-scope hero heading. The page-background tint now comes from the shared
+// toolTheme registry (OfficeLandingPage), so it stays in sync with the tool tile.
+const SCOPE_META: Record<OfficeScope, { heading: string }> = {
+  doc: { heading: 'Deine Dokumente' },
+  board: { heading: 'Deine Boards' },
+  sheet: { heading: 'Deine Tabellen' },
+  pres: { heading: 'Deine Präsentationen' },
 };
-
-export const getScopeBgClassName = (scope: OfficeScope) => SCOPE_META[scope].bgClassName;
 
 // Personal documents collapse to this many rows; "Alle anzeigen" reveals the rest
 // so the group sections below stay reachable without scrolling past a long grid.
@@ -471,7 +470,7 @@ export function DocumentsContent({
             return;
           }
           if (result.isKiType) {
-            void navigate('/imagine/pure-create');
+            void navigate('/bild-editor');
             return;
           }
           if (!isCanvasTemplateType(result.type)) {
@@ -607,17 +606,17 @@ export function DocumentsContent({
 
   return (
     <>
-      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-        <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
-          {scope
+      <WorkplaceHero
+        title={
+          scope
             ? firstName
               ? `${SCOPE_META[scope].heading}, ${firstName}`
               : SCOPE_META[scope].heading
             : firstName
               ? `Willkommen im Grünerator Workplace, ${firstName}`
-              : 'Willkommen im Grünerator Workplace'}
-        </h1>
-
+              : 'Willkommen im Grünerator Workplace'
+        }
+      >
         <DocsComposer
           items={composerItems}
           templates={composerTemplates}
@@ -629,17 +628,7 @@ export function DocumentsContent({
           onSelectTemplate={handleComposerTemplate}
           onImport={handleComposerImport}
         />
-
-        <div className="mt-[18px] text-center">
-          <button
-            type="button"
-            onClick={() => setShowGallery(true)}
-            className="text-[13.5px] font-semibold text-[#4C8A6E] transition-colors hover:text-[#3E7A5F]"
-          >
-            oder wähle aus einer Vorlage
-          </button>
-        </div>
-      </div>
+      </WorkplaceHero>
 
       <DismissableBanner
         storageKey="gruenerator_docs_experimental_warning_dismissed"

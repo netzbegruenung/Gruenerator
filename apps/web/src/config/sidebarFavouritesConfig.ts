@@ -29,8 +29,8 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
   },
   {
     id: 'canvas',
-    title: 'Bild & Grafik',
-    path: '/canvas',
+    title: 'Bilder & Videos',
+    path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
   },
   { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },

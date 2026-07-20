@@ -64,21 +64,22 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'presentations',
-    title: 'Präsentationen',
+    title: 'Slides',
     description: 'Folien & Vorträge',
     path: '/presentations',
     icon: getIcon('navigation', 'presentations')!,
   },
   {
     id: 'canvas',
-    title: 'Bild & Grafik',
-    description: 'KI-Bilder und Sharepics',
-    path: '/canvas',
+    title: 'Bilder & Videos',
+    description: 'KI-Bilder, Sharepics & Reels',
+    path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
   },
 ];
 
-// Tools surfaced on the /canvas page, pulled from the studio/imagine routes.
+// Tools surfaced on the /studio (Bilder & Videos) landing page. KI-Bilder now
+// lives in the unified Bild-Editor; Reels moved here from the Arbeiten tab.
 export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'canvas-vorlagen',
@@ -88,17 +89,10 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     icon: getIcon('navigation', 'vorlagen')!,
   },
   {
-    id: 'canvas-ki-bearbeiten',
-    title: 'Bild bearbeiten',
-    description: 'Fotos mit KI ändern',
-    path: '/imagine/universal-edit',
-    icon: getIcon('actions', 'edit')!,
-  },
-  {
-    id: 'canvas-ki-erstellen',
-    title: 'Bild erstellen',
-    description: 'KI-Bild generieren',
-    path: '/imagine/pure-create',
+    id: 'canvas-ki',
+    title: 'KI-Bilder',
+    description: 'Erstellen & bearbeiten',
+    path: '/bild-editor',
     icon: getIcon('navigation', 'imagine')!,
   },
   {
@@ -107,28 +101,6 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
     description: 'Grafiken gestalten',
     path: '/studio/templates',
     icon: getIcon('navigation', 'sharepic')!,
-  },
-];
-
-const NEWSLETTER_URL =
-  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
-
-// The "Tools" row link tiles. Utility tools are grouped into the dropdown cards
-// below (TOOL_MENUS) to keep the row compact.
-export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
-  {
-    id: 'bild-editor',
-    title: 'Bild-Editor',
-    description: 'KI-Bilder erstellen & bearbeiten',
-    path: '/bild-editor',
-    icon: getIcon('navigation', 'imagine')!,
-  },
-  {
-    id: 'agents',
-    title: 'Agentura',
-    description: 'Agent*innen & Skills',
-    path: '/agentura',
-    icon: RiSpyLine,
   },
   {
     id: 'reels-untertitel',
@@ -139,30 +111,25 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   },
 ];
 
-// Dropdown tool cards, rendered after the link tiles in the "Tools" row.
-export const TOOL_MENUS: WorkplaceToolMenu[] = [
+const NEWSLETTER_URL =
+  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
+
+// Creation tools that join the colored "Office" strip on the Arbeiten tab.
+// (Reels moved to the /studio "Bilder & Videos" landing; "Bilder & Videos"
+// covers KI-Bilder, Sharepics and Reels now.)
+export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
-    id: 'verbinden',
-    title: 'Verbinden',
-    description: 'Newsletter & MCP',
-    icon: getIcon('actions', 'link')!,
-    items: [
-      {
-        id: 'newsletter',
-        title: 'Newsletter',
-        description: 'Updates abonnieren',
-        href: NEWSLETTER_URL,
-        icon: getIcon('navigation', 'presse-social')!,
-      },
-      {
-        id: 'mcp',
-        title: 'MCP',
-        description: 'ChatGPT & Co verbinden',
-        path: '/apps',
-        icon: getIcon('actions', 'link')!,
-      },
-    ],
+    id: 'agents',
+    title: 'Agentura',
+    description: 'Agent*innen & Skills',
+    path: '/agentura',
+    icon: RiSpyLine,
   },
+];
+
+// Single "Weitere" dropdown tile (Verbinden merged in) — the utility tools plus
+// the connect options under one roof. Rendered as a tile in the Office strip.
+export const TOOL_MENUS: WorkplaceToolMenu[] = [
   {
     id: 'weitere',
     title: 'Weitere',
@@ -190,6 +157,20 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         path: '/transkription',
         icon: getIcon('navigation', 'transkription')!,
       },
+      {
+        id: 'newsletter',
+        title: 'Newsletter',
+        description: 'Updates abonnieren',
+        href: NEWSLETTER_URL,
+        icon: getIcon('navigation', 'presse-social')!,
+      },
+      {
+        id: 'mcp',
+        title: 'MCP',
+        description: 'ChatGPT & Co verbinden',
+        path: '/apps',
+        icon: getIcon('actions', 'link')!,
+      },
     ],
   },
 ];
@@ -209,10 +190,10 @@ export function isFavouritableTool(tool: WorkplaceToolItem): tool is WorkplaceTo
  * Favourited tools float to the front, ordered by when they were pinned; the
  * rest keep their curated order. Stable within each group.
  */
-export function sortToolsByFavourites(
-  tools: WorkplaceToolItem[],
+export function sortToolsByFavourites<T extends { id: string }>(
+  tools: T[],
   favouriteIds: string[]
-): WorkplaceToolItem[] {
+): T[] {
   const favRank = new Map(favouriteIds.map((id, index) => [id, index]));
   return tools
     .map((tool, index) => ({ tool, index }))

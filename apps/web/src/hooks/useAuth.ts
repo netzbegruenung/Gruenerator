@@ -399,6 +399,17 @@ const clearCachedAuthState = () => {
  * @returns {Object} Authentication state and methods
  */
 /**
+ * The E2E auth bypass is inlined at build time (`import.meta.env`), so a build made with
+ * `VITE_E2E_AUTH_BYPASS=true` carries the flag wherever it's served. Gate activation on a
+ * localhost hostname so the flag can never authenticate a real deployment (gruenerator.eu),
+ * while the documented "debug the prod bundle locally via `vite preview`" workflow — served
+ * on localhost — still works. `import.meta.env.DEV` alone would break that workflow.
+ */
+const isE2EBypassAllowedHost = (): boolean =>
+  typeof window !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+
+/**
  * Build the synthetic AuthData returned by `queryFn` when E2E auth bypass is on.
  */
 const buildE2EBypassAuthData = (): AuthData => {
@@ -577,7 +588,7 @@ export const useAuth = (options: AuthOptions = {}) => {
     // every logged-out page load, same noise `toastApiError` already skips 401 for.
     meta: { silent: true },
     queryFn: async (): Promise<AuthData> => {
-      if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
+      if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' && isE2EBypassAllowedHost()) {
         const data = buildE2EBypassAuthData();
         applyAuthAnswer(data, queryClient);
         return data;

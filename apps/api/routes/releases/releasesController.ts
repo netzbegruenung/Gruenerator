@@ -98,16 +98,27 @@ const latestStable = (releases: GithubRelease[]): GithubRelease | null =>
 const latestBeta = (releases: GithubRelease[]): GithubRelease | null =>
   releases.find((r) => !r.draft && r.prerelease) ?? null;
 
-// --- Per-channel download manifest (macOS DMGs) ----------------------------
-// The website's download UI is macOS-only; map the two DMG assets to stable
-// platform keys the frontend renders. Discovered from the release's assets.
-const MAC_PLATFORMS: ReadonlyArray<{
+// --- Per-channel download manifest -----------------------------------------
+// Map end-user installer assets (macOS DMGs, Linux AppImage/deb — not the
+// `.tar.gz` updater bundles) to stable platform keys the frontend renders.
+// Discovered from the release's assets; keys absent when no asset matches.
+const DOWNLOAD_PLATFORMS: ReadonlyArray<{
   key: string;
   label: string;
   matches: (name: string) => boolean;
 }> = [
   { key: 'mac-aarch64', label: 'Apple Silicon (M1–M4)', matches: (n) => /aarch64\.dmg$/i.test(n) },
   { key: 'mac-intel', label: 'Intel', matches: (n) => /(x64|x86_64)\.dmg$/i.test(n) },
+  {
+    key: 'linux-appimage',
+    label: 'AppImage (x64)',
+    matches: (n) => /(amd64|x86_64|x64)\.AppImage$/i.test(n),
+  },
+  {
+    key: 'linux-deb',
+    label: 'Debian/Ubuntu (.deb)',
+    matches: (n) => /(amd64|x86_64|x64)\.deb$/i.test(n),
+  },
 ];
 
 interface ReleaseManifest {
@@ -120,7 +131,7 @@ interface ReleaseManifest {
 
 function buildManifest(release: GithubRelease): ReleaseManifest {
   const platforms: ReleaseManifest['platforms'] = {};
-  for (const platform of MAC_PLATFORMS) {
+  for (const platform of DOWNLOAD_PLATFORMS) {
     const asset = release.assets.find((a) => platform.matches(a.name));
     if (asset) platforms[platform.key] = { label: platform.label, filename: asset.name };
   }

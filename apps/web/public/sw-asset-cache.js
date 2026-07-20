@@ -1,15 +1,23 @@
 /**
- * Service Worker for Illustration Caching
+ * Service Worker for static-asset caching.
  *
- * Provides persistent cross-session caching for SVG illustrations with:
- * - Precaching of top 50 popular illustrations
- * - Stale-while-revalidate strategy for all illustration requests
- * - Browser-managed 100MB storage
- * - Automatic cache versioning and cleanup
+ * Persistent, cross-session caching for non-content-hashed public assets that
+ * nginx can't cache-bust by filename:
+ * - SVG illustrations — precache top 50 + stale-while-revalidate the rest
+ * - Pyodide runtime (wasm + wheels) — cache-first, versioned by /pyodide/version.json
+ * - Notebook cover images (/notebook-covers/) — stale-while-revalidate
+ *
+ * Browser-managed storage, with automatic cache versioning and cleanup.
  */
 
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `gruenerator-illustrations-${CACHE_VERSION}`;
+
+// Notebook cover images (Wissen tab): ~11 branded webp under /notebook-covers/,
+// NOT content-hashed. Stale-while-revalidate under their own cache so revisiting
+// the Wissen tab (or a later session) paints them from cache with no network, and
+// an updated cover still lands on the next load. Bump the version to bust.
+const NOTEBOOK_COVERS_CACHE = `gruenerator-notebook-covers-${CACHE_VERSION}`;
 
 // Pyodide runtime cache (in-browser Python). The ~12 MB wasm core + Python
 // wheels under /pyodide/ are NOT content-hashed and nginx serves them
@@ -48,6 +56,21 @@ async function pyodideCacheFirst(request) {
       );
   }
   return response;
+}
+
+// Stale-while-revalidate: serve the cached copy immediately (instant revisit),
+// refresh it from the network in the background for next time. Falls back to the
+// cache when offline. Used for the notebook covers.
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  const fetchPromise = fetch(request)
+    .then((response) => {
+      if (response && response.status === 200) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => cached);
+  return cached || fetchPromise;
 }
 
 // Top 50 most popular illustrations to precache on install
@@ -147,7 +170,11 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((name) => name.startsWith('gruenerator-illustrations-') && name !== CACHE_NAME)
+            .filter(
+              (name) =>
+                (name.startsWith('gruenerator-illustrations-') && name !== CACHE_NAME) ||
+                (name.startsWith('gruenerator-notebook-covers-') && name !== NOTEBOOK_COVERS_CACHE)
+            )
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
@@ -174,6 +201,12 @@ self.addEventListener('fetch', (event) => {
   // can drive cache busting).
   if (url.pathname.startsWith('/pyodide/') && url.pathname !== '/pyodide/version.json') {
     event.respondWith(pyodideCacheFirst(event.request));
+    return;
+  }
+
+  // Notebook cover images (Wissen tab): stale-while-revalidate for instant revisits.
+  if (url.pathname.startsWith('/notebook-covers/')) {
+    event.respondWith(staleWhileRevalidate(event.request, NOTEBOOK_COVERS_CACHE));
     return;
   }
 
