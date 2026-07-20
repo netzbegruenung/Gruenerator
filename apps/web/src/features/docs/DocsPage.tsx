@@ -652,7 +652,10 @@ export function DocumentsContent({
 
       {officeToolStrip && (
         <section className="mb-xl mt-xl">
-          <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(OFFICE_SUITE_TOOLS.length)}>
+          <div
+            className={OFFICE_SCROLL_ROW}
+            style={officeStripStyle(OFFICE_SUITE_TOOLS.length, { maxTilePx: 200 })}
+          >
             {OFFICE_SUITE_TOOLS.map((tool) => (
               <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
                 <OfficeActionTile
