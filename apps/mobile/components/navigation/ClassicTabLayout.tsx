@@ -63,7 +63,7 @@ export function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="(docs)" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="(office)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="(tools)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="profile"
