@@ -49,27 +49,27 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
     >
       <DialogContent className="sm:max-w-[28rem]">
         <DialogHeader>
-          <DialogTitle>Neue Gruppe erstellen</DialogTitle>
+          <DialogTitle>Neue Space erstellen</DialogTitle>
           <DialogDescription>
-            Erstelle eine Gruppe, um Anweisungen und Wissen mit anderen zu teilen.
+            Erstelle eine Space, um Anweisungen und Wissen mit anderen zu teilen.
           </DialogDescription>
         </DialogHeader>
 
         {isCreateGroupError && (
           <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-            {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
+            {createGroupError?.message || 'Fehler beim Erstellen der Space'}
           </div>
         )}
 
         <form onSubmit={handleSubmit} id="create-group-form">
           <label className="flex flex-col gap-xs">
-            <span className="text-sm font-medium">Gruppenname</span>
+            <span className="text-sm font-medium">Space-Name</span>
             <input
               type="text"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-              placeholder="Name der neuen Gruppe"
+              placeholder="Name der neuen Space"
               maxLength={100}
               required
               autoFocus
@@ -87,7 +87,7 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
             form="create-group-form"
             disabled={isCreatingGroup || !groupName.trim()}
           >
-            {isCreatingGroup ? 'Wird erstellt...' : 'Gruppe erstellen'}
+            {isCreatingGroup ? 'Wird erstellt...' : 'Space erstellen'}
           </Button>
         </DialogFooter>
       </DialogContent>

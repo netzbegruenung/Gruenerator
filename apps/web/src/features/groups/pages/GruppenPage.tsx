@@ -65,11 +65,11 @@ const GruppenPage = () => {
       createGroup(name, {
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
-          showSuccess(`Gruppe "${name}" erfolgreich erstellt!`);
+          showSuccess(`Space "${name}" erfolgreich erstellt!`);
           void navigate(buildGroupPath(newGroup));
         },
         onError: (error: Error | null) => {
-          showError(error?.message || 'Gruppe konnte nicht erstellt werden.');
+          showError(error?.message || 'Space konnte nicht erstellt werden.');
         },
       });
     },
@@ -79,8 +79,8 @@ const GruppenPage = () => {
   return (
     <PageContainer
       {...(!idOrSlug && {
-        title: 'Gruppen',
-        subtitle: 'Verwalte deine Gruppen, Mitglieder und geteilte Inhalte.',
+        title: 'Spaces',
+        subtitle: 'Verwalte deine Spaces, Mitglieder und geteilte Inhalte.',
       })}
       maxWidth="sm"
     >
@@ -101,23 +101,23 @@ const GruppenPage = () => {
           />
         ) : groupResolver.isLoading ? (
           <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-            Gruppe wird geladen…
+            Space wird geladen…
           </p>
         ) : (
           <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-            Gruppe „{idOrSlug}" nicht gefunden.
+            Space „{idOrSlug}" nicht gefunden.
           </p>
         )
       ) : (
         <>
           <SectionHeader
-            title="Deine Gruppen"
+            title="Deine Spaces"
             onCreate={handleCreateNew}
-            createLabel={isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
+            createLabel={isCreatingGroup ? 'Wird erstellt...' : 'Neue Space erstellen'}
           />
           {userGroups && userGroups.length === 0 ? (
             <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-              Noch keine Gruppen vorhanden. Erstelle deine erste Gruppe über das Plus-Symbol.
+              Noch keine Spaces vorhanden. Erstelle deine erste Space über das Plus-Symbol.
             </p>
           ) : (
             <ToolGrid
@@ -125,7 +125,7 @@ const GruppenPage = () => {
                 (g): ToolEntry => ({
                   id: g.id,
                   title: g.name,
-                  description: 'Gruppe',
+                  description: 'Space',
                   path: buildGroupPath(g),
                   icon: HiUserGroup,
                 })
@@ -149,4 +149,4 @@ const GruppenPage = () => {
   );
 };
 
-export default withAuthRequired(GruppenPage, { title: 'Gruppen' });
+export default withAuthRequired(GruppenPage, { title: 'Spaces' });

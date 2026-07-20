@@ -47,13 +47,16 @@ export async function createGroupForUser(
   const postgres = getPostgresInstance();
   await postgres.ensureInitialized();
 
+  // A personal Space is a solo group: hidden from team discovery, lean UI.
+  const groupType = input.groupType === 'personal' ? 'personal' : 'standard';
+
   return postgres.transaction(async (client) => {
     const group = (await postgres.transactionQueryOne(
       client,
-      `INSERT INTO groups (id, name, created_by, join_token, description, slug_suffix)
-         VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO groups (id, name, created_by, join_token, description, slug_suffix, group_type)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, name, description, created_at, created_by, join_token, slug_suffix`,
-      [groupId, name, userId, joinToken, input.description ?? null, slugSuffix]
+      [groupId, name, userId, joinToken, input.description ?? null, slugSuffix, groupType]
     )) as CreatedGroupRow | null;
 
     if (!group) throw new Error('Failed to create group');
