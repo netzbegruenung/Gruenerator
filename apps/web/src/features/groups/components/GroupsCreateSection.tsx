@@ -18,6 +18,9 @@ interface GroupsCreateSectionProps {
   isCreatingGroup: boolean;
   isCreateGroupError: boolean;
   createGroupError: Error | null;
+  /** Radio the dialog opens on — lets a "Single Space" / "Gruppenspace" tile
+   *  preselect its type. Defaults to 'personal'. */
+  initialSpaceType?: SpaceType;
 }
 
 const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
@@ -27,16 +30,17 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
   isCreatingGroup,
   isCreateGroupError,
   createGroupError,
+  initialSpaceType = 'personal',
 }) => {
   const [groupName, setGroupName] = useState('');
-  const [spaceType, setSpaceType] = useState<SpaceType>('personal');
+  const [spaceType, setSpaceType] = useState<SpaceType>(initialSpaceType);
 
   useEffect(() => {
     if (isOpen) {
       setGroupName('');
-      setSpaceType('personal');
+      setSpaceType(initialSpaceType);
     }
-  }, [isOpen]);
+  }, [isOpen, initialSpaceType]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
