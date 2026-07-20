@@ -117,6 +117,112 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
     range: z.string(),
     sheet: z.string().nullish(),
   }),
+  // --- Plugin-backed ops (require the free Univer presets, see createUniverInstance) ---
+  z.object({
+    type: z.literal('add_conditional_format'),
+    /** A1 range the rule applies to, e.g. "B2:B20". */
+    range: z.string(),
+    rule: z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('cell_number'),
+        operator: z.enum([
+          'greater_than',
+          'greater_equal',
+          'less_than',
+          'less_equal',
+          'equal',
+          'not_equal',
+          'between',
+          'not_between',
+        ]),
+        value: z.number(),
+        /** Upper bound for 'between'/'not_between'. */
+        value2: z.number().nullish(),
+        /** CSS color for matched cells' background, e.g. "#ffcdd2". */
+        background: z.string().nullish(),
+        fontColor: z.string().nullish(),
+        bold: z.boolean().nullish(),
+      }),
+      z.object({
+        kind: z.literal('text_contains'),
+        text: z.string(),
+        background: z.string().nullish(),
+        fontColor: z.string().nullish(),
+        bold: z.boolean().nullish(),
+      }),
+    ]),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('set_data_validation'),
+    /** A1 range the validation applies to, e.g. "C2:C50". */
+    range: z.string(),
+    rule: z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('list'),
+        /** Allowed values (dropdown). */
+        values: z.array(z.string()).min(1),
+        /** Allow selecting more than one value. */
+        multiple: z.boolean().nullish(),
+      }),
+      z.object({ kind: z.literal('checkbox') }),
+      z.object({
+        kind: z.literal('number'),
+        operator: z.enum([
+          'between',
+          'not_between',
+          'greater_than',
+          'greater_equal',
+          'less_than',
+          'less_equal',
+          'equal',
+          'not_equal',
+        ]),
+        value: z.number(),
+        value2: z.number().nullish(),
+      }),
+      z.object({
+        kind: z.literal('date'),
+        operator: z.enum([
+          'after',
+          'before',
+          'between',
+          'equal',
+          'on_or_after',
+          'on_or_before',
+        ]),
+        /** ISO date (yyyy-mm-dd). */
+        date: z.string(),
+        /** Upper bound for 'between'. */
+        date2: z.string().nullish(),
+      }),
+    ]),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('sort_range'),
+    /** A1 range to sort, header row included, e.g. "A1:D20". */
+    range: z.string(),
+    /** Column letter to sort by (must lie inside `range`), e.g. "B". */
+    column: z.string(),
+    /** true = ascending (A→Z / 0→9), false = descending. */
+    ascending: z.boolean(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('create_filter'),
+    /** A1 range to enable an auto-filter on, header row included, e.g. "A1:E30". */
+    range: z.string(),
+    sheet: z.string().nullish(),
+  }),
+  z.object({
+    type: z.literal('add_table'),
+    /** A1 range to turn into a formatted table, header row included, e.g. "A1:E30". */
+    range: z.string(),
+    /** Display name; auto-generated when omitted. */
+    name: z.string().nullish(),
+    sheet: z.string().nullish(),
+  }),
 ]);
 
 export type SheetOperation = z.infer<typeof sheetOperationSchema>;
