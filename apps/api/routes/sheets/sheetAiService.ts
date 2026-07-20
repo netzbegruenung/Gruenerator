@@ -52,12 +52,9 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "delete_columns", "at": "C", "count": 1, "sheet"?: "Name" }
 - { "type": "merge_cells", "range": "A1:C1", "sheet"?: "Name" }   // e.g. a title row; keeps the top-left value
 - { "type": "unmerge_cells", "range": "A1:C1", "sheet"?: "Name" }
-- { "type": "add_chart", "range": "A1:D5", "chartType": "bar", "title"?: "Umsatz", "sheet"?: "Name" }
-    // chartType: bar|line|area|pie|donut. "range" MUST include the header row and
-    // the label column: row 1 = series names, column A = category labels, the rest
-    // = numbers. pie/donut use only the first numeric series.
 
 RULES:
+- Diagramme (add_chart) sind derzeit DEAKTIVIERT — biete keine Diagramme an und gib KEINE add_chart-Operation aus. Wenn ein Diagramm gewünscht wird, sag knapp, dass Diagramme aktuell nicht verfügbar sind, und biete stattdessen die aufbereiteten Daten/eine Auswertung an.
 - Ranges/cells ALWAYS in A1 notation. Row 1 is the first row, column A the first column.
 - The "AKTUELLER TABELLEN-ZUSTAND" below shows the existing values at their A1 coordinates. To CHANGE existing data, emit set_range_values (or set_formula) targeting exactly those coordinates — this OVERWRITES them. Do not overwrite unrelated cells.
 - "values" MUST be a 2D array even for a single cell: a single value is [["x"]], one row is [["a","b","c"]], one column is [["a"],["b"],["c"]].
