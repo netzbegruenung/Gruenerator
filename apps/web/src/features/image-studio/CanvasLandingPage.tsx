@@ -18,6 +18,7 @@ import {
   OFFICE_SCROLL_ITEM,
   OFFICE_SCROLL_ROW,
   OfficeTile,
+  officeStripStyle,
 } from '../workplace/components/ToolsSection';
 
 import StudioGallerySections from './components/StudioGallerySections';
@@ -140,8 +141,8 @@ const CanvasLandingContent = () => {
         />
       </div>
 
-      <section className="mb-xl mt-md" data-tour="studio-tools">
-        <div className={OFFICE_SCROLL_ROW}>
+      <section className="mb-xl mt-xl" data-tour="studio-tools">
+        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(CANVAS_TOOLS.length)}>
           {CANVAS_TOOLS.map((tool) => (
             <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
               <OfficeTile tool={tool} themeKey="canvas" />
