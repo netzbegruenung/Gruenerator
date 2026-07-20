@@ -52,6 +52,25 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "delete_columns", "at": "C", "count": 1, "sheet"?: "Name" }
 - { "type": "merge_cells", "range": "A1:C1", "sheet"?: "Name" }   // e.g. a title row; keeps the top-left value
 - { "type": "unmerge_cells", "range": "A1:C1", "sheet"?: "Name" }
+- { "type": "sort_range", "range": "A1:D20", "column": "B", "ascending": true, "sheet"?: "Name" }
+    // sorts the rows of "range" by the values in "column" (a letter INSIDE range).
+    // Include the header row in "range"; it is kept in place.
+- { "type": "create_filter", "range": "A1:E30", "sheet"?: "Name" }
+    // turns on the auto-filter (header dropdowns) over "range". Include the header row.
+- { "type": "add_table", "range": "A1:E30", "name"?: "Umsätze", "sheet"?: "Name" }
+    // turns "range" into a STRUCTURED table object (Excel "Als Tabelle formatieren"):
+    // header row + banded rows + built-in filter dropdowns + auto-expand. Only for an
+    // explicit "als Tabelle formatieren" ask — normal data entry does NOT need this.
+- { "type": "add_conditional_format", "range": "B2:B20", "rule": {...}, "sheet"?: "Name" }
+    // colors cells that match a rule. "rule" is one of:
+    //   { "kind": "cell_number", "operator": "greater_than"|"greater_equal"|"less_than"|"less_equal"|"equal"|"not_equal"|"between"|"not_between", "value": 100, "value2"?: 200 (upper bound for between), "background"?: "#ffcdd2", "fontColor"?: "#b71c1c", "bold"?: true }
+    //   { "kind": "text_contains", "text": "offen", "background"?: "#fff9c4", "fontColor"?: "#000", "bold"?: true }
+- { "type": "set_data_validation", "range": "C2:C50", "rule": {...}, "sheet"?: "Name" }
+    // restricts what may be entered. "rule" is one of:
+    //   { "kind": "list", "values": ["Ja","Nein","Offen"], "multiple"?: false }   // dropdown
+    //   { "kind": "checkbox" }
+    //   { "kind": "number", "operator": "between"|"not_between"|"greater_than"|"greater_equal"|"less_than"|"less_equal"|"equal"|"not_equal", "value": 0, "value2"?: 100 }
+    //   { "kind": "date", "operator": "after"|"before"|"between"|"equal"|"on_or_after"|"on_or_before", "date": "2026-01-01", "date2"?: "2026-12-31" }
 
 RULES:
 - Diagramme (add_chart) sind derzeit DEAKTIVIERT — biete keine Diagramme an und gib KEINE add_chart-Operation aus. Wenn ein Diagramm gewünscht wird, sag knapp, dass Diagramme aktuell nicht verfügbar sind, und biete stattdessen die aufbereiteten Daten/eine Auswertung an.
@@ -66,6 +85,7 @@ RULES:
 - The "Spalten-Typen" note in the sheet state marks which columns are Währung/Prozent/Datum/Formel — respect those types when you change them.
 - For ids, ZIP codes, phone numbers, leading zeros, or codes like "2-2", use set_range_values with asText:true so they are not auto-converted to numbers/dates.
 - "sheet" is the sheet NAME; omit it to target the active sheet.
+- Use the right tool for the ask: "markiere/färbe Werte über/unter X" → add_conditional_format (cell_number); "Dropdown/nur Ja-Nein/Auswahlliste" → set_data_validation (list/checkbox); "sortiere nach Spalte" → sort_range; "Filter setzen" → create_filter; "als Tabelle formatieren" → add_table. Colors are CSS hex ("#ffcdd2"). These do NOT overwrite cell values.
 - Write German content with gender-inclusive language (Genderstern *) where text is generated.
 - The user is explicitly asking for a change — emit the operations that carry it out. Only return an empty array if the request is truly impossible or requires no change.
 - Return ONLY the tool call. No prose.
