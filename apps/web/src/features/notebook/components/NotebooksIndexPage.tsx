@@ -13,11 +13,10 @@ import {
   Skeleton,
   cn,
 } from '@gruenerator/ui';
-import { BarChart3, Eye, Flame, Map as MapIcon, Plus, type LucideIcon } from 'lucide-react';
+import { BarChart3, Flame, Map as MapIcon, Plus, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import {
   HiBookOpen,
-  HiChevronRight,
   HiDotsVertical,
   HiOutlineTrash,
   HiPencil,
@@ -35,12 +34,7 @@ import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
-import {
-  useEntityResults,
-  useMonitorSnapshot,
-  usePolls,
-  useWhatHappened,
-} from '../../monitor/hooks/useMonitor';
+import { useMonitorSnapshot, usePolls } from '../../monitor/hooks/useMonitor';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
@@ -308,115 +302,6 @@ const EigeneNotebooks = memo(
 );
 EigeneNotebooks.displayName = 'EigeneNotebooks';
 
-const WHAT_HAPPENED_MAX = 12;
-
-function formatWhatHappenedDay(date: string): string {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-}
-
-function formatArticleDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
-}
-
-// Tagesaktuelle Content-Sync-Beiträge im selben Scroll-Strip-Look wie die
-// Notebook-Reihen. Zieht die Monitor-Daten, verlinkt in den vollen Feed.
-const WhatHappenedRow = memo(() => {
-  const navigate = useNavigate();
-  const { locale, withLocale } = useMonitorLocaleParam();
-  const { data, isLoading } = useWhatHappened(locale, { days: 7 });
-
-  // Über alle geladenen Tage zusammenziehen und nach Neuigkeit sortieren, damit
-  // die Reihe auch bei einem dünnen Tag immer voll ist. Dedupe nach sourceUrl.
-  const articles = useMemo(() => {
-    const sorted = (data?.days ?? [])
-      .flatMap((d) => d.articles)
-      .sort(
-        (a, b) =>
-          new Date(b.publishedAt ?? b.indexedAt).getTime() -
-          new Date(a.publishedAt ?? a.indexedAt).getTime()
-      );
-    const seen = new Set<string>();
-    const unique: (typeof sorted)[number][] = [];
-    for (const article of sorted) {
-      if (seen.has(article.sourceUrl)) continue;
-      seen.add(article.sourceUrl);
-      unique.push(article);
-      if (unique.length >= WHAT_HAPPENED_MAX) break;
-    }
-    return unique;
-  }, [data]);
-
-  const latestDate = data?.days[0]?.date;
-
-  if (!isLoading && articles.length === 0) return null;
-
-  const feedPath = withLocale('/experiments/monitor/feed');
-
-  return (
-    <section className="mt-xl">
-      <SectionHeader
-        title="Was ist passiert"
-        onTitleClick={() => navigate(feedPath)}
-        actions={
-          <span className="inline-flex items-center gap-sm">
-            {latestDate && (
-              <span className="text-xs text-grey-400">{formatWhatHappenedDay(latestDate)}</span>
-            )}
-            <Link
-              to={feedPath}
-              className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
-            >
-              Alle anzeigen
-              <HiChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </span>
-        }
-      />
-      <div className={NOTEBOOK_SCROLL_ROW}>
-        {articles.length > 0
-          ? articles.map((article) => (
-              <a
-                key={article.sourceUrl}
-                href={article.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  NOTEBOOK_SCROLL_ITEM,
-                  'group flex flex-col gap-2 rounded-xl border bg-background p-4 no-underline transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md',
-                  'border-[#EFC9DD] hover:border-[#D6006E] dark:border-[#4A2A3B] dark:hover:border-[#EC5AA0]'
-                )}
-              >
-                <h3 className="m-0 line-clamp-2 text-sm font-semibold leading-snug text-foreground-heading group-hover:text-[#D6006E] dark:group-hover:text-[#EC5AA0]">
-                  {article.title}
-                </h3>
-                {article.excerpt && (
-                  <p className="m-0 line-clamp-4 flex-1 text-xs leading-relaxed text-grey-500 dark:text-grey-400">
-                    {article.excerpt}
-                  </p>
-                )}
-                <div className="mt-auto flex items-center gap-1.5 truncate pt-1 text-[11px] text-grey-400">
-                  <span className="truncate">{article.sourceName}</span>
-                  {article.publishedAt && (
-                    <span className="shrink-0">· {formatArticleDate(article.publishedAt)}</span>
-                  )}
-                </div>
-              </a>
-            ))
-          : ['a', 'b', 'c', 'd'].map((key) => (
-              <div key={key} className={NOTEBOOK_SCROLL_ITEM}>
-                <Skeleton className="h-40 w-full rounded-xl" />
-              </div>
-            ))}
-      </div>
-    </section>
-  );
-});
-WhatHappenedRow.displayName = 'WhatHappenedRow';
-
 // Wissen-Tools als farbige Kacheln (Look wie das Arbeiten-Tool-Grid). Erste
 // Kachel erstellt ein Notebook, danach die Monitor-Bereiche. Farbklassen
 // literal, damit Tailwind-JIT sie behält.
@@ -470,18 +355,6 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     descColor: 'text-[#845576] dark:text-[#B2769C]',
     localeAware: true,
   },
-  {
-    id: 'monitor-watcher',
-    title: 'Watcher',
-    description: 'Berichterstattung über die Grünen im Blick.',
-    path: '/experiments/monitor/watcher',
-    Icon: Eye,
-    tile: 'bg-[#F1DBEE] hover:shadow-[0_14px_30px_rgba(160,0,120,0.18)] dark:bg-[#261228]',
-    icon: 'text-[#9C007E] dark:text-[#DE5AC0]',
-    titleColor: 'text-[#7E0068] dark:text-[#E2A0D8]',
-    descColor: 'text-[#7E5578] dark:text-[#AC76A2]',
-    localeAware: true,
-  },
 ];
 
 /** Extract the Grüne polling average from a poll's party map, if present. */
@@ -494,14 +367,13 @@ function pickGrueneValue(average: Record<string, number> | undefined): number | 
 }
 
 /**
- * Live "intelligence" subtext for the three Monitor tiles: the current hot topic
- * (Themen), the Grüne polling value (Umfragen) and the count of watched media
- * mentions (Watcher). Falls back to the tile's static description while loading.
+ * Live "intelligence" subtext for the Monitor tiles: the current hot topic
+ * (Themen) and the Grüne polling value (Umfragen). Falls back to the tile's
+ * static description while loading.
  */
 function useWissenTileIntel(locale: 'de' | 'at') {
   const { data: snapshot } = useMonitorSnapshot(locale);
   const { data: polls } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
-  const { data: watcher } = useEntityResults(locale === 'at' ? 'gruene-at' : 'gruene', locale);
 
   return useCallback(
     (id: string): string | null => {
@@ -512,12 +384,9 @@ function useWissenTileIntel(locale: 'de' | 'at') {
           ? `Grüne aktuell bei ${g.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
           : null;
       }
-      if (id === 'monitor-watcher') {
-        return watcher?.count != null ? `${watcher.count} Beiträge im Blick` : null;
-      }
       return null;
     },
-    [snapshot, polls, watcher]
+    [snapshot, polls]
   );
 }
 
@@ -846,8 +715,6 @@ function NotebooksIndexFooter() {
       )}
 
       {!trimmed && <WissenToolsRow />}
-
-      {!trimmed && <WhatHappenedRow />}
     </>
   );
 }
