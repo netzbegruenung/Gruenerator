@@ -8,6 +8,7 @@ import {
   AssistantRuntimeProvider,
   AuiProvider,
   ExportedMessageRepository,
+  Tools,
   useAui,
   useLocalRuntime,
   type AssistantRuntime,
@@ -17,6 +18,7 @@ import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
+import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { ChatSurfaceProvider, createChatSurfaceStore } from '../context/ChatSurfaceContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
@@ -83,9 +85,11 @@ export function EditorAssistantProvider(props: EditorAssistantProviderProps) {
 }
 
 // Fresh AUI scope so an embedded editor chat never shares runtime state with a
-// chat surface higher in the tree.
+// chat surface higher in the tree. Still registers the shared tool toolkit so
+// tool-call parts (search steps, edit_document) render the SAME cards as /chat —
+// isolating the scope must NOT drop the tool-render registration.
 function EditorAuiReset({ children }: { children: ReactNode }) {
-  const freshAui = useAui({}, { parent: null });
+  const freshAui = useAui({ tools: Tools({ toolkit: grueneratorToolkit }) }, { parent: null });
   return <AuiProvider value={freshAui}>{children}</AuiProvider>;
 }
 
