@@ -30,6 +30,9 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState('');
+  // New Spaces created from a chat default to personal (solo organizing); the
+  // user can opt into a team Space.
+  const [newIsTeam, setNewIsTeam] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -73,11 +76,10 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
     if (!name) return;
     setSaving(true);
     try {
-      // Spaces created inline from a chat default to personal (solo organizing).
       const res = await fetchFn('/api/auth/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, groupType: 'personal' }),
+        body: JSON.stringify({ name, groupType: newIsTeam ? 'standard' : 'personal' }),
       });
       if (!res.ok) {
         console.error('[MoveToSpace] create rejected:', res.status);
@@ -130,24 +132,35 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
             ))}
           </div>
 
-          <div className="flex items-center gap-2 border-t border-border pt-3">
-            <FolderPlus className="h-4 w-4 shrink-0 text-grey-500" />
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void createAndFile();
-              }}
-              placeholder="Neuen Space erstellen…"
-              className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none dark:border-grey-700"
-            />
-            <button
-              onClick={() => void createAndFile()}
-              disabled={saving || !newName.trim()}
-              className="rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
-            >
-              Anlegen
-            </button>
+          <div className="border-t border-border pt-3">
+            <div className="flex items-center gap-2">
+              <FolderPlus className="h-4 w-4 shrink-0 text-grey-500" />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void createAndFile();
+                }}
+                placeholder="Neuen Space erstellen…"
+                className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none dark:border-grey-700"
+              />
+              <button
+                onClick={() => void createAndFile()}
+                disabled={saving || !newName.trim()}
+                className="rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                Anlegen
+              </button>
+            </div>
+            <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 pl-6 text-xs text-grey-500">
+              <input
+                type="checkbox"
+                checked={newIsTeam}
+                onChange={(e) => setNewIsTeam(e.target.checked)}
+                className="h-3 w-3"
+              />
+              Als Gruppen-Space (mit Team)
+            </label>
           </div>
 
           <p className="mt-3 text-xs text-grey-400">
