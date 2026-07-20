@@ -117,6 +117,11 @@ export const deleteShareResponseSchema = z.object({
   message: z.string(),
 });
 
+/** Body for PATCH /api/share/:shareToken — title-only rename of a share. */
+export const renameShareBodySchema = z.object({
+  title: z.string().min(1).max(300),
+});
+
 export const clonedShareSchema = z.object({
   id: z.string(),
   shareToken: z.string(),

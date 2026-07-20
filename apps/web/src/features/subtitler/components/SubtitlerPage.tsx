@@ -9,6 +9,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { getToolGradient } from '../../../config/toolTheme';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
@@ -487,6 +488,7 @@ const SubtitlerPage = (): React.ReactElement => {
     <ErrorBoundary>
       <PageContainer
         gradient={step !== 'edit'}
+        bgClassName={step !== 'edit' ? getToolGradient('reels-untertitel') : undefined}
         className={cn(step === 'edit' && 'max-w-[1600px] 2xl:max-w-[90vw]')}
       >
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (
