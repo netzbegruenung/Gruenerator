@@ -31,16 +31,17 @@ import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
 import {
-  getRecentMcpSteps,
+  getRecentThreadSources,
+  getRecentToolSteps,
   getThreadLastMcpServer,
   setThreadLastMcpServer,
 } from '../threadPersistenceService.js';
 
 import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
-import { resolveEditorSurfaceKind } from './routing.js';
 import { createToolLoopGuards } from './loopGuards.js';
-import { buildMcpReplayMessages } from './mcpReplay.js';
+import { buildToolObservationReplay } from './mcpReplay.js';
+import { resolveEditorSurfaceKind } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { DEFAULT_LOOP_BUDGET, type LoopBudget, type PersistedStep } from './types.js';
 import { wrapToolsForLoop } from './wrapTools.js';
@@ -108,6 +109,24 @@ const SEARCH_FAMILY_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
   'scrape_url',
+]);
+
+/**
+ * Tools whose steps are NOT replayed as cross-turn "observations": side-effecting
+ * or generative actions that own their own rehydration path (createdDocument /
+ * generatedImage / sharepic card metadata) or emit SSE ops (edit_document).
+ * Replaying them as tool messages would double-represent the artefact or make the
+ * model think content already exists. Every OTHER mounted tool (search, bundestag,
+ * umfragen, summarize, personal-data, MCP, system sources) IS replayed.
+ */
+const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
+  'edit_document',
+  'create_document',
+  'create_board',
+  'create_sheet',
+  'create_presentation',
+  'generate_image',
+  'sharepic',
 ]);
 
 function resolveBudget(): LoopBudget {
@@ -189,7 +208,7 @@ export async function streamAgenticResponse(params: {
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
   let systemCatalog: McpCatalog | null = null;
-  let mcpReplayMessages: ModelMessage[] = [];
+  let toolReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
 
@@ -258,21 +277,45 @@ export async function streamAgenticResponse(params: {
     // Tool-card labels for BOTH catalogs (user connectors + system sources).
     const toolLabels = new Map([...(mcpCatalog?.labels ?? []), ...(systemCatalog?.labels ?? [])]);
 
-    // Structured cross-turn replay: feed the model this thread's prior MCP
-    // tool-calls so a follow-up ("und morgen?", "mach das nochmal") remembers
-    // them. Validity-gated to tools mounted THIS turn (buildMcpReplayMessages);
-    // system tool names are stable (`bahn__…`) so they replay the same way.
+    // Structured cross-turn replay: feed the model this thread's prior tool
+    // interactions as real tool-call/result messages so a follow-up ("und
+    // morgen?", "mach das nochmal", "trag das jetzt ein") remembers what was
+    // gathered. Covers ALL informational tools (search, bundestag, umfragen,
+    // summarize, personal-data, MCP, system sources) — only side-effecting/
+    // generative actions are skipped (NON_REPLAYABLE_ACTION_TOOLS). Validity-
+    // gated inside buildToolObservationReplay to tools mounted THIS turn.
+    // MCP steps stay behind their rollout flag; search/domain replay is always on.
     // Defensive: any loader/build error just skips replay — never breaks a turn.
-    if (isMcpReplayEnabled() && threadId && toolLabels.size > 0) {
+    if (threadId) {
       try {
-        const catalogNames = new Set([
-          ...Object.keys(mcpCatalog?.tools ?? {}),
-          ...Object.keys(systemCatalog?.tools ?? {}),
-        ]);
-        const recent = await getRecentMcpSteps(threadId);
-        mcpReplayMessages = buildMcpReplayMessages(recent, catalogNames);
+        const catalogNames = new Set(Object.keys(tools));
+        const recent = await getRecentToolSteps(threadId);
+        const replayable = recent.filter(
+          (s) =>
+            !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
+            (s.serverName ? isMcpReplayEnabled() : true)
+        );
+        toolReplayMessages = buildToolObservationReplay(replayable, catalogNames);
       } catch (err) {
-        log.warn(`[Agentic] MCP replay skipped: ${err instanceof Error ? err.message : err}`);
+        log.warn(`[Agentic] tool replay skipped: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
+    // Cross-turn source rehydration (editor surfaces only): seed the registry
+    // with the sources gathered in the last research turn so the edit op-planner
+    // grounds "trag die recherchierten Zahlen ein" even when the search ran turns
+    // ago. Feeds ONLY renderReference() (op-planner) — not this turn's citations/
+    // synth block. Gated to edit surfaces so normal chat never inherits stale
+    // sources. Defensive: a failed read just skips seeding.
+    if (threadId && finalState.editToolSurface) {
+      try {
+        const carried = await getRecentThreadSources(threadId);
+        if (carried.length > 0) {
+          sourceRegistry.seedCarried(carried);
+          log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for edit grounding`);
+        }
+      } catch (err) {
+        log.warn(`[Agentic] source rehydration skipped: ${err instanceof Error ? err.message : err}`);
       }
     }
 
@@ -429,7 +472,7 @@ export async function streamAgenticResponse(params: {
           | undefined;
         const userAsk = lastUserAsk();
         if (editTool?.execute && userAsk) {
-          const sourcesBlock = sourceRegistry.renderAll();
+          const sourcesBlock = sourceRegistry.renderReference();
           const instruction = sourcesBlock
             ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
             : userAsk;
@@ -482,11 +525,11 @@ export async function streamAgenticResponse(params: {
       toolSystem,
       buildSynthSystem,
       getSourcesBlock: () => sourceRegistry.renderAll(),
-      // Prepend the reconstructed MCP tool-call/result history just before the
+      // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       messages:
-        mcpReplayMessages.length > 0 && messages.length > 0
-          ? [...messages.slice(0, -1), ...mcpReplayMessages, messages[messages.length - 1]]
+        toolReplayMessages.length > 0 && messages.length > 0
+          ? [...messages.slice(0, -1), ...toolReplayMessages, messages[messages.length - 1]]
           : messages,
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
@@ -518,7 +561,7 @@ export async function streamAgenticResponse(params: {
         | undefined;
       const userAsk = lastUserAsk();
       if (editTool?.execute && userAsk) {
-        const sourcesBlock = sourceRegistry.renderAll();
+        const sourcesBlock = sourceRegistry.renderReference();
         const instruction = sourcesBlock
           ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
           : userAsk;

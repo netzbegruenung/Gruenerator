@@ -1,18 +1,23 @@
 /**
- * Structured cross-turn replay of MCP tool usage.
+ * Structured cross-turn replay of tool usage.
  *
  * The agentic loop rebuilds its model history from client-sent messages as
- * role+text only, so on a later turn the model has no memory of which MCP tool
- * it ran or what it returned. This reconstructs prior MCP tool interactions as
- * real AI-SDK tool-call/tool-result messages (the OpenWebUI/LobeHub pattern) and
- * feeds them back, so a follow-up like "mach das nochmal" sees the earlier call.
+ * role+text only, so on a later turn the model has no memory of which tool it
+ * ran or what it returned. This reconstructs prior tool interactions as real
+ * AI-SDK tool-call/tool-result messages (the OpenWebUI/LobeHub pattern) and
+ * feeds them back, so a follow-up like "mach das nochmal" or "trag das jetzt
+ * ein" sees the earlier calls.
+ *
+ * Generalised beyond MCP: it replays ANY step the caller passes (search,
+ * bundestag, umfragen, summarize, personal-data, MCP, system sources). The
+ * caller decides WHICH steps are replayable observations (excluding side-
+ * effecting/generative actions); this function only enforces the VALIDITY GATE:
+ * a tool-call for a tool not mounted this turn would be rejected by the provider,
+ * so steps whose name is not in the current catalog are skipped.
  *
  * A `PersistedStep` bundles a call AND its result atomically (wrapTools records
  * after execution), so — unlike OpenWebUI's separate call/result items — orphans
- * are impossible here; every replayed call has its result. The only filter is
- * the VALIDITY GATE: a tool-call for a tool not in this turn's catalog would be
- * rejected by the provider, so steps whose stable name is no longer connected
- * are skipped (correct — the model can't re-invoke a disconnected server anyway).
+ * are impossible here; every replayed call has its result.
  */
 import { type PersistedStep } from './types.js';
 
@@ -33,13 +38,14 @@ function shortValue(result: Record<string, unknown>): string {
 }
 
 /**
- * Reconstruct `[assistant{tool-call…}, tool{tool-result…}]` from prior MCP steps.
+ * Reconstruct `[assistant{tool-call…}, tool{tool-result…}]` from prior tool steps.
  *
- * @param steps            recent persisted steps, oldest → newest
- * @param currentCatalogNames stable tool names mounted THIS turn (validity gate)
- * @returns a 2-message block, or `[]` when no valid MCP step remains
+ * @param steps            recent persisted steps (already filtered by the caller
+ *                         to replayable observations), oldest → newest
+ * @param currentCatalogNames tool names mounted THIS turn (validity gate)
+ * @returns a 2-message block, or `[]` when no valid step remains
  */
-export function buildMcpReplayMessages(
+export function buildToolObservationReplay(
   steps: readonly PersistedStep[],
   currentCatalogNames: ReadonlySet<string>,
   opts?: { maxSteps?: number }
@@ -47,7 +53,6 @@ export function buildMcpReplayMessages(
   const maxSteps = opts?.maxSteps ?? DEFAULT_MAX_STEPS;
   const seen = new Set<string>();
   const valid = steps.filter((s) => {
-    if (!s.serverName) return false; // MCP steps only (internal tools excluded)
     if (!currentCatalogNames.has(s.toolName)) return false; // validity gate
     if (seen.has(s.toolCallId)) return false; // dedup by call id
     seen.add(s.toolCallId);
