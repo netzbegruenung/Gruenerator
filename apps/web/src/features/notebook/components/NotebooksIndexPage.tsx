@@ -80,6 +80,7 @@ const HIDDEN_NOTEBOOK_IDS = [
 // liegen (wie die übrigen Notebook-Cover) unter apps/web/public/notebook-covers/.
 const LAENDER_COVER = '/notebook-covers/landesverbaende.webp';
 const EIGENE_COVER = '/notebook-covers/eigene.webp';
+const NEU_COVER = '/notebook-covers/notebook-neu.webp';
 
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
   const navigate = useNavigate();
@@ -745,7 +746,7 @@ function NotebooksIndexFooter() {
                 />
               </div>
             )}
-            {qaCollections.length > 0 && (
+            {qaCollections.length > 0 ? (
               <div className={NOTEBOOK_SCROLL_ITEM}>
                 <NotebookGalleryCard
                   title="Eigene Notebooks"
@@ -754,6 +755,15 @@ function NotebooksIndexFooter() {
                   icon={NotebookIcon}
                   accent="pink"
                   onActivate={() => setOpenCategory((c) => (c === 'eigene' ? null : 'eigene'))}
+                />
+              </div>
+            ) : (
+              <div className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookGalleryCard
+                  title="Neues erstellen"
+                  coverImage={NEU_COVER}
+                  accent="pink"
+                  onActivate={handleCreate}
                 />
               </div>
             )}
