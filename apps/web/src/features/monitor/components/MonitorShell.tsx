@@ -1,7 +1,6 @@
 import { Button, StatusBanner, Tabs, TabsList, TabsTrigger } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, RefreshCw, RotateCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RefreshCw, RotateCcw } from 'lucide-react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -11,13 +10,9 @@ import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import type { MonitorLocale } from '../hooks/useMonitor';
 import type { ReactNode } from 'react';
 
-export type MonitorSection = 'uebersicht' | 'themen' | 'umfragen' | 'watcher' | 'feed';
+export type MonitorSection = 'themen' | 'umfragen' | 'watcher' | 'feed';
 
 const SECTION_SUBTITLES: Record<MonitorSection, Record<MonitorLocale, string>> = {
-  uebersicht: {
-    de: 'Meistdiskutierte Themen in deutschen Nachrichtenmedien der letzten 24 Stunden.',
-    at: 'Meistdiskutierte Themen in österreichischen Nachrichtenmedien der letzten 24 Stunden.',
-  },
   themen: {
     de: 'Meistdiskutierte Themen in deutschen Nachrichtenmedien der letzten 24 Stunden.',
     at: 'Meistdiskutierte Themen in österreichischen Nachrichtenmedien der letzten 24 Stunden.',
@@ -50,7 +45,7 @@ interface MonitorShellProps {
  */
 export function MonitorShell({ section, children }: MonitorShellProps) {
   const queryClient = useQueryClient();
-  const { locale, setLocale, withLocale } = useMonitorLocaleParam();
+  const { locale, setLocale } = useMonitorLocaleParam();
   // Cache-shared with the page content — only feeds the counts + error banner.
   const { data: snapshot, error } = useMonitorSnapshot(locale);
   const refresh = useMonitorRefresh();
@@ -94,16 +89,6 @@ export function MonitorShell({ section, children }: MonitorShellProps) {
               </Button>
             )}
           </div>
-
-          {section !== 'uebersicht' && (
-            <Link
-              to={withLocale('/experiments/monitor')}
-              className="inline-flex items-center gap-1 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Zur Übersicht
-            </Link>
-          )}
         </div>
 
         {error && (

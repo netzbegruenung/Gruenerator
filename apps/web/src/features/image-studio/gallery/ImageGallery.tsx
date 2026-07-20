@@ -392,7 +392,7 @@ const ImageGallery = () => {
   );
 
   const handleNewImage = () => {
-    void navigate('/studio');
+    void navigate('/workplace/arbeiten');
   };
 
   // Quick-start tiles for the empty gallery. The builder centralises the
@@ -400,7 +400,7 @@ const ImageGallery = () => {
   const quickStarts = buildStudioQuickStarts({
     isAustrianUser: locale === 'de-AT',
     onSharepic: () => void navigate('/studio/templates'),
-    onKiBild: () => void navigate('/imagine'),
+    onKiBild: () => void navigate('/bild-editor'),
     onReel: () => void navigate('/studio/video'),
   });
 

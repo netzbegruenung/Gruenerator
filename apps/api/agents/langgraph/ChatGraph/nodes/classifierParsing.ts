@@ -17,6 +17,16 @@ import type { ClassifierLLMResponse } from './classifierFilters.js';
 const log = createLogger('ChatGraph:Classifier');
 
 /**
+ * Phrases that reference the user's earlier work — a past conversation with the
+ * assistant OR one of the user's own office documents (docs/presentations/
+ * sheets). Used both to add the `chat_history` search source (combined queries)
+ * and to defensively upgrade a misclassified `direct` intent to the
+ * `chat_history` tool.
+ */
+export const CHAT_HISTORY_KEYWORDS =
+  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich)\b/i;
+
+/**
  * Parse JSON response from classifier, with error handling.
  * Handles extended response format with typoAnalysis and contentType.
  */
@@ -31,7 +41,15 @@ export function parseClassifierResponse(
     'search',
     'web',
     'examples',
+    'social_post',
     'abgeordnetenwatch',
+    'bundestag',
+    'bahn',
+    'reise',
+    'hotel',
+    'wetter',
+    'news',
+    'umfragen',
     'sharepic',
     'image',
     'image_edit',
@@ -42,6 +60,7 @@ export function parseClassifierResponse(
     'save_as_doc',
     'modify_doc',
     'modify_board',
+    'chat_history',
     'direct',
   ];
 
@@ -65,6 +84,14 @@ export function parseClassifierResponse(
       log.debug(
         `[Classifier] Content type: ${parsed.contentType}, needsResearch: ${parsed.needsResearch}`
       );
+    }
+
+    // Defensive upgrade: the LLM sometimes calls a clear past-conversation
+    // reference "direct". If the text plainly points at an earlier chat, route
+    // it to the chat_history tool instead.
+    if (parsed.intent === 'direct' && CHAT_HISTORY_KEYWORDS.test(userContent)) {
+      log.info('[Classifier] Upgraded direct → chat_history (past-conversation reference)');
+      parsed.intent = 'chat_history';
     }
 
     // If LLM returns 'person', route to web instead
@@ -130,8 +157,10 @@ export function parseClassifierResponse(
         );
       }
 
-      // Extract search sources for parallel multi-source search
-      const validSources = ['documents', 'web'];
+      // Extract search sources for parallel multi-source search. `chat_history`
+      // is a first-class SearchSource (past-chat recall) — keep it so the model
+      // can explicitly pick it, not only the regex heuristic (detectSearchSources).
+      const validSources = ['documents', 'web', 'chat_history'];
       const searchSources =
         parsed.searchSources?.filter((s): s is SearchSource => validSources.includes(s)) || [];
 
@@ -257,11 +286,56 @@ export function parseClassifierResponse(
       searchQuery: null,
       reasoning: 'Fallback: summary detected in response',
     };
+  // System MCP intents — specific tokens, safe before the broad direct/search.
+  if (intentFieldPattern('reise').test(content))
+    return {
+      intent: 'reise',
+      searchQuery: null,
+      reasoning: 'Fallback: reise detected in response',
+    };
+  if (intentFieldPattern('bahn').test(content))
+    return {
+      intent: 'bahn',
+      searchQuery: null,
+      reasoning: 'Fallback: bahn detected in response',
+    };
+  if (intentFieldPattern('wetter').test(content))
+    return {
+      intent: 'wetter',
+      searchQuery: null,
+      reasoning: 'Fallback: wetter detected in response',
+    };
+  if (intentFieldPattern('news').test(content))
+    return {
+      intent: 'news',
+      searchQuery: userContent,
+      reasoning: 'Fallback: news detected in response',
+    };
+  if (intentFieldPattern('hotel').test(content))
+    return {
+      intent: 'hotel',
+      searchQuery: null,
+      reasoning: 'Fallback: hotel detected in response',
+    };
+  if (intentFieldPattern('umfragen').test(content))
+    return {
+      intent: 'umfragen',
+      searchQuery: null,
+      reasoning: 'Fallback: umfragen detected in response',
+    };
   if (intentFieldPattern('direct').test(content))
     return {
       intent: 'direct',
       searchQuery: null,
       reasoning: 'Fallback: direct detected in response',
+    };
+  // social_post before examples: 'examples' would otherwise never lose to it
+  // in malformed responses that mention both.
+  if (intentFieldPattern('social_post').test(content))
+    return {
+      intent: 'social_post',
+      searchQuery: userContent,
+      reasoning: 'Fallback: social_post detected in response',
     };
   if (intentFieldPattern('examples').test(content))
     return {
@@ -369,9 +443,7 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
   }
 
   // References to past conversations → include chat_history source
-  const chatHistoryKeywords =
-    /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen)\b/i;
-  if (chatHistoryKeywords.test(q)) {
+  if (CHAT_HISTORY_KEYWORDS.test(q)) {
     const base: SearchSource[] = hasPartyKeywords
       ? ['documents', 'chat_history']
       : ['chat_history'];

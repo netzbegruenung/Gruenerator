@@ -8,10 +8,10 @@ Download the approved logo kit from the Canva Developer Portal / brand guideline
 ZIP (<https://www.canva.dev/docs/connect/guidelines/brand/>) and place the
 following **unmodified** SVGs here:
 
-| File | Use | Brand rule |
-|---|---|---|
-| `canva-icon.svg` | Square icon mark | Use for surfaces **below 50px** |
-| `canva-logo.svg` | Script wordmark | Use for surfaces **at/above 50px** |
+| File             | Use              | Brand rule                         |
+| ---------------- | ---------------- | ---------------------------------- |
+| `canva-icon.svg` | Square icon mark | Use for surfaces **below 50px**    |
+| `canva-logo.svg` | Script wordmark  | Use for surfaces **at/above 50px** |
 
 Rules (from Canva's brand guidelines — enforced by `CanvaLogo.tsx`):
 

@@ -1,4 +1,10 @@
-import type { ConfirmActionType, DocumentCreatedEvent } from '@gruenerator/contracts';
+import type {
+  ConfirmActionType,
+  DocumentCreatedEvent,
+  SocialPostPayload,
+  BundestagPayload,
+  BahnPayload,
+} from '@gruenerator/contracts';
 import type {
   ChatProgress,
   Citation,
@@ -60,9 +66,13 @@ export type ChatMessageMetadata = {
   searchResults?: SearchResult[];
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
+  /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */
+  socialPostData?: SocialPostPayload;
   chartData?: ChartData;
   artifactData?: ActiveArtifact;
   computeData?: ComputeData;
+  bundestagData?: BundestagPayload;
+  bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

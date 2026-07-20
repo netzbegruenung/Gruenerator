@@ -3,10 +3,10 @@ import { Badge, Button, SectionHeader } from '@gruenerator/ui';
 import { useShareLinks, type ShareLink } from '@gruenerator/wolke';
 import { useState, useCallback, useMemo } from 'react';
 import { HiCloud, HiExclamation, HiRefresh, HiX } from 'react-icons/hi';
-import { Link } from 'react-router-dom';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
+import { useSettingsDialogStore } from '../../settings/settingsDialogStore';
 
 export interface ImportedWolkeDocument {
   id: string;
@@ -176,8 +176,13 @@ const NotebookEditorWolkeSection = ({
           <p className="m-0 text-xs text-grey-500">
             Verbinde sie einmal und du kannst hier ganze Ordner als Quelle hinzufügen.
           </p>
-          <Button asChild type="button" size="sm" className="mt-xs">
-            <Link to="/profile/wolke">Wolke verbinden →</Link>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-xs"
+            onClick={() => useSettingsDialogStore.getState().openSettings('wolke')}
+          >
+            Wolke verbinden →
           </Button>
         </div>
       ) : (

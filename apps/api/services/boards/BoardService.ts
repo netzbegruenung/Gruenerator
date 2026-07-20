@@ -14,7 +14,7 @@ const _log = createLogger('BoardService');
 const BOARDS_SUBTYPE = 'boards';
 
 // Well-known field IDs (must match frontend FIELD_IDS)
-const FIELD_IDS = {
+export const FIELD_IDS = {
   TITLE: 'field-title',
   STATUS: 'field-status',
   DESCRIPTION: 'field-description',
@@ -53,7 +53,7 @@ export interface BoardGenerationResult {
   rows: Array<{ id: string; title: string; status: string; description: string }>;
 }
 
-interface FieldDef {
+export interface FieldDef {
   id: string;
   name: string;
   type: string;
@@ -61,7 +61,7 @@ interface FieldDef {
   order: number;
 }
 
-interface RowDef {
+export interface RowDef {
   id: string;
   cells: Record<string, unknown>;
   createdBy: string;
@@ -137,6 +137,43 @@ export async function loadBoardYjsDoc(boardId: string): Promise<Y.Doc | null> {
 /**
  * Load board state for AI context injection.
  */
+export interface BoardListItem {
+  id: string;
+  title: string;
+  updated_at: string;
+  content: string | null;
+}
+
+/**
+ * List the caller's own boards (owned / directly-shared / group-shared), newest
+ * first — the lean projection a chat tool needs. Same access predicate as the
+ * `listBoards` contract handler; `content` carries the denormalized preview for
+ * an optional snippet.
+ */
+export async function listUserBoards(userId: string, limit: number): Promise<BoardListItem[]> {
+  const db = getPostgresInstance();
+  const result = await db.query(
+    `SELECT cd.id, cd.title, cd.updated_at, cd.content
+     FROM collaborative_documents cd
+     WHERE cd.document_subtype = $1
+       AND cd.is_deleted = false
+       AND (
+         cd.created_by = $2
+         OR cd.permissions ? $2::text
+         OR cd.id IN (
+           SELECT gcs.content_id::uuid
+           FROM group_content_shares gcs
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+           WHERE gcs.content_type = 'collaborative_documents'
+         )
+       )
+     ORDER BY cd.updated_at DESC
+     LIMIT $3`,
+    [BOARDS_SUBTYPE, userId, limit]
+  );
+  return result as unknown as BoardListItem[];
+}
+
 export async function loadBoardState(boardId: string, userId: string): Promise<BoardState | null> {
   const db = getPostgresInstance();
 
@@ -284,22 +321,13 @@ export interface CardSnapshot {
 }
 
 /**
- * Read a single card's display-ready content straight from the board's Yjs doc,
- * for enriching notification emails. Resolves select-option IDs (status/labels)
- * to their names via the field schema. Returns null if the board or card is gone.
+ * Resolve one row's display-ready snapshot from ALREADY-LOADED board state
+ * (fields + row) — no Yjs load. Callers that already hold a `BoardState`
+ * (`loadBoardState`) MUST use this instead of `getCardSnapshot` per card, which
+ * reloads the whole doc every call (an N+1 that leaks Y.Docs and times out on
+ * boards with many cards).
  */
-export async function getCardSnapshot(
-  boardId: string,
-  cardId: string
-): Promise<CardSnapshot | null> {
-  const ydoc = await loadBoardYjsDoc(boardId);
-  if (!ydoc) return null;
-
-  const fields = ydoc.getArray('fields').toJSON() as FieldDef[];
-  const rows = ydoc.getArray('rows').toJSON() as RowDef[];
-  const row = rows.find((r) => r.id === cardId);
-  if (!row) return null;
-
+export function resolveCardDisplay(fields: FieldDef[], row: RowDef): CardSnapshot {
   // typeOptions/options may be absent or non-array on legacy/whiteboard-converted
   // fields — guard so a malformed field degrades gracefully instead of throwing.
   const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
@@ -323,6 +351,56 @@ export async function getCardSnapshot(
     assigneeNames: parseAssigneeNames(row.cells[FIELD_IDS.ASSIGNEE]),
     labelNames: resolveOptionNames(row.cells[FIELD_IDS.LABELS], labelOptions),
   };
+}
+
+/**
+ * Read a single card's display-ready content straight from the board's Yjs doc,
+ * for enriching notification emails. Resolves select-option IDs (status/labels)
+ * to their names via the field schema. Returns null if the board or card is gone.
+ */
+export async function getCardSnapshot(
+  boardId: string,
+  cardId: string
+): Promise<CardSnapshot | null> {
+  const ydoc = await loadBoardYjsDoc(boardId);
+  if (!ydoc) return null;
+
+  const fields = ydoc.getArray('fields').toJSON() as FieldDef[];
+  const rows = ydoc.getArray('rows').toJSON() as RowDef[];
+  const row = rows.find((r) => r.id === cardId);
+  if (!row) {
+    ydoc.destroy();
+    return null;
+  }
+
+  const snapshot = resolveCardDisplay(fields, row);
+  ydoc.destroy();
+  return snapshot;
+}
+
+/**
+ * Resolve the status/column id for agent-created cards: the source card's own
+ * column, else the board's first status option, else '' (uncategorised). Loads
+ * the board doc once and destroys it.
+ */
+export async function resolveNewCardColumn(boardId: string, sourceCardId: string): Promise<string> {
+  const ydoc = await loadBoardYjsDoc(boardId);
+  if (!ydoc) return '';
+  try {
+    const fields = ydoc.getArray('fields').toJSON() as FieldDef[];
+    const rows = ydoc.getArray('rows').toJSON() as RowDef[];
+    const sourceStatus = rows.find((r) => r.id === sourceCardId)?.cells?.[FIELD_IDS.STATUS];
+    if (typeof sourceStatus === 'string' && sourceStatus) return sourceStatus;
+
+    const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
+    const options = Array.isArray(statusField?.typeOptions?.options)
+      ? (statusField?.typeOptions?.options as Array<{ id?: unknown }>)
+      : [];
+    const firstId = options[0]?.id;
+    return typeof firstId === 'string' ? firstId : '';
+  } finally {
+    ydoc.destroy();
+  }
 }
 
 /**

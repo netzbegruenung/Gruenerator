@@ -4,10 +4,13 @@
  * Each page can have a different template type, enabling documents
  * that mix Zitat, Dreizeilen, Info slides, etc.
  *
- * Key features:
- * - Each page stores its own configId (template type) + state
- * - Configs are loaded on-demand and cached
- * - Background inheritance when adding pages with different templates
+ * Page structure always lives in a Y.Doc (see collab/pagesDoc.ts): the
+ * host-supplied collaborative doc, or a local one this hook owns. One code
+ * path for both modes means duplicate/move/undo behave identically and
+ * layers survive page operations everywhere.
+ *
+ * Selection is tracked by page ID, not index — deleting or reordering pages
+ * (locally or remotely) never silently retargets the selection.
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -15,7 +18,9 @@ import { v4 as uuid } from 'uuid';
 import * as Y from 'yjs';
 
 import { useYjsPages } from '../collab/useYjsPages';
+import { readPages } from '../collab/pagesDoc';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
+import { extractInheritablePageState } from '../configs/pageInheritance';
 
 import type { CanvasConfigId, HeterogeneousPage, FullCanvasConfig } from '../configs/types';
 
@@ -23,6 +28,40 @@ import type { CanvasConfigId, HeterogeneousPage, FullCanvasConfig } from '../con
 export interface InitialPageDef {
   configId: CanvasConfigId;
   state: Record<string, unknown>;
+  /**
+   * Stable page id. Keep it when the source already addresses pages by id
+   * (chat deck patches, server seeds) — dropping it would break that
+   * addressing; omitted ids get deterministic `seed-<index>` fallbacks.
+   */
+  id?: string;
+  /** Free-element layers (deck restore from gallery drafts). */
+  layers?: Array<Record<string, unknown>>;
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Validate persisted/external page JSON (initial_state.pages, gallery deck
+ * drafts) into InitialPageDef[] — the shared parser for every restore entry
+ * point, so id/layers/config survive uniformly.
+ */
+export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const pages: InitialPageDef[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const p = entry as Record<string, unknown>;
+    if (typeof p.configId !== 'string' || !p.state || typeof p.state !== 'object') continue;
+    pages.push({
+      configId: p.configId as CanvasConfigId,
+      state: p.state as Record<string, unknown>,
+      ...(typeof p.id === 'string' ? { id: p.id } : {}),
+      ...(Array.isArray(p.layers) ? { layers: p.layers as Array<Record<string, unknown>> } : {}),
+      ...(p.config && typeof p.config === 'object'
+        ? { config: p.config as Record<string, unknown> }
+        : {}),
+    });
+  }
+  return pages.length > 0 ? pages : undefined;
 }
 
 export interface UsePageManagerOptions {
@@ -32,10 +71,10 @@ export interface UsePageManagerOptions {
   /** Pre-populated pages — when provided, overrides single-page initialization from initialProps */
   initialPages?: InitialPageDef[];
   /**
-   * When provided, the pages list is backed by a Yjs doc instead of local
-   * useState. Mutations route through `ydoc.transact` so they propagate to
-   * remote peers. Pages from the Y.Doc shadow `initialProps`/`initialPages`
-   * — those are only used to seed the doc on first load.
+   * When provided, the pages list is backed by the host's collaborative
+   * Y.Doc. Pages from the Y.Doc shadow `initialProps`/`initialPages` — those
+   * only seed the doc on first load. Without this option the hook owns a
+   * local Y.Doc with identical semantics (minus remote peers).
    */
   collaborative?: {
     ydoc: Y.Doc;
@@ -58,12 +97,16 @@ export interface UsePageManagerReturn {
   movePage: (id: string, direction: 'up' | 'down') => void;
   removePage: (id: string) => void;
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
+  /** Convert an existing page to another template (keeps id, position, layers). */
+  setPageConfig: (id: string, configId: CanvasConfigId) => Promise<void>;
   canAddMore: boolean;
   pageCount: number;
   getConfigForPage: (configId: CanvasConfigId) => Promise<FullCanvasConfig>;
   loadedConfigs: Map<CanvasConfigId, FullCanvasConfig>;
   isLoadingConfig: boolean;
-  /** When in collaborative mode, returns the page's Y.Map for that index; null otherwise. */
+  /** The Y.Doc backing the pages list (host's in collab mode, local otherwise). */
+  pagesDoc: Y.Doc;
+  /** Returns the page's Y.Map for that index (layers/config/state binding). */
   getPageYMap: (index: number) => Y.Map<unknown> | null;
   /** Undo the last page-level operation (add/remove/duplicate/move). */
   undoPageOp: () => void;
@@ -74,35 +117,22 @@ export interface UsePageManagerReturn {
 }
 
 /**
- * Extract background properties that can be inherited across different templates.
- * This allows maintaining visual consistency when switching templates.
+ * The page to select after removing `removedId`: the current page if it
+ * survives, otherwise the removed page's follower (or the new last page).
  */
-function extractInheritableBackground(state: Record<string, unknown>): Record<string, unknown> {
-  const inheritableProps: Record<string, unknown> = {};
-
-  // Image background sources (used by templates with image backgrounds)
-  if (state.currentImageSrc) {
-    inheritableProps.currentImageSrc = state.currentImageSrc;
-    inheritableProps.imageSrc = state.currentImageSrc;
-  } else if (state.imageSrc) {
-    inheritableProps.imageSrc = state.imageSrc;
-    inheritableProps.currentImageSrc = state.imageSrc;
+export function nextPageIdAfterRemoval(
+  pages: Array<{ id: string }>,
+  removedId: string,
+  currentId: string | null
+): string | null {
+  const survivors = pages.filter((p) => p.id !== removedId);
+  if (survivors.length === 0) return null;
+  if (currentId !== null && currentId !== removedId && survivors.some((p) => p.id === currentId)) {
+    return currentId;
   }
-
-  // Solid color background (used by info, zitat-pure)
-  if (state.backgroundColor) {
-    inheritableProps.backgroundColor = state.backgroundColor;
-  }
-
-  // Image offset and scale (for templates that support image positioning)
-  if (state.imageOffset) {
-    inheritableProps.imageOffset = state.imageOffset;
-  }
-  if (state.imageScale !== undefined) {
-    inheritableProps.imageScale = state.imageScale;
-  }
-
-  return inheritableProps;
+  const removedIndex = pages.findIndex((p) => p.id === removedId);
+  const fallbackIndex = Math.min(Math.max(removedIndex, 0), survivors.length - 1);
+  return survivors[fallbackIndex].id;
 }
 
 export function usePageManager({
@@ -116,58 +146,93 @@ export function usePageManager({
   const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
-  const yjsPages = useYjsPages(collaborative?.ydoc ?? null, collaborative?.isSynced ?? false);
+  // Non-collab editors own a local Y.Doc so page structure, undo and layer
+  // cloning run through the exact same pagesDoc code path as collab.
+  // Not destroyed on unmount: StrictMode double-mounts would hand the second
+  // mount a dead doc; an unreferenced local Y.Doc is plain GC-able.
+  const localDocRef = useRef<Y.Doc | null>(null);
+  if (!collaborative && localDocRef.current === null) {
+    localDocRef.current = new Y.Doc();
+  }
 
-  const [localPages, setLocalPages] = useState<HeterogeneousPage[]>(() => {
-    if (collaborative) return [];
-    if (initialPages && initialPages.length > 0) {
-      return initialPages.map((def, index) => ({
-        id: uuid(),
-        configId: def.configId,
-        state: def.state,
-        order: index,
-      }));
-    }
-    return [
-      {
-        id: uuid(),
-        configId: initialConfigId,
-        state: initialProps,
-        order: 0,
-      },
-    ];
-  });
+  const ydoc = collaborative?.ydoc ?? (localDocRef.current as Y.Doc);
+  const isSynced = collaborative ? collaborative.isSynced : true;
 
-  // seedIfEmpty itself early-returns once pages exist, so re-runs from
-  // changing initialProps/initialPages identity are harmless.
+  const yjsPages = useYjsPages(ydoc, isSynced);
+
+  // seedIfEmpty early-returns once pages exist (or the doc carries the
+  // server-seed watermark), so re-runs from changing initialProps identity
+  // are harmless.
   useEffect(() => {
     if (!yjsPages || yjsPages.isSeeded) return;
     const seed =
       initialPages && initialPages.length > 0
-        ? initialPages.map((def) => ({ id: uuid(), configId: def.configId, state: def.state }))
-        : [{ id: uuid(), configId: initialConfigId, state: initialProps }];
+        ? initialPages.map((def) => ({
+            configId: def.configId,
+            state: def.state,
+            ...(def.id ? { id: def.id } : {}),
+            ...(def.layers ? { layers: def.layers } : {}),
+            ...(def.config ? { config: def.config } : {}),
+          }))
+        : [{ configId: initialConfigId, state: initialProps }];
     yjsPages.seedIfEmpty(seed);
   }, [yjsPages, initialPages, initialConfigId, initialProps]);
 
-  const collabPagesView: HeterogeneousPage[] = useMemo(() => {
+  // View identity is preserved by useYjsPages for untouched pages; mirror
+  // that here so memo'd PageWrappers only re-render for pages that changed.
+  const pageCacheRef = useRef(new Map<string, { view: unknown; page: HeterogeneousPage }>());
+  const prevPagesRef = useRef<HeterogeneousPage[]>([]);
+  const pages: HeterogeneousPage[] = useMemo(() => {
     if (!yjsPages) return [];
-    return yjsPages.pages.map((p, idx) => ({
-      id: p.id,
-      configId: p.configId as CanvasConfigId,
-      state: p.state,
-      order: idx,
-    }));
+    const cache = pageCacheRef.current;
+    const next = yjsPages.pages.map((view) => {
+      const cached = cache.get(view.id);
+      if (cached && cached.view === view) return cached.page;
+      const page: HeterogeneousPage = {
+        id: view.id,
+        configId: view.configId as CanvasConfigId,
+        state: view.state,
+      };
+      cache.set(view.id, { view, page });
+      return page;
+    });
+    const ids = new Set(next.map((p) => p.id));
+    for (const id of cache.keys()) {
+      if (!ids.has(id)) cache.delete(id);
+    }
+    const prev = prevPagesRef.current;
+    const unchanged = prev.length === next.length && prev.every((p, i) => p === next[i]);
+    const result = unchanged ? prev : next;
+    prevPagesRef.current = result;
+    return result;
   }, [yjsPages]);
 
-  const pages: HeterogeneousPage[] = collaborative ? collabPagesView : localPages;
+  const [currentPageId, setCurrentPageId] = useState<string | null>(null);
+  const currentPageIndex = useMemo(() => {
+    if (currentPageId === null) return 0;
+    const idx = pages.findIndex((p) => p.id === currentPageId);
+    return idx >= 0 ? idx : 0;
+  }, [pages, currentPageId]);
 
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  // Clamp current index when the collaborative page list shrinks under us.
+  // When the selected page disappears (remote delete, undo), fall back to the
+  // page now occupying the last known position instead of index-drifting.
+  const lastIndexRef = useRef(0);
+  lastIndexRef.current = currentPageIndex;
   useEffect(() => {
-    if (currentPageIndex >= pages.length && pages.length > 0) {
-      setCurrentPageIndex(pages.length - 1);
+    if (pages.length === 0) return;
+    if (currentPageId === null || !pages.some((p) => p.id === currentPageId)) {
+      const fallback = pages[Math.min(lastIndexRef.current, pages.length - 1)];
+      setCurrentPageId(fallback.id);
     }
-  }, [pages.length, currentPageIndex]);
+  }, [pages, currentPageId]);
+
+  const setCurrentPageIndex = useCallback(
+    (index: number) => {
+      const page = pages[index];
+      if (page) setCurrentPageId(page.id);
+    },
+    [pages]
+  );
 
   const canAddMore = pages.length < maxPages;
 
@@ -176,13 +241,11 @@ export function usePageManager({
    */
   const getConfigForPage = useCallback(
     async (configId: CanvasConfigId): Promise<FullCanvasConfig> => {
-      // Check cache first
       const cached = configCacheRef.current.get(configId);
       if (cached) {
         return cached;
       }
 
-      // Load config
       if (!isValidCanvasType(configId)) {
         throw new Error(`Invalid config type: ${configId}`);
       }
@@ -202,7 +265,7 @@ export function usePageManager({
   /**
    * Add a new page with a specific template
    * @param configId - The template type for the new page
-   * @param inheritBackground - Whether to copy background from current page
+   * @param inheritBackground - Whether to copy background/scheme from current page
    */
   const addPage = useCallback(
     async (
@@ -210,136 +273,58 @@ export function usePageManager({
       inheritBackground = true,
       stateOverrides?: Record<string, unknown>
     ) => {
-      if (!canAddMore) return;
+      if (!canAddMore || !yjsPages) return;
 
-      // Load the config for the new page
       const config = await getConfigForPage(configId);
 
-      // Get background from current page if inheriting
-      const currentPage = pages[currentPageIndex];
-      const inheritedBackground =
-        inheritBackground && currentPage ? extractInheritableBackground(currentPage.state) : {};
+      // Read the source page from the live doc — the React view in this
+      // closure is a pre-await snapshot and misses remote edits that landed
+      // while the config chunk loaded.
+      const liveViews = readPages(ydoc);
+      const sourcePage =
+        liveViews.find((p) => p.id === currentPageId) ?? liveViews[liveViews.length - 1];
+      const inherited =
+        inheritBackground && sourcePage ? extractInheritablePageState(sourcePage.state) : {};
 
-      // Create initial state using the config's createInitialState
-      // Merge in inherited background, default new page state, and any overrides
       const newPageState = config.createInitialState({
         ...(config.multiPage?.defaultNewPageState || {}),
-        ...inheritedBackground,
+        ...inherited,
         ...stateOverrides,
       });
 
-      const newPage: HeterogeneousPage = {
-        id: uuid(),
-        configId,
-        state: newPageState,
-        order: pages.length,
-      };
-
-      if (yjsPages) {
-        yjsPages.addPage({ id: newPage.id, configId, state: newPageState });
-      } else {
-        setLocalPages((prev) => [...prev, newPage]);
-      }
-
-      // Auto-switch to new page
-      setCurrentPageIndex(pages.length);
+      const id = uuid();
+      yjsPages.addPage({ id, configId, state: newPageState });
+      setCurrentPageId(id);
     },
-    [canAddMore, pages, currentPageIndex, getConfigForPage, yjsPages, setLocalPages]
+    [canAddMore, yjsPages, ydoc, currentPageId, getConfigForPage]
   );
 
   /**
-   * Duplicate the current page (same template, same content)
-   */
-  const duplicateCurrentPage = useCallback(() => {
-    if (!canAddMore) return;
-
-    const currentPage = pages[currentPageIndex];
-    if (!currentPage) return;
-
-    const duplicatedPage: HeterogeneousPage = {
-      id: uuid(),
-      configId: currentPage.configId,
-      state: { ...currentPage.state },
-      order: pages.length,
-    };
-
-    if (yjsPages) {
-      yjsPages.addPage({
-        id: duplicatedPage.id,
-        configId: duplicatedPage.configId,
-        state: duplicatedPage.state,
-      });
-    } else {
-      setLocalPages((prev) => [...prev, duplicatedPage]);
-    }
-    setCurrentPageIndex(pages.length);
-  }, [canAddMore, pages, currentPageIndex, yjsPages, setLocalPages]);
-
-  /**
-   * Duplicate a specific page by ID (inserts after the original)
+   * Duplicate a page (same template, same content, same layers).
+   * Inserts right after the source and selects the copy.
    */
   const duplicatePage = useCallback(
     (id: string) => {
-      if (!canAddMore) return;
-
-      const sourceIndex = pages.findIndex((p) => p.id === id);
-      if (sourceIndex === -1) return;
-
-      const sourcePage = pages[sourceIndex];
-      const duplicated: HeterogeneousPage = {
-        id: uuid(),
-        configId: sourcePage.configId,
-        state: { ...sourcePage.state },
-        order: 0,
-      };
-
-      if (yjsPages) {
-        yjsPages.insertPage(sourceIndex + 1, {
-          id: duplicated.id,
-          configId: duplicated.configId,
-          state: duplicated.state,
-        });
-      } else {
-        setLocalPages((prev) => {
-          const next = [...prev];
-          next.splice(sourceIndex + 1, 0, duplicated);
-          return next.map((p, i) => ({ ...p, order: i }));
-        });
-      }
-      setCurrentPageIndex(sourceIndex + 1);
+      if (!canAddMore || !yjsPages) return;
+      const newId = yjsPages.duplicatePage(id);
+      if (newId) setCurrentPageId(newId);
     },
-    [canAddMore, pages, yjsPages, setLocalPages]
+    [canAddMore, yjsPages]
   );
 
+  const duplicateCurrentPage = useCallback(() => {
+    if (currentPageId) duplicatePage(currentPageId);
+  }, [currentPageId, duplicatePage]);
+
   /**
-   * Move a page up or down in the order
+   * Move a page up or down in the order. Selection follows the id, so no
+   * index bookkeeping is needed.
    */
   const movePage = useCallback(
     (id: string, direction: 'up' | 'down') => {
-      const index = pages.findIndex((p) => p.id === id);
-      if (index === -1) return;
-
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= pages.length) return;
-
-      if (yjsPages) {
-        yjsPages.movePage(id, direction);
-      } else {
-        setLocalPages((prev) => {
-          const next = [...prev];
-          [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-          return next.map((p, i) => ({ ...p, order: i }));
-        });
-      }
-
-      // Follow the moved page
-      if (currentPageIndex === index) {
-        setCurrentPageIndex(targetIndex);
-      } else if (currentPageIndex === targetIndex) {
-        setCurrentPageIndex(index);
-      }
+      yjsPages?.movePage(id, direction);
     },
-    [pages, currentPageIndex, yjsPages, setLocalPages]
+    [yjsPages]
   );
 
   /**
@@ -347,21 +332,12 @@ export function usePageManager({
    */
   const removePage = useCallback(
     (id: string) => {
-      if (pages.length <= 1) return; // Keep at least one
-
-      if (yjsPages) {
-        yjsPages.removePage(id);
-      } else {
-        setLocalPages((prev) => {
-          const filtered = prev.filter((p) => p.id !== id);
-          return filtered.map((p, i) => ({ ...p, order: i }));
-        });
-      }
-
-      // Adjust current index if needed
-      setCurrentPageIndex((prev) => Math.min(prev, pages.length - 2));
+      if (!yjsPages || pages.length <= 1) return;
+      const nextId = nextPageIdAfterRemoval(pages, id, currentPageId);
+      yjsPages.removePage(id);
+      setCurrentPageId(nextId);
     },
-    [pages.length, yjsPages, setLocalPages]
+    [yjsPages, pages, currentPageId]
   );
 
   /**
@@ -369,15 +345,29 @@ export function usePageManager({
    */
   const updatePageState = useCallback(
     (id: string, partial: Record<string, unknown>) => {
-      if (yjsPages) {
-        yjsPages.updatePageState(id, partial);
-        return;
-      }
-      setLocalPages((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, state: { ...p.state, ...partial } } : p))
-      );
+      yjsPages?.updatePageState(id, partial);
     },
-    [yjsPages, setLocalPages]
+    [yjsPages]
+  );
+
+  /**
+   * Convert an existing page to another template. Free elements (layers)
+   * stay; template state is rebuilt from the new config with the shared
+   * inheritance contract applied.
+   */
+  const setPageConfig = useCallback(
+    async (id: string, configId: CanvasConfigId) => {
+      if (!yjsPages) return;
+      const source = readPages(ydoc).find((p) => p.id === id);
+      if (!source || source.configId === configId) return;
+      const config = await getConfigForPage(configId);
+      const newState = config.createInitialState({
+        ...(config.multiPage?.defaultNewPageState || {}),
+        ...extractInheritablePageState(source.state),
+      });
+      yjsPages.setPageConfig(id, configId, newState);
+    },
+    [yjsPages, ydoc, getConfigForPage]
   );
 
   const getPageYMap = useCallback(
@@ -394,9 +384,6 @@ export function usePageManager({
   // Expose loaded configs map for components that need it
   const loadedConfigs = useMemo(() => configCacheRef.current, []);
 
-  // Page-level undo/redo. Collab mode is fully wired via Yjs UndoManager;
-  // local (non-collab) mode is a no-op here for now — pages persist via
-  // host auto-save, and most users hit this path through the collab editor.
   const noopUndo = useCallback(() => {}, []);
   const undoPageOp = yjsPages?.undoPageOp ?? noopUndo;
   const redoPageOp = yjsPages?.redoPageOp ?? noopUndo;
@@ -414,11 +401,13 @@ export function usePageManager({
     movePage,
     removePage,
     updatePageState,
+    setPageConfig,
     canAddMore,
     pageCount: pages.length,
     getConfigForPage,
     loadedConfigs,
     isLoadingConfig,
+    pagesDoc: ydoc,
     getPageYMap,
     undoPageOp,
     redoPageOp,

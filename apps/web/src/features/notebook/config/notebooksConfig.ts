@@ -23,6 +23,11 @@ export interface NotebookConfigEntry {
   order: number;
   category: NotebookCategory;
   /**
+   * Branded 1:1 cover shown in the gallery tile (public path). Absent notebooks
+   * fall back to the ghost-icon preview.
+   */
+  coverImage?: string;
+  /**
    * When false, the notebook is hidden from gallery listings and category helpers.
    * Direct lookups by id/path still return the entry so routes don't 404 mid-session,
    * but the backend `notebookCollectionMap.DISABLED_NOTEBOOK_IDS` should match and
@@ -57,12 +62,31 @@ const NOTEBOOK_PATHS = {
   'bayern-notebook': '/notebooks/bayern',
   'sachsen-anhalt-notebook': '/notebooks/sachsen-anhalt',
   'hessen-notebook': '/notebooks/hessen',
+  'saarland-notebook': '/notebooks/saarland',
   'oesterreich-notebook': '/notebooks/oesterreich',
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',
   'abgeordnetenwatch-notebook': '/notebooks/abgeordnetenwatch',
   'boell-stiftung-notebook': '/notebooks/boell-stiftung',
 } satisfies Record<NotebookId, string>;
+
+/**
+ * Branded notebook covers (in `apps/web/public/notebook-covers/`, optimized webp).
+ * Partial by design — notebooks without an entry keep the ghost-icon tile.
+ */
+const NOTEBOOK_COVERS: Partial<Record<NotebookId, string>> = {
+  'gruene-notebook': '/notebook-covers/bundesverband.webp',
+  'bundestagsfraktion-notebook': '/notebook-covers/bundestagsfraktion.webp',
+  'thueringen-notebook': '/notebook-covers/thueringen.webp',
+  'berlin-notebook': '/notebook-covers/berlin.webp',
+  'mecklenburg-vorpommern-notebook': '/notebook-covers/mecklenburg-vorpommern.webp',
+  'brandenburg-notebook': '/notebook-covers/brandenburg.webp',
+  'bayern-notebook': '/notebook-covers/bayern.webp',
+  'sachsen-anhalt-notebook': '/notebook-covers/sachsen-anhalt.webp',
+  'hessen-notebook': '/notebook-covers/hessen.webp',
+  'saarland-notebook': '/notebook-covers/saarland.webp',
+  'kommunalwiki-notebook': '/notebook-covers/kommunalwiki.webp',
+};
 
 const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
   id: nb.id,
@@ -74,6 +98,7 @@ const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
   icon: NOTEBOOK_ICONS[nb.id],
   order: nb.order,
   category: nb.category,
+  ...(NOTEBOOK_COVERS[nb.id] ? { coverImage: NOTEBOOK_COVERS[nb.id] } : {}),
   ...(nb.enabled === false ? { enabled: false } : {}),
   ...(nb.defaultAgent ? { defaultAgent: nb.defaultAgent as SystemAgentId } : {}),
 });

@@ -12,17 +12,23 @@ import { threadsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { deleteThreadRecallPoint } from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
+import { getPostgresAndCheckMembership } from '../auth/groups/index.js';
 
 import {
   deleteThreadAttachmentVectors,
   getThreadTabularFiles,
 } from './services/attachmentPersistenceService.js';
-import { getThreadSettings, updateThreadSettings } from './services/threadPersistenceService.js';
+import {
+  getThreadSettings,
+  insertThreadWithSlugRetry,
+  updateThreadSettings,
+} from './services/threadPersistenceService.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -65,7 +71,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id, COALESCE(t.tags, '[]'::jsonb) as tags,
+                t.notebook_collection_id, t.group_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -102,7 +108,9 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: (row.status as string) || 'regular',
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
+        groupId: (row.group_id as string) || null,
         tags: (row.tags as string[]) ?? [],
+        slugSuffix: (row.slug_suffix as string) ?? null,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -127,7 +135,9 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: t.status,
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
+        groupId: t.groupId ?? null,
         tags: t.tags,
+        slugSuffix: t.slugSuffix,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
@@ -152,11 +162,19 @@ export const threadsContractRouter = s.router(threadsContract, {
       const { title, agentId, threadType } = args.body;
 
       const postgres = getPostgresInstance();
-      const result = await postgres.query(
-        `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, user_id, agent_id, title, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
-        [userId, agentId || 'gruenerator-universal', title ?? null, threadType || 'chat']
+      const result = await insertThreadWithSlugRetry((slugSuffix) =>
+        postgres.query(
+          `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, slug_suffix)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, user_id, agent_id, title, slug_suffix, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
+          [
+            userId,
+            agentId || 'gruenerator-universal',
+            title ?? null,
+            threadType || 'chat',
+            slugSuffix,
+          ]
+        )
       );
 
       const thread = result[0];
@@ -167,6 +185,7 @@ export const threadsContractRouter = s.router(threadsContract, {
           userId: thread.user_id as string,
           agentId: thread.agent_id as string,
           title: (thread.title as string) ?? null,
+          slugSuffix: (thread.slug_suffix as string) ?? null,
           createdAt: (thread.created_at as Date).toISOString(),
           updatedAt: (thread.updated_at as Date).toISOString(),
         },
@@ -180,7 +199,7 @@ export const threadsContractRouter = s.router(threadsContract, {
   update: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { threadId, title, status, tags } = args.body;
+      const { threadId, title, status, tags, groupId } = args.body;
 
       const postgres = getPostgresInstance();
 
@@ -195,6 +214,16 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       if (existingThreads[0].user_id !== userId) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
+      }
+
+      // Filing into a Space: only into a group the user belongs to (personal or
+      // team). null clears the home space.
+      if (groupId != null) {
+        try {
+          await getPostgresAndCheckMembership(groupId, userId);
+        } catch {
+          return { status: 403 as const, body: { error: 'Kein Zugriff auf diesen Space.' } };
+        }
       }
 
       const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP'];
@@ -216,6 +245,12 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (tags !== undefined) {
         setClauses.push(`tags = $${paramIdx}::jsonb`);
         params.push(JSON.stringify(tags));
+        paramIdx++;
+      }
+
+      if (groupId !== undefined) {
+        setClauses.push(`group_id = $${paramIdx}::uuid`);
+        params.push(groupId);
         paramIdx++;
       }
 
@@ -275,6 +310,9 @@ export const threadsContractRouter = s.router(threadsContract, {
       // Drop orphaned Qdrant vectors of embedded attachments BEFORE the CASCADE
       // removes the rows we read document_ids from. Best-effort (won't throw).
       await deleteThreadAttachmentVectors(threadId, userId);
+
+      // Remove the thread's semantic recall point too. Best-effort.
+      await deleteThreadRecallPoint(threadId);
 
       await postgres.query(`DELETE FROM chat_threads WHERE id = $1`, [threadId]);
 

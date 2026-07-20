@@ -85,7 +85,7 @@ export async function runFlow(task: AgentTask): Promise<void> {
       : content.length > 140
         ? content.slice(0, 139) + '…'
         : content,
-    actionUrl: documentId ? `/docs/${documentId}` : boardCardUrl,
+    actionUrl: documentId ? `/office/${documentId}` : boardCardUrl,
     metadata: {
       boardId: task.board_id,
       cardId: task.card_id,

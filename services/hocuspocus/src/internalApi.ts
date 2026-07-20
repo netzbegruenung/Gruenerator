@@ -12,12 +12,82 @@ const log = createLogger('InternalApi');
 // packages/canvas-editor/src/collab/ydocKeys.ts on purpose — per CLAUDE.md the
 // Hocuspocus service has zero cross-package deps.
 const KEY_FORM_STATE = 'formState';
-const KEY_PAGES = 'pages';
+const KEY_PAGES_BY_ID = 'pagesById';
+const KEY_META = 'meta';
+const KEY_PAGES = 'pages'; // legacy Y.Array container
 const KEY_STATE = 'state';
 const KEY_ID = 'id';
 const KEY_CONFIG_ID = 'configId';
+const KEY_POS = 'pos';
+const KEY_PAGES_SEEDED = 'pagesSeeded';
+// Authoritative-seed watermark; MUST match YDOC_KEYS.seeded in
+// packages/canvas-editor/src/collab/ydocKeys.ts.
+const KEY_SEEDED = '_seeded';
 
 const TRANSACT_ORIGIN = 'gruenerator-internal-canvas-api';
+
+// Well-known board field IDs — duplicated from apps/api BoardService.FIELD_IDS
+// on purpose (this service has zero cross-package deps, per CLAUDE.md).
+export const BOARD_FIELD_IDS = {
+  TITLE: 'field-title',
+  STATUS: 'field-status',
+  DESCRIPTION: 'field-description',
+  DUE_DATE: 'field-due-date',
+  LABELS: 'field-labels',
+  ASSIGNEE: 'field-assignee',
+  LINKED_DOCS: 'field-linked-docs',
+} as const;
+
+const MAX_ROWS_PER_CALL = 50;
+
+interface NewBoardRow {
+  title: string;
+  status?: string;
+  description?: string;
+  dueDate?: string | null;
+}
+
+export const isNewBoardRow = (v: unknown): v is NewBoardRow => {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.title === 'string' &&
+    (r.status === undefined || typeof r.status === 'string') &&
+    (r.description === undefined || typeof r.description === 'string') &&
+    (r.dueDate === undefined || r.dueDate === null || typeof r.dueDate === 'string')
+  );
+};
+
+/**
+ * Append task cards to a board's live Yjs doc. Mirrors apps/api
+ * BoardService.addRowsToBoard's cell layout so a card created here is
+ * indistinguishable from one created in the browser.
+ */
+export function appendRowsToBoardDoc(doc: Y.Doc, rows: NewBoardRow[], userId: string): void {
+  const yRows = doc.getArray<Y.Map<unknown>>('rows');
+  const now = new Date().toISOString();
+  doc.transact(() => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const newRow = new Y.Map<unknown>();
+      newRow.set('id', `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`);
+      newRow.set('createdBy', userId);
+      newRow.set('createdAt', now);
+
+      const cells = new Y.Map<unknown>();
+      cells.set(BOARD_FIELD_IDS.TITLE, row.title);
+      cells.set(BOARD_FIELD_IDS.STATUS, row.status ?? '');
+      cells.set(BOARD_FIELD_IDS.DESCRIPTION, row.description ?? '');
+      cells.set(BOARD_FIELD_IDS.DUE_DATE, row.dueDate ?? null);
+      cells.set(BOARD_FIELD_IDS.LABELS, []);
+      cells.set(BOARD_FIELD_IDS.ASSIGNEE, '');
+      cells.set(BOARD_FIELD_IDS.LINKED_DOCS, '[]');
+      newRow.set('cells', cells);
+
+      yRows.push([newRow]);
+    }
+  }, TRANSACT_ORIGIN);
+}
 
 interface InternalApiDeps {
   server: Server;
@@ -28,28 +98,70 @@ export interface PageDef {
   id: string;
   configId: string;
   state: Record<string, unknown>;
+  /** Optional free-element layers/config (deck seeds from serialized decks). */
+  layers?: Array<Record<string, unknown>>;
+  config?: Record<string, unknown>;
 }
 
 export interface DeckChanges {
-  /** Seed the pages array — applied only when the doc has no pages yet. */
+  /** Seed the page set — applied only when the doc has no pages yet. */
   seedPages?: PageDef[];
   /** Per-page state patches, addressed by page id (stable under reorders). */
   pagePatches?: Array<{ pageId: string; patch: Record<string, unknown> }>;
   /** Structural changes, applied after patches. */
   pageOps?: Array<{ op: 'add'; index: number; page: PageDef } | { op: 'remove'; pageId: string }>;
-  /** Restore: replace the whole pages array. Applied last, wins over the rest. */
+  /** Restore: replace the whole page set. Applied last, wins over the rest. */
   replacePages?: PageDef[];
 }
 
-// Mirrors buildPageYMap in packages/canvas-editor/src/collab/useYjsPages.ts:
-// layers & config maps are created on demand when the page first mounts.
-function buildPageYMap(def: PageDef): Y.Map<unknown> {
+// Fractional order key — MUST mirror posBetween in
+// packages/canvas-editor/src/collab/pagesDoc.ts (ASCII-ordered alphabet,
+// generated keys never end in '0').
+const POS_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+function posBetween(a: string | null, b: string | null): string {
+  const lo = a ?? '';
+  const hi = b ?? '';
+  if (lo !== '' && hi !== '' && lo >= hi) {
+    throw new Error(`posBetween: '${lo}' >= '${hi}'`);
+  }
+  let result = '';
+  for (let i = 0; ; i++) {
+    const ca = i < lo.length ? POS_ALPHABET.indexOf(lo[i]) : 0;
+    const cb = i < hi.length ? POS_ALPHABET.indexOf(hi[i]) : POS_ALPHABET.length;
+    if (cb - ca > 1) {
+      return result + POS_ALPHABET[ca + Math.ceil((cb - ca) / 2)];
+    }
+    result += POS_ALPHABET[ca];
+  }
+}
+
+// Mirrors buildPage in packages/canvas-editor/src/collab/pagesDoc.ts:
+// layers & config maps are otherwise created on demand at first mount.
+function buildPageYMap(def: PageDef, pos: string): Y.Map<unknown> {
   const page = new Y.Map<unknown>();
   page.set(KEY_ID, def.id);
   page.set(KEY_CONFIG_ID, def.configId);
+  page.set(KEY_POS, pos);
   const state = new Y.Map<unknown>();
   for (const [k, v] of Object.entries(def.state)) state.set(k, v);
   page.set(KEY_STATE, state);
+  if (def.layers && def.layers.length > 0) {
+    const layers = new Y.Array<Y.Map<unknown>>();
+    layers.push(
+      def.layers.map((layer) => {
+        const m = new Y.Map<unknown>();
+        for (const [k, v] of Object.entries(layer)) m.set(k, v);
+        return m;
+      })
+    );
+    page.set('layers', layers);
+  }
+  if (def.config && Object.keys(def.config).length > 0) {
+    const config = new Y.Map<unknown>();
+    for (const [k, v] of Object.entries(def.config)) config.set(k, v);
+    page.set('config', config);
+  }
   return page;
 }
 
@@ -65,63 +177,101 @@ function readPageDef(yMap: Y.Map<unknown>): PageDef | null {
   return { id, configId, state };
 }
 
+const getPagesMap = (doc: Y.Doc): Y.Map<Y.Map<unknown>> =>
+  doc.getMap<Y.Map<unknown>>(KEY_PAGES_BY_ID);
+
+/**
+ * Current page Y.Maps in canonical order. `pagesById` (sorted by pos, id)
+ * when populated; otherwise the legacy `pages` Y.Array (docs from before the
+ * map container — the client migrates them lazily on next open).
+ */
+function readPageYMaps(doc: Y.Doc): Y.Map<unknown>[] {
+  const pagesMap = getPagesMap(doc);
+  if (pagesMap.size > 0) {
+    const entries: Array<{ pos: string; id: string; yMap: Y.Map<unknown> }> = [];
+    pagesMap.forEach((yMap) => {
+      const id = yMap.get(KEY_ID);
+      const pos = yMap.get(KEY_POS);
+      if (typeof id === 'string' && typeof pos === 'string') {
+        entries.push({ pos, id, yMap });
+      }
+    });
+    entries.sort((a, b) => (a.pos < b.pos ? -1 : a.pos > b.pos ? 1 : a.id < b.id ? -1 : 1));
+    return entries.map((e) => e.yMap);
+  }
+  const legacy = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+  return legacy.toArray();
+}
+
 export function readMergedState(doc: Y.Doc): {
   state: Record<string, unknown>;
   pages: PageDef[];
   hasYState: boolean;
 } {
   const formState = doc.getMap<unknown>(KEY_FORM_STATE);
-  const pages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+  const pageYMaps = readPageYMaps(doc);
+  const usesPagesById = getPagesMap(doc).size > 0;
 
   const merged: Record<string, unknown> = {};
-  const firstPage = pages.length > 0 ? pages.get(0) : null;
-  const firstPageState = firstPage?.get(KEY_STATE);
+  const firstPageState = pageYMaps[0]?.get(KEY_STATE);
   if (firstPageState instanceof Y.Map) {
     for (const [k, v] of (firstPageState as Y.Map<unknown>).entries()) merged[k] = v;
   }
-  // Root formState wins: it is where the studio writes template-field edits.
-  formState.forEach((value, key) => {
-    merged[key] = value;
-  });
+  // Legacy docs: root formState wins (it was where the studio wrote template
+  // edits). pagesById docs never write formState — page state is authoritative.
+  if (!usesPagesById) {
+    formState.forEach((value, key) => {
+      merged[key] = value;
+    });
+  }
 
   const pageDefs: PageDef[] = [];
-  for (let i = 0; i < pages.length; i++) {
-    const def = readPageDef(pages.get(i));
+  for (const yMap of pageYMaps) {
+    const def = readPageDef(yMap);
     if (def) pageDefs.push(def);
   }
 
   return {
     state: merged,
     pages: pageDefs,
-    hasYState: formState.size > 0 || pages.length > 0,
+    hasYState: formState.size > 0 || pageYMaps.length > 0,
   };
 }
 
 /**
  * Multi-page (deck) writes. Never touches root formState — decks keep their
  * authoritative state per page; the single-page patch path (applyPatchToDoc)
- * stays untouched for sharepics.
+ * stays untouched for sharepics. New pages land in `pagesById`; legacy-array
+ * docs keep being patched in place until a client migrates them.
  */
 export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
   doc.transact(() => {
-    const pages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+    const pagesMap = getPagesMap(doc);
+    const legacyPages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+    const meta = doc.getMap<unknown>(KEY_META);
+    const hasPages = () => pagesMap.size > 0 || legacyPages.length > 0;
 
-    if (changes.seedPages && changes.seedPages.length > 0 && pages.length === 0) {
-      pages.push(changes.seedPages.map(buildPageYMap));
+    if (changes.seedPages && changes.seedPages.length > 0 && !hasPages()) {
+      let pos: string | null = null;
+      for (const def of changes.seedPages) {
+        pos = posBetween(pos, null);
+        pagesMap.set(def.id, buildPageYMap(def, pos));
+      }
+      meta.set(KEY_PAGES_SEEDED, true);
     }
 
-    const findIndexById = (pageId: string): number => {
-      for (let i = 0; i < pages.length; i++) {
-        if (pages.get(i).get(KEY_ID) === pageId) return i;
+    const findPage = (pageId: string): Y.Map<unknown> | null => {
+      const fromMap = pagesMap.get(pageId);
+      if (fromMap) return fromMap;
+      for (let i = 0; i < legacyPages.length; i++) {
+        if (legacyPages.get(i).get(KEY_ID) === pageId) return legacyPages.get(i);
       }
-      return -1;
+      return null;
     };
 
     if (changes.pagePatches) {
       for (const { pageId, patch } of changes.pagePatches) {
-        const idx = findIndexById(pageId);
-        if (idx < 0) continue;
-        const yState = pages.get(idx).get(KEY_STATE);
+        const yState = findPage(pageId)?.get(KEY_STATE);
         if (yState instanceof Y.Map) {
           for (const [k, v] of Object.entries(patch)) (yState as Y.Map<unknown>).set(k, v);
         }
@@ -131,18 +281,44 @@ export function applyDeckChangesToDoc(doc: Y.Doc, changes: DeckChanges): void {
     if (changes.pageOps) {
       for (const op of changes.pageOps) {
         if (op.op === 'add') {
-          const index = Math.max(0, Math.min(op.index, pages.length));
-          pages.insert(index, [buildPageYMap(op.page)]);
+          if (legacyPages.length > 0 && pagesMap.size === 0) {
+            const index = Math.max(0, Math.min(op.index, legacyPages.length));
+            legacyPages.insert(index, [buildPageYMap(op.page, posBetween(null, null))]);
+          } else {
+            const yMaps = readPageYMaps(doc);
+            const index = Math.max(0, Math.min(op.index, yMaps.length));
+            const beforeRaw = index > 0 ? yMaps[index - 1]?.get(KEY_POS) : null;
+            const afterRaw = index < yMaps.length ? yMaps[index]?.get(KEY_POS) : null;
+            const before = typeof beforeRaw === 'string' ? beforeRaw : null;
+            const after = typeof afterRaw === 'string' ? afterRaw : null;
+            let pos: string;
+            try {
+              pos = posBetween(before, after);
+            } catch {
+              // Tied pos keys (concurrent client ops) — fall back to append.
+              const lastRaw = yMaps[yMaps.length - 1]?.get(KEY_POS);
+              pos = posBetween(typeof lastRaw === 'string' ? lastRaw : null, null);
+            }
+            pagesMap.set(op.page.id, buildPageYMap(op.page, pos));
+          }
         } else {
-          const idx = findIndexById(op.pageId);
-          if (idx >= 0) pages.delete(idx, 1);
+          pagesMap.delete(op.pageId);
+          for (let i = legacyPages.length - 1; i >= 0; i--) {
+            if (legacyPages.get(i).get(KEY_ID) === op.pageId) legacyPages.delete(i, 1);
+          }
         }
       }
     }
 
     if (changes.replacePages && changes.replacePages.length > 0) {
-      if (pages.length > 0) pages.delete(0, pages.length);
-      pages.push(changes.replacePages.map(buildPageYMap));
+      if (legacyPages.length > 0) legacyPages.delete(0, legacyPages.length);
+      for (const key of Array.from(pagesMap.keys())) pagesMap.delete(key);
+      let pos: string | null = null;
+      for (const def of changes.replacePages) {
+        pos = posBetween(pos, null);
+        pagesMap.set(def.id, buildPageYMap(def, pos));
+      }
+      meta.set(KEY_PAGES_SEEDED, true);
     }
   }, TRANSACT_ORIGIN);
 }
@@ -159,7 +335,9 @@ const isPageDef = (v: unknown): v is PageDef => {
     typeof p.configId === 'string' &&
     typeof p.state === 'object' &&
     p.state !== null &&
-    !Array.isArray(p.state)
+    !Array.isArray(p.state) &&
+    (p.layers === undefined || Array.isArray(p.layers)) &&
+    (p.config === undefined || (typeof p.config === 'object' && p.config !== null))
   );
 };
 
@@ -209,20 +387,24 @@ export function applyPatchToDoc(
 ): void {
   doc.transact(() => {
     const formState = doc.getMap<unknown>(KEY_FORM_STATE);
-    const pages = doc.getArray<Y.Map<unknown>>(KEY_PAGES);
+    const pageYMaps = readPageYMaps(doc);
 
-    // Never-opened doc: seed the FULL state first so a later studio open
-    // (which only seeds when the map is empty) doesn't half-seed the form.
-    if (formState.size === 0 && pages.length === 0 && seedState) {
+    // Never-opened doc: seed the FULL state into formState first. A later
+    // studio open seeds page 0 from its own initialState and then folds
+    // formState over it (pagesDoc.foldLegacyFormStateIntoFirstPage), so the
+    // chat edit survives. The `_seeded` watermark marks the authoritative
+    // server seed.
+    if (formState.size === 0 && pageYMaps.length === 0 && seedState) {
       for (const [k, v] of Object.entries(seedState)) formState.set(k, v);
+      formState.set(KEY_SEEDED, true);
     }
 
     for (const [k, v] of Object.entries(patch)) formState.set(k, v);
 
-    // Mirror into every page's state map — pages[i].state is what a mounted
-    // studio page reads (and observes) for template fields.
-    for (let i = 0; i < pages.length; i++) {
-      const pageState = pages.get(i).get(KEY_STATE);
+    // Mirror into every page's state map (pagesById or legacy array) —
+    // page state is what a mounted studio page reads for template fields.
+    for (const yMap of pageYMaps) {
+      const pageState = yMap.get(KEY_STATE);
       if (pageState instanceof Y.Map) {
         for (const [k, v] of Object.entries(patch)) (pageState as Y.Map<unknown>).set(k, v);
       }
@@ -366,6 +548,45 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     }
   });
 
+  // Create task cards on a board's LIVE doc so they appear without a reload
+  // (the async board agent has no browser session to apply them client-side).
+  router.post('/board/:boardId/rows', async (req, res) => {
+    const { boardId } = req.params;
+    const body = (req.body ?? {}) as { rows?: unknown; userId?: unknown };
+    const userId = typeof body.userId === 'string' ? body.userId : '';
+    if (!Array.isArray(body.rows) || body.rows.length === 0 || !body.rows.every(isNewBoardRow)) {
+      res
+        .status(400)
+        .json({
+          error: 'rows must be a non-empty array of {title, status?, description?, dueDate?}',
+        });
+      return;
+    }
+    if (body.rows.length > MAX_ROWS_PER_CALL) {
+      res.status(400).json({ error: `at most ${MAX_ROWS_PER_CALL} rows per call` });
+      return;
+    }
+
+    try {
+      const connection = await deps.server.hocuspocus.openDirectConnection(boardId);
+      try {
+        await connection.transact((doc) => {
+          appendRowsToBoardDoc(doc, body.rows as NewBoardRow[], userId);
+        });
+        log.info(`Appended ${body.rows.length} row(s) to board ${boardId}`);
+        res.json({ ok: true, added: body.rows.length });
+      } finally {
+        await connection.disconnect();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error(`POST rows failed for board ${boardId}: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   app.use('/internal', router);
-  log.info('Internal API registered at /internal/canvas/* and /internal/board/*/comment-bump');
+  log.info(
+    'Internal API registered at /internal/canvas/*, /internal/board/*/comment-bump and /internal/board/*/rows'
+  );
 }

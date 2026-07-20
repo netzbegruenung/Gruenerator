@@ -16,9 +16,11 @@ import {
   FiCreditCard,
   FiFileText,
   FiGlobe,
+  FiGrid,
   FiLink,
   FiMail,
   FiMessageSquare,
+  FiMonitor,
   FiSearch,
   FiShare2,
 } from 'react-icons/fi';
@@ -57,5 +59,11 @@ export const OUTPUT_UI: Record<BoardFlowOutputType, NodeMeta> = {
     icon: FiMessageSquare,
   },
   document: { label: 'Dokument', help: 'Ergebnis als Dokument erstellen', icon: FiFileText },
+  sheet: { label: 'Tabelle', help: 'Ergebnis als Tabelle (Spreadsheet) erstellen', icon: FiGrid },
+  presentation: {
+    label: 'Präsentation',
+    help: 'Ergebnis als Präsentation (Folien) erstellen',
+    icon: FiMonitor,
+  },
   email: { label: 'E-Mail an mich', help: 'Ergebnis per E-Mail senden', icon: FiMail },
 };

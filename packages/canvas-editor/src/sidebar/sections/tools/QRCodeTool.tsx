@@ -2,19 +2,19 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useCallback, useRef, useState } from 'react';
 import { HiQrCode } from 'react-icons/hi2';
 
-import { useUserUploads } from '../../UserUploadsProvider';
-
 import { ToolPanel, type ToolPanelSuccess } from './ToolPanel';
+import { useToolImagePlacement } from './useToolImagePlacement';
 
 export interface QRCodeToolProps {
   onJumpToUploads?: () => void;
+  onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
 const PREVIEW_PLACEHOLDER = 'https://gruenerator.eu';
 const QR_PIXEL_SIZE = 1024;
 
-export function QRCodeTool({ onJumpToUploads }: QRCodeToolProps) {
-  const { upload, isUploading } = useUserUploads();
+export function QRCodeTool({ onJumpToUploads, onPlaceImageUrl }: QRCodeToolProps) {
+  const { finish, isUploading } = useToolImagePlacement({ onPlaceImageUrl, onJumpToUploads });
   const previewRef = useRef<HTMLDivElement>(null);
 
   const [value, setValue] = useState('');
@@ -42,15 +42,7 @@ export function QRCodeTool({ onJumpToUploads }: QRCodeToolProps) {
       if (!blob) throw new Error('PNG-Konvertierung fehlgeschlagen');
 
       const file = new File([blob], `qrcode_${Date.now()}.png`, { type: 'image/png' });
-      const item = await upload(file);
-      if (!item) throw new Error('Upload fehlgeschlagen');
-
-      const objectUrl = URL.createObjectURL(file);
-      setSuccess({
-        thumbnailUrl: objectUrl,
-        itemName: item.originalFilename ?? item.title ?? file.name,
-        onJumpToUploads,
-      });
+      setSuccess(await finish(file));
       setValue('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Fehler beim Erstellen des QR-Codes';
@@ -58,7 +50,7 @@ export function QRCodeTool({ onJumpToUploads }: QRCodeToolProps) {
     } finally {
       setIsBusy(false);
     }
-  }, [trimmed, upload, onJumpToUploads]);
+  }, [trimmed, finish]);
 
   return (
     <ToolPanel
@@ -89,7 +81,7 @@ export function QRCodeTool({ onJumpToUploads }: QRCodeToolProps) {
           </div>
         </div>
       }
-      actionLabel="QR-Code zu Uploads hinzufügen"
+      actionLabel={onPlaceImageUrl ? 'QR-Code einfügen' : 'QR-Code zu Uploads hinzufügen'}
       actionIcon={HiQrCode}
       canSubmit={!!trimmed}
       isBusy={isBusy || isUploading}

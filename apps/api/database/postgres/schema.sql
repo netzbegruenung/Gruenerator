@@ -1045,6 +1045,21 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
+-- Spaces: a thread's home Space (a group). See migration add_chat_threads_group_id.sql.
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS group_id UUID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_chat_threads_group'
+    ) THEN
+        ALTER TABLE chat_threads
+            ADD CONSTRAINT fk_chat_threads_group
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_chat_threads_group_id ON chat_threads(group_id) WHERE group_id IS NOT NULL;
+
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$
 BEGIN
@@ -1141,61 +1156,6 @@ CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(creat
 CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);
 
 
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: BRIEFING AGENTS
--- Autonomous scheduled agents that collect data and send email briefings
--- ════════════════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS briefing_agents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-
-    name TEXT NOT NULL,
-    description TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-
-    config JSONB NOT NULL DEFAULT '{}',
-
-    schedule_type VARCHAR(20) NOT NULL DEFAULT 'daily'
-        CHECK (schedule_type IN ('hourly', 'daily', 'weekly')),
-    schedule_hour INTEGER DEFAULT 8 CHECK (schedule_hour BETWEEN 0 AND 23),
-    schedule_timezone TEXT DEFAULT 'Europe/Berlin',
-
-    delivery_email TEXT,
-
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    last_executed_at TIMESTAMPTZ,
-    execution_count INTEGER DEFAULT 0,
-    consecutive_empty_count INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_briefing_agents_user ON briefing_agents(user_id);
-CREATE INDEX IF NOT EXISTS idx_briefing_agents_due ON briefing_agents(is_active, schedule_type, last_executed_at);
-
-CREATE TRIGGER update_briefing_agents_updated_at
-    BEFORE UPDATE ON briefing_agents
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TABLE IF NOT EXISTS briefing_executions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID NOT NULL REFERENCES briefing_agents(id) ON DELETE CASCADE,
-
-    status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'running', 'completed', 'failed', 'empty')),
-
-    results_count INTEGER DEFAULT 0,
-    results_summary TEXT,
-    results_raw JSONB,
-
-    started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMPTZ,
-    duration_ms INTEGER,
-    error_message TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_briefing_executions_agent ON briefing_executions(agent_id, started_at DESC);
-
 -- ============================================================================
 -- Section: In-App Notifications
 -- ============================================================================
@@ -1262,43 +1222,6 @@ CREATE INDEX IF NOT EXISTS idx_monitor_articles_excerpt_trgm ON monitor_articles
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_seen ON monitor_articles(last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_locale ON monitor_articles(locale);
 CREATE INDEX IF NOT EXISTS idx_monitor_articles_topic ON monitor_articles(primary_topic);
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: PRESENTATIONS
--- Collaborative presentation editor
--- ════════════════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS collaborative_presentations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL DEFAULT 'Neue Präsentation',
-  user_id UUID NOT NULL,
-  language TEXT DEFAULT 'de',
-  theme JSONB DEFAULT '{}',
-  template TEXT DEFAULT 'general',
-  permissions JSONB DEFAULT '{}',
-  is_public BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS presentation_slides (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  presentation_id UUID NOT NULL REFERENCES collaborative_presentations(id) ON DELETE CASCADE,
-  index INTEGER NOT NULL,
-  layout_group TEXT NOT NULL DEFAULT 'general',
-  layout TEXT NOT NULL,
-  content JSONB NOT NULL DEFAULT '{}',
-  speaker_note TEXT,
-  properties JSONB DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_presentations_user_id ON collaborative_presentations(user_id);
-CREATE INDEX IF NOT EXISTS idx_presentations_updated_at ON collaborative_presentations(updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_presentation_slides_presentation_id ON presentation_slides(presentation_id);
-CREATE INDEX IF NOT EXISTS idx_presentation_slides_order ON presentation_slides(presentation_id, index);
 
 
 -- ════════════════════════════════════════════════════════════════════════════

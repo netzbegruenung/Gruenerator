@@ -7,7 +7,7 @@ import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import apiClient from '../../components/utils/apiClient';
+import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 
 // Derived from the ts-rest contract schemas — the single source of truth for
@@ -33,8 +33,12 @@ function readError(body: unknown): { message: string; agent: Agent | null } {
 }
 
 export function useUserAgents() {
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   return useQuery({
     queryKey: KEY,
+    // Gate on resolved auth: the sidebar mounts before the auth bootstrap
+    // finishes, and an ungated query 401s during the login redirect.
+    enabled: !!user?.id && isAuthenticated && !authLoading,
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;
@@ -145,11 +149,13 @@ export function useSharedSystemAgents() {
     queryFn: async (): Promise<SharedAgentEntry[]> => {
       const results = await Promise.all(
         userGroups.map(async (group) => {
-          const { data } = await apiClient.get<{
-            success: boolean;
-            content?: { system_agents?: Array<{ id: string }> };
-          }>(`/auth/groups/${group.id}/content`);
-          const ids = data.content?.system_agents?.map((s) => s.id) ?? [];
+          const res = await getContractsClient().groups.listGroupContent({
+            params: { groupId: group.id },
+          });
+          // Content buckets are loose records by contract; narrow per-bucket.
+          const bucket =
+            res.status === 200 ? (res.body.content.system_agents as Array<{ id: string }>) : [];
+          const ids = bucket.map((s) => s.id);
           return { group, ids };
         })
       );
@@ -189,11 +195,12 @@ export function useSharedUserAgents() {
     queryFn: async (): Promise<SharedAgentEntry[]> => {
       const results = await Promise.all(
         userGroups.map(async (group) => {
-          const { data } = await apiClient.get<{
-            success: boolean;
-            content?: { user_agents?: Agent[] };
-          }>(`/auth/groups/${group.id}/content`);
-          return { group, agents: data.content?.user_agents ?? [] };
+          const res = await getContractsClient().groups.listGroupContent({
+            params: { groupId: group.id },
+          });
+          const agents =
+            res.status === 200 ? (res.body.content.user_agents as unknown as Agent[]) : [];
+          return { group, agents };
         })
       );
 

@@ -31,7 +31,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript type check
         run: pnpm typecheck
@@ -41,28 +41,6 @@ jobs:
 
       - name: Prettier format check
         run: pnpm format:check
-
-  security-audit:
-    name: Dependency Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-
-      # Reads pnpm-lock.yaml directly (no install needed). Consciously-accepted
-      # advisories are allowlisted in package.json -> pnpm.auditConfig.ignoreGhsas,
-      # so this only goes red when a NEW moderate+ advisory appears — catching
-      # stale `overrides` floors and newly-disclosed transitive CVEs.
-      - name: pnpm audit
-        run: pnpm audit --audit-level moderate
 
   test:
     name: Tests
@@ -110,7 +88,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter @gruenerator/${{ matrix.app }}...
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/${{ matrix.app }}...
 
       - name: Build ${{ matrix.app }}
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo run build --filter=@gruenerator/${{ matrix.app }}

@@ -12,6 +12,7 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { BtEnrichedResult } from '../../../services/bundestag/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   WolkeFileRef,
@@ -21,10 +22,15 @@ import type {
   ChartPayload,
   ArtifactPayload,
   ComputePayload,
+  SocialPostPayload,
+  SearchIntent,
+  ClientPlatform,
+  SharepicVariant,
 } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
+export type { BtEnrichedResult };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -39,34 +45,23 @@ export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | '
  */
 export type UserLocale = 'de-DE' | 'de-AT';
 
+export type { ClientPlatform };
+
 /**
  * Intent classification for routing to appropriate search tools.
- * The classifier determines which intent applies, and the graph routes accordingly.
+ * The classifier determines which intent applies, and the graph routes
+ * accordingly. Canonical value list lives in @gruenerator/contracts
+ * (`searchIntentSchema`) — the single source shared with the `intent` SSE
+ * wire schema and the frontend; add new intents THERE.
  */
-export type SearchIntent =
-  | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
-  | 'compare' // Multi-document comparison (≥2 doc sources + compare verbs)
-  | 'search' // Gruenerator document search (party programs, positions)
-  // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
-  | 'web' // Web search (current events, external facts)
-  | 'scrape_url' // Crawl URL(s) pasted in the user message and use the page content as context
-  | 'examples' // Social media examples/templates
-  | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
-  | 'abgeordnetenwatch' // German MP transparency data (votes, Nebentätigkeiten, mandates, roll-calls) via the Abgeordnetenwatch API — DE-only
-  | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
-  | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
-  | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
-  | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
-  | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
-  | 'compute' // Deterministic calculation ("zähl die Zeichen", "20% von 340", "Tage bis Weihnachten")
-  | 'artifact' // Generic HTML/SVG artifact rendered in the side panel ("baue eine HTML-Tabelle", "erstelle eine SVG-Grafik")
-  | 'save_as_doc' // Save response as document ("speichere als Dokument")
-  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
-  | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
-  | 'edit_current_board' // Live-edit the open board via the boards assistant — for boards editor surface
-  | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
-  | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
-  | 'direct'; // No search needed (greetings, creative tasks without fact needs)
+export type { SearchIntent };
+
+/**
+ * Platform hint a user prompt can carry for social text generation. `null`
+ * on the state means "generic" (no platform named). Distinct from the wire
+ * `SocialPlatform` in @gruenerator/contracts, which spells generic out.
+ */
+export type SocialTextPlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
 
 /**
  * Image style for generation.
@@ -112,6 +107,19 @@ export interface GeneratedImageResult {
   generationTimeMs: number;
 }
 
+/** A collaborative document (presentation / sheet / text doc) created within a
+ *  turn — the shape emitted on the `document_created` SSE and persisted as
+ *  message metadata (`createdDocument`) for thread-reload rehydration. `subtype`
+ *  is a free string ('presentations' | 'sheets' | 'docs' | 'blank' | …) because
+ *  text-doc generation picks the subtype at runtime; the SSE contract is
+ *  `z.string()` too. */
+export interface CreatedDocument {
+  documentId: string;
+  title: string;
+  subtype: string;
+  url: string;
+}
+
 /**
  * Source prefixes used in SearchResult.source to identify result provenance.
  * Use these instead of raw strings to avoid silent mismatches across the pipeline.
@@ -127,6 +135,18 @@ export const SOURCE_PREFIX = {
   WOLKE: 'wolke:',
   CONNECT: 'connect:',
 } as const;
+
+/**
+ * True when a searchErrors entry means a search backend was unreachable
+ * (Qdrant collection, web search, whole-search catch) — as opposed to soft
+ * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
+ * searchErrors but must not trigger "Quellen nicht erreichbar" messaging.
+ */
+export function isSourceAvailabilityError(entry: { source: string }): boolean {
+  return (
+    entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
 
 /**
  * Unified search result structure from any tool.
@@ -325,6 +345,13 @@ export interface ChatGraphInput {
    */
   hasTabularAttachment?: boolean | undefined;
   /**
+   * True when the requesting client declared the run_python client tool
+   * (clientTools includes 'run_python') — i.e. it can execute the pandas code
+   * respondNode may steer the model to emit. Mobile/voice send no clientTools,
+   * so their tabular guidance must not promise code execution.
+   */
+  clientCanRunPython?: boolean | undefined;
+  /**
    * A spreadsheet result the client already computed in the browser (Pyodide).
    * Injected via formatComputedResultContext so the model treats it as ground
    * truth on follow-up turns instead of re-deriving it.
@@ -354,12 +381,19 @@ export interface ChatGraphInput {
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
   boardIds?: string[] | undefined;
+  sheetIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
+  /**
+   * URLs explicitly attached in the composer via the @web mention. Merged with
+   * the classifier's auto-detected URLs and crawled through the scrape_url path.
+   */
+  attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
   userLocale?: UserLocale | undefined;
+  clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
   activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
@@ -381,6 +415,8 @@ export interface ChatGraphState {
   enabledTools: Record<string, boolean>;
   aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
+  /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
+  clientPlatform: ClientPlatform;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays
@@ -392,6 +428,7 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  clientCanRunPython: boolean;
 
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
@@ -418,6 +455,10 @@ export interface ChatGraphState {
   boardIds: string[];
   boardContext: string | null;
 
+  // Sheet context (from @sheet mentions)
+  sheetIds: string[];
+  sheetContext: string | null;
+
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
@@ -429,6 +470,10 @@ export interface ChatGraphState {
   // Connected-account (Nango) file refs selected via @connect mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   connectFiles: ConnectFileRef[];
+
+  // URLs attached via the @web mentionable. The classifier unions these into
+  // `detectedUrls` so the existing scrape_url path crawls them.
+  attachedWebpageUrls: string[];
 
   // Current open document in the docs editor (primary context, not retrieval scope).
   // Set when chat is embedded in a document editor surface.
@@ -490,11 +535,12 @@ export interface ChatGraphState {
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
-  // Platform hint for `examples` intent (Instagram vs Facebook). Set by the
-  // classifier's content-creation override branch when the user prompt names a
-  // platform; null otherwise. Consumed by searchNode to filter social examples
-  // and by socialMediaComposerNode to pick the platform-specific rubric.
-  platform: 'instagram' | 'facebook' | null;
+  // Platform hint for the `examples` / `social_post` intents. Set by the
+  // classifier when the user prompt names a platform; null otherwise. Consumed
+  // by searchNode to filter social examples (instagram/facebook only — the
+  // Qdrant collection has no other platforms) and by socialMediaComposerNode
+  // to pick the platform-specific rubric.
+  platform: SocialTextPlatform | null;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;
@@ -524,12 +570,22 @@ export interface ChatGraphState {
   // /url; the generic ToolCallUI also reads `examples`.
   examplesResult: ExamplesToolResult | null;
 
+  // Structured Bundestag/DIP result (set by search node for the `bundestag`
+  // intent). Emitted as its own `bundestag` SSE event and persisted into the
+  // `bundestag` tool-call result so BundestagCard can render Drucksachen,
+  // Verfahrensstand, Reden and PDF links on stream + reload.
+  bundestagResult: BtEnrichedResult | null;
+
   // Quality gate (iterative search)
   qualityScore: number;
   qualityAssessmentTimeMs: number;
   topRerankScore: number | null;
 
-  // Reliability flags & structured error log
+  // Reliability flags & structured error log. Sources 'web' / 'search' /
+  // 'documents:*' mean a search backend was unreachable; soft LLM-stage
+  // failures (briefGenerator, qualityGate, rerank) also append here but say
+  // nothing about source availability — filter with isSourceAvailabilityError
+  // before telling anyone the sources were down.
   searchErrors: { source: string; message: string }[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
@@ -542,13 +598,68 @@ export interface ChatGraphState {
   imageTimeMs: number;
   imageEditDescriptions: { original: string | null; edited: string | null } | null;
 
+  // Compound generation (agentic loop): mount signal for the generation fat
+  // tools and their per-turn result (shared-ref merge, like generatedImage).
+  compoundGeneration?: boolean;
+  // Which generation fat tool to mount — derived from intent OR (for a demoted
+  // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
+  // create_sheet even though the intent is `agentic`, not `create_sheet`.
+  compoundGenerationKind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
+  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
+  // research loop, then emits trigger_doc_edit/trigger_board_action with the
+  // gathered sources as reference material. Synth writes only a short confirm.
+  compoundEdit?: boolean;
+  // Tool-based editor edit: the resolved editor surface whose `edit_document`
+  // tool the loop mounts. Set only for surfaces with a tool path
+  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
+  // trigger_doc_edit path for the still-live surfaces.
+  editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
+  // Human summary of edits the edit_document tool made THIS turn (set by
+  // editorTools). Feeds the synth prompt so the model confirms the change in
+  // past tense instead of writing empty text (→ fallback) or a false "I can't".
+  editorEditsSummary?: string | null;
+  sharepicVariants?: SharepicVariant[] | null;
+  // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
+  // router into the persisted assistant message's `createdDocument` metadata.
+  createdDocument?: CreatedDocument | null;
+  // Board fat tool result (compound turns) — boards have no `document_created`
+  // card path, so this is lifted into the loop's `done` event (boardId +
+  // boardGeneratedStructure) the way the single-pass board handler does.
+  createdBoard?: { boardId: string; title: string; boardGeneratedStructure: unknown } | null;
+
   // Document summarization
   summaryContext: string | null;
   summaryTimeMs: number;
 
+  // Scopes the agentic tool-loop to one connected server (its `mcp_servers.id`),
+  // set by a `@notion`/`@brevo` mention (router) or a conservative classifier
+  // hint. Null = run over all enabled servers.
+  mcpServerScope?: string | null | undefined;
+
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;
   computedResultTimeMs: number;
+  /** True when computedResult answers THIS turn's question (run_python resume /
+   *  computeNode) — respondNode then suppresses code-emission guidance. A
+   *  computedResult forwarded from the previous turn (lastComputeStore) leaves
+   *  this unset so a new follow-up computation can still emit code. */
+  computedResultFresh?: boolean | undefined;
+  /** run_python error-correction loop (OpenWebUI-style, max 1 retry): how many
+   *  corrected code versions were already issued this turn, and the last code
+   *  sent to the client — both survive the Redis round-trip so the resume
+   *  handler can regenerate with the failure in context. */
+  pandasComputeRetries?: number | undefined;
+  pandasLastCode?: string | undefined;
+  /** Successful result stashed before a verifier-triggered correction round —
+   *  if the "corrected" code then fails, the turn falls back to this instead
+   *  of ending with no computation at all. */
+  pandasComputeFallback?: ComputeData | undefined;
+
+  // Combined social post (EXPERIMENTAL): text half of the `social_post`
+  // intent. Set by generateSocialPostText in the execution stage; persisted
+  // into the `social_post` tool-call result. The sharepic half travels via
+  // the existing sharepic variant machinery.
+  socialPostResult: SocialPostPayload | null;
 
   // Chart generation
   chartData: ChartData | null;
@@ -678,6 +789,16 @@ export interface ShareDocPayload {
   permissionLevel: 'viewer' | 'editor';
 }
 
+export interface CreateGroupPayload {
+  name: string;
+  description: string | null;
+}
+
+export interface JoinGroupPayload {
+  joinToken: string;
+  groupName: string;
+}
+
 /**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
@@ -694,6 +815,8 @@ export type PendingAction = {
   | { type: 'modify_doc'; payload: ModifyDocPayload }
   | { type: 'modify_board'; payload: ModifyBoardPayload }
   | { type: 'share_doc'; payload: ShareDocPayload }
+  | { type: 'create_group'; payload: CreateGroupPayload }
+  | { type: 'join_group'; payload: JoinGroupPayload }
 );
 
 /**
@@ -702,6 +825,8 @@ export type PendingAction = {
 export interface ChatSearchResult {
   threadId: string;
   threadTitle: string | null;
+  /** Stable tail of the pretty `/chat/<slug>` URL; null for pre-backfill threads. */
+  threadSlugSuffix: string | null;
   agentId: string;
   snippet: string;
   messageRole: 'user' | 'assistant';

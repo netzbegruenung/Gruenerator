@@ -11,6 +11,8 @@
  */
 import { z } from 'zod';
 
+import { collabSubtypeSchema } from './docs.js';
+
 // ── Closed sets ───────────────────────────────────────────────────────────────
 
 export const groupRoleSchema = z.enum(['admin', 'member']);
@@ -170,6 +172,8 @@ export const groupDetailSchema = z.object({
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
   audience: groupAudienceSchema.nullish(),
+  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  group_type: z.enum(['standard', 'personal']).nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
   slug_suffix: z.string().nullish(),
 });
@@ -199,8 +203,11 @@ export const groupTokenRefSchema = z.object({ id: z.string(), name: z.string() }
 // ── Request bodies ─────────────────────────────────────────────────────────────
 
 export const createGroupBodySchema = z.object({
-  name: z.string().min(1, 'Gruppenname ist erforderlich.'),
+  name: z.string().min(1, 'Space-Name ist erforderlich.'),
   description: z.string().nullish(),
+  // 'personal' = a solo Space (hidden from team discovery, lean UI). Omitted =
+  // a normal team Space.
+  groupType: z.enum(['standard', 'personal']).optional(),
 });
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>;
 
@@ -354,9 +361,26 @@ export type DeleteContentBody = z.infer<typeof deleteContentBodySchema>;
  * `GET /content` returns a fixed envelope keyed by display bucket, but each
  * bucket holds heterogeneous, dynamically-hydrated items (different source
  * tables per content type). The frontend already narrows these per-bucket via
- * its own casts, so the wire contract keeps items as loose records.
+ * its own casts, so most buckets keep loose records.
  */
 const groupContentBucketSchema = z.array(z.record(z.unknown()));
+
+/**
+ * The `collaborative_documents` bucket (docs/sheets/presentations/boards/canvas)
+ * is homogeneous, so it gets a typed item — `document_subtype` reuses the closed
+ * subtype enum. `.passthrough()` keeps the extra hydrated fields the frontend
+ * reads (name/slug/thumbnail_url/…) without enumerating every one.
+ */
+export const groupCollabDocItemSchema = z
+  .object({
+    id: z.union([z.string(), z.number()]),
+    title: z.string().nullish(),
+    document_subtype: collabSubtypeSchema.nullish(),
+    shared_at: z.string().nullish(),
+    shared_by_name: z.string().nullish(),
+    thumbnail_url: z.string().nullish(),
+  })
+  .passthrough();
 
 export const groupContentResponseSchema = z.object({
   success: z.literal(true),
@@ -366,7 +390,7 @@ export const groupContentResponseSchema = z.object({
     notebooks: groupContentBucketSchema,
     texts: groupContentBucketSchema,
     templates: groupContentBucketSchema,
-    collaborative_documents: groupContentBucketSchema,
+    collaborative_documents: z.array(groupCollabDocItemSchema),
     system_notebooks: groupContentBucketSchema,
     system_agents: groupContentBucketSchema,
     user_agents: groupContentBucketSchema,

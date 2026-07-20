@@ -84,6 +84,14 @@ export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
 // request. Handler code uses `?? undefined` at call sites that need
 // `T | undefined` (it's only ~3 fields, so a transform helper is overkill).
 
+/**
+ * Client shell that sent the request. Absent/null means 'web' (covers old
+ * clients and the Tauri desktop app, which ships the web frontend). The
+ * backend redirects web-only features (reel edit, sharepic) on 'app'.
+ */
+export const clientPlatformSchema = z.enum(['web', 'app']);
+export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
+
 export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
@@ -101,8 +109,15 @@ export const chatStreamBodySchema = z.object({
   // A spreadsheet result the client computed in the browser (Pyodide/pandas) —
   // forwarded so the backend can hand it to the model as ground truth.
   computedResult: computePayloadSchema.nullish(),
+  // Tool names this client can execute locally (e.g. 'run_python' when the web
+  // host injected a Pyodide runner). The backend only emits a client_tool
+  // interrupt for tools listed here; clients without the capability (mobile,
+  // voice) keep the legacy prompt-guidance path.
+  clientTools: z.array(z.string()).nullish(),
+  platform: clientPlatformSchema.nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
+  sheetIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
   wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
   connectFiles: z.array(connectFileRefSchema).nullish(),
@@ -125,6 +140,14 @@ export const chatStreamBodySchema = z.object({
       variantId: z.string(),
       canvasId: z.string().nullish(),
       canvasType: z.string(),
+    })
+    .nullish(),
+  // The combined social post the user marked as "active for chat editing"
+  // (EXPERIMENTAL card toggle). Targets the social-post TEXT edit branch
+  // explicitly, so edits hit the activated post instead of the newest one.
+  currentSocialPost: z
+    .object({
+      postId: z.string(),
     })
     .nullish(),
   // The subtitler project the user marked as "active for chat editing"
@@ -156,11 +179,29 @@ export const chatStreamBodySchema = z.object({
   // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
   // so platform-specific spec only loads when the relevant skill is active.
   activeSkillMention: z.string().nullish(),
+  // Regenerate the last assistant turn: the backend skips re-persisting the
+  // (unchanged) user message and deletes the trailing assistant message(s)
+  // before streaming the replacement. Keeps chat_messages linear (no dupes).
+  regenerate: z.boolean().nullish(),
+  // Edit-resubmit: DB id of the persisted user message the edit starts from.
+  // Backend deletes that message and everything created at/after it, then
+  // proceeds normally (edited user message + fresh assistant reply).
+  replaceFromMessageId: z.string().nullish(),
+  // URLs explicitly attached via the @web composer mention. Merged into the
+  // classifier's detected URLs and crawled through the existing scrape_url
+  // pipeline (selectAndCrawlTopUrls).
+  webpageUrls: z.array(z.string().url()).nullish(),
 });
 
 export const chatResumeBodySchema = z.object({
   threadId: z.string(),
-  resume: z.string(),
+  // ask_human path (legacy, still used): the human's answer string.
+  resume: z.string().optional(),
+  // Generic client-tool path: the tool that was executed client-side and its
+  // result (e.g. run_python → stdout). Kept separate from `resume` so the
+  // ask_human flow is untouched.
+  toolName: z.string().optional(),
+  result: z.unknown().optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────

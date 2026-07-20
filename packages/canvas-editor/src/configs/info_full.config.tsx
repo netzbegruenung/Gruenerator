@@ -5,7 +5,8 @@
  * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
-import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
+import { INFO_CONFIG } from '../utils/infoLayout';
+import { wrapTextAccurate } from '../utils/textUtils';
 
 import {
   createAiCapabilities,
@@ -31,50 +32,97 @@ const TEXT_COLORS: Record<string, string> = {
   '#F5F1E9': '#005538',
 };
 
-const BACKGROUND_IMAGES: Record<string, string> = {
-  '#005538': '/Info_bg_tanne.png',
-  '#F5F1E9': '/Info_bg_sand.png',
-};
-
 type InfoState = ColorTwoTextState<'header' | 'body'>;
 
 const metaFontColor = (_state: InfoState, layout: LayoutResult) =>
   (layout._meta as { fontColor?: string } | undefined)?.fontColor;
 
+/** Measure the arrow Y (below the header) and the body's bottom edge for a font-size pair. */
+const measureInfo = (
+  header: string,
+  body: string,
+  headerFontSize: number,
+  bodyFontSize: number
+) => {
+  const headerLines = header
+    ? wrapTextAccurate(
+        header,
+        INFO_CONFIG.header.maxWidth,
+        headerFontSize,
+        INFO_CONFIG.header.fontFamily,
+        INFO_CONFIG.header.fontStyle
+      ).length
+    : 0;
+  const headerHeight = headerLines * headerFontSize * INFO_CONFIG.header.lineHeightRatio;
+  const arrowY =
+    INFO_CONFIG.margin.headerStartY +
+    headerHeight +
+    (header ? INFO_CONFIG.header.bottomSpacing : 0);
+
+  const bodyLines = body
+    ? wrapTextAccurate(
+        body,
+        INFO_CONFIG.body.maxWidth,
+        bodyFontSize,
+        INFO_CONFIG.body.remainingFont
+      ).length
+    : 0;
+  const bodyBottom = arrowY + bodyLines * bodyFontSize * INFO_CONFIG.body.lineHeightRatio;
+
+  return { arrowY, bodyBottom };
+};
+
 const calculateLayout = (state: InfoState): LayoutResult => {
-  const headerFontSize = state.customPrimaryFontSize ?? INFO_CONFIG.header.fontSize;
-  const bodyFontSize = state.customSecondaryFontSize ?? INFO_CONFIG.body.fontSize;
-  const layout = calculateInfoLayout(headerFontSize, bodyFontSize);
-
   const fontColor = TEXT_COLORS[state.backgroundColor] ?? '#ffffff';
-
   const header = state.header || '';
-  const headerLineHeight = headerFontSize * INFO_CONFIG.header.lineHeightRatio;
-  const estimatedHeaderLines = Math.ceil(header.length / 30);
-  const headerHeight = estimatedHeaderLines * headerLineHeight;
-  const arrowY = layout.header.y + headerHeight + INFO_CONFIG.header.bottomSpacing;
+  const body = state.body || '';
+
+  // Respect manual font-size overrides; only auto-fit the dimensions the user hasn't pinned.
+  const hasCustomHeader = state.customPrimaryFontSize != null;
+  const hasCustomBody = state.customSecondaryFontSize != null;
+
+  let headerFontSize = state.customPrimaryFontSize ?? INFO_CONFIG.header.fontSize;
+  let bodyFontSize = state.customSecondaryFontSize ?? INFO_CONFIG.body.fontSize;
+
+  // Shrink to keep the body above the sunflower — mirrors the server renderer's auto-fit.
+  let m = measureInfo(header, body, headerFontSize, bodyFontSize);
+  if (!hasCustomBody) {
+    while (
+      m.bodyBottom > INFO_CONFIG.content.bottomY &&
+      bodyFontSize > INFO_CONFIG.body.minFontSize
+    ) {
+      bodyFontSize = Math.max(INFO_CONFIG.body.minFontSize, bodyFontSize - 2);
+      m = measureInfo(header, body, headerFontSize, bodyFontSize);
+    }
+  }
+  if (!hasCustomHeader) {
+    while (
+      m.bodyBottom > INFO_CONFIG.content.bottomY &&
+      headerFontSize > INFO_CONFIG.header.minFontSize
+    ) {
+      headerFontSize = Math.max(INFO_CONFIG.header.minFontSize, headerFontSize - 4);
+      m = measureInfo(header, body, headerFontSize, bodyFontSize);
+    }
+  }
 
   return {
     'header-text': {
-      x: layout.header.x,
-      y: layout.header.y,
-      width: layout.header.maxWidth,
+      x: INFO_CONFIG.header.x,
+      y: INFO_CONFIG.margin.headerStartY,
+      width: INFO_CONFIG.header.maxWidth,
       fontSize: headerFontSize,
     },
     arrow: {
       x: INFO_CONFIG.arrow.x,
-      y: arrowY,
+      y: m.arrowY,
       width: INFO_CONFIG.arrow.size,
       height: INFO_CONFIG.arrow.size,
     },
     'body-text': {
-      x: layout.body.x,
-      // Body starts at the arrow's Y (to its right), mirroring the backend
-      // info_canvas. `layout.body.y` is a static 0 ("dynamic, set at runtime")
-      // that was never computed here — using it dropped the body to the very top
-      // where it overlapped the header.
-      y: arrowY,
-      width: layout.body.maxWidth,
+      x: INFO_CONFIG.body.leftMargin,
+      // Body starts at the arrow's Y (to its right), mirroring the backend info_canvas.
+      y: m.arrowY,
+      width: INFO_CONFIG.body.maxWidth,
       fontSize: bodyFontSize,
     },
     _meta: {
@@ -93,7 +141,6 @@ const sunflowerElement: ImageElementConfig<InfoState> = {
   height: INFO_CONFIG.sunflower.size,
   src: INFO_CONFIG.sunflower.src,
   draggable: true,
-  opacity: () => 0.04,
 };
 
 const headerTextElement = createPrimaryText<InfoState>({
@@ -153,7 +200,6 @@ const baseInfoConfig = createColorTwoTextCanvas({
   backgroundColors: BACKGROUND_COLORS,
   defaultBackgroundColor: '#005538',
   textColorMap: TEXT_COLORS,
-  backgroundImageMap: BACKGROUND_IMAGES,
   calculateLayout,
   passthroughStateKeys: ['arrowOpacity'],
   elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
