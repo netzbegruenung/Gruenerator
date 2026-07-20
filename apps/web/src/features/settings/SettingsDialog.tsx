@@ -80,7 +80,8 @@ const SettingsDialog = () => {
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="shrink-0 justify-start gap-2 whitespace-nowrap md:py-1.5"
+                  // Active = bold text only: no indicator bar, no background pill.
+                  className="shrink-0 justify-start gap-2 whitespace-nowrap text-foreground/70 after:hidden data-[state=active]:font-semibold data-[state=active]:text-foreground md:py-1.5"
                 >
                   <Icon size={15} />
                   {label}
