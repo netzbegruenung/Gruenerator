@@ -498,6 +498,7 @@ describe('decideEditToolLoop', () => {
   const base: EditToolLoopInput = {
     loopEnabled: true,
     surfaceKind: 'sheet',
+    editToolEnabled: true,
     hasEditTarget: true,
     forcedTool: false,
     isCompound: false,
@@ -509,6 +510,12 @@ describe('decideEditToolLoop', () => {
     // Not gated on the classifier intent — a `direct`-classified edit ask and a
     // short "ja ab a1" follow-up must both be able to edit.
     expect(decideEditToolLoop(base)).toBe(true);
+  });
+
+  it('does NOT mount the tool when the AI-edit toggle is off', () => {
+    // Otherwise the model "edits" and claims success while the client (which
+    // also gates on the toggle) refuses to apply — a false success message.
+    expect(decideEditToolLoop({ ...base, editToolEnabled: false })).toBe(false);
   });
 
   it('keeps the legacy trigger path for a surface without a tool implementation', () => {

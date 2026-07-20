@@ -700,6 +700,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const editToolLoop = decideEditToolLoop({
         loopEnabled: isAgenticLoopEnabled(),
         surfaceKind: editToolSurfaceKind,
+        editToolEnabled:
+          enabledTools?.['edit_current_doc'] === true ||
+          enabledTools?.['edit_current_board'] === true,
         hasEditTarget: editTarget != null,
         forcedTool: !!forcedTool,
         isCompound,
