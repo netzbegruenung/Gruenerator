@@ -51,7 +51,7 @@ export const OFFICE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'canvas',
-    title: 'Bilder & Videos',
+    title: 'Studio',
     description: 'KI-Bilder, Sharepics & Reels',
     path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
