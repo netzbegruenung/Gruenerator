@@ -151,7 +151,7 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
 
   const handleDeletePrompt = useCallback(
     async (promptId: string) => {
-      if (window.confirm('Agent wirklich löschen?')) {
+      if (window.confirm('Grünerator wirklich löschen?')) {
         await deletePrompt(promptId);
       }
     },

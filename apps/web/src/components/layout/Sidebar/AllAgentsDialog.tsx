@@ -98,7 +98,7 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Alle Agents</DialogTitle>
+          <DialogTitle>Alle Grüneratoren</DialogTitle>
         </DialogHeader>
         <ul className="list-none m-0 p-0 max-h-[60vh] overflow-y-auto scrollbar-thin">
           {defaultAgentEntries.map((entry) => {
@@ -180,7 +180,7 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
                 aria-hidden="true"
               />
               <li className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">
-                Meine Agent*innen
+                Meine Grüneratoren
               </li>
               {userAgents.map((agent) => (
                 <AgentListRow
