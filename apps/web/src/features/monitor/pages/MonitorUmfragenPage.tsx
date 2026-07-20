@@ -1,20 +1,17 @@
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { MonitorLocaleToggle, MonitorPageHeader } from '../components/MonitorPageHeader';
+import { MonitorPageHeader } from '../components/MonitorPageHeader';
 import { UmfragenView } from '../components/UmfragenView';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-/** /experiments/monitor/umfragen — Sonntagsfrage + Ländertrends als Choropleth. */
+/** /experiments/monitor/umfragen — Sonntagsfrage + Ländertrends als Choropleth.
+ * Land richtet sich automatisch nach dem Profil-Locale (kein DE/AT-Umschalter). */
 function MonitorUmfragenPage() {
-  const { locale, setLocale } = useMonitorLocaleParam();
+  const { locale } = useMonitorLocaleParam();
 
   return (
     <PageContainer maxWidth="lg">
-      <MonitorPageHeader
-        current="umfragen"
-        title="Umfragen"
-        right={<MonitorLocaleToggle locale={locale} onChange={setLocale} />}
-      />
+      <MonitorPageHeader current="umfragen" title="Umfragen" />
       <UmfragenView locale={locale} />
     </PageContainer>
   );

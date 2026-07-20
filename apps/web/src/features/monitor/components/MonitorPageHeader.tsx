@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-import { MONITOR_EYEBROW, MONITOR_HEADING, MONITOR_PILL_TRACK } from './theme';
+import { MONITOR_EYEBROW, MONITOR_HEADING } from './theme';
 
-import type { MonitorLocale } from '../hooks/useMonitor';
 import type { ReactNode } from 'react';
 
 type MonitorPage = 'themen' | 'umfragen';
@@ -59,25 +58,6 @@ export function MonitorPageHeader({ current, title, right }: MonitorPageHeaderPr
         </h1>
       </div>
       {right}
-    </div>
-  );
-}
-
-interface MonitorLocaleToggleProps {
-  locale: MonitorLocale;
-  onChange: (locale: MonitorLocale) => void;
-}
-
-/** DE/AT pill toggle used in the header right slot. */
-export function MonitorLocaleToggle({ locale, onChange }: MonitorLocaleToggleProps) {
-  return (
-    <div className={MONITOR_PILL_TRACK}>
-      <PillButton active={locale === 'de'} onClick={() => onChange('de')}>
-        Deutschland
-      </PillButton>
-      <PillButton active={locale === 'at'} onClick={() => onChange('at')}>
-        Österreich
-      </PillButton>
     </div>
   );
 }
