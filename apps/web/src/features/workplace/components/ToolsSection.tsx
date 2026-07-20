@@ -1,12 +1,6 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@gruenerator/ui';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FiChevronDown } from 'react-icons/fi';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
@@ -20,6 +14,7 @@ import {
   sortToolsByFavourites,
   type WorkplaceToolItem,
   type WorkplaceToolMenu,
+  type WorkplaceToolMenuItem,
 } from '../../../config/workplaceToolsConfig';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 
@@ -192,61 +187,60 @@ export function OfficeActionTile({
   );
 }
 
-// Same color-field tile, but a dropdown trigger (Weitere) — caret instead of star.
-function OfficeDropdownTile({ menu }: { menu: WorkplaceToolMenu }) {
-  const navigate = useNavigate();
+// Same color-field tile, but a toggle (Weitere) — a rotating chevron instead of a
+// star. Expands a second tool row below the strip (see OfficeSection), mirroring
+// the notebook category rows, instead of opening a dropdown.
+function OfficeExpandTile({
+  menu,
+  expanded,
+  onToggle,
+}: {
+  menu: WorkplaceToolMenu;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(menu.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
-        >
-          <FiChevronDown aria-hidden className="absolute right-3 top-3 text-grey-500" size={18} />
-          <OfficeTileInner
-            styleKey={menu.id}
-            Icon={menu.icon}
-            title={menu.title}
-            description={menu.description}
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[264px] p-1.5">
-        {menu.items.map((item) => {
-          const ItemIcon = item.icon;
-          const favouritable = Boolean(item.path) && !item.href;
-          return (
-            <DropdownMenuItem
-              key={item.id}
-              className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2"
-              onClick={() => {
-                if (item.href) window.open(item.href, '_blank', 'noopener,noreferrer');
-                else if (item.path) void navigate(item.path);
-              }}
-            >
-              <span className={`${CHIP_BASE} size-10 rounded-lg text-[19px]`}>
-                <ItemIcon />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-semibold leading-tight text-foreground-heading">
-                  {item.title}
-                </span>
-                <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
-                  {item.description}
-                </span>
-              </span>
-              {favouritable && (
-                // Stop pointerdown so the star toggles the favourite without
-                // Radix selecting (and navigating away from) the menu item.
-                <span onPointerDown={(e) => e.stopPropagation()}>
-                  <FavouriteStar id={item.id} size={15} />
-                </span>
-              )}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(menu.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+    >
+      <FiChevronDown
+        aria-hidden
+        className={`absolute right-3 top-3 text-grey-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+        size={18}
+      />
+      <OfficeTileInner
+        styleKey={menu.id}
+        Icon={menu.icon}
+        title={menu.title}
+        description={menu.description}
+      />
+    </button>
+  );
+}
+
+// A tool tile in the expanded "Weitere" row — a Link (internal) or anchor
+// (external), styled uniformly in the Weitere grey so the row reads as one group.
+function OfficeMenuItemTile({ item }: { item: WorkplaceToolMenuItem }) {
+  const className = `${OFFICE_TILE_BASE} ${getToolTheme('weitere')?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`;
+  const inner = (
+    <OfficeTileInner
+      styleKey="weitere"
+      Icon={item.icon}
+      title={item.title}
+      description={item.description}
+    />
+  );
+  return item.href ? (
+    <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
+      {inner}
+    </a>
+  ) : (
+    <Link to={item.path ?? '/'} className={className}>
+      {inner}
+    </Link>
   );
 }
 
@@ -285,34 +279,54 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 const byId = (id: string): WorkplaceToolItem | undefined =>
   WORKPLACE_TOOLS.find((t) => t.id === id);
 
-// Default order: Agentura first, then the office apps. (Reels moved to /studio.)
-const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [byId('agents'), ...OFFICE_TOOLS].filter(
-  (t): t is WorkplaceToolItem => Boolean(t)
-);
+// Default order: Agentura first, then the office apps, then Spaces (after Wissen).
+const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
+  byId('agents'),
+  ...OFFICE_TOOLS,
+  byId('spaces'),
+].filter((t): t is WorkplaceToolItem => Boolean(t));
 
-// The single Arbeiten tool row: colored creation tiles + the Weitere dropdown tile,
-// in one horizontal Wissen-style scroll strip. Favourited tools float to the front
-// (default order otherwise); the Weitere dropdown isn't favouritable, so it stays last.
+// The Arbeiten tool strip: colored creation tiles + the Weitere toggle tile, in
+// one horizontal Wissen-style scroll strip. Favourited tools float to the front
+// (default order otherwise); the Weitere toggle isn't favouritable, so it stays
+// last and expands a second tool row below (notebook-style) when tapped.
 export const OfficeSection = React.memo(() => {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const tiles = useMemo(
     () => sortToolsByFavourites(filterWorkplaceTools(OFFICE_ROW_TOOLS), favouriteIds),
     [favouriteIds]
   );
+  const openMenu = TOOL_MENUS.find((m) => m.id === expandedMenu);
 
   return (
-    <div className={OFFICE_SCROLL_ROW}>
-      {tiles.map((tool) => (
-        <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-          <OfficeTile tool={tool} />
+    <>
+      <div className={OFFICE_SCROLL_ROW}>
+        {tiles.map((tool) => (
+          <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+            <OfficeTile tool={tool} />
+          </div>
+        ))}
+        {TOOL_MENUS.map((menu) => (
+          <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
+            <OfficeExpandTile
+              menu={menu}
+              expanded={expandedMenu === menu.id}
+              onToggle={() => setExpandedMenu((c) => (c === menu.id ? null : menu.id))}
+            />
+          </div>
+        ))}
+      </div>
+      {openMenu && (
+        <div className={`${OFFICE_SCROLL_ROW} mt-sm`}>
+          {openMenu.items.map((item) => (
+            <div key={item.id} className={OFFICE_SCROLL_ITEM}>
+              <OfficeMenuItemTile item={item} />
+            </div>
+          ))}
         </div>
-      ))}
-      {TOOL_MENUS.map((menu) => (
-        <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
-          <OfficeDropdownTile menu={menu} />
-        </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 });
 
