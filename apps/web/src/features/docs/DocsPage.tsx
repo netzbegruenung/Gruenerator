@@ -49,6 +49,7 @@ import {
   OFFICE_SCROLL_ITEM,
   OFFICE_SCROLL_ROW,
   OfficeActionTile,
+  officeStripStyle,
 } from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
@@ -650,8 +651,8 @@ export function DocumentsContent({
       </WorkplaceHero>
 
       {officeToolStrip && (
-        <section className="mb-xl mt-md">
-          <div className={OFFICE_SCROLL_ROW}>
+        <section className="mb-xl mt-xl">
+          <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(OFFICE_SUITE_TOOLS.length)}>
             {OFFICE_SUITE_TOOLS.map((tool) => (
               <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
                 <OfficeActionTile

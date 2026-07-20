@@ -87,11 +87,24 @@ export const OFFICE_SCROLL_ROW =
   'flex justify-center-safe gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
 // Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
 // visible (a deliberate scroll tease) at any width — the gap subtraction is what
-// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 5.5
-// on desktop, keeping tile size ~140–190px everywhere. Gap is 0.75rem at base, 1rem
-// from sm up (matches OFFICE_SCROLL_ROW).
+// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 3.5
+// on sm → 4.5 on md. On desktop (lg) the width is count-aware via `--tile-basis`
+// (see `officeStripStyle`): ≤6 tiles fill the row edge-to-edge (all fully visible),
+// ≥7 fall back to the 5.5-up tease. Default var = 5.5-up when a row omits the style.
+// Gap is 0.75rem at base, 1rem from sm up (matches OFFICE_SCROLL_ROW).
 export const OFFICE_SCROLL_ITEM =
-  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
+  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[var(--tile-basis,calc((100%_-_5rem)_*_0.1818))]';
+
+// Desktop (lg) tile sizing for a strip of `tileCount` tiles: ≤6 fill the row (all
+// fully visible, no scroll); ≥7 keep the 5.5-up scroll tease. Set on the scroll
+// row; `OFFICE_SCROLL_ITEM` reads it via `--tile-basis`. Gap at lg is 1rem.
+export function officeStripStyle(tileCount: number): React.CSSProperties {
+  const lgBasis =
+    tileCount <= 6
+      ? `calc((100% - ${tileCount - 1}rem) / ${tileCount})`
+      : 'calc((100% - 5rem) * 0.1818)';
+  return { '--tile-basis': lgBasis } as React.CSSProperties;
+}
 
 // Tile colours (and each tool's matching page gradient) live in the shared
 // `config/toolTheme` registry so a tile and its subpage never drift.
@@ -303,7 +316,7 @@ export const OfficeSection = React.memo(() => {
   );
 
   return (
-    <div className={OFFICE_SCROLL_ROW}>
+    <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(tiles.length + TOOL_MENUS.length)}>
       {tiles.map((tool) => (
         <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
           <OfficeTile tool={tool} />
