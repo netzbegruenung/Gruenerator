@@ -77,15 +77,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
   };
 
-  items.grueneratoren = {
-    id: 'grueneratoren',
-    path: '/agentura',
-    title: 'Grüneratoren',
-    description: 'Deine KI-Grüneratoren',
-    icon: RiSpyLine,
-    activePaths: ['/agentura', '/agents'],
-  };
-
   // No `path`: the sidebar opens the global search palette instead of
   // navigating. Consumers that render nav targets (DesktopHome, featureIndex)
   // already skip path-less entries.
@@ -94,6 +85,15 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Suche',
     description: 'Alles durchsuchen',
     icon: getIcon('ui', 'search'),
+  };
+
+  items.grueneratoren = {
+    id: 'grueneratoren',
+    path: '/agentura',
+    title: 'Grüneratoren',
+    description: 'Deine KI-Grüneratoren',
+    icon: RiSpyLine,
+    activePaths: ['/agentura', '/agents'],
   };
 
   if (import.meta.env.DEV) {
