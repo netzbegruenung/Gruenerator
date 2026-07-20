@@ -16,7 +16,7 @@ export interface Document {
   content?: string;
   share_mode?: 'private' | 'authenticated' | 'public';
   share_permission?: 'viewer' | 'editor';
-  permissions: Record<string, { level: string; granted_at: string }>;
+  permissions: Record<string, { level: 'owner' | 'editor' | 'viewer'; granted_at: string }>;
   metadata?: Record<string, unknown>;
   access_type?: 'owner' | 'direct' | 'group' | 'public';
   creator_name?: string;

@@ -4,8 +4,9 @@
  * into `s.router(...)` in `index.ts` stays fully type-inferred.
  */
 
-import { groupsContract } from '@gruenerator/contracts';
+import { groupsContract, type GroupContentResponse } from '@gruenerator/contracts';
 
+import { normalizeSharePermissions } from '../../../../services/groups/groupSharePermissions.js';
 import { notifyGroupMembers } from '../../../../services/notifications/index.js';
 import { listUserAgentsByIds } from '../../../../services/userAgents/userAgentsRepository.js';
 import { NextcloudShareManager } from '../../../../utils/integrations/nextcloud/index.js';
@@ -131,7 +132,7 @@ export const contentRoutes = {
         };
       }
 
-      const sharePermissions = permissions ?? { read: true, write: false, collaborative: false };
+      const sharePermissions = normalizeSharePermissions(permissions);
       await postgres.exec(
         'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions) VALUES ($1, $2, $3, $4, $5)',
         [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions)]
@@ -491,7 +492,16 @@ export const contentRoutes = {
         if (key) groupContent[key] = items;
       });
 
-      return { status: 200 as const, body: { success: true as const, content: groupContent } };
+      // Boundary assertion: the buckets are hydrated as loose records here; the
+      // contract types the homogeneous collaborative_documents bucket (id +
+      // subtype enum, passthrough). The hydrated rows always carry those fields.
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          content: groupContent as unknown as GroupContentResponse['content'],
+        },
+      };
     } catch (error) {
       return groupErrorResponse('listGroupContent', 'Fehler beim Laden der Gruppeninhalte.', error);
     }
