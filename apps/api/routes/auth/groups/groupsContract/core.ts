@@ -272,7 +272,8 @@ export const coreRoutes = {
       const row = (await postgres.queryOne(
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
-                g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix
+                g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
+                g.group_type
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2`,
@@ -294,6 +295,7 @@ export const coreRoutes = {
         is_public: boolean | null;
         audience: 'de-DE' | 'de-AT' | 'all' | null;
         slug_suffix: string | null;
+        group_type: 'standard' | 'personal' | null;
       } | null;
 
       if (!row) {
@@ -321,6 +323,7 @@ export const coreRoutes = {
             links: row.links ?? [],
             is_public: row.is_public ?? false,
             audience: row.audience ?? 'all',
+            group_type: row.group_type ?? 'standard',
             slug_suffix: row.slug_suffix ?? null,
           },
           membership: {

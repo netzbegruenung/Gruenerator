@@ -210,7 +210,7 @@ export function NativeDocTopBar() {
                 onPress={() => {
                   setMenuOpen(false);
                   if (router.canGoBack()) router.back();
-                  else router.replace('/(tabs)/(docs)');
+                  else router.replace('/(tabs)/(office)');
                 }}
               >
                 <Ionicons name="arrow-back" size={20} color={theme.text} />
