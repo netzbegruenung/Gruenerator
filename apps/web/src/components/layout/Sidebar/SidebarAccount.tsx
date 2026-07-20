@@ -15,16 +15,18 @@ import {
 import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { FaUsers } from 'react-icons/fa';
+import { FiServer, FiSliders } from 'react-icons/fi';
 import { HiCog } from 'react-icons/hi';
-import { PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import NotificationList from '../../../features/notifications/components/NotificationList';
 import { useNotifications } from '../../../features/notifications/hooks/useNotifications';
-import { useSettingsDialogStore } from '../../../features/settings/settingsDialogStore';
+import {
+  useSettingsDialogStore,
+  type SettingsTab,
+} from '../../../features/settings/settingsDialogStore';
 import { useAuthStore } from '../../../stores/authStore';
-import useDarkMode from '../../hooks/useDarkMode';
 
 import { cn } from '@/utils/cn';
 
@@ -34,8 +36,14 @@ interface SidebarAccountProps {
   onNavigate: (path: string, title: string) => void;
 }
 
+// Defer past the dropdown's close so the closing menu and the opening dialog
+// don't fight over the Radix body pointer-events / focus lock in one commit.
+const openSettingsDeferred = (tab?: SettingsTab) => {
+  setTimeout(() => useSettingsDialogStore.getState().openSettings(tab), 0);
+};
+
 // Bottom-of-sidebar account block. Two distinct triggers, never one mixed
-// element: the avatar opens the account menu (nav targets + theme + logout),
+// element: the avatar opens the account menu (nav targets + settings + logout),
 // and a separate bell opens a notifications Popover. Notifications live in a
 // Popover (not the DropdownMenu) so their action buttons, scrolling and
 // pagination behave natively instead of closing the menu. Mirrors the
@@ -48,7 +56,6 @@ const SidebarAccount = memo(function SidebarAccount({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const [, , themePreference, cycleTheme] = useDarkMode();
   // Badge and popover both derive from this one unread-only query (shared
   // cache), so the count can never disagree with the listed notifications.
   // Page size (20) exceeds the "9+" cap, so page 1 always renders the badge
@@ -101,57 +108,50 @@ const SidebarAccount = memo(function SidebarAccount({
       sideOffset={8}
       className="w-80"
     >
+      {/* Profile header — avatar + name on top, opens the Konto tab. */}
+      <DropdownMenuItem
+        onSelect={() => openSettingsDeferred('konto')}
+        className="items-center gap-2 py-2"
+      >
+        <span className="shrink-0">{avatarEl}</span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-semibold text-foreground-heading">
+            {displayName || 'Profil'}
+          </span>
+          {user.email && (
+            <span className="truncate text-xs font-normal text-grey-500">{user.email}</span>
+          )}
+        </span>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
       <DropdownMenuItem onClick={() => onNavigate('/gruppen', 'Spaces')}>
         <FaUsers className="size-4" />
         <span>Spaces</span>
       </DropdownMenuItem>
-      <DropdownMenuItem
-        onSelect={() => {
-          // Defer past the dropdown's close so the two Radix modals don't fight
-          // over the body pointer-events lock / focus restoration in one commit.
-          setTimeout(() => useSettingsDialogStore.getState().openSettings(), 0);
-        }}
-      >
+      {/* Deep links to specific settings tabs; deferred so the closing dropdown
+          and the opening dialog don't fight over the Radix body/focus lock. */}
+      <DropdownMenuItem onSelect={() => openSettingsDeferred('personalisierung')}>
+        <FiSliders className="size-4" />
+        <span>Personalisierung</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => openSettingsDeferred('konnektoren')}>
+        <FiServer className="size-4" />
+        <span>Konnektoren</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => openSettingsDeferred()}>
         <HiCog className="size-4" />
         <span>Einstellungen</span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      {/* Theme + logout share one row to save vertical space. */}
-      <div className="flex items-center gap-1">
-        <DropdownMenuItem
-          className="flex-1"
-          onSelect={(e) => {
-            // Keep the menu open so the user can click through Hell → Dunkel → System.
-            e.preventDefault();
-            cycleTheme();
-          }}
-        >
-          {themePreference === 'light' ? (
-            <PiSun className="size-4" />
-          ) : themePreference === 'dark' ? (
-            <PiMoon className="size-4" />
-          ) : (
-            <PiDesktop className="size-4" />
-          )}
-          <span>
-            {themePreference === 'light'
-              ? 'Heller Modus'
-              : themePreference === 'dark'
-                ? 'Dunkler Modus'
-                : 'System'}
-          </span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={isLoggingOut}
-          onClick={() => {
-            if (!isLoggingOut) void logout();
-          }}
-        >
-          <LogOut className="size-4" />
-          <span>{isLoggingOut ? 'Wird abgemeldet…' : 'Abmelden'}</span>
-        </DropdownMenuItem>
-      </div>
+      <DropdownMenuItem
+        disabled={isLoggingOut}
+        onClick={() => {
+          if (!isLoggingOut) void logout();
+        }}
+      >
+        <LogOut className="size-4" />
+        <span>{isLoggingOut ? 'Wird abgemeldet…' : 'Abmelden'}</span>
+      </DropdownMenuItem>
     </DropdownMenuContent>
   );
 
