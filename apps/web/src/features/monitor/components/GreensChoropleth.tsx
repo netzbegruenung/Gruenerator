@@ -86,17 +86,30 @@ interface MapChartProps {
   values: ChoroplethValues;
   /** Only label regions whose projected area exceeds this (keeps tiny states clean). */
   labelMin: number;
+  /** Fallback color-scale range, used only until real values arrive. */
   domain: [number, number];
-  legend: [string, string];
 }
 
-function MapChart({ geo, fitGeo, width, height, values, labelMin, domain, legend }: MapChartProps) {
+function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapChartProps) {
   const [hover, setHover] = useState<number | null>(null);
+
+  // Scale the color ramp to the actual PolitPro values (min..max) so a spread
+  // like Thüringen 4 % → Baden-Württemberg 30 % uses the full gradient instead
+  // of clamping against a fixed range. Fall back to `domain` until data loads.
+  const scale = useMemo<[number, number]>(() => {
+    const vals = Object.values(values)
+      .map((x) => x.v)
+      .filter((v): v is number => v != null);
+    if (vals.length < 2) return domain;
+    const lo = Math.floor(Math.min(...vals));
+    const hi = Math.ceil(Math.max(...vals));
+    return lo === hi ? [lo, lo + 1] : [lo, hi];
+  }, [values, domain]);
 
   const feats = useMemo(() => {
     const proj = geoMercator().fitSize([width, height], fitGeo ?? geo);
     const path = geoPath(proj);
-    const color = scaleLinear<string>().domain(domain).range(['#dceae2', '#2c5741']).clamp(true);
+    const color = scaleLinear<string>().domain(scale).range(['#dceae2', '#2c5741']).clamp(true);
     return geo.features.map((f, i) => {
       const name = String(f.properties?.name ?? '');
       const d: Partial<ChoroplethValue> = values[name] ?? {};
@@ -114,10 +127,10 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain, legend
         fill: d.v == null ? 'var(--map-nodata)' : color(d.v),
       };
     });
-  }, [geo, fitGeo, width, height, values, domain]);
+  }, [geo, fitGeo, width, height, values, scale]);
 
   const active = hover != null ? feats[hover] : null;
-  const mid = (domain[0] + domain[1]) / 2;
+  const mid = (scale[0] + scale[1]) / 2;
 
   return (
     <div className="relative [--map-stroke:#fff] [--map-nodata:#eceeec] dark:[--map-stroke:#1b2b23] dark:[--map-nodata:#243029]">
@@ -176,9 +189,9 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain, legend
       )}
 
       <div className="mt-3 flex items-center gap-2 text-[12px] text-[#5c6b63] dark:text-grey-400">
-        <span>{legend[0]}</span>
+        <span>{scale[0]}%</span>
         <div className="h-2 max-w-[140px] flex-1 rounded bg-gradient-to-r from-[#dceae2] to-[#2c5741]" />
-        <span>{legend[1]}</span>
+        <span>{scale[1]}%</span>
         <span className="ml-2 inline-flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded bg-[var(--map-nodata)]" />
           keine Daten
@@ -219,7 +232,6 @@ export function DeutschlandMap({ values = {}, width = 380, height = 470 }: Green
       values={values}
       labelMin={900}
       domain={[3, 18]}
-      legend={['3%', '18%']}
     />
   );
 }
@@ -254,7 +266,6 @@ export function EuropaMap({ values = {}, width = 380, height = 470 }: GreensMapP
         values={values}
         labelMin={280}
         domain={[2, 15]}
-        legend={['2%', '15%']}
       />
     </div>
   );
