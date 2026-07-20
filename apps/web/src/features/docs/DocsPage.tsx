@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
+import { OFFICE_SUITE_TOOLS } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
 import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
@@ -44,6 +45,11 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
+import {
+  OFFICE_SCROLL_ITEM,
+  OFFICE_SCROLL_ROW,
+  OfficeActionTile,
+} from '../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
@@ -87,12 +93,11 @@ type UnifiedItem =
     }
   | { kind: 'board'; data: Board; sortKey: number };
 
-// A single office content type. The type-scoped landing pages (/docs, /boards,
-// /sheets, /presentations) pass one of these; the unscoped Arbeiten tab passes none.
-export type OfficeScope = Exclude<DocKind, 'sharepic'>;
+// A single office content type. Retained for the scoped-filter machinery below;
+// current callers (Arbeiten DocsHome + the /office hub) are all unscoped.
+type OfficeScope = Exclude<DocKind, 'sharepic'>;
 
-// Per-scope hero heading. The page-background tint now comes from the shared
-// toolTheme registry (OfficeLandingPage), so it stays in sync with the tool tile.
+// Per-scope hero heading (used only when a scope is passed).
 const SCOPE_META: Record<OfficeScope, { heading: string }> = {
   doc: { heading: 'Deine Dokumente' },
   board: { heading: 'Deine Boards' },
@@ -131,9 +136,19 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
 export function DocumentsContent({
   showRecents = true,
   scope,
+  officeToolStrip = false,
+  heroTitle,
 }: {
   showRecents?: boolean;
   scope?: OfficeScope;
+  /** Render the office action strip (Vorlagen + Leeres Dokument/Board/Tabelle/
+   * Slides) between the composer hero and the recents feed — used by the /office
+   * hub. Each tile opens the gallery or creates an empty resource via the handlers
+   * below. */
+  officeToolStrip?: boolean;
+  /** Overrides the hero heading (the firstName is appended when present). Used by
+   * the /office hub so it doesn't show the generic workplace welcome. */
+  heroTitle?: string;
 }) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
@@ -608,13 +623,17 @@ export function DocumentsContent({
     <>
       <WorkplaceHero
         title={
-          scope
+          heroTitle
             ? firstName
-              ? `${SCOPE_META[scope].heading}, ${firstName}`
-              : SCOPE_META[scope].heading
-            : firstName
-              ? `Willkommen im Grünerator Workplace, ${firstName}`
-              : 'Willkommen im Grünerator Workplace'
+              ? `${heroTitle}, ${firstName}`
+              : heroTitle
+            : scope
+              ? firstName
+                ? `${SCOPE_META[scope].heading}, ${firstName}`
+                : SCOPE_META[scope].heading
+              : firstName
+                ? `Willkommen im Grünerator Workplace, ${firstName}`
+                : 'Willkommen im Grünerator Workplace'
         }
       >
         <DocsComposer
@@ -629,6 +648,30 @@ export function DocumentsContent({
           onImport={handleComposerImport}
         />
       </WorkplaceHero>
+
+      {officeToolStrip && (
+        <section className="mb-xl mt-md">
+          <div className={OFFICE_SCROLL_ROW}>
+            {OFFICE_SUITE_TOOLS.map((tool) => (
+              <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+                <OfficeActionTile
+                  styleKey="office"
+                  icon={tool.icon}
+                  title={tool.title}
+                  description={tool.description}
+                  onClick={() => {
+                    if (tool.create === 'gallery') setShowGallery(true);
+                    else if (tool.create === 'board') handleCreateBoard('kanban');
+                    else if (tool.create === 'sheet') void handleCreateSheet();
+                    else if (tool.create === 'pres') void handleCreatePresentation();
+                    else void handleTemplateSelect('blank');
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <DismissableBanner
         storageKey="gruenerator_docs_experimental_warning_dismissed"
