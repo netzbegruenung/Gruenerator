@@ -74,11 +74,19 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
 export const useCreateGroup = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { name: string; description?: string }) => {
+    mutationFn: async (input: {
+      name: string;
+      description?: string;
+      groupType?: 'standard' | 'personal';
+    }) => {
       const res = await getContractsClient().groups.createGroup({
-        body: { name: input.name, description: input.description },
+        body: {
+          name: input.name,
+          description: input.description,
+          ...(input.groupType ? { groupType: input.groupType } : {}),
+        },
       });
-      if (res.status !== 200) throw new Error('Fehler beim Erstellen der Gruppe.');
+      if (res.status !== 200) throw new Error('Fehler beim Erstellen des Space.');
       return res.body.group as GroupSummary;
     },
     onSuccess: () => {

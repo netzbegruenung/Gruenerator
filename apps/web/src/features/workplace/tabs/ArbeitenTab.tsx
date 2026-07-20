@@ -20,7 +20,7 @@ const ArbeitenTab = () => {
         <DocsHome />
       </div>
 
-      <section className="mb-xl mt-2xl" data-tour="arbeiten-tools">
+      <section className="mb-xl mt-md" data-tour="arbeiten-tools">
         <OfficeSection />
       </section>
 

@@ -42,7 +42,7 @@ function AgentCreatorPage() {
   const [phase, setPhase] = useState<'start' | 'build'>('start');
   const [error, setError] = useState<string | null>(null);
 
-  useDocumentTitle(variant === 'recurring' ? 'Neuer wiederkehrender Agent' : 'Neuer Agent');
+  useDocumentTitle(variant === 'recurring' ? 'Neue wiederkehrende Aufgabe' : 'Neuer Grünerator');
 
   const handleGenerate = useCallback(async () => {
     if (description.trim().length === 0) return;
@@ -89,6 +89,6 @@ function AgentCreatorPage() {
 }
 
 export default withAuthRequired(AgentCreatorPage, {
-  title: 'Neuer Agent',
+  title: 'Neuer Grünerator',
   fallback: <div className="flex min-h-0 flex-1 bg-background" />,
 });

@@ -89,7 +89,7 @@ const GroupLinkDialog = ({ isOpen, onClose, onSave, isSaving, link }: GroupLinkD
               id="link-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="z.B. Signal-Gruppe"
+              placeholder="z.B. Signal-Space"
               maxLength={100}
               autoFocus
             />

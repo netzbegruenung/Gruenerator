@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildMcpReplayMessages } from './mcpReplay.js';
+import { buildToolObservationReplay } from './mcpReplay.js';
 
 import type { PersistedStep } from './types.js';
 
@@ -15,11 +15,11 @@ function mcpStep(over: Partial<PersistedStep> = {}): PersistedStep {
   };
 }
 
-const catalog = new Set(['ma__search', 'mb__send']);
+const catalog = new Set(['ma__search', 'mb__send', 'gruenerator_search', 'bundestag']);
 
-describe('buildMcpReplayMessages', () => {
+describe('buildToolObservationReplay', () => {
   it('reconstructs a valid assistant tool-call + tool-result pair', () => {
-    const msgs = buildMcpReplayMessages([mcpStep()], catalog);
+    const msgs = buildToolObservationReplay([mcpStep()], catalog);
     expect(msgs).toHaveLength(2);
     const [assistant, tool] = msgs;
     expect(assistant.role).toBe('assistant');
@@ -34,18 +34,27 @@ describe('buildMcpReplayMessages', () => {
     );
   });
 
-  it('excludes internal (non-MCP) steps — no serverName', () => {
+  it('replays internal (non-MCP) steps too — no serverName required', () => {
     const internal = mcpStep({ serverName: undefined, toolName: 'gruenerator_search' });
-    expect(buildMcpReplayMessages([internal], catalog)).toEqual([]);
+    const msgs = buildToolObservationReplay([internal], catalog);
+    expect(msgs).toHaveLength(2);
+    const call = (msgs[0].content as Array<{ toolName: string }>)[0];
+    expect(call.toolName).toBe('gruenerator_search');
+  });
+
+  it('replays a domain retrieval step (bundestag)', () => {
+    const step = mcpStep({ serverName: undefined, toolName: 'bundestag', toolCallId: 'b1' });
+    const msgs = buildToolObservationReplay([step], catalog);
+    expect(msgs).toHaveLength(2);
   });
 
   it('validity gate: drops steps whose tool is not in the current catalog', () => {
     const gone = mcpStep({ toolName: 'mz__deleted' });
-    expect(buildMcpReplayMessages([gone], catalog)).toEqual([]);
+    expect(buildToolObservationReplay([gone], catalog)).toEqual([]);
   });
 
   it('dedups repeated tool call ids', () => {
-    const msgs = buildMcpReplayMessages([mcpStep(), mcpStep()], catalog);
+    const msgs = buildToolObservationReplay([mcpStep(), mcpStep()], catalog);
     expect((msgs[0].content as unknown[]).length).toBe(1);
   });
 
@@ -53,18 +62,18 @@ describe('buildMcpReplayMessages', () => {
     const steps = Array.from({ length: 5 }, (_, i) =>
       mcpStep({ toolCallId: `c${i}`, args: { i } })
     );
-    const msgs = buildMcpReplayMessages(steps, catalog, { maxSteps: 2 });
+    const msgs = buildToolObservationReplay(steps, catalog, { maxSteps: 2 });
     const ids = (msgs[0].content as Array<{ toolCallId: string }>).map((c) => c.toolCallId);
     expect(ids).toEqual(['c3', 'c4']);
   });
 
   it('empty input → [] (loop history unchanged)', () => {
-    expect(buildMcpReplayMessages([], catalog)).toEqual([]);
+    expect(buildToolObservationReplay([], catalog)).toEqual([]);
   });
 
   it('truncates a huge result value', () => {
     const big = mcpStep({ result: { content: 'x'.repeat(2000) } });
-    const msgs = buildMcpReplayMessages([big], catalog);
+    const msgs = buildToolObservationReplay([big], catalog);
     const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
     expect(out.length).toBeLessThan(600);
     expect(out.endsWith('…')).toBe(true);

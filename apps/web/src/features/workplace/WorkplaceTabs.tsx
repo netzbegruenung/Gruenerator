@@ -4,31 +4,27 @@ import { Link } from 'react-router-dom';
 
 import { cn } from '@/utils/cn';
 
-export type WorkplaceTab = 'chat' | 'arbeiten' | 'wissen';
+export type WorkplaceTab = 'chat' | 'arbeiten';
 
 const TABS: Array<{ id: WorkplaceTab; label: string; path: string }> = [
   { id: 'chat', label: 'Chat', path: '/workplace' },
   { id: 'arbeiten', label: 'Arbeiten', path: '/workplace/arbeiten' },
-  { id: 'wissen', label: 'Wissen', path: '/workplace/wissen' },
 ];
 
 // The active pill + label echo each section's palette: chat neutral, arbeiten a
-// soft green, wissen magenta — a subtle cue that stays quiet.
+// soft green — a subtle cue that stays quiet.
 const PILL_TINT: Record<WorkplaceTab, string> = {
   chat: 'bg-white dark:bg-grey-800',
   arbeiten: 'bg-[#E9F4EC] dark:bg-[#16301F]',
-  wissen: 'bg-[#FBE4F0] dark:bg-[#3A1E2C]',
 };
 
 const ACTIVE_TEXT: Record<WorkplaceTab, string> = {
   chat: 'text-grey-900 dark:text-grey-100',
   arbeiten: 'text-primary-700 dark:text-primary-300',
-  wissen: 'text-[#C4006A] dark:text-[#F2A9CE]',
 };
 
 export function workplaceTabFromPathname(pathname: string): WorkplaceTab {
   if (pathname.startsWith('/workplace/arbeiten')) return 'arbeiten';
-  if (pathname.startsWith('/workplace/wissen')) return 'wissen';
   return 'chat';
 }
 

@@ -37,7 +37,7 @@ export function DocsAssistantChat() {
       density="compact"
       showToolToggles={false}
       composerSlots={{
-        aboveInput: <SelectionChip documentId={state.documentId} />,
+        aboveInput: <SelectionChip documentId={state.targetId} />,
         sendAdornment: (
           <DocAiEditToggle enabled={state.aiEditEnabled} onToggle={state.toggleAiEdit} />
         ),

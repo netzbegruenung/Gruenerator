@@ -609,6 +609,15 @@ export interface ChatGraphState {
   // research loop, then emits trigger_doc_edit/trigger_board_action with the
   // gathered sources as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
+  // Tool-based editor edit: the resolved editor surface whose `edit_document`
+  // tool the loop mounts. Set only for surfaces with a tool path
+  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
+  // trigger_doc_edit path for the still-live surfaces.
+  editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
+  // Human summary of edits the edit_document tool made THIS turn (set by
+  // editorTools). Feeds the synth prompt so the model confirms the change in
+  // past tense instead of writing empty text (→ fallback) or a false "I can't".
+  editorEditsSummary?: string | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

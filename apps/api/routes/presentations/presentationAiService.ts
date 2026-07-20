@@ -80,7 +80,7 @@ export async function generatePresentationOperations(opts: {
   log.info(`[PresentationAI] Using Mistral Medium 3.5 (${PRESENTATION_AI_MODEL})`);
 
   const referenceSection = referenceContent?.trim()
-    ? `\n\nZUSÄTZLICHER KONTEXT (vorherige Antwort des Assistenten, auf die sich die Person bezieht):\n<reference_content>\n${referenceContent.trim().slice(0, 8000)}\n</reference_content>`
+    ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${PRESENTATION_TOOL_STRICT_PROMPT}\n\nAKTUELLER FOLIEN-ZUSTAND:\n${presentationContext.slice(0, 24_000)}${referenceSection}`;

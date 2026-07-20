@@ -14,7 +14,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/alttext': 'Alt-Text',
   '/workplace': 'Workplace',
   '/workplace/arbeiten': 'Arbeiten',
-  '/workplace/wissen': 'Wissen',
+  '/wissen': 'Wissen',
   '/studio': 'Studio',
   '/studio/edit': 'Bild bearbeiten',
   '/studio/templates': 'Sharepics',

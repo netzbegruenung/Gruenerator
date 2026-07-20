@@ -1,11 +1,13 @@
 'use client';
 
 import { type AssistantRuntime, ExportedMessageRepository } from '@assistant-ui/react';
-import { convertToThreadMessageLike, useChatConfigStore } from '@gruenerator/chat';
 import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+
+import { convertToThreadMessageLike } from '../runtime/threadMessageConversion';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 
 interface PeerSyncCollab {
   provider: HocuspocusProvider | null;
