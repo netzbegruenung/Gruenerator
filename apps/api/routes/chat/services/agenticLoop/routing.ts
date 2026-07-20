@@ -203,6 +203,7 @@ export function resolveEditorSurfaceKind(
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
   'sheet',
   'presentation',
+  'board',
 ]);
 
 export interface EditToolLoopInput {
