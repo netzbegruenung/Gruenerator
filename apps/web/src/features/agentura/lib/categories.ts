@@ -4,9 +4,7 @@ import {
   PiFileText,
   PiGlobe,
   PiMagnifyingGlass,
-  PiMapPin,
   PiMegaphone,
-  PiRepeat,
   PiShareNetwork,
   PiSparkle,
   PiStar,
@@ -37,25 +35,15 @@ export const SKILL_CATEGORY_ICONS: Record<SkillCategory, IconType> = {
   sonstiges: PiDotsThreeOutline,
 };
 
-const SKILL_CATEGORY_DESCRIPTIONS: Record<SkillCategory, string> = {
-  presse: 'Pressemitteilungen, Statements und O-Töne.',
-  social: 'Posts, Captions und Community-Antworten.',
-  dokumente: 'Anträge, Reden und andere Dokumente.',
-  recherche: 'Recherche- und Analyse-Skills.',
-  sonstiges: 'Weitere Skills für deinen Alltag.',
-};
-
-/** Every category key the market can show — fixed agent aisles plus the skill categories. */
+/** Every category key the market can show. Skills + Landesverbände no longer have
+ *  their own aisles — they live as sub-sections inside `gruenerator`. */
 export type AgenturaCategoryKey =
   | 'empfohlen'
   | 'meine'
-  | 'wiederkehrend'
   | 'gruppen'
   | 'community'
   | 'gruenerator'
-  | 'landesverbaende'
-  | 'favoriten'
-  | SkillCategory;
+  | 'favoriten';
 
 export interface AgenturaCategory {
   key: AgenturaCategoryKey;
@@ -85,19 +73,10 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'meine',
     label: 'Meine Grüneratoren',
     icon: PiSparkle,
-    description: 'Deine selbst erstellten KI-Assistent*innen zum Chatten.',
+    description: 'Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben.',
     emptyText:
       'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator" an.',
     emptyIcon: PiSparkle,
-  },
-  {
-    key: 'wiederkehrend',
-    label: 'Wiederkehrende Aufgaben',
-    icon: PiRepeat,
-    description: 'Lass einen Grünerator regelmäßig automatisch arbeiten (experimentell).',
-    emptyText:
-      'Noch keine wiederkehrenden Aufgaben. Erstelle eine oder frag im Chat: „Erstelle jeden Montag um 9 Uhr eine Zusammenfassung …“',
-    emptyIcon: PiRepeat,
   },
   {
     key: 'gruppen',
@@ -118,13 +97,7 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'gruenerator',
     label: 'Offizielle Grüneratoren',
     icon: PiStorefront,
-    description: 'Fertige Assistent*innen von Grünerator für deine Aufgaben.',
-  },
-  {
-    key: 'landesverbaende',
-    label: 'Landesverbände',
-    icon: PiMapPin,
-    description: 'Regionale Grüneratoren und Skills deines Landesverbands.',
+    description: 'Fertige Grüneratoren, Presse- & Social-Skills und Landesverbände von Grünerator.',
   },
   {
     key: 'favoriten',
@@ -132,14 +105,6 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     icon: PiStarFill,
     description: 'Deine gemerkten Grüneratoren und Skills.',
   },
-  ...SKILL_CATEGORY_ORDER.map(
-    (cat): AgenturaCategory => ({
-      key: cat,
-      label: SKILL_CATEGORY_LABELS[cat],
-      icon: SKILL_CATEGORY_ICONS[cat],
-      description: SKILL_CATEGORY_DESCRIPTIONS[cat],
-    })
-  ),
 ];
 
 export const DEFAULT_CATEGORY: AgenturaCategoryKey = 'empfohlen';
