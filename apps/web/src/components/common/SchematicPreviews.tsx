@@ -1,6 +1,6 @@
 import { type BoardPreview } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
-import React, { memo } from 'react';
+import { memo } from 'react';
 
 import { parseSlidesPreview } from '../../utils/parseSlidesPreview';
 import { parseTablePreview } from '../../utils/parseTablePreview';
@@ -70,21 +70,16 @@ export const BoardPreviewBody = memo(
     const columns = preview?.columns?.length ? preview.columns : null;
     if (columns) {
       return (
-        <div className="flex gap-2.5" aria-hidden>
+        <div className="flex h-full gap-3" aria-hidden>
           {columns.map((col, idx) => (
-            <div key={`${col.name}-${idx}`} className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-1">
-                <span className="truncate text-[9px] font-semibold uppercase tracking-wide text-secondary-700 dark:text-secondary-300">
-                  {col.name}
-                </span>
-                <span className="shrink-0 text-[9px] text-grey-400 dark:text-grey-500">
-                  {col.count}
-                </span>
-              </div>
+            <div key={`${col.name}-${idx}`} className="flex min-w-0 flex-1 flex-col gap-2">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-grey-500 dark:text-grey-400">
+                {col.name}
+              </span>
               {Array.from({ length: Math.min(col.count, 3) }, (_, i) => (
                 <div
                   key={`${col.name}-${idx}-${i}`}
-                  className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
+                  className="h-7 rounded-md bg-grey-100 dark:bg-grey-700/50"
                 />
               ))}
             </div>
@@ -112,80 +107,34 @@ export const BoardPreviewBody = memo(
 );
 BoardPreviewBody.displayName = 'BoardPreviewBody';
 
-// Spreadsheet preview: a schematic grid (A/B/C column headers + numbered row
-// gutter) filled with the table's real leading cells when the content carries
-// an HTML <table> — legacy 'tabelle' docs store one directly, Univer sheets
-// get one written by the Hocuspocus preview pipeline. Faint placeholder bars
-// until a preview exists.
-const COLUMN_LETTERS = ['A', 'B', 'C', 'D'];
-const TABLE_PLACEHOLDER_ROWS = 4;
+// Spreadsheet preview (minimal): the table's leading data rows as calm
+// `Label · Wert` pairs — first cell as the label, last as the value — with a
+// hairline divider between them. The header row is dropped so the numbers read
+// first; faint placeholder bars stand in until a preview exists.
+const TABLE_PREVIEW_ROWS = 4;
 
 export const TablePreviewBody = memo(({ content }: { content?: string }) => {
   const rows = content ? parseTablePreview(content) : [];
-  const colCount = Math.min(
-    COLUMN_LETTERS.length,
-    Math.max(2, rows.reduce((max, row) => Math.max(max, row.length), 0) || 3)
-  );
-  const bodyRows: string[][] =
-    rows.length > 0 ? rows : Array.from({ length: TABLE_PLACEHOLDER_ROWS }, () => []);
-  const cols = COLUMN_LETTERS.slice(0, colCount);
+  const dataRows = rows.slice(1).filter((row) => row.some((cell) => cell.length > 0));
 
-  const cellBase =
-    'flex items-center overflow-hidden px-2 text-[10.5px] leading-none border-r border-b';
-  const gutterCell =
-    'flex items-center justify-center text-[10px] leading-none border-r border-b bg-grey-50 text-grey-400 dark:bg-grey-800/60 dark:text-grey-500';
+  if (dataRows.length === 0) return <PlaceholderBars />;
 
   return (
-    <div
-      className="grid text-left"
-      style={{ gridTemplateColumns: `26px repeat(${colCount}, minmax(0, 1fr))` }}
-      aria-hidden
-    >
-      {/* Column header strip */}
-      <div className="h-5 border-r border-b border-grey-200 bg-grey-100 dark:border-grey-700/60 dark:bg-grey-700/40" />
-      {cols.map((letter) => (
-        <div
-          key={`h-${letter}`}
-          className="flex h-5 items-center px-2 border-r border-b border-grey-200 bg-grey-100 text-[10px] font-bold text-grey-500 dark:border-grey-700/60 dark:bg-grey-700/40 dark:text-grey-400"
-        >
-          {letter}
-        </div>
-      ))}
-
-      {bodyRows.map((row, rowIdx) => {
-        const isHeaderRow = rowIdx === 0;
+    <div className="flex h-full flex-col justify-center px-6" aria-hidden>
+      {dataRows.slice(0, TABLE_PREVIEW_ROWS).map((row, idx) => {
+        const label = row[0] ?? '';
+        const value = row.length > 1 ? row[row.length - 1] : '';
         return (
-          <React.Fragment key={`row-${rowIdx}`}>
-            <div className={cn(gutterCell, 'h-7')}>{rowIdx + 1}</div>
-            {cols.map((letter, colIdx) => {
-              const value = row[colIdx];
-              return (
-                <div
-                  key={`c-${rowIdx}-${letter}`}
-                  className={cn(
-                    cellBase,
-                    'h-7',
-                    isHeaderRow
-                      ? 'border-secondary-200 bg-secondary-50 font-semibold text-secondary-700 dark:border-secondary-800/60 dark:bg-secondary-900/30 dark:text-secondary-200'
-                      : 'border-grey-100 text-grey-700 dark:border-grey-700/40 dark:text-grey-300'
-                  )}
-                >
-                  {value ? (
-                    <span className="truncate">{value}</span>
-                  ) : (
-                    <span
-                      className={cn(
-                        'h-1.5 w-3/4 rounded-full',
-                        isHeaderRow
-                          ? 'bg-secondary-300 dark:bg-secondary-600'
-                          : 'bg-grey-200 dark:bg-grey-700/50'
-                      )}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </React.Fragment>
+          <div
+            key={`trow-${idx}`}
+            className={cn(
+              'flex items-center justify-between gap-3 py-[7px] text-[13px]',
+              idx > 0 && 'border-t border-grey-100 dark:border-grey-700/50'
+            )}
+          >
+            <span className="truncate text-grey-500 dark:text-grey-400">{label}</span>
+            <span className="shrink-0 font-semibold text-grey-700 dark:text-grey-200">{value}</span>
+          </div>
         );
       })}
     </div>
@@ -193,58 +142,27 @@ export const TablePreviewBody = memo(({ content }: { content?: string }) => {
 });
 TablePreviewBody.displayName = 'TablePreviewBody';
 
-// Presentation preview: a large title slide over a filmstrip of three slide
-// thumbnails. Renders the real slide titles when `content` carries the
-// server-written preview list, else the bar schematic.
-const FILMSTRIP_SLIDES = ['slide-1', 'slide-2', 'slide-3'];
-
+// Presentation preview (minimal): just the deck's first slide title, large and
+// calm, with the slide count beneath — no title-slide box, no filmstrip. Falls
+// back to a single title bar until the server has written the preview list.
 export const SlidesPreviewBody = memo(({ content }: { content?: string }) => {
   const { titles, total } = content
     ? parseSlidesPreview(content)
     : { titles: [] as string[], total: 0 };
-  const [deckTitle, ...restTitles] = titles;
-  const hiddenCount = Math.max(0, total - 1 - FILMSTRIP_SLIDES.length);
+  const deckTitle = titles[0];
 
   return (
-    <div className="flex h-full flex-col gap-2" aria-hidden>
-      <div className="flex flex-1 flex-col justify-center gap-2 rounded-md border border-grey-200 bg-white px-4 dark:border-grey-700/60 dark:bg-grey-900/40">
-        {deckTitle ? (
-          <p className="m-0 line-clamp-2 text-[13px] font-bold leading-snug text-grey-800 dark:text-grey-100">
-            {deckTitle}
-          </p>
-        ) : (
-          <div className="h-2.5 w-1/2 rounded-full bg-secondary-300 dark:bg-secondary-600" />
-        )}
-        <div className="h-1.5 w-4/5 rounded-full bg-grey-200 dark:bg-grey-700/60" />
-        <div className="h-1.5 w-2/3 rounded-full bg-grey-200 dark:bg-grey-700/60" />
-      </div>
-      <div className="flex gap-2">
-        {FILMSTRIP_SLIDES.map((id, idx) => {
-          const isLast = idx === FILMSTRIP_SLIDES.length - 1;
-          const title = restTitles[idx];
-          return (
-            <div
-              key={id}
-              className="flex h-9 min-w-0 flex-1 flex-col justify-center gap-1 rounded-[5px] border border-grey-200 bg-white px-2 dark:border-grey-700/60 dark:bg-grey-900/40"
-            >
-              {isLast && hiddenCount > 0 ? (
-                <span className="text-center text-[9px] font-semibold text-grey-400 dark:text-grey-500">
-                  +{hiddenCount + 1}
-                </span>
-              ) : title ? (
-                <span className="line-clamp-2 text-[8px] leading-tight text-grey-600 dark:text-grey-300">
-                  {title}
-                </span>
-              ) : (
-                <>
-                  <div className="h-1 w-2/3 rounded-full bg-secondary-200 dark:bg-secondary-700" />
-                  <div className="h-1 w-full rounded-full bg-grey-100 dark:bg-grey-700/50" />
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
+    <div className="flex h-full flex-col justify-center gap-2.5" aria-hidden>
+      {deckTitle ? (
+        <p className="m-0 line-clamp-3 text-[17px] font-bold leading-snug text-foreground-heading">
+          {deckTitle}
+        </p>
+      ) : (
+        <div className="h-2.5 w-1/2 rounded-full bg-secondary-300 dark:bg-secondary-600" />
+      )}
+      {total > 0 && (
+        <p className="m-0 text-[13px] text-grey-400 dark:text-grey-500">{total} Folien</p>
+      )}
     </div>
   );
 });
