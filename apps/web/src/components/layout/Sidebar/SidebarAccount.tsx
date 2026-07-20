@@ -16,7 +16,6 @@ import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import { PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -24,7 +23,6 @@ import NotificationList from '../../../features/notifications/components/Notific
 import { useNotifications } from '../../../features/notifications/hooks/useNotifications';
 import { useSettingsDialogStore } from '../../../features/settings/settingsDialogStore';
 import { useAuthStore } from '../../../stores/authStore';
-import useDarkMode from '../../hooks/useDarkMode';
 
 import { cn } from '@/utils/cn';
 
@@ -48,7 +46,6 @@ const SidebarAccount = memo(function SidebarAccount({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const [, , themePreference, cycleTheme] = useDarkMode();
   // Badge and popover both derive from this one unread-only query (shared
   // cache), so the count can never disagree with the listed notifications.
   // Page size (20) exceeds the "9+" cap, so page 1 always renders the badge
@@ -105,41 +102,19 @@ const SidebarAccount = memo(function SidebarAccount({
         <FaUsers className="size-4" />
         <span>Spaces</span>
       </DropdownMenuItem>
-      <DropdownMenuItem
-        onSelect={() => {
-          // Defer past the dropdown's close so the two Radix modals don't fight
-          // over the body pointer-events lock / focus restoration in one commit.
-          setTimeout(() => useSettingsDialogStore.getState().openSettings(), 0);
-        }}
-      >
-        <HiCog className="size-4" />
-        <span>Einstellungen</span>
-      </DropdownMenuItem>
       <DropdownMenuSeparator />
-      {/* Theme + logout share one row to save vertical space. */}
+      {/* Settings (theme now lives inside it) + logout share one row. */}
       <div className="flex items-center gap-1">
         <DropdownMenuItem
           className="flex-1"
-          onSelect={(e) => {
-            // Keep the menu open so the user can click through Hell → Dunkel → System.
-            e.preventDefault();
-            cycleTheme();
+          onSelect={() => {
+            // Defer past the dropdown's close so the two Radix modals don't fight
+            // over the body pointer-events lock / focus restoration in one commit.
+            setTimeout(() => useSettingsDialogStore.getState().openSettings(), 0);
           }}
         >
-          {themePreference === 'light' ? (
-            <PiSun className="size-4" />
-          ) : themePreference === 'dark' ? (
-            <PiMoon className="size-4" />
-          ) : (
-            <PiDesktop className="size-4" />
-          )}
-          <span>
-            {themePreference === 'light'
-              ? 'Heller Modus'
-              : themePreference === 'dark'
-                ? 'Dunkler Modus'
-                : 'System'}
-          </span>
+          <HiCog className="size-4" />
+          <span>Einstellungen</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"

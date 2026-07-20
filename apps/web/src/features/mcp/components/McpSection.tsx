@@ -188,8 +188,9 @@ const McpAddForm = memo(
     const create = useCreateMcpServer();
     const [name, setName] = useState('');
     const [url, setUrl] = useState('');
+    // Manual adds are always tokenless; OAuth is only reached via a prefill from
+    // the directory (providers that need pre-registration).
     const [authType, setAuthType] = useState<McpAuthType>('none');
-    const [token, setToken] = useState('');
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [setupUrl, setSetupUrl] = useState<string | null>(null);
@@ -213,7 +214,7 @@ const McpAddForm = memo(
           name: name.trim(),
           url: url.trim(),
           authType,
-          token: authType === 'bearer' ? token.trim() || null : null,
+          token: null,
           oauthClientId: authType === 'oauth' ? clientId.trim() || null : null,
           oauthClientSecret: authType === 'oauth' ? clientSecret.trim() || null : null,
         },
@@ -222,7 +223,6 @@ const McpAddForm = memo(
             setName('');
             setUrl('');
             setAuthType('none');
-            setToken('');
             setClientId('');
             setClientSecret('');
             setSetupUrl(null);
@@ -252,26 +252,6 @@ const McpAddForm = memo(
             value={url}
             onChange={(e) => setUrl(e.target.value)}
           />
-        </div>
-        <div className="flex flex-col sm:flex-row gap-sm">
-          <select
-            className={cn(inputClass, 'sm:w-auto')}
-            value={authType}
-            onChange={(e) => setAuthType(e.target.value as McpAuthType)}
-          >
-            <option value="none">Keine Auth</option>
-            <option value="bearer">Bearer-Token</option>
-            <option value="oauth">OAuth</option>
-          </select>
-          {authType === 'bearer' && (
-            <input
-              className={inputClass}
-              type="password"
-              placeholder="Token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-          )}
         </div>
         {authType === 'oauth' && (
           <div className="flex flex-col gap-xs">
@@ -470,7 +450,6 @@ const CardShell = memo(
     title,
     description,
     badge,
-    recommended,
     category,
     connecting,
     onConnect,
@@ -478,7 +457,6 @@ const CardShell = memo(
     title: string;
     description: string | null | undefined;
     badge: string;
-    recommended: boolean;
     category: string | undefined;
     connecting: boolean;
     onConnect: () => void;
@@ -487,12 +465,9 @@ const CardShell = memo(
       <div className="flex items-start gap-md">
         <McpLogo title={title} size={48} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-sm flex-wrap">
-            <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
-            {recommended && (
-              <span className={cn(chipClass, 'rounded-full font-semibold')}>Empfohlen</span>
-            )}
-          </div>
+          <span className="block text-[15px] font-bold text-foreground-heading truncate">
+            {title}
+          </span>
           {description && (
             <p className="mt-1.5 text-xs leading-relaxed text-grey-500 line-clamp-2">
               {description}
@@ -677,29 +652,44 @@ interface AvailableItem {
   entry: McpRegistryEntry;
 }
 
-// Display order for category pills + grouped sections. Anything not listed
-// (a future category) sorts alphabetically after these; uncategorised → "Weitere".
-const CATEGORY_ORDER = [
+// The registry ships ~12 fine-grained categories; we fold them into a few broad
+// buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
+const OTHER_CATEGORY = 'Sonstige';
+const MIN_PER_CATEGORY = 4;
+const CATEGORY_MERGE: Record<string, string> = {
+  Produktivität: 'Produktivität',
+  Dokumente: 'Produktivität',
+  Formulare: 'Produktivität',
+  Automatisierung: 'Produktivität',
+  'CRM & Marketing': 'Marketing & Vertrieb',
+  'Social Media': 'Marketing & Vertrieb',
+  'Analyse & SEO': 'Marketing & Vertrieb',
+  Finanzen: 'Marketing & Vertrieb',
+  Kommunikation: 'Kommunikation',
+  'Recht & Compliance': 'Recht & Finanzen',
+  Reisen: 'Reisen & Karten',
+  Karten: 'Reisen & Karten',
+};
+// Display order for the merged pills/sections; "Sonstige" always sorts last.
+const MERGED_CATEGORY_ORDER = [
   'Produktivität',
-  'CRM & Marketing',
-  'Social Media',
-  'Analyse & SEO',
-  'Finanzen',
-  'Formulare',
-  'Dokumente',
-  'Recht & Compliance',
-  'Automatisierung',
+  'Marketing & Vertrieb',
   'Kommunikation',
-  'Reisen',
-  'Karten',
-] as const;
-const UNCATEGORISED = 'Weitere';
+  'Recht & Finanzen',
+  'Reisen & Karten',
+];
+const UNCATEGORISED = OTHER_CATEGORY;
+
+const mergeCategory = (raw: string | undefined): string =>
+  (raw && CATEGORY_MERGE[raw]) || OTHER_CATEGORY;
 
 function orderCategories(present: Iterable<string>): string[] {
   const set = new Set(present);
-  const known = CATEGORY_ORDER.filter((c) => set.has(c));
-  const extra = [...set].filter((c) => !(CATEGORY_ORDER as readonly string[]).includes(c)).sort();
-  return [...known, ...extra];
+  const known = MERGED_CATEGORY_ORDER.filter((c) => set.has(c));
+  const extra = [...set]
+    .filter((c) => c !== OTHER_CATEGORY && !MERGED_CATEGORY_ORDER.includes(c))
+    .sort();
+  return [...known, ...extra, ...(set.has(OTHER_CATEGORY) ? [OTHER_CATEGORY] : [])];
 }
 
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
@@ -723,13 +713,17 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
   const connectedUrls = useMemo(() => new Set(servers.map((s) => s.url)), [servers]);
 
-  const available = useMemo<AvailableItem[]>(
-    () =>
-      (registry?.recommended ?? [])
-        .filter((e) => !connectedUrls.has(e.url))
-        .map((entry) => ({ key: entry.url, category: entry.category, entry })),
-    [registry, connectedUrls]
-  );
+  const available = useMemo<AvailableItem[]>(() => {
+    const merged = (registry?.recommended ?? [])
+      .filter((e) => !connectedUrls.has(e.url))
+      .map((entry) => ({ key: entry.url, category: mergeCategory(entry.category), entry }));
+    // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
+    const counts = new Map<string, number>();
+    for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
+    return merged.map((it) =>
+      (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
+    );
+  }, [registry, connectedUrls]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -931,7 +925,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                         title={it.entry.title}
                         description={it.entry.description}
                         badge={authLabel[it.entry.authHint]}
-                        recommended={it.entry.recommended}
                         category={it.category}
                         connecting={connecting === it.entry.url}
                         onConnect={() => handlePickMcp(it.entry)}
@@ -949,7 +942,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                   title={it.entry.title}
                   description={it.entry.description}
                   badge={authLabel[it.entry.authHint]}
-                  recommended={it.entry.recommended}
                   category={it.category}
                   connecting={connecting === it.entry.url}
                   onConnect={() => handlePickMcp(it.entry)}
@@ -974,7 +966,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                   title={entry.title}
                   description={entry.description}
                   badge={authLabel[entry.authHint]}
-                  recommended={false}
                   category={undefined}
                   connecting={connecting === entry.url}
                   onConnect={() => handlePickExternal(entry)}
