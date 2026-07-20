@@ -122,7 +122,7 @@ async function main() {
 
   // 4. version marker — drives the service-worker cache name so a Pyodide
   // version bump busts the cached runtime+wheels automatically (see
-  // public/sw-illustration-cache.js). Served no-cache so the SW always sees
+  // public/sw-asset-cache.js). Served no-cache so the SW always sees
   // the current version.
   await writeFile(path.join(outDir, 'version.json'), JSON.stringify({ version }) + '\n');
 }
