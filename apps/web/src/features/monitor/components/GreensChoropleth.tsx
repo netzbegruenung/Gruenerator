@@ -12,6 +12,12 @@ export interface ChoroplethValue {
   label?: string;
   sub?: string;
   date?: string;
+  /**
+   * Broad-alliance value (greens a minority partner): rendered hatched and
+   * excluded from the color scale + numeric labels so it isn't read as pure
+   * green strength.
+   */
+  marked?: boolean;
 }
 export type ChoroplethValues = Record<string, ChoroplethValue>;
 
@@ -97,7 +103,10 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
   // like Thüringen 4 % → Baden-Württemberg 30 % uses the full gradient instead
   // of clamping against a fixed range. Fall back to `domain` until data loads.
   const scale = useMemo<[number, number]>(() => {
+    // Broad-alliance values (marked) are excluded so e.g. FR NFP 24 % doesn't
+    // stretch the ramp and dwarf real green results.
     const vals = Object.values(values)
+      .filter((x) => !x.marked)
       .map((x) => x.v)
       .filter((v): v is number => v != null);
     if (vals.length < 2) return domain;
@@ -114,6 +123,7 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
       const name = String(f.properties?.name ?? '');
       const d: Partial<ChoroplethValue> = values[name] ?? {};
       const centroid = path.centroid(f);
+      const marked = d.marked ?? false;
       return {
         i,
         d: path(f) ?? '',
@@ -121,16 +131,18 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
         sub: d.sub,
         v: d.v ?? null,
         date: d.date,
+        marked,
         area: path.area(f),
         cx: centroid[0],
         cy: centroid[1],
-        fill: d.v == null ? 'var(--map-nodata)' : color(d.v),
+        fill: d.v == null ? 'var(--map-nodata)' : marked ? 'url(#alliance-hatch)' : color(d.v),
       };
     });
   }, [geo, fitGeo, width, height, values, scale]);
 
   const active = hover != null ? feats[hover] : null;
   const mid = (scale[0] + scale[1]) / 2;
+  const hasMarked = feats.some((s) => s.marked);
 
   return (
     <div className="relative [--map-stroke:#fff] [--map-nodata:#eceeec] dark:[--map-stroke:#1b2b23] dark:[--map-nodata:#243029]">
@@ -140,6 +152,18 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
         viewBox={`0 0 ${width} ${height}`}
         className="block h-auto max-w-full"
       >
+        <defs>
+          <pattern
+            id="alliance-hatch"
+            width={6}
+            height={6}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect width={6} height={6} fill="#dceae2" />
+            <line x1={0} y1={0} x2={0} y2={6} stroke="#52907a" strokeWidth={2.5} />
+          </pattern>
+        </defs>
         {feats.map((s) => (
           <path
             key={s.i}
@@ -154,7 +178,7 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
           />
         ))}
         {feats
-          .filter((s) => s.v != null && s.area > labelMin)
+          .filter((s) => s.v != null && !s.marked && s.area > labelMin)
           .map((s) => (
             <text
               key={`t${s.i}`}
@@ -196,6 +220,12 @@ function MapChart({ geo, fitGeo, width, height, values, labelMin, domain }: MapC
           <span className="inline-block h-2.5 w-2.5 rounded bg-[var(--map-nodata)]" />
           keine Daten
         </span>
+        {hasMarked && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded bg-[repeating-linear-gradient(45deg,#52907a_0_2px,#dceae2_2px_5px)]" />
+            Bündnis
+          </span>
+        )}
       </div>
     </div>
   );
