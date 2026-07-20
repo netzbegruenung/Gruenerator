@@ -27,7 +27,7 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(focused)/gruppen' },
-  { key: 'inhalte', label: 'Dateien', icon: 'folder-outline', href: '/(tabs)/(docs)' },
+  { key: 'inhalte', label: 'Office', icon: 'folder-outline', href: '/(tabs)/(office)' },
   { key: 'einstellungen', label: 'Einstellungen', icon: 'settings-outline', href: '/profile' },
 ];
 

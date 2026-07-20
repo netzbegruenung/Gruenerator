@@ -158,3 +158,18 @@ export const generatePresentationResponseSchema = z.object({
 });
 
 export type GeneratePresentationResponse = z.infer<typeof generatePresentationResponseSchema>;
+
+/**
+ * Response for GET /api/presentations/:id/content — the decoded deck read-model
+ * (loadPresentationState) for a read-only viewer, without a live collab
+ * connection. Slides carry markdown bodies, so a native renderer needs no
+ * TipTap/reveal.
+ */
+export const presentationContentResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  slides: z.array(slideSchema),
+  accentColor: z.string().nullable(),
+});
+
+export type PresentationContentResponse = z.infer<typeof presentationContentResponseSchema>;
