@@ -27,7 +27,7 @@ export function useDiscoverPublicGroups() {
     queryFn: async () => {
       const result = await getContractsClient().groups.discoverPublicGroups();
       if (result.status !== 200) {
-        throw new Error('Öffentliche Gruppen konnten nicht geladen werden.');
+        throw new Error('Öffentliche Spaces konnten nicht geladen werden.');
       }
       return result.body;
     },

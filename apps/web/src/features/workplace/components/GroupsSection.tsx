@@ -20,7 +20,7 @@ const GroupsSection: React.FC = memo(() => {
         const entry: ToolEntry = {
           id: g.id,
           title: g.name,
-          description: 'Gruppe',
+          description: 'Space',
           path: buildGroupPath(g),
           icon: HiUserGroup,
           ...(g.avatar_url ? { imageUrl: `/api/auth/groups/${g.id}/avatar` } : {}),
@@ -31,7 +31,7 @@ const GroupsSection: React.FC = memo(() => {
   );
 
   const handleCreate = useCallback(() => {
-    createGroup('Neue Gruppe', {
+    createGroup('Neuer Space', {
       onSuccess: (group) => navigate(buildGroupPath(group)),
     });
   }, [createGroup, navigate]);
