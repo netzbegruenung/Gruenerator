@@ -13,6 +13,7 @@ import {
   Skeleton,
   cn,
 } from '@gruenerator/ui';
+import { BarChart3, Eye, Flame, LayoutGrid, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import {
   HiChevronRight,
@@ -482,6 +483,127 @@ const WhatHappenedRow = memo(() => {
 });
 WhatHappenedRow.displayName = 'WhatHappenedRow';
 
+// Die eigenständigen Monitor-Bereiche als farbige Tool-Kacheln (Look wie das
+// Arbeiten-Tool-Grid). Farbklassen literal, damit Tailwind-JIT sie behält.
+interface MonitorTileItem {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  Icon: LucideIcon;
+  tile: string;
+  icon: string;
+  titleColor: string;
+  descColor: string;
+}
+
+const MONITOR_TILES: MonitorTileItem[] = [
+  {
+    id: 'monitor-uebersicht',
+    title: 'Übersicht',
+    description: 'Alle Monitor-Signale auf einen Blick.',
+    path: '/experiments/monitor',
+    Icon: LayoutGrid,
+    tile: 'bg-[#E3F1DE] hover:shadow-[0_14px_30px_rgba(37,118,57,0.20)] dark:bg-[#14251A]',
+    icon: 'text-[#2C7A3E] dark:text-[#7FC08C]',
+    titleColor: 'text-[#1E5A2C] dark:text-[#A9DDB2]',
+    descColor: 'text-[#4B7B57] dark:text-[#84A98D]',
+  },
+  {
+    id: 'monitor-themen',
+    title: 'Themen',
+    description: 'Meistdiskutierte Themen der letzten 24 Stunden.',
+    path: '/experiments/monitor/themen',
+    Icon: Flame,
+    tile: 'bg-[#FBE7D6] hover:shadow-[0_14px_30px_rgba(180,83,20,0.20)] dark:bg-[#2B1B10]',
+    icon: 'text-[#B4530F] dark:text-[#E0A46A]',
+    titleColor: 'text-[#8A3F0B] dark:text-[#EAC29A]',
+    descColor: 'text-[#9E6438] dark:text-[#B79576]',
+  },
+  {
+    id: 'monitor-umfragen',
+    title: 'Umfragen',
+    description: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
+    path: '/experiments/monitor/umfragen',
+    Icon: BarChart3,
+    tile: 'bg-[#DCE8F6] hover:shadow-[0_14px_30px_rgba(30,74,140,0.20)] dark:bg-[#101C2B]',
+    icon: 'text-[#1E4A8C] dark:text-[#7FA6DD]',
+    titleColor: 'text-[#173A6E] dark:text-[#A0C0EA]',
+    descColor: 'text-[#3F5C85] dark:text-[#7A93B7]',
+  },
+  {
+    id: 'monitor-watcher',
+    title: 'Watcher',
+    description: 'Berichterstattung über die Grünen im Blick.',
+    path: '/experiments/monitor/watcher',
+    Icon: Eye,
+    tile: 'bg-[#F6DEED] hover:shadow-[0_14px_30px_rgba(196,0,106,0.18)] dark:bg-[#2B1220]',
+    icon: 'text-[#C4006A] dark:text-[#EC5AA0]',
+    titleColor: 'text-[#9E0056] dark:text-[#EFA0C8]',
+    descColor: 'text-[#8A5570] dark:text-[#B77697]',
+  },
+];
+
+const MonitorTilesRow = memo(() => {
+  const navigate = useNavigate();
+  const { withLocale } = useMonitorLocaleParam();
+  const overviewPath = withLocale('/experiments/monitor');
+
+  return (
+    <section className="mt-xl">
+      <SectionHeader
+        title="Monitor"
+        onTitleClick={() => navigate(overviewPath)}
+        actions={
+          <Link
+            to={overviewPath}
+            className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
+          >
+            Alle anzeigen
+            <HiChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        }
+      />
+      <div className={NOTEBOOK_SCROLL_ROW}>
+        {MONITOR_TILES.map((tile) => (
+          <div key={tile.id} className={NOTEBOOK_SCROLL_ITEM}>
+            <Link
+              to={withLocale(tile.path)}
+              className={cn(
+                'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline transition-shadow duration-150',
+                tile.tile
+              )}
+            >
+              <span className={cn('flex text-[24px] sm:text-[28px] lg:text-[30px]', tile.icon)}>
+                <tile.Icon />
+              </span>
+              <span className="min-w-0">
+                <span
+                  className={cn(
+                    'block text-[16px] font-bold leading-tight line-clamp-2 sm:text-[19px] lg:text-[22px]',
+                    tile.titleColor
+                  )}
+                >
+                  {tile.title}
+                </span>
+                <span
+                  className={cn(
+                    'mt-0.5 block min-h-[2.75em] text-[12px] leading-snug line-clamp-2 sm:mt-1 sm:text-[13px] lg:text-[14px]',
+                    tile.descColor
+                  )}
+                >
+                  {tile.description}
+                </span>
+              </span>
+            </Link>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+});
+MonitorTilesRow.displayName = 'MonitorTilesRow';
+
 function NotebooksIndexFooter() {
   const navigate = useNavigate();
   const locale = useAuthStore((state) => state.locale);
@@ -586,6 +708,8 @@ function NotebooksIndexFooter() {
       <VonDerBasisSection />
 
       <WhatHappenedRow />
+
+      <MonitorTilesRow />
     </section>
   );
 }
