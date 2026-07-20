@@ -26,6 +26,7 @@ import type {
   TriggerBoardAction,
   ConfirmActionEvent,
   DocumentCreatedEvent,
+  EditorOperationsEvent,
   SearchResultPayload,
   ThinkingStepPayload,
   SocialPostPayload,
@@ -76,6 +77,7 @@ export type SSEEventType =
   | 'document_created'
   | 'trigger_doc_edit'
   | 'trigger_board_action'
+  | 'editor_operations'
   | 'confirm_action'
   | 'chart_data'
   | 'artifact'
@@ -240,6 +242,7 @@ export interface SSEEventPayloads {
   document_created: DocumentCreatedEvent;
   trigger_doc_edit: TriggerDocEdit;
   trigger_board_action: TriggerBoardAction;
+  editor_operations: EditorOperationsEvent;
   interrupt: {
     // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
     // client-executed tool (e.g. run_python) whose result the browser produces
