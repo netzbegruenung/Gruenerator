@@ -805,15 +805,16 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
       {isLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
 
-      {/* Connected */}
-      <div className="mt-xl">
-        <div className="flex items-baseline gap-sm mb-sm">
-          <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
-            Verbunden
-          </h3>
-          {hasConnected && <span className="text-xs text-grey-400">{activeCount} aktiv</span>}
-        </div>
-        {hasConnected ? (
+      {/* Connected — only shown once at least one server is connected; an empty
+          state here would just be noise. */}
+      {hasConnected && (
+        <div className="mt-xl">
+          <div className="flex items-baseline gap-sm mb-sm">
+            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
+              Verbunden
+            </h3>
+            <span className="text-xs text-grey-400">{activeCount} aktiv</span>
+          </div>
           <div className="flex flex-col gap-sm">
             {servers.map((server) => (
               <McpServerRow
@@ -824,14 +825,8 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
               />
             ))}
           </div>
-        ) : (
-          !isLoading && (
-            <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center text-sm text-grey-500 bg-background-pure">
-              Noch nichts verbunden. Wähle unten einen Dienst aus, um zu starten.
-            </div>
-          )
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Available */}
       <div className="mt-xl">
