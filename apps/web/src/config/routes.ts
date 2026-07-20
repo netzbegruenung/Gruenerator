@@ -201,31 +201,18 @@ const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
-const OfficeListRedirect = lazy(() =>
-  Promise.resolve({ default: createRedirect('/workplace/arbeiten') })
-);
-const DocsLandingPage = lazy(() =>
-  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.DocsLandingPage }))
-);
-const BoardsLandingPage = lazy(() =>
-  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.BoardsLandingPage }))
-);
-const SheetsLandingPage = lazy(() =>
-  import('../features/docs/OfficeLandingPage').then((m) => ({ default: m.SheetsLandingPage }))
-);
-const PresentationsLandingPage = lazy(() =>
-  import('../features/docs/OfficeLandingPage').then((m) => ({
-    default: m.PresentationsLandingPage,
-  }))
-);
+const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
+// The per-type office overviews are consolidated into the /office hub; keep the
+// old paths as redirects so pinned favourites and search results still resolve.
+const OfficeSuiteRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
 const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
 // Legacy /canvas landing now lives at /studio — keep /canvas as a redirect.
 const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 // Deprecated /imagine routes → unified Bild-Editor.
 const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/bild-editor') }));
-const WissenRedirect = lazy(() =>
-  Promise.resolve({ default: createRedirect('/workplace/wissen') })
-);
+const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
+// The notebook hub is now the standalone /wissen page (no longer a workplace tab).
+const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const CollabCanvasStudioPage = lazy(
@@ -285,12 +272,15 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Workplace (Chat / Arbeiten / Wissen). ONE splat route so all three tabs
-  // resolve to the same route entry: WorkplacePage then stays mounted across tab
-  // switches (RouteComponent keys the page by config path) instead of remounting
-  // the whole surface each time — it derives the active tab from the pathname and
-  // only swaps the tab content. sidebarOnly keeps the tab row in place; Wissen's
-  // h-dvh flex chain for the embedded notebook chat surface still applies.
+  // Wissen is now a standalone page; keep the old tab path as a redirect (static
+  // route outranks the /workplace/* splat below in React Router v6).
+  { path: '/workplace/wissen', component: WissenRedirect },
+  { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
+  // Workplace (Chat / Arbeiten). ONE splat route so both tabs resolve to the same
+  // route entry: WorkplacePage then stays mounted across tab switches
+  // (RouteComponent keys the page by config path) instead of remounting the whole
+  // surface each time — it derives the active tab from the pathname and only swaps
+  // the tab content. sidebarOnly keeps the tab row in place.
   { path: '/workplace/*', component: WorkplacePage, layoutMode: 'sidebarOnly' },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
@@ -621,16 +611,16 @@ const standardRoutes: RouteConfig[] = [
   // Pages Feature Routes
   // Combined office overview still lives in the workplace "Arbeiten" tab; each
   // type also has a dedicated, type-scoped landing page below. The editors stay.
-  { path: '/office', component: OfficeListRedirect },
+  { path: '/office', component: OfficeSuiteLandingPage, layoutMode: 'sidebarOnly' },
   // Dispatches to the BlockNote or Univer editor by document_subtype.
   { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
-  // Type-scoped landing pages. Static paths precede their `:id` siblings so the
-  // list route wins over the editor route.
-  { path: '/docs', component: DocsLandingPage, layoutMode: 'sidebarOnly' },
+  // Former type-scoped overviews now redirect to the unified /office hub. Static
+  // paths precede their `:id` siblings so the redirect wins over the editor route.
+  { path: '/docs', component: OfficeSuiteRedirect },
   { path: '/docs/:id', component: DocumentToOfficeRedirect },
-  { path: '/sheets', component: SheetsLandingPage, layoutMode: 'sidebarOnly' },
-  { path: '/presentations', component: PresentationsLandingPage, layoutMode: 'sidebarOnly' },
-  { path: '/boards', component: BoardsLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/sheets', component: OfficeSuiteRedirect },
+  { path: '/presentations', component: OfficeSuiteRedirect },
+  { path: '/boards', component: OfficeSuiteRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder
