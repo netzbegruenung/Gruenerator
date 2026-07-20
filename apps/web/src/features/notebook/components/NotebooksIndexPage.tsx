@@ -396,7 +396,7 @@ EigeneNotebooks.displayName = 'EigeneNotebooks';
 
 const EMPTY_GROUPS: GroupSummary[] = [];
 
-const WHAT_HAPPENED_MAX = 8;
+const WHAT_HAPPENED_MAX = 12;
 
 function formatWhatHappenedDay(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString('de-DE', {
@@ -416,9 +416,31 @@ const WhatHappenedRow = memo(() => {
   const navigate = useNavigate();
   const { locale, withLocale } = useMonitorLocaleParam();
   const { data, isLoading } = useWhatHappened(locale, { days: 7 });
-  const day = data?.days[0];
 
-  if (!isLoading && !day) return null;
+  // Über alle geladenen Tage zusammenziehen und nach Neuigkeit sortieren, damit
+  // die Reihe auch bei einem dünnen Tag immer voll ist. Dedupe nach sourceUrl.
+  const articles = useMemo(() => {
+    const sorted = (data?.days ?? [])
+      .flatMap((d) => d.articles)
+      .sort(
+        (a, b) =>
+          new Date(b.publishedAt ?? b.indexedAt).getTime() -
+          new Date(a.publishedAt ?? a.indexedAt).getTime()
+      );
+    const seen = new Set<string>();
+    const unique: (typeof sorted)[number][] = [];
+    for (const article of sorted) {
+      if (seen.has(article.sourceUrl)) continue;
+      seen.add(article.sourceUrl);
+      unique.push(article);
+      if (unique.length >= WHAT_HAPPENED_MAX) break;
+    }
+    return unique;
+  }, [data]);
+
+  const latestDate = data?.days[0]?.date;
+
+  if (!isLoading && articles.length === 0) return null;
 
   const feedPath = withLocale('/experiments/monitor/feed');
 
@@ -429,8 +451,8 @@ const WhatHappenedRow = memo(() => {
         onTitleClick={() => navigate(feedPath)}
         actions={
           <span className="inline-flex items-center gap-sm">
-            {day && (
-              <span className="text-xs text-grey-400">{formatWhatHappenedDay(day.date)}</span>
+            {latestDate && (
+              <span className="text-xs text-grey-400">{formatWhatHappenedDay(latestDate)}</span>
             )}
             <Link
               to={feedPath}
@@ -443,8 +465,8 @@ const WhatHappenedRow = memo(() => {
         }
       />
       <div className={NOTEBOOK_SCROLL_ROW}>
-        {day
-          ? day.articles.slice(0, WHAT_HAPPENED_MAX).map((article) => (
+        {articles.length > 0
+          ? articles.map((article) => (
               <a
                 key={article.sourceUrl}
                 href={article.sourceUrl}
