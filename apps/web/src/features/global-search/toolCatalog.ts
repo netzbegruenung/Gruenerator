@@ -147,10 +147,10 @@ const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-agentura',
     title: 'Agentura',
-    subtitle: 'KI-Agent*innen & Skills entdecken',
+    subtitle: 'KI-Grüneratoren & Skills entdecken',
     path: '/agentura',
     icon: nav('desk'),
-    keywords: ['agentura', 'agent', 'agenten', 'skills', 'ki'],
+    keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
   },
   {
     id: 'tool-gruppen',
