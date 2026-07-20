@@ -354,6 +354,14 @@ export async function streamAgenticResponse(params: {
         finalState.compoundEdit === true
           ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
           : '',
+        // The edit tool already changed the open artefact this turn. Make the
+        // model confirm it in past tense — never write empty text (→ fallback)
+        // or claim it couldn't do it (both observed live: "keine Antwort
+        // gefunden" after 5 slides; "kann die Akzentfarbe nicht ändern" after
+        // set_deck_option succeeded).
+        finalState.editorEditsSummary
+          ? `HINWEIS: Die gewünschte Änderung wurde SOEBEN vorgenommen: ${finalState.editorEditsSummary}. Bestätige das dem*der Nutzer*in KURZ in Vergangenheitsform (1 Satz, z.B. „Erledigt — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits erfolgt.`
+          : '',
         // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
         // mounted, so any "I changed X" would be a false claim the client never
         // applied. Force the model to say editing is off instead.
@@ -393,7 +401,50 @@ export async function streamAgenticResponse(params: {
     // research and stops). GUARANTEE it: after gather, if the planner produced
     // no artifact, invoke the mounted generation tool directly with the
     // researched sources as the brief. The synth then announces it.
+    const lastUserAsk = (): string => {
+      const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+      return typeof lastUser?.content === 'string'
+        ? lastUser.content
+        : (lastUser?.content ?? [])
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join(' ')
+            .trim();
+    };
+
     const afterGather = async (): Promise<void> => {
+      // (a) Editor-surface edit guarantee: an edit_current_* turn MUST edit the
+      //     open artefact. The split planner unreliably calls edit_document
+      //     (observed live: steps=0 on most sheet/deck edits) — force it here,
+      //     BEFORE synth, so editorEditsSummary is set and the synth confirms the
+      //     change instead of writing empty text (→ fallback) or a false refusal.
+      if (
+        finalState.editToolSurface &&
+        (finalState.intent === 'edit_current_doc' ||
+          finalState.intent === 'edit_current_board' ||
+          finalState.compoundEdit === true) &&
+        !finalState.editorEditsSummary
+      ) {
+        const editTool = tools['edit_document'] as
+          | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
+          | undefined;
+        const userAsk = lastUserAsk();
+        if (editTool?.execute && userAsk) {
+          const sourcesBlock = sourceRegistry.renderAll();
+          const instruction = sourcesBlock
+            ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
+            : userAsk;
+          log.info('[Agentic] planner skipped edit_document — forcing edit before synth');
+          try {
+            await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
+          } catch (err) {
+            log.warn(
+              `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
+            );
+          }
+        }
+      }
+
+      // (b) Compound generation guarantee (spawns a NEW artefact).
       const kind = finalState.compoundGenerationKind;
       if (!kind) return;
       const already =
@@ -407,14 +458,7 @@ export async function streamAgenticResponse(params: {
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
       if (!genTool?.execute) return;
-      const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-      const userAsk =
-        typeof lastUser?.content === 'string'
-          ? lastUser.content
-          : (lastUser?.content ?? [])
-              .map((part) => (part.type === 'text' ? part.text : ''))
-              .join(' ')
-              .trim();
+      const userAsk = lastUserAsk();
       const sourcesBlock = sourceRegistry.renderAll();
       const brief = sourcesBlock
         ? `${userAsk}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
@@ -462,50 +506,40 @@ export async function streamAgenticResponse(params: {
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
     });
 
-    // Edit guarantee (mirror of afterGather for editor surfaces): on an
-    // explicit edit intent the artifact MUST be edited — a model that only
-    // narrates the change as text ("Formatiere A1:C1 fett…", observed live)
-    // would otherwise leave the sheet untouched while sounding successful.
-    // Force-invoke the mounted edit tool with the user's ask + gathered sources.
+    // Edit guarantee — UNIFIED-mode net (split mode already forces the edit in
+    // afterGather, before synth). If an edit_current_* turn produced no edit at
+    // all, force it now. editorEditsSummary is the single source of "did any
+    // edit happen this turn" across both modes.
     const editIntent =
       finalState.intent === 'edit_current_doc' || finalState.intent === 'edit_current_board';
-    if (
-      finalState.editToolSurface &&
-      editIntent &&
-      !steps.some((s) => s.toolName === 'edit_document')
-    ) {
+    if (finalState.editToolSurface && editIntent && !finalState.editorEditsSummary) {
       const editTool = tools['edit_document'] as
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
-      if (editTool?.execute) {
-        const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-        const userAsk =
-          typeof lastUser?.content === 'string'
-            ? lastUser.content
-            : (lastUser?.content ?? [])
-                .map((part) => (part.type === 'text' ? part.text : ''))
-                .join(' ')
-                .trim();
-        if (userAsk) {
-          const sourcesBlock = sourceRegistry.renderAll();
-          const instruction = sourcesBlock
-            ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
-            : userAsk;
-          log.info('[Agentic] edit intent ended without edit_document call — forcing edit');
-          try {
-            await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
-          } catch (err) {
-            log.warn(
-              `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
-            );
-          }
+      const userAsk = lastUserAsk();
+      if (editTool?.execute && userAsk) {
+        const sourcesBlock = sourceRegistry.renderAll();
+        const instruction = sourcesBlock
+          ? `${userAsk}\n\nRecherchierte Quellen dazu:\n${sourcesBlock}`
+          : userAsk;
+        log.info('[Agentic] edit intent ended without edit_document call — forcing edit');
+        try {
+          await editTool.execute({ instruction }, { toolCallId: 'forced-edit' });
+        } catch (err) {
+          log.warn(
+            `[Agentic] forced edit_document failed: ${err instanceof Error ? err.message : String(err)}`
+          );
         }
       }
     }
 
     if (text.trim().length === 0) {
-      text =
-        'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
+      // An edit that succeeded but left the model silent must NOT surface the
+      // generic "no answer" error (observed live: 5 slides created, chat said
+      // "keine Antwort gefunden"). Confirm the edit instead.
+      text = finalState.editorEditsSummary
+        ? `Erledigt — ${finalState.editorEditsSummary}.`
+        : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
       startResponse();
       sse.send('text_delta', { text });
     }

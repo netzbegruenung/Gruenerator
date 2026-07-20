@@ -174,6 +174,12 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
 
       const summary = summarizeOps(operations);
       ctx.appliedOpsLog.push(`${operations.length} Op(s): ${summary}`);
+      // Surface a human edit summary onto shared state so the synth prompt makes
+      // the model confirm the change (not write empty text or a false refusal).
+      const editNote = `${operations.length} Änderung${operations.length === 1 ? '' : 'en'} an der ${spec.noun} (${summary})`;
+      ctx.state.editorEditsSummary = ctx.state.editorEditsSummary
+        ? `${ctx.state.editorEditsSummary}; ${editNote}`
+        : editNote;
       ctx.sse.send('editor_operations', {
         surface: kind,
         targetId: target.id,
