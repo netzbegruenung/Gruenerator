@@ -614,6 +614,10 @@ export interface ChatGraphState {
   // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
   // trigger_doc_edit path for the still-live surfaces.
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
+  // Human summary of edits the edit_document tool made THIS turn (set by
+  // editorTools). Feeds the synth prompt so the model confirms the change in
+  // past tense instead of writing empty text (→ fallback) or a false "I can't".
+  editorEditsSummary?: string | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.
