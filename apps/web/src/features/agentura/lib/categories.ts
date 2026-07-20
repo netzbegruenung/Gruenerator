@@ -79,22 +79,22 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'empfohlen',
     label: 'Empfohlen',
     icon: PiStar,
-    description: 'Beliebte Agent*innen zum Einstieg — eine Auswahl über alle Regale hinweg.',
+    description: 'Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg.',
   },
   {
     key: 'meine',
-    label: 'Meine Agent*innen',
+    label: 'Meine Grüneratoren',
     icon: PiSparkle,
     description: 'Deine selbst erstellten KI-Assistent*innen zum Chatten.',
     emptyText:
-      'Du hast noch keine eigenen Agent*innen erstellt. Leg deine erste über „Neuer Agent" an.',
+      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator" an.',
     emptyIcon: PiSparkle,
   },
   {
     key: 'wiederkehrend',
     label: 'Wiederkehrende Aufgaben',
     icon: PiRepeat,
-    description: 'Lass eine*n Agent*in regelmäßig automatisch arbeiten (experimentell).',
+    description: 'Lass einen Grünerator regelmäßig automatisch arbeiten (experimentell).',
     emptyText:
       'Noch keine wiederkehrenden Aufgaben. Erstelle eine oder frag im Chat: „Erstelle jeden Montag um 9 Uhr eine Zusammenfassung …“',
     emptyIcon: PiRepeat,
@@ -103,20 +103,20 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'gruppen',
     label: 'Geteilt mit Gruppen',
     icon: PiUsersThree,
-    description: 'Agent*innen, die in deinen Gruppen geteilt wurden.',
+    description: 'Grüneratoren, die in deinen Gruppen geteilt wurden.',
   },
   {
     key: 'community',
     label: 'Von der Basis',
     icon: PiGlobe,
-    description: 'Öffentlich geteilte Agent*innen von der Basis.',
+    description: 'Öffentlich geteilte Grüneratoren von der Basis.',
     emptyText:
-      'Noch keine öffentlichen Agent*innen. Sei der oder die Erste — teile eine*n deiner Agent*innen über „Teilen" und aktiviere „Von der Basis".',
+      'Noch keine öffentlichen Grüneratoren. Sei der oder die Erste — teile einen deiner Grüneratoren über „Teilen" und aktiviere „Von der Basis".',
     emptyIcon: PiGlobe,
   },
   {
     key: 'gruenerator',
-    label: 'Grünerator-Agent*innen',
+    label: 'Offizielle Grüneratoren',
     icon: PiStorefront,
     description: 'Fertige Assistent*innen von Grünerator für deine Aufgaben.',
   },
@@ -124,13 +124,13 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'landesverbaende',
     label: 'Landesverbände',
     icon: PiMapPin,
-    description: 'Regionale Agent*innen und Skills deines Landesverbands.',
+    description: 'Regionale Grüneratoren und Skills deines Landesverbands.',
   },
   {
     key: 'favoriten',
     label: 'Favoriten',
     icon: PiStarFill,
-    description: 'Deine gemerkten Agent*innen und Skills.',
+    description: 'Deine gemerkten Grüneratoren und Skills.',
   },
   ...SKILL_CATEGORY_ORDER.map(
     (cat): AgenturaCategory => ({

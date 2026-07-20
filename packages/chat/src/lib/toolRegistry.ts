@@ -44,6 +44,7 @@ export const UI_TOOL_NAMES = z.enum([
   'search_chat_history',
   'ask_human',
   'run_python',
+  'edit_document',
   'mcp_tool',
   'find_content',
   'documents',
@@ -169,6 +170,23 @@ function parsePersonalDataVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// edit_document (agentic editor edit): the loop step that plans + applies typed
+// ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
+// opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
+// card ("2 Änderungen übernommen · 2× add_slide") reads best.
+function parseEditDocumentVM(_args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  const rawCount = (result as { operationCount?: unknown } | null)?.operationCount;
+  const n = typeof rawCount === 'number' ? rawCount : null;
+  if (n === 0) return { kind: 'text-note', text: 'Keine Änderung nötig.' };
+  const summary = getString(result, 'opSummary');
+  const head = n != null ? `${n} Änderung${n === 1 ? '' : 'en'} übernommen` : 'Änderung übernommen';
+  return { kind: 'text-note', text: summary ? `${head} · ${summary}` : head };
+}
+
 function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['parse']) {
   return { meta: getToolMeta(name), kind, parse };
 }
@@ -217,6 +235,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   })),
   ask_human: entry('ask_human', 'interactive', () => ({ kind: 'interactive' })),
   run_python: entry('run_python', 'interactive', () => ({ kind: 'interactive' })),
+  edit_document: entry('edit_document', 'text-note', parseEditDocumentVM),
   mcp_tool: entry('mcp_tool', 'key-value', parseGenericFallback),
   find_content: entry('find_content', 'citations', parsePersonalDataVM),
   documents: entry('documents', 'citations', parsePersonalDataVM),
