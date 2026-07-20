@@ -151,6 +151,9 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
                 prompt: payload.userPrompt,
                 snapshot: aiEditRef.current.getSnapshot(),
                 capabilities: aiEditRef.current.capabilityList,
+                // Chat loop's gathered research ("recherchiere X und bau es ins
+                // Sharepic ein") — grounds the suggestion in the found facts.
+                ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
               },
             });
             if (result.status !== 200) {
