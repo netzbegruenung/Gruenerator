@@ -436,10 +436,10 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     description: 'Wissen sammeln und befragen.',
     path: '/notebooks/neu',
     Icon: Plus,
-    tile: 'bg-[#E3F1DE] hover:shadow-[0_14px_30px_rgba(37,118,57,0.20)] dark:bg-[#14251A]',
-    icon: 'text-[#2C7A3E] dark:text-[#7FC08C]',
-    titleColor: 'text-[#1E5A2C] dark:text-[#A9DDB2]',
-    descColor: 'text-[#4B7B57] dark:text-[#84A98D]',
+    tile: 'bg-[#FCDDE4] hover:shadow-[0_14px_30px_rgba(214,0,74,0.18)] dark:bg-[#2C121A]',
+    icon: 'text-[#C80050] dark:text-[#EE6090]',
+    titleColor: 'text-[#A00044] dark:text-[#F2A6C0]',
+    descColor: 'text-[#8C5666] dark:text-[#BA7892]',
   },
   {
     id: 'monitor-themen',
@@ -447,10 +447,10 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     description: 'Meistdiskutierte Themen der letzten 24 Stunden.',
     path: '/experiments/monitor/themen',
     Icon: Flame,
-    tile: 'bg-[#FBE7D6] hover:shadow-[0_14px_30px_rgba(180,83,20,0.20)] dark:bg-[#2B1B10]',
-    icon: 'text-[#B4530F] dark:text-[#E0A46A]',
-    titleColor: 'text-[#8A3F0B] dark:text-[#EAC29A]',
-    descColor: 'text-[#9E6438] dark:text-[#B79576]',
+    tile: 'bg-[#FADFEA] hover:shadow-[0_14px_30px_rgba(206,0,92,0.18)] dark:bg-[#2C121F]',
+    icon: 'text-[#C4006A] dark:text-[#EC5AA0]',
+    titleColor: 'text-[#9E0056] dark:text-[#EFA0C8]',
+    descColor: 'text-[#8A5570] dark:text-[#B77697]',
     localeAware: true,
   },
   {
@@ -459,10 +459,10 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     description: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
     path: '/experiments/monitor/umfragen',
     Icon: BarChart3,
-    tile: 'bg-[#DCE8F6] hover:shadow-[0_14px_30px_rgba(30,74,140,0.20)] dark:bg-[#101C2B]',
-    icon: 'text-[#1E4A8C] dark:text-[#7FA6DD]',
-    titleColor: 'text-[#173A6E] dark:text-[#A0C0EA]',
-    descColor: 'text-[#3F5C85] dark:text-[#7A93B7]',
+    tile: 'bg-[#F5DDEE] hover:shadow-[0_14px_30px_rgba(184,0,108,0.18)] dark:bg-[#291224]',
+    icon: 'text-[#B00070] dark:text-[#E85AAE]',
+    titleColor: 'text-[#8E005C] dark:text-[#EAA0D0]',
+    descColor: 'text-[#845576] dark:text-[#B2769C]',
     localeAware: true,
   },
   {
@@ -471,10 +471,10 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     description: 'Berichterstattung über die Grünen im Blick.',
     path: '/experiments/monitor/watcher',
     Icon: Eye,
-    tile: 'bg-[#F6DEED] hover:shadow-[0_14px_30px_rgba(196,0,106,0.18)] dark:bg-[#2B1220]',
-    icon: 'text-[#C4006A] dark:text-[#EC5AA0]',
-    titleColor: 'text-[#9E0056] dark:text-[#EFA0C8]',
-    descColor: 'text-[#8A5570] dark:text-[#B77697]',
+    tile: 'bg-[#F1DBEE] hover:shadow-[0_14px_30px_rgba(160,0,120,0.18)] dark:bg-[#261228]',
+    icon: 'text-[#9C007E] dark:text-[#DE5AC0]',
+    titleColor: 'text-[#7E0068] dark:text-[#E2A0D8]',
+    descColor: 'text-[#7E5578] dark:text-[#AC76A2]',
     localeAware: true,
   },
 ];
@@ -802,9 +802,9 @@ function NotebooksIndexFooter() {
         />
       )}
 
-      {!trimmed && <WhatHappenedRow />}
-
       {!trimmed && <WissenToolsRow />}
+
+      {!trimmed && <WhatHappenedRow />}
     </>
   );
 }
