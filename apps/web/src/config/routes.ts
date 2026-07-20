@@ -189,6 +189,11 @@ const MediaLibraryPage = lazy(() =>
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 
+// Chat thread folder home (OpenWebUI-style folder view)
+const FolderPage = lazy(() =>
+  import('../features/folders/FolderPage').then((m) => ({ default: m.FolderPage }))
+);
+
 // Voice agent (immersive voice conversation)
 const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
 
@@ -570,6 +575,9 @@ const standardRoutes: RouteConfig[] = [
   // Thread deep links (Notion-style slug, suffix is the stable key). React
   // Router ranks the static /chat/settings above this dynamic segment.
   { path: '/chat/:threadSlug', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
+  // Chat thread folder home (OpenWebUI-style): lists the folder's chats and is
+  // the anchor for folder-scoped recall.
+  { path: '/ordner/:id', component: FolderPage, layoutMode: 'sidebarOnly' },
   { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },

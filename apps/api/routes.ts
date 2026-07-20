@@ -33,6 +33,7 @@ import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
+import { mountChatThreadFoldersContractRouter } from './routes/chat/chatThreadFoldersContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
@@ -416,6 +417,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // unauthenticated requests get a 401 instead of crashing the handlers
   // with `Cannot read properties of undefined (reading 'id')`.
   app.use('/api/chat-service/threads', requireAuth);
+  app.use('/api/chat-service/folders', requireAuth);
   app.use('/api/chat-graph', requireAuth);
   // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
@@ -424,6 +426,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat-graph', express.json({ limit: '50mb' }));
   app.use('/api/chat-graph', aiGenerationLimiter);
   mountThreadsContractRouter(app);
+  mountChatThreadFoldersContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);

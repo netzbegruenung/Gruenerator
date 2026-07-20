@@ -1045,6 +1045,35 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
+-- Chat thread folders (OpenWebUI-style grouping). See migration
+-- create_chat_thread_folders.sql. Clones collaborative_document_folders.
+CREATE TABLE IF NOT EXISTS chat_thread_folders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    parent_id UUID REFERENCES chat_thread_folders(id) ON DELETE CASCADE,
+    sort INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_chat_thread_folders_user_id ON chat_thread_folders(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_thread_folders_parent ON chat_thread_folders(parent_id);
+
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS folder_id UUID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_chat_threads_folder'
+    ) THEN
+        ALTER TABLE chat_threads
+            ADD CONSTRAINT fk_chat_threads_folder
+            FOREIGN KEY (folder_id) REFERENCES chat_thread_folders(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_chat_threads_folder_id ON chat_threads(folder_id) WHERE folder_id IS NOT NULL;
+
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$
 BEGIN

@@ -3,6 +3,7 @@
  * Import from '@gruenerator/contracts' (the package root).
  */
 export { threadsContract } from './threadsContract.js';
+export { chatThreadFoldersContract } from './chatThreadFoldersContract.js';
 export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
 export { recentActivityContract } from './recentActivityContract.js';

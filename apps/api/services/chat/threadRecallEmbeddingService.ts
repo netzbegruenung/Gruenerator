@@ -134,13 +134,18 @@ export async function deleteThreadRecallPoint(threadId: string): Promise<void> {
 export async function searchThreadRecall(
   userId: string,
   query: string,
-  limit: number
+  limit: number,
+  threadIds?: string[]
 ): Promise<string[]> {
   await mistralEmbeddingService.init();
   const vector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
   const ops = await getOps();
   const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
+  // Folder scope: restrict to a specific set of thread ids (indexed keyword).
+  if (threadIds && threadIds.length > 0) {
+    filter.must!.push({ key: 'thread_id', match: { any: threadIds } });
+  }
   const hits = await ops.vectorSearch(CHAT_THREAD_RECALL_COLLECTION, vector, filter, {
     limit,
     threshold: SEMANTIC_SCORE_THRESHOLD,

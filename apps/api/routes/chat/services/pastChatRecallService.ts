@@ -37,6 +37,76 @@ const log = createLogger('PastChatRecallService');
 const DEEP_READ_MAX_MESSAGES = 10;
 const DEEP_READ_MAX_CHARS = 4_000;
 
+/**
+ * Resolve the owned, regular thread ids inside a folder — the scope for
+ * folder-aware recall (the "this folder contains threads X,Y,Z" roster and the
+ * folder-scoped `search_threads` tool). Returns [] on error/empty so callers
+ * treat it as "no threads in scope".
+ */
+export async function resolveFolderThreadIds(
+  folderId: string,
+  userId: string
+): Promise<{ id: string; title: string | null }[]> {
+  const db = getPostgresInstance();
+  try {
+    const rows = (await db.query(
+      `SELECT id, title FROM chat_threads
+       WHERE folder_id = $1::uuid AND user_id = $2
+         AND COALESCE(status, 'regular') = 'regular'
+       ORDER BY updated_at DESC`,
+      [folderId, userId]
+    )) as Array<{ id: string; title: string | null }>;
+    return rows.map((r) => ({ id: r.id, title: r.title }));
+  } catch (err) {
+    log.warn(`[Recall] resolveFolderThreadIds failed: ${err}`);
+    return [];
+  }
+}
+
+/**
+ * Folder scope for the current thread: the sibling chats in the same folder plus
+ * a roster block that tells the model "this folder holds threads X, Y, Z — you
+ * can search them with search_threads". Returns null when the thread is not in a
+ * folder (recall then stays global). The current thread is excluded from the
+ * roster (it's the live conversation, not a past chat).
+ */
+export async function getFolderRecallScope(
+  threadId: string | null,
+  userId: string
+): Promise<{ folderName: string; threadIds: string[]; rosterBlock: string } | null> {
+  if (!threadId) return null;
+  const db = getPostgresInstance();
+  try {
+    const folderRows = (await db.query(
+      `SELECT f.id, f.name
+       FROM chat_threads t
+       JOIN chat_thread_folders f ON f.id = t.folder_id
+       WHERE t.id = $1::uuid AND t.user_id = $2 AND COALESCE(f.is_deleted, FALSE) = FALSE
+       LIMIT 1`,
+      [threadId, userId]
+    )) as Array<{ id: string; name: string }>;
+    if (folderRows.length === 0) return null;
+    const folder = folderRows[0];
+
+    const siblings = (await resolveFolderThreadIds(folder.id, userId)).filter(
+      (s) => s.id !== threadId
+    );
+    const threadIds = siblings.map((s) => s.id);
+    const list =
+      siblings.length > 0
+        ? siblings.map((s) => `- ${s.title || 'Unbenannter Chat'}`).join('\n')
+        : '- (noch keine weiteren Chats)';
+    const rosterBlock =
+      `## ORDNER: ${folder.name}\n` +
+      `Dieser Chat liegt im Ordner „${folder.name}". Enthaltene weitere Chats:\n${list}\n` +
+      `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="folder") durchsuchen.`;
+    return { folderName: folder.name, threadIds, rosterBlock };
+  } catch (err) {
+    log.warn(`[Recall] getFolderRecallScope failed: ${err}`);
+    return null;
+  }
+}
+
 export interface OfficeDocHit {
   id: string;
   title: string | null;
@@ -146,6 +216,8 @@ export interface PastChatRecallOptions {
   limit?: number;
   startDate?: Date;
   endDate?: Date;
+  // Folder scope: restrict recall to this set of thread ids (a folder's chats).
+  threadIds?: string[];
 }
 
 /**
@@ -159,7 +231,11 @@ export async function recallPastChats(
   query: string,
   options: PastChatRecallOptions = {}
 ): Promise<ChatSearchResult[]> {
-  const { excludeThreadId, limit = 3, startDate, endDate } = options;
+  const { excludeThreadId, limit = 3, startDate, endDate, threadIds } = options;
+
+  // An empty folder scope means "no threads to search" — short-circuit so a
+  // folder with no chats doesn't fall through to an unscoped global recall.
+  if (threadIds && threadIds.length === 0) return [];
 
   const keywordPromise = searchChatHistory(userId, query, {
     ownedOnly: true,
@@ -167,11 +243,12 @@ export async function recallPastChats(
     ...(excludeThreadId != null && { excludeThreadId }),
     ...(startDate != null && { startDate }),
     ...(endDate != null && { endDate }),
+    ...(threadIds != null && { threadIds }),
   });
 
   // Semantic is best-effort: a Qdrant/Mistral outage must never break recall.
   const semanticPromise = query.trim()
-    ? searchThreadRecall(userId, query, limit).catch((err) => {
+    ? searchThreadRecall(userId, query, limit, threadIds).catch((err) => {
         log.warn(`[Recall] Semantic thread search failed (using keyword only): ${err}`);
         return [] as string[];
       })
