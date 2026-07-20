@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 import { SHEET_CHART_COMPONENT_KEY } from '../ai/applySheetOperations.js';
 import { attachYjsBridge, type AwarenessLike } from '../collab/bridge.js';
 import { attachSelectionPresence } from '../collab/presence.js';
-import { createUniverInstance } from '../lib/createUniverInstance.js';
+import { createUniverInstance, type SheetCurrentUser } from '../lib/createUniverInstance.js';
 
 import { SheetChartFloat } from './SheetChartFloat.js';
 
@@ -24,6 +24,8 @@ export interface SheetsEditorProps {
   onReady?: (api: FUniver) => void;
   /** Initial workbook seeded only when the doc has no snapshot yet (templates). */
   seedWorkbook?: Partial<IWorkbookData> | null;
+  /** Logged-in user; attributes thread comments/notes. */
+  currentUser?: SheetCurrentUser | null;
 }
 
 /**
@@ -39,6 +41,7 @@ export function SheetsEditor({
   darkMode,
   onReady,
   seedWorkbook,
+  currentUser,
 }: SheetsEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<FUniver | null>(null);
@@ -48,12 +51,22 @@ export function SheetsEditor({
   // Captured once — the seed only applies on first attach, so a changing prop
   // identity must not re-create the instance.
   const seedWorkbookRef = useRef(seedWorkbook);
+  // Set once at instance creation; a changing identity must not re-create.
+  const currentUserRef = useRef(currentUser);
+  // Setter into the live instance, so a user resolving after mount still gets
+  // attributed (comments/notes) without re-creating the editor.
+  const setCurrentUserRef = useRef<((user: SheetCurrentUser) => void) | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const { univer, univerAPI } = createUniverInstance({ container, darkMode });
+    const { univer, univerAPI, setCurrentUser } = createUniverInstance({
+      container,
+      darkMode,
+      currentUser: currentUserRef.current,
+    });
+    setCurrentUserRef.current = setCurrentUser;
     // Register the chart component BEFORE the bridge loads the snapshot, so a
     // workbook that already contains charts renders them on first paint.
     univerAPI.registerComponent(SHEET_CHART_COMPONENT_KEY, SheetChartFloat);
@@ -75,6 +88,7 @@ export function SheetsEditor({
       detachPresence?.();
       bridge.dispose();
       apiRef.current = null;
+      setCurrentUserRef.current = null;
       univerAPI.dispose();
       univer.dispose();
     };
@@ -91,6 +105,11 @@ export function SheetsEditor({
     if (darkMode === undefined) return;
     apiRef.current?.toggleDarkMode(darkMode);
   }, [darkMode]);
+
+  // Re-attribute if the user resolves after the instance was created.
+  useEffect(() => {
+    if (currentUser) setCurrentUserRef.current?.(currentUser);
+  }, [currentUser]);
 
   return <div ref={containerRef} className="gruenerator-sheets-editor" />;
 }
