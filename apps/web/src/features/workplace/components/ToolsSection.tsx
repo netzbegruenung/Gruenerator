@@ -285,10 +285,12 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 const byId = (id: string): WorkplaceToolItem | undefined =>
   WORKPLACE_TOOLS.find((t) => t.id === id);
 
-// Default order: Agentura first, then the office apps. (Reels moved to /studio.)
-const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [byId('agents'), ...OFFICE_TOOLS].filter(
-  (t): t is WorkplaceToolItem => Boolean(t)
-);
+// Default order: Agentura first, then the office apps, then Spaces (after Wissen).
+const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
+  byId('agents'),
+  ...OFFICE_TOOLS,
+  byId('spaces'),
+].filter((t): t is WorkplaceToolItem => Boolean(t));
 
 // The single Arbeiten tool row: colored creation tiles + the Weitere dropdown tile,
 // in one horizontal Wissen-style scroll strip. Favourited tools float to the front
