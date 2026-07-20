@@ -3,12 +3,12 @@ import { useShareLinks, useWolkePreferencesStore } from '@gruenerator/wolke';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useState } from 'react';
 import { PiCheck, PiCopy, PiFile, PiPlus, PiShareNetwork, PiUploadSimple } from 'react-icons/pi';
-import { Link } from 'react-router-dom';
 
 import Spinner from '../../components/common/Spinner';
 import { buildUrl } from '../../config/domains';
 import { formatFileSize } from '../../utils/formatFileSize';
 import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils';
+import { useSettingsDialogStore } from '../settings/settingsDialogStore';
 
 import TransferList from './components/TransferList';
 import TransferOptionsPanel, { type ExpiryOption } from './components/TransferOptionsPanel';
@@ -276,12 +276,13 @@ const TransferPage = () => {
                       <p className="m-0 mb-sm">
                         Um Dateien zu teilen, verbinde zuerst deine Wolke (Nextcloud).
                       </p>
-                      <Link
-                        to="/profile/verbindungen"
+                      <button
+                        type="button"
+                        onClick={() => useSettingsDialogStore.getState().openSettings('wolke')}
                         className="font-medium text-primary-600 hover:underline dark:text-primary-400"
                       >
                         Wolke verbinden →
-                      </Link>
+                      </button>
                     </div>
                   )}
 

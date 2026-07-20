@@ -14,7 +14,7 @@ interface BetaFeatureWrapperProps {
 const BetaFeatureWrapper = ({
   children,
   featureKey,
-  fallbackPath = '/profile',
+  fallbackPath = '/workplace',
 }: BetaFeatureWrapperProps) => {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);

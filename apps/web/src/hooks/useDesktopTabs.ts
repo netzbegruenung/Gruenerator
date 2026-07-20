@@ -25,7 +25,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/galerie': 'Galerie',
   '/vorlagen': 'Vorlagen',
   '/texte': 'Texte',
-  '/profile': 'Profil',
+  '/settings': 'Einstellungen',
   '/login': 'Anmelden',
   '/registrierung': 'Registrierung',
   '/datenschutz': 'Datenschutz',
