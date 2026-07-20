@@ -21,7 +21,14 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   modify_doc: 'pencil-outline',
   modify_board: 'grid-outline',
   share_doc: 'share-social-outline',
+  create_group: 'people-outline',
+  join_group: 'person-add-outline',
 };
+
+const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
+  'create_group',
+  'join_group',
+]);
 
 export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData; theme: Theme }) {
   const router = useRouter();
@@ -67,7 +74,11 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
         <Text style={[styles.badgeText, { color: theme.text }]}>{action.title}</Text>
         {canOpen && (
           <Text style={[styles.badgeLink, { color: colors.primary[600] }]}>
-            {action.type === 'modify_board' ? 'Board öffnen' : 'Dokument öffnen'}
+            {action.type === 'modify_board'
+              ? 'Board öffnen'
+              : GROUP_ACTION_TYPES.has(action.type)
+                ? 'Gruppe öffnen'
+                : 'Dokument öffnen'}
           </Text>
         )}
       </Pressable>

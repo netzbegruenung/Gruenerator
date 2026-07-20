@@ -1,5 +1,16 @@
 import { useState, memo } from 'react';
-import { FileText, Pencil, LayoutGrid, Share2, Check, X, ArrowRight, Loader2 } from 'lucide-react';
+import {
+  FileText,
+  Pencil,
+  LayoutGrid,
+  Share2,
+  Users,
+  UserPlus,
+  Check,
+  X,
+  ArrowRight,
+  Loader2,
+} from 'lucide-react';
 import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
 import { confirmChatAction } from '../../lib/confirmAction';
 
@@ -10,7 +21,11 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   modify_doc: Pencil,
   modify_board: LayoutGrid,
   share_doc: Share2,
+  create_group: Users,
+  join_group: UserPlus,
 };
+
+const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set(['create_group', 'join_group']);
 
 export const ConfirmActionCard = memo(function ConfirmActionCard({
   action,
@@ -55,7 +70,11 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
                 href={resultUrl}
                 className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
               >
-                {action.type === 'modify_board' ? 'Board öffnen' : 'Dokument öffnen'}
+                {action.type === 'modify_board'
+                  ? 'Board öffnen'
+                  : GROUP_ACTION_TYPES.has(action.type)
+                    ? 'Gruppe öffnen'
+                    : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

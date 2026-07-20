@@ -20,6 +20,7 @@ import {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
   globalSearchContract,
@@ -39,7 +40,6 @@ import {
   notebookCollectionsContract,
   wolkePendingContract,
   notebookSharingContract,
-  wordpressContract,
   transferContract,
   notificationsContract,
   emailContract,
@@ -52,6 +52,7 @@ import {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  recurringTasksContract,
   docsContract,
   documentsContract,
   groupsContract,
@@ -62,6 +63,9 @@ import {
   sitesContract,
   subtitlerContract,
   reisekostenContract,
+  imagePickerContract,
+  sharesReadContract,
+  promptsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
@@ -175,6 +179,7 @@ const CLIENT_OPTS = {
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
+const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
@@ -194,7 +199,6 @@ const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
-const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
@@ -207,6 +211,7 @@ const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
+const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
@@ -217,11 +222,15 @@ const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
 const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
+const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
+const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
+const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
+  recentActivity: ReturnType<typeof _recentActivityClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   search: ReturnType<typeof _searchClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
@@ -241,7 +250,6 @@ export interface ContractsClient {
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wolkePending: ReturnType<typeof _wolkePendingClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
-  wordpress: ReturnType<typeof _wordpressClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   email: ReturnType<typeof _emailClient>;
@@ -254,6 +262,7 @@ export interface ContractsClient {
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
+  recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
@@ -264,6 +273,9 @@ export interface ContractsClient {
   sites: ReturnType<typeof _sitesClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
   reisekosten: ReturnType<typeof _reisekostenClient>;
+  imagePicker: ReturnType<typeof _imagePickerClient>;
+  sharesRead: ReturnType<typeof _sharesReadClient>;
+  prompts: ReturnType<typeof _promptsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -286,6 +298,7 @@ export function getContractsClient(): ContractsClient {
     threads: _threadsClient(),
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
+    recentActivity: _recentActivityClient(),
     itemUsage: _itemUsageClient(),
     search: _searchClient(),
     globalSearch: _globalSearchClient(),
@@ -305,7 +318,6 @@ export function getContractsClient(): ContractsClient {
     notebookCollections: _notebookCollectionsClient(),
     wolkePending: _wolkePendingClient(),
     notebookSharing: _notebookSharingClient(),
-    wordpress: _wordpressClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
     email: _emailClient(),
@@ -318,6 +330,7 @@ export function getContractsClient(): ContractsClient {
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
+    recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),
@@ -328,6 +341,9 @@ export function getContractsClient(): ContractsClient {
     sites: _sitesClient(),
     subtitler: _subtitlerClient(),
     reisekosten: _reisekostenClient(),
+    imagePicker: _imagePickerClient(),
+    sharesRead: _sharesReadClient(),
+    prompts: _promptsClient(),
   };
 
   return _client;

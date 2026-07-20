@@ -114,7 +114,9 @@ export const DOC_TYPE_META: Record<DocKind, DocTypeMeta> = {
 /** collaborative_documents subtype → homepage kind. */
 export function subtypeToKind(subtype: string | null | undefined): DocKind {
   switch (subtype) {
+    // Legacy HTML tables ('tabelle') read as spreadsheets — group with Sheets.
     case 'sheets':
+    case 'tabelle':
       return 'sheet';
     case 'presentations':
       return 'pres';

@@ -31,7 +31,7 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './services/responseStreamingService.js';
-import { SSEWriter } from './services/sseHelpers.js';
+import { PROGRESS_MESSAGES, SSEWriter } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -113,20 +113,23 @@ export async function handleNotebookStream(
 
   try {
     if (!messages || messages.length === 0) {
-      sse.send('error', { error: 'Messages are required' });
+      sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired, code: 'invalid_request' });
       if (options.closeStream !== false) sse.end();
       return null;
     }
 
     if (!collectionId && (!collectionIds || collectionIds.length === 0)) {
-      sse.send('error', { error: 'collectionId or collectionIds is required' });
+      sse.send('error', { error: 'Es wurde kein Notizbuch angegeben.', code: 'invalid_request' });
       if (options.closeStream !== false) sse.end();
       return null;
     }
 
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
     if (!lastUserMessage || typeof lastUserMessage.content !== 'string') {
-      sse.send('error', { error: 'No user message found' });
+      sse.send('error', {
+        error: 'Die Anfrage enthielt keine Nutzernachricht.',
+        code: 'invalid_request',
+      });
       if (options.closeStream !== false) sse.end();
       return null;
     }
@@ -164,7 +167,9 @@ export async function handleNotebookStream(
       log.error('Search context error:', error);
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
       sse.send('error', {
-        error: error instanceof Error ? error.message : 'Failed to get search context',
+        error: error instanceof Error ? error.message : PROGRESS_MESSAGES.searchDegraded,
+        code: 'search_degraded',
+        retryable: true,
       });
       if (options.closeStream !== false) sse.end();
       return null;
@@ -266,7 +271,11 @@ export async function handleNotebookStream(
       // If we acquired the Verdigado slot but can't actually use the resolution,
       // release it so the next request isn't blocked.
       if (primaryResolution.releaseSlot) await primaryResolution.releaseSlot();
-      sse.send('error', { error: `Provider "${primaryResolution.provider}" is not configured` });
+      sse.send('error', {
+        error: PROGRESS_MESSAGES.aiUnavailable,
+        code: 'provider_unavailable',
+        retryable: true,
+      });
       if (options.closeStream !== false) sse.end();
       return null;
     }
@@ -401,7 +410,11 @@ export async function handleNotebookStream(
     return { answer: cleanDraft, citations, sources, question };
   } catch (error: unknown) {
     log.error('Notebook stream error:', error);
-    sse.send('error', { error: 'Internal server error' });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.internalError,
+      code: 'internal',
+      retryable: true,
+    });
     if (options.closeStream !== false) sse.end();
     return null;
   }

@@ -16,6 +16,7 @@ import { useScrollRestoration } from './components/utils/commonFunctions';
 import ScrollToTop from './components/utils/ScrollToTop';
 import { routes } from './config/routes';
 import { useFirstRun } from './features/desktop/hooks/useFirstRun';
+import SettingsDialogHost from './features/settings/SettingsDialogHost';
 import { useHydrateUserProfile } from './hooks/useHydrateUserProfile';
 import { GlobalChatProvider } from './providers/GlobalChatProvider';
 import { type User, useAuthStore } from './stores/authStore';
@@ -186,6 +187,7 @@ function App() {
                 unaffected. */}
             <GlobalChatProvider>
               <GlobalBridges />
+              <SettingsDialogHost />
               <SuspenseWrapper>
                 {/* <PopupAustriaLaunch /> */}
                 <div id="aria-live-region" aria-live="polite" className="sr-only" />

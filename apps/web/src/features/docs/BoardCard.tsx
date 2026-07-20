@@ -1,6 +1,5 @@
 import { cn } from '@gruenerator/ui';
 import { memo, useCallback } from 'react';
-import { PiKanban, PiPencilLine } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { BoardPreviewBody } from '../../components/common/SchematicPreviews';
@@ -13,10 +12,12 @@ export const BoardCard = memo(function BoardCard({
   board,
   onDelete,
   onRename,
+  onShare,
 }: {
   board: Board;
   onDelete: (id: string, e: React.MouseEvent) => void;
   onRename: (board: { id: string; title: string }, e: React.MouseEvent) => void;
+  onShare?: (board: { id: string; title: string }, e: React.MouseEvent) => void;
 }) {
   const navigate = useNavigate();
   const isWhiteboard = getBoardType(board) === 'whiteboard';
@@ -24,7 +25,14 @@ export const BoardCard = memo(function BoardCard({
     void navigate(`/boards/${board.id}`);
   }, [navigate, board.id]);
 
-  const BoardIcon = isWhiteboard ? PiPencilLine : PiKanban;
+  const boardPreview = getBoardPreview(board);
+  const cardCount = boardPreview?.columns?.reduce((sum, col) => sum + col.count, 0) ?? 0;
+  const scope = !isWhiteboard && cardCount > 0 ? `${cardCount} Karten` : null;
+  const sharedSuffix = board.creator_name ? ` · ${board.creator_name}` : '';
+  const metaLine =
+    [isWhiteboard ? 'Whiteboard' : 'Board', scope, formatRelativeDate(board.updated_at)]
+      .filter(Boolean)
+      .join(' · ') + sharedSuffix;
 
   return (
     <div
@@ -36,28 +44,25 @@ export const BoardCard = memo(function BoardCard({
       )}
       onClick={handleClick}
     >
-      <div className="h-48 overflow-hidden border-b border-grey-100 bg-grey-50 p-4 dark:border-grey-700/60 dark:bg-grey-800/40">
+      <div className="h-[210px] overflow-hidden border-b border-grey-100 bg-grey-50 p-4 dark:border-grey-700/60 dark:bg-grey-800/40">
         <BoardPreviewBody
           boardType={isWhiteboard ? 'whiteboard' : 'kanban'}
-          preview={getBoardPreview(board)}
+          preview={boardPreview}
         />
       </div>
 
-      <div className="flex items-start gap-2 px-3 py-2.5">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h3 className="m-0 flex items-center gap-1.5 min-w-0 truncate text-sm font-medium text-foreground-heading">
-            <BoardIcon size={14} className="shrink-0 text-secondary-600 dark:text-secondary-400" />
-            <span className="truncate">{board.title}</span>
+      <div className="flex items-start gap-2 px-4 pb-4 pt-3.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h3 className="m-0 min-w-0 truncate text-[16px] font-semibold text-foreground-heading">
+            {board.title}
           </h3>
-          <p className="m-0 truncate text-xs text-grey-500 dark:text-grey-400">
-            {formatRelativeDate(board.updated_at)}
-            {board.creator_name && ` · ${board.creator_name}`}
-          </p>
+          <p className="m-0 truncate text-[13px] text-grey-500 dark:text-grey-400">{metaLine}</p>
         </div>
         <CardActionMenu
           ariaLabel="Boardoptionen"
           onRename={(e) => onRename(board, e)}
           onDelete={(e) => onDelete(board.id, e)}
+          {...(onShare ? { onShare: (e: React.MouseEvent) => onShare(board, e) } : {})}
         />
       </div>
     </div>

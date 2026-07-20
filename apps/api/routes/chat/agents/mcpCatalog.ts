@@ -1,15 +1,12 @@
 /**
  * Loads a user's connected MCP servers as agentic-loop tools.
  *
- * Replaces mcpToolNode's raw-blocks double-LLM: instead of running its own
- * worker-pool tool loop and flattening the output into a context string for a
- * second model, each MCP tool becomes an AI-SDK `dynamicTool` the ONE streamText
- * loop calls directly (grounding + prose in a single pass).
- *
- * Behaviour preserved from mcpToolNode: connect scoped/enabled servers in
- * parallel (dead servers skipped, not fatal), namespace tools `s<idx>__<tool>`
- * (index-based → guaranteed-unique, bounded length), MAX_TOOLS cap, snapshot
- * refresh, and the scoped-server-missing honesty signal.
+ * Each MCP tool becomes an AI-SDK `dynamicTool` the ONE streamText loop calls
+ * directly (grounding + prose in a single pass). Connect scoped/enabled servers
+ * in parallel (dead servers skipped, not fatal), namespace tools
+ * `m<serverKey>__<tool>` (derived from mcp_servers.id → STABLE across turns so
+ * cross-turn tool-call replay resolves), MAX_TOOLS cap, snapshot refresh, and
+ * the scoped-server-missing honesty signal.
  *
  * Connections are opened ONCE here and kept alive for the whole turn (a
  * streamText run may call the same tool across several steps — reconnecting per
@@ -30,13 +27,13 @@ const log = createLogger('mcpCatalog');
 
 const MAX_TOOLS = 60;
 
-/** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$ — same as mcpToolNode. */
-function sanitizeToolName(raw: string): string {
+/** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. Shared with systemMcpCatalog. */
+export function sanitizeToolName(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
 }
 
 /** Per-client mutex: serialize callTool on one MCP session (no p-limit dep). */
-function createSerializer(): <T>(fn: () => Promise<T>) => Promise<T> {
+export function createSerializer(): <T>(fn: () => Promise<T>) => Promise<T> {
   let chain: Promise<unknown> = Promise.resolve();
   return <T>(fn: () => Promise<T>): Promise<T> => {
     const run = chain.then(fn, fn) as Promise<T>;
@@ -56,6 +53,10 @@ export interface McpCatalog {
   /** True when a scope was requested but the server is gone/disabled — the
    *  caller should answer honestly instead of running a tool-less loop. */
   scopedServerMissing: boolean;
+  /** System catalogs only: keys of the sources that actually CONNECTED this
+   *  turn (env-configured but unreachable sources are absent) — the prompt
+   *  hints must be keyed to this, not to the env config. */
+  systemSourceKeys?: ReadonlySet<string>;
   /** Close all opened connections. MUST be awaited in the caller's finally. */
   close: () => Promise<void>;
 }
@@ -96,7 +97,7 @@ export async function loadMcpCatalog(params: {
   const seen = new Set<string>();
 
   await Promise.all(
-    configs.map(async (config, serverIdx) => {
+    configs.map(async (config) => {
       const client = new UserMCPClient(config);
       try {
         await client.connect();
@@ -105,9 +106,13 @@ export async function loadMcpCatalog(params: {
         void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
         const callSerialized = createSerializer();
 
+        // Stable per (server, tool): derived from the server's mcp_servers.id
+        // (not the per-turn index) so a tool name persisted this turn resolves to
+        // the SAME catalog entry next turn — the invariant cross-turn replay needs.
+        const serverKey = config.id.replace(/-/g, '').slice(0, 8);
         for (const t of listed) {
           if (Object.keys(tools).length >= MAX_TOOLS) break;
-          const providerName = `s${serverIdx}__${sanitizeToolName(t.name)}`.slice(0, 64);
+          const providerName = `m${serverKey}__${sanitizeToolName(t.name)}`.slice(0, 64);
           if (seen.has(providerName)) continue;
           seen.add(providerName);
           labels.set(providerName, { serverName: config.name, toolName: t.name });

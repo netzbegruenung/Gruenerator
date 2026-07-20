@@ -155,12 +155,13 @@ describe('toolCatalog domain tool mounting', () => {
     expect(toolNames).not.toContain('summarize');
   });
 
-  // Sharepic fat tool (Phase 3n slice): every leg of the mount gate matters —
-  // a wrong mount either breaks the fixed-text contract (mounted on pure
-  // sharepic turns) or the compound feature (not mounted when it should be).
-  function sharepicCatalog(opts: {
+  // Compound generation fat tools mount by KIND (state.compoundGenerationKind),
+  // not intent — so a demoted `agentic` turn still mounts the right tool. Every
+  // leg of the gate matters: wrong mount breaks the single-pass fixed-text
+  // contract OR the compound feature.
+  function genCatalog(opts: {
     intent?: string;
-    compoundGeneration?: boolean;
+    kind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
     req?: boolean;
     enabledTools?: Record<string, boolean>;
   }) {
@@ -169,9 +170,10 @@ describe('toolCatalog domain tool mounting', () => {
       Parameters<typeof buildChatToolCatalog>[0]['loop']
     >['sse'];
     const state = {
-      intent: opts.intent ?? 'sharepic',
+      intent: opts.intent ?? 'agentic',
       enabledTools: opts.enabledTools ?? {},
-      compoundGeneration: opts.compoundGeneration,
+      compoundGeneration: opts.kind != null,
+      compoundGenerationKind: opts.kind ?? null,
     } as unknown as ChatGraphState;
     return buildChatToolCatalog({
       agentConfig,
@@ -185,25 +187,73 @@ describe('toolCatalog domain tool mounting', () => {
     });
   }
 
-  it('mounts the sharepic fat tool ONLY on compound-generation turns with a req', () => {
-    expect(sharepicCatalog({ compoundGeneration: true }).toolNames).toContain('sharepic');
-    // Not compound → fixed-text single-pass contract, never mounted.
-    expect(sharepicCatalog({ compoundGeneration: false }).toolNames).not.toContain('sharepic');
-    expect(sharepicCatalog({}).toolNames).not.toContain('sharepic');
-    // Without the Express req the generator cannot run — never mounted.
-    expect(sharepicCatalog({ compoundGeneration: true, req: false }).toolNames).not.toContain(
-      'sharepic'
-    );
-    // User disabled the sharepic tool → respected.
-    expect(
-      sharepicCatalog({ compoundGeneration: true, enabledTools: { sharepic: false } }).toolNames
-    ).not.toContain('sharepic');
+  const TOOL_FOR: Record<string, string> = {
+    sharepic: 'sharepic',
+    presentation: 'create_presentation',
+    sheet: 'create_sheet',
+    document: 'create_document',
+    board: 'create_board',
+  };
+
+  it('mounts exactly one fat tool per kind, on a compound turn with a req', () => {
+    for (const [kind, toolName] of Object.entries(TOOL_FOR)) {
+      const names = genCatalog({ kind: kind as 'sharepic' }).toolNames;
+      expect(names, `${kind} mounts ${toolName}`).toContain(toolName);
+      // No cross-mount: no OTHER generation tool leaks in.
+      for (const other of Object.values(TOOL_FOR)) {
+        if (other !== toolName)
+          expect(names, `${kind} must not mount ${other}`).not.toContain(other);
+      }
+    }
   });
 
-  it('the fat tool key is exactly `sharepic` (persisted toolName drives card rehydration)', () => {
-    const { tools } = sharepicCatalog({ compoundGeneration: true });
+  it('the sharepic fat tool key is exactly `sharepic` (persisted toolName drives rehydration)', () => {
+    const { tools } = genCatalog({ kind: 'sharepic' });
     expect(Object.keys(tools)).toContain('sharepic');
     expect(Object.keys(tools)).not.toContain('create_sharepic');
+  });
+
+  it('mounts by KIND even when the intent was demoted to `agentic` (the sheet bug)', () => {
+    // "mach mir eine Tabelle draus" reaches the loop as intent=agentic with
+    // kind=sheet — the tool must still mount.
+    expect(genCatalog({ intent: 'agentic', kind: 'sheet' }).toolNames).toContain('create_sheet');
+    expect(genCatalog({ intent: 'agentic', kind: 'board' }).toolNames).toContain('create_board');
+  });
+
+  it('nothing mounts without a kind, without a req, or when disabled', () => {
+    // Not compound (no kind) → single-pass contract, nothing mounted.
+    expect(genCatalog({ kind: null }).toolNames).not.toContain('create_sheet');
+    // No req → generator can't run.
+    expect(genCatalog({ kind: 'sheet', req: false }).toolNames).not.toContain('create_sheet');
+    // User disabled the specific tool → respected (each key).
+    expect(
+      genCatalog({ kind: 'presentation', enabledTools: { create_presentation: false } }).toolNames
+    ).not.toContain('create_presentation');
+    expect(
+      genCatalog({ kind: 'document', enabledTools: { create_document: false } }).toolNames
+    ).not.toContain('create_document');
+    expect(
+      genCatalog({ kind: 'board', enabledTools: { create_board: false } }).toolNames
+    ).not.toContain('create_board');
+  });
+
+  it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
+    // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
+    // open doc must not create a NEW one, even on a compound turn.
+    for (const editKey of ['edit_current_doc', 'edit_current_board']) {
+      for (const kind of ['sharepic', 'presentation', 'sheet', 'document', 'board'] as const) {
+        const names = genCatalog({ kind, enabledTools: { [editKey]: true } }).toolNames;
+        expect(names, `${kind} must not mount in an ${editKey} surface`).not.toContain(
+          TOOL_FOR[kind]
+        );
+      }
+      // generate_image is also a NEW artifact — gated off in an editor surface.
+      expect(
+        genCatalog({ intent: 'agentic', kind: null, enabledTools: { [editKey]: true } }).toolNames
+      ).not.toContain('generate_image');
+    }
+    // Control: outside an editor surface, generate_image still mounts on agentic.
+    expect(genCatalog({ intent: 'agentic', kind: null }).toolNames).toContain('generate_image');
   });
 });
 

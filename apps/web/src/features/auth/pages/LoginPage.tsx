@@ -1,4 +1,4 @@
-import { LoginProviders, type LoginProvider } from '@gruenerator/shared/auth';
+import { LoginProviders, type LoginProvider, type LoginProviderId } from '@gruenerator/shared/auth';
 import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -8,6 +8,8 @@ import { cn } from '../../../utils/cn';
 import { openDesktopLogin, type AuthSource } from '../../../utils/desktopAuth';
 import { isDesktopApp } from '../../../utils/platform';
 import { SESSION_EXPIRED_FLAG } from '../storageKeys';
+
+import './login-page-sunrise.css';
 
 // Auth Backend URL from environment variable or fallback to relative path
 const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
@@ -116,6 +118,14 @@ const LoginPage = ({
     setLoginIntent();
   };
 
+  // Netzbegrünung is no longer part of the default provider set; it stays
+  // reachable only via the special link /login?provider=netzbegruenung, which
+  // re-adds it alongside the defaults.
+  const enabledProviders: LoginProviderId[] | undefined =
+    new URLSearchParams(location.search).get('provider') === 'netzbegruenung'
+      ? ['gruenes-netz', 'gruene-oesterreich', 'netzbegruenung']
+      : undefined;
+
   const getHeaderContent = () => {
     if (mode === 'required') {
       return (
@@ -147,6 +157,7 @@ const LoginPage = ({
   const loginProviders = (
     <>
       <LoginProviders
+        enabledProviders={enabledProviders}
         redirectTo={intendedRedirect}
         apiBaseUrl={AUTH_BASE_URL}
         disabled={isAuthenticating}
@@ -180,8 +191,8 @@ const LoginPage = ({
         <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
         <div
           className={cn(
-            'relative z-[1] w-full max-w-[450px] max-h-[90vh] overflow-y-auto',
-            'bg-background border border-grey-200 dark:border-grey-700 rounded-sm',
+            'lp-sunrise-card relative z-[1] w-full max-w-[450px] max-h-[90vh] overflow-y-auto',
+            'border border-grey-200 dark:border-grey-700 rounded-sm',
             'shadow-xl animate-in slide-in-from-bottom-5 fade-in duration-300',
             'lg:w-auto lg:min-w-[700px] lg:max-w-[95vw]',
             'max-[480px]:max-h-[95vh] max-[480px]:p-md'
@@ -206,9 +217,9 @@ const LoginPage = ({
           <div className="block lg:flex lg:gap-xl lg:items-start">
             <div
               className={cn(
-                'w-full p-0 border-none bg-transparent',
+                'lp-col w-full p-0 border-none bg-transparent',
                 'lg:flex-[0_0_40%] lg:border-r lg:border-grey-200 lg:dark:border-grey-700',
-                'lg:bg-background lg:rounded-sm lg:p-xl lg:relative'
+                'lg:rounded-sm lg:p-xl lg:relative'
               )}
             >
               {getHeaderContent()}
@@ -235,7 +246,7 @@ const LoginPage = ({
               </div>
             </div>
 
-            <div className="w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:bg-background lg:rounded-sm lg:p-xl">
+            <div className="lp-col w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:rounded-sm lg:p-xl">
               {loginProviders}
             </div>
           </div>
@@ -260,8 +271,8 @@ const LoginPage = ({
   return (
     <div
       className={cn(
-        'max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
-        'bg-background rounded-md shadow-lg',
+        'lp-sunrise-card max-w-[450px] mx-auto p-lg px-md mt-[50px] mb-[50px]',
+        'rounded-md shadow-lg',
         'max-[480px]:p-md max-[480px]:px-sm max-[480px]:max-w-full max-[480px]:shadow-none max-[480px]:rounded-none max-[480px]:mt-0',
         'md:max-w-[600px] md:p-lg',
         'lg:max-w-[900px] lg:p-xl'
@@ -299,7 +310,7 @@ const LoginPage = ({
           </div>
         </div>
 
-        <div className="w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:bg-background lg:rounded-sm lg:p-xl">
+        <div className="lp-col w-full p-0 bg-transparent lg:flex-1 lg:pl-md lg:rounded-sm lg:p-xl">
           {loginProviders}
         </div>
       </div>

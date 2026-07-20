@@ -99,7 +99,7 @@ function pct(n: number, d: number): string {
 
 function report(results: CaseResult[]): void {
   const baseline: Record<string, boolean> = existsSync(BASELINE_PATH)
-    ? JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
+    ? (JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as Record<string, boolean>)
     : {};
 
   console.log(`\n═══ Chat eval — ${results.length} cases against ${BASE_URL} ═══\n`);

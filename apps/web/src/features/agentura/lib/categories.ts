@@ -4,7 +4,6 @@ import {
   PiFileText,
   PiGlobe,
   PiMagnifyingGlass,
-  PiMapPin,
   PiMegaphone,
   PiShareNetwork,
   PiSparkle,
@@ -36,24 +35,15 @@ export const SKILL_CATEGORY_ICONS: Record<SkillCategory, IconType> = {
   sonstiges: PiDotsThreeOutline,
 };
 
-const SKILL_CATEGORY_DESCRIPTIONS: Record<SkillCategory, string> = {
-  presse: 'Pressemitteilungen, Statements und O-Töne.',
-  social: 'Posts, Captions und Community-Antworten.',
-  dokumente: 'Anträge, Reden und andere Dokumente.',
-  recherche: 'Recherche- und Analyse-Skills.',
-  sonstiges: 'Weitere Skills für deinen Alltag.',
-};
-
-/** Every category key the market can show — fixed agent aisles plus the skill categories. */
+/** Every category key the market can show. Skills + Landesverbände no longer have
+ *  their own aisles — they live as sub-sections inside `gruenerator`. */
 export type AgenturaCategoryKey =
   | 'empfohlen'
   | 'meine'
   | 'gruppen'
   | 'community'
   | 'gruenerator'
-  | 'landesverbaende'
-  | 'favoriten'
-  | SkillCategory;
+  | 'favoriten';
 
 export interface AgenturaCategory {
   key: AgenturaCategoryKey;
@@ -77,58 +67,44 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'empfohlen',
     label: 'Empfohlen',
     icon: PiStar,
-    description: 'Beliebte Agent*innen zum Einstieg — eine Auswahl über alle Regale hinweg.',
+    description: 'Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg.',
   },
   {
     key: 'meine',
-    label: 'Meine Agent*innen',
+    label: 'Meine Grüneratoren',
     icon: PiSparkle,
-    description: 'Deine selbst erstellten KI-Assistent*innen zum Chatten.',
+    description: 'Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben.',
     emptyText:
-      'Du hast noch keine eigenen Agent*innen erstellt. Leg deine erste über „Neuer Agent" an.',
+      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator" an.',
     emptyIcon: PiSparkle,
   },
   {
     key: 'gruppen',
     label: 'Geteilt mit Gruppen',
     icon: PiUsersThree,
-    description: 'Agent*innen, die in deinen Gruppen geteilt wurden.',
+    description: 'Grüneratoren, die in deinen Gruppen geteilt wurden.',
   },
   {
     key: 'community',
     label: 'Von der Basis',
     icon: PiGlobe,
-    description: 'Öffentlich geteilte Agent*innen von der Basis.',
+    description: 'Öffentlich geteilte Grüneratoren von der Basis.',
     emptyText:
-      'Noch keine öffentlichen Agent*innen. Sei der oder die Erste — teile eine*n deiner Agent*innen über „Teilen" und aktiviere „Von der Basis".',
+      'Noch keine öffentlichen Grüneratoren. Sei der oder die Erste — teile einen deiner Grüneratoren über „Teilen" und aktiviere „Von der Basis".',
     emptyIcon: PiGlobe,
   },
   {
     key: 'gruenerator',
-    label: 'Grünerator-Agent*innen',
+    label: 'Offizielle Grüneratoren',
     icon: PiStorefront,
-    description: 'Fertige Assistent*innen von Grünerator für deine Aufgaben.',
-  },
-  {
-    key: 'landesverbaende',
-    label: 'Landesverbände',
-    icon: PiMapPin,
-    description: 'Regionale Agent*innen und Skills deines Landesverbands.',
+    description: 'Fertige Grüneratoren, Presse- & Social-Skills und Landesverbände von Grünerator.',
   },
   {
     key: 'favoriten',
     label: 'Favoriten',
     icon: PiStarFill,
-    description: 'Deine gemerkten Agent*innen und Skills.',
+    description: 'Deine gemerkten Grüneratoren und Skills.',
   },
-  ...SKILL_CATEGORY_ORDER.map(
-    (cat): AgenturaCategory => ({
-      key: cat,
-      label: SKILL_CATEGORY_LABELS[cat],
-      icon: SKILL_CATEGORY_ICONS[cat],
-      description: SKILL_CATEGORY_DESCRIPTIONS[cat],
-    })
-  ),
 ];
 
 export const DEFAULT_CATEGORY: AgenturaCategoryKey = 'empfohlen';

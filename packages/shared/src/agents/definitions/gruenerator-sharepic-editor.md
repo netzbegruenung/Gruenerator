@@ -1,6 +1,7 @@
 ---
 iconKey: image
 identifier: gruenerator-sharepic-editor
+hiddenFromInventory: true
 title: Sharepic-Assistent
 description: 'Beantwortet Fragen zum aktuellen Sharepic, verbessert Texte direkt am Canvas und recherchiert passende Fakten.'
 plugins:

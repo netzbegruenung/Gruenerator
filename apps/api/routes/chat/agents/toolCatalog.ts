@@ -36,14 +36,29 @@ import { z } from 'zod';
 import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
+import { isEditorSurface } from '../services/agenticLoop/routing.js';
 
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
+  makeCreateBoardTool,
+  makeCreateDocTool,
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
+  makeUmfragenTool,
 } from './domainTools.js';
+import { makeEditArtifactTool } from './editorTools.js';
+import {
+  makeBoardsTasksTool,
+  makeDocumentsTool,
+  makeFindContentTool,
+  makeSearchThreadsTool,
+  makeGroupsTool,
+  makeMediaTool,
+  makeNotebooksTool,
+  type PersonalToolCtx,
+} from './personalDataTools.js';
 import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
@@ -198,32 +213,97 @@ NUTZE WENN:
     tools.summarize = makeSummaryTool({ sse, state });
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+    tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
+    // — they must never spawn a NEW artifact (image OR create fat tool). Gated
+    // server-side (the frontend not setting the tools:false is not enough).
+    const editorSurface = isEditorSurface(state.enabledTools);
+
+    // Tool-based editor edit: the loop edits the OPEN artifact in place via
+    // `edit_document` instead of the client round-trip to the bespoke
+    // /api/{sheets,…}/:id/ai endpoint. Mounted only when the router resolved a
+    // surface with a tool path (state.editToolSurface set); otherwise the legacy
+    // trigger_doc_edit path stays in force. appliedOpsLog is per-turn.
+    if (state.editToolSurface) {
+      const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
+      if (editTool) tools.edit_document = editTool;
+    }
+
+    // Personal-data resource tools: the user's OWN documents, boards, tasks,
+    // groups, media and notebooks (read + light management). Always mounted (the
+    // model picks them), each gated by enabledTools so an agent can opt out.
+    // Mutations reuse the confirm_action flow / write-access checks (see
+    // personalDataTools.ts); reads only touch user-scoped services.
+    const personalCtx: PersonalToolCtx = {
+      state,
+      sse,
+      threadId: loop.threadId ?? null,
+      sourceRegistry,
+    };
+    if (state.enabledTools?.['find_content'] !== false) {
+      tools.find_content = makeFindContentTool(personalCtx);
+    }
+    if (state.enabledTools?.['search_threads'] !== false) {
+      tools.search_threads = makeSearchThreadsTool(personalCtx);
+    }
+    if (state.enabledTools?.['documents'] !== false) {
+      tools.documents = makeDocumentsTool(personalCtx);
+    }
+    if (state.enabledTools?.['boards_tasks'] !== false) {
+      tools.boards_tasks = makeBoardsTasksTool(personalCtx);
+    }
+    if (state.enabledTools?.['groups'] !== false) {
+      tools.groups = makeGroupsTool(personalCtx);
+    }
+    if (state.enabledTools?.['media'] !== false) {
+      tools.media = makeMediaTool(personalCtx);
+    }
+    if (state.enabledTools?.['notebooks'] !== false) {
+      tools.notebooks = makeNotebooksTool(personalCtx);
+    }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
     // 'agentic' (demoted) turns also mount it — image phrasings the confident
     // heuristic misses land there; idempotency + forceFinish cap quota at one
-    // image per turn.
+    // image per turn. Never in an editor surface (that would create a new image).
     if (
+      !editorSurface &&
       (state.intent === 'image' || state.intent === 'agentic') &&
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });
     }
-    // Sharepic fat tool (Phase 3n slice): ONLY for compound research+generation
-    // turns — pure "mach ein Sharepic" keeps its direct dispatch + fixed text.
-    // Catalog key `sharepic` is load-bearing (persisted toolName drives card
-    // rehydration + follow-up edits).
-    if (
-      state.compoundGeneration === true &&
-      loop.req &&
-      state.enabledTools?.['sharepic'] !== false
-    ) {
-      tools.sharepic = makeCreateSharepicTool({
-        sse,
-        state,
-        req: loop.req,
-        threadId: loop.threadId ?? null,
-      });
+    // Compound generation fat tools (Phase 3n): ONE tool per turn, chosen by the
+    // generation KIND the router derived (from intent OR — for a demoted
+    // `agentic` turn — the text noun). Pure "mach ein Sharepic" keeps its direct
+    // dispatch + fixed text (compoundGenerationKind is null → nothing mounted).
+    // The sharepic key is load-bearing (`sharepic` drives card rehydration +
+    // follow-up edits); presentation/sheet/document persist via createdDocument;
+    // board renders from the `done` event.
+    if (state.compoundGeneration === true && loop.req && !editorSurface) {
+      const kind = state.compoundGenerationKind;
+      const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
+      if (kind === 'sharepic' && enabled('sharepic')) {
+        tools.sharepic = makeCreateSharepicTool({
+          sse,
+          state,
+          req: loop.req,
+          threadId: loop.threadId ?? null,
+        });
+      } else if (kind === 'presentation' && enabled('create_presentation')) {
+        tools.create_presentation = makeCreateDocTool({
+          kind: 'presentation',
+          sse,
+          state,
+          req: loop.req,
+        });
+      } else if (kind === 'sheet' && enabled('create_sheet')) {
+        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+      } else if (kind === 'document' && enabled('create_document')) {
+        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+      } else if (kind === 'board' && enabled('create_board')) {
+        tools.create_board = makeCreateBoardTool({ state, req: loop.req });
+      }
     }
   }
 

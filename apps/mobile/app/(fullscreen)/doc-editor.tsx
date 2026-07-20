@@ -220,7 +220,7 @@ export default function DocumentScreen() {
         }
       }
     },
-    [id]
+    [id, store]
   );
 
   const handleCanEditChange = useCallback(async (canEdit: boolean) => {

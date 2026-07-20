@@ -49,7 +49,8 @@ export class DocumentProcessor {
     url: string,
     content: ExtractedContent,
     collectionOverride?: string,
-    maxAgeYears?: number
+    maxAgeYears?: number,
+    extraPayload?: Record<string, unknown>
   ): Promise<ProcessResult> {
     const { title, text, publishedAt, categories } = content;
     const targetCollection = collectionOverride || this.collectionName;
@@ -158,6 +159,7 @@ export class DocumentProcessor {
         indexed_at: new Date().toISOString(),
         source: 'landesverbaende_gruene',
         ...(curatedLists.length > 0 ? { curated_lists: curatedLists } : {}),
+        ...(extraPayload ?? {}),
         ...(index === 0 ? { full_text: text } : {}),
       },
     }));

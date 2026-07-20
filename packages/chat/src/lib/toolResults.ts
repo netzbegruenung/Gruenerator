@@ -9,6 +9,7 @@
 
 import { type SerializableCitation } from '../components/tool-ui/citation/schema';
 
+import { formatNamespacedToolLabel } from './toolMappings';
 import { extractDomain, faviconFromHostname, getHostname } from './urlUtils';
 
 import type {
@@ -117,13 +118,24 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   gruenerator_pressemitteilung_examples: { label: 'Pressemitteilungen', iconKey: 'file' },
   ask_human: { label: 'Rückfrage', iconKey: 'message-circle' },
   run_python: { label: 'Tabellen-Berechnung', iconKey: 'sparkles' },
+  edit_document: { label: 'Bearbeitung', iconKey: 'file' },
   mcp_tool: { label: 'MCP-Tool', iconKey: 'external-link' },
   sharepic_edit: { label: 'Sharepic', iconKey: 'image' },
   reel_edit: { label: 'Reel', iconKey: 'image' },
+  find_content: { label: 'Meine Inhalte', iconKey: 'search' },
+  documents: { label: 'Dokumente', iconKey: 'file' },
+  boards_tasks: { label: 'Boards & Aufgaben', iconKey: 'file' },
+  groups: { label: 'Gruppen', iconKey: 'user' },
+  media: { label: 'Medien', iconKey: 'image' },
+  notebooks: { label: 'Notizbücher', iconKey: 'book' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {
-  return TOOL_METADATA[toolName] ?? { label: toolName, iconKey: 'search' };
+  // Namespaced connector/system tools (s0__x, bahn__x) have no static entry —
+  // format them like the live tool cards do so reloads render identically.
+  return (
+    TOOL_METADATA[toolName] ?? { label: formatNamespacedToolLabel(toolName), iconKey: 'search' }
+  );
 }
 
 /** The user-facing query/question a tool was invoked with, if any. */

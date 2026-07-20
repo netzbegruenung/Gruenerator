@@ -117,6 +117,23 @@ export {
 } from './context/ChatCollaborationContext';
 export { useChatCollaboration } from './hooks/useChatCollaboration';
 
+// Editor Assistant — shared host for embedded editor chat sidebars
+// (docs / sheets / presentations / boards / canvas).
+export {
+  EditorAssistantProvider,
+  useEditorAssistant,
+  usePeerMessageSync,
+  deriveGateState,
+  shouldImportHistory,
+  isReady as isEditorAssistantReady,
+  type EditorAssistantProviderProps,
+  type EditorAssistantState,
+  type EditorSurfaceAdapter,
+  type EditorSurfaceKind,
+  type EditorToolConfig,
+  type EditorRegistrationCtx,
+} from './editor-surface';
+
 // Notebook Runtime
 export {
   NotebookChatProvider,
