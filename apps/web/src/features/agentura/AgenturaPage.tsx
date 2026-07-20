@@ -17,12 +17,12 @@ import {
 import { useMemo, type ReactNode } from 'react';
 import {
   PiArrowsDownUp,
+  PiDetective,
   PiMagnifyingGlass,
   PiMapPin,
   PiPlus,
   PiRepeat,
   PiSparkle,
-  PiStorefront,
 } from 'react-icons/pi';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -528,7 +528,7 @@ function AgenturaPage() {
       <header className="mb-lg">
         <div className="flex items-center gap-sm">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary-600/10 text-secondary-700 dark:text-secondary-300">
-            <PiStorefront className="h-5 w-5" />
+            <PiDetective className="h-5 w-5" />
           </span>
           <h1 className="m-0 text-3xl font-bold tracking-tight text-foreground-heading">
             Agentura
