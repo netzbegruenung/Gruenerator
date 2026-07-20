@@ -11,7 +11,15 @@ import {
 } from '@gruenerator/ui';
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import { type IconType } from 'react-icons';
-import { FiBell, FiCloud, FiServer, FiSettings, FiSliders, FiUser } from 'react-icons/fi';
+import {
+  FiBell,
+  FiCloud,
+  FiHelpCircle,
+  FiServer,
+  FiSettings,
+  FiSliders,
+  FiUser,
+} from 'react-icons/fi';
 import { PiBrain } from 'react-icons/pi';
 
 import Spinner from '../../components/common/Spinner';
@@ -27,6 +35,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
+  { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
 
 const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = {
@@ -37,6 +46,7 @@ const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = 
   benachrichtigungen: lazy(() => import('./tabs/NotificationsTab')),
   wolke: lazy(() => import('./tabs/WolkeTab')),
   konnektoren: lazy(() => import('./tabs/ConnectorsTab')),
+  support: lazy(() => import('./tabs/SupportTab')),
 };
 
 const SettingsDialog = () => {
