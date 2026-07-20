@@ -405,7 +405,11 @@ async function streamAndAccumulateOrThrow(params: {
       `${logPrefix} Stream error after first token (${fullText.length} chars):`,
       errorMessage
     );
-    sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.streamInterrupted,
+      code: 'stream_interrupted',
+      retryable: true,
+    });
     sse.end();
     return null;
   }
@@ -498,7 +502,11 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   } catch (streamError: unknown) {
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(`${logPrefix} Reasoning stream error after first token:`, errorMessage);
-    sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.streamInterrupted,
+      code: 'stream_interrupted',
+      retryable: true,
+    });
     sse.end();
     return null;
   }
@@ -509,8 +517,12 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
 const GENERIC_GENERATION_ERROR =
   'Antwort konnte nicht generiert werden. Bitte später erneut versuchen.';
 
-function failStream(sse: SSEWriter): null {
-  sse.send('error', { error: GENERIC_GENERATION_ERROR });
+function failStream(sse: SSEWriter, kind?: StreamFailure['kind']): null {
+  sse.send('error', {
+    error: GENERIC_GENERATION_ERROR,
+    code: kind === 'first_token_timeout' ? 'first_token_timeout' : 'provider_unavailable',
+    retryable: true,
+  });
   sse.end();
   return null;
 }
@@ -525,7 +537,7 @@ function wrapWithCompatCatch<P extends { sse: SSEWriter; logPrefix?: string }>(
     } catch (err) {
       if (isStreamFailure(err)) {
         log.warn(`${params.logPrefix ?? '[ChatGraph]'} ${label}: ${err.kind} — ${err.message}`);
-        return failStream(params.sse);
+        return failStream(params.sse, err.kind);
       }
       throw err;
     }
@@ -565,7 +577,7 @@ export async function streamWithFallback(params: {
     const sibling = primary.sibling;
     if (!sibling) {
       log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
-      return failStream(sse);
+      return failStream(sse, err.kind);
     }
 
     log.warn(
@@ -592,7 +604,7 @@ export async function streamWithFallback(params: {
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);
-        return failStream(sse);
+        return failStream(sse, fallbackErr.kind);
       }
       throw fallbackErr;
     }

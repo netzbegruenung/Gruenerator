@@ -390,6 +390,12 @@ export class LandesverbandScraper extends BaseScraper {
         const file = toProcess[i];
         try {
           // Layer-1 dedup: skip the download+OCR when the stored etag matches.
+          // Only applies to files that stored successfully (the etag is persisted
+          // on the point). Files that failed to store (OCR error, or <100-char
+          // text) carry no stored etag, so they are retried each full run — which
+          // is intended for transient OCR errors (e.g. a .docx that succeeds once
+          // Docling is reachable) and bounded to the nightly crawl via recentSkip.
+          // Files with a null WebDAV etag (rare on Nextcloud) also fall through.
           if (!forceUpdate && file.etag) {
             const existing = await scrollDocuments(
               this.qdrantClient,
@@ -632,7 +638,23 @@ export class LandesverbandScraper extends BaseScraper {
       result.skipped += pathResult.skipped;
       result.errors += pathResult.errors;
       result.totalVectors += pathResult.totalVectors;
-      result.contentTypes[contentPath.type] = pathResult;
+      // Accumulate into the per-type bucket: a source can have several paths of the
+      // same content type (e.g. multiple `beschluss` PDF archives + Wolke shares),
+      // so overwriting would report only the last path's counts for that type.
+      const existing = result.contentTypes[contentPath.type];
+      if (existing) {
+        existing.stored += pathResult.stored;
+        existing.updated += pathResult.updated;
+        existing.skipped += pathResult.skipped;
+        existing.errors += pathResult.errors;
+        existing.totalVectors += pathResult.totalVectors;
+        existing.newArticles.push(...pathResult.newArticles);
+        for (const [reason, count] of Object.entries(pathResult.skipReasons)) {
+          existing.skipReasons[reason] = (existing.skipReasons[reason] || 0) + count;
+        }
+      } else {
+        result.contentTypes[contentPath.type] = pathResult;
+      }
       result.newArticles.push(...pathResult.newArticles);
     }
 

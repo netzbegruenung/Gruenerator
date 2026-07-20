@@ -3,9 +3,11 @@ import {
   triggerBoardActionSchema,
   isCanvasTemplateType,
   chatStreamEventSchemas,
+  type ChatErrorEventPayload,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { ChatStreamError } from '../streamErrorMessage';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
@@ -1073,9 +1075,9 @@ export async function* parseSSEStream(
         }
 
         case 'error': {
-          const { error } = data as { error: string };
+          const payload = data as ChatErrorEventPayload;
           transitionStep('error');
-          throw new Error(error);
+          throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
         }
       }
     }
