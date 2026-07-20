@@ -31,12 +31,9 @@ import {
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
-import {
-  useSetUserDefault,
-  useUserDefault,
-} from '../../../../../../features/user-defaults/userDefaultsQueries';
-import { useAuthStore } from '../../../../../../stores/authStore';
-import { platformFetch } from '../../../../../../utils/platformFetch';
+import { useAuthStore } from '../../../stores/authStore';
+import { platformFetch } from '../../../utils/platformFetch';
+import { useSetUserDefault, useUserDefault } from '../../user-defaults/userDefaultsQueries';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
