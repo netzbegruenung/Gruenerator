@@ -57,12 +57,13 @@ const GruppenPage = () => {
   }, []);
 
   const handleCreateGroup = useCallback(
-    (groupName: string) => {
+    (groupName: string, groupType: 'standard' | 'personal') => {
       if (isCreatingGroup) return;
       const name = groupName.trim();
       setSuccessMessage('');
       setErrorMessage('');
       createGroup(name, {
+        groupType,
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
           showSuccess(`Space "${name}" erfolgreich erstellt!`);
