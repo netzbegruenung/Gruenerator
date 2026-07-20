@@ -207,6 +207,10 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
+  /** The AI-edit toggle is ON (edit_current_doc/board enabled). When OFF, the
+   *  tool must NOT mount — otherwise the model "edits" and claims success while
+   *  the client (which also gates on the toggle) refuses to apply. */
+  editToolEnabled: boolean;
   /** A current document/board is actually open (rawCurrentDocument/Board id present). */
   hasEditTarget: boolean;
   forcedTool: boolean;
@@ -230,6 +234,7 @@ export interface EditToolLoopInput {
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;
   if (!p.surfaceKind || !TOOL_EDIT_SURFACES.has(p.surfaceKind)) return false;
+  if (!p.editToolEnabled) return false;
   if (!p.hasEditTarget) return false;
   return !p.forcedTool && !p.isCompound && !p.hasImageAttachments && p.secondaryIntent == null;
 }
