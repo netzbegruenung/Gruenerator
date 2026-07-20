@@ -18,6 +18,11 @@ import { INTERMEDIATE_MODEL } from '../ai/providers.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
+import {
+  createPresentationFromText,
+  createSheetFromText,
+  generateTaskList,
+} from './agentFlow/artifactGen.js';
 import { buildCardAgentContext } from './agentFlow/cardContext.js';
 import { deriveTitle, generateFromState, prepareAgentState } from './agentFlow/generate.js';
 import { runFlow } from './agentFlow/index.js';
@@ -28,6 +33,8 @@ import {
   postBotComment,
   updateBotComment,
 } from './agentTaskService.js';
+import { addRowsToBoardLive } from './boardLiveRowService.js';
+import { resolveNewCardColumn } from './BoardService.js';
 import { inheritBoardSharingToDocument } from './boardSharingService.js';
 import { linkAgentDocumentToCard } from './cardDocumentService.js';
 
@@ -37,16 +44,22 @@ const log = createLogger('boardAgentWorker');
 
 const POLL_INTERVAL_MS = 5_000;
 
-// Decides whether a tagged comment wants a short answer (posted back as a comment)
-// or a created text artifact (a document).
+/** What the tagged comment wants the agent to produce. */
+type DeliverableKind = 'comment' | 'document' | 'sheet' | 'presentation' | 'tasks';
+
+// Decides how the Grünerator reacts to a tagged board comment: a short reply, a
+// text document, a spreadsheet, a presentation, or new task cards on the board.
 const DELIVERABLE_PROMPT = `Du entscheidest, wie der Grünerator auf eine Aufgabe in einem Board-Kommentar reagieren soll.
 
-Antworte NUR mit einem JSON-Objekt: {"format":"comment"} ODER {"format":"document"}.
+Antworte NUR mit einem JSON-Objekt: {"format":"comment"} ODER {"format":"document"} ODER {"format":"sheet"} ODER {"format":"presentation"} ODER {"format":"tasks"}.
 
 "comment" = der Nutzer stellt eine Frage oder will eine kurze Auskunft/Einschätzung, die als Antwort im Kommentar-Thread passt.
-"document" = der Nutzer möchte, dass ein eigenständiger Text erstellt wird (z. B. Pressemitteilung, Rede, Antrag, Brief, Konzept oder längerer Entwurf; "schreib/erstelle/verfasse …").
+"document" = der Nutzer möchte einen eigenständigen Text (z. B. Pressemitteilung, Rede, Antrag, Brief, Konzept, längerer Entwurf; "schreib/erstelle/verfasse …").
+"sheet" = der Nutzer bittet ausdrücklich um eine Tabelle / Spreadsheet / Kalkulation (Wörter wie "Tabelle", "Spreadsheet", "Liste als Tabelle", "Budget", "Übersicht in Spalten").
+"presentation" = der Nutzer bittet ausdrücklich um eine Präsentation / Folien / Slides ("Präsentation", "Folien", "Slides", "Foliensatz").
+"tasks" = der Nutzer möchte, dass neue Aufgaben/Karten im Board angelegt werden ("leg Aufgaben an", "zerlege das in To-Dos", "erstelle Karten für …", "unterteile die Aufgabe").
 
-Im Zweifel: eine Frage → "comment"; ein Auftrag, einen Text zu erstellen → "document".`;
+Wähle "sheet" oder "presentation" NUR bei ausdrücklicher Bitte um dieses Format; sonst "document". Im Zweifel: eine Frage → "comment"; ein Auftrag, einen Text zu erstellen → "document".`;
 
 // Intents that produce a non-text artifact (image/sharepic/chart) the board
 // agent can't deliver as a document — answered with a short explanation instead.
@@ -164,24 +177,113 @@ async function processTask(task: AgentTask): Promise<void> {
     });
     const { finalState } = prepared;
 
-    // The board agent only delivers text documents. For image/sharepic/chart
-    // intents the graph would burn work producing an artifact we can't attach, so
-    // answer with a short explanation and finish the task cleanly (no document).
-    if (UNSUPPORTED_INTENTS.has(finalState.intent)) {
+    // Decide the deliverable up front. Sheet/presentation/tasks are text-JSON
+    // artifacts, so they bypass the image/sharepic/chart guard below.
+    const deliverable = await classifyDeliverable(task.task_text);
+    const isStructured =
+      deliverable === 'sheet' || deliverable === 'presentation' || deliverable === 'tasks';
+
+    // The board agent can't deliver image/sharepic/chart artifacts. For those
+    // intents the graph would burn work producing something we can't attach, so
+    // answer with a short explanation and finish cleanly (structured artifacts
+    // are exempt — they are documents/cards, not media).
+    if (!isStructured && UNSUPPORTED_INTENTS.has(finalState.intent)) {
       await completeAgentTask(task.id, null);
       await finishComment([
         {
           type: 'text',
-          text: 'Ich kann auf Boards aktuell nur Text-Dokumente erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne als Textauftrag.',
+          text: 'Ich kann auf Boards aktuell nur Text-Dokumente, Tabellen, Präsentationen und Aufgaben erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne entsprechend.',
         },
       ]);
       log.info(`Agent task ${task.id} completed without document (intent: ${finalState.intent})`);
       return;
     }
 
-    // Decide the deliverable: a quick question is answered in the comment thread;
-    // a "create a text" request becomes a document.
-    const isDocument = (await classifyDeliverable(task.task_text)) === 'document';
+    // Research → prose (search/research tools). Structured artifacts always
+    // research first, then structure the researched prose — the same split the
+    // chat compound loop uses. The model calls the tools only when the task
+    // needs them.
+    const research = () =>
+      generateFromState(prepared, {
+        longForm: true,
+        slotLabel: `board-agent-${task.id}`,
+        ...(cardContext != null && { contextBlock: cardContext }),
+      });
+
+    if (deliverable === 'sheet' || deliverable === 'presentation') {
+      const researched = await research();
+      if (!researched) throw new Error('Der Agent lieferte kein Ergebnis');
+      const artifact =
+        deliverable === 'sheet'
+          ? await createSheetFromText(researched, task.requested_by)
+          : await createPresentationFromText(researched, task.requested_by);
+      if (!artifact) throw new Error('Der Agent lieferte keine gültige Struktur');
+
+      const kindLabel = deliverable === 'sheet' ? 'Tabelle' : 'Präsentation';
+      await inheritBoardSharingToDocument(artifact.id, task.board_id);
+      await linkAgentDocumentToCard(
+        task.board_id,
+        task.card_id,
+        artifact.id,
+        artifact.title,
+        task.requested_by
+      );
+      await completeAgentTask(task.id, artifact.id);
+      await createNotification({
+        userId: task.requested_by,
+        type: 'agent_task_completed',
+        title: `Deine ${kindLabel} ist fertig: ${artifact.title}`,
+        body: `Der Grünerator hat deine ${kindLabel} erstellt. Öffne sie, um das Ergebnis zu sehen.`,
+        actionUrl: artifact.url,
+        metadata: {
+          boardId: task.board_id,
+          cardId: task.card_id,
+          documentId: artifact.id,
+          taskId: task.id,
+        },
+        groupKey: `agent-task-${task.id}`,
+      });
+      await finishComment([
+        { type: 'text', text: `✅ Fertig! ${kindLabel} erstellt und mit der Karte verknüpft: ` },
+        { type: 'link', text: artifact.title, url: artifact.url },
+      ]);
+      log.info(`Agent task ${task.id} completed → ${deliverable} ${artifact.id}`);
+      return;
+    }
+
+    if (deliverable === 'tasks') {
+      const researched = await research();
+      const tasks = await generateTaskList(researched || task.task_text, task.requested_by);
+      if (tasks.length === 0) throw new Error('Der Agent konnte keine Aufgaben ableiten');
+
+      // Place new cards in the source card's column (fallback: first column).
+      const statusId = await resolveNewCardColumn(task.board_id, task.card_id);
+      const rows = tasks.map((t) => ({
+        title: t.title,
+        status: statusId,
+        ...(t.description != null && { description: t.description }),
+        ...(t.dueDate != null && { dueDate: t.dueDate }),
+      }));
+      await addRowsToBoardLive(task.board_id, rows, task.requested_by);
+      await completeAgentTask(task.id, null);
+
+      const countLabel = tasks.length === 1 ? '1 Aufgabe' : `${tasks.length} Aufgaben`;
+      await createNotification({
+        userId: task.requested_by,
+        type: 'agent_task_completed',
+        title: `${countLabel} angelegt`,
+        body: `Der Grünerator hat ${countLabel} im Board erstellt.`,
+        actionUrl: `/boards/${task.board_id}?card=${task.card_id}`,
+        metadata: { boardId: task.board_id, cardId: task.card_id, taskId: task.id },
+        groupKey: `agent-task-${task.id}`,
+      });
+      await finishComment([{ type: 'text', text: `✅ ${countLabel} angelegt.` }]);
+      log.info(`Agent task ${task.id} created ${tasks.length} card(s)`);
+      return;
+    }
+
+    // Text document / comment path.
+    const isDocument = deliverable === 'document';
 
     const content = await generateFromState(prepared, {
       longForm: isDocument,
@@ -289,7 +391,7 @@ async function processTask(task: AgentTask): Promise<void> {
  * comment) or a created document. Cheap intermediate-model call; defaults to
  * 'document' on any failure (preserves the prior always-a-document behaviour).
  */
-async function classifyDeliverable(taskText: string): Promise<'comment' | 'document'> {
+async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
   try {
     const response = await getAIService().processRequest({
       type: 'chat_intent_classification',
@@ -305,7 +407,16 @@ async function classifyDeliverable(taskText: string): Promise<'comment' | 'docum
     });
     const match = (response.content || '').match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(match?.[0] || '{}') as { format?: unknown };
-    return parsed.format === 'comment' ? 'comment' : 'document';
+    const format = parsed.format;
+    if (
+      format === 'comment' ||
+      format === 'sheet' ||
+      format === 'presentation' ||
+      format === 'tasks'
+    ) {
+      return format;
+    }
+    return 'document';
   } catch (err) {
     log.warn('Deliverable classification failed, defaulting to document', { error: errMsg(err) });
     return 'document';
