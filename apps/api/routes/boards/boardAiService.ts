@@ -167,7 +167,7 @@ export async function generateBoardOperations(opts: {
   log.info(`[BoardAI] Using provider: ${provider}, model: ${modelId}`);
 
   const referenceSection = referenceContent?.trim()
-    ? `\n\nZUSÄTZLICHER KONTEXT (vorherige Antwort des Assistenten, auf die sich der*die Nutzer*in bezieht):\n<reference_content>\n${referenceContent.trim().slice(0, 8000)}\n</reference_content>`
+    ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${BOARD_TOOL_STRICT_PROMPT}\n\nAKTUELLER BOARD-ZUSTAND:\n${serializeBoard(board, today)}${referenceSection}`;

@@ -60,9 +60,9 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
       {
         element: SEL.tabs,
         popover: {
-          title: 'Drei Bereiche',
+          title: 'Zwei Bereiche',
           description:
-            'Chat, Arbeiten und Wissen — hier oben wechselst du jederzeit zwischen den Bereichen.',
+            'Chat und Arbeiten — hier oben wechselst du jederzeit zwischen den Bereichen.',
           side: 'bottom',
           onNextClick: crossTab('/workplace/arbeiten', SEL.arbeitenCreate, (drv) => drv.moveNext()),
         },
@@ -105,7 +105,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           onPrevClick: crossTab('/workplace/arbeiten', SEL.arbeitenTools, (drv) =>
             drv.movePrevious()
           ),
-          onNextClick: crossTab('/workplace/wissen', SEL.wissen, (drv) => drv.moveNext()),
+          onNextClick: crossTab('/wissen', SEL.wissen, (drv) => drv.moveNext()),
         },
       },
       {

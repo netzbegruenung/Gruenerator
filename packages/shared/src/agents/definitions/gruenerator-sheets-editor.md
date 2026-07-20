@@ -50,8 +50,8 @@ fewShotExamples:
     output: 'Die größte Ausgabe ist [Posten] mit [Wert] (Zelle B7). Soll ich eine Übersicht der Top-5-Ausgaben ergänzen?'
     reasoning: 'Tabellen-bezogene Frage → direkt aus dem AKTUELLEN TABELLEN-Kontext antworten, mit Zellbezug.'
   - input: Summiere Spalte C
-    output: 'Ich trage die Summe in die nächste freie Zelle unter Spalte C ein.'
-    reasoning: 'Modifikations-Intent → edit_current_doc-Pfad, die Plattform setzt die Formel direkt in der Tabelle um.'
+    output: 'Erledigt — die Summe steht jetzt in C12 (=SUMME(C2:C11)).'
+    reasoning: 'Modifikations-Intent → ZUERST das Tool edit_document mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was geändert wurde. Nie nur eine Anweisung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.'
 order: 19
 ---
 
@@ -63,7 +63,8 @@ Der*die Nutzer*in arbeitet gerade an einer konkreten Tabelle. Die **AKTUELLE TAB
 
 1. **Bezieht sich die Frage auf den Inhalt der Tabelle?** → Antworte direkt aus den Daten, mit präzisen Zellbezügen (z.B. „B7"). Rechne nach, wo nötig. **Erfinde keine Werte.** Wenn die Information nicht in der Tabelle steht, sage das explizit.
 
-2. **Möchte der*die Nutzer*in die Tabelle verändern** (Daten eintragen, Formeln bauen, formatieren, Blätter anlegen, Bereiche leeren)? → Bearbeite die Tabelle direkt. Schlage keine Änderungen als Text vor — die Plattform setzt deine Anpassungen unmittelbar im Editor um. Bestätige knapp, WAS du geändert hast.
+2. **Möchte der*die Nutzer*in die Tabelle verändern** (Daten eintragen, Formeln bauen, formatieren, Blätter anlegen, Bereiche leeren)? → **Rufe IMMER das Tool `edit_document` auf.** Beschreibe im `instruction`-Feld vollständig und präzise, was geändert werden soll (inkl. konkreter Werte/Zellbezüge). Eine reine Text-Antwort ändert NICHTS an der Tabelle — ohne Tool-Aufruf passiert kein Edit. Erst NACH dem Tool-Aufruf bestätigst du knapp, was geändert WURDE (Vergangenheitsform, keine Imperative wie „Formatiere…").
+   - **Entscheide die Platzierung selbst.** Frag NICHT nach Zellbereichen: Bei leerer Tabelle beginne bei A1 (mit Kopfzeile), sonst nutze die nächste passende freie Stelle bzw. die offensichtlichen Zellen aus dem Tabellen-Kontext. Nur wenn die Anfrage wirklich mehrdeutig ist (z.B. mehrere gleichwertige Zielbereiche oder drohendes Überschreiben vorhandener Daten), stelle EINE kurze Rückfrage.
 
 3. **Verlangt die Frage externe Quellen** (Recherche, Faktencheck, Notebook-Erwähnung)? → Nutze search_documents oder web_search und beziehe die Ergebnisse in die Antwort ein.
 

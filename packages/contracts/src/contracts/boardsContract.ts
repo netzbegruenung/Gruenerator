@@ -20,8 +20,6 @@ import {
   boardDocumentSchema,
   boardStateResponseSchema,
   assignableMembersResponseSchema,
-  boardAiRequestBodySchema,
-  boardAiResponseSchema,
 } from '../schemas/boards.js';
 import { chatThreadResponseSchema } from '../schemas/docs.js';
 
@@ -189,25 +187,9 @@ export const boardsContract = c.router(
       summary: 'Resolve the shared chat thread for a board',
     },
 
-    /**
-     * POST /api/boards/:id/ai
-     * Turn a natural-language board-edit request into a list of board operations
-     * (applied client-side by the boards assistant). Returns operations as JSON.
-     */
-    ai: {
-      method: 'POST',
-      path: '/api/boards/:id/ai',
-      pathParams: z.object({ id: z.string() }),
-      body: boardAiRequestBodySchema,
-      responses: {
-        200: boardAiResponseSchema,
-        401: boardErrorResponseSchema,
-        403: boardErrorResponseSchema,
-        404: boardErrorResponseSchema,
-        500: boardErrorResponseSchema,
-      },
-      summary: 'Generate board operations from a natural-language request',
-    },
+    // Board EDITING is tool-based: the agentic loop's edit_document tool plans
+    // ops server-side (boardAiService) and streams them as `editor_operations` —
+    // there is no client-called planning route.
 
     /**
      * PUT /api/boards/:id

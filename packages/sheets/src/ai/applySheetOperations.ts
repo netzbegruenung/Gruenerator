@@ -1,8 +1,12 @@
 import { columnIndex, type SheetOperation } from '@gruenerator/contracts';
-import { CellValueType, type Serializable } from '@univerjs/core';
+import { CellValueType } from '@univerjs/core';
 import { type FWorkbook, type FWorksheet } from '@univerjs/preset-sheets-core';
 
-import { buildChartData } from './buildChartData.js';
+// TEMPORARILY DISABLED — chart rendering (add_chart) is a bespoke Univer float-DOM
+// that renders as a full-table overlay, isn't removable, and doesn't undo. Re-enable
+// with a proper fix (positioning/remove-UI/undo) in a dedicated PR.
+// import { type Serializable } from '@univerjs/core';
+// import { buildChartData } from './buildChartData.js';
 
 /** Key under which SheetChartFloat is registered via univerAPI.registerComponent. */
 export const SHEET_CHART_COMPONENT_KEY = 'GrueneratorSheetChart';
@@ -149,8 +153,14 @@ export function applySheetOperations(
           break;
         }
         case 'add_chart': {
-          // Read LOGICAL values (getCellDatas().v), not display strings, so
-          // numbers stay numeric for the chart.
+          // TEMPORARILY DISABLED — see the commented import block above. The
+          // bespoke float-DOM chart renders as a full-table overlay, can't be
+          // removed, and doesn't respond to undo. Skip cleanly (the model is
+          // also told not to emit add_chart, see sheetAiService prompt) until a
+          // proper Univer chart integration lands.
+          skipped.push('Diagramme sind vorübergehend deaktiviert.');
+          break;
+          /* Original implementation — restore with the proper fix:
           const sheet = resolveSheet(workbook, op.sheet);
           const range = sheet.getRange(op.range);
           const values = range.getCellDatas().map((row) => (row ?? []).map((c) => c?.v ?? null));
@@ -159,27 +169,19 @@ export function applySheetOperations(
             skipped.push('Diagramm übersprungen: kein auswertbarer Datenbereich.');
             break;
           }
-          // Float DOM anchored to the data range: renders SheetChartFloat live,
-          // moves/persists with the grid, and (being a drawing MUTATION) syncs
-          // through the collab bridge + snapshot. Draggable via allowTransform.
           sheet.addFloatDomToRange(
             range,
             {
               componentKey: SHEET_CHART_COMPONENT_KEY,
-              // Boundary cast: SheetChartData is JSON-serializable (all fields are
-              // strings/numbers/arrays), but its typed shape lacks the index
-              // signature Univer's Serializable requires.
               data: data as unknown as Serializable,
               allowTransform: true,
             },
-            // A readable default size. Without width/height Univer sizes the box
-            // to the source range's pixel extent (~100px for e.g. H1:J5), which
-            // collapses the plot area and makes the bars invisible.
             { width: 480, height: 320 },
             `chart-${crypto.randomUUID()}`
           );
           applied++;
           break;
+          */
         }
         default: {
           // Exhaustive: new operation types must be handled explicitly.

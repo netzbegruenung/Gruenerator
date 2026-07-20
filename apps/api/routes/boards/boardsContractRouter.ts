@@ -42,7 +42,6 @@ import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
 import { checkBoardAccess } from './boardAccess.js';
-import { generateBoardOperations } from './boardAiService.js';
 
 import type { Application } from 'express';
 
@@ -376,42 +375,6 @@ export const boardsContractRouter = s.router(boardsContract, {
         status: 500 as const,
         body: {
           error: 'Failed to resolve chat thread',
-          details: error instanceof Error ? error.message : String(error),
-        },
-      };
-    }
-  },
-
-  ai: async (args) => {
-    try {
-      const { id } = args.params;
-      const userId = getAuthedUser(args.req).id;
-      const { userPrompt, board, referenceContent } = args.body;
-
-      // Re-enforce write access server-side — never trust the client.
-      const { hasAccess, createdBy, canEdit } = await checkBoardAccess(id, userId);
-      if (!createdBy) {
-        return { status: 404 as const, body: { error: 'Board not found' } };
-      }
-      if (!hasAccess || !canEdit) {
-        return { status: 403 as const, body: { error: 'No write access to this board' } };
-      }
-
-      const today = new Date().toISOString().slice(0, 10);
-      const operations = await generateBoardOperations({
-        userPrompt,
-        board,
-        referenceContent: referenceContent ?? null,
-        today,
-      });
-
-      return { status: 200 as const, body: { operations } };
-    } catch (error) {
-      log.error('[Boards Contract] Error generating board operations:', error);
-      return {
-        status: 500 as const,
-        body: {
-          error: 'Failed to generate board operations',
           details: error instanceof Error ? error.message : String(error),
         },
       };
