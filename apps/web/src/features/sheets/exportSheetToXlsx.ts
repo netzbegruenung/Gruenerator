@@ -103,7 +103,9 @@ export function buildXlsxWorkbook(XLSX: typeof XLSXNS, snapshot: IWorkbookData):
 export function toXlsxFilename(title: string): string {
   const base =
     title
-      .replace(/\.[^.]+$/, '')
+      // Strip only a real spreadsheet extension — a dot inside the title
+      // (e.g. "Budget v1.2") is part of the name, not an extension.
+      .replace(/\.(xlsx|xls|csv)$/i, '')
       .replace(/[/\\?%*:|"<>]/g, '')
       .trim() || 'Tabelle';
   return `${base}.xlsx`;

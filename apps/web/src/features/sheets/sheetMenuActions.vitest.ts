@@ -5,18 +5,36 @@ import { createSheetMenuActions, SHEET_MENU_COMMAND_IDS } from './sheetMenuActio
 import type { FUniver } from '@gruenerator/sheets';
 
 /** Build a mock FUniver + the spies the actions touch. */
-function makeApi(opts: { filter?: { remove: () => void } | null } = {}) {
+function makeApi(
+  opts: {
+    filter?: { remove: () => void } | null;
+    single?: boolean;
+    addTable?: (name: string) => boolean | Promise<boolean>;
+  } = {}
+) {
   const filter = opts.filter ?? null;
+  // A single-cell selection reports width/height 1 → actions expand to data range.
+  const dim = opts.single ? 1 : 3;
+  const dataRange = {
+    createFilter: vi.fn(),
+    getColumn: vi.fn(() => 0),
+    getWidth: vi.fn(() => 10),
+    getHeight: vi.fn(() => 10),
+    getRange: vi.fn(() => ({ startRow: 0, startColumn: 0, endRow: 9, endColumn: 9 })),
+  };
   const range = {
     createFilter: vi.fn(),
     getColumn: vi.fn(() => 2),
+    getWidth: vi.fn(() => dim),
+    getHeight: vi.fn(() => dim),
     getRange: vi.fn(() => ({ startRow: 0, startColumn: 2, endRow: 5, endColumn: 4 })),
   };
   const sheet = {
     getFilter: vi.fn(() => filter),
     getActiveRange: vi.fn(() => range),
+    getDataRange: vi.fn(() => dataRange),
     sort: vi.fn(),
-    addTable: vi.fn(),
+    addTable: vi.fn(opts.addTable ?? (() => true)),
   };
   const workbook = { getActiveSheet: vi.fn(() => sheet) };
   const executeCommand = vi.fn<(id: string, params?: unknown, options?: unknown) => void>();
@@ -24,7 +42,7 @@ function makeApi(opts: { filter?: { remove: () => void } | null } = {}) {
     getActiveWorkbook: vi.fn(() => workbook),
     executeCommand,
   } as unknown as FUniver;
-  return { api, sheet, range, executeCommand };
+  return { api, sheet, range, dataRange, executeCommand };
 }
 
 describe('createSheetMenuActions', () => {
@@ -50,15 +68,38 @@ describe('createSheetMenuActions', () => {
     expect(sheet.sort).toHaveBeenLastCalledWith(2, false);
   });
 
-  it('insertTable adds a table over the active range', () => {
+  it('insertTable adds a table over the active range', async () => {
     const { api, sheet } = makeApi();
-    createSheetMenuActions(api).insertTable();
+    const ok = await createSheetMenuActions(api).insertTable();
+    expect(ok).toBe(true);
     expect(sheet.addTable).toHaveBeenCalledWith('Tabelle', {
       startRow: 0,
       startColumn: 2,
       endRow: 5,
       endColumn: 4,
     });
+  });
+
+  it('insertTable expands a single-cell selection to the data range', async () => {
+    const { api, sheet, dataRange } = makeApi({ single: true });
+    await createSheetMenuActions(api).insertTable();
+    expect(sheet.getDataRange).toHaveBeenCalled();
+    expect(sheet.addTable).toHaveBeenCalledWith('Tabelle', {
+      startRow: 0,
+      startColumn: 0,
+      endRow: 9,
+      endColumn: 9,
+    });
+    expect(dataRange.getRange).toHaveBeenCalled();
+  });
+
+  it('insertTable retries with a unique name when the default is taken', async () => {
+    const { api, sheet } = makeApi({ addTable: (name) => name === 'Tabelle 2' });
+    const ok = await createSheetMenuActions(api).insertTable();
+    expect(ok).toBe(true);
+    expect(sheet.addTable).toHaveBeenCalledTimes(2);
+    expect(sheet.addTable).toHaveBeenNthCalledWith(1, 'Tabelle', expect.anything());
+    expect(sheet.addTable).toHaveBeenNthCalledWith(2, 'Tabelle 2', expect.anything());
   });
 
   it('panel/dialog actions dispatch the exact verified command ids', () => {
@@ -78,13 +119,13 @@ describe('createSheetMenuActions', () => {
     ]);
   });
 
-  it('no-ops without throwing when there is no active workbook', () => {
+  it('no-ops without throwing when there is no active workbook', async () => {
     const api = { getActiveWorkbook: () => null, executeCommand: vi.fn() } as unknown as FUniver;
     const actions = createSheetMenuActions(api);
     expect(() => {
       actions.toggleFilter();
       actions.sort(true);
-      actions.insertTable();
     }).not.toThrow();
+    await expect(actions.insertTable()).resolves.toBe(false);
   });
 });

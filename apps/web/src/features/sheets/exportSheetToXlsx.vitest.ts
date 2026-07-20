@@ -73,8 +73,12 @@ describe('buildXlsxWorkbook', () => {
 });
 
 describe('toXlsxFilename', () => {
-  it('strips an existing extension and illegal chars, appends .xlsx', () => {
+  it('strips an existing spreadsheet extension and illegal chars, appends .xlsx', () => {
     expect(toXlsxFilename('Mitglieder: Q1/Q2.csv')).toBe('Mitglieder Q1Q2.xlsx');
+  });
+  it('keeps a dot that is part of the title, not an extension', () => {
+    expect(toXlsxFilename('Budget v1.2')).toBe('Budget v1.2.xlsx');
+    expect(toXlsxFilename('Kennzahlen Q1.2 final')).toBe('Kennzahlen Q1.2 final.xlsx');
   });
   it('falls back for an empty title', () => {
     expect(toXlsxFilename('   ')).toBe('Tabelle.xlsx');

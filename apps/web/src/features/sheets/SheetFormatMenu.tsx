@@ -21,6 +21,7 @@ import {
   FiSearch,
   FiSliders,
 } from 'react-icons/fi';
+import { toast } from 'sonner';
 
 import { downloadActiveWorkbookAsXlsx } from './exportSheetToXlsx';
 import { createSheetMenuActions } from './sheetMenuActions';
@@ -40,6 +41,21 @@ interface SheetFormatMenuProps {
  */
 export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuProps) {
   const actions = useMemo(() => createSheetMenuActions(univerAPI), [univerAPI]);
+
+  const handleInsertTable = () => {
+    actions
+      .insertTable()
+      .then((ok) => {
+        if (!ok) toast.error('Tabelle konnte nicht eingefügt werden.');
+      })
+      .catch(() => toast.error('Tabelle konnte nicht eingefügt werden.'));
+  };
+
+  const handleExport = () => {
+    downloadActiveWorkbookAsXlsx(univerAPI, documentTitle ?? 'Tabelle').catch(() =>
+      toast.error('Export fehlgeschlagen.')
+    );
+  };
 
   return (
     <DropdownMenu>
@@ -73,7 +89,7 @@ export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuPro
           <FiDroplet className="mr-2 h-4 w-4" />
           Bedingte Formatierung…
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={actions.insertTable}>
+        <DropdownMenuItem onClick={handleInsertTable}>
           <FiGrid className="mr-2 h-4 w-4" />
           Tabelle einfügen
         </DropdownMenuItem>
@@ -95,9 +111,7 @@ export function SheetFormatMenu({ univerAPI, documentTitle }: SheetFormatMenuPro
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Datei</DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() => void downloadActiveWorkbookAsXlsx(univerAPI, documentTitle ?? 'Tabelle')}
-        >
+        <DropdownMenuItem onClick={handleExport}>
           <FiDownload className="mr-2 h-4 w-4" />
           Als Excel (.xlsx) herunterladen
         </DropdownMenuItem>
