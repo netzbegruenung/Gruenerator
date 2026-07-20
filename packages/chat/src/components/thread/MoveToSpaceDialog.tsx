@@ -54,6 +54,12 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
         console.error('[MoveToSpace] PATCH rejected:', res.status);
         return;
       }
+      // Let the web Space page / sidebar refresh their filed-chats lists.
+      try {
+        window.dispatchEvent(new CustomEvent('gruenerator:space-threads-changed'));
+      } catch {
+        // no window (SSR) — ignore
+      }
       onOpenChange(false);
     } catch (err) {
       console.error('[MoveToSpace] PATCH failed:', err);
@@ -67,10 +73,11 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
     if (!name) return;
     setSaving(true);
     try {
+      // Spaces created inline from a chat default to personal (solo organizing).
       const res = await fetchFn('/api/auth/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, groupType: 'personal' }),
       });
       if (!res.ok) {
         console.error('[MoveToSpace] create rejected:', res.status);
@@ -142,6 +149,11 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
               Anlegen
             </button>
           </div>
+
+          <p className="mt-3 text-xs text-grey-400">
+            Ein Chat hat einen Heim-Space. Über „Teilen" kannst du ihn zusätzlich mit weiteren
+            Spaces teilen.
+          </p>
 
           <div className="mt-4 flex justify-between">
             <button

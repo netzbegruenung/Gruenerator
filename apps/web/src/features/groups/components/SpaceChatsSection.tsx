@@ -2,6 +2,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { SectionHeader } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { PiChatCircle } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,7 +13,11 @@ import { useNavigate } from 'react-router-dom';
  */
 export function SpaceChatsSection({ groupId }: { groupId: string }) {
   const navigate = useNavigate();
-  const { data: threads = [], isLoading } = useQuery({
+  const {
+    data: threads = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['space-chats', groupId],
     queryFn: async () => {
       const res = await getContractsClient().threads.list({ query: {} });
@@ -20,6 +25,14 @@ export function SpaceChatsSection({ groupId }: { groupId: string }) {
       return res.body.filter((t) => t.groupId === groupId && t.status !== 'archived');
     },
   });
+
+  // Refresh when a chat is filed into / removed from a Space (event from the
+  // chat-side MoveToSpaceDialog, which has no access to this query client).
+  useEffect(() => {
+    const onChanged = () => void refetch();
+    window.addEventListener('gruenerator:space-threads-changed', onChanged);
+    return () => window.removeEventListener('gruenerator:space-threads-changed', onChanged);
+  }, [refetch]);
 
   if (!isLoading && threads.length === 0) return null;
 

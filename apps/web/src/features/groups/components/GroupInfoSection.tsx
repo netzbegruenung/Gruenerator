@@ -65,6 +65,7 @@ export interface GroupInfo {
   links?: GroupLink[];
   is_public?: boolean;
   audience?: GroupAudience;
+  group_type?: 'standard' | 'personal';
 }
 
 export interface GroupData {
@@ -196,7 +197,7 @@ const GroupInfoSection = memo(
       setGroupMute.mutate(next, {
         onSuccess: () =>
           onSuccessMessage?.(
-            next ? 'Gruppe stummgeschaltet.' : 'Benachrichtigungen wieder aktiviert.'
+            next ? 'Space stummgeschaltet.' : 'Benachrichtigungen wieder aktiviert.'
           ),
         onError: (err: Error) =>
           onErrorMessage?.('Fehler beim Aktualisieren der Benachrichtigungen: ' + err.message),
@@ -242,6 +243,9 @@ const GroupInfoSection = memo(
     );
     const onlineCount = onlineMembers.length;
     const memberCount = members?.length ?? 0;
+    // Personal Space: a solo workspace — hide team collaboration chrome
+    // (invite link, visibility, join requests).
+    const isPersonal = data?.groupInfo?.group_type === 'personal';
 
     const handleSaveBoth = useCallback(() => {
       saveGroupName();
@@ -327,7 +331,7 @@ const GroupInfoSection = memo(
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-xs" aria-label="Gruppenaktionen">
+                <Button variant="ghost" size="icon-xs" aria-label="Space-Aktionen">
                   <HiDotsVertical />
                 </Button>
               </DropdownMenuTrigger>
@@ -365,24 +369,28 @@ const GroupInfoSection = memo(
                       disabled={isUploadingAvatar}
                     >
                       <HiOutlinePhotograph className="size-4 mr-xs" />
-                      Gruppenbild ändern
+                      Space-Bild ändern
                     </DropdownMenuItem>
                     {data?.groupInfo?.avatar_url && onDeleteAvatar && (
                       <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
                         <HiOutlineTrash className="size-4 mr-xs" />
-                        Gruppenbild entfernen
+                        Space-Bild entfernen
                       </DropdownMenuItem>
                     )}
-                    {data?.joinToken && (
+                    {!isPersonal && data?.joinToken && (
                       <DropdownMenuItem onClick={copyJoinLink}>
                         <HiOutlineLink className="size-4 mr-xs" />
                         {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
-                      <HiOutlineGlobeAlt className="size-4 mr-xs" />
-                      {data?.groupInfo?.is_public ? 'Öffentlich (verwalten)' : 'Öffentlich machen'}
-                    </DropdownMenuItem>
+                    {!isPersonal && (
+                      <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
+                        <HiOutlineGlobeAlt className="size-4 mr-xs" />
+                        {data?.groupInfo?.is_public
+                          ? 'Öffentlich (verwalten)'
+                          : 'Öffentlich machen'}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => setShowDeleteConfirm(true)}
@@ -390,7 +398,7 @@ const GroupInfoSection = memo(
                       className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                     >
                       <HiOutlineTrash className="size-4 mr-xs" />
-                      Gruppe löschen
+                      Space löschen
                     </DropdownMenuItem>
                   </>
                 )}
@@ -405,7 +413,7 @@ const GroupInfoSection = memo(
                   src={resolveApiAssetUrl(
                     `/api/auth/groups/${groupId}/avatar?t=${avatarTimestamp}`
                   )}
-                  alt={data?.groupInfo?.name || 'Gruppe'}
+                  alt={data?.groupInfo?.name || 'Space'}
                   className="size-16 rounded-full object-cover ring-2 ring-grey-200 dark:ring-grey-700"
                 />
               ) : (
@@ -421,7 +429,7 @@ const GroupInfoSection = memo(
                   className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover/avatar:bg-black/40 transition-colors cursor-pointer border-none"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  aria-label="Gruppenbild ändern"
+                  aria-label="Space-Bild ändern"
                 >
                   <HiOutlinePhotograph className="size-5 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
                 </button>
@@ -447,16 +455,16 @@ const GroupInfoSection = memo(
                   value={editedGroupName}
                   onChange={handleGroupNameChange}
                   className="w-full rounded-md border-2 border-primary-500 bg-background px-sm py-xs text-2xl font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="Gruppenname"
+                  placeholder="Space-Name"
                   maxLength={100}
                   autoFocus
-                  aria-label="Gruppenname bearbeiten"
+                  aria-label="Space-Name bearbeiten"
                 />
                 <textarea
                   value={editedGroupDescription}
                   onChange={handleGroupDescriptionChange}
                   className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                  placeholder="Beschreibung der Gruppe (optional)..."
+                  placeholder="Beschreibung der Space (optional)..."
                   maxLength={500}
                   disabled={isUpdatingGroupName}
                   style={{ minHeight: 'auto' }}
@@ -500,14 +508,14 @@ const GroupInfoSection = memo(
                   {data?.groupInfo?.description ||
                     (data?.isAdmin
                       ? 'Verwalte Mitglieder und geteilte Inhalte.'
-                      : 'Du bist Mitglied dieser Gruppe.')}
+                      : 'Du bist Mitglied dieser Space.')}
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {data?.isAdmin && (
+        {!isPersonal && data?.isAdmin && (
           <GroupJoinRequestsSection
             groupId={groupId}
             isAdmin={!!data?.isAdmin}
@@ -614,7 +622,7 @@ const GroupInfoSection = memo(
               return (
                 <div className="flex items-center justify-center py-2xl text-center">
                   <p className="text-sm text-grey-500">
-                    Noch keine geteilten Inhalte in dieser Gruppe.
+                    Noch keine geteilten Inhalte in dieser Space.
                   </p>
                 </div>
               );
@@ -717,7 +725,7 @@ const GroupInfoSection = memo(
                                       )
                                     }
                                     className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
-                                    aria-label="Aus Gruppe entfernen"
+                                    aria-label="Aus Space entfernen"
                                   >
                                     <HiOutlineTrash size={16} />
                                   </button>
@@ -768,7 +776,7 @@ const GroupInfoSection = memo(
                                     )
                                   }
                                   className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
-                                  aria-label="Aus Gruppe entfernen"
+                                  aria-label="Aus Space entfernen"
                                 >
                                   <HiOutlineTrash size={16} />
                                 </button>
@@ -815,9 +823,9 @@ const GroupInfoSection = memo(
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
-              <DialogTitle>Gruppe löschen</DialogTitle>
+              <DialogTitle>Space löschen</DialogTitle>
               <DialogDescription>
-                Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle
+                Die gesamte Space wird für alle Mitglieder unwiderruflich gelöscht. Alle
                 Gruppeninhalte und -mitgliedschaften werden permanent entfernt.
               </DialogDescription>
             </DialogHeader>
