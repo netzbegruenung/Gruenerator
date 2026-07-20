@@ -1507,6 +1507,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // compoundEdit (research + edit) forces this even when the intent isn't
       // edit_current_doc: the research loop just ran, and its gathered sources
       // become the reference material (instead of a prior assistant turn).
+      // NOTE: the CANVAS (sharepic editor) also rides this path — it sets
+      // customEnabledTools.edit_current_doc and sends currentDocument.id = docKey,
+      // so a canvas edit dispatches trigger_doc_edit here too (its handler calls
+      // /api/canvas/ai-suggest). Don't add doc-only assumptions under this branch
+      // without also checking resolveEditorSurfaceKind !== 'canvas'.
       if (
         !editToolLoop &&
         (finalState.intent === 'edit_current_doc' || (compoundEdit && editTarget === 'doc')) &&
