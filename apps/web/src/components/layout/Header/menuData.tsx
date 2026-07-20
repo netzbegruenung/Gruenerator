@@ -1,6 +1,7 @@
 import { FaCloud, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import { PiGlobe, PiSparkle } from 'react-icons/pi';
+import { PiGlobe } from 'react-icons/pi';
+import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
@@ -81,7 +82,7 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     path: '/agentura',
     title: 'Grüneratoren',
     description: 'Deine KI-Grüneratoren',
-    icon: PiSparkle,
+    icon: RiSpyLine,
     activePaths: ['/agentura', '/agents'],
   };
 
