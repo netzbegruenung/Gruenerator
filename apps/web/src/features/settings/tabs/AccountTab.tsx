@@ -3,14 +3,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Suspense,
   lazy,
-  useCallback,
-  useEffect,
-  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
+
+import SettingsRow from '../components/SettingsRow';
 
 import TextInput from '@/components/common/Form/Input/TextInput';
 import { RobotAvatar } from '@/components/common/RobotAvatar';
@@ -20,8 +19,6 @@ import {
   profileApiService,
   initializeProfileFormFields,
   type Profile,
-  type ProfileFormFields,
-  type ProfileUpdateData,
 } from '@/features/auth/services/profileApiService';
 import { useOptimizedAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
@@ -43,36 +40,12 @@ const AccountTab = () => {
   } = useProfile(user?.id);
   const profile = profileData as Profile | undefined;
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
-  const syncProfile = useProfileStore((s) => s.syncProfile);
 
-  const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState('');
-  const isInitialized = useRef(false);
-
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: ProfileUpdateData) => {
-      if (!user) throw new Error('Nicht angemeldet');
-      return await profileApiService.updateProfile(data);
-    },
-    onSuccess: (updatedProfile: Profile) => {
-      if (user?.id && updatedProfile) {
-        queryClient.setQueryData(['profileData', user.id], (oldData: Profile | undefined) => ({
-          ...oldData,
-          ...updatedProfile,
-        }));
-        const currentData = queryClient.getQueryData<Profile>(['profileData', user.id]);
-        if (currentData) syncProfile(currentData);
-      }
-    },
-    retry: 1,
-    retryDelay: 1000,
-  });
 
   const updateAvatarMutation = useMutation({
     mutationFn: async (avatarRobotId: string | number) => {
@@ -109,68 +82,7 @@ const AccountTab = () => {
     },
   });
 
-  const updateProfile = updateProfileMutation.mutateAsync;
   const updateAvatar = updateAvatarMutation.mutateAsync;
-
-  // Latest field values + persist fn, read by the flush-on-unmount path without
-  // stale closures (kept current via the sync effect below).
-  const fieldsRef = useRef({ displayName, username, email });
-  const savedRef = useRef<{ displayName: string; username: string; email: string } | null>(null);
-
-  const persist = useCallback(async () => {
-    const saved = savedRef.current;
-    if (!saved) return;
-    const current = fieldsRef.current;
-    if (
-      current.displayName === saved.displayName &&
-      current.username === saved.username &&
-      current.email === saved.email
-    ) {
-      return;
-    }
-    savedRef.current = current;
-    const data: ProfileUpdateData = {
-      display_name: current.displayName || current.email || user?.username || 'Benutzer',
-      username: current.username || null,
-      email: current.email?.trim() || null,
-    };
-    try {
-      await updateProfile(data);
-    } catch {
-      savedRef.current = saved;
-      toast.error('Automatisches Speichern fehlgeschlagen.');
-    }
-  }, [updateProfile, user?.username]);
-  const persistRef = useRef(persist);
-
-  useEffect(() => {
-    fieldsRef.current = { displayName, username, email };
-    persistRef.current = persist;
-  });
-
-  useEffect(() => {
-    if (!profile || !user || isInitialized.current) return;
-    const formFields: ProfileFormFields = initializeProfileFormFields(profile, user);
-    setDisplayName(formFields.displayName);
-    setUsername(formFields.username);
-    setEmail(formFields.email);
-    savedRef.current = {
-      displayName: formFields.displayName,
-      username: formFields.username,
-      email: formFields.email,
-    };
-    isInitialized.current = true;
-  }, [profile, user]);
-
-  useEffect(() => {
-    if (!savedRef.current) return;
-    const timer = setTimeout(() => void persist(), 1500);
-    return () => clearTimeout(timer);
-  }, [displayName, username, email, persist]);
-
-  // Flush a pending edit on tab switch / dialog close, so it is never dropped
-  // (Radix unmounts inactive TabsContent).
-  useEffect(() => () => void persistRef.current(), []);
 
   const handleAvatarSelect = async (robotId: string | number) => {
     try {
@@ -216,24 +128,24 @@ const AccountTab = () => {
 
   if (!user) return null;
 
+  // Read-only profile fields — managed via the identity provider, not here.
+  const fields =
+    profile && !isLoadingProfile
+      ? initializeProfileFormFields(profile, user)
+      : { displayName: '', username: '', email: '' };
+
   return (
     <div className="flex flex-col gap-lg">
-      {(updateProfileMutation.isError || isErrorProfileQuery) && (
+      {isErrorProfileQuery && (
         <div className="flex items-center gap-sm rounded-lg bg-red-50 p-md text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
-          <span>
-            {updateProfileMutation.error?.message ||
-              errorProfileQuery?.message ||
-              'Ein Fehler ist aufgetreten.'}
-          </span>
-          {isErrorProfileQuery && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => queryClient.refetchQueries({ queryKey: ['profileData', user.id] })}
-            >
-              Erneut versuchen
-            </Button>
-          )}
+          <span>{errorProfileQuery?.message || 'Ein Fehler ist aufgetreten.'}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.refetchQueries({ queryKey: ['profileData', user.id] })}
+          >
+            Erneut versuchen
+          </Button>
         </div>
       )}
 
@@ -253,8 +165,8 @@ const AccountTab = () => {
         >
           <RobotAvatar
             robotId={typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)}
-            displayName={displayName}
-            email={email}
+            displayName={fields.displayName}
+            email={fields.email}
             sizePx={64}
             className="size-full"
             fallbackClassName="text-2xl"
@@ -271,44 +183,20 @@ const AccountTab = () => {
           <Spinner size="medium" />
         </div>
       ) : (
-        <div className="flex flex-col gap-md">
-          <div className="flex flex-col gap-xxs">
-            <label htmlFor="settings-display-name" className="text-sm font-medium text-foreground">
-              Anzeigename
-            </label>
-            <TextInput
-              id="settings-display-name"
-              type="text"
-              value={displayName}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
-              placeholder="Dein Name"
-            />
-          </div>
-          <div className="flex flex-col gap-xxs">
-            <label htmlFor="settings-username" className="text-sm font-medium text-foreground">
-              Benutzername
-            </label>
-            <TextInput
-              id="settings-username"
-              type="text"
-              value={username}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
-              placeholder="benutzername"
-            />
-          </div>
-          <div className="flex flex-col gap-xxs">
-            <label htmlFor="settings-email" className="text-sm font-medium text-foreground">
-              E-Mail
-            </label>
-            <TextInput
-              id="settings-email"
-              type="email"
-              value={email}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              placeholder="mail@beispiel.de"
-            />
-          </div>
-          <p className="m-0 text-xs text-grey-500">Änderungen werden automatisch gespeichert.</p>
+        <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
+          <SettingsRow title="Anzeigename">
+            <span className="text-sm text-grey-500 dark:text-grey-400">
+              {fields.displayName || '—'}
+            </span>
+          </SettingsRow>
+          <SettingsRow title="Benutzername">
+            <span className="text-sm text-grey-500 dark:text-grey-400">
+              {fields.username || '—'}
+            </span>
+          </SettingsRow>
+          <SettingsRow title="E-Mail">
+            <span className="text-sm text-grey-500 dark:text-grey-400">{fields.email || '—'}</span>
+          </SettingsRow>
         </div>
       )}
 
