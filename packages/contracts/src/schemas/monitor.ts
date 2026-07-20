@@ -228,6 +228,13 @@ export const euGreenResultSchema = z.object({
   date: z.string(),
   /** Caveat, e.g. that the greens run inside a broader alliance. */
   note: z.string().nullable(),
+  /**
+   * True when `percent` is a broad multi-party alliance total in which the
+   * greens are only a minority partner (e.g. FR NFP, ES Sumar). The map renders
+   * these hatched and off the green-intensity scale so they aren't read as pure
+   * green strength.
+   */
+  broadAlliance: z.boolean().optional(),
 });
 
 export const euGreensResponseSchema = z.object({

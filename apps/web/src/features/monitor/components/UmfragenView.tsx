@@ -274,7 +274,7 @@ function EuropaMapPanel() {
   for (const r of data?.results ?? []) {
     const geo = EU_CODE_GEO[r.countryCode];
     if (!geo) continue;
-    values[geo] = { v: r.percent, label: r.countryName, sub: r.party };
+    values[geo] = { v: r.percent, label: r.countryName, sub: r.party, marked: r.broadAlliance };
   }
   return <EuropaMap values={values} />;
 }
@@ -309,8 +309,9 @@ function LaenderMapPanel({ locale }: { locale: MonitorLocale }) {
       {showDE ? <DeutschlandMapPanel /> : <EuropaMapPanel />}
       {!showDE && (
         <p className={cn('m-0 mt-4 text-[0.78rem] leading-[1.5]', MONITOR_FAINT)}>
-          In grau markierten Ländern treten Grüne als Teil einer breiteren Liste/Allianz an oder es
-          liegt kein separat ausgewiesenes Ergebnis vor.
+          Schraffierte Länder zeigen einen Bündniswert, in dem Grüne nur Teil einer breiteren Liste
+          sind (z.&nbsp;B. Frankreich NFP, Spanien Sumar). Graue Länder haben kein separat
+          ausgewiesenes grünes Ergebnis.
         </p>
       )}
     </div>
