@@ -5,7 +5,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { MonitorLocaleToggle, MonitorPageHeader } from '../components/MonitorPageHeader';
+import { MonitorPageHeader } from '../components/MonitorPageHeader';
 import {
   MONITOR_ACCENT,
   MONITOR_BODY,
@@ -404,7 +404,7 @@ function ThemenOverview({
 function MonitorThemenPage() {
   const { topic } = useParams<{ topic?: string }>();
   const navigate = useNavigate();
-  const { locale, setLocale, withLocale } = useMonitorLocaleParam();
+  const { locale, withLocale } = useMonitorLocaleParam();
   const { data: snapshot, isLoading } = useMonitorSnapshot(locale);
 
   const topicKey: TopicCategory | null =
@@ -432,16 +432,13 @@ function MonitorThemenPage() {
         current="themen"
         title="Themen"
         right={
-          <div className="flex flex-col items-end gap-2">
-            <MonitorLocaleToggle locale={locale} onChange={setLocale} />
-            {snapshot && (
-              <p className={cn('m-0 max-w-[280px] text-right text-[0.9rem]', MONITOR_MUTED)}>
-                Meistdiskutierte Themen der letzten 24 Stunden ·{' '}
-                {snapshot.totalArticles.toLocaleString('de-DE')} Artikel aus{' '}
-                {snapshot.sources.length} Quellen
-              </p>
-            )}
-          </div>
+          snapshot && (
+            <p className={cn('m-0 max-w-[280px] text-right text-[0.9rem]', MONITOR_MUTED)}>
+              Meistdiskutierte Themen der letzten 24 Stunden ·{' '}
+              {snapshot.totalArticles.toLocaleString('de-DE')} Artikel aus {snapshot.sources.length}{' '}
+              Quellen
+            </p>
+          )
         }
       />
       {isLoading && <LoadingSection />}
