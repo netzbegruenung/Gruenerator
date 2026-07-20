@@ -157,8 +157,10 @@ export function parseClassifierResponse(
         );
       }
 
-      // Extract search sources for parallel multi-source search
-      const validSources = ['documents', 'web'];
+      // Extract search sources for parallel multi-source search. `chat_history`
+      // is a first-class SearchSource (past-chat recall) — keep it so the model
+      // can explicitly pick it, not only the regex heuristic (detectSearchSources).
+      const validSources = ['documents', 'web', 'chat_history'];
       const searchSources =
         parsed.searchSources?.filter((s): s is SearchSource => validSources.includes(s)) || [];
 

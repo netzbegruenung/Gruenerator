@@ -125,6 +125,13 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     path: '/agentura',
     icon: RiSpyLine,
   },
+  {
+    id: 'spaces',
+    title: 'Spaces',
+    description: 'Chats & Inhalte bündeln',
+    path: '/gruppen',
+    icon: getIcon('navigation', 'gruppen')!,
+  },
 ];
 
 // Single "Weitere" dropdown tile (Verbinden merged in) — the utility tools plus

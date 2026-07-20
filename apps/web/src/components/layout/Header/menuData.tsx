@@ -22,7 +22,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
+  { key: 'gruppen', label: 'Spaces', path: '/gruppen', icon: FaUsers },
   { key: 'verbindungen', label: 'Verbindungen', path: '/profile/verbindungen', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
 ];
