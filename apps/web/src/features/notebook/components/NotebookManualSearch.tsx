@@ -1,25 +1,20 @@
 import {
+  Badge,
   Button,
   CardGrid,
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
   Popover,
   PopoverContent,
   PopoverTrigger,
   StatusBanner,
 } from '@gruenerator/ui';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { HiArrowsUpDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { IoSearch } from 'react-icons/io5';
+import { LuSettings2 } from 'react-icons/lu';
 
 import IndexCard from '../../../components/common/IndexCard';
 import SearchBar from '../../search/components/SearchBar';
 import ActiveFilterChips from '../manual-search/ActiveFilterChips';
-import ResearchFilterPanel from '../manual-search/ResearchFilterPanel';
+import { DateRangeField, KeywordField } from '../manual-search/ResearchFilterPanel';
 import { resultToCardProps } from '../manual-search/researchResultCard';
 import { useResearch } from '../manual-search/useResearch';
 import {
@@ -89,7 +84,7 @@ export function NotebookManualSearch({
     setFiltersEnabled,
     activeFilters,
     activeFilterCount,
-    setKeywordFilter,
+    toggleFilter,
     setDateFilter,
     clearFilter,
     clearAllFilters,
@@ -115,23 +110,6 @@ export function NotebookManualSearch({
     },
     [activeFilters]
   );
-
-  const contentTypeConfig = filterFields['content_type'];
-  const activeContentTypes = getActiveValues('content_type');
-
-  const dateFilterCount = useMemo(() => {
-    let count = 0;
-    for (const [, value] of Object.entries(activeFilters)) {
-      if (!Array.isArray(value) && (value.date_from || value.date_to)) count += 1;
-    }
-    return count;
-  }, [activeFilters]);
-
-  const clearDateFilters = useCallback(() => {
-    for (const [field, config] of Object.entries(filterFields)) {
-      if (config.type === 'date_range') clearFilter(field);
-    }
-  }, [filterFields, clearFilter]);
 
   // Signature of the last search actually dispatched — lets the debounced
   // re-search skip an identical follow-up (e.g. the one triggered when
@@ -231,193 +209,139 @@ export function NotebookManualSearch({
   }, [activeFilters, searchMode, sortBy, executeSearch]);
 
   const sortIndicator = sortBy !== 'relevance' ? ` · sortiert nach ${SORT_LABELS[sortBy]}` : '';
-  const modeLabel = MODE_OPTIONS.find((o) => o.value === searchMode)?.label ?? 'Hybrid';
+
+  const dateFields = Object.entries(filterFields).filter(([, c]) => c.type === 'date_range');
+  const facetFields = (['themes', 'persons'] as const).filter(
+    (f) => (getKeywordConfig(f)?.values ?? []).length > 0
+  );
+  const settingsBadgeCount =
+    activeFilterCount + (searchMode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0);
 
   const filterControls = hideFilters ? undefined : (
-    <div className="flex flex-wrap items-center gap-xs">
-      {/* NLP-enriched facets (per-document themes + persons). Self-hide until the
-          enrichment job has populated values for the active collections. */}
-      {(['themes', 'persons'] as const).map((field) => {
-        const config = getKeywordConfig(field);
-        const values = config?.values ?? [];
-        const active = getActiveValues(field);
-        if (!config || values.length === 0) return null;
-        return (
-          <DropdownMenu key={field}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <HiTag className="size-4" />
-                {filtersLoading
-                  ? 'Laden...'
-                  : active.length > 0
-                    ? `${active.length} ${config.label}`
-                    : config.label}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-[20rem] overflow-y-auto">
-              {values.map((v) => (
-                <DropdownMenuCheckboxItem
-                  key={v.value}
-                  checked={active.includes(v.value)}
-                  onCheckedChange={(checked) => {
-                    setKeywordFilter(
-                      field,
-                      checked ? [...active, v.value] : active.filter((t) => t !== v.value)
-                    );
-                  }}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {config.valueLabels?.[v.value] ?? v.value} ({v.count})
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      })}
-
-      {/* Hidden 2026-05-18: Typ / Primärkategorie / Unterkategorien / Region facet
-          dropdowns removed from manuelle Recherche on the /notebooks index per UX
-          request. The underlying filter plumbing stays — only the UI is suppressed.
-          To restore, delete the surrounding JSX block-comment wrapper.
-      {contentTypeConfig && (contentTypeConfig.values ?? []).length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <HiBarsArrowDown className="size-4" />
-              {filtersLoading
-                ? 'Laden...'
-                : activeContentTypes.length > 0
-                  ? `${activeContentTypes.length} Typ${activeContentTypes.length > 1 ? 'en' : ''}`
-                  : 'Typ'}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {(contentTypeConfig.values ?? []).map((v) => (
-              <DropdownMenuCheckboxItem
-                key={v.value}
-                checked={activeContentTypes.includes(v.value)}
-                onCheckedChange={(checked) => {
-                  setKeywordFilter(
-                    'content_type',
-                    checked
-                      ? [...activeContentTypes, v.value]
-                      : activeContentTypes.filter((t) => t !== v.value)
-                  );
-                }}
-                onSelect={(e) => e.preventDefault()}
-              >
-                {v.value} ({v.count})
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-
-      {(['primary_category', 'subcategories', 'region'] as const).map((field) => {
-        const config = getKeywordConfig(field);
-        const values = config?.values ?? [];
-        const active = getActiveValues(field);
-        if (!config || values.length === 0) return null;
-        return (
-          <DropdownMenu key={field}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <HiTag className="size-4" />
-                {filtersLoading
-                  ? 'Laden...'
-                  : active.length > 0
-                    ? `${active.length} ${config.label}`
-                    : config.label}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-[20rem] overflow-y-auto">
-              {values.map((v) => (
-                <DropdownMenuCheckboxItem
-                  key={v.value}
-                  checked={active.includes(v.value)}
-                  onCheckedChange={(checked) => {
-                    setKeywordFilter(
-                      field,
-                      checked ? [...active, v.value] : active.filter((t) => t !== v.value)
-                    );
-                  }}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {v.value} ({v.count})
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      })}
-      */}
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            <HiArrowsUpDown className="size-4" />
-            {SORT_LABELS[sortBy] ?? 'Relevanz'}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+    <Popover
+      onOpenChange={(open) => {
+        if (open) setFiltersEnabled(true);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" aria-label="Sucheinstellungen">
+          <LuSettings2 className="size-4" />
+          Einstellungen
+          {settingsBadgeCount > 0 && (
+            <Badge className="ml-1 h-5 min-w-5 justify-center rounded-full px-1.5 text-[10px]">
+              {settingsBadgeCount}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="max-h-[70vh] w-[22rem] space-y-4 overflow-y-auto p-3"
+      >
+        <div className="space-y-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+            Sortierung
+          </span>
+          <div className="flex flex-col gap-0.5">
             {SORT_OPTIONS.map((opt) => (
-              <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSortBy(opt.value)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                  sortBy === opt.value
+                    ? 'bg-primary-500 text-white'
+                    : 'text-foreground hover:bg-background-alt'
+                )}
+              >
                 {opt.label}
-              </DropdownMenuRadioItem>
+              </button>
             ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <ResearchFilterPanel
-        filterFields={filterFields}
-        activeFilters={activeFilters}
-        dateFilterCount={dateFilterCount}
-        filtersLoading={filtersLoading}
-        onSetDateFilter={setDateFilter}
-        onClearDates={clearDateFilters}
-        onFiltersOpen={() => setFiltersEnabled(true)}
-      />
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant={searchMode !== 'hybrid' ? 'default' : 'outline'}
-            size="sm"
-            aria-label="Suchmodus"
-            title={`Suchmodus: ${modeLabel}`}
-          >
-            <HiCog6Tooth className="size-4" />
-            {modeLabel}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" sideOffset={8} className="w-auto p-2">
-          <div className="space-y-1.5">
-            <span className="block px-1 text-xs font-medium text-grey-500 dark:text-grey-400">
-              Suchmodus
-            </span>
-            <div className="flex flex-col gap-0.5">
-              {MODE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setSearchMode(opt.value)}
-                  className={cn(
-                    'rounded-md px-3 py-1.5 text-left text-sm transition-colors',
-                    searchMode === opt.value
-                      ? 'bg-primary-500 text-white'
-                      : 'text-foreground hover:bg-background-alt'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
           </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+        </div>
+
+        {dateFields.length > 0 && (
+          <div className="space-y-2 border-t border-grey-200 pt-3 dark:border-grey-700">
+            {filtersLoading && (
+              <div className="h-3 w-20 animate-pulse rounded bg-grey-200 dark:bg-grey-700" />
+            )}
+            {dateFields.map(([field, config]) => {
+              const value = activeFilters[field];
+              const parsed = value && !Array.isArray(value) ? value : undefined;
+              return (
+                <DateRangeField
+                  key={field}
+                  field={field}
+                  config={config}
+                  value={parsed}
+                  onSetDateFilter={setDateFilter}
+                  collapsible={false}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {facetFields.length > 0 && (
+          <div className="space-y-3 border-t border-grey-200 pt-3 dark:border-grey-700">
+            {facetFields.map((field) => {
+              const config = getKeywordConfig(field);
+              if (!config) return null;
+              return (
+                <KeywordField
+                  key={field}
+                  field={field}
+                  config={config}
+                  selectedValues={getActiveValues(field)}
+                  onToggleFilter={toggleFilter}
+                  collapsible={false}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        <div className="space-y-1.5 border-t border-grey-200 pt-3 dark:border-grey-700">
+          <span className="text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+            Suchmodus
+          </span>
+          <div className="flex flex-col gap-0.5">
+            {MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSearchMode(opt.value)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                  searchMode === opt.value
+                    ? 'bg-primary-500 text-white'
+                    : 'text-foreground hover:bg-background-alt'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {settingsBadgeCount > 0 && (
+          <div className="flex justify-end border-t border-grey-200 pt-3 dark:border-grey-700">
+            <button
+              type="button"
+              onClick={() => {
+                clearAllFilters();
+                setSearchMode('hybrid');
+                setSortBy('relevance');
+              }}
+              className="text-xs text-primary-500 hover:underline"
+            >
+              Zurücksetzen
+            </button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 
   return (

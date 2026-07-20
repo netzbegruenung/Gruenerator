@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import FavouriteStar from '../../../components/common/FavouriteStar';
 import { getIcon } from '../../../config/icons';
+import { getToolTheme } from '../../../config/toolTheme';
 import {
   OFFICE_TOOLS,
   TOOL_MENUS,
@@ -64,97 +65,115 @@ const FAVORITES: FavoriteItem[] = [
   },
 ];
 
-// Soft, hover-lift card surface shared by tool tiles and favorite pills. Mirrors
-// the workplace's established card idiom (see RecentlyCreatedSection): a hairline
-// border + `bg-background` that, on hover, lifts, deepens its shadow and tints its
-// border toward the brand eucalyptus. Dark mode swaps to grey borders.
+// Soft, hover-lift card surface for the favorite pills. Mirrors the workplace's
+// established card idiom (see RecentlyCreatedSection): a hairline border +
+// `bg-background` that, on hover, lifts, deepens its shadow and tints its border
+// toward the brand eucalyptus.
 const CARD_BASE =
   'group relative flex items-center bg-background no-underline transition-[transform,box-shadow,border-color] duration-150 ' +
   'border border-grey-200/80 hover:border-secondary-300 hover:shadow-lg dark:border-grey-700/60 dark:hover:border-secondary-700';
 
-// Rounded-square brand chip holding the tool icon. Tints in on hover via the
-// shared `group` so the whole tile responds as one surface.
+// Rounded-square brand chip holding the tool icon (used by dropdown rows + favorites).
 const CHIP_BASE =
   'flex flex-none items-center justify-center rounded-xl text-secondary-600 transition-colors duration-150 ' +
   'group-hover:bg-secondary-50 dark:text-secondary-400 dark:group-hover:bg-secondary-900/30';
 
-// Shared tool-grid: auto-fit so each row stretches its tiles to fill the width
-// (no trailing empty cells), fitting up to ~5 across at the lg container and
-// wrapping down responsively on narrower viewports.
-export const TOOL_GRID = 'grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-sm';
+// The colored Office tiles live in a single horizontal strip — same scroll idiom
+// as the Wissen notebook covers: fractional widths keep the next tile half-visible
+// so the scroll affordance is obvious; pt/pb leave room for the hover lift. Also
+// reused by the /studio landing tool strip so both read identically.
+export const OFFICE_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
+// Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
+// visible (a deliberate scroll tease) at any width — the gap subtraction is what
+// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 5.5
+// on desktop, keeping tile size ~140–190px everywhere. Gap is 0.75rem at base, 1rem
+// from sm up (matches OFFICE_SCROLL_ROW).
+export const OFFICE_SCROLL_ITEM =
+  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
 
-export function SectionHeading({ title, badge }: { title: string; badge?: string }) {
+// Tile colours (and each tool's matching page gradient) live in the shared
+// `config/toolTheme` registry so a tile and its subpage never drift.
+
+// Icon pinned top, label pinned bottom (justify-between) so icons and descriptions
+// line up across tiles regardless of how many lines a title wraps to — that even
+// alignment is what keeps the strip tidy. Internals shrink at lg where the 6.5-up
+// tiles are smallest.
+const OFFICE_TILE_BASE =
+  'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
+  'transition-shadow duration-150';
+
+// Icon-over-title/desc content shared by the link tiles and the dropdown tile.
+function OfficeTileInner({
+  styleKey,
+  Icon,
+  title,
+  description,
+}: {
+  styleKey: string;
+  Icon: IconType;
+  title: string;
+  description: string;
+}) {
+  const theme = getToolTheme(styleKey);
   return (
-    <div className="mb-md flex items-center gap-sm">
-      <h2 className="m-0 text-xl font-semibold text-foreground-heading">{title}</h2>
-      {badge && (
-        <span className="rounded-full bg-secondary-50 px-2.5 py-0.5 text-xs font-semibold text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
-          {badge}
+    <>
+      <span
+        className={`flex text-[24px] sm:text-[28px] lg:text-[30px] ${theme?.icon ?? 'text-secondary-600'}`}
+      >
+        <Icon />
+      </span>
+      <span className="min-w-0">
+        <span
+          className={`block text-[16px] font-bold leading-tight line-clamp-2 sm:text-[19px] lg:text-[22px] ${theme?.title ?? 'text-foreground-heading'}`}
+        >
+          {title}
         </span>
-      )}
-    </div>
+        <span
+          className={`mt-0.5 block min-h-[2.75em] text-[12px] leading-snug line-clamp-2 sm:mt-1 sm:text-[13px] lg:text-[14px] ${theme?.desc ?? 'text-muted-foreground'}`}
+        >
+          {description}
+        </span>
+      </span>
+    </>
   );
 }
 
-export function ToolTile({ tool }: { tool: WorkplaceToolItem }) {
-  const Icon = tool.icon;
+// Square color-field Office tile (design 1e) with a favourite star top-right.
+// Exported so the /studio landing tool strip renders the same colourful tiles.
+export function OfficeTile({ tool }: { tool: WorkplaceToolItem }) {
   const favouritable = isFavouritableTool(tool);
-  const className = `${CARD_BASE} gap-2 rounded-2xl px-3 py-md`;
-  const body = (
-    <>
-      <span className={`${CHIP_BASE} size-12 text-[22px]`}>
-        <Icon />
-      </span>
-      <span className={`min-w-0 flex-1${favouritable ? ' pr-2' : ''}`}>
-        <h3 className="m-0 text-[15px] font-semibold leading-tight text-foreground-heading">
-          {tool.title}
-        </h3>
-        <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
-          {tool.description}
-        </span>
-      </span>
-      {favouritable && <FavouriteStar id={tool.id} size={15} className="absolute right-2 top-2" />}
-    </>
-  );
-
-  return tool.href ? (
-    <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
-      {body}
-    </a>
-  ) : (
-    <Link to={tool.path ?? '/'} className={className}>
-      {body}
+  return (
+    <Link
+      to={tool.path ?? '/'}
+      className={`${OFFICE_TILE_BASE} ${getToolTheme(tool.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+    >
+      {favouritable && <FavouriteStar id={tool.id} size={16} className="absolute right-3 top-3" />}
+      <OfficeTileInner
+        styleKey={tool.id}
+        Icon={tool.icon}
+        title={tool.title}
+        description={tool.description}
+      />
     </Link>
   );
 }
 
-// A tool card that opens a dropdown of related tools instead of navigating.
-// Same tile surface as ToolTile, with a caret and a Radix dropdown menu.
-function DropdownToolTile({ menu }: { menu: WorkplaceToolMenu }) {
-  const Icon = menu.icon;
+// Same color-field tile, but a dropdown trigger (Weitere) — caret instead of star.
+function OfficeDropdownTile({ menu }: { menu: WorkplaceToolMenu }) {
   const navigate = useNavigate();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={`${CARD_BASE} w-full gap-2 rounded-2xl px-3 py-md text-left`}
+          className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(menu.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
         >
-          <span className={`${CHIP_BASE} size-12 text-[22px]`}>
-            <Icon />
-          </span>
-          <span className="min-w-0 flex-1 pr-5">
-            <h3 className="m-0 text-[15px] font-semibold leading-tight text-foreground-heading">
-              {menu.title}
-            </h3>
-            <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">
-              {menu.description}
-            </span>
-          </span>
-          <FiChevronDown
-            aria-hidden
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-grey-400"
-            size={16}
+          <FiChevronDown aria-hidden className="absolute right-3 top-3 text-grey-500" size={18} />
+          <OfficeTileInner
+            styleKey={menu.id}
+            Icon={menu.icon}
+            title={menu.title}
+            description={menu.description}
           />
         </button>
       </DropdownMenuTrigger>
@@ -197,6 +216,19 @@ function DropdownToolTile({ menu }: { menu: WorkplaceToolMenu }) {
   );
 }
 
+export function SectionHeading({ title, badge }: { title: string; badge?: string }) {
+  return (
+    <div className="mb-md flex items-center gap-sm">
+      <h2 className="m-0 text-xl font-semibold text-foreground-heading">{title}</h2>
+      {badge && (
+        <span className="rounded-full bg-secondary-50 px-2.5 py-0.5 text-xs font-semibold text-secondary-600 dark:bg-secondary-900/30 dark:text-secondary-300">
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
   const Icon = favorite.icon;
   return (
@@ -216,40 +248,42 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
   );
 }
 
-const ToolsSection = React.memo(() => {
+const byId = (id: string): WorkplaceToolItem | undefined =>
+  WORKPLACE_TOOLS.find((t) => t.id === id);
+
+// Default order: Agentura first, then the office apps. (Reels moved to /studio.)
+const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [byId('agents'), ...OFFICE_TOOLS].filter(
+  (t): t is WorkplaceToolItem => Boolean(t)
+);
+
+// The single Arbeiten tool row: colored creation tiles + the Weitere dropdown tile,
+// in one horizontal Wissen-style scroll strip. Favourited tools float to the front
+// (default order otherwise); the Weitere dropdown isn't favouritable, so it stays last.
+export const OfficeSection = React.memo(() => {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
   const tiles = useMemo(
-    () => sortToolsByFavourites(filterWorkplaceTools(WORKPLACE_TOOLS), favouriteIds),
+    () => sortToolsByFavourites(filterWorkplaceTools(OFFICE_ROW_TOOLS), favouriteIds),
     [favouriteIds]
   );
 
   return (
     <>
       <SectionHeading title="Tools" />
-      <div className={TOOL_GRID}>
+      <div className={OFFICE_SCROLL_ROW}>
         {tiles.map((tool) => (
-          <ToolTile key={tool.id} tool={tool} />
+          <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+            <OfficeTile tool={tool} />
+          </div>
         ))}
         {TOOL_MENUS.map((menu) => (
-          <DropdownToolTile key={menu.id} menu={menu} />
+          <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
+            <OfficeDropdownTile menu={menu} />
+          </div>
         ))}
       </div>
     </>
   );
 });
-
-ToolsSection.displayName = 'ToolsSection';
-
-export const OfficeSection = React.memo(() => (
-  <>
-    <SectionHeading title="Office" />
-    <div className={TOOL_GRID}>
-      {OFFICE_TOOLS.map((tool) => (
-        <ToolTile key={tool.id} tool={tool} />
-      ))}
-    </div>
-  </>
-));
 
 OfficeSection.displayName = 'OfficeSection';
 
@@ -265,5 +299,3 @@ export const FavoritesSection = React.memo(() => (
 ));
 
 FavoritesSection.displayName = 'FavoritesSection';
-
-export default ToolsSection;

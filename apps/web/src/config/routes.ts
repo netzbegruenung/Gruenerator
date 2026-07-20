@@ -105,24 +105,14 @@ const ImageStudioCategoryTypeRedirect = lazy(() =>
   Promise.resolve({ default: ImageStudioCategoryTypeRedirectComponent })
 );
 
-// Redirects for image-studio/ki routes to /imagine
+// Legacy KI routes (/studio/ki, /imagine) now redirect to the unified Bild-Editor.
 const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/imagine'),
+    default: createRedirect('/bild-editor'),
   })
 );
+const ImageStudioKiTypeRedirect = ImageStudioKiRedirect;
 
-// Dynamic redirect: /studio/ki/:type → /imagine/:type
-const ImageStudioKiTypeRedirectComponent: FC<Record<string, unknown>> = () => {
-  const { type } = useParams();
-  return createElement(Navigate, { to: `/imagine/${type || ''}`, replace: true });
-};
-const ImageStudioKiTypeRedirect = lazy(() =>
-  Promise.resolve({ default: ImageStudioKiTypeRedirectComponent })
-);
-
-// Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
-const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 // Bild-Editor v2 — focused KI generate/edit/outpaint flow with version tree
 const BildEditorV2Page = lazy(
   () => import('../features/image-studio/bild-editor-v2/BildEditorV2Page')
@@ -229,7 +219,10 @@ const PresentationsLandingPage = lazy(() =>
   }))
 );
 const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
-const CanvasRedirect = lazy(() => Promise.resolve({ default: createRedirect('/canvas') }));
+// Legacy /canvas landing now lives at /studio — keep /canvas as a redirect.
+const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
+// Deprecated /imagine routes → unified Bild-Editor.
+const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/bild-editor') }));
 const WissenRedirect = lazy(() =>
   Promise.resolve({ default: createRedirect('/workplace/wissen') })
 );
@@ -590,16 +583,16 @@ const standardRoutes: RouteConfig[] = [
     component: ImageStudioCategoryTypeRedirect,
     devOnly: true,
   },
-  // Studio Routes - KI routes redirect to /imagine
+  // Bild-Editor is the unified KI create/edit surface; /imagine is deprecated.
   { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
-  { path: '/imagine', component: ImaginePage, withForm: true },
-  { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  // "/canvas": the sharepic/graphics landing page. The old /studio landing now
-  // redirects here; the creation wizard (/studio/:category…), gallery, video and
-  // canvas editor routes stay — the Canvas create flow navigates into them.
-  // Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
-  { path: '/canvas', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
-  { path: '/studio', component: CanvasRedirect },
+  { path: '/imagine', component: ImagineRedirect },
+  { path: '/imagine/:type', component: ImagineRedirect },
+  // "/studio": the sharepic/graphics landing page. The creation wizard
+  // (/studio/:category…), gallery, video and canvas editor routes stay — the
+  // landing's create flow navigates into them. /canvas redirects here for
+  // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
+  { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/canvas', component: CanvasToStudioRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
