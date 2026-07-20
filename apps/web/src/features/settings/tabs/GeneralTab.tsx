@@ -27,7 +27,7 @@ const GeneralTab = () => {
   const updateLocale = useAuthStore((s) => s.updateLocale);
 
   return (
-    <div className="flex flex-col gap-md">
+    <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
       <SettingsRow title="Aussehen" description="Farbschema der Oberfläche">
         <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
           {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
