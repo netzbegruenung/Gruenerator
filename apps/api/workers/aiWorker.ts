@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { parentPort } from 'worker_threads';
 
+import { classifyProviderError } from '../services/providers/providerErrors.js';
 import * as providerFallback from '../services/providers/providerFallback.js';
 import * as providerSelector from '../services/providers/providerSelector.js';
 
@@ -64,6 +65,7 @@ parentPort.on('message', async (message: WorkerRequestMessage) => {
       type: 'error',
       requestId,
       error: errorMessage,
+      errorInfo: classifyProviderError(error),
     });
   }
 });

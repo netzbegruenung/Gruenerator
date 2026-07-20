@@ -137,6 +137,18 @@ export const SOURCE_PREFIX = {
 } as const;
 
 /**
+ * True when a searchErrors entry means a search backend was unreachable
+ * (Qdrant collection, web search, whole-search catch) — as opposed to soft
+ * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
+ * searchErrors but must not trigger "Quellen nicht erreichbar" messaging.
+ */
+export function isSourceAvailabilityError(entry: { source: string }): boolean {
+  return (
+    entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
+
+/**
  * Unified search result structure from any tool.
  */
 export interface SearchResult {
@@ -569,7 +581,11 @@ export interface ChatGraphState {
   qualityAssessmentTimeMs: number;
   topRerankScore: number | null;
 
-  // Reliability flags & structured error log
+  // Reliability flags & structured error log. Sources 'web' / 'search' /
+  // 'documents:*' mean a search backend was unreachable; soft LLM-stage
+  // failures (briefGenerator, qualityGate, rerank) also append here but say
+  // nothing about source availability — filter with isSourceAvailabilityError
+  // before telling anyone the sources were down.
   searchErrors: { source: string; message: string }[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
