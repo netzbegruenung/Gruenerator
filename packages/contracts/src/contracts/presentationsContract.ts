@@ -6,6 +6,7 @@ import {
   generatePresentationResponseSchema,
   presentationAiRequestBodySchema,
   presentationAiResponseSchema,
+  presentationContentResponseSchema,
   presentationErrorResponseSchema,
 } from '../schemas/presentations.js';
 
@@ -18,6 +19,23 @@ const c = initContract();
  * route. Mirrors apps/api/routes/presentations/presentationsContractRouter.ts.
  */
 export const presentationsContract = c.router({
+  /**
+   * GET /api/presentations/:id/content
+   * Decoded deck read-model (loadPresentationState) for a read-only viewer —
+   * no live collab connection. Used by the mobile Office slide viewer.
+   */
+  getContent: {
+    method: 'GET',
+    path: '/api/presentations/:id/content',
+    pathParams: z.object({ id: z.string() }),
+    responses: {
+      200: presentationContentResponseSchema,
+      401: presentationErrorResponseSchema,
+      404: presentationErrorResponseSchema,
+      500: presentationErrorResponseSchema,
+    },
+    summary: 'Read-only deck read-model for the slide viewer',
+  },
   /**
    * POST /api/presentations/:id/ai
    * Plan presentation operations from a natural-language request (applied
