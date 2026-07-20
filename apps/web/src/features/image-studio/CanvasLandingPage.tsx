@@ -142,7 +142,10 @@ const CanvasLandingContent = () => {
       </div>
 
       <section className="mb-xl mt-xl" data-tour="studio-tools">
-        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(CANVAS_TOOLS.length)}>
+        <div
+          className={OFFICE_SCROLL_ROW}
+          style={officeStripStyle(CANVAS_TOOLS.length, { maxTilePx: 200 })}
+        >
           {CANVAS_TOOLS.map((tool) => (
             <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
               <OfficeTile tool={tool} themeKey="canvas" />
