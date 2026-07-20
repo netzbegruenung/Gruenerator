@@ -11,7 +11,7 @@ import { useShareLinks } from '@gruenerator/wolke';
 import { Check, Cloud, Lock } from 'lucide-react';
 import { useState, useEffect, useCallback, type ReactElement } from 'react';
 
-import { cn } from '../../../../utils/cn';
+import { cn } from '../../../utils/cn';
 
 // Derived from ROBOT_ID_MAX in @gruenerator/core/avatar — new avatars (e.g. the
 // Pride set 11–13) appear here automatically; no list to keep in sync.

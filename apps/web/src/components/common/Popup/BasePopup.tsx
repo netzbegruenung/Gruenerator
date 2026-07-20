@@ -57,8 +57,7 @@ const BasePopup = ({
 }: BasePopupProps) => {
   const location = useLocation();
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
-  const isAuthRoute =
-    location.pathname.startsWith('/profile') || location.pathname.startsWith('/login');
+  const isAuthRoute = location.pathname.startsWith('/login');
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const { isDismissed, dismiss, isHydrated } = usePopupDismiss(storageKey);
