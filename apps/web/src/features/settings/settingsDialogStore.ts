@@ -7,7 +7,8 @@ export type SettingsTab =
   | 'erinnerungen'
   | 'benachrichtigungen'
   | 'wolke'
-  | 'konnektoren';
+  | 'konnektoren'
+  | 'support';
 
 interface SettingsDialogState {
   isOpen: boolean;

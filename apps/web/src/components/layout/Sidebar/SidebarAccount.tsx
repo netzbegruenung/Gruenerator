@@ -16,7 +16,7 @@ import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import { PiCompass, PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
+import { PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -115,21 +115,6 @@ const SidebarAccount = memo(function SidebarAccount({
         <HiCog className="size-4" />
         <span>Einstellungen</span>
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => onNavigate('/support', 'Support')}>
-        <PiQuestion className="size-4" />
-        <span>Support</span>
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() => {
-          onNavigate('/workplace', 'Workplace');
-          void import('../../../features/tours/workplaceTour').then((m) =>
-            m.startWorkplaceTour((path) => onNavigate(path, ''))
-          );
-        }}
-      >
-        <PiCompass className="size-4" />
-        <span>Tour starten</span>
-      </DropdownMenuItem>
       <DropdownMenuSeparator />
       {/* Theme + logout share one row to save vertical space. */}
       <div className="flex items-center gap-1">
@@ -179,33 +164,37 @@ const SidebarAccount = memo(function SidebarAccount({
 
   // Separate bell trigger → notifications Popover. Tooltip and Popover triggers
   // both attach to the one button via nested asChild (same idiom as the avatar).
-  const notificationsBell = (
-    <Popover open={notifOpen} onOpenChange={setNotifOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
-              aria-label="Benachrichtigungen"
-            >
-              <Bell className="size-[18px]" />
-              {unreadBadge('-top-0.5 -right-0.5')}
-            </button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent side={sidebarExpanded ? 'top' : 'right'}>Benachrichtigungen</TooltipContent>
-      </Tooltip>
-      <PopoverContent
-        side={sidebarExpanded ? 'top' : 'right'}
-        align="end"
-        sideOffset={8}
-        className="w-80 p-0"
-      >
-        <NotificationList />
-      </PopoverContent>
-    </Popover>
-  );
+  // Hidden entirely when there is nothing unread — no empty bell.
+  const notificationsBell =
+    unreadCount === 0 ? null : (
+      <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
+                aria-label="Benachrichtigungen"
+              >
+                <Bell className="size-[18px]" />
+                {unreadBadge('-top-0.5 -right-0.5')}
+              </button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side={sidebarExpanded ? 'top' : 'right'}>
+            Benachrichtigungen
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent
+          side={sidebarExpanded ? 'top' : 'right'}
+          align="end"
+          sideOffset={8}
+          className="w-80 p-0"
+        >
+          <NotificationList />
+        </PopoverContent>
+      </Popover>
+    );
 
   return (
     <div className="mt-auto shrink-0 px-2 py-2">

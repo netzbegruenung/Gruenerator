@@ -16,6 +16,7 @@ const TAB_MAP: Record<string, SettingsTab> = {
   wolke: 'wolke',
   konnektoren: 'konnektoren',
   mcp: 'konnektoren',
+  support: 'support',
 };
 
 // Old profile sub-pages that were never settings — keep their redirects alive.
