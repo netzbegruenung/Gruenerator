@@ -165,3 +165,17 @@ export const generateSheetResponseSchema = z.object({
 });
 
 export type GenerateSheetResponse = z.infer<typeof generateSheetResponseSchema>;
+
+/**
+ * Response for GET /api/sheets/:id/content — the decoded workbook snapshot
+ * (loadSheetState) for a read-only viewer, without a live collab connection.
+ * `workbook` is the opaque Univer IWorkbookData JSON (null for an empty sheet);
+ * the client renders it, so it stays a permissive record here.
+ */
+export const sheetContentResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  workbook: z.record(z.string(), z.unknown()).nullable(),
+});
+
+export type SheetContentResponse = z.infer<typeof sheetContentResponseSchema>;
