@@ -10,7 +10,7 @@ import {
   type ChatRequestContext,
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
-import { chatThreadResponseSchema } from '@gruenerator/contracts';
+import { chatThreadResponseSchema, presentationOperationSchema } from '@gruenerator/contracts';
 import {
   applyPresentationOperations,
   getSlidesArray,
@@ -99,9 +99,13 @@ export function PresentationsChatProvider({
           edit_current_doc: edit,
         },
       }),
+      // Presentations aren't live yet, so no legacy trigger_doc_edit path to
+      // preserve: the loop's edit_document tool plans the ops server-side and
+      // streams them as editor_operations; we apply them to the deck's Y.Doc
+      // (which flows through collab + the Yjs undo manager).
       registerEditHandler: (ctx) =>
-        useChatConfigStore.getState().registerDocumentEditHandler(documentId, async (payload) => {
-          if (payload.targetDocumentId !== documentId) return;
+        useChatConfigStore.getState().registerEditorOpsHandler(documentId, async (payload) => {
+          if (payload.targetId !== documentId || payload.surface !== 'presentation') return;
           const { toast } = await import('sonner');
           if (!ctx.getAiEditEnabled()) {
             toast.info(
@@ -114,37 +118,23 @@ export function PresentationsChatProvider({
             toast.error('Die Präsentation ist noch nicht geladen.');
             return;
           }
-          try {
-            const result = await getContractsClient().presentations.ai({
-              params: { id: documentId },
-              body: {
-                userPrompt: payload.userPrompt,
-                presentationContext: serializePresentationContext(
-                  readSlides(doc),
-                  titleRef.current?.trim() || ''
-                ),
-                ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
-              },
-            });
-            if (result.status !== 200) {
-              toast.error('Folien-Aktion fehlgeschlagen.');
-              return;
-            }
-            if (result.body.operations.length === 0) {
-              toast.info('Es wurde keine Folien-Änderung erkannt — nichts wurde geändert.');
-              return;
-            }
-            const { applied, skipped } = applyPresentationOperations(doc, result.body.operations);
-            if (applied > 0) {
-              toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`);
-            }
-            if (skipped.length > 0) {
-              toast.warning(skipped.join(' · '));
-            }
-          } catch (err) {
-            toast.error(
-              `Folien-Aktion fehlgeschlagen: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`
-            );
+          // Defence in depth: the wire carries ops as unknown[]; re-validate each
+          // against the op schema so one malformed op drops alone.
+          const ops = [];
+          for (const raw of payload.operations) {
+            const parsed = presentationOperationSchema.safeParse(raw);
+            if (parsed.success) ops.push(parsed.data);
+          }
+          if (ops.length === 0) {
+            toast.info('Es wurde keine Folien-Änderung erkannt — nichts wurde geändert.');
+            return;
+          }
+          const { applied, skipped } = applyPresentationOperations(doc, ops);
+          if (applied > 0) {
+            toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`);
+          }
+          if (skipped.length > 0) {
+            toast.warning(skipped.join(' · '));
           }
         }),
     }),

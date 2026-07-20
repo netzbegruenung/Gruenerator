@@ -15,6 +15,11 @@ vi.mock('../../sheets/sheetAiService.js', () => ({
   generateSheetOperations: (o: unknown): Promise<unknown> => generateSheetOperations(o),
 }));
 
+const generatePresentationOperations = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../../presentations/presentationAiService.js', () => ({
+  generatePresentationOperations: (o: unknown): Promise<unknown> => generatePresentationOperations(o),
+}));
+
 type SseEvent = { type: string; payload: unknown };
 function fakeSse(sink: SseEvent[]) {
   return {
@@ -48,12 +53,35 @@ function exec(tool: unknown, input: unknown) {
 }
 
 describe('makeEditArtifactTool (sheet)', () => {
-  beforeEach(() => generateSheetOperations.mockReset());
+  beforeEach(() => {
+    generateSheetOperations.mockReset();
+    generatePresentationOperations.mockReset();
+  });
 
-  it('is only built for the sheet surface (v1)', () => {
+  it('is built for plan-and-send surfaces (sheet, presentation) only', () => {
     expect(makeEditArtifactTool(ctx([], sheetState()))).not.toBeNull();
+    expect(
+      makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'presentation' })))
+    ).not.toBeNull();
+    // Dispatch-strategy / not-yet-wired surfaces have no plan-and-send tool.
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'board' })))).toBeNull();
+    expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'canvas' })))).toBeNull();
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: null })))).toBeNull();
+  });
+
+  it('emits editor_operations with surface=presentation on a planned deck edit', async () => {
+    generatePresentationOperations.mockResolvedValue([
+      { type: 'add_slide', layout: 'content', title: 'Neu', body: '- Punkt' },
+    ]);
+    const events: SseEvent[] = [];
+    const state = sheetState({ editToolSurface: 'presentation' });
+    const out = (await exec(makeEditArtifactTool(ctx(events, state))!, {
+      instruction: 'Füge eine Folie hinzu',
+    })) as { ok: boolean; operationCount: number };
+
+    expect(out).toMatchObject({ ok: true, operationCount: 1 });
+    const emitted = events.find((e) => e.type === 'editor_operations');
+    expect((emitted!.payload as { surface: string }).surface).toBe('presentation');
   });
 
   it('emits editor_operations and returns a lean summary on a planned edit', async () => {
