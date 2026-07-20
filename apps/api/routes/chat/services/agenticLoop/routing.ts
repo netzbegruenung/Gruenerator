@@ -200,7 +200,10 @@ export function resolveEditorSurfaceKind(
  * (`doc`, `board`, `canvas`) are absent here and keep the trigger_doc_edit path.
  * Add a surface once its editorTools branch AND client ops handler are wired.
  */
-export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set(['sheet']);
+export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
+  'sheet',
+  'presentation',
+]);
 
 export interface EditToolLoopInput {
   /** CHAT_AGENT_LOOP — the edit tool only exists inside the loop. */
