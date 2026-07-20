@@ -315,7 +315,9 @@ export async function streamAgenticResponse(params: {
           log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for edit grounding`);
         }
       } catch (err) {
-        log.warn(`[Agentic] source rehydration skipped: ${err instanceof Error ? err.message : err}`);
+        log.warn(
+          `[Agentic] source rehydration skipped: ${err instanceof Error ? err.message : err}`
+        );
       }
     }
 

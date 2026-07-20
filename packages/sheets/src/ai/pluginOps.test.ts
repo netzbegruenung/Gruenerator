@@ -72,11 +72,12 @@ describe('plugin-backed sheet operation schemas', () => {
         ascending: true,
       }).success
     ).toBe(true);
+    expect(sheetOperationSchema.safeParse({ type: 'create_filter', range: 'A1:E30' }).success).toBe(
+      true
+    );
     expect(
-      sheetOperationSchema.safeParse({ type: 'create_filter', range: 'A1:E30' }).success
-    ).toBe(true);
-    expect(
-      sheetOperationSchema.safeParse({ type: 'add_table', range: 'A1:E30', name: 'Umsätze' }).success
+      sheetOperationSchema.safeParse({ type: 'add_table', range: 'A1:E30', name: 'Umsätze' })
+        .success
     ).toBe(true);
   });
 

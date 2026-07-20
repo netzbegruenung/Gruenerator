@@ -104,7 +104,9 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
         board: state.currentBoard!,
         // boardAiService takes structured board + today, not a markdown string;
         // the applied-ops note rides along in referenceContent.
-        referenceContent: appliedNote ? `${referenceContent ?? ''}${appliedNote}` : referenceContent,
+        referenceContent: appliedNote
+          ? `${referenceContent ?? ''}${appliedNote}`
+          : referenceContent,
         today: new Date().toISOString().slice(0, 10),
       }),
   },
@@ -161,7 +163,9 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
         // Contained: the loop feeds this back to the model (it apologises or
         // retries with a clearer instruction). No editor_operations is emitted,
         // so the artefact is never half-touched.
-        return { error: `Die Änderung an der ${spec.noun} konnte nicht geplant werden. Versuche es erneut.` };
+        return {
+          error: `Die Änderung an der ${spec.noun} konnte nicht geplant werden. Versuche es erneut.`,
+        };
       }
 
       if (operations.length === 0) {

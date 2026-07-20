@@ -82,11 +82,32 @@ export const OFFICE_SCROLL_ROW =
   'flex justify-center-safe gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
 // Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
 // visible (a deliberate scroll tease) at any width — the gap subtraction is what
-// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 5.5
-// on desktop, keeping tile size ~140–190px everywhere. Gap is 0.75rem at base, 1rem
-// from sm up (matches OFFICE_SCROLL_ROW).
+// keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 3.5
+// on sm → 4.5 on md. On desktop (lg) the width is count-aware via `--tile-basis`
+// (see `officeStripStyle`): ≤6 tiles fill the row edge-to-edge (all fully visible),
+// ≥7 fall back to the 5.5-up tease. Default var = 5.5-up when a row omits the style.
+// Gap is 0.75rem at base, 1rem from sm up (matches OFFICE_SCROLL_ROW).
 export const OFFICE_SCROLL_ITEM =
-  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
+  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[var(--tile-basis,calc((100%_-_5rem)_*_0.1818))]';
+
+// Desktop (lg) tile sizing for a strip of `tileCount` tiles: ≤6 fill the row (all
+// fully visible, no scroll); ≥7 keep the 5.5-up scroll tease. Set on the scroll
+// row; `OFFICE_SCROLL_ITEM` reads it via `--tile-basis`. Gap at lg is 1rem.
+//
+// `maxTilePx` caps each tile so a short strip (e.g. the 4-tile /studio or 5-tile
+// /office landing) stays tile-sized and centered instead of stretching edge-to-edge.
+// The top-level Arbeiten area cards omit it and fill the row.
+export function officeStripStyle(
+  tileCount: number,
+  opts?: { maxTilePx?: number }
+): React.CSSProperties {
+  const base =
+    tileCount <= 6
+      ? `calc((100% - ${tileCount - 1}rem) / ${tileCount})`
+      : 'calc((100% - 5rem) * 0.1818)';
+  const lgBasis = opts?.maxTilePx != null ? `min(${base}, ${opts.maxTilePx}px)` : base;
+  return { '--tile-basis': lgBasis } as React.CSSProperties;
+}
 
 // Tile colours (and each tool's matching page gradient) live in the shared
 // `config/toolTheme` registry so a tile and its subpage never drift.
@@ -187,28 +208,28 @@ export function OfficeActionTile({
   );
 }
 
-// Same color-field tile, but a toggle (Weitere) — a rotating chevron instead of a
-// star. Expands a second tool row below the strip (see OfficeSection), mirroring
-// the notebook category rows, instead of opening a dropdown.
+// Same color-field tile, but a toggle for the "Weitere" group — instead of a
+// dropdown it reveals a second tile row below the strip (mirroring how Wissen
+// expands notebook rows). The caret flips when open.
 function OfficeExpandTile({
   menu,
-  expanded,
+  open,
   onToggle,
 }: {
   menu: WorkplaceToolMenu;
-  expanded: boolean;
+  open: boolean;
   onToggle: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
-      aria-expanded={expanded}
+      aria-expanded={open}
       className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(menu.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
     >
       <FiChevronDown
         aria-hidden
-        className={`absolute right-3 top-3 text-grey-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+        className={`absolute right-3 top-3 text-grey-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         size={18}
       />
       <OfficeTileInner
@@ -221,23 +242,31 @@ function OfficeExpandTile({
   );
 }
 
-// A tool tile in the expanded "Weitere" row — a Link (internal) or anchor
-// (external), styled uniformly in the Weitere grey so the row reads as one group.
+// A "Weitere" child rendered as a full tile in the expanded second row. Wears the
+// neutral `weitere` hue so the group reads as one family; handles both internal
+// routes (Link) and external links (anchor).
 function OfficeMenuItemTile({ item }: { item: WorkplaceToolMenuItem }) {
+  const favouritable = Boolean(item.path) && !item.href;
   const className = `${OFFICE_TILE_BASE} ${getToolTheme('weitere')?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`;
   const inner = (
-    <OfficeTileInner
-      styleKey="weitere"
-      Icon={item.icon}
-      title={item.title}
-      description={item.description}
-    />
+    <>
+      {favouritable && <FavouriteStar id={item.id} size={16} className="absolute right-3 top-3" />}
+      <OfficeTileInner
+        styleKey="weitere"
+        Icon={item.icon}
+        title={item.title}
+        description={item.description}
+      />
+    </>
   );
-  return item.href ? (
-    <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
-      {inner}
-    </a>
-  ) : (
+  if (item.href) {
+    return (
+      <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
+        {inner}
+      </a>
+    );
+  }
+  return (
     <Link to={item.path ?? '/'} className={className}>
       {inner}
     </Link>
@@ -286,22 +315,22 @@ const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
   byId('spaces'),
 ].filter((t): t is WorkplaceToolItem => Boolean(t));
 
-// The Arbeiten tool strip: colored creation tiles + the Weitere toggle tile, in
-// one horizontal Wissen-style scroll strip. Favourited tools float to the front
+// The Arbeiten tool row: colored creation tiles + the Weitere toggle tile, in one
+// horizontal Wissen-style scroll strip. Favourited tools float to the front
 // (default order otherwise); the Weitere toggle isn't favouritable, so it stays
-// last and expands a second tool row below (notebook-style) when tapped.
+// last. Clicking Weitere reveals its tools as a second tile row below the strip.
 export const OfficeSection = React.memo(() => {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
-  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const tiles = useMemo(
     () => sortToolsByFavourites(filterWorkplaceTools(OFFICE_ROW_TOOLS), favouriteIds),
     [favouriteIds]
   );
-  const openMenu = TOOL_MENUS.find((m) => m.id === expandedMenu);
+  const openMenu = TOOL_MENUS.find((menu) => menu.id === openMenuId);
 
   return (
     <>
-      <div className={OFFICE_SCROLL_ROW}>
+      <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(tiles.length + TOOL_MENUS.length)}>
         {tiles.map((tool) => (
           <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
             <OfficeTile tool={tool} />
@@ -311,14 +340,17 @@ export const OfficeSection = React.memo(() => {
           <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
             <OfficeExpandTile
               menu={menu}
-              expanded={expandedMenu === menu.id}
-              onToggle={() => setExpandedMenu((c) => (c === menu.id ? null : menu.id))}
+              open={openMenuId === menu.id}
+              onToggle={() => setOpenMenuId((prev) => (prev === menu.id ? null : menu.id))}
             />
           </div>
         ))}
       </div>
       {openMenu && (
-        <div className={`${OFFICE_SCROLL_ROW} mt-sm`}>
+        <div
+          className={`${OFFICE_SCROLL_ROW} mt-3 sm:mt-4`}
+          style={officeStripStyle(openMenu.items.length, { maxTilePx: 200 })}
+        >
           {openMenu.items.map((item) => (
             <div key={item.id} className={OFFICE_SCROLL_ITEM}>
               <OfficeMenuItemTile item={item} />
