@@ -52,6 +52,7 @@ import {
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeFindContentTool,
+  makeSearchThreadsTool,
   makeGroupsTool,
   makeMediaTool,
   makeNotebooksTool,
@@ -230,6 +231,9 @@ NUTZE WENN:
     };
     if (state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
+    }
+    if (state.enabledTools?.['search_threads'] !== false) {
+      tools.search_threads = makeSearchThreadsTool(personalCtx);
     }
     if (state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);

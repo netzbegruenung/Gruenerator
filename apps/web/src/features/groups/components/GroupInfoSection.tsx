@@ -54,6 +54,7 @@ import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
 import GroupVisibilityDialog from './GroupVisibilityDialog';
+import { SpaceChatsSection } from './SpaceChatsSection';
 
 export interface GroupInfo {
   id?: string;
@@ -514,6 +515,8 @@ const GroupInfoSection = memo(
             onErrorMessage={onErrorMessage ?? (() => {})}
           />
         )}
+
+        <SpaceChatsSection groupId={groupId} />
 
         <div>
           <SectionHeader

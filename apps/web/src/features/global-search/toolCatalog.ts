@@ -154,11 +154,11 @@ const CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: 'tool-gruppen',
-    title: 'Gruppen',
-    subtitle: 'Zusammenarbeit im Team',
+    title: 'Spaces',
+    subtitle: 'Chats & Inhalte bündeln, Zusammenarbeit im Team',
     path: '/gruppen',
     icon: nav('gruppen'),
-    keywords: ['gruppen', 'gruppe', 'team', 'organisation', 'zusammenarbeit'],
+    keywords: ['spaces', 'space', 'gruppen', 'gruppe', 'team', 'organisation', 'zusammenarbeit'],
   },
   {
     id: 'tool-transfer',
