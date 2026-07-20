@@ -58,7 +58,7 @@ const JoinGroupPage = () => {
           setPostJoinStatus('already_member');
         } else {
           setPostJoinStatus('success');
-          setTimeout(() => navigate('/profile'), 3000);
+          setTimeout(() => navigate('/gruppen'), 3000);
         }
       },
       onError: () => {
@@ -119,7 +119,7 @@ const JoinGroupPage = () => {
             </p>
             <div className="flex justify-end gap-sm">
               <Button variant="outline" asChild>
-                <Link to="/profile">Zurück zum Profil</Link>
+                <Link to="/gruppen">Zu deinen Spaces</Link>
               </Button>
             </div>
           </CardContent>
@@ -141,7 +141,7 @@ const JoinGroupPage = () => {
             </p>
             <div className="flex justify-end gap-sm">
               <Button asChild>
-                <Link to="/profile">Zum Profil</Link>
+                <Link to="/gruppen">Zu deinen Spaces</Link>
               </Button>
             </div>
           </CardContent>
@@ -166,7 +166,7 @@ const JoinGroupPage = () => {
             </p>
             <div className="flex justify-end gap-sm">
               <Button asChild>
-                <Link to="/profile">Zum Profil</Link>
+                <Link to="/gruppen">Zu deinen Spaces</Link>
               </Button>
             </div>
           </CardContent>
@@ -189,7 +189,7 @@ const JoinGroupPage = () => {
             Als Mitglied kannst du auf gemeinsame Anweisungen und Wissen zugreifen.
           </p>
           <div className="flex justify-end gap-sm">
-            <Button variant="outline" onClick={() => navigate('/profile')} type="button">
+            <Button variant="outline" onClick={() => navigate('/gruppen')} type="button">
               Abbrechen
             </Button>
             <Button onClick={handleJoin} disabled={isJoiningGroup} type="button">
