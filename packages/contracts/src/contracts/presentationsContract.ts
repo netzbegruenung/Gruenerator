@@ -15,8 +15,10 @@ const c = initContract();
 /**
  * Presentations (reveal.js decks, collaborative_documents subtype
  * 'presentations'). CRUD/share/permissions run through the polymorphic
- * /api/docs/* endpoints; this contract only owns the deck-specific AI planning
- * route. Mirrors apps/api/routes/presentations/presentationsContractRouter.ts.
+ * /api/docs/* endpoints. Deck EDITING is tool-based: the agentic loop's
+ * edit_document tool plans ops server-side (presentationAiService) and streams
+ * them as `editor_operations` — there is no client-called planning route.
+ * Mirrors apps/api/routes/presentations/presentationsContractRouter.ts.
  */
 export const presentationsContract = c.router({
   /**

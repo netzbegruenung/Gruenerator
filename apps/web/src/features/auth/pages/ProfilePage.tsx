@@ -156,5 +156,5 @@ const ProfilePage = () => {
 
 export default withAuthRequired(ProfilePage, {
   title: 'Profil',
-  message: 'Melde dich an, um dein Profil zu verwalten und eigene Agent*innen zu erstellen.',
+  message: 'Melde dich an, um dein Profil zu verwalten und eigene Grüneratoren zu erstellen.',
 });

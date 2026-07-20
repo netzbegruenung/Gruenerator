@@ -29,7 +29,7 @@ const EXPERIMENTS: Experiment[] = [
     // Registry icons are react-icons components at runtime; the registry's
     // IconType is the wider ComponentType, so cast to the card's react-icons type.
     icon: getIcon('navigation', 'monitor') as IconType,
-    path: '/experiments/monitor',
+    path: '/experiments/monitor/themen',
   },
   {
     id: 'reisekosten',

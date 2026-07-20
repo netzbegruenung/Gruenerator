@@ -3,8 +3,9 @@
  *
  * Presentations are collaborative_documents rows (subtype 'presentations');
  * CRUD, sharing and permissions run through the polymorphic /api/docs/*
- * endpoints. This router only owns the deck-specific AI planning route,
- * mirroring the sheets plan-then-apply pattern.
+ * endpoints. Deck EDITING is tool-based (the agentic loop's edit_document tool →
+ * presentationAiService → `editor_operations` SSE) — this router only owns the
+ * direct generator.
  */
 
 import { presentationsContract } from '@gruenerator/contracts';

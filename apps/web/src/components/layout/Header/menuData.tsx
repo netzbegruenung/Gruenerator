@@ -1,6 +1,7 @@
 import { FaCloud, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { PiGlobe } from 'react-icons/pi';
+import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
@@ -21,7 +22,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
+  { key: 'gruppen', label: 'Spaces', path: '/gruppen', icon: FaUsers },
   { key: 'verbindungen', label: 'Verbindungen', path: '/profile/verbindungen', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
 ];
@@ -74,6 +75,15 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     // Exact tab paths only — a /workplace prefix would also claim the Wissen
     // tab, which the dedicated entry below highlights.
     exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
+  };
+
+  items.grueneratoren = {
+    id: 'grueneratoren',
+    path: '/agentura',
+    title: 'Grüneratoren',
+    description: 'Deine KI-Grüneratoren',
+    icon: RiSpyLine,
+    activePaths: ['/agentura', '/agents'],
   };
 
   // No `path`: the sidebar opens the global search palette instead of

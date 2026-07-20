@@ -296,8 +296,12 @@ export async function buildStreamContext({
   let actualThreadId: string | undefined = threadId ?? undefined;
   // A non-UUID id (local sentinel for an unsaved thread) can't be looked up or
   // stored — drop it so the create-thread branch below mints a real one and
-  // reports it back via `thread_created`.
+  // reports it back via `thread_created`. Logged: a client that persistently
+  // sends sentinels (e.g. an aui-internal "__LOCALID_..." leaking through the
+  // adapter) creates a new thread on EVERY message, which looks like lost chat
+  // history — this line is the observable trace of that failure mode.
   if (actualThreadId && !UUID_RE.test(actualThreadId)) {
+    log.warn(`[StreamContext] Dropping non-UUID threadId "${actualThreadId}" — minting new thread`);
     actualThreadId = undefined;
   }
   let isNewThread = false;

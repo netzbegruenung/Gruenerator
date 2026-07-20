@@ -183,14 +183,7 @@ export const sheetOperationSchema = z.discriminatedUnion('type', [
       }),
       z.object({
         kind: z.literal('date'),
-        operator: z.enum([
-          'after',
-          'before',
-          'between',
-          'equal',
-          'on_or_after',
-          'on_or_before',
-        ]),
+        operator: z.enum(['after', 'before', 'between', 'equal', 'on_or_after', 'on_or_before']),
         /** ISO date (yyyy-mm-dd). */
         date: z.string(),
         /** Upper bound for 'between'. */
