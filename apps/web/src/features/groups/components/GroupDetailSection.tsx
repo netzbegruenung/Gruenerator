@@ -173,7 +173,7 @@ const GroupDetailSection = memo(
       deleteGroup(groupId, {
         onSuccess: () => navigate('/'),
         onError: (error: Error) =>
-          onErrorMessage(`Fehler beim Löschen der Gruppe: ${error.message}`),
+          onErrorMessage(`Fehler beim Löschen der Space: ${error.message}`),
       });
     }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage]);
 
@@ -197,11 +197,11 @@ const GroupDetailSection = memo(
       updateGroupName(groupId, editedGroupName.trim(), {
         onSuccess: () => {
           setIsEditingName(false);
-          onSuccessMessage('Gruppenname erfolgreich geändert!');
+          onSuccessMessage('Space-Name erfolgreich geändert!');
           void refetchGroupData();
         },
         onError: (error: Error) => {
-          onErrorMessage('Fehler beim Ändern des Gruppennamens: ' + error.message);
+          onErrorMessage('Fehler beim Ändern des Space-Namens: ' + error.message);
           setEditedGroupName(data?.groupInfo?.name || '');
         },
       });
@@ -239,11 +239,11 @@ const GroupDetailSection = memo(
         {
           onSuccess: () => {
             setIsEditingDescription(false);
-            onSuccessMessage('Gruppenbeschreibung erfolgreich geändert!');
+            onSuccessMessage('Space-Beschreibung erfolgreich geändert!');
             void refetchGroupData();
           },
           onError: (error: Error) => {
-            onErrorMessage('Fehler beim Ändern der Gruppenbeschreibung: ' + error.message);
+            onErrorMessage('Fehler beim Ändern der Space-Beschreibung: ' + error.message);
             setEditedGroupDescription(data?.groupInfo?.description || '');
           },
         }
@@ -305,7 +305,7 @@ const GroupDetailSection = memo(
           sharedContent={sharedContent}
           isLoadingSharedContent={isLoadingGroupContent}
           onUnshareContent={(contentId, contentType) => {
-            if (window.confirm('Inhalt aus der Gruppe entfernen?')) {
+            if (window.confirm('Inhalt aus der Space entfernen?')) {
               unshareContent.mutate({ contentId, contentType });
             }
           }}
