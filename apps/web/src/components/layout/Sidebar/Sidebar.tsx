@@ -34,6 +34,7 @@ import NewItemDropdown from './NewItemDropdown';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
+import { SpacesSidebarSection } from './SpacesSidebarSection';
 
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -330,13 +331,18 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         />
       </nav>
 
-      {/* Scroll region: chat threads */}
+      {/* Scroll region: spaces + chat threads */}
       <div
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
         )}
       >
+        <SpacesSidebarSection
+          sidebarExpanded={sidebarExpanded}
+          onLinkClick={handleLinkClick}
+          isActive={isActive}
+        />
         {/* Registers the slot node synchronously (ref callback fires during
             commit), so the global chat runtime's thread-list portal follows it
             atomically across per-route remounts — no flicker. */}

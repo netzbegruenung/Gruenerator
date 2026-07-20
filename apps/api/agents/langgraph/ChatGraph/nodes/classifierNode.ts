@@ -18,6 +18,11 @@ import {
   McpServerRegistry,
   type McpClassifierServer,
 } from '../../../../services/mcp/McpServerRegistry.js';
+import {
+  DE_ONLY_SYSTEM_INTENTS,
+  SYSTEM_MCP_INTENTS,
+  isSystemIntentAvailable,
+} from '../../../../services/mcp/systemMcpServers.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -174,6 +179,29 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'direct';
   }
 
+  // Downgrades to `web` must carry a query: system intents sit in
+  // NON_SEARCH_INTENTS, so the parse nulled searchQuery — an un-backfilled
+  // downgrade would run the web search on the empty string.
+  let downgradedSearchQuery: string | null = null;
+
+  // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
+  // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
+  if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
+    log.info(`[Classifier] ${intent} downgraded to web for de-AT locale (DE-only source)`);
+    intent = 'web';
+    downgradedSearchQuery = userText;
+  }
+
+  // System MCP sources are env-gated: without the deploy env URL the intent has
+  // no tools behind it — degrade so the question still gets answered (wetter/
+  // news → web has a chance; a live train query without the source doesn't).
+  if (intent && SYSTEM_MCP_INTENTS.has(intent) && !isSystemIntentAvailable(intent)) {
+    const fallback = intent === 'bahn' ? 'direct' : 'web';
+    log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
+    intent = fallback;
+    if (fallback === 'web') downgradedSearchQuery = userText;
+  }
+
   // ── URL context: pasted link(s) → additive scrape_url step ──
   // When the active agent has scraping enabled and the message contains URL(s),
   // crawl them so the page content becomes context. Additive, not exclusive:
@@ -213,6 +241,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   return {
     ...result,
     intent: intent ?? result.intent,
+    ...(downgradedSearchQuery != null && !result.searchQuery
+      ? { searchQuery: downgradedSearchQuery }
+      : {}),
     secondaryIntent,
     detectedUrls,
     documentSources,

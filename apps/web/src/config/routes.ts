@@ -105,24 +105,18 @@ const ImageStudioCategoryTypeRedirect = lazy(() =>
   Promise.resolve({ default: ImageStudioCategoryTypeRedirectComponent })
 );
 
-// Redirects for image-studio/ki routes to /imagine
+// Legacy KI routes (/studio/ki, /imagine) now redirect to the unified Bild-Editor.
 const ImageStudioKiRedirect = lazy(() =>
   Promise.resolve({
-    default: createRedirect('/imagine'),
+    default: createRedirect('/bild-editor'),
   })
 );
+const ImageStudioKiTypeRedirect = ImageStudioKiRedirect;
 
-// Dynamic redirect: /studio/ki/:type → /imagine/:type
-const ImageStudioKiTypeRedirectComponent: FC<Record<string, unknown>> = () => {
-  const { type } = useParams();
-  return createElement(Navigate, { to: `/imagine/${type || ''}`, replace: true });
-};
-const ImageStudioKiTypeRedirect = lazy(() =>
-  Promise.resolve({ default: ImageStudioKiTypeRedirectComponent })
+// Bild-Editor v2 — focused KI generate/edit/outpaint flow with version tree
+const BildEditorV2Page = lazy(
+  () => import('../features/image-studio/bild-editor-v2/BildEditorV2Page')
 );
-
-// Direct Imagine page (renders ImageStudio with 'ki' category pre-selected)
-const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 const ReisekostenPage = lazy(() => import('../features/reisekosten/ReisekostenPage'));
 
 // Statische Importe in dynamische umwandeln
@@ -139,7 +133,7 @@ const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
-const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
+const SettingsRedirect = lazy(() => import('../features/settings/SettingsRedirect'));
 const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
 
 // Gruppen-Komponente importieren
@@ -204,17 +198,21 @@ const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
-const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
-const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
-const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
+const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
-const OfficeListRedirect = lazy(() =>
-  Promise.resolve({ default: createRedirect('/workplace/arbeiten') })
-);
-const WissenRedirect = lazy(() =>
-  Promise.resolve({ default: createRedirect('/workplace/wissen') })
-);
+const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
+// The per-type office overviews are consolidated into the /office hub; keep the
+// old paths as redirects so pinned favourites and search results still resolve.
+const OfficeSuiteRedirect = lazy(() => Promise.resolve({ default: createRedirect('/office') }));
+const CanvasLandingPage = lazy(() => import('../features/image-studio/CanvasLandingPage'));
+// Legacy /canvas landing now lives at /studio — keep /canvas as a redirect.
+const CanvasToStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
+// Deprecated /imagine routes → unified Bild-Editor.
+const ImagineRedirect = lazy(() => Promise.resolve({ default: createRedirect('/bild-editor') }));
+const WissenPage = lazy(() => import('../features/notebook/WissenPage'));
+// The notebook hub is now the standalone /wissen page (no longer a workplace tab).
+const WissenRedirect = lazy(() => Promise.resolve({ default: createRedirect('/wissen') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
 const CollabCanvasStudioPage = lazy(
@@ -222,7 +220,6 @@ const CollabCanvasStudioPage = lazy(
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
-const MonitorUebersichtPage = lazy(() => import('../features/monitor/pages/MonitorUebersichtPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
 const MonitorWatcherPage = lazy(() => import('../features/monitor/pages/MonitorWatcherPage'));
@@ -275,12 +272,16 @@ const standardRoutes: RouteConfig[] = [
   { path: '/testsommer', component: TestsommerPage, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  // Workplace home with three tab routes (Chat / Arbeiten / Wissen). sidebarOnly
-  // for all three so the tab row keeps its position; Wissen additionally needs
-  // the h-dvh flex chain for the embedded notebook chat surface.
-  { path: '/workplace', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace/arbeiten', component: WorkplacePage, layoutMode: 'sidebarOnly' },
-  { path: '/workplace/wissen', component: WorkplacePage, layoutMode: 'sidebarOnly' },
+  // Wissen is now a standalone page; keep the old tab path as a redirect (static
+  // route outranks the /workplace/* splat below in React Router v6).
+  { path: '/workplace/wissen', component: WissenRedirect },
+  { path: '/wissen', component: WissenPage, layoutMode: 'sidebarOnly' },
+  // Workplace (Chat / Arbeiten). ONE splat route so both tabs resolve to the same
+  // route entry: WorkplacePage then stays mounted across tab switches
+  // (RouteComponent keys the page by config path) instead of remounting the whole
+  // surface each time — it derives the active tab from the pathname and only swaps
+  // the tab content. sidebarOnly keeps the tab row in place.
+  { path: '/workplace/*', component: WorkplacePage, layoutMode: 'sidebarOnly' },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
   // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
   // stays available so existing agents remain usable.
@@ -291,6 +292,8 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
       ] satisfies RouteConfig[])
     : []),
+  // EXPERIMENTAL — recurring agent tasks management.
+  { path: '/wiederkehrend', component: RecurringTasksPage },
   // Agentura — the agents & skills marketplace. Detail "product pages" sit
   // under /agentura/agent/<slug> and /agentura/skill/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.
@@ -332,7 +335,14 @@ const standardRoutes: RouteConfig[] = [
   // production-visible at /experiments/monitor*.
   { path: '/experiments', component: ExperimentsIndexPage },
   { path: '/experiments/reisekosten', component: ReisekostenPage },
-  { path: '/experiments/monitor', component: MonitorUebersichtPage },
+  // The Monitor overview was dissolved — its content moved into the standalone
+  // Themen/Umfragen pages. Bare /experiments/monitor now lands on Themen.
+  {
+    path: '/experiments/monitor',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
+    ),
+  },
   { path: '/experiments/monitor/themen', component: MonitorThemenPage },
   { path: '/experiments/monitor/themen/:topic', component: MonitorThemenPage },
   { path: '/experiments/monitor/umfragen', component: MonitorUmfragenPage },
@@ -341,7 +351,9 @@ const standardRoutes: RouteConfig[] = [
   // Legacy /monitor* redirects → /experiments/monitor* (old links/bookmarks).
   {
     path: '/monitor',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/experiments/monitor') })),
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/experiments/monitor/themen') })
+    ),
   },
   {
     path: '/monitor/themen',
@@ -368,9 +380,6 @@ const standardRoutes: RouteConfig[] = [
       Promise.resolve({ default: createRedirect('/experiments/monitor/feed') })
     ),
   },
-  { path: '/briefing', component: BriefingPage },
-  { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
-  { path: '/briefing/:agentId/archiv/:filename', component: BriefingArticlePage },
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
@@ -475,6 +484,10 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/hessen') })),
   },
   {
+    path: '/gruene-saarland',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/saarland') })),
+  },
+  {
     path: '/kommunalwiki',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/kommunalwiki') })),
   },
@@ -537,19 +550,25 @@ const standardRoutes: RouteConfig[] = [
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage, public: true },
   { path: '/register', component: RegistrationPage, public: true },
-  { path: '/profile', component: ProfilePage },
-  { path: '/profile/:tab', component: ProfilePage },
-  { path: '/profile/:tab/:subtab', component: ProfilePage },
-  { path: '/profile/:tab/:subtab/:subsubtab', component: ProfilePage },
+  // Settings live in a global dialog; these routes only open it (deep links).
+  // /profile/* are legacy aliases — old links keep resolving via the same stub.
+  { path: '/settings', component: SettingsRedirect },
+  { path: '/settings/:tab', component: SettingsRedirect },
+  { path: '/profile', component: SettingsRedirect },
+  { path: '/profile/:tab', component: SettingsRedirect },
+  { path: '/profile/:tab/*', component: SettingsRedirect },
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   {
+    // "Rollen einrichten" (chat PlusMenu) → the tab that now hosts RolesSection.
     path: '/dein-gruenerator',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/settings/personalisierung') })
+    ),
   },
   {
     path: '/chat/settings',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/settings') })),
   },
   { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
   // Thread deep links (Notion-style slug, suffix is the stable key). React
@@ -568,15 +587,16 @@ const standardRoutes: RouteConfig[] = [
     component: ImageStudioCategoryTypeRedirect,
     devOnly: true,
   },
-  // Studio Routes - KI routes redirect to /imagine
-  { path: '/imagine', component: ImaginePage, withForm: true },
-  { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  // Studio landing, gallery, and the canvas-based sharepic CREATION flow (the
-  // `:category` routes below) are all prod-visible. Creation is a public research
-  // preview gated in-UI by SHOW_SHAREPIC_STUDIO (flip to false to hide it).
-  // Studio landing is folded into the workplace "Arbeiten" tab; the creation
-  // wizard (/studio/:category…), gallery, video and canvas routes stay.
-  { path: '/studio', component: OfficeListRedirect },
+  // Bild-Editor is the unified KI create/edit surface; /imagine is deprecated.
+  { path: '/bild-editor', component: BildEditorV2Page, layoutMode: 'sidebarOnly' },
+  { path: '/imagine', component: ImagineRedirect },
+  { path: '/imagine/:type', component: ImagineRedirect },
+  // "/studio": the sharepic/graphics landing page. The creation wizard
+  // (/studio/:category…), gallery, video and canvas editor routes stay — the
+  // landing's create flow navigates into them. /canvas redirects here for
+  // back-compat. Creation is a research preview gated in-UI by SHOW_SHAREPIC_STUDIO.
+  { path: '/studio', component: CanvasLandingPage, layoutMode: 'sidebarOnly' },
+  { path: '/canvas', component: CanvasToStudioRedirect },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
@@ -595,14 +615,18 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
   },
   // Pages Feature Routes
-  // Office overview lives in the workplace "Arbeiten" tab; the editor stays.
-  { path: '/office', component: OfficeListRedirect },
+  // Combined office overview still lives in the workplace "Arbeiten" tab; each
+  // type also has a dedicated, type-scoped landing page below. The editors stay.
+  { path: '/office', component: OfficeSuiteLandingPage, layoutMode: 'sidebarOnly' },
   // Dispatches to the BlockNote or Univer editor by document_subtype.
   { path: '/office/:id', component: CollabDocRoute, layoutMode: 'immersive' },
-  // Legacy /docs URLs → /office
-  { path: '/docs', component: OfficeListRedirect },
+  // Former type-scoped overviews now redirect to the unified /office hub. Static
+  // paths precede their `:id` siblings so the redirect wins over the editor route.
+  { path: '/docs', component: OfficeSuiteRedirect },
   { path: '/docs/:id', component: DocumentToOfficeRedirect },
-  { path: '/boards', component: OfficeListRedirect },
+  { path: '/sheets', component: OfficeSuiteRedirect },
+  { path: '/presentations', component: OfficeSuiteRedirect },
+  { path: '/boards', component: OfficeSuiteRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'sidebarOnly' },
   // Sites Feature Routes — embedded candidate site builder

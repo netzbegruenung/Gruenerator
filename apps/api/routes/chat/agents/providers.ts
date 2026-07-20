@@ -115,18 +115,6 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
-  'qwen-regolo': {
-    kind: 'single',
-    provider: 'regolo',
-    model: 'qwen3.5-122b',
-    contextWindow: 32768,
-  },
-  'qwen3.6-regolo': {
-    kind: 'single',
-    provider: 'regolo',
-    model: 'qwen3.6-27b',
-    contextWindow: 32768,
-  },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
@@ -399,12 +387,16 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  *
  * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
  */
-// Planner = litellm/verdigado-pro: a fast, verified tool-caller that is proven
-// reachable and completed planner=verdigado-pro turns on test-branch. NOT regolo
-// (caused the earlier steps=0 gather regression). Mistral native as the
-// cross-provider fallback if litellm is ever down.
-const LOOP_PLANNER_PRIMARY = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
-const LOOP_PLANNER_FALLBACK = { provider: 'mistral' as const, model: 'mistral-medium-2604' };
+// Planner = native Mistral Small (mistral-small-latest): the planner only calls
+// tools + formulates queries (the synth writes the prose), so Small's tool-
+// calling is plenty — and it's faster/cheaper, cutting multi-step gather latency.
+// Reliability of "does it actually call the generation tool" is now backstopped
+// by the afterGather guarantee (agenticRespondService), so Small's lighter
+// judgment is safe. Native (not regolo — steps=0 gather regression). Bump to
+// mistral-medium-2604 here if Small proves weak on multi-step gather.
+// litellm/verdigado-pro is the cross-provider fallback if the Mistral API is down.
+const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-small-latest' };
+const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
 // Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
 // litellm/verdigado-pro (fast, non-think) when regolo is absent.
 const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
@@ -417,7 +409,11 @@ const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAU
 const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
-  return isProviderConfigured('litellm') ? LOOP_PLANNER_PRIMARY : LOOP_PLANNER_FALLBACK;
+  // Prefer the native Mistral tool-caller; fall back to litellm/verdigado-pro
+  // only when the Mistral API isn't configured.
+  if (isProviderConfigured('mistral')) return LOOP_PLANNER_PRIMARY;
+  if (isProviderConfigured('litellm')) return LOOP_PLANNER_FALLBACK;
+  return LOOP_PLANNER_PRIMARY;
 }
 
 function loopSynthWriterChoice(): { provider: Provider; model: string } {

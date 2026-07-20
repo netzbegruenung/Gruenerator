@@ -82,7 +82,13 @@ const resolve = (preference: ThemePreference): boolean =>
 // updates every other consumer in the same tab.
 const listeners = new Set<(preference: ThemePreference) => void>();
 
-const useDarkMode = (): [boolean, () => void, ThemePreference, () => void] => {
+const useDarkMode = (): [
+  boolean,
+  () => void,
+  ThemePreference,
+  () => void,
+  (preference: ThemePreference) => void,
+] => {
   const [preference, setPreferenceState] = useState<ThemePreference>(readPreference);
   const [darkMode, setDarkMode] = useState<boolean>(() => resolve(preference));
 
@@ -151,7 +157,7 @@ const useDarkMode = (): [boolean, () => void, ThemePreference, () => void] => {
     );
   };
 
-  return [darkMode, toggleDarkMode, preference, cycleTheme];
+  return [darkMode, toggleDarkMode, preference, cycleTheme, setPreferenceState];
 };
 
 export default useDarkMode;

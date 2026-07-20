@@ -42,6 +42,13 @@ interface DocsComposerProps {
   isGenerating: boolean;
   /** Offer sharepic detection/creation (gated: SHOW_SHAREPIC_STUDIO, not de-AT). */
   sharepicEnabled?: boolean;
+  /** Lock every create to one kind (type-scoped landing pages), bypassing keyword detection. */
+  forcedKind?: DocKind;
+  /** Offer the "… importieren" options (doc/sheet/wolke). Off for sharepic-only surfaces. */
+  allowImports?: boolean;
+  /** Placeholder rotation. Defaults to the office examples; override per surface. */
+  promptExamples?: string[];
+  promptExamplesShort?: string[];
   onGenerate: (kind: DocKind, prompt: string) => void;
   onSelectTemplate: (kind: DocKind, id: string) => void;
   onImport: (kind: ImportKind) => void;
@@ -77,6 +84,9 @@ export function DocsComposer({
   featureIndex,
   isGenerating,
   sharepicEnabled = false,
+  forcedKind,
+  promptExamples = PROMPT_EXAMPLES,
+  promptExamplesShort = PROMPT_EXAMPLES_SHORT,
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -98,7 +108,7 @@ export function DocsComposer({
   );
 
   const query = q.trim();
-  const detectedKind = detectDocType(query, sharepicEnabled);
+  const detectedKind = forcedKind ?? detectDocType(query, sharepicEnabled);
 
   const lcQuery = query.toLowerCase();
   const matchedItems = lcQuery
@@ -285,11 +295,11 @@ export function DocsComposer({
 
   return (
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
-      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-[border-color,box-shadow] focus-within:border-[#9DBDAE] focus-within:shadow-[0_0_0_4px_rgba(95,133,117,.12),0_4px_22px_rgba(31,63,51,.07)] max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800">
+      <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500">
         <div className="relative min-w-0 flex-1">
           {query.length === 0 && (
             <TypingAnimation
-              words={isMobile ? PROMPT_EXAMPLES_SHORT : PROMPT_EXAMPLES}
+              words={isMobile ? promptExamplesShort : promptExamples}
               loop
               className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-[#9AA8A1]"
               typeSpeed={45}

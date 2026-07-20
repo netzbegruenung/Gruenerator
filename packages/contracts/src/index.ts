@@ -21,6 +21,7 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
   globalSearchContract,
@@ -52,7 +53,6 @@ export {
   videoContract,
   textGenerationContract,
   sharepicContract,
-  wordpressContract,
   transferContract,
   unsplashContract,
   notificationsContract,
@@ -66,6 +66,7 @@ export {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  recurringTasksContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -73,12 +74,14 @@ export {
   monitorContract,
   sitesContract,
   reisekostenContract,
+  promptsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/recentActivity.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
@@ -87,6 +90,7 @@ export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
+export * from './schemas/bahn.js';
 export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
 export * from './schemas/sheets.js';
@@ -111,7 +115,6 @@ export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/textGeneration.js';
 export * from './schemas/sharepic.js';
-export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
@@ -125,6 +128,7 @@ export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
+export * from './schemas/recurringTasks.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
@@ -148,3 +152,4 @@ export * from './sheetsYdoc.js';
 export * from './presentationsYdoc.js';
 
 export * from './schemas/scanner.js';
+export * from './schemas/prompts.js';

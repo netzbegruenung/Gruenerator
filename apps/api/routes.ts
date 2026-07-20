@@ -14,6 +14,7 @@ import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/i
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
+import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
@@ -68,6 +69,8 @@ import { mountNotificationsContractRouter } from './routes/notifications/notific
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
+import { mountRecurringTasksContractRouter } from './routes/recurringTasks/recurringTasksContractRouter.js';
+import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { releasesRouter } from './routes/releases/index.js';
 import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
@@ -113,7 +116,6 @@ import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js'
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
-import subtitlerSocialRouter from './routes/subtitler/socialController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
@@ -127,7 +129,6 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
-import { mountReisekostenContractRouter } from './routes/reisekosten/reisekostenContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
@@ -136,7 +137,7 @@ import { mountVideoContractRouter } from './routes/video/videoContractRouter.js'
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
-import { mountWordpressContractRouter } from './routes/wordpress/wordpressContractRouter.js';
+import { mountRecentActivityContractRouter } from './routes/workplace/recentActivityContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
@@ -279,7 +280,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
-  const { default: wordpressApiRouter } = await import('./routes/wordpress/wordpressApi.js');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
   const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
@@ -317,6 +317,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // middleware ordering), and every profile route requires authentication.
   app.use('/api/auth/profile', requireAuth);
   app.use('/api/auth/delete-account', requireAuth);
+  app.use('/api/auth/locale', requireAuth);
   mountUserProfileContractRouter(app);
   // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
   // so contract-modeled routes match first; unmatched paths fall through.
@@ -339,6 +340,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the prefix because every route requires authentication.
   app.use('/api/auth/templates', requireAuth);
   mountTemplateInteractionsContractRouter(app);
+  // ts-rest contract router for user prompts (custom_prompts + saved_prompts
+  // CRUD) — mounts BEFORE authRouter so contract routes match first; the
+  // legacy userCustomPrompts router keeps the semantic-search / discovery
+  // endpoints. requireAuth at the prefixes because every route requires auth.
+  app.use('/api/auth/custom_prompts', requireAuth);
+  app.use('/api/auth/saved_prompts', requireAuth);
+  mountPromptsContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections. requireAuth is
   // applied at the prefix because all routes require authentication.
@@ -598,15 +606,29 @@ export async function setupRoutes(app: Application): Promise<void> {
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
+  // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
+  app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
+  mountRecurringTasksContractRouter(app);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
-  // requireAuth must run before the contract mount — createExpressEndpoints
-  // registers handlers directly on the app, bypassing the legacy prefix
-  // middleware. Same pattern as /api/transfer below.
+  // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
+  // registers handlers directly on the app, bypassing the legacy prefix middleware.
+  // Same pattern as /api/transfer below.
+  //   - project routes require auth (reject unauthenticated)
+  //   - share routes: optionalAuth populates req.user so write handlers can
+  //     check it, without rejecting the public getShare/thumbnail/preview reads
+  //   - standardMutationLimiter guards writes across the whole prefix (it skips
+  //     GETs, so the 2s progress-polling endpoints are unaffected)
   app.use('/api/subtitler/projects', requireAuth);
+  app.use('/api/subtitler/share', optionalAuth);
+  // Read limiter for the public share GETs (getShare / listMyShares) — the
+  // prefix-wide standardMutationLimiter below skips GETs, so without this the
+  // migrated share reads would be unthrottled. Writes get both limiters.
+  app.use('/api/subtitler/share', publicReadLimiter);
+  app.use('/api/subtitler', standardMutationLimiter);
   mountSubtitlerContractRouter(app);
-  app.use('/api/subtitler', standardMutationLimiter, subtitlerRouter);
-  app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
-  app.use('/api/subtitler/projects', standardMutationLimiter, subtitlerProjectRouter);
+  // Legacy routers — binary/streaming routes only (contract handles all JSON).
+  app.use('/api/subtitler', subtitlerRouter);
+  app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
   // Populate req.user for /api/share without rejecting unauthenticated reads.
   // The contract router below checks req.user.id per write handler; the legacy
@@ -631,6 +653,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountEmailContractRouter(app);
   app.use('/api/email', standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
+  // ts-rest contract router for /api/recent-activity — mounts BEFORE the legacy
+  // router so the typed GET matches first; requireAuth at the prefix guarantees
+  // req.user for both the contract handler and the legacy fall-through.
+  app.use('/api/recent-activity', requireAuth);
+  mountRecentActivityContractRouter(app);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first; /stream SSE falls through to legacy.
@@ -788,12 +815,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
   // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
   app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
-  // ts-rest contract router — mount before legacy wordpressApiRouter
-  // requireAuth is also inside the legacy router, but we apply it here
-  // since the contract router runs first.
-  app.use('/api/wordpress', requireAuth);
-  mountWordpressContractRouter(app);
-  app.use('/api/wordpress', standardMutationLimiter, requireAuth, wordpressApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   // ts-rest contract router — mount before the legacy sitesRouter so the
   // typed CRUD routes match first; /public/:subdomain and /themes fall

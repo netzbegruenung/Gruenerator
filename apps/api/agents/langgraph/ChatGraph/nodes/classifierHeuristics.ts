@@ -135,6 +135,8 @@ export const INTENT_KEYWORDS: Record<
     | 'save_as_doc'
     | 'create_sheet'
     | 'create_presentation'
+    // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
+    | 'create_recurring_task'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
@@ -156,6 +158,15 @@ export const INTENT_KEYWORDS: Record<
     // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
     // never keyword-classified (would misfire on generic "tool"/"server" words).
     | 'mcp'
+    // System MCP intents (EXPERIMENTAL) are LLM-classified only — bare keywords
+    // like "bahn"/"wetter"/"news" would hijack policy queries (Bahnreform,
+    // Klimapolitik, Nachrichten über X).
+    | 'bahn'
+    | 'reise'
+    | 'hotel'
+    | 'wetter'
+    | 'news'
+    | 'umfragen'
   >,
   string[]
 > = {

@@ -598,10 +598,26 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     try {
-      // Update backend if user is authenticated
+      // Persist via the typed contracts client. When not authenticated the
+      // locale is a local-only preference (store update below, no request).
       const state = get();
       if (state.isAuthenticated) {
-        await apiClient.put('/auth/locale', { locale: newLocale });
+        const result = await getContractsClient().userProfile.updateLocale({
+          body: { locale: newLocale },
+        });
+        if (result.status !== 200) {
+          const body: unknown = result.body;
+          const message =
+            body &&
+            typeof body === 'object' &&
+            'message' in body &&
+            typeof body.message === 'string'
+              ? body.message
+              : 'Sprache konnte nicht gespeichert werden.';
+          console.error('[AuthStore] Error updating locale:', result.status, message);
+          toast.error(message);
+          return false;
+        }
       }
 
       // Update store
@@ -609,13 +625,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       return true;
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : error && typeof error === 'object' && 'response' in error
-            ? (error.response as { data?: { error?: string } })?.data?.error
-            : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating locale:', errorMessage);
+      toast.error('Sprache konnte nicht gespeichert werden.');
       return false;
     }
   },

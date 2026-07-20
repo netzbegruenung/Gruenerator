@@ -14,15 +14,17 @@ import {
 } from '@gruenerator/ui';
 import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
+import { FaUsers } from 'react-icons/fa';
+import { HiCog } from 'react-icons/hi';
 import { PiCompass, PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import NotificationList from '../../../features/notifications/components/NotificationList';
 import { useNotifications } from '../../../features/notifications/hooks/useNotifications';
+import { useSettingsDialogStore } from '../../../features/settings/settingsDialogStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useDarkMode from '../../hooks/useDarkMode';
-import { NAV_ITEMS } from '../Header/menuData';
 
 import { cn } from '@/utils/cn';
 
@@ -99,12 +101,20 @@ const SidebarAccount = memo(function SidebarAccount({
       sideOffset={8}
       className="w-80"
     >
-      {NAV_ITEMS.map((item) => (
-        <DropdownMenuItem key={item.key} onClick={() => onNavigate(item.path, item.label)}>
-          <item.icon className="size-4" />
-          <span>{item.label}</span>
-        </DropdownMenuItem>
-      ))}
+      <DropdownMenuItem onClick={() => onNavigate('/gruppen', 'Spaces')}>
+        <FaUsers className="size-4" />
+        <span>Spaces</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onSelect={() => {
+          // Defer past the dropdown's close so the two Radix modals don't fight
+          // over the body pointer-events lock / focus restoration in one commit.
+          setTimeout(() => useSettingsDialogStore.getState().openSettings(), 0);
+        }}
+      >
+        <HiCog className="size-4" />
+        <span>Einstellungen</span>
+      </DropdownMenuItem>
       <DropdownMenuItem onClick={() => onNavigate('/support', 'Support')}>
         <PiQuestion className="size-4" />
         <span>Support</span>

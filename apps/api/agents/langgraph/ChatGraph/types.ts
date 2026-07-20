@@ -107,6 +107,19 @@ export interface GeneratedImageResult {
   generationTimeMs: number;
 }
 
+/** A collaborative document (presentation / sheet / text doc) created within a
+ *  turn — the shape emitted on the `document_created` SSE and persisted as
+ *  message metadata (`createdDocument`) for thread-reload rehydration. `subtype`
+ *  is a free string ('presentations' | 'sheets' | 'docs' | 'blank' | …) because
+ *  text-doc generation picks the subtype at runtime; the SSE contract is
+ *  `z.string()` too. */
+export interface CreatedDocument {
+  documentId: string;
+  title: string;
+  subtype: string;
+  url: string;
+}
+
 /**
  * Source prefixes used in SearchResult.source to identify result provenance.
  * Use these instead of raw strings to avoid silent mismatches across the pipeline.
@@ -122,6 +135,18 @@ export const SOURCE_PREFIX = {
   WOLKE: 'wolke:',
   CONNECT: 'connect:',
 } as const;
+
+/**
+ * True when a searchErrors entry means a search backend was unreachable
+ * (Qdrant collection, web search, whole-search catch) — as opposed to soft
+ * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
+ * searchErrors but must not trigger "Quellen nicht erreichbar" messaging.
+ */
+export function isSourceAvailabilityError(entry: { source: string }): boolean {
+  return (
+    entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
 
 /**
  * Unified search result structure from any tool.
@@ -398,13 +423,6 @@ export interface ChatGraphState {
   // HTTP-decoupled (no Response object on state).
   onResearchProgress?: ((message: string) => void) | undefined;
 
-  // Optional progress sink for the EXPERIMENTAL `mcp` intent tool-loop. The
-  // dispatch layer wires this to SSE tool_step_start/tool_step_result so each
-  // external MCP tool call is surfaced to the user. Graph stays HTTP-decoupled.
-  onMcpProgress?:
-    | ((step: { phase: 'start' | 'result'; server: string; tool: string; ok?: boolean }) => void)
-    | undefined;
-
   // Attachment context
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
@@ -563,7 +581,11 @@ export interface ChatGraphState {
   qualityAssessmentTimeMs: number;
   topRerankScore: number | null;
 
-  // Reliability flags & structured error log
+  // Reliability flags & structured error log. Sources 'web' / 'search' /
+  // 'documents:*' mean a search backend was unreachable; soft LLM-stage
+  // failures (briefGenerator, qualityGate, rerank) also append here but say
+  // nothing about source availability — filter with isSourceAvailabilityError
+  // before telling anyone the sources were down.
   searchErrors: { source: string; message: string }[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
@@ -576,23 +598,42 @@ export interface ChatGraphState {
   imageTimeMs: number;
   imageEditDescriptions: { original: string | null; edited: string | null } | null;
 
-  // Compound generation (agentic loop): mount signal for the sharepic fat tool
-  // and its per-turn result (shared-ref merge, like generatedImage).
+  // Compound generation (agentic loop): mount signal for the generation fat
+  // tools and their per-turn result (shared-ref merge, like generatedImage).
   compoundGeneration?: boolean;
+  // Which generation fat tool to mount — derived from intent OR (for a demoted
+  // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
+  // create_sheet even though the intent is `agentic`, not `create_sheet`.
+  compoundGenerationKind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
+  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
+  // research loop, then emits trigger_doc_edit/trigger_board_action with the
+  // gathered sources as reference material. Synth writes only a short confirm.
+  compoundEdit?: boolean;
+  // Tool-based editor edit: the resolved editor surface whose `edit_document`
+  // tool the loop mounts. Set only for surfaces with a tool path
+  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
+  // trigger_doc_edit path for the still-live surfaces.
+  editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
+  // Human summary of edits the edit_document tool made THIS turn (set by
+  // editorTools). Feeds the synth prompt so the model confirms the change in
+  // past tense instead of writing empty text (→ fallback) or a false "I can't".
+  editorEditsSummary?: string | null;
   sharepicVariants?: SharepicVariant[] | null;
+  // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
+  // router into the persisted assistant message's `createdDocument` metadata.
+  createdDocument?: CreatedDocument | null;
+  // Board fat tool result (compound turns) — boards have no `document_created`
+  // card path, so this is lifted into the loop's `done` event (boardId +
+  // boardGeneratedStructure) the way the single-pass board handler does.
+  createdBoard?: { boardId: string; title: string; boardGeneratedStructure: unknown } | null;
 
   // Document summarization
   summaryContext: string | null;
   summaryTimeMs: number;
 
-  // EXPERIMENTAL `mcp` intent: aggregated output of the external-tool loop,
-  // injected into respondNode as authoritative context. Null/undefined when the
-  // loop produced nothing (no servers, all failed, no tool used).
-  mcpToolContext?: string | null | undefined;
-  mcpToolTimeMs?: number | undefined;
-  // Scopes the tool-loop to one connected server (its `mcp_servers.id`), set by a
-  // `@notion`/`@brevo` mention (router) or a conservative classifier hint. Null =
-  // run over all enabled servers (legacy @mcp).
+  // Scopes the agentic tool-loop to one connected server (its `mcp_servers.id`),
+  // set by a `@notion`/`@brevo` mention (router) or a conservative classifier
+  // hint. Null = run over all enabled servers.
   mcpServerScope?: string | null | undefined;
 
   // Deterministic computation (set by computeNode; null when nothing computable)
@@ -748,6 +789,16 @@ export interface ShareDocPayload {
   permissionLevel: 'viewer' | 'editor';
 }
 
+export interface CreateGroupPayload {
+  name: string;
+  description: string | null;
+}
+
+export interface JoinGroupPayload {
+  joinToken: string;
+  groupName: string;
+}
+
 /**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
@@ -764,6 +815,8 @@ export type PendingAction = {
   | { type: 'modify_doc'; payload: ModifyDocPayload }
   | { type: 'modify_board'; payload: ModifyBoardPayload }
   | { type: 'share_doc'; payload: ShareDocPayload }
+  | { type: 'create_group'; payload: CreateGroupPayload }
+  | { type: 'join_group'; payload: JoinGroupPayload }
 );
 
 /**

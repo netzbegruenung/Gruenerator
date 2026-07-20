@@ -192,11 +192,37 @@ describe('createToolLoopGuards — near-duplicate (Jaccard)', () => {
     expect(guards.checkDuplicate('gruenerator_search', { query: 'Atomenergie' })).toBeNull();
   });
 
-  it('threshold is tunable; 1.0 only blocks exact token-set repeats', () => {
+  it('threshold is tunable; a non-subset near-dup is allowed at 1.0, exact repeat blocked', () => {
     const guards = createToolLoopGuards({ nearDuplicateJaccard: 1 });
     expect(guards.checkDuplicate('s', { query: 'Atomkraft Position Grüne' })).toBeNull();
-    expect(guards.checkDuplicate('s', { query: 'Position Atomkraft' })).toBeNull(); // 0.67 < 1.0
-    expect(guards.checkDuplicate('s', { query: 'grüne position atomkraft' })).not.toBeNull(); // same set
+    // Shares 2 tokens but neither set contains the other; Jaccard 0.5 < 1.0 → allowed.
+    expect(guards.checkDuplicate('s', { query: 'Position Atomkraft Tempolimit' })).toBeNull();
+    // Exact token-set repeat (reordered) → always blocked.
+    expect(guards.checkDuplicate('s', { query: 'grüne position atomkraft' })).not.toBeNull();
+  });
+
+  it('subset-containment blocks a narrowed/widened re-search regardless of the threshold', () => {
+    // The Balkonkraftwerke over-search: a later query that is a pure subset of an
+    // earlier one (or vice versa) is a redundant re-search Jaccard alone missed.
+    const guards = createToolLoopGuards({ nearDuplicateJaccard: 1 });
+    expect(
+      guards.checkDuplicate('web_search', {
+        query: 'Anzahl Balkonkraftwerke Deutschland 2023 2024',
+      })
+    ).toBeNull();
+    // ⊂ the prior set (all 4 tokens contained) → blocked even at threshold 1.0.
+    expect(
+      guards.checkDuplicate('web_search', { query: 'Balkonkraftwerke 2024 Anzahl Deutschland' })
+    ).not.toBeNull();
+  });
+
+  it('subset-containment does NOT collapse distinct single-topic queries (≥2 floor)', () => {
+    const guards = createToolLoopGuards({ nearDuplicateJaccard: 0.6 });
+    expect(guards.checkDuplicate('s', { query: 'Position Atomkraft Grüne' })).toBeNull();
+    // Shares only "position"/"grüne" pattern but a different topic; not a subset.
+    expect(guards.checkDuplicate('s', { query: 'Position Tempolimit Grüne' })).toBeNull();
+    // A single shared token is below the ≥2 subset floor → still allowed.
+    expect(guards.checkDuplicate('s', { query: 'Vermögensteuer' })).toBeNull();
   });
 });
 

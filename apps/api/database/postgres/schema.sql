@@ -1045,6 +1045,21 @@ ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS notebook_collection_ids JSONB;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_type ON chat_threads(user_id, thread_type, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_threads_notebook_collection ON chat_threads(notebook_collection_id) WHERE notebook_collection_id IS NOT NULL;
 
+-- Spaces: a thread's home Space (a group). See migration add_chat_threads_group_id.sql.
+ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS group_id UUID;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_chat_threads_group'
+    ) THEN
+        ALTER TABLE chat_threads
+            ADD CONSTRAINT fk_chat_threads_group
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_chat_threads_group_id ON chat_threads(group_id) WHERE group_id IS NOT NULL;
+
 -- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
 DO $$
 BEGIN
@@ -1140,61 +1155,6 @@ CREATE INDEX IF NOT EXISTS idx_mem0_history_memory ON mem0_memory_history(memory
 CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);
 
-
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: BRIEFING AGENTS
--- Autonomous scheduled agents that collect data and send email briefings
--- ════════════════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS briefing_agents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-
-    name TEXT NOT NULL,
-    description TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-
-    config JSONB NOT NULL DEFAULT '{}',
-
-    schedule_type VARCHAR(20) NOT NULL DEFAULT 'daily'
-        CHECK (schedule_type IN ('hourly', 'daily', 'weekly')),
-    schedule_hour INTEGER DEFAULT 8 CHECK (schedule_hour BETWEEN 0 AND 23),
-    schedule_timezone TEXT DEFAULT 'Europe/Berlin',
-
-    delivery_email TEXT,
-
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    last_executed_at TIMESTAMPTZ,
-    execution_count INTEGER DEFAULT 0,
-    consecutive_empty_count INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_briefing_agents_user ON briefing_agents(user_id);
-CREATE INDEX IF NOT EXISTS idx_briefing_agents_due ON briefing_agents(is_active, schedule_type, last_executed_at);
-
-CREATE TRIGGER update_briefing_agents_updated_at
-    BEFORE UPDATE ON briefing_agents
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TABLE IF NOT EXISTS briefing_executions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id UUID NOT NULL REFERENCES briefing_agents(id) ON DELETE CASCADE,
-
-    status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'running', 'completed', 'failed', 'empty')),
-
-    results_count INTEGER DEFAULT 0,
-    results_summary TEXT,
-    results_raw JSONB,
-
-    started_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMPTZ,
-    duration_ms INTEGER,
-    error_message TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_briefing_executions_agent ON briefing_executions(agent_id, started_at DESC);
 
 -- ============================================================================
 -- Section: In-App Notifications

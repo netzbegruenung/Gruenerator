@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
+import { OFFICE_SUITE_TOOLS } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { useFirstName } from '../../hooks/useFirstName';
 import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
@@ -44,6 +45,13 @@ import {
   presentationTemplates,
 } from '../presentations/presentationTemplates';
 import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
+import {
+  OFFICE_SCROLL_ITEM,
+  OFFICE_SCROLL_ROW,
+  OfficeActionTile,
+  officeStripStyle,
+} from '../workplace/components/ToolsSection';
+import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -60,6 +68,9 @@ import type { Board } from '../boards/types';
 
 const LazyShareModal = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
+);
+const LazyShareBoardDialog = lazy(() =>
+  import('../boards/components/ShareBoardDialog').then((m) => ({ default: m.ShareBoardDialog }))
 );
 const LazyTemplateGalleryModal = lazy(() => import('./TemplateGalleryModal'));
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
@@ -82,6 +93,18 @@ type UnifiedItem =
       sortKey: number;
     }
   | { kind: 'board'; data: Board; sortKey: number };
+
+// A single office content type. Retained for the scoped-filter machinery below;
+// current callers (Arbeiten DocsHome + the /office hub) are all unscoped.
+type OfficeScope = Exclude<DocKind, 'sharepic'>;
+
+// Per-scope hero heading (used only when a scope is passed).
+const SCOPE_META: Record<OfficeScope, { heading: string }> = {
+  doc: { heading: 'Deine Dokumente' },
+  board: { heading: 'Deine Boards' },
+  sheet: { heading: 'Deine Tabellen' },
+  pres: { heading: 'Deine Präsentationen' },
+};
 
 // Personal documents collapse to this many rows; "Alle anzeigen" reveals the rest
 // so the group sections below stay reachable without scrolling past a long grid.
@@ -111,7 +134,23 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
   return columns;
 }
 
-function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
+export function DocumentsContent({
+  showRecents = true,
+  scope,
+  officeToolStrip = false,
+  heroTitle,
+}: {
+  showRecents?: boolean;
+  scope?: OfficeScope;
+  /** Render the office action strip (Vorlagen + Leeres Dokument/Board/Tabelle/
+   * Slides) between the composer hero and the recents feed — used by the /office
+   * hub. Each tile opens the gallery or creates an empty resource via the handlers
+   * below. */
+  officeToolStrip?: boolean;
+  /** Overrides the hero heading (the firstName is appended when present). Used by
+   * the /office hub so it doesn't show the generic workplace welcome. */
+  heroTitle?: string;
+}) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
   const firstName = useFirstName();
@@ -144,6 +183,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
+  const [shareBoard, setShareBoard] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     kind: 'document' | 'board';
@@ -156,6 +196,9 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
     const groupMap = new Map<string, { groupName: string; docs: UnifiedItem[] }>();
 
     for (const doc of documents) {
+      // Scoped pages (e.g. /sheets) only surface their own document subtype.
+      if (scope && subtypeToKind(doc.document_subtype) !== scope) continue;
+
       const item: UnifiedItem = {
         kind: 'document',
         data: doc,
@@ -178,12 +221,16 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
       }
     }
 
-    for (const board of boards) {
-      personal.push({
-        kind: 'board',
-        data: board,
-        sortKey: new Date(board.updated_at).getTime(),
-      });
+    // Boards are their own resource; only the boards scope (or the unscoped
+    // Arbeiten tab) lists them.
+    if (!scope || scope === 'board') {
+      for (const board of boards) {
+        personal.push({
+          kind: 'board',
+          data: board,
+          sortKey: new Date(board.updated_at).getTime(),
+        });
+      }
     }
 
     personal.sort((a, b) => b.sortKey - a.sortKey);
@@ -198,9 +245,9 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
     return {
       personalItems: personal,
       groupDocsByGroup: sortedGroups,
-      hasAnyItems: documents.length > 0 || boards.length > 0,
+      hasAnyItems: personal.length > 0 || sortedGroups.length > 0,
     };
-  }, [documents, boards]);
+  }, [documents, boards, scope]);
 
   const personalGridRef = useRef<HTMLDivElement>(null);
   const personalColumns = useGridColumns(personalGridRef);
@@ -285,14 +332,26 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
   }, [deleteTarget, deleteDocumentMutation, deleteBoard]);
 
   const handleRenameBoard = useCallback(
-    (board: { id: string; title: string }, e: React.MouseEvent) => {
+    async (board: { id: string; title: string }, e: React.MouseEvent) => {
       e.stopPropagation();
       const newTitle = window.prompt('Neuer Titel:', board.title);
       if (newTitle?.trim() && newTitle.trim() !== board.title) {
-        updateBoard.mutate({ id: board.id, title: newTitle.trim() });
+        try {
+          await updateBoard.mutateAsync({ id: board.id, title: newTitle.trim() });
+        } catch (err) {
+          console.error('Failed to rename board:', err);
+        }
       }
     },
     [updateBoard]
+  );
+
+  const handleShareBoard = useCallback(
+    (board: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setShareBoard(board);
+    },
+    []
   );
 
   const handleCreateSheet = useCallback(async () => {
@@ -427,7 +486,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
             return;
           }
           if (result.isKiType) {
-            void navigate('/imagine/pure-create');
+            void navigate('/bild-editor');
             return;
           }
           if (!isCanvasTemplateType(result.type)) {
@@ -511,12 +570,13 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
       sortKey: new Date(b.updated_at).getTime(),
     }));
     return [...docItems, ...boardItems]
+      .filter((item) => !scope || item.kind === scope)
       .sort((a, b) => b.sortKey - a.sortKey)
       .map(({ sortKey: _sortKey, ...rest }) => rest);
-  }, [documents, boards]);
+  }, [documents, boards, scope]);
 
-  const composerTemplates: ComposerTemplate[] = useMemo(
-    () => [
+  const composerTemplates: ComposerTemplate[] = useMemo(() => {
+    const all: ComposerTemplate[] = [
       ...templates
         .filter((t) => t.id !== 'blank')
         .map((t) => ({
@@ -556,40 +616,66 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
             description: t.description ?? 'Sharepic-Vorlage',
           }))
         : []),
-    ],
-    [sharepicEnabled]
-  );
+    ];
+    return scope ? all.filter((t) => t.kind === scope) : all;
+  }, [sharepicEnabled, scope]);
 
   return (
     <>
-      <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-        <h1 className="text-center text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif] [text-wrap:balance] max-sm:text-2xl">
-          {firstName
-            ? `Willkommen im Grünerator Workplace, ${firstName}`
-            : 'Willkommen im Grünerator Workplace'}
-        </h1>
-
+      <WorkplaceHero
+        title={
+          heroTitle
+            ? firstName
+              ? `${heroTitle}, ${firstName}`
+              : heroTitle
+            : scope
+              ? firstName
+                ? `${SCOPE_META[scope].heading}, ${firstName}`
+                : SCOPE_META[scope].heading
+              : firstName
+                ? `Willkommen im Grünerator Workplace, ${firstName}`
+                : 'Willkommen im Grünerator Workplace'
+        }
+      >
         <DocsComposer
           items={composerItems}
           templates={composerTemplates}
           featureIndex={featureIndex}
           isGenerating={creating}
           sharepicEnabled={sharepicEnabled}
+          forcedKind={scope}
           onGenerate={handleComposerCreate}
           onSelectTemplate={handleComposerTemplate}
           onImport={handleComposerImport}
         />
+      </WorkplaceHero>
 
-        <div className="mt-[18px] text-center">
-          <button
-            type="button"
-            onClick={() => setShowGallery(true)}
-            className="text-[13.5px] font-semibold text-[#4C8A6E] transition-colors hover:text-[#3E7A5F]"
+      {officeToolStrip && (
+        <section className="mb-xl mt-xl">
+          <div
+            className={OFFICE_SCROLL_ROW}
+            style={officeStripStyle(OFFICE_SUITE_TOOLS.length, { maxTilePx: 200 })}
           >
-            oder wähle aus einer Vorlage
-          </button>
-        </div>
-      </div>
+            {OFFICE_SUITE_TOOLS.map((tool) => (
+              <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+                <OfficeActionTile
+                  styleKey="office"
+                  icon={tool.icon}
+                  title={tool.title}
+                  description={tool.description}
+                  onClick={() => {
+                    if (tool.create === 'gallery') setShowGallery(true);
+                    else if (tool.create === 'board') handleCreateBoard('kanban');
+                    else if (tool.create === 'sheet') void handleCreateSheet();
+                    else if (tool.create === 'pres') void handleCreatePresentation();
+                    else void handleTemplateSelect('blank');
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <DismissableBanner
         storageKey="gruenerator_docs_experimental_warning_dismissed"
@@ -649,9 +735,22 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-grey-500 dark:text-grey-400">
             <FiFile size={40} className="text-grey-300 dark:text-grey-600" />
             <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
-            <Button onClick={() => handleTemplateSelect('blank')}>
+            <Button
+              onClick={() => {
+                if (scope === 'board') handleCreateBoard('kanban');
+                else if (scope === 'sheet') void handleCreateSheet();
+                else if (scope === 'pres') void handleCreatePresentation();
+                else void handleTemplateSelect('blank');
+              }}
+            >
               <FiPlus size={16} />
-              Erstes Dokument erstellen
+              {scope === 'board'
+                ? 'Erstes Board erstellen'
+                : scope === 'sheet'
+                  ? 'Erste Tabelle erstellen'
+                  : scope === 'pres'
+                    ? 'Erste Präsentation erstellen'
+                    : 'Erstes Dokument erstellen'}
             </Button>
           </div>
         ) : (
@@ -683,6 +782,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
                         board={item.data}
                         onDelete={handleDeleteBoard}
                         onRename={handleRenameBoard}
+                        onShare={handleShareBoard}
                       />
                     );
                   })}
@@ -737,6 +837,7 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
       {showGallery && (
         <Suspense fallback={null}>
           <LazyTemplateGalleryModal
+            scope={scope}
             onClose={() => setShowGallery(false)}
             onCreateBlank={(kind) => {
               if (kind === 'doc') void handleTemplateSelect('blank');
@@ -762,6 +863,18 @@ function DocumentsContent({ showRecents = true }: { showRecents?: boolean }) {
             documentId={shareDoc.id}
             documentTitle={shareDoc.title}
             onClose={() => setShareDoc(null)}
+          />
+        </Suspense>
+      )}
+
+      {shareBoard && (
+        <Suspense fallback={null}>
+          <LazyShareBoardDialog
+            boardId={shareBoard.id}
+            open
+            onOpenChange={(open) => {
+              if (!open) setShareBoard(null);
+            }}
           />
         </Suspense>
       )}

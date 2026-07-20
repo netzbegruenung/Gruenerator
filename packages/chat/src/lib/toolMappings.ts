@@ -11,16 +11,29 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   chat_history: 'search_chat_history',
 };
 
+/** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */
+const SYSTEM_TOOL_PREFIXES: Record<string, string> = {
+  bahn: 'Deutsche Bahn',
+  wetter: 'Wetter (DWD)',
+  news: 'tagesschau',
+  hotel: 'trivago',
+};
+
 /**
  * Human-readable label for an agentic-loop tool step. MCP/connector tools are
- * namespaced `s<idx>__<tool>` on the wire; strip the prefix and prepend the
- * server name so the card reads e.g. "Notion · search". Internal tools pass
- * through unchanged.
+ * namespaced `s<idx>__<tool>` (user connectors) or `<source>__<tool>` (system
+ * sources) on the wire; strip the prefix and prepend the server name so the
+ * card reads e.g. "Notion · search" / "Deutsche Bahn · get_planned_timetable"
+ * — identical live and after a thread reload (persisted steps carry no
+ * serverName). Internal tools pass through unchanged.
  */
 export function formatNamespacedToolLabel(toolName: string, serverName?: string): string {
   const match = /^s\d+__(.+)$/.exec(toolName);
-  const bare = match ? match[1] : toolName;
-  return serverName ? `${serverName} · ${bare}` : bare;
+  if (match) return serverName ? `${serverName} · ${match[1]}` : (match[1] ?? toolName);
+  const system = /^([a-z]+)__(.+)$/.exec(toolName);
+  const systemName = system?.[1] ? SYSTEM_TOOL_PREFIXES[system[1]] : undefined;
+  if (system && systemName) return `${serverName ?? systemName} · ${system[2]}`;
+  return serverName ? `${serverName} · ${toolName}` : toolName;
 }
 
 /**

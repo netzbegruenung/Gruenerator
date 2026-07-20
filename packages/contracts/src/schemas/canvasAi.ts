@@ -249,6 +249,13 @@ export const canvasAiSuggestRequestSchema = z.object({
   prompt: z.string().min(1).max(2000),
   snapshot: canvasAiSnapshotSchema,
   capabilities: canvasAiCapabilitiesSchema,
+  /**
+   * Research the agentic chat loop gathered before dispatching the edit
+   * ("recherchiere X und bau es ins Sharepic ein"): the loop emits
+   * trigger_doc_edit with these facts as referenceContent and the sidebar
+   * forwards them here so the suggestion prompt is grounded in them.
+   */
+  referenceContent: z.string().max(8000).optional(),
 });
 
 export const canvasAiSuggestResponseSchema = z.object({

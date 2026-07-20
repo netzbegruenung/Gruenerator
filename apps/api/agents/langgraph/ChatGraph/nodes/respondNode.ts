@@ -15,6 +15,7 @@ import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { isSourceAvailabilityError } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
@@ -254,7 +255,20 @@ export async function formatSearchContext(
     );
   }
 
+  // Infrastructure failure must not read like "no results on this topic":
+  // without this block the model confidently answers "dazu gibt es nichts",
+  // although the sources were simply unreachable.
+  const sourcesUnreachable = state.searchErrors?.some(isSourceAvailabilityError) ?? false;
   if (state.searchResults.length === 0) {
+    if (sourcesUnreachable) {
+      return (
+        `\n\n## HINWEIS: QUELLENSUCHE FEHLGESCHLAGEN\n\n` +
+        `Die Suche in den Quellen ist technisch fehlgeschlagen (Quellen nicht erreichbar) — ` +
+        `das bedeutet NICHT, dass es zum Thema keine Inhalte gibt. ` +
+        `Sag der*dem Nutzer*in transparent, dass die Quellen gerade nicht erreichbar waren, ` +
+        `beantworte nur, was du ohne Quellen sicher weißt, und schlage vor, es später erneut zu versuchen.`
+      );
+    }
     return '';
   }
 
@@ -324,7 +338,11 @@ export async function formatSearchContext(
     })
     .join('\n\n');
 
-  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]`;
+  const degradedNote = sourcesUnreachable
+    ? `\n\nHINWEIS: Ein Teil der Quellen war nicht erreichbar — die Ergebnisse sind unvollständig. Erwähne das, wenn es für die Antwort relevant ist.`
+    : '';
+
+  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]${degradedNote}`;
 }
 
 /**
@@ -547,23 +565,6 @@ ${summaryContext}
 
 ---
 Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
-}
-
-/**
- * Format the aggregated output of the EXPERIMENTAL `mcp` intent tool-loop. The
- * text was produced by external, user-connected MCP tools plus the loop's own
- * summary; the model must ground its answer in it and cite the tool source.
- */
-function formatMcpToolContext(mcpToolContext: string | null | undefined): string {
-  if (!mcpToolContext) return '';
-  return `
-
-## ERGEBNIS EXTERNER TOOLS (via verbundene MCP-Server)
-
-${mcpToolContext}
-
----
-Stütze deine Antwort auf diese Tool-Ergebnisse. Nenne, welches Tool/welcher Dienst die Information geliefert hat, wenn relevant.`;
 }
 
 /**
@@ -984,7 +985,6 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     memoryContext,
     summaryContext,
     computedResult,
-    mcpToolContext,
     boardContext,
     documentMentionContext,
   } = state;
@@ -995,7 +995,6 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
-  const mcpToolContextFormatted = formatMcpToolContext(mcpToolContext);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
@@ -1045,7 +1044,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${mcpToolContextFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1077,7 +1076,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${mcpToolContextFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

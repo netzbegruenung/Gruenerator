@@ -794,6 +794,21 @@ class SharedMediaService {
     }
   }
 
+  /** Rename a share (title only), owner-scoped. No file work — unlike the
+   * PUT /image path this doesn't re-render, so a sharepic can be retitled
+   * cheaply. Throws when the share isn't found or isn't owned by the user. */
+  async renameShare(userId: string, shareToken: string, title: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const rows = await this.postgres!.query(
+      'UPDATE shared_media SET title = $1 WHERE share_token = $2 AND user_id = $3 RETURNING id',
+      [title, shareToken, userId]
+    );
+    if (!rows || (rows as unknown[]).length === 0) {
+      throw new Error('Share not found or not owned by user');
+    }
+    return true;
+  }
+
   getMediaFilePath(relativePath: string | null): string | null {
     if (!relativePath) return null;
     const safePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');

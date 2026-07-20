@@ -3,7 +3,13 @@ import { describe, it, expect } from 'vitest';
 import {
   looksLikeToolableQuestion,
   looksLikeCompoundGeneration,
+  looksLikeCompoundEdit,
+  isEditorSurface,
+  compoundGenerationKind,
   decideRunAgentic,
+  resolveEditorSurfaceKind,
+  decideEditToolLoop,
+  type EditToolLoopInput,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -241,7 +247,27 @@ describe('decideRunAgentic — battle-test prompts', () => {
     ).toBe(false);
   });
 
-  it('pure sharepic stays single-pass (fixed-text contract) — compoundGeneration false', () => {
+  it('compound research+presentation and research+sheet enter the loop (fat tool per intent)', () => {
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_presentation',
+        compoundGeneration: true,
+        lastUserText:
+          'Recherchiere grüne Positionen zum Artenschutz und erstelle eine Präsentation dazu',
+      })
+    ).toBe(true);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_sheet',
+        compoundGeneration: true,
+        lastUserText: 'Such die aktuellen Zahlen zur Windkraft und mach eine Tabelle draus',
+      })
+    ).toBe(true);
+  });
+
+  it('pure sharepic/presentation stays single-pass (fixed-text contract) — compoundGeneration false', () => {
     expect(
       decideRunAgentic({
         ...base,
@@ -250,15 +276,32 @@ describe('decideRunAgentic — battle-test prompts', () => {
         lastUserText: 'Mach mir ein Sharepic zu Solarenergie',
       })
     ).toBe(false);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'create_presentation',
+        compoundGeneration: false,
+        lastUserText: 'Erstelle eine Präsentation zu Solarenergie',
+      })
+    ).toBe(false);
   });
 
-  it('compoundGeneration cannot smuggle a NON-sharepic intent into the loop', () => {
-    // The flag is only meaningful for sharepic turns — a mis-set flag on e.g.
-    // social_post must not open the gate.
+  it('compoundGeneration cannot smuggle a NON-generation intent into the loop', () => {
+    // The flag only opens the gate for the generation intents in
+    // COMPOUND_GENERATION_INTENTS — a mis-set flag on e.g. social_post or
+    // save_as_doc must not open it.
     expect(
       decideRunAgentic({
         ...base,
         intent: 'social_post',
+        compoundGeneration: true,
+        lastUserText: 'x',
+      })
+    ).toBe(false);
+    expect(
+      decideRunAgentic({
+        ...base,
+        intent: 'save_as_doc',
         compoundGeneration: true,
         lastUserText: 'x',
       })
@@ -283,6 +326,13 @@ describe('looksLikeCompoundGeneration', () => {
     ],
     ['abstimmung + sharepic', 'Wie hat die Fraktion abgestimmt? Pack das in ein Sharepic'],
     ['beschluss + share-pic', 'Mach ein Share-Pic zum BDK-Beschluss über den Kohleausstieg'],
+    [
+      'recherchiere + präsentation',
+      'Recherchiere grüne Positionen zum Artenschutz und erstelle eine Präsentation dazu',
+    ],
+    ['zahlen + folien', 'Such aktuelle Zahlen zur Windkraft und mach Folien daraus'],
+    ['position + tabelle', 'Vergleiche die Positionen zum Tempolimit in einer Tabelle'],
+    ['fakten + sheet', 'Ich brauche ein Sheet mit den Fakten zur Kindergrundsicherung'],
   ];
   it.each(compound)('routes compound research+generation into the loop: %s', (_l, q) => {
     expect(looksLikeCompoundGeneration(q)).toBe(true);
@@ -296,6 +346,8 @@ describe('looksLikeCompoundGeneration', () => {
     ['plain search, no generation noun', 'Recherchiere die Position der Grünen zum Tempolimit'],
     ['plain facts ask', 'Welche aktuellen Zahlen gibt es zur Windkraft?'],
     ['image not sharepic', 'Recherchiere das Thema und mal mir ein Bild dazu'],
+    ['topic-only presentation', 'Erstelle eine Präsentation zu Solarenergie'],
+    ['topic-only sheet', 'Mach mir eine Tabelle für die Mitgliederliste'],
     ['empty', '   '],
   ];
   it.each(singlePass)('keeps a single-pass turn out: %s', (_l, q) => {
@@ -307,5 +359,190 @@ describe('looksLikeCompoundGeneration', () => {
     expect(
       looksLikeCompoundGeneration('Suche nach "Sharepic Vorlagen" und fasse die Fakten zusammen')
     ).toBe(true);
+  });
+});
+
+// compoundGenerationKind decides WHICH fat tool mounts. The critical cases are
+// the DEMOTED (`agentic`) turns: the classifier only reached direct@0.50 for
+// "mach mir eine Tabelle", so the kind must be recovered from the text noun.
+describe('compoundGenerationKind', () => {
+  it('uses the explicit generation intent when the classifier named it', () => {
+    expect(compoundGenerationKind('sharepic', 'Recherchiere X und mach ein Sharepic')).toBe(
+      'sharepic'
+    );
+    expect(
+      compoundGenerationKind('create_presentation', 'Recherchiere X und erstelle eine Präsentation')
+    ).toBe('presentation');
+    expect(compoundGenerationKind('create_sheet', 'Such Zahlen und mach eine Tabelle')).toBe(
+      'sheet'
+    );
+  });
+
+  it('recovers the kind from the text noun on a DEMOTED `agentic` turn (the sheet bug)', () => {
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Such die aktuellen Zahlen zu Balkonkraftwerken und mach mir eine Tabelle draus'
+      )
+    ).toBe('sheet');
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere Artenschutz und mach ein Board dazu')
+    ).toBe('board');
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein Dokument dazu')).toBe(
+      'document'
+    );
+    expect(compoundGenerationKind('agentic', 'Recherchiere X und mach Folien daraus')).toBe(
+      'presentation'
+    );
+    expect(compoundGenerationKind('direct', 'Such Fakten und mach ein Sharepic')).toBe('sharepic');
+  });
+
+  it('returns null without a research signal (pure generation stays single-pass)', () => {
+    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
+  });
+
+  it('returns null for a non-generation turn even with a research signal', () => {
+    expect(compoundGenerationKind('search', 'Recherchiere die Position zum Tempolimit')).toBe(null);
+    expect(compoundGenerationKind('agentic', 'Wie hat die Fraktion abgestimmt?')).toBe(null);
+  });
+
+  it('prefers the most specific artifact when the text names several', () => {
+    // sharepic (most specific product) wins over the generic "Dokument".
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X, mach ein Sharepic und ein Dokument')
+    ).toBe('sharepic');
+  });
+});
+
+// looksLikeCompoundEdit gates the "research + edit the OPEN doc/board" path
+// (editor sidebars): must fire on research+edit, stay out for pure edits and
+// pure research.
+describe('looksLikeCompoundEdit', () => {
+  const compound: [string, string][] = [
+    [
+      'recherche + folie',
+      'Recherchiere die Grünen-Position zu Tempolimit und füg sie als Folie ein',
+    ],
+    ['zahlen + einfügen', 'Such aktuelle Zahlen zur Windkraft und füge sie ins Dokument ein'],
+    ['fakten + ergänzen', 'Ergänze die Präsentation um die recherchierten Fakten zum Artenschutz'],
+    [
+      'recherche + einarbeiten',
+      'Recherchiere die Position zur Kindergrundsicherung und arbeite sie in die Folie ein',
+    ],
+    ['recherche + tabelle', 'Recherchiere die Programmpunkte und trag sie in die Tabelle ein'],
+  ];
+  it.each(compound)('routes research+edit into the compound-edit path: %s', (_l, q) => {
+    expect(looksLikeCompoundEdit(q)).toBe(true);
+  });
+
+  const singlePass: [string, string][] = [
+    // Pure edit — no research verb → single-pass edit_current_doc.
+    ['pure edit', 'Füge eine Abschlussfolie mit Call-to-Action hinzu'],
+    ['pure edit 2', 'Mach die Kopfzeile fett'],
+    ['formatting', 'Formuliere Folie 3 knackiger'],
+    // Edit verb + a content NOUN but NO research verb → must stay single-pass
+    // (the over-match the review caught: 'Daten'/'aktuell'/'Programm' are
+    // everyday words, not a request to research).
+    ['aktualisier + daten noun', 'Aktualisiere die Daten in der Tabelle'],
+    ['überarbeit + aktuell noun', 'Überarbeite die aktuelle Folie'],
+    ['ergänz + programm noun', 'Ergänze das Programm um einen Titel'],
+    // Pure research — no edit verb → normal loop answer.
+    ['pure research', 'Recherchiere die Position der Grünen zum Tempolimit'],
+    ['pure facts', 'Welche aktuellen Zahlen gibt es zur Windkraft?'],
+    ['empty', '   '],
+  ];
+  it.each(singlePass)('keeps a non-compound-edit turn out: %s', (_l, q) => {
+    expect(looksLikeCompoundEdit(q)).toBe(false);
+  });
+});
+
+describe('isEditorSurface', () => {
+  it('true when an edit_current_* tool is enabled, false otherwise', () => {
+    expect(isEditorSurface({ edit_current_doc: true })).toBe(true);
+    expect(isEditorSurface({ edit_current_board: true })).toBe(true);
+    expect(isEditorSurface({ search: true, web: true })).toBe(false);
+    expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
+    expect(isEditorSurface(undefined)).toBe(false);
+  });
+});
+
+describe('resolveEditorSurfaceKind', () => {
+  it('maps each dedicated editor agent to its surface', () => {
+    expect(resolveEditorSurfaceKind('gruenerator-sheets-editor', undefined)).toBe('sheet');
+    expect(resolveEditorSurfaceKind('gruenerator-presentations-editor', undefined)).toBe(
+      'presentation'
+    );
+    expect(resolveEditorSurfaceKind('gruenerator-boards-editor', undefined)).toBe('board');
+    expect(resolveEditorSurfaceKind('gruenerator-sharepic-editor', undefined)).toBe('canvas');
+    expect(resolveEditorSurfaceKind('gruenerator-docs-editor', undefined)).toBe('doc');
+  });
+
+  it('falls back to the enabled edit_current_* tool for a custom agent', () => {
+    expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_board: true })).toBe('board');
+    expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_doc: true })).toBe('doc');
+  });
+
+  it('returns null for a non-editor turn', () => {
+    expect(resolveEditorSurfaceKind('gruenerator-chat', { search: true })).toBeNull();
+    expect(resolveEditorSurfaceKind(undefined, undefined)).toBeNull();
+  });
+});
+
+describe('decideEditToolLoop', () => {
+  const base: EditToolLoopInput = {
+    loopEnabled: true,
+    surfaceKind: 'sheet',
+    editToolEnabled: true,
+    hasEditTarget: true,
+    forcedTool: false,
+    isCompound: false,
+    hasImageAttachments: false,
+    secondaryIntent: null,
+  };
+
+  it('mounts the edit tool for any substantive sheet turn with an open target', () => {
+    // Not gated on the classifier intent — a `direct`-classified edit ask and a
+    // short "ja ab a1" follow-up must both be able to edit.
+    expect(decideEditToolLoop(base)).toBe(true);
+  });
+
+  it('does NOT mount the tool when the AI-edit toggle is off', () => {
+    // Otherwise the model "edits" and claims success while the client (which
+    // also gates on the toggle) refuses to apply — a false success message.
+    expect(decideEditToolLoop({ ...base, editToolEnabled: false })).toBe(false);
+  });
+
+  it('enters the loop for board too (plan-and-send)', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(true);
+  });
+
+  it('keeps the legacy dispatch path for docs and canvas (no plan-and-send tool)', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
+  });
+
+  it('requires the loop to be enabled', () => {
+    expect(decideEditToolLoop({ ...base, loopEnabled: false })).toBe(false);
+  });
+
+  it('requires an open edit target', () => {
+    expect(decideEditToolLoop({ ...base, hasEditTarget: false })).toBe(false);
+  });
+
+  it('honours the same kill-switches as decideRunAgentic', () => {
+    expect(decideEditToolLoop({ ...base, forcedTool: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, isCompound: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, hasImageAttachments: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, secondaryIntent: 'image' })).toBe(false);
+  });
+
+  it('rejects a null surface', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: null })).toBe(false);
   });
 });

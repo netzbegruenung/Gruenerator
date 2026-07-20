@@ -6,7 +6,11 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike } from '@assistant-ui/react';
-import { socialPostPayloadSchema, bundestagPayloadSchema } from '@gruenerator/contracts';
+import {
+  socialPostPayloadSchema,
+  bundestagPayloadSchema,
+  bahnPayloadSchema,
+} from '@gruenerator/contracts';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import {
   coerceSharepicVariants,
@@ -141,6 +145,27 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   if (bundestagCall?.result) {
     const parsedBt = bundestagPayloadSchema.safeParse(bundestagCall.result);
     if (parsedBt.success) custom.bundestagData = parsedBt.data;
+  }
+
+  // Tool-derived: Deutsche-Bahn departure board. The condensed timetable a
+  // `bahn__*` loop step returned as its result IS the BahnPayload the live
+  // `bahn` SSE event carried. The LAST step that PARSES wins (freshest board) —
+  // not merely the last bahn__ step: the prompt instructs a raw
+  // get_full_timetable_changes call AFTER the condensed timetable, which must
+  // not shadow the board on reload.
+  for (const tc of [...(metadata.toolCalls ?? [])].reverse()) {
+    if (!tc.toolName.startsWith('bahn__')) continue;
+    const bahnContent = (tc.result as { content?: unknown } | undefined)?.content;
+    if (typeof bahnContent !== 'string') continue;
+    try {
+      const parsedBahn = bahnPayloadSchema.safeParse(JSON.parse(bahnContent));
+      if (parsedBahn.success) {
+        custom.bahnData = parsedBahn.data;
+        break;
+      }
+    } catch {
+      /* raw (non-condensed) tool result — keep looking */
+    }
   }
 
   // Tool-derived: reel cards. The persisted tool results carry payloads

@@ -43,6 +43,13 @@ export interface CreateSearchToolsOptions {
    * tools on-demand and leaves it out.
    */
   includeDirectResponse?: boolean;
+  /**
+   * When set, restrict the returned search tools to the agent's user-selected
+   * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
+   * `examples` → examples/pressemitteilung, `web`/`research` → web_search/research).
+   * Undefined leaves the full set (chat + board defaults unchanged).
+   */
+  enabledToolKeys?: readonly string[];
 }
 
 /**
@@ -281,6 +288,21 @@ NICHT NUTZEN wenn Fakten, aktuelle Infos oder Belege gefragt sind.`,
         return { type: 'direct', content, reason };
       },
     });
+  }
+
+  // Optional per-agent gating: recurring agents honor their picker selection.
+  // Undefined → keep everything (board/chat behavior unchanged).
+  if (options.enabledToolKeys) {
+    const keys = new Set(options.enabledToolKeys);
+    if (!keys.has('search')) delete tools.gruenerator_search;
+    if (!keys.has('examples')) {
+      delete tools.gruenerator_examples_search;
+      delete tools.gruenerator_pressemitteilung_examples;
+    }
+    if (!keys.has('web') && !keys.has('research')) {
+      delete tools.web_search;
+      delete tools.research;
+    }
   }
 
   return tools;
