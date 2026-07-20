@@ -127,8 +127,24 @@ export function createUniverInstance({
   // Attribute thread comments/notes to the real user. The Facade exposes only
   // getCurrentUser(), so set it through the injected service. Exposed as a
   // setter too, so the caller can re-apply it once auth resolves post-mount.
+  //
+  // Grant the logged-in user OWNER rights: Univer's built-in AuthzIoLocalService
+  // recognises "owner"/"editor" ONLY by whether the userID string starts with
+  // "Owner"/"Editor" (isDevRole prefix match) — real user ids never match. So the
+  // moment ANY range/sheet protection exists in a doc (e.g. via the native
+  // right-click "Bereich/Blatt schützen" menu), STYLE edits (background,
+  // conditional formatting, tables) are denied to EVERYONE forever — incl. the AI
+  // and even the person who protected it ("Der Bereich ist geschützt …"). This app
+  // has no real owner/collaborator authorization model — the logged-in user owns
+  // their own sheet — so we prefix the userID to satisfy isDevRole. The display
+  // `name` is untouched, so comment/note attribution still shows the real person.
+  const OWNER_PREFIX = 'Owner_';
+  const asOwner = (user: SheetCurrentUser): SheetCurrentUser =>
+    user.userID.startsWith(OWNER_PREFIX)
+      ? user
+      : { ...user, userID: `${OWNER_PREFIX}${user.userID}` };
   const setCurrentUser = (user: SheetCurrentUser) =>
-    univer.__getInjector().get(UserManagerService).setCurrentUser(user);
+    univer.__getInjector().get(UserManagerService).setCurrentUser(asOwner(user));
   if (currentUser) setCurrentUser(currentUser);
 
   return { univer, univerAPI, setCurrentUser };
