@@ -480,6 +480,31 @@ export const EU_GREEN_PARTIES: EuGreenPartyEntry[] = [
     website: 'https://rohelised.ee',
     wikipedia: 'Eestimaa Rohelised',
   },
+  {
+    countryCode: 'ch',
+    countryName: 'Schweiz',
+    partyShort: 'G',
+    partyLabel: 'GRÜNE',
+    note: 'Grüne Partei der Schweiz (nicht die Grünliberalen)',
+    website: 'https://gruene.ch',
+    wikipedia: 'Grüne (Schweiz)',
+  },
+  {
+    countryCode: 'no',
+    countryName: 'Norwegen',
+    partyShort: 'MDG',
+    partyLabel: 'MDG',
+    website: 'https://mdg.no',
+    wikipedia: 'Miljøpartiet De Grønne',
+  },
+  {
+    countryCode: 'gb',
+    countryName: 'Großbritannien',
+    partyShort: 'Greens',
+    partyLabel: 'Green Party',
+    website: 'https://greenparty.org.uk',
+    wikipedia: 'Green Party of England and Wales',
+  },
 ];
 
 export async function getEuGreens(): Promise<EuGreensData | null> {
