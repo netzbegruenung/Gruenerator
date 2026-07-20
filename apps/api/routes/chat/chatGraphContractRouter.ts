@@ -67,6 +67,7 @@ import {
   rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
@@ -682,8 +683,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // in an editor surface with a current target and both a research + edit
       // signal — pure edits stay single-pass, pure research stays a normal loop.
       const isCompoundEdit = looksLikeCompoundEdit(lastUserText);
-      const compoundEdit =
-        isEditorSurface && editTarget != null && !forcedTool && isCompoundEdit;
+      const compoundEdit = isEditorSurface && editTarget != null && !forcedTool && isCompoundEdit;
       if (compoundEdit) classifiedState.compoundEdit = true;
 
       // Tool-based editor edit: route the turn into the loop with the surface's
@@ -823,6 +823,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !!lastUserMessage &&
         classifiedState.intent !== 'chat_history';
 
+      // Space scope: when the thread is filed in a Space, recall is restricted to
+      // that Space's chats and the model is told which threads it can search.
+      const spaceScope = actualThreadId
+        ? await getSpaceRecallScope(actualThreadId, userId).catch(() => null)
+        : null;
+
       if (explicitRecall || proactiveRecall) {
         try {
           const recallQuery =
@@ -839,6 +845,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   recallPastChats(userId, recallQuery, {
                     ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
                     limit: 3,
+                    ...(spaceScope && { threadIds: spaceScope.threadIds }),
                   }),
                   recallOfficeDocuments(userId, recallQuery, 3),
                 ]);
@@ -850,6 +857,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
             );
             const blocks = [
+              spaceScope?.rosterBlock ?? '',
               recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
               formatOfficeDocsBlock(recalled.officeDocs),
             ].filter(Boolean);
@@ -862,6 +870,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
         } catch (err) {
           log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
+        }
+      }
+
+      // Always surface the Space roster when filed in a Space, even if no recall
+      // pass ran (so the model knows it can search the Space's chats on demand).
+      if (spaceScope) {
+        const existing = classifiedState.chatHistoryContext;
+        if (!existing) {
+          classifiedState.chatHistoryContext = spaceScope.rosterBlock;
+        } else if (!existing.includes(spaceScope.rosterBlock)) {
+          classifiedState.chatHistoryContext = `${spaceScope.rosterBlock}\n\n${existing}`;
         }
       }
 

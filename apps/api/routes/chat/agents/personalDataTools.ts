@@ -24,7 +24,7 @@
  * SSE cards, timeout, truncation and step recording are layered on by
  * wrapToolsForLoop — these factories only implement data access + confirm emit.
  */
-import { buildNotebookSlug, buildGroupSlug } from '@gruenerator/shared/utils';
+import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -53,6 +53,11 @@ import {
 import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
+import {
+  recallPastChats,
+  getThreadRecallContext,
+  resolveSpaceThreadIds,
+} from '../services/pastChatRecallService.js';
 
 import type {
   ChatGraphState,
@@ -84,12 +89,14 @@ function ground(
 ): void {
   if (items.length === 0) return;
   reg.register(
-    items.map((i): SearchResult => ({
-      source: 'eigene-inhalte',
-      title: i.title,
-      content: i.content,
-      ...(i.url ? { url: i.url } : {}),
-    }))
+    items.map(
+      (i): SearchResult => ({
+        source: 'eigene-inhalte',
+        title: i.title,
+        content: i.content,
+        ...(i.url ? { url: i.url } : {}),
+      })
+    )
   );
 }
 
@@ -188,6 +195,92 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
       const items = await aggregateRecentActivity(userId, limit);
       const results = items.map((it) =>
         makeRow(it.title, it.href, it.documentType ?? it.type, it.content)
+      );
+      groundRows(sourceRegistry, results);
+      return { resultCount: results.length, results };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// search_threads — recall the user's OWN past chats (Space-aware)
+// ---------------------------------------------------------------------------
+
+/** Resolve the current thread's home Space (group_id), or null. */
+async function getCurrentSpaceId(threadId: string | null, userId: string): Promise<string | null> {
+  if (!threadId) return null;
+  try {
+    const rows = (await getPostgresInstance().query(
+      `SELECT group_id FROM chat_threads WHERE id = $1::uuid AND user_id = $2 LIMIT 1`,
+      [threadId, userId]
+    )) as Array<{ group_id: string | null }>;
+    return rows[0]?.group_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
+  const { state, threadId, sourceRegistry } = ctx;
+  return tool({
+    description: `Durchsucht die FRÜHEREN CHATS der angemeldeten Person (nicht Dokumente — dafür 'find_content'). Findet, was in vergangenen Unterhaltungen besprochen wurde, per Stichwort + Bedeutung.
+
+NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Space", "was hatten wir zu X besprochen").
+- scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
+- scope="all": alle eigenen Chats durchsuchen.
+- action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,
+    inputSchema: z.object({
+      action: z.enum(['search', 'read']).default('search'),
+      query: z.string().optional().describe('Suchbegriff (bei action="search")'),
+      scope: z.enum(['space', 'all']).default('space'),
+      threadId: z.string().optional().describe('Thread-ID zum Lesen (bei action="read")'),
+      limit: z.number().int().min(1).max(10).default(5),
+    }),
+    execute: async ({ action, query, scope, threadId: readThreadId, limit }) => {
+      const userId = requireUserId(state);
+      if (!userId) return { error: NO_SESSION };
+
+      if (action === 'read') {
+        if (!readThreadId) return { error: 'Zum Lesen wird eine threadId benötigt.' };
+        const ctxData = await getThreadRecallContext(readThreadId, userId);
+        if (!ctxData) return { error: 'Thread nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, ctxData.title || 'Früherer Chat', ctxData.transcript);
+        return {
+          title: ctxData.title,
+          updatedAt: ctxData.updatedAt,
+          transcript: ctxData.transcript,
+        };
+      }
+
+      const q = (query ?? '').trim();
+      if (!q) return { error: 'Für die Suche wird ein Suchbegriff benötigt.' };
+
+      // Space scope: restrict to the sibling threads of the current Space.
+      let threadIds: string[] | undefined;
+      if (scope === 'space') {
+        const spaceId = await getCurrentSpaceId(threadId, userId);
+        if (spaceId) {
+          const siblings = await resolveSpaceThreadIds(spaceId, userId);
+          threadIds = siblings.map((s) => s.id);
+        }
+        // No space → fall through to an unscoped (all-chats) recall.
+      }
+
+      const hits = await recallPastChats(userId, q, {
+        limit,
+        ...(threadId != null && { excludeThreadId: threadId }),
+        ...(threadIds != null && { threadIds }),
+      });
+      const results = hits.map((h) =>
+        makeRow(
+          h.threadTitle || 'Früherer Chat',
+          h.threadSlugSuffix
+            ? `/chat/${buildChatThreadSlug(h.threadTitle, h.threadSlugSuffix)}`
+            : `/chat/${h.threadId}`,
+          'Chat',
+          h.snippet,
+          h.threadId
+        )
       );
       groundRows(sourceRegistry, results);
       return { resultCount: results.length, results };
@@ -423,7 +516,11 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           }))
         );
         if (tasks.length === 0) {
-          groundNote(sourceRegistry, 'Aufgaben', 'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.');
+          groundNote(
+            sourceRegistry,
+            'Aufgaben',
+            'Keine anstehenden Aufgaben mit Fälligkeit oder Zuweisung auf den Boards gefunden.'
+          );
         }
         const note =
           boards.length >= MAX_BOARDS

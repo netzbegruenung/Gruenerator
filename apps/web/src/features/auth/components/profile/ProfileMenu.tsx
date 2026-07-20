@@ -35,7 +35,7 @@ interface ProfileMenuProps {
 const PROFILE_MENU_ITEMS: MenuItem[] = [
   {
     key: 'gruppen',
-    label: 'Gruppen',
+    label: 'Spaces',
     path: '/gruppen',
     icon: FaUsers,
     hasSubmenu: true,

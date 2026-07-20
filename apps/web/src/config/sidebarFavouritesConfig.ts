@@ -33,7 +33,7 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
     path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
   },
-  { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
+  { id: 'gruppen', title: 'Spaces', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
   {
     id: 'notebooks',
