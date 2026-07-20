@@ -308,7 +308,7 @@ const GroupInfoSection = memo(
       <>
         <div className="relative mb-xl">
           <div className="absolute right-0 top-0 flex items-center gap-sm">
-            {!isLoadingMembers && onlineCount > 0 && (
+            {!isPersonal && !isLoadingMembers && onlineCount > 0 && (
               <span
                 className="hidden sm:inline-flex items-center -space-x-1.5"
                 aria-label={`${onlineCount} online`}
@@ -336,11 +336,15 @@ const GroupInfoSection = memo(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
-                  <HiOutlineUserGroup className="size-4 mr-xs" />
-                  Mitglieder ({memberCount})
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {!isPersonal && (
+                  <>
+                    <DropdownMenuItem onClick={() => setMembersDialogOpen(true)}>
+                      <HiOutlineUserGroup className="size-4 mr-xs" />
+                      Mitglieder ({memberCount})
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
                   {isMuted ? (
                     <>
