@@ -8,12 +8,11 @@ import { MONITOR_EYEBROW, MONITOR_HEADING, MONITOR_PILL_TRACK } from './theme';
 import type { MonitorLocale } from '../hooks/useMonitor';
 import type { ReactNode } from 'react';
 
-type MonitorPage = 'themen' | 'umfragen' | 'watcher';
+type MonitorPage = 'themen' | 'umfragen';
 
 const SIBLINGS: { key: MonitorPage; label: string; path: string }[] = [
   { key: 'themen', label: 'Themen', path: '/experiments/monitor/themen' },
   { key: 'umfragen', label: 'Umfragen', path: '/experiments/monitor/umfragen' },
-  { key: 'watcher', label: 'Watcher', path: '/experiments/monitor/watcher' },
 ];
 
 interface MonitorPageHeaderProps {
