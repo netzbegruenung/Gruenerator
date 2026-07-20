@@ -133,7 +133,7 @@ const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
-const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
+const SettingsRedirect = lazy(() => import('../features/settings/SettingsRedirect'));
 const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
 
 // Gruppen-Komponente importieren
@@ -550,19 +550,25 @@ const standardRoutes: RouteConfig[] = [
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage, public: true },
   { path: '/register', component: RegistrationPage, public: true },
-  { path: '/profile', component: ProfilePage },
-  { path: '/profile/:tab', component: ProfilePage },
-  { path: '/profile/:tab/:subtab', component: ProfilePage },
-  { path: '/profile/:tab/:subtab/:subsubtab', component: ProfilePage },
+  // Settings live in a global dialog; these routes only open it (deep links).
+  // /profile/* are legacy aliases — old links keep resolving via the same stub.
+  { path: '/settings', component: SettingsRedirect },
+  { path: '/settings/:tab', component: SettingsRedirect },
+  { path: '/profile', component: SettingsRedirect },
+  { path: '/profile/:tab', component: SettingsRedirect },
+  { path: '/profile/:tab/*', component: SettingsRedirect },
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   {
+    // "Rollen einrichten" (chat PlusMenu) → the tab that now hosts RolesSection.
     path: '/dein-gruenerator',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/settings/personalisierung') })
+    ),
   },
   {
     path: '/chat/settings',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/settings') })),
   },
   { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
   // Thread deep links (Notion-style slug, suffix is the stable key). React
