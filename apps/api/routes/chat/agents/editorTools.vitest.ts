@@ -17,7 +17,8 @@ vi.mock('../../sheets/sheetAiService.js', () => ({
 
 const generatePresentationOperations = vi.fn<(o: unknown) => Promise<unknown>>();
 vi.mock('../../presentations/presentationAiService.js', () => ({
-  generatePresentationOperations: (o: unknown): Promise<unknown> => generatePresentationOperations(o),
+  generatePresentationOperations: (o: unknown): Promise<unknown> =>
+    generatePresentationOperations(o),
 }));
 
 const generateBoardOperations = vi.fn<(o: unknown) => Promise<unknown>>();
@@ -78,9 +79,7 @@ describe('makeEditArtifactTool (sheet)', () => {
     expect(
       makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'presentation' })))
     ).not.toBeNull();
-    expect(
-      makeEditArtifactTool(ctx([], boardState({ editToolSurface: 'board' })))
-    ).not.toBeNull();
+    expect(makeEditArtifactTool(ctx([], boardState({ editToolSurface: 'board' })))).not.toBeNull();
     // Dispatch-strategy surfaces (docs, canvas) have no plan-and-send tool.
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'canvas' })))).toBeNull();
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: null })))).toBeNull();

@@ -57,6 +57,8 @@ apps/wordpress/
 .husky/
 .github/
 
-# Secrets
+# Secrets — keep dev env out of EAS uploads; EXPO_PUBLIC_* would inline into the bundle
 **/google-service-account.json
-**/.env*.local
+**/.env
+**/.env.*
+!**/.env.example

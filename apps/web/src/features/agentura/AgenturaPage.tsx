@@ -48,6 +48,7 @@ import { isLandesverbandIdentifier, landesverbandRegion } from './lib/lookups';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
+import { getToolGradient } from '@/config/toolTheme';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -417,7 +418,7 @@ function AgenturaPage() {
     : (activeCategory?.emptyText ?? 'Hier ist gerade nichts vorhanden.');
 
   return (
-    <PageContainer maxWidth="lg">
+    <PageContainer maxWidth="lg" bgClassName={getToolGradient('agents')}>
       <header className="mb-lg">
         <div className="flex items-center gap-sm">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary-600/10 text-secondary-700 dark:text-secondary-300">

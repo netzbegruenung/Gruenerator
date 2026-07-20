@@ -48,7 +48,7 @@ export function NativeTabLayout() {
         <NativeTabs.Trigger.Label>Wissen</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(chat)" hidden />
-      <NativeTabs.Trigger name="(docs)" hidden />
+      <NativeTabs.Trigger name="(office)" hidden />
       <NativeTabs.Trigger name="(tools)" hidden />
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>

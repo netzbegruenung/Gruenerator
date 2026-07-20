@@ -15,6 +15,9 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+import { checkDocumentWriteAccess } from '../docs/documentAccess.js';
+
+import { generatePresentationOperations } from './presentationAiService.js';
 
 import type { Application } from 'express';
 
@@ -22,6 +25,72 @@ const log = createLogger('PresentationsContract');
 const s = initServer();
 
 export const presentationsContractRouter = s.router(presentationsContract, {
+  getContent: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const { loadPresentationState } =
+        await import('../../services/presentations/PresentationGenerationService.js');
+      // Access control lives inside the loader (owner / permissions / group
+      // share); null covers both not-found and no-access → 404.
+      const state = await loadPresentationState(id, userId);
+      if (!state) {
+        return { status: 404 as const, body: { error: 'Presentation not found' } };
+      }
+
+      return {
+        status: 200 as const,
+        body: {
+          id: state.id,
+          title: state.title,
+          slides: state.slides,
+          accentColor: state.accentColor,
+        },
+      };
+    } catch (error) {
+      log.error('[Presentations Contract] Error loading presentation content:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to load presentation content',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  ai: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+      const { userPrompt, presentationContext, referenceContent } = args.body;
+
+      // Re-enforce write access server-side — never trust the client.
+      const canEdit = await checkDocumentWriteAccess(id, userId);
+      if (!canEdit) {
+        return { status: 403 as const, body: { error: 'No write access to this presentation' } };
+      }
+
+      const operations = await generatePresentationOperations({
+        userPrompt,
+        presentationContext,
+        referenceContent: referenceContent ?? null,
+      });
+
+      return { status: 200 as const, body: { operations } };
+    } catch (error) {
+      log.error('[Presentations Contract] Error generating presentation operations:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to generate presentation operations',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
   generate: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;

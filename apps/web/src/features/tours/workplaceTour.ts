@@ -10,6 +10,7 @@ const SEL = {
   arbeitenCreate: '[data-tour="arbeiten-create"]',
   arbeitenRecents: '[data-tour="arbeiten-recents"]',
   arbeitenTools: '[data-tour="arbeiten-tools"]',
+  studioTools: '[data-tour="studio-tools"]',
   wissen: '[data-tour="wissen"]',
   wissenNotebooks: '[data-tour="wissen-notebooks"]',
   sidebar: '[data-tour="app-sidebar"]',
@@ -91,6 +92,19 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           title: 'Werkzeuge',
           description: 'Alle Grüneratoren im Überblick — von Pressemitteilung bis Wahlprogramm.',
           side: 'top',
+          onNextClick: crossTab('/studio', SEL.studioTools, (drv) => drv.moveNext()),
+        },
+      },
+      {
+        element: SEL.studioTools,
+        popover: {
+          title: 'Bilder & Videos',
+          description:
+            'KI-Bilder erstellen & bearbeiten, Sharepics gestalten und Reels untertiteln — alle visuellen Werkzeuge an einem Ort.',
+          side: 'top',
+          onPrevClick: crossTab('/workplace/arbeiten', SEL.arbeitenTools, (drv) =>
+            drv.movePrevious()
+          ),
           onNextClick: crossTab('/workplace/wissen', SEL.wissen, (drv) => drv.moveNext()),
         },
       },
@@ -100,9 +114,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           title: 'Wissen',
           description:
             'Stell Fragen zu grüner Politik — die KI antwortet mit Quellen aus Programmen und Beschlüssen.',
-          onPrevClick: crossTab('/workplace/arbeiten', SEL.arbeitenTools, (drv) =>
-            drv.movePrevious()
-          ),
+          onPrevClick: crossTab('/studio', SEL.studioTools, (drv) => drv.movePrevious()),
         },
       },
       {

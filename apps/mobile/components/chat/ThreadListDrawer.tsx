@@ -20,9 +20,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
+import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
+import { TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import { NewChatSheet } from './NewChatSheet';
 import { agentIcon } from './sidebarIcons';
@@ -113,16 +115,41 @@ const ThreadItem = memo(function ThreadItem({
 function DrawerSections({
   theme,
   agents,
+  favouriteTools,
   onSelectAgent,
+  onSelectTool,
   onOpenSources,
 }: {
   theme: Theme;
   agents: PinnedAgent[];
+  favouriteTools: ToolDef[];
   onSelectAgent: (agentId: string) => void;
+  onSelectTool: (route: AppRoute) => void;
   onOpenSources: () => void;
 }) {
   return (
     <View>
+      {favouriteTools.length > 0 && (
+        <>
+          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Favoriten</Text>
+          {favouriteTools.map((tool) => (
+            <Pressable
+              key={tool.id}
+              onPress={() => onSelectTool(tool.route)}
+              style={({ pressed }) => [
+                styles.navRow,
+                { backgroundColor: pressed ? theme.surface : 'transparent' },
+              ]}
+            >
+              <Ionicons name={tool.icon} size={20} color={theme.text} />
+              <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
+                {tool.title}
+              </Text>
+            </Pressable>
+          ))}
+        </>
+      )}
+
       <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Schnellstart</Text>
       {agents.map((agent) => (
         <Pressable
@@ -222,6 +249,14 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
   const pinnedAgents = useMemo(() => getPinnedAgents(locale), [locale]);
+  const favouriteIds = useToolFavoritesStore((s) => s.favorites);
+  const favouriteTools = useMemo(
+    () =>
+      favouriteIds
+        .map((id) => TOOLS.find((t) => t.id === id))
+        .filter((t): t is ToolDef => t !== undefined),
+    [favouriteIds]
+  );
 
   const handleNavigate = useCallback(
     (path: AppRoute) => {
@@ -290,11 +325,13 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       <DrawerSections
         theme={theme}
         agents={pinnedAgents}
+        favouriteTools={favouriteTools}
         onSelectAgent={handleSelectAgent}
+        onSelectTool={handleNavigate}
         onOpenSources={() => setSheetVisible(true)}
       />
     ),
-    [theme, pinnedAgents, handleSelectAgent]
+    [theme, pinnedAgents, favouriteTools, handleSelectAgent, handleNavigate]
   );
 
   return (
