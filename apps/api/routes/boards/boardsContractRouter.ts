@@ -30,6 +30,11 @@ import {
   GRUENERATOR_BOT_USER_ID,
   GRUENERATOR_BOT_DISPLAY_NAME,
 } from '../../services/boards/grueneratorBot.js';
+import {
+  checkEditAccess,
+  softDeleteCollaborativeDocument,
+  type QueryRunner,
+} from '../../services/docs/CollaborativeDocumentService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -37,7 +42,6 @@ import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
 import { checkBoardAccess } from './boardAccess.js';
-import { generateBoardOperations } from './boardAiService.js';
 
 import type { Application } from 'express';
 
@@ -55,6 +59,11 @@ const GRUENERATOR_BOT_MEMBER: AssignableMember = {
 };
 
 const db = getPostgresInstance();
+
+// Adapter so board rename/delete share the CollaborativeDocumentService impl,
+// scoped to the 'boards' subtype (cross-type mutation stays impossible).
+const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
+  db.query(sql, params) as Promise<T[]>;
 
 const s = initServer();
 
@@ -247,27 +256,14 @@ export const boardsContractRouter = s.router(boardsContract, {
       const { id } = args.params;
       const userId = getAuthedUser(args.req).id;
 
-      const checkResult = (await db.query(
-        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-        [id, BOARDS_SUBTYPE]
-      )) as BoardDocument[];
-
-      if (checkResult.length === 0) {
+      // Shared soft-delete impl, scoped to the boards subtype.
+      const result = await softDeleteCollaborativeDocument(runQuery, id, userId, [BOARDS_SUBTYPE]);
+      if (result.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Board not found' } };
       }
-
-      const board = checkResult[0];
-      const userPermission = board.permissions?.[userId];
-      const isOwner = board.created_by === userId || userPermission?.level === 'owner';
-
-      if (!isOwner) {
+      if (result.status === 'forbidden') {
         return { status: 403 as const, body: { error: 'Only owners can delete boards' } };
       }
-
-      await db.query(
-        'UPDATE collaborative_documents SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-        [id]
-      );
 
       return { status: 200 as const, body: { message: 'Board deleted successfully' } };
     } catch (error) {
@@ -385,42 +381,6 @@ export const boardsContractRouter = s.router(boardsContract, {
     }
   },
 
-  ai: async (args) => {
-    try {
-      const { id } = args.params;
-      const userId = getAuthedUser(args.req).id;
-      const { userPrompt, board, referenceContent } = args.body;
-
-      // Re-enforce write access server-side — never trust the client.
-      const { hasAccess, createdBy, canEdit } = await checkBoardAccess(id, userId);
-      if (!createdBy) {
-        return { status: 404 as const, body: { error: 'Board not found' } };
-      }
-      if (!hasAccess || !canEdit) {
-        return { status: 403 as const, body: { error: 'No write access to this board' } };
-      }
-
-      const today = new Date().toISOString().slice(0, 10);
-      const operations = await generateBoardOperations({
-        userPrompt,
-        board,
-        referenceContent: referenceContent ?? null,
-        today,
-      });
-
-      return { status: 200 as const, body: { operations } };
-    } catch (error) {
-      log.error('[Boards Contract] Error generating board operations:', error);
-      return {
-        status: 500 as const,
-        body: {
-          error: 'Failed to generate board operations',
-          details: error instanceof Error ? error.message : String(error),
-        },
-      };
-    }
-  },
-
   duplicateBoard: async (args) => {
     try {
       const { id } = args.params;
@@ -488,25 +448,13 @@ export const boardsContractRouter = s.router(boardsContract, {
       const { title, is_archived, description } = args.body;
       const userId = getAuthedUser(args.req).id;
 
-      const checkResult = (await db.query(
-        'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
-        [id, BOARDS_SUBTYPE]
-      )) as BoardDocument[];
-
-      if (checkResult.length === 0) {
+      // Shared access check (owner / editor / group-write), scoped to boards.
+      // Board-only fields (is_archived, description) stay inline below.
+      const access = await checkEditAccess(runQuery, id, userId, [BOARDS_SUBTYPE]);
+      if (access.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Board not found' } };
       }
-
-      const board = checkResult[0];
-      const userPermission = board.permissions?.[userId];
-      const isOwner = board.created_by === userId;
-      const canEdit =
-        isOwner ||
-        (userPermission !== undefined &&
-          userPermission !== null &&
-          ['owner', 'editor'].includes(userPermission.level));
-
-      if (!canEdit) {
+      if (access.status === 'forbidden') {
         return { status: 403 as const, body: { error: 'Insufficient permissions' } };
       }
 

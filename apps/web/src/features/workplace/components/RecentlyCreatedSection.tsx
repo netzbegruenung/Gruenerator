@@ -7,65 +7,89 @@ import {
   Skeleton,
   VideoCard,
 } from '@gruenerator/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
-import React, { memo, useCallback, useState } from 'react';
-import { FaVideo } from 'react-icons/fa';
-import { FiClock, FiFileText, FiImage, FiMonitor } from 'react-icons/fi';
-import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
+import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
+import { PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import {
+  BoardPreviewBody,
+  PlaceholderBars,
+  SlidesPreviewBody,
+  TablePreviewBody,
+} from '../../../components/common/SchematicPreviews';
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+
+// Collaborative docs/boards share via the full link+group ShareModal (same as
+// the docs/boards overview cards), not the plain copy-link used for other types.
+const LazyShareModal = lazy(() =>
+  import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
+);
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
 import { parseDocPreview } from '../../../utils/parseDocPreview';
-import { getPublicAppOrigin, resolveApiAssetUrl } from '../../../utils/platform';
+import { parseTablePreview } from '../../../utils/parseTablePreview';
+import {
+  getPublicAppOrigin,
+  resolveApiAssetUrl,
+  shareThumbnailPreviewUrl,
+} from '../../../utils/platform';
 import { Lightbox } from '../../image-studio/components/Lightbox';
+import {
+  type RecentItem,
+  type RecentItemType,
+  useRecentActivity,
+} from '../hooks/useRecentActivity';
 
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
-
-interface RecentItem {
-  id: string;
-  title: string;
-  date: string;
-  type: RecentItemType;
-  href: string;
-  emoji?: string;
-  boardType?: 'kanban' | 'whiteboard';
-  thumbnailUrl?: string;
-  duration?: number;
-  creatorName?: string;
-  accessType?: string;
-  deleteEndpoint?: string;
-  content?: string;
-  documentType?: string;
-}
-
-// Shared type vocabulary: every card surfaces the same eucalyptus-tinted badge
-// (icon + label) so a board and a document read as one system. `boardType`
-// disambiguates Kanban vs. Whiteboard at render time.
-const TYPE_META: Record<
-  RecentItemType,
-  { label: string; Icon: React.ComponentType<{ className?: string }> }
-> = {
-  doc: { label: 'Dokument', Icon: FiFileText },
-  board: { label: 'Board', Icon: PiKanban },
-  image: { label: 'Bild', Icon: FiImage },
-  video: { label: 'Video', Icon: FaVideo },
-  text: { label: 'Text', Icon: FiFileText },
-  presentation: { label: 'Präsentation', Icon: FiMonitor },
+// Shared type vocabulary: the footer meta line names each type in one word so a
+// board and a document read as one system. `boardType` disambiguates Kanban vs.
+// Whiteboard at render time.
+const TYPE_LABELS: Record<RecentItemType, string> = {
+  doc: 'Dokument',
+  board: 'Board',
+  image: 'Bild',
+  video: 'Video',
+  canvas: 'Sharepic',
 };
 
-const getTypeMeta = (
-  item: RecentItem
-): { label: string; Icon: React.ComponentType<{ className?: string }> } => {
-  if (item.type === 'board' && item.boardType === 'whiteboard') {
-    return { label: 'Whiteboard', Icon: PiPencilLine };
+// Spreadsheet-style docs (legacy 'tabelle' HTML tables and Univer 'sheets')
+// arrive as `type: 'doc'` but read as their own category: a table-row preview
+// instead of the prose excerpt. Same for reveal 'presentations'.
+const isTablePreview = (item: RecentItem): boolean =>
+  item.type === 'doc' && (item.documentType === 'tabelle' || item.documentType === 'sheets');
+
+const isSlidesPreview = (item: RecentItem): boolean =>
+  item.type === 'doc' && item.documentType === 'presentations';
+
+const getTypeLabel = (item: RecentItem): string => {
+  if (item.type === 'board' && item.boardType === 'whiteboard') return 'Whiteboard';
+  if (isTablePreview(item)) return 'Tabelle';
+  if (isSlidesPreview(item)) return 'Präsentation';
+  return TYPE_LABELS[item.type];
+};
+
+// The card's meta line carries a small "Umfang" (scope) between the type and the
+// time — derived from the same preview data, omitted when we can't cheaply know
+// it (e.g. a doc's page count). Slides skip it: the folio count already shows in
+// the preview.
+const getScope = (item: RecentItem): string | null => {
+  if (isTablePreview(item)) {
+    const rows = item.content ? parseTablePreview(item.content, 3, 100) : [];
+    const cols = rows.reduce((max, row) => Math.max(max, row.length), 0);
+    return cols > 0 ? `${cols} Spalten` : null;
   }
-  return TYPE_META[item.type];
+  if (item.type === 'board' && item.boardType !== 'whiteboard') {
+    const cards = item.preview?.columns?.reduce((sum, col) => sum + col.count, 0) ?? 0;
+    return cards > 0 ? `${cards} Karten` : null;
+  }
+  if (item.type === 'doc' && !isSlidesPreview(item) && !item.content?.trim()) {
+    return 'Leer';
+  }
+  return null;
 };
 
 const formatDuration = (seconds?: number): string => {
@@ -75,108 +99,40 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-// Fetch the backend maximum (capped at 30 server-side) so the "Mehr anzeigen"
-// expansion has more than the collapsed row to reveal without a refetch.
-const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 30 },
-  });
-  return res.data?.items ?? [];
-};
-
-// Collapsed, the section shows a horizontally-scrollable row sliced to this
-// count; "Mehr anzeigen" expands the rest into a wrapping grid (mirrors the
-// TextsSection expand pattern).
-const RECENT_COLLAPSE_THRESHOLD = 10;
+// The vertical grid shows this many items by default (a couple of rows, like
+// Word's "Recent"); "Mehr anzeigen" reveals the rest of the fetched items.
+const RECENT_COLLAPSE_THRESHOLD = 12;
 
 const FALLBACK_TITLES: Record<RecentItemType, string> = {
   doc: 'Unbenanntes Dokument',
   board: 'Unbenanntes Board',
   image: 'Ohne Titel',
   video: 'Ohne Titel',
-  text: 'Ohne Titel',
-  presentation: 'Neue Präsentation',
+  canvas: 'Neuer Canvas',
 };
 
 // Faint, fixed-height plate every preview sits on (matches the workspace
 // mockup): content lives directly on a tinted surface — no floating paper sheet.
-const PREVIEW_PLATE = 'h-[172px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
+const PREVIEW_PLATE = 'h-[210px] overflow-hidden bg-grey-50 dark:bg-grey-800/40';
 
-// Stylised placeholder for content-less documents: one eucalyptus "title" bar
-// over greyed body bars — reads as a document outline instead of an empty plate.
-// Widths are deliberately uneven so it looks like real prose.
-const PlaceholderBars = memo(() => (
-  <div className="flex flex-col gap-2" aria-hidden>
-    <div className="h-2 w-3/5 rounded-full bg-secondary-300 dark:bg-secondary-600" />
-    <div className="h-1.5 w-[92%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-    <div className="h-1.5 w-[85%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-    <div className="h-1.5 w-[94%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-    <div className="h-1.5 w-[70%] rounded-full bg-grey-200 dark:bg-grey-700/60" />
-  </div>
-));
-PlaceholderBars.displayName = 'PlaceholderBars';
-
-// Board overview for the preview plate. The card list doesn't carry real board
-// rows (those live in Yjs, loaded only via /boards/:id/state), so we render a
-// type-faithful schematic: a three-column Kanban (eucalyptus header bar over
-// solid card blocks) or a grid of whiteboard sticky notes.
-const KANBAN_COLUMNS = [
-  { id: 'kanban-1', cards: 2 },
-  { id: 'kanban-2', cards: 1 },
-  { id: 'kanban-3', cards: 2 },
-];
-
-const WHITEBOARD_NOTES = [
-  { id: 'wb-a', tint: 'bg-secondary-100 dark:bg-secondary-900/40' },
-  { id: 'wb-b', tint: 'bg-primary-100 dark:bg-primary-900/40' },
-  { id: 'wb-c', tint: 'bg-grey-100 dark:bg-grey-700/50' },
-  { id: 'wb-d', tint: 'bg-secondary-50 dark:bg-secondary-900/30' },
-  { id: 'wb-e', tint: 'bg-grey-100 dark:bg-grey-700/50' },
-  { id: 'wb-f', tint: 'bg-primary-50 dark:bg-primary-900/30' },
-];
-
-const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboard' }) => {
-  if (boardType === 'whiteboard') {
-    return (
-      <div className="grid h-full grid-cols-3 grid-rows-2 gap-2" aria-hidden>
-        {WHITEBOARD_NOTES.map((note) => (
-          <div key={note.id} className={cn('rounded-[5px]', note.tint)} />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex gap-2.5" aria-hidden>
-      {KANBAN_COLUMNS.map((col) => (
-        <div key={col.id} className="flex flex-1 flex-col gap-1.5">
-          <div className="h-2 rounded-[3px] bg-secondary-300 dark:bg-secondary-600" />
-          {Array.from({ length: col.cards }, (_, i) => (
-            <div
-              key={`${col.id}-${i}`}
-              className="h-6 rounded-[5px] bg-grey-100 dark:bg-grey-700/50"
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-});
-BoardPreviewBody.displayName = 'BoardPreviewBody';
+// Schematic preview bodies (placeholder bars, board/table/slides plates) are
+// shared with the Office overview — see components/common/SchematicPreviews.
 
 // Flat preview surface: media fills the plate (object-cover), documents show
 // their heading + excerpt directly on the tinted plate, boards a schematic, and
 // content-less items the prose outline — no floating paper sheet.
 const PreviewArea = memo(({ item }: { item: RecentItem }) => {
-  if (item.type === 'image' || item.type === 'video') {
+  if (item.type === 'image' || item.type === 'video' || item.type === 'canvas') {
     // Images are shared-media backed (item.id is the share token) → responsive
-    // variants + BlurHash. Videos have no image variants, so keep the poster img.
+    // variants + BlurHash. Videos and canvases have no image variants, so they
+    // keep the plain thumbnail img.
     if (item.type === 'image') {
       return (
         <div className={PREVIEW_PLATE}>
           <SharedMediaImage
             shareToken={item.id}
             alt={item.title || FALLBACK_TITLES[item.type]}
+            blurhash={item.blurhash}
             sizes="(max-width: 768px) 50vw, 280px"
             className="h-full w-full object-cover"
           />
@@ -187,17 +143,18 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
       return (
         <div className={PREVIEW_PLATE}>
           <img
-            src={resolveApiAssetUrl(item.thumbnailUrl)}
+            src={resolveApiAssetUrl(shareThumbnailPreviewUrl(item.thumbnailUrl))}
             alt={item.title || FALLBACK_TITLES[item.type]}
             className="h-full w-full object-cover"
             loading="lazy"
+            decoding="async"
           />
         </div>
       );
     }
     return (
       <div
-        className="flex h-[172px] items-center justify-center"
+        className="flex h-[210px] items-center justify-center"
         style={{
           background:
             'repeating-linear-gradient(135deg, var(--color-grey-100) 0 10px, var(--color-grey-200) 10px 20px)',
@@ -211,25 +168,36 @@ const PreviewArea = memo(({ item }: { item: RecentItem }) => {
     );
   }
 
+  // Tables show a few calm Label · Wert rows, centered on the plate.
+  if (isTablePreview(item)) {
+    return (
+      <div className={PREVIEW_PLATE}>
+        <TablePreviewBody content={item.content} />
+      </div>
+    );
+  }
+
   let body: React.ReactNode;
-  if ((item.type === 'doc' || item.type === 'text') && item.content?.trim()) {
+  if (isSlidesPreview(item)) {
+    body = <SlidesPreviewBody content={item.content} />;
+  } else if (item.type === 'doc' && item.content?.trim()) {
     const { heading, body: excerpt } = parseDocPreview(item.content);
     body = (
-      <>
+      <div className="flex h-full flex-col justify-center">
         {heading && (
-          <p className="m-0 mb-2 line-clamp-2 text-[13px] font-bold leading-snug text-foreground-heading">
+          <p className="m-0 mb-2 line-clamp-2 text-[15px] font-bold leading-snug text-foreground-heading">
             {heading}
           </p>
         )}
         {excerpt && (
-          <p className="m-0 line-clamp-6 text-[11.5px] leading-relaxed text-grey-500 dark:text-grey-400">
+          <p className="m-0 line-clamp-6 text-[14px] leading-relaxed text-grey-500 dark:text-grey-400">
             {excerpt}
           </p>
         )}
-      </>
+      </div>
     );
   } else if (item.type === 'board') {
-    body = <BoardPreviewBody boardType={item.boardType} />;
+    body = <BoardPreviewBody boardType={item.boardType} preview={item.preview} />;
   } else {
     body = <PlaceholderBars />;
   }
@@ -360,17 +328,24 @@ const RecentItemCard = memo(
     item,
     onDelete,
     onShare,
-    onConvertText,
   }: {
     item: RecentItem;
     onDelete: (item: RecentItem) => void;
     onShare: (item: RecentItem) => void;
-    onConvertText?: (textId: string) => void;
   }) => {
-    const { label: typeLabel, Icon: TypeIcon } = getTypeMeta(item);
+    const typeLabel = getTypeLabel(item);
+    const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
     const isShared = !!item.accessType && item.accessType !== 'owner';
     const durationLabel =
       item.type === 'video' && item.duration ? formatDuration(item.duration) : null;
+    const scope = getScope(item);
+    const sharedSuffix = isShared
+      ? item.creatorName
+        ? ` · Von ${item.creatorName}`
+        : ' · Geteilt'
+      : '';
+    const metaLine =
+      [typeLabel, scope, formatRelativeDate(item.date)].filter(Boolean).join(' · ') + sharedSuffix;
 
     const cardClass = cn(
       'group relative flex flex-col overflow-hidden rounded-[14px] border border-grey-200/80 bg-background no-underline',
@@ -391,25 +366,18 @@ const RecentItemCard = memo(
         </div>
 
         <div className="flex items-start gap-2 border-t border-grey-100 px-4 pb-4 pt-3.5 dark:border-grey-700/60">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-md bg-grey-100 px-2 py-0.5 text-[11.5px] font-medium text-grey-600 dark:bg-grey-700/50 dark:text-grey-300">
-              <TypeIcon className="size-3 shrink-0" />
-              {typeLabel}
-            </span>
-            <h3 className="m-0 mb-1.5 mt-2.5 min-w-0 truncate text-[15px] font-semibold text-foreground-heading">
-              {item.title || FALLBACK_TITLES[item.type]}
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <h3 className="m-0 min-w-0 truncate text-[16px] font-semibold text-foreground-heading">
+              {item.title || fallbackTitle}
             </h3>
-            <p className="m-0 flex min-w-0 items-center gap-1.5 truncate text-[12.5px] text-grey-500 dark:text-grey-400">
-              <FiClock className="size-3 shrink-0" />
-              <span className="truncate">
-                {formatRelativeDate(item.date)}
-                {isShared && (item.creatorName ? ` · Von ${item.creatorName}` : ' · Geteilt')}
-              </span>
+            <p className="m-0 min-w-0 truncate text-[13px] text-grey-500 dark:text-grey-400">
+              {metaLine}
             </p>
           </div>
           {/* Menu lives in the footer (not an overlay on the preview) so its hit
               target never overlaps the navigable card; CardActionsMenu stops
-              propagation internally, so a click here never opens the document. */}
+              propagation *and* preventDefaults internally, so a click here never
+              follows the enclosing <Link>'s href. */}
           <div className="-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
             <CardActionsMenu onShare={() => onShare(item)} onDelete={() => onDelete(item)}>
               {item.type === 'board' && <FavouriteMenuItem id={item.id} />}
@@ -418,25 +386,6 @@ const RecentItemCard = memo(
         </div>
       </>
     );
-
-    if (item.type === 'text' && onConvertText) {
-      return (
-        <div
-          role="button"
-          tabIndex={0}
-          className={cardClass}
-          onClick={() => onConvertText(item.id)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onConvertText(item.id);
-            }
-          }}
-        >
-          {cardContent}
-        </div>
-      );
-    }
 
     if (item.type === 'image') {
       return (
@@ -497,49 +446,15 @@ const RecentReelCard = memo(
 );
 RecentReelCard.displayName = 'RecentReelCard';
 
-// Single horizontally-scrollable row at every breakpoint (≈5 visible on desktop,
-// the rest peeking/scrollable) — mirrors the Notebooks row below it rather than
-// collapsing to a wrapping grid.
-const RECENT_ROW_CLASS = cn(
-  // `overflow-x-auto` also clips vertically, so the cards' upward hover-lift +
-  // shadow would be cut off — `pt-2` (matching `pb-2`) gives them room.
-  'grid grid-flow-col gap-md overflow-x-auto pt-2 pb-2',
-  'auto-cols-[75%] sm:auto-cols-[42%] md:auto-cols-[30%] lg:auto-cols-[19%]',
-  '-mx-4 px-4 lg:mx-0 lg:px-0'
-);
-
 const RecentlyCreatedSection: React.FC = memo(() => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: allItems = [], isLoading } = useQuery({
-    queryKey: ['recent-activity'],
-    queryFn: fetchRecentActivity,
-    staleTime: 30_000,
-  });
-
-  const items = allItems.filter((item) => {
-    if (item.type === 'text') return false;
-    return true;
-  });
+  const { data: items = [], isLoading, isError, refetch } = useRecentActivity();
 
   const [expanded, setExpanded] = useState(false);
+  const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
-
-  const handleConvertText = useCallback(
-    async (textId: string) => {
-      try {
-        const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
-        const { documentId } = res.data as { documentId: string };
-        void navigate(`/docs/${documentId}`);
-      } catch {
-        // fallback to old editor
-        void navigate(`/texte/texteditor?textId=${textId}`);
-      }
-    },
-    [navigate]
-  );
 
   const handleDelete = useCallback(
     (item: RecentItem) => {
@@ -548,8 +463,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         board: 'Board wirklich löschen?',
         image: 'Bild wirklich löschen?',
         video: 'Video wirklich löschen?',
-        text: 'Text wirklich löschen?',
-        presentation: 'Präsentation wirklich löschen?',
+        canvas: 'Sharepic wirklich löschen?',
       };
 
       if (!window.confirm(messages[item.type])) return;
@@ -599,6 +513,12 @@ const RecentlyCreatedSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
+    // Docs & boards are collaborative_documents — open the full ShareModal
+    // (link + group sharing). Everything else keeps the plain copy-link.
+    if (item.type === 'doc' || item.type === 'board') {
+      setShareDoc({ id: item.id, title: item.title });
+      return;
+    }
     void navigator.clipboard.writeText(`${getPublicAppOrigin()}${item.href}`);
   }, []);
 
@@ -618,7 +538,6 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         item={item}
         onDelete={handleDelete}
         onShare={handleShare}
-        onConvertText={handleConvertText}
       />
     );
 
@@ -627,13 +546,13 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       <SectionHeader title="Zuletzt" />
 
       {isLoading ? (
-        <div className={RECENT_ROW_CLASS}>
-          {Array.from({ length: 5 }, (_, i) => (
+        <CardGrid columns="5" gap="md">
+          {Array.from({ length: 10 }, (_, i) => (
             <div
               key={i}
               className="rounded-[14px] border border-grey-200/80 dark:border-grey-700/60 overflow-hidden"
             >
-              <Skeleton className="h-[172px] rounded-none" />
+              <Skeleton className="h-[210px] rounded-none" />
               <div className="px-4 py-3.5">
                 <Skeleton className="h-4 w-2/5" />
                 <Skeleton className="h-4 w-3/4 mt-1.5" />
@@ -641,6 +560,19 @@ const RecentlyCreatedSection: React.FC = memo(() => {
               </div>
             </div>
           ))}
+        </CardGrid>
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-2 py-lg text-center">
+          <p className="text-sm text-grey-500 dark:text-grey-400">
+            Zuletzt bearbeitete Inhalte konnten nicht geladen werden.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
+          >
+            Erneut versuchen
+          </button>
         </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
@@ -648,17 +580,11 @@ const RecentlyCreatedSection: React.FC = memo(() => {
         </p>
       ) : (
         <>
-          {/* Collapsed: scrollable row sliced to the threshold. Expanded: every
-              item in a wrapping grid (same card density as the row's ≈5/desktop). */}
-          {expanded ? (
-            <CardGrid columns="5" gap="md">
-              {items.map(renderCard)}
-            </CardGrid>
-          ) : (
-            <div className={RECENT_ROW_CLASS}>
-              {items.slice(0, RECENT_COLLAPSE_THRESHOLD).map(renderCard)}
-            </div>
-          )}
+          {/* Vertical grid that scrolls with the page (like Word's "Recent"),
+              sliced to the threshold; "Mehr anzeigen" reveals the rest. */}
+          <CardGrid columns="5" gap="md">
+            {(expanded ? items : items.slice(0, RECENT_COLLAPSE_THRESHOLD)).map(renderCard)}
+          </CardGrid>
           {items.length > RECENT_COLLAPSE_THRESHOLD && (
             <button
               type="button"
@@ -671,6 +597,16 @@ const RecentlyCreatedSection: React.FC = memo(() => {
             </button>
           )}
         </>
+      )}
+
+      {shareDoc && (
+        <Suspense fallback={null}>
+          <LazyShareModal
+            documentId={shareDoc.id}
+            documentTitle={shareDoc.title}
+            onClose={() => setShareDoc(null)}
+          />
+        </Suspense>
       )}
     </section>
   );

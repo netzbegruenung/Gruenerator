@@ -32,6 +32,29 @@ export interface PreviewImageProps {
 
 const BLURHASH_SIZE = 32;
 
+// Variant endpoints (e.g. /share/<token>/preview) generate lazily on first
+// request and can momentarily 202/404 before the image exists, yet their
+// successful responses are cached `immutable`. So a retry must cache-bust, and
+// the buster has to reach every URL in a srcSet, not just the fallback src.
+const MAX_RETRIES = 3;
+const RETRY_DELAYS_MS = [500, 1500, 3500];
+
+function withCacheBust(url: string, attempt: number): string {
+  if (attempt <= 0) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}_r=${attempt}`;
+}
+
+function bustSrcSet(srcSet: string, attempt: number): string {
+  if (attempt <= 0) return srcSet;
+  return srcSet
+    .split(',')
+    .map((entry) => {
+      const [url, ...descriptor] = entry.trim().split(/\s+/);
+      return [withCacheBust(url ?? '', attempt), ...descriptor].join(' ');
+    })
+    .join(', ');
+}
+
 function BlurhashCanvas({ hash, className }: { hash: string; className?: string }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -73,16 +96,38 @@ export function PreviewImage({
   sizes,
 }: PreviewImageProps) {
   const [loaded, setLoaded] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isWebp = useMemo(() => src.endsWith('.webp'), [src]);
+
+  // A changed src is a new image: drop the loaded/retry state so it fades in
+  // fresh and gets its own retry budget.
+  useEffect(() => {
+    setLoaded(false);
+    setRetry(0);
+  }, [src]);
+
+  useEffect(() => () => clearTimeout(retryTimer.current ?? undefined), []);
+
+  const handleError = () => {
+    if (retry >= MAX_RETRIES) return;
+    clearTimeout(retryTimer.current ?? undefined);
+    retryTimer.current = setTimeout(
+      () => setRetry((n) => n + 1),
+      RETRY_DELAYS_MS[retry] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]
+    );
+  };
 
   const imgClass = cn(
     'block h-full w-full object-cover transition-opacity duration-300',
     loaded ? 'opacity-100' : 'opacity-0'
   );
 
+  const baseSrc = fallbackSrc && isWebp && !sources ? fallbackSrc : src;
+
   const img = (
     <img
-      src={fallbackSrc && isWebp && !sources ? fallbackSrc : src}
+      src={withCacheBust(baseSrc, retry)}
       alt={alt}
       className={cn(!sources && imgClass, className)}
       loading={priority ? 'eager' : 'lazy'}
@@ -93,6 +138,7 @@ export function PreviewImage({
       height={height}
       sizes={sizes}
       onLoad={() => setLoaded(true)}
+      onError={handleError}
     />
   );
 
@@ -102,13 +148,18 @@ export function PreviewImage({
     sources && sources.length > 0 ? (
       <picture className={imgClass}>
         {sources.map((s) => (
-          <source key={s.type} srcSet={s.srcSet} type={s.type} sizes={s.sizes ?? sizes} />
+          <source
+            key={s.type}
+            srcSet={bustSrcSet(s.srcSet, retry)}
+            type={s.type}
+            sizes={s.sizes ?? sizes}
+          />
         ))}
         {img}
       </picture>
     ) : isWebp && fallbackSrc ? (
       <picture className={imgClass}>
-        <source srcSet={src} type="image/webp" />
+        <source srcSet={withCacheBust(src, retry)} type="image/webp" />
         {img}
       </picture>
     ) : (

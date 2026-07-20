@@ -3,6 +3,8 @@
 import type { Toolkit } from '@assistant-ui/react';
 import { ToolCallUI } from '../ToolCallUI';
 import { AskHumanToolUI } from './AskHumanToolUI';
+import { McpToolUI } from './McpToolUI';
+import { RunPythonToolUI } from './RunPythonToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
 import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
@@ -33,6 +35,12 @@ const DEDICATED_RENDERS: Partial<Record<UiToolName, Toolkit[string]>> = {
     render: ({ args, result, addResult }) => (
       <AskHumanToolUI args={args ?? {}} result={result} addResult={addResult} />
     ),
+  },
+  run_python: {
+    render: ({ args, result }) => <RunPythonToolUI args={args ?? {}} result={result} />,
+  },
+  mcp_tool: {
+    render: ({ args, result }) => <McpToolUI args={args ?? {}} result={result} />,
   },
 };
 

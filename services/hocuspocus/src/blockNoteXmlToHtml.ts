@@ -25,6 +25,16 @@ export function blockNoteXmlToHtml(xml: string): string {
   html = html.replace(/<blockContainer[^<>]*>/g, '');
   html = html.replace(/<\/blockContainer>/g, '');
 
+  // Track-changes suggestion marks (Änderungsmodus): drop deleted content so it
+  // never leaks into previews/exports; unwrap insertions/modifications to show
+  // the would-be-accepted text. Done before other conversions so nested block
+  // content inside a suggestion is handled uniformly.
+  html = html.replace(/<deletion[^<>]*>[\s\S]*?<\/deletion>/g, '');
+  html = html.replace(/<insertion[^<>]*>/g, '');
+  html = html.replace(/<\/insertion>/g, '');
+  html = html.replace(/<modification[^<>]*>/g, '');
+  html = html.replace(/<\/modification>/g, '');
+
   // Convert block elements
   html = html.replace(
     /<heading\s[^<>]*level="(\d)"[^<>]*>([\s\S]*?)<\/heading>/g,

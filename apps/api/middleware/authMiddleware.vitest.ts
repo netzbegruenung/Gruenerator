@@ -67,6 +67,7 @@ function mockRes() {
     statusCode: 200 as number,
     body: undefined as unknown,
     redirected: null as string | null,
+    headers: {} as Record<string, string>,
   };
   const res = {
     status(code: number) {
@@ -79,6 +80,10 @@ function mockRes() {
     },
     redirect(url: string) {
       state.redirected = url;
+      return res;
+    },
+    setHeader(name: string, value: string) {
+      state.headers[name] = value;
       return res;
     },
   };

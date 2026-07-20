@@ -34,8 +34,20 @@ export const chatThreads = pgTable(
     doc_id: uuid('doc_id'),
     // Auto-generated + user-editable topic tags for sidebar filtering/search.
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
+    // Stable 6-char key for Notion-style thread URLs (/chat/<titel>-<suffix>).
+    slug_suffix: text('slug_suffix'),
+    // Sticky MCP scope: last connected server the loop was scoped to, so an
+    // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
+    last_mcp_server_id: uuid('last_mcp_server_id'),
+    // Home "Space" (a group) this thread is filed in. NULL = unfiled. FK →
+    // groups(id) ON DELETE SET NULL. A thread has one home space (personal or
+    // team); it can additionally be shared to more spaces via group_content_shares.
+    group_id: uuid('group_id'),
   },
-  (t) => [index('idx_chat_threads_tags').using('gin', t.tags)]
+  (t) => [
+    index('idx_chat_threads_tags').using('gin', t.tags),
+    index('idx_chat_threads_group_id').on(t.group_id),
+  ]
 );
 
 export const chatMessages = pgTable('chat_messages', {

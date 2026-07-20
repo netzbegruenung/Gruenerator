@@ -1,6 +1,14 @@
 /**
  * Type definitions for Bundestag Services
  */
+import {
+  type BtPerson,
+  type BtAktivitaet,
+  type BtSpeech,
+  type BtDrucksache,
+  type BtVorgang,
+  type BtSemanticHit,
+} from './schemas.js';
 
 /**
  * Pattern for person name detection
@@ -192,6 +200,45 @@ export interface EnrichedPersonSearchResult {
     contentMentionsCount: number;
     drucksachenCount: number;
     aktivitaetenCount: number;
+    fetchTimeMs: number;
+  };
+}
+
+// ── Enriched chat result (BundestagEnrichedService) ──────────────────────────
+export {
+  type BtPerson,
+  type BtAktivitaet,
+  type BtSpeech,
+  type BtDrucksache,
+  type BtVorgang,
+  type BtSemanticHit,
+} from './schemas.js';
+
+/**
+ * Discriminated on `kind`:
+ *  - 'person'   → a specific MP was resolved (profile + activities + speeches)
+ *  - 'document' → an explicit Drucksache number was asked about
+ *  - 'topic'    → default: semantic hits + matching speeches for a subject
+ *  - 'none'     → nothing resolvable; caller falls back to a graceful message
+ */
+export interface BtEnrichedResult {
+  kind: 'person' | 'document' | 'topic' | 'none';
+  person?: { person: BtPerson; aktivitaeten: BtAktivitaet[]; speeches: BtSpeech[] };
+  document?: { drucksache: BtDrucksache; siblings: BtDrucksache[]; vorgang: BtVorgang | null };
+  /** `documents`/`vorgaenge` come from the raw DIP title search — the fallback
+   *  when the semantic layer returns nothing (e.g. vector backend down). */
+  topic?: {
+    hits: BtSemanticHit[];
+    speeches: BtSpeech[];
+    documents: BtDrucksache[];
+    vorgaenge: BtVorgang[];
+  };
+  /** Human-readable "+N weitere" / fallback disclosures (no silent caps). */
+  notes: string[];
+  metadata: {
+    query: string;
+    extractedName: string | null;
+    matchedDokumentnummer: string | null;
     fetchTimeMs: number;
   };
 }

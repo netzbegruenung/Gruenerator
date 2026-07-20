@@ -1,4 +1,6 @@
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
+import { getAvailableClientTools } from '../clientTools';
 
 import type { GrueneratorAdapterConfig } from './types';
 import type { ThreadMode } from '../../stores/chatStore';
@@ -43,9 +45,16 @@ export interface BuildRequestBodyParams {
   documentIds: string[];
   textIds: string[];
   boardIds: string[];
+  sheetIds: string[];
   docMentionIds: string[];
   wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'];
   connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'];
+  /** URLs attached via the @web mention (crawled through the scrape_url path). */
+  webpageUrls: string[];
+  /** Regenerate the last assistant turn (backend replaces instead of appends). */
+  regenerate: boolean;
+  /** DB id of the user message an edit-resubmit starts from, if any. */
+  replaceFromMessageId: string | undefined;
   mergedDocChatIds: string[];
   hasDocumentChat: boolean;
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
@@ -59,6 +68,8 @@ export interface BuildRequestBodyParams {
     canvasId: string | null;
     canvasType: string;
   } | null;
+  /** Social post marked "active for chat editing" (combined post card), if any. */
+  currentSocialPost: { postId: string } | null;
   /** Subtitler project marked active for chat subtitle editing, if any. */
   currentReel: { projectId: string } | null;
   /** Composer-attached video, already TUS-uploaded (reel transcription). */
@@ -80,6 +91,45 @@ const lastUserText = (formattedMessages: FormattedMessage[]): string =>
  * (search / notebook / eigener / chat) ships a different field set; the shared
  * chat/eigener payload differs only in agentId + customSystemPrompt/roleName.
  */
+/**
+ * assistant-ui reports its INTERNAL thread ids through `unstable_threadId`:
+ * the legacy local sentinel `__DEFAULT_ID__`, and — since useLocalRuntime was
+ * rebuilt on the remote-thread-list machinery (0.14.2x) — freshly initialized
+ * local threads as `__LOCALID_<id>`. Neither is a real server thread. Letting
+ * one override the surface's resolved threadId silently breaks everything
+ * downstream: the backend drops the non-UUID and mints a NEW thread per message
+ * (chat lost on reload), and `contextProviders.get(threadId)` misses, so
+ * currentDocument/currentBoard never reach the backend (editor tools never
+ * mount, the model "edits" without seeing the artifact). All aui-internal ids
+ * are `__`-prefixed; real remoteIds are server UUIDs.
+ */
+export function isAuiInternalThreadId(id: string | undefined): boolean {
+  return !!id && id.startsWith('__');
+}
+
+/**
+ * How an adapter binds a run to a thread id.
+ *
+ * - 'runtime' (default, /chat): prefer the runtime-reported per-run thread id —
+ *   it protects against a rapid thread switch racing the store id (a run
+ *   started in thread A must persist to A even if the user already switched to
+ *   B). aui-internal sentinels are filtered via {@link isAuiInternalThreadId}.
+ * - 'pinned' (embedded surfaces: editor sidebars, one thread per mount): the
+ *   surface-resolved getConfig().threadId is authoritative; the runtime id is
+ *   never consulted, so no aui version can ever leak an internal id into the
+ *   request (the notebook adapter follows the same principle by construction).
+ */
+export type ThreadBinding = 'runtime' | 'pinned';
+
+/** Pure per-run thread-id decision; null = use getConfig().threadId. */
+export function resolveRuntimeThreadId(
+  binding: ThreadBinding,
+  unstableThreadId: string | undefined
+): string | null {
+  if (binding === 'pinned') return null;
+  return unstableThreadId && !isAuiInternalThreadId(unstableThreadId) ? unstableThreadId : null;
+}
+
 export function buildRequestBody(params: BuildRequestBodyParams): Record<string, unknown> {
   const {
     effectiveMode,
@@ -93,9 +143,13 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentIds,
     textIds,
     boardIds,
+    sheetIds,
     docMentionIds,
     wolkeFiles,
     connectFiles,
+    webpageUrls,
+    regenerate,
+    replaceFromMessageId,
     mergedDocChatIds,
     hasDocumentChat,
     injectedCurrentDocument,
@@ -103,6 +157,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
+    currentSocialPost,
     currentReel,
     reelUpload,
   } = params;
@@ -147,21 +202,41 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentIds: documentIds.length > 0 ? documentIds : undefined,
     textIds: textIds.length > 0 ? textIds : undefined,
     boardIds: boardIds.length > 0 ? boardIds : undefined,
+    sheetIds: sheetIds.length > 0 ? sheetIds : undefined,
     docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
     wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
     connectFiles: connectFiles.length > 0 ? connectFiles : undefined,
+    webpageUrls: webpageUrls.length > 0 ? webpageUrls : undefined,
+    regenerate: regenerate || undefined,
+    replaceFromMessageId: replaceFromMessageId || undefined,
     documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
     currentBoard: injectedCurrentBoard,
     currentSharepic: currentSharepic ?? undefined,
+    currentSocialPost: currentSocialPost ?? undefined,
     currentReel: currentReel ?? undefined,
     reelUpload: reelUpload ?? undefined,
     attachmentContext: injectedAttachmentContext,
     // Forward the last browser-computed spreadsheet result so the backend can
     // give it to the model as ground truth (formatComputedResultContext) — the
-    // model can't see the client-side Pyodide output otherwise.
-    computedResult: useLastComputeStore.getState().result ?? undefined,
+    // model can't see the client-side Pyodide output otherwise. Figures are
+    // stripped: they were already persisted with the original turn, and
+    // re-sending base64 PNGs would bloat every follow-up request.
+    computedResult: (() => {
+      const r = useLastComputeStore.getState().result;
+      if (!r) return undefined;
+      const { figures: _figures, files: _files, figureUrls: _fu, fileAssets: _fa, ...slim } = r;
+      return slim;
+    })(),
+    // Declare which tools this client can execute locally, so the backend may
+    // pause the turn with a client_tool interrupt (e.g. run_python) instead of
+    // prompting the model to emit a code block.
+    clientTools: (() => {
+      const available = getAvailableClientTools();
+      return available.length > 0 ? available : undefined;
+    })(),
+    platform: useChatConfigStore.getState().platform,
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,

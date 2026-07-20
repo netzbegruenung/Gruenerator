@@ -19,6 +19,10 @@ export function getNango(): Nango {
 }
 
 export const NANGO_PROVIDERS = {
+  // NOTE: `google` is temporarily hidden via HIDDEN_NANGO_PROVIDERS below — the
+  // Google OAuth app / Nango integration isn't wired up yet. Kept in the type so
+  // connectRetrieval's `case 'google'` still compiles; re-enable by removing it
+  // from HIDDEN_NANGO_PROVIDERS.
   google: {
     key: 'google',
     label: 'Google Workspace',
@@ -42,3 +46,6 @@ export const NANGO_PROVIDERS = {
 } as const;
 
 export type NangoProviderKey = keyof typeof NANGO_PROVIDERS;
+
+/** Providers hidden from the connector list until their OAuth setup is complete. */
+export const HIDDEN_NANGO_PROVIDERS = new Set<NangoProviderKey>(['google']);

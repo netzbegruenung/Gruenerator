@@ -8,6 +8,11 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import {
+  ocrProviderSchema,
+  scannerExtractQuerySchema,
+  type ScannerExtractResponse,
+} from '@gruenerator/contracts';
 import { Router, type Response, type RequestHandler } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
@@ -39,22 +44,12 @@ const upload = multer({
   },
 });
 
+// Provider may also arrive as a body field (multipart form). The query is the
+// primary channel (see frontend), but accept either and validate against the
+// shared enum so an unknown value is a 400, not a silent fallthrough.
 const scannerBodySchema = z.object({
-  provider: z.string().optional(),
+  provider: ocrProviderSchema.optional(),
 });
-
-interface ScannerResponse {
-  success: boolean;
-  text?: string;
-  pageCount?: number;
-  method?: string;
-  error?: string;
-  fileInfo?: {
-    originalname: string;
-    size: number;
-    mimetype: string;
-  };
-}
 
 router.post(
   '/extract',
@@ -63,7 +58,7 @@ router.post(
   validateBody(scannerBodySchema) as RequestHandler,
   async (
     req: TypedRequest<z.infer<typeof scannerBodySchema>>,
-    res: Response<ScannerResponse>
+    res: Response<ScannerExtractResponse>
   ): Promise<void> => {
     const startTime = Date.now();
     let tempFilePath: string | null = null;
@@ -91,12 +86,19 @@ router.post(
       await fs.writeFile(tempFilePath, buffer);
       log.debug(`Temp file created: ${tempFilePath}`);
 
-      // Extract text using OcrService (optional per-request provider override)
-      const provider = req.body.provider || req.query?.provider;
-      const result = await ocrService.extractTextFromDocument(
-        tempFilePath,
-        provider as string | undefined
-      );
+      // Extract text using OcrService (optional per-request provider override).
+      // Validate the query provider against the shared enum; reject unknowns so
+      // a typo can't silently route to the env-default provider.
+      const queryProvider = scannerExtractQuerySchema.safeParse(req.query);
+      if (!queryProvider.success) {
+        res.status(400).json({
+          success: false,
+          error: `Ungültiger OCR-Provider. Erlaubt: ${ocrProviderSchema.options.join(', ')}`,
+        });
+        return;
+      }
+      const provider = req.body.provider ?? queryProvider.data.provider;
+      const result = await ocrService.extractTextFromDocument(tempFilePath, provider);
       const processingTime = Date.now() - startTime;
 
       log.info(

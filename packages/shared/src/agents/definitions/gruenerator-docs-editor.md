@@ -1,6 +1,7 @@
 ---
 iconKey: file-text
 identifier: gruenerator-docs-editor
+hiddenFromInventory: true
 title: Dokument-Assistent
 description: 'Beantwortet Fragen zum aktuellen Dokument, schlägt Überarbeitungen vor und recherchiert ergänzende Hintergründe.'
 plugins:

@@ -17,16 +17,18 @@ type CanvasConfigType =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
-  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'zitat'
   | 'slider'
   | 'freeform'
-  | 'pres-title'
-  | 'pres-image'
-  | 'pres-content'
-  | 'profilbild';
+  | 'profilbild'
+  // Österreich (de-AT) variants
+  | 'info-at'
+  | 'zitat-at'
+  | 'zitat-pure-at'
+  | 'dreizeilen-at'
+  | 'freeform-at';
 
 // Use a flexible type that accepts any state/action types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,9 +50,6 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'veranstaltung':
       return (await import('./veranstaltung_full.config')).veranstaltungFullConfig;
 
-    case 'veranstaltung-plakat':
-      return (await import('./veranstaltung_plakat_full.config')).veranstaltungPlakatFullConfig;
-
     case 'simple':
       return (await import('./simple_full.config')).simpleFullConfig;
 
@@ -66,17 +65,24 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'freeform':
       return (await import('./freeform_full.config')).freeformFullConfig;
 
-    case 'pres-title':
-      return (await import('./presentation/presTitle.config')).presTitleConfig;
-
-    case 'pres-image':
-      return (await import('./presentation/presImage.config')).presImageConfig;
-
-    case 'pres-content':
-      return (await import('./presentation/presContent.config')).presContentConfig;
-
     case 'profilbild':
       return (await import('./profilbild_full.config')).profilbildFullConfig;
+
+    // Österreich (de-AT) variants
+    case 'zitat-pure-at':
+      return (await import('./zitat_pure_at_full.config')).zitatPureAtFullConfig;
+
+    case 'zitat-at':
+      return (await import('./zitat_at_full.config')).zitatAtFullConfig;
+
+    case 'info-at':
+      return (await import('./info_at_full.config')).infoAtFullConfig;
+
+    case 'dreizeilen-at':
+      return (await import('./dreizeilen_at_full.config')).dreizeilenAtFullConfig;
+
+    case 'freeform-at':
+      return (await import('./freeform_at_full.config')).freeformAtFullConfig;
 
     default:
       throw new Error(`Unknown canvas type: ${type}`);
@@ -91,15 +97,16 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'zitat-pure',
     'info',
     'veranstaltung',
-    'veranstaltung-plakat',
     'simple',
     'dreizeilen',
     'zitat',
     'slider',
     'freeform',
-    'pres-title',
-    'pres-image',
-    'pres-content',
     'profilbild',
+    'info-at',
+    'zitat-at',
+    'zitat-pure-at',
+    'dreizeilen-at',
+    'freeform-at',
   ].includes(type);
 }

@@ -26,6 +26,7 @@ const SYNTHETIC_MENTION_TYPES = [
   'application/x-gruenerator-datei-text',
   'application/x-gruenerator-wolke',
   'application/x-gruenerator-connect',
+  'application/x-gruenerator-webpage',
 ];
 
 /** Name of the data content part carrying a chat video's TUS upload result. */

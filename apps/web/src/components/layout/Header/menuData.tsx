@@ -1,7 +1,5 @@
-import { FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
-import { HiCog } from 'react-icons/hi';
 import { PiGlobe } from 'react-icons/pi';
-import { SlNotebook } from 'react-icons/sl';
+import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
@@ -12,21 +10,6 @@ import type { IconType } from 'react-icons';
 export interface MenuFlags {
   isAustrian?: boolean;
 }
-
-// Account-menu nav targets, shared by the sidebar account block (SidebarAccount).
-export interface NavItem {
-  key: string;
-  label: string;
-  path: string;
-  icon: IconType;
-}
-
-export const NAV_ITEMS: NavItem[] = [
-  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
-  { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
-  { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
-];
 
 // Menu item type definition
 export interface MenuItemType {
@@ -39,6 +22,9 @@ export interface MenuItemType {
   items?: MenuItemType[];
   badge?: BadgeType;
   activePaths?: string[];
+  /** Exact-match highlights (no prefix logic) — for parent entries whose
+   * subpaths belong to sibling entries (e.g. /workplace vs. /workplace/wissen). */
+  exactActivePaths?: string[];
   /**
    * Query-param requirements for the item to be considered active. Useful when
    * multiple sidebar entries share the same path (e.g. /chat?agent=X vs.
@@ -57,6 +43,9 @@ export interface MenuSection {
 // Direct menu items result type
 export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
+/** The sidebar entry that opens the global search palette rather than a route. */
+export const GLOBAL_SEARCH_ITEM_ID = 'globalSearch';
+
 // Direkte Menüpunkte ohne Dropdown
 export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
@@ -67,24 +56,28 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
+    // Exact tab paths only — a /workplace prefix would also claim the Wissen
+    // tab, which the dedicated entry below highlights.
+    exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
   };
 
-  items.docs = {
-    id: 'docs',
-    path: '/docs',
-    title: 'Dokumente und Boards',
-    description: 'Dokumente & Präsentationen',
-    icon: getIcon('navigation', 'docs'),
-    activePaths: ['/docs'],
+  // No `path`: the sidebar opens the global search palette instead of
+  // navigating. Consumers that render nav targets (DesktopHome, featureIndex)
+  // already skip path-less entries.
+  items.globalSearch = {
+    id: GLOBAL_SEARCH_ITEM_ID,
+    title: 'Suche',
+    description: 'Alles durchsuchen',
+    icon: getIcon('ui', 'search'),
   };
 
-  items.notebooks = {
-    id: 'notebooks',
-    path: '/notebooks',
-    title: 'Notebooks',
-    description: 'Suche, Wissensmanagement & Dokumentenrecherche',
-    icon: SlNotebook,
-    activePaths: ['/notebooks', '/notebook'],
+  items.grueneratoren = {
+    id: 'grueneratoren',
+    path: '/agentura',
+    title: 'Grüneratoren',
+    description: 'Deine KI-Grüneratoren',
+    icon: RiSpyLine,
+    activePaths: ['/agentura', '/agents'],
   };
 
   if (import.meta.env.DEV) {
@@ -97,17 +90,6 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
       activePaths: ['/sites'],
     };
   }
-
-  // Studio is prod-visible (gallery + Imagine + Reel). The canvas-based sharepic
-  // creation behind it is a public research preview gated by SHOW_SHAREPIC_STUDIO.
-  items.studio = {
-    id: 'studio',
-    path: '/studio',
-    title: 'Studio',
-    description: 'Sharepics, KI-Bilder und Videos',
-    icon: getIcon('navigation', 'sharepic'),
-    activePaths: ['/studio'],
-  };
 
   return items;
 };
@@ -123,7 +105,7 @@ export const getFooterLinks = (): MenuItemType[] => [
     id: 'apps',
     path: '/apps',
     title: 'Apps & Connect',
-    description: 'Desktop-App & KI-Chat-Integration',
+    description: 'Apps für deine Geräte & KI-Chat-Integration',
   },
   {
     id: 'support',

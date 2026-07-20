@@ -22,7 +22,7 @@ export const freeformTypeConfig: TemplateTypeConfig = {
   steps: [FORM_STEPS.CANVAS_EDIT],
   legacyType: 'Freeform',
   primaryFormatGroup: 'sharepic',
-  supportedFormatGroups: ['sharepic', 'story', 'flyer', 'plakat'],
+  supportedFormatGroups: ['sharepic'],
 };
 
 export const freeformFieldConfig: TemplateFieldConfig = {

@@ -9,6 +9,7 @@ import {
   convertToThreadMessageLike,
   transformMessageLike,
 } from '@gruenerator/chat';
+import { isUnauthorizedError } from '@gruenerator/shared/api';
 import { useMemo, useRef } from 'react';
 
 import { configureMobileChat } from '../services/chatConfig';
@@ -54,17 +55,30 @@ export function useChatDrawerRuntime() {
     [fetchFn, onUnauthorized]
   );
 
-  const adapter = useMemo(
-    () =>
-      createGrueneratorThreadListAdapter(apiClient, getDefaultAgent(), {
-        onDelete: (remoteId) => {
-          if (useAgentStore.getState().currentThreadId === remoteId) {
-            useAgentStore.getState().setCurrentThread(null);
-          }
-        },
-      }),
-    [apiClient]
-  );
+  const adapter = useMemo(() => {
+    const base = createGrueneratorThreadListAdapter(apiClient, getDefaultAgent(), {
+      onDelete: (remoteId) => {
+        if (useAgentStore.getState().currentThreadId === remoteId) {
+          useAgentStore.getState().setCurrentThread(null);
+        }
+      },
+    });
+    // On web a 401 from list() drives the atomic teardown+redirect. Mobile has
+    // no such redirect (mobileOnUnauthorized only warns), so keep the prior
+    // graceful behavior here: a dead session yields an empty drawer, not an
+    // error state in the RN runtime.
+    return {
+      ...base,
+      list: async () => {
+        try {
+          return await base.list();
+        } catch (error) {
+          if (isUnauthorizedError(error)) return { threads: [] };
+          throw error;
+        }
+      },
+    };
+  }, [apiClient]);
 
   return useRemoteThreadListRuntime({
     runtimeHook: useDrawerRuntimeHook,

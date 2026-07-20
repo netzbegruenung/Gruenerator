@@ -1,9 +1,17 @@
-import { type BoardContent, type BoardType } from '@gruenerator/contracts';
+import {
+  type BoardContent,
+  type BoardPreview,
+  type BoardType,
+  type RecentActivityItem,
+} from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { CANVAS_ACCESS_WHERE, CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
 import { createLogger } from '../../utils/logger.js';
+import { getSharedMediaService } from '../share/shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 
@@ -20,6 +28,14 @@ const DOCS_SUBTYPES = [
   'redaktionsplan',
   'checkliste',
   'einladung',
+  // Spreadsheet-style docs (created via chat "save as Tabelle"). They open at
+  // /docs/:id like any doc; the frontend renders a grid preview off
+  // documentType === 'tabelle' instead of the prose excerpt.
+  'tabelle',
+  // Univer spreadsheets and reveal.js decks: they too open at /docs/:id (the
+  // route dispatches on subtype) so they surface as `type: 'doc'`.
+  'sheets',
+  'presentations',
 ];
 
 const SUBTYPE_EMOJI: Record<string, string> = {
@@ -31,23 +47,52 @@ const SUBTYPE_EMOJI: Record<string, string> = {
   redaktionsplan: '📅',
   checkliste: '☑️',
   einladung: '✉️',
+  tabelle: '📊',
+  sheets: '📊',
+  presentations: '🎬',
 };
 
-export interface RecentActivityItem {
-  id: string;
-  title: string;
-  date: string;
-  type: 'doc' | 'board' | 'image' | 'video' | 'text' | 'presentation';
-  href: string;
-  emoji?: string | undefined;
-  boardType?: 'kanban' | 'whiteboard' | undefined;
-  thumbnailUrl?: string | undefined;
-  duration?: number | undefined;
-  creatorName?: string | undefined;
-  accessType?: string | undefined;
-  deleteEndpoint?: string | undefined;
-  content?: string | undefined;
-  documentType?: string | undefined;
+// Row shape is derived from the ts-rest schema (recentActivityItemSchema) so the
+// aggregation and the wire contract cannot drift. Re-exported for the fetchers.
+export type { RecentActivityItem };
+
+// One failing source (e.g. the canvas JOIN) must degrade to a missing strip,
+// not a 500 that blanks the whole "Zuletzt" section. Each fetcher is wrapped
+// so a rejection resolves to [] — the same graceful-degradation the images
+// fetcher already relied on, now applied uniformly.
+async function safe(
+  label: string,
+  fetch: () => Promise<RecentActivityItem[]>
+): Promise<RecentActivityItem[]> {
+  try {
+    return await fetch();
+  } catch (error) {
+    log.error(`Failed to fetch recent ${label}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Canonical recent-activity aggregation. Both the `/recent-activity` route and
+ * `/auth/init`'s seed call this, so the workplace section and the post-login
+ * cache seed return identical data — the earlier drift (init omitted canvases
+ * and used a different limit) is what made canvases flicker in and out.
+ */
+export async function aggregateRecentActivity(
+  userId: string,
+  limit: number
+): Promise<RecentActivityItem[]> {
+  const [docs, boards, images, reelProjects, canvases] = await Promise.all([
+    safe('docs', () => fetchRecentDocs(userId, limit)),
+    safe('boards', () => fetchRecentBoards(userId, limit)),
+    safe('images', () => fetchRecentImages(userId, limit)),
+    safe('reels', () => fetchRecentReelProjects(userId, limit)),
+    safe('canvases', () => fetchRecentCanvases(userId, limit)),
+  ]);
+
+  const items: RecentActivityItem[] = [...docs, ...boards, ...images, ...reelProjects, ...canvases];
+  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return items.slice(0, limit);
 }
 
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -56,27 +101,8 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const limitParam = Number(req.query.limit);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : 12;
 
-    const [docs, boards, images, reelProjects, texts, presentations] = await Promise.all([
-      fetchRecentDocs(userId, limit),
-      fetchRecentBoards(userId, limit),
-      fetchRecentImages(userId, limit),
-      fetchRecentReelProjects(userId, limit),
-      fetchRecentTexts(userId, limit),
-      fetchRecentPresentations(userId, limit),
-    ]);
-
-    const items: RecentActivityItem[] = [
-      ...docs,
-      ...boards,
-      ...images,
-      ...reelProjects,
-      ...texts,
-      ...presentations,
-    ];
-
-    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    res.json({ items: items.slice(0, limit) });
+    const items = await aggregateRecentActivity(userId, limit);
+    res.json({ items });
   } catch (error: unknown) {
     log.error('Failed to fetch recent activity:', error);
     res.status(500).json({ error: 'Failed to fetch recent activity' });
@@ -136,7 +162,7 @@ export async function fetchRecentDocs(
     title: row.title || 'Unbenanntes Dokument',
     date: row.updated_at,
     type: 'doc' as const,
-    href: `/docs/${row.id}`,
+    href: `/office/${row.id}`,
     emoji: SUBTYPE_EMOJI[row.document_subtype ?? 'blank'] ?? '📄',
     documentType: row.document_subtype ?? 'blank',
     ...(row.content != null && { content: row.content }),
@@ -153,7 +179,17 @@ export async function fetchRecentBoards(
   const rows = await db.query(
     `SELECT
       cd.id, cd.title, cd.updated_at, cd.created_by, cd.content,
-      p.display_name as creator_name
+      p.display_name as creator_name,
+      CASE
+        WHEN cd.created_by = $1 THEN 'owner'
+        WHEN cd.permissions ? $2::text THEN 'direct'
+        WHEN cd.id IN (
+          SELECT gcs.content_id::uuid
+          FROM group_content_shares gcs
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+          WHERE gcs.content_type = 'collaborative_documents'
+        ) THEN 'group'
+      END AS access_type
     FROM collaborative_documents cd
     LEFT JOIN profiles p ON cd.created_by = p.id
     WHERE
@@ -182,9 +218,11 @@ export async function fetchRecentBoards(
       created_by: string;
       content: string | BoardContent | null;
       creator_name: string;
+      access_type: string | null;
     }>
   ).map((row) => {
     let boardType: BoardType = 'kanban';
+    let preview: BoardPreview | null = null;
     try {
       // Parse into the contract type (BoardContent) rather than a hand-written cast,
       // so the field name is checked against boardContentSchema. The metadata column
@@ -193,8 +231,9 @@ export async function fetchRecentBoards(
       // typing it through the schema makes that a typecheck error instead.
       const content: BoardContent | null =
         typeof row.content === 'string' ? (JSON.parse(row.content) as BoardContent) : row.content;
-      if (content && typeof content !== 'string' && content.board_type === 'whiteboard') {
-        boardType = 'whiteboard';
+      if (content && typeof content !== 'string') {
+        if (content.board_type === 'whiteboard') boardType = 'whiteboard';
+        preview = content.preview ?? null;
       }
     } catch {
       // default to kanban
@@ -206,7 +245,9 @@ export async function fetchRecentBoards(
       type: 'board' as const,
       href: `/boards/${row.id}`,
       boardType,
+      ...(preview ? { preview } : {}),
       creatorName: row.creator_name,
+      accessType: row.access_type ?? undefined,
       deleteEndpoint: `/api/boards/${row.id}`,
     };
   });
@@ -216,32 +257,31 @@ export async function fetchRecentImages(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
-  const rows = await db.query(
-    `SELECT id, share_token, title, thumbnail_path, status, created_at
-    FROM shared_media
-    WHERE user_id = $1 AND media_type = 'image' AND status = 'ready'
-    ORDER BY created_at DESC
-    LIMIT $2`,
-    [userId, limit]
-  );
+  // Status policy lives in the service (USER_VISIBLE_SHARE_STATUSES) — this
+  // surface shows everything the user's own galleries show, drafts included.
+  // Errors here degrade to a missing strip via the `safe()` wrapper in
+  // aggregateRecentActivity, so no local try/catch is needed.
+  const service = await getSharedMediaService();
+  const rows = await service.getUserShares(userId, 'image', USER_VISIBLE_SHARE_STATUSES, limit);
 
-  return (
-    rows as Array<{
-      id: string;
-      share_token: string;
-      title: string;
-      thumbnail_path: string | null;
-      status: string;
-      created_at: string;
-    }>
-  ).map((row) => ({
+  return rows.map((row) => ({
     id: row.share_token,
     title: row.title || 'Ohne Titel',
-    date: row.created_at,
+    date: row.created_at.toISOString(),
     type: 'image' as const,
     href: `/share/${row.share_token}`,
-    thumbnailUrl: row.thumbnail_path ? `/api/share/${row.share_token}/thumbnail` : undefined,
+    // Fresh shares have thumbnail_path=null until the async variants pass
+    // finishes — fall back to the on-demand preview route so the tile isn't
+    // blank. ?w=400 hits the pre-generated variant widths (200/400/800) and
+    // the thumbs/ disk cache instead of streaming the full-size original.
+    thumbnailUrl: row.thumbnail_path
+      ? `/api/share/${row.share_token}/thumbnail`
+      : `/api/share/${row.share_token}/preview?w=400&fmt=webp`,
     deleteEndpoint: `/api/share/${row.share_token}`,
+    // BlurHash (pre-generated by processMediaVariants into image_metadata) gives
+    // the tile an instant placeholder while the /preview variant is still being
+    // generated — otherwise a fresh share renders as a blank plate.
+    blurhash: (row.image_metadata as { blurhash?: string } | null)?.blurhash,
   }));
 }
 
@@ -288,70 +328,31 @@ export async function fetchRecentReelProjects(
   });
 }
 
-export async function fetchRecentTexts(
-  userId: string,
-  limit: number
-): Promise<RecentActivityItem[]> {
-  const rows = await db.query(
-    `SELECT id, title, content, document_type, updated_at
-    FROM user_documents
-    WHERE user_id = $1 AND is_active = true
-    ORDER BY updated_at DESC
-    LIMIT $2`,
-    [userId, limit]
-  );
-
-  return (
-    rows as Array<{
-      id: string;
-      title: string;
-      content: string | null;
-      document_type: string;
-      updated_at: string;
-    }>
-  ).map((row) => {
-    const rawContent = typeof row.content === 'string' ? row.content : '';
-    let stripped = rawContent;
-    let prev: string;
-    do {
-      prev = stripped;
-      stripped = stripped.replace(/<[^>]*>/g, '');
-    } while (stripped !== prev);
-    stripped = stripped.slice(0, 500);
-
-    return {
-      id: row.id,
-      title: row.title || 'Ohne Titel',
-      date: row.updated_at,
-      type: 'text' as const,
-      href: `/texte/texteditor?textId=${row.id}`,
-      content: stripped,
-      documentType: row.document_type,
-      deleteEndpoint: `/api/auth/texts/${row.id}`,
-    };
-  });
-}
-
-export async function fetchRecentPresentations(
+export async function fetchRecentCanvases(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
   const rows = await db.query(
     `SELECT
-      cp.id, cp.title, cp.updated_at, cp.user_id,
+      cd.id, cd.title, cd.updated_at, cd.created_by, cdoc.thumbnail_url,
       p.display_name as creator_name,
       CASE
-        WHEN cp.user_id = $1 THEN 'owner'
-        WHEN cp.permissions ? $2::text THEN 'direct'
+        WHEN cd.created_by = $2 THEN 'owner'
+        WHEN cd.permissions ? $3::text THEN 'direct'
+        WHEN cd.id IN (
+          SELECT gcs.content_id::uuid
+          FROM group_content_shares gcs
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+          WHERE gcs.content_type = 'collaborative_documents'
+        ) THEN 'group'
       END AS access_type
-    FROM collaborative_presentations cp
-    LEFT JOIN profiles p ON cp.user_id = p.id
-    WHERE
-      cp.user_id = $1
-      OR cp.permissions ? $2::text
-    ORDER BY cp.updated_at DESC
-    LIMIT $3`,
-    [userId, userId, limit]
+    FROM collaborative_documents cd
+    INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+    LEFT JOIN profiles p ON cd.created_by = p.id
+    WHERE ${CANVAS_ACCESS_WHERE}
+    ORDER BY cd.updated_at DESC
+    LIMIT $4`,
+    [CANVAS_SUBTYPE, userId, userId, limit]
   );
 
   return (
@@ -359,20 +360,21 @@ export async function fetchRecentPresentations(
       id: string;
       title: string;
       updated_at: string;
-      user_id: string;
-      creator_name: string;
-      access_type: string;
+      created_by: string;
+      thumbnail_url: string | null;
+      creator_name: string | null;
+      access_type: string | null;
     }>
   ).map((row) => ({
     id: row.id,
-    title: row.title || 'Neue Präsentation',
+    title: row.title || 'Neuer Canvas',
     date: row.updated_at,
-    type: 'presentation' as const,
-    href: `/docs/presentation/${row.id}`,
-    emoji: '🎬',
-    creatorName: row.creator_name,
-    accessType: row.access_type,
-    deleteEndpoint: `/api/presentations/${row.id}`,
+    type: 'canvas' as const,
+    href: `/studio/canvas/${row.id}`,
+    thumbnailUrl: row.thumbnail_url ?? undefined,
+    creatorName: row.creator_name ?? undefined,
+    accessType: row.access_type ?? undefined,
+    deleteEndpoint: `/api/canvas/${row.id}`,
   }));
 }
 

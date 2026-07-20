@@ -14,12 +14,24 @@ export function ActivityFeed() {
     { titel: 'AG Klima Protokoll hochgeladen', zeit: 'letzte Woche' },
   ];
   return (
-    <ScrollArea style={{ height: 220, width: 340, borderRadius: 8, border: '1px solid var(--border)' }}>
+    <ScrollArea
+      style={{ height: 220, width: 340, borderRadius: 8, border: '1px solid var(--border)' }}
+    >
       <div style={{ padding: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.7, marginBottom: 8 }}>Aktivität</div>
+        <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.7, marginBottom: 8 }}>
+          Aktivität
+        </div>
         {items.map((it, i) => (
           <div key={it.titel}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', gap: 12 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '8px 0',
+                gap: 12,
+              }}
+            >
               <span style={{ fontSize: 14 }}>{it.titel}</span>
               <span style={{ fontSize: 12, opacity: 0.6, whiteSpace: 'nowrap' }}>{it.zeit}</span>
             </div>
@@ -33,12 +45,27 @@ export function ActivityFeed() {
 
 // A scrollable list of Themen-Tags to pick from.
 export function TagList() {
-  const tags = ['Klimaschutz', 'Mobilität', 'Bildung', 'Soziales', 'Energie', 'Landwirtschaft', 'Digitalisierung', 'Gesundheit', 'Kultur', 'Wirtschaft'];
+  const tags = [
+    'Klimaschutz',
+    'Mobilität',
+    'Bildung',
+    'Soziales',
+    'Energie',
+    'Landwirtschaft',
+    'Digitalisierung',
+    'Gesundheit',
+    'Kultur',
+    'Wirtschaft',
+  ];
   return (
-    <ScrollArea style={{ height: 160, width: 260, borderRadius: 8, border: '1px solid var(--border)' }}>
+    <ScrollArea
+      style={{ height: 160, width: 260, borderRadius: 8, border: '1px solid var(--border)' }}
+    >
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tags.map((t) => (
-          <Badge key={t} variant="outline">{t}</Badge>
+          <Badge key={t} variant="outline">
+            {t}
+          </Badge>
         ))}
       </div>
     </ScrollArea>

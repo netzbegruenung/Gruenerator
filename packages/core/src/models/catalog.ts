@@ -3,23 +3,20 @@ export type ImageBackend = 'hosted' | 'regolo' | 'ionos';
 
 export type Provider = TextProvider;
 
-export type TextModelId =
-  | 'mistral-medium-3.5'
-  | 'litellm'
-  | 'gemma-litellm'
-  | 'qwen-regolo'
-  | 'qwen3.6-regolo';
+export type TextModelId = 'mistral-medium-3.5' | 'litellm' | 'gemma-litellm';
 
 export type ImageModelId = 'flux-klein' | 'flux-pro' | 'flux-max' | 'regolo-image' | 'ionos-image';
 
 export type ModelId = TextModelId | ImageModelId;
 
-export type ModelRegion = 'eu' | 'us' | 'cn' | 'self-hosted';
+export type ModelRegion = 'eu' | 'us' | 'self-hosted';
 
 export type ModelIcon = 'sparkles' | 'server' | 'zap' | 'brain';
 
 interface BaseModelOption {
   name: string;
+  /** Compact label for narrow screens (no emoji, no version suffix). */
+  shortName?: string;
   description: string;
   icon: ModelIcon;
   region: ModelRegion;
@@ -61,14 +58,12 @@ export interface ImageFamilyOption {
 
 export type ModelOption = TextModelOption | ImageModelOption;
 
-export const QWEN_WARNING =
-  'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.';
-
 export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'text',
     id: 'gemma-litellm',
     name: '🌳 Gemma 4',
+    shortName: 'Gemma',
     description: 'Am besten für Kreativtexte',
     model: 'verdigado-think',
     provider: 'litellm',
@@ -79,6 +74,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'text',
     id: 'mistral-medium-3.5',
     name: '⭐ Mistral',
+    shortName: 'Mistral',
     description: 'Bester Allrounder',
     model: 'mistral-medium-2604',
     provider: 'mistral',
@@ -89,33 +85,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'text',
     id: 'litellm',
     name: '🌳 GPT-OSS',
+    shortName: 'GPT-OSS',
     description: 'Schnellstes Modell',
     model: 'verdigado-pro',
     provider: 'litellm',
     icon: 'server',
     region: 'self-hosted',
-  },
-  {
-    modality: 'text',
-    id: 'qwen-regolo',
-    name: 'Qwen 120B',
-    description: 'Chinesisch, groß & vielseitig',
-    model: 'qwen3.5-122b',
-    provider: 'regolo',
-    icon: 'brain',
-    region: 'cn',
-    offByDefault: true,
-  },
-  {
-    modality: 'text',
-    id: 'qwen3.6-regolo',
-    name: 'Qwen 3.6 27B',
-    description: 'Chinesisch, mit Reasoning',
-    model: 'qwen3.6-27b',
-    provider: 'regolo',
-    icon: 'brain',
-    region: 'cn',
-    offByDefault: true,
   },
   {
     modality: 'image',
@@ -261,7 +236,6 @@ export const REGION_LABELS: Record<ModelRegion, string> = {
   'self-hosted': 'Klimaneutral',
   eu: 'EU',
   us: 'USA',
-  cn: 'Chinesisch',
 };
 
-export const REGION_ORDER: ModelRegion[] = ['self-hosted', 'eu', 'us', 'cn'];
+export const REGION_ORDER: ModelRegion[] = ['self-hosted', 'eu', 'us'];

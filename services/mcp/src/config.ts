@@ -1,5 +1,6 @@
-import { COLLECTIONS, COLLECTION_KEYS } from '@gruenerator/shared/search/collections';
 import dotenv from 'dotenv';
+
+import { getCatalog, type McpCatalog } from './catalog.ts';
 
 dotenv.config();
 
@@ -25,12 +26,12 @@ export const config = {
     url: process.env.GRUENERATOR_API_URL || null,
   },
 
-  // Use shared collection configurations from @gruenerator/shared
-  collections: COLLECTIONS,
+  // Runtime collection catalog — fetched from the backend with a static fallback
+  // (see catalog.ts). A getter so every read reflects the latest fetched catalog.
+  get collections(): McpCatalog {
+    return getCatalog();
+  },
 };
-
-// Export collection keys for validation
-export { COLLECTION_KEYS };
 
 export function validateConfig() {
   if (!config.qdrant.url) {

@@ -108,6 +108,7 @@ function AssetPrimitiveInner({
 
         {isSelected && (
           <Rect
+            name="selection-chrome"
             x={-scaledWidth / 2}
             y={-scaledHeight / 2}
             width={scaledWidth}

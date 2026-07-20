@@ -7,7 +7,12 @@ import { SettingsTagInput } from '@gruenerator/ui';
 // exist, inactive when empty. The tag chips themselves live inside the popover
 // and so are not visible statically. Handlers are no-ops.
 
-const row: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' };
+const row: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center',
+};
 
 // Filled: realistic Themen-Tags entered → active pill with count.
 export function MitThemenTags() {
@@ -33,7 +38,12 @@ export function ZitatgeberInnen() {
         triggerLabel="Wer wird zitiert"
         placeholder="Name der*des Zitatgeber*in…"
       />
-      <SettingsTagInput items={[]} onChange={() => {}} triggerLabel="Hashtags" placeholder="Hashtag + Enter…" />
+      <SettingsTagInput
+        items={[]}
+        onChange={() => {}}
+        triggerLabel="Hashtags"
+        placeholder="Hashtag + Enter…"
+      />
     </div>
   );
 }

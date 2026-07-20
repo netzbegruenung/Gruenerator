@@ -33,29 +33,21 @@ const SHAREPIC_DESCRIPTION = 'Zitate, Headlines & Infos aus Vorlagen.';
  * exposes no create entry either.
  */
 export function buildStudioQuickStarts({
-  isAustrianUser,
   onSharepic,
   onKiBild,
   onReel,
 }: StudioQuickStartHandlers): QuickStart[] {
-  const sharepic: QuickStart | null = isAustrianUser
+  // AT and DE both use the internal canvas studio now (AT gets the de-AT
+  // template set via audience filtering); no external bildgenerator redirect.
+  const sharepic: QuickStart | null = SHOW_SHAREPIC_STUDIO
     ? {
         key: 'sharepic',
         icon: ImageIcon,
         title: 'Sharepic',
         description: SHAREPIC_DESCRIPTION,
-        onClick: () =>
-          window.open('https://bildgenerator.gruene.at/', '_blank', 'noopener,noreferrer'),
+        onClick: onSharepic,
       }
-    : SHOW_SHAREPIC_STUDIO
-      ? {
-          key: 'sharepic',
-          icon: ImageIcon,
-          title: 'Sharepic',
-          description: SHAREPIC_DESCRIPTION,
-          onClick: onSharepic,
-        }
-      : null;
+    : null;
 
   return [
     ...(sharepic ? [sharepic] : []),

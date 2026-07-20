@@ -17,9 +17,12 @@ import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { ComputeCard } from '../message-parts/ComputeCard';
+import { BundestagCard } from '../message-parts/BundestagCard';
+import { BahnCard } from '../message-parts/BahnCard';
 import { ChatChart } from '../message-parts/ChatChart';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
+import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
@@ -137,7 +140,15 @@ export const AssistantMessage = memo(function AssistantMessage() {
     };
   }, [custom]);
 
-  const showSearchResults = !isStreaming && citations.length > 0;
+  // The dedicated BundestagCard already renders the DIP hits — drop their
+  // generic source cards to avoid double-rendering. Inline citations (in the
+  // text via CitationProvider) stay untouched.
+  const sourceCardCitations = useMemo(
+    () => (custom?.bundestagData ? citations.filter((c) => c.source !== 'bundestag') : citations),
+    [citations, custom?.bundestagData]
+  );
+
+  const showSearchResults = !isStreaming && sourceCardCitations.length > 0;
 
   return (
     <MessagePrimitive.Root
@@ -228,7 +239,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
             />
           ))}
 
-        {custom?.sharepicData && !custom?.generatedImage && (
+        {custom?.socialPostData && (
+          <SocialPostCard
+            post={custom.socialPostData}
+            {...(custom.sharepicData ? { sharepicData: custom.sharepicData } : {})}
+          />
+        )}
+        {custom?.sharepicData && !custom?.generatedImage && !custom?.socialPostData && (
           <SharepicVariantStack data={custom.sharepicData} />
         )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
@@ -241,6 +258,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
         {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
+        {!isStreaming && custom?.bundestagData && <BundestagCard data={custom.bundestagData} />}
+        {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
 
         {!isStreaming && custom?.confirmAction && (
           <ConfirmActionCard action={custom.confirmAction} />
@@ -257,7 +276,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
         {showSearchResults && (
-          <SearchResultsSection citations={citations} additionalSources={additionalSources} />
+          <SearchResultsSection
+            citations={sourceCardCitations}
+            additionalSources={additionalSources}
+          />
         )}
 
         {!isStreaming && textContent && (

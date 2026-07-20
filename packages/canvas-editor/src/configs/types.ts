@@ -1,6 +1,7 @@
 import type { BackgroundType, TextFieldConfig } from './unifiedTabs';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { SidebarTabId, SidebarTab } from '../sidebar/types';
+import type { GradientFill } from '../utils/gradientFill';
 
 // ============================================================================
 // ELEMENT CONFIGURATION TYPES
@@ -54,6 +55,18 @@ export interface AdditionalText {
   rotation?: number;
   scale?: number;
   opacity?: number;
+  /** Outline color; omit for no outline. */
+  stroke?: string;
+  /** Outline width in px (only applied when `stroke` is set). */
+  strokeWidth?: number;
+  /** Drop shadow (Konva shadow* props); omit for no shadow. */
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+  /** Linear gradient fill; when set, overrides `fill`. */
+  fillGradient?: GradientFill | null;
 }
 
 /** Text element configuration */
@@ -295,15 +308,17 @@ export type CanvasConfigId =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
-  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'slider'
   | 'freeform'
-  | 'pres-title'
-  | 'pres-image'
-  | 'pres-content'
-  | 'profilbild';
+  | 'profilbild'
+  // Österreich (de-AT) variants
+  | 'info-at'
+  | 'zitat-at'
+  | 'zitat-pure-at'
+  | 'dreizeilen-at'
+  | 'freeform-at';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {
@@ -313,8 +328,6 @@ export interface HeterogeneousPage {
   configId: CanvasConfigId;
   /** Runtime state - config interprets this based on its state type */
   state: Record<string, unknown>;
-  /** Order index for sorting */
-  order: number;
 }
 
 /** Multi-page configuration options */

@@ -29,6 +29,7 @@ import {
   applyCanvasStatePatch,
   applyDeckChanges,
   getCurrentCanvasState,
+  seedCanvasPages,
   type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
@@ -156,7 +157,7 @@ async function setActiveThreadCanvas(threadId: string, variantId: string): Promi
 
 function deriveCanvasTitle(canvasType: string, props: Record<string, unknown>): string {
   const s = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
-  const text = s(props.line1) || s(props.quote) || s(props.header) || '';
+  const text = s(props.line1) || s(props.quote) || s(props.header) || s(props.headline) || '';
   const base = text.length > 60 ? `${text.slice(0, 57)}…` : text;
   return base || 'Sharepic aus dem Chat';
 }
@@ -236,59 +237,115 @@ export async function resolveTarget(
   };
 }
 
+/** Existing canvas bound to (thread, variant), or null. */
+async function findBoundCanvas(threadId: string, variantId: string): Promise<string | null> {
+  const pg = getPostgresInstance();
+  const rows = (await pg.query(
+    `SELECT canvas_id FROM chat_thread_canvases WHERE thread_id = $1 AND variant_id = $2`,
+    [threadId, variantId]
+  )) as Array<{ canvas_id: string }>;
+  return rows[0]?.canvas_id ?? null;
+}
+
+/** Upsert the (thread, variant) → canvas binding. */
+async function bindThreadCanvas(
+  threadId: string,
+  variantId: string,
+  canvasId: string,
+  canvasType: string
+): Promise<void> {
+  const pg = getPostgresInstance();
+  await pg.query(
+    `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
+     VALUES ($1, $2, $3, $4, TRUE)
+     ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
+    [threadId, variantId, canvasId, canvasType]
+  );
+}
+
+export interface MintVariantResult {
+  canvasId: string;
+  /** true only when this call created the canvas (SSE / logging cue). */
+  minted: boolean;
+}
+
 /**
- * Lazy mint: first edit turns the variant into a real canvas document.
- * Idempotent — returns the existing canvasId when already minted. Also marks
- * the variant as the thread's active canvas.
+ * The single mint path shared by the chat-edit flow (`ensureMintedCanvas`) and
+ * the studio-open endpoint (`POST /api/canvas/from-variant`). Idempotent on the
+ * `chat_thread_canvases (thread_id, variant_id)` binding, so both entry points
+ * converge on ONE canvas per variant and can never diverge. A newly created
+ * canvas is authoritatively Yjs-seeded from `{...defaultState, ...initialProps}`
+ * (lossless, race-free) BEFORE any studio tab opens.
+ */
+export async function mintCanvasForVariant(args: {
+  userId: string;
+  threadId: string;
+  variantId: string;
+  canvasType: string;
+  initialProps: Record<string, unknown>;
+  /** Message holding the variant, for canvasId stamping; null in the endpoint. */
+  messageId: string | null;
+  /** Pre-resolved canvasId (decks minted at generation); null to look it up. */
+  existingCanvasId: string | null;
+}): Promise<MintVariantResult> {
+  const { userId, threadId, variantId, canvasType, initialProps, messageId } = args;
+
+  const existing = args.existingCanvasId ?? (await findBoundCanvas(threadId, variantId));
+  if (existing) {
+    await bindThreadCanvas(threadId, variantId, existing, canvasType);
+    await setActiveThreadCanvas(threadId, variantId);
+    return { canvasId: existing, minted: false };
+  }
+
+  const descriptor = getSharepicTemplateDescriptor(canvasType);
+  const initialState = { ...(descriptor?.defaultState ?? {}), ...initialProps };
+  const canvas = await createCanvas(userId, {
+    title: deriveCanvasTitle(canvasType, initialProps),
+    template_type: canvasType,
+    initial_state: initialState,
+  });
+  // Authoritative server-side Yjs seed (full state + pagesSeeded watermark).
+  await seedCanvasPages(canvas.id, canvasType, initialState);
+  await bindThreadCanvas(threadId, variantId, canvas.id, canvasType);
+  await insertCanvasVersion({
+    canvasId: canvas.id,
+    state: initialState,
+    summary: 'Aus dem Chat erstellt',
+    origin: 'mint',
+    userId,
+  });
+  if (messageId) {
+    await attachCanvasIdToMessage(messageId, variantId, canvas.id);
+  }
+  await setActiveThreadCanvas(threadId, variantId);
+  log.info(`[SharepicMint] Minted canvas ${canvas.id} for variant ${variantId}`);
+  return { canvasId: canvas.id, minted: true };
+}
+
+/**
+ * Lazy mint from the chat-edit flow: first edit turns the variant into a real
+ * canvas document. Delegates to the shared `mintCanvasForVariant` and emits the
+ * `sharepic_minted` SSE on a fresh mint.
  */
 export async function ensureMintedCanvas(args: {
   target: ResolvedTarget;
-  descriptor: SharepicTemplateDescriptor;
   threadId: string;
   userId: string;
   sse: SSEWriter;
 }): Promise<string> {
-  const { target, descriptor, threadId, userId, sse } = args;
-  let canvasId = target.canvasId;
-  if (!canvasId) {
-    const initialState = { ...descriptor.defaultState, ...target.initialProps };
-    const canvas = await createCanvas(userId, {
-      title: deriveCanvasTitle(target.canvasType, target.initialProps),
-      template_type: target.canvasType,
-      initial_state: initialState,
-    });
-    canvasId = canvas.id;
-    const pg = getPostgresInstance();
-    await pg.query(
-      `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
-       VALUES ($1, $2, $3, $4, TRUE)
-       ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-      [threadId, target.variantId, canvasId, target.canvasType]
-    );
-    await insertCanvasVersion({
-      canvasId,
-      state: initialState,
-      summary: 'Aus dem Chat erstellt',
-      origin: 'mint',
-      userId,
-    });
-    if (target.messageId) {
-      await attachCanvasIdToMessage(target.messageId, target.variantId, canvasId);
-    }
+  const { target, threadId, userId, sse } = args;
+  const { canvasId, minted } = await mintCanvasForVariant({
+    userId,
+    threadId,
+    variantId: target.variantId,
+    canvasType: target.canvasType,
+    initialProps: target.initialProps,
+    messageId: target.messageId,
+    existingCanvasId: target.canvasId,
+  });
+  if (minted) {
     sse.send('sharepic_minted', { variantId: target.variantId, canvasId });
-    log.info(`[SharepicEdit] Minted canvas ${canvasId} for variant ${target.variantId}`);
-  } else {
-    // Pre-minted (decks mint at generation): make sure the thread binding
-    // exists — generation may have run without a thread id.
-    const pg = getPostgresInstance();
-    await pg.query(
-      `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
-       VALUES ($1, $2, $3, $4, TRUE)
-       ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-      [threadId, target.variantId, canvasId, target.canvasType]
-    );
   }
-  await setActiveThreadCanvas(threadId, target.variantId);
   return canvasId;
 }
 
@@ -571,7 +628,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       status: 'in_progress',
     });
 
-    const canvasId = await ensureMintedCanvas({ target, descriptor, threadId, userId, sse });
+    const canvasId = await ensureMintedCanvas({ target, threadId, userId, sse });
 
     // Fresh state every turn — picks up studio edits made in between.
     const current = await getCurrentCanvasState(canvasId);

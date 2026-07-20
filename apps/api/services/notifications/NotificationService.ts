@@ -16,6 +16,7 @@ import { publishNotification } from './notificationPubSub.js';
 import type {
   Notification,
   CreateNotificationParams,
+  NotificationChannel,
   NotificationListOptions,
   NotificationType,
 } from './types.js';
@@ -207,7 +208,7 @@ async function isGroupMutedForUser(userId: string, groupId: string): Promise<boo
 export async function createNotification(
   params: CreateNotificationParams
 ): Promise<NotificationRow | null> {
-  const { userId, type, title, body, metadata = {}, actionUrl, groupKey } = params;
+  const { userId, type, title, body, metadata = {}, actionUrl, groupKey, channelOverride } = params;
 
   const profile = await getProfileForDelivery(userId);
 
@@ -216,14 +217,17 @@ export async function createNotification(
   const groupId = resolveGroupId(metadata, groupKey);
   const groupMuted = groupId ? await isGroupMutedForUser(userId, groupId) : false;
 
-  const showInApp = await shouldDeliver(userId, type, 'in_app', profile);
+  // A per-call override wins over the user's stored channel preference.
+  const wants = async (channel: NotificationChannel): Promise<boolean> =>
+    channelOverride?.[channel] ?? (await shouldDeliver(userId, type, channel, profile));
+
+  const showInApp = await wants('in_app');
   const sendEmailChannel =
     !groupMuted &&
     !EMAIL_HANDLED_ELSEWHERE.has(type) &&
     !IN_APP_ONLY.has(type) &&
-    (await shouldDeliver(userId, type, 'email', profile));
-  const sendPush =
-    !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
+    (await wants('email'));
+  const sendPush = !groupMuted && !IN_APP_ONLY.has(type) && (await wants('push'));
 
   // Nothing to deliver on any channel — skip entirely.
   if (!showInApp && !sendEmailChannel && !sendPush) {

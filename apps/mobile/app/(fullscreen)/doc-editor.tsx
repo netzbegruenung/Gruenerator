@@ -25,6 +25,7 @@ import { NativeDocTopBar } from '../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../components/docs/NativeShareModal';
 import { NativeSlashMenu } from '../../components/docs/NativeSlashMenu';
+import { NativeSuggestionsSheet } from '../../components/docs/NativeSuggestionsSheet';
 import { NativeVersionHistorySheet } from '../../components/docs/NativeVersionHistorySheet';
 import { docsService } from '../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../services/docs/recentDocs';
@@ -35,6 +36,7 @@ import {
   type ActiveFormattingState,
   type DocCollaborator,
   type ConnectionStatus,
+  type DocSuggestionItem,
 } from '../../stores/docsEditorBridgeStore';
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
@@ -92,6 +94,8 @@ export default function DocumentScreen() {
   const versionsOpen = store((s) => s.versionsOpen);
   const canEdit = store((s) => s.canEdit);
   const editorEpoch = store((s) => s.editorEpoch);
+  const suggestionsSheetOpen = store((s) => s.suggestionsSheetOpen);
+  const suggestionMode = store((s) => s.suggestionMode);
   const chromeVisible = !fullscreen;
 
   // While AI suggestions are pending review, the edits live in a detached,
@@ -216,7 +220,7 @@ export default function DocumentScreen() {
         }
       }
     },
-    [id]
+    [id, store]
   );
 
   const handleCanEditChange = useCallback(async (canEdit: boolean) => {
@@ -476,6 +480,14 @@ export default function DocumentScreen() {
             store.getState().setUndoRedoState(canUndo, canRedo)
           }
           onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
+          onSuggestionModeChange={(enabled) => store.getState().setSuggestionMode(enabled)}
+          onSuggestionsChange={(json) => {
+            try {
+              store.getState().setSuggestions(JSON.parse(json) as DocSuggestionItem[]);
+            } catch {
+              // ignore malformed payload
+            }
+          }}
           onAiAcceptFailed={() =>
             Alert.alert(
               'Änderung nicht synchronisiert',
@@ -522,6 +534,11 @@ export default function DocumentScreen() {
         visible={versionsOpen}
         onClose={() => store.getState().setVersionsOpen(false)}
         documentId={id!}
+        canEdit={canEdit}
+      />
+      <NativeSuggestionsSheet
+        visible={suggestionsSheetOpen && suggestionMode}
+        onClose={() => store.getState().setSuggestionsSheetOpen(false)}
         canEdit={canEdit}
       />
 

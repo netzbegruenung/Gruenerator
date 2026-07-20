@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
@@ -20,11 +21,6 @@ interface ShareData {
   sharerName: string;
   status: string;
   expiresAt: string;
-}
-
-interface ShareApiResponse {
-  success: boolean;
-  share?: ShareData;
 }
 
 interface ApiError {
@@ -70,10 +66,16 @@ const SharedVideoPage = () => {
   const shareQuery = useQuery<ShareData | null, ApiError>({
     queryKey: ['subtitler-share', shareToken],
     queryFn: async () => {
-      const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
-        skipAuthRedirect: true,
+      const res = await getContractsClient().subtitler.getShare({
+        params: { shareToken: shareToken ?? '' },
       });
-      return response.data.success ? (response.data.share ?? null) : null;
+      if (res.status === 200 && res.body.success) {
+        return (res.body.share ?? null) as unknown as ShareData | null;
+      }
+      // Preserve the 404/410 UX: re-surface the status code as a thrown
+      // ApiError so the component's queryStatus checks keep working (the
+      // contract client resolves non-2xx instead of throwing).
+      throw { response: { status: res.status } } as ApiError;
     },
     enabled: Boolean(shareToken),
     retry: false,

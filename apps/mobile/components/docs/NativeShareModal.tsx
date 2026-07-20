@@ -376,7 +376,7 @@ export function NativeShareModal({
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateSaved, setTemplateSaved] = useState(false);
 
-  const shareUrl = `${DOCS_BASE_URL}/docs/${documentId}`;
+  const shareUrl = `${DOCS_BASE_URL}/office/${documentId}`;
 
   const handleCopyLink = useCallback(async () => {
     await Clipboard.setStringAsync(shareUrl);

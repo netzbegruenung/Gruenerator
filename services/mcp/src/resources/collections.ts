@@ -38,6 +38,7 @@ export async function getCollectionResources() {
         metadata: {
           collectionId: key,
           qdrantCollection: col.name,
+          unavailable: true,
           error: err instanceof Error ? err.message : String(err),
         },
       });
@@ -125,8 +126,9 @@ export async function getCollectionResource(uri: string) {
           mimeType: 'application/json',
           text: JSON.stringify(
             {
-              error: err instanceof Error ? err.message : String(err),
               collection: collectionKey,
+              unavailable: true,
+              error: err instanceof Error ? err.message : String(err),
             },
             null,
             2

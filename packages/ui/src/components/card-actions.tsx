@@ -39,7 +39,14 @@ const CardActionsMenu: React.FC<CardActionsMenuProps> = React.memo(
     return (
       <div
         className={cn('shrink-0', className)}
-        onClick={(e) => e.stopPropagation()}
+        // stopPropagation keeps the click off the card's own onClick, but when the
+        // card is an <a> (react-router Link) that alone still lets the browser
+        // follow the href — stopPropagation does not cancel default actions.
+        // preventDefault is what actually blocks the anchor navigation.
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {mounted ? (

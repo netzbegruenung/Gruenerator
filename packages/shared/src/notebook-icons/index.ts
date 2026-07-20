@@ -54,6 +54,7 @@ export const NOTEBOOK_ICONS = {
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
   'hessen-notebook': GiRaccoonHead,
+  'saarland-notebook': PiMapPin,
   'boell-stiftung-notebook': PiLightbulb,
 } satisfies Record<NotebookId, IconType>;
 

@@ -3,7 +3,12 @@ import { Textarea, Label } from '@gruenerator/ui';
 // Textarea is a styled native <textarea>; native props pass through.
 
 const field: React.CSSProperties = { display: 'grid', gap: 6, maxWidth: 380 };
-const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 380 };
+const col: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16,
+  maxWidth: 380,
+};
 
 // Composed with a Label — a typical motion / Antrag body field.
 export function WithLabel() {
@@ -24,7 +29,11 @@ export function Placeholder() {
   return (
     <div style={field}>
       <Label htmlFor="pm-entwurf">Entwurf der Pressemitteilung</Label>
-      <Textarea id="pm-entwurf" rows={4} placeholder="Worum geht es in der Mitteilung? Stichpunkte genügen …" />
+      <Textarea
+        id="pm-entwurf"
+        rows={4}
+        placeholder="Worum geht es in der Mitteilung? Stichpunkte genügen …"
+      />
     </div>
   );
 }
@@ -33,8 +42,16 @@ export function Placeholder() {
 export function States() {
   return (
     <div style={col}>
-      <Textarea rows={3} aria-invalid="true" defaultValue="Zu kurz – bitte mindestens 280 Zeichen für den Social-Post." />
-      <Textarea rows={3} disabled defaultValue="Veröffentlichter Beitrag – kann nicht mehr bearbeitet werden." />
+      <Textarea
+        rows={3}
+        aria-invalid="true"
+        defaultValue="Zu kurz – bitte mindestens 280 Zeichen für den Social-Post."
+      />
+      <Textarea
+        rows={3}
+        disabled
+        defaultValue="Veröffentlichter Beitrag – kann nicht mehr bearbeitet werden."
+      />
     </div>
   );
 }

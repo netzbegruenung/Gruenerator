@@ -27,6 +27,10 @@ const logger = createLogger('NotebookQdrantHelper');
 
 type PublicOwnership = 'owner' | 'public_data';
 
+/** Paging bounds for the in-memory notebook name search (max 2000 scanned). */
+const NOTEBOOK_SEARCH_PAGE_SIZE = 200;
+const NOTEBOOK_SEARCH_MAX_PAGES = 10;
+
 export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
 export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
 export type NotebookAudience = 'de-DE' | 'de-AT';
@@ -561,6 +565,68 @@ class NotebookQdrantHelper {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error getting user Notebook collections: ${message}`);
       throw new Error(`Failed to get user Notebook collections: ${message}`);
+    }
+  }
+
+  /**
+   * Name/description search over the caller's notebooks, for `/api/global-search`.
+   *
+   * Qdrant has no substring filter on payload here, so this pages through the
+   * user's collections and matches in memory, stopping as soon as `limit` hits
+   * are found. Like `getNotebookCollectionsByAutoSync` it skips the
+   * per-collection document lookup — a search-as-you-type must not fan out into
+   * one scroll per notebook. `document_count` stays at the stored payload value.
+   */
+  async searchUserNotebookCollections(
+    userId: string,
+    query: string,
+    limit: number
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'user_id', match: { value: userId } }],
+      };
+
+      const needle = query.toLowerCase();
+      const matches: NotebookCollection[] = [];
+      let cursor: string | number | null = null;
+
+      for (let page = 0; page < NOTEBOOK_SEARCH_MAX_PAGES; page++) {
+        const points: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+          this.qdrant.collections.notebook_collections,
+          filter,
+          { limit: NOTEBOOK_SEARCH_PAGE_SIZE, offset: cursor, withPayload: true }
+        );
+
+        // Qdrant's scroll offset is a point id and is inclusive, so the cursor
+        // point repeats as the first element of the next page.
+        const fresh = cursor === null ? points : points.filter((p) => p.id !== cursor);
+        if (fresh.length === 0) return matches.slice(0, limit);
+
+        for (const point of fresh) {
+          const collection = this.formatCollectionFromPayload(point.payload);
+          const name = (collection.name ?? '').toLowerCase();
+          const description = (collection.description ?? '').toLowerCase();
+          if (name.includes(needle) || description.includes(needle)) {
+            matches.push(collection);
+            if (matches.length >= limit) return matches;
+          }
+        }
+
+        if (points.length < NOTEBOOK_SEARCH_PAGE_SIZE) return matches;
+        cursor = points[points.length - 1].id;
+      }
+
+      logger.warn(
+        `Notebook search hit the ${NOTEBOOK_SEARCH_MAX_PAGES}-page cap for user ${userId}; results may be incomplete`
+      );
+      return matches;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error searching Notebook collections: ${message}`);
+      throw new Error(`Failed to search Notebook collections: ${message}`);
     }
   }
 

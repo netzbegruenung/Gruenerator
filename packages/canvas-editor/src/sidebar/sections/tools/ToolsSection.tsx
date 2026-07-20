@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
 import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
-import { PiArrowLeft } from 'react-icons/pi';
+import { PiArrowLeft, PiTextT, PiDropSimpleFill, PiPath } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { cn } from '../../../utils/cn';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
+import { BlobCreatorTool } from './BlobCreatorTool';
+import { GradientTextTool } from './GradientTextTool';
 import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
+import { TextPathCreatorTool } from './TextPathCreatorTool';
 
 import type { ComponentType } from 'react';
 import type { IconType } from 'react-icons';
@@ -17,9 +20,19 @@ import type { IconType } from 'react-icons';
 export interface ToolsSectionProps {
   /** Optional callback the tools call after a successful upload to nudge the user toward the Uploads tab. */
   onJumpToUploads?: () => void;
+  /** Places a generated image (by durable URL) straight onto the canvas. */
+  onPlaceImageUrl?: (url: string, fileName: string) => void;
 }
 
-type ToolView = 'browse' | 'remove-bg' | 'ai-create' | 'ai-edit' | 'qr-code';
+type ToolView =
+  | 'browse'
+  | 'remove-bg'
+  | 'ai-create'
+  | 'ai-edit'
+  | 'qr-code'
+  | 'gradient-text'
+  | 'blob'
+  | 'text-path';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -85,7 +98,7 @@ function DrillDownHeader({ label, onBack }: { label: string; onBack: () => void 
   );
 }
 
-export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
+export function ToolsSection({ onJumpToUploads, onPlaceImageUrl }: ToolsSectionProps) {
   const { removeBackgroundFromImage, generateAiImage, editAiImage } = useCanvasEditorServices();
   const [activeView, setActiveView] = useState<ToolView>('browse');
 
@@ -129,6 +142,35 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       ring: 'focus-visible:ring-primary-600',
       available: true,
     },
+    {
+      id: 'gradient-text',
+      label: 'Verlaufstext erstellen',
+      icon: PiTextT,
+      iconColor: 'text-primary-600 dark:text-primary-300',
+      hoverShadow:
+        'group-hover:shadow-sm group-hover:shadow-primary-600/15 dark:group-hover:shadow-primary-300/15',
+      ring: 'focus-visible:ring-primary-600',
+      available: true,
+    },
+    {
+      id: 'blob',
+      label: 'Blob erstellen',
+      icon: PiDropSimpleFill,
+      iconColor: 'text-secondary-600 dark:text-secondary-300',
+      hoverShadow:
+        'group-hover:shadow-sm group-hover:shadow-secondary-600/15 dark:group-hover:shadow-secondary-300/15',
+      ring: 'focus-visible:ring-primary-600',
+      available: true,
+    },
+    {
+      id: 'text-path',
+      label: 'Pfadtext erstellen',
+      icon: PiPath,
+      iconColor: 'text-tertiary-600 dark:text-tertiary-300',
+      hoverShadow: 'group-hover:shadow-sm',
+      ring: 'focus-visible:ring-primary-600',
+      available: true,
+    },
   ];
 
   const availableCards = cards.filter((c) => c.available);
@@ -160,7 +202,18 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
-      {activeView === 'qr-code' && <QRCodeTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'qr-code' && (
+        <QRCodeTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
+      {activeView === 'gradient-text' && (
+        <GradientTextTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
+      {activeView === 'blob' && (
+        <BlobCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
+      {activeView === 'text-path' && (
+        <TextPathCreatorTool onJumpToUploads={onJumpToUploads} onPlaceImageUrl={onPlaceImageUrl} />
+      )}
     </div>
   );
 }

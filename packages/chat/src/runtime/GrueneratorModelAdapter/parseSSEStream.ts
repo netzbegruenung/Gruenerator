@@ -1,18 +1,23 @@
 import {
   triggerDocEditSchema,
   triggerBoardActionSchema,
+  editorOperationsEventSchema,
   isCanvasTemplateType,
+  chatStreamEventSchemas,
+  type ChatErrorEventPayload,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { ChatStreamError } from '../streamErrorMessage';
 import { parseSSELine } from '../../lib/sseParser';
-import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
+import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
+import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -53,7 +58,11 @@ export async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
   outcome: StreamOutcome,
-  agentInfo?: { agentId: string; agentMention?: string }
+  agentInfo?: { agentId: string; agentMention?: string },
+  // Tool-call parts from an earlier stream of the SAME run (client-tool
+  // resume): pre-seeded so the run_python card stays visible while the
+  // resumed answer streams.
+  carryOver?: { toolCalls: ToolCallPart[] }
 ): AsyncGenerator<ChatModelRunResult, void> {
   const reader = response.body?.getReader();
 
@@ -116,9 +125,12 @@ export async function* parseSSEStream(
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
+  let receivedSocialPostData: import('@gruenerator/contracts').SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: ActiveArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
+  let receivedBundestagData: import('@gruenerator/contracts').BundestagPayload | null = null;
+  let receivedBahnData: import('@gruenerator/contracts').BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -126,8 +138,18 @@ export async function* parseSSEStream(
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let activeToolCall: ToolCallPart | null = null;
-  const allToolCalls: ToolCallPart[] = [];
+  const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
+  // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
+  // ONE model step (parallel tool calls), so their start/result events
+  // interleave — a single `activeToolCall` would drop all but the last. Each
+  // step is pushed on `tool_step_start` and updated in place on
+  // `tool_step_result`.
+  const toolStepsById = new Map<string, ToolCallPart>();
   let interruptPending = false;
+  // client_tool interrupt (auto-executed by the ModelAdapter): unlike a
+  // clarification it must NOT flip the message to requires-action — the same
+  // run() continues with the executed result via the resume endpoint.
+  let clientToolPending = false;
   let lastYieldTime = 0;
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
@@ -181,9 +203,12 @@ export async function* parseSSEStream(
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
+    if (receivedSocialPostData) custom.socialPostData = receivedSocialPostData;
     if (receivedChartData) custom.chartData = receivedChartData;
     if (receivedArtifactData) custom.artifactData = receivedArtifactData;
     if (receivedComputeData) custom.computeData = receivedComputeData;
+    if (receivedBundestagData) custom.bundestagData = receivedBundestagData;
+    if (receivedBahnData) custom.bahnData = receivedBahnData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
@@ -229,8 +254,28 @@ export async function* parseSSEStream(
     buffer = lines.pop() || '';
 
     for (const line of lines) {
-      const { event, data } = parseSSELine(line, currentEvent);
-      if (!event || !data) continue;
+      const { event, data: rawData } = parseSSELine(line, currentEvent);
+      if (!event || !rawData) continue;
+
+      // Contract gate: every known event is validated against its wire
+      // schema BEFORE the switch — the `as` casts below therefore assert on
+      // schema-checked data instead of trusting the stream blindly. A
+      // malformed event is dropped with a warning; unknown event names pass
+      // through untouched (forward compatibility).
+      const eventSchema = chatStreamEventSchemas[event];
+      let data: unknown = rawData;
+      if (eventSchema) {
+        const gate = eventSchema.safeParse(rawData);
+        if (!gate.success) {
+          console.warn(
+            `[GrueneratorModelAdapter] Dropping malformed "${event}" event:`,
+            gate.error.issues[0],
+            rawData
+          );
+          continue;
+        }
+        data = gate.data;
+      }
 
       switch (event) {
         case 'thread_created': {
@@ -244,22 +289,29 @@ export async function* parseSSEStream(
         }
 
         case 'intent': {
-          const { intent, message, reasoning, searchQuery, subQueries, searchSources } = data as {
-            intent: SearchIntent;
-            message: string;
-            reasoning?: string;
-            searchQuery?: string;
-            subQueries?: string[] | null;
-            searchSources?: string[] | null;
-          };
+          const { intent, message, reasoning, searchQuery, subQueries, searchSources, agentic } =
+            data as {
+              intent: SearchIntent;
+              message: string;
+              reasoning?: string;
+              searchQuery?: string;
+              subQueries?: string[] | null;
+              searchSources?: string[] | null;
+              agentic?: boolean;
+            };
           let stage: ProgressStage = 'searching';
           if (intent === 'direct' || intent === 'artifact') stage = 'generating';
-          else if (intent === 'image' || intent === 'sharepic') stage = 'generating_image';
+          else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
+            stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
           transitionStep(stage);
           currentProgress = { stage, message, intent, reasoning };
 
-          const toolName = INTENT_TO_TOOL[intent];
+          // Agentic respond path: the model drives the tool loop, so real
+          // tool_step_* cards will arrive. Skip the intent-fabricated tool card
+          // (and its search_complete result stamping) — otherwise a ghost card
+          // would sit alongside the real ones.
+          const toolName = agentic ? undefined : INTENT_TO_TOOL[intent];
           if (toolName) {
             const hasMultiSearch =
               (subQueries && subQueries.length > 0) || (searchSources && searchSources.length > 1);
@@ -445,6 +497,22 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'bundestag': {
+          const { bundestag } = data as {
+            bundestag?: import('@gruenerator/contracts').BundestagPayload;
+          };
+          if (bundestag) receivedBundestagData = bundestag;
+          yield buildResult();
+          break;
+        }
+
+        case 'bahn': {
+          const { bahn } = data as { bahn?: import('@gruenerator/contracts').BahnPayload };
+          if (bahn) receivedBahnData = bahn;
+          yield buildResult();
+          break;
+        }
+
         case 'sharepic_complete': {
           const payload = data as {
             message: string;
@@ -487,6 +555,39 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'social_post_complete': {
+          const payload = data as {
+            message: string;
+            post?: import('@gruenerator/contracts').SocialPostPayload;
+            error?: string;
+          };
+          if (!payload.error && payload.post) {
+            receivedSocialPostData = payload.post;
+            useSocialPostLiveStore.getState().upsertEntry(payload.post);
+          }
+          // Text half only — the sharepic half drives the stage transitions
+          // via its own sharepic_complete; don't flip to error here when just
+          // the text failed (the card shows the degradation).
+          yield buildResult();
+          break;
+        }
+
+        case 'social_post_updated': {
+          const payload = data as {
+            postId: string;
+            post: import('@gruenerator/contracts').SocialPostPayload;
+            summary: string;
+          };
+          useSocialPostLiveStore.getState().upsertEntry(payload.post);
+          break;
+        }
+
+        case 'social_post_edit_error': {
+          const { error } = data as { postId?: string; error: string };
+          console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
+          break;
+        }
+
         case 'sharepic_minted': {
           const { variantId, canvasId } = data as { variantId: string; canvasId: string };
           useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
@@ -494,16 +595,9 @@ export async function* parseSSEStream(
         }
 
         case 'sharepic_updated': {
-          const payload = data as {
-            variantId: string;
-            canvasId: string;
-            version: number;
-            canvasType: string;
-            /** Single sharepics send `state`, decks send `pages` instead. */
-            state?: Record<string, unknown>;
-            pages?: Array<Record<string, unknown>>;
-            summary: string;
-          };
+          // Validated by the contract gate above — canvasType is guaranteed
+          // canonical, so junk template types can never enter the live store.
+          const payload = data as import('@gruenerator/contracts').SharepicUpdatedEvent;
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,
@@ -562,31 +656,47 @@ export async function* parseSSEStream(
           break;
         }
 
-        // Agentic sharepic loop (CHAT_TOOL_LOOP): each tool step renders as a
-        // tool-call part, mirroring the thinking_step archive-and-replace
-        // mechanics (including the duplicate-stepId guard).
+        // Agentic tool loop (sharepic edit + general respond loop): each tool
+        // step renders as a tool-call part, mirroring the thinking_step
+        // archive-and-replace mechanics (including the duplicate-stepId guard).
         case 'tool_step_start': {
-          const { stepId, toolName, args } = data as {
+          const {
+            stepId,
+            toolName,
+            args,
+            title: serverTitle,
+            serverName,
+          } = data as {
             stepId: string;
             toolName: string;
             args?: Record<string, unknown>;
+            title?: string;
+            serverName?: string;
           };
-          const title = TOOL_STEP_TITLES[toolName] ?? 'Arbeite am Sharepic…';
-          const isDuplicateStepId =
-            (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
-            allToolCalls.some((tc) => tc.toolCallId === stepId);
-          if (!isDuplicateStepId) {
-            if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
-              allToolCalls.push(activeToolCall);
-            }
+          // Prefer a server-provided title; else the legacy mcpToolNode
+          // `mcp_tool` server/tool label; else the sharepic-specific map; else a
+          // generic label derived from the (possibly MCP-namespaced) name.
+          const title =
+            serverTitle ??
+            (toolName === 'mcp_tool'
+              ? `${(args?.server as string) ?? 'MCP'}${args?.tool ? ` · ${args.tool as string}` : ''}`
+              : (TOOL_STEP_TITLES[toolName] ??
+                `${formatNamespacedToolLabel(toolName, serverName)}…`));
+          const alreadyKnown =
+            toolStepsById.has(stepId) || allToolCalls.some((tc) => tc.toolCallId === stepId);
+          if (!alreadyKnown) {
             const toolArgs = { query: title, ...(args ?? {}) };
-            activeToolCall = {
+            const toolCall: ToolCallPart = {
               type: 'tool-call',
               toolCallId: stepId,
               toolName,
               args: toolArgs as Record<string, string | number | boolean | null>,
               argsText: JSON.stringify(toolArgs),
             };
+            // Push immediately so a parallel sibling's start doesn't orphan this
+            // card; the result updates it in place.
+            toolStepsById.set(stepId, toolCall);
+            allToolCalls.push(toolCall);
           }
           currentProgress = { stage: 'searching', message: title };
           yield buildResult();
@@ -594,19 +704,27 @@ export async function* parseSSEStream(
         }
 
         case 'tool_step_result': {
-          const { stepId, ok, summary } = data as {
+          const { stepId, ok, summary, result } = data as {
             stepId: string;
             toolName: string;
             ok: boolean;
             summary?: string;
+            result?: Record<string, unknown>;
           };
-          if (activeToolCall?.toolCallId === stepId) {
-            activeToolCall = {
-              ...activeToolCall,
-              result: { ok, ...(summary ? { summary } : {}) },
+          const pending = toolStepsById.get(stepId);
+          if (pending) {
+            // Stamp the rich per-tool result (results/examples/researchMeta) so
+            // the tool-ui card renders mid-stream from the real tool output,
+            // not just an ok/summary status. ok/summary are folded in for the
+            // generic status chip. Replace by identity so memoized consumers
+            // re-render.
+            const updated: ToolCallPart = {
+              ...pending,
+              result: { ...(result ?? {}), ok, ...(summary ? { summary } : {}) },
             };
-            allToolCalls.push(activeToolCall);
-            activeToolCall = null;
+            toolStepsById.set(stepId, updated);
+            const idx = allToolCalls.indexOf(pending);
+            if (idx >= 0) allToolCalls[idx] = updated;
           }
           currentProgress = {
             stage: 'generating',
@@ -753,7 +871,22 @@ export async function* parseSSEStream(
         }
 
         case 'interrupt': {
-          interruptPending = true;
+          const payload = data as {
+            interruptType?: 'clarification' | 'client_tool';
+            toolName?: string;
+            args?: Record<string, unknown>;
+            threadId?: string;
+          };
+          if (payload.interruptType === 'client_tool' && payload.toolName) {
+            clientToolPending = true;
+            outcome.clientToolInterrupt = {
+              toolName: payload.toolName,
+              args: payload.args ?? {},
+              ...(payload.threadId != null && { threadId: payload.threadId }),
+            };
+          } else {
+            interruptPending = true;
+          }
           yield buildResult();
           break;
         }
@@ -774,7 +907,7 @@ export async function* parseSSEStream(
           if (cit) receivedCitations = cit;
           if (img) receivedImage = img;
           if (metadata) receivedMetadata = metadata;
-          if (interrupted) interruptPending = true;
+          if (interrupted && !clientToolPending) interruptPending = true;
           transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
           break;
@@ -856,6 +989,34 @@ export async function* parseSSEStream(
             console.warn(
               '[ChatAdapter] trigger_board_action received but no handler registered for board',
               payload.targetBoardId
+            );
+          }
+          break;
+        }
+
+        case 'editor_operations': {
+          // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the agentic loop's
+          // edit_document tool planned ops server-side; apply them in place via
+          // the surface's registered handler (Univer / Yjs / Konva bridge).
+          // Keyed by targetId, parallel to the trigger_doc_edit path (which stays
+          // the fallback when the backend flag is off).
+          const parsed = editorOperationsEventSchema.safeParse(data);
+          if (!parsed.success) {
+            console.warn('[ChatAdapter] editor_operations payload failed validation', parsed.error);
+            break;
+          }
+          const payload = parsed.data;
+          const handler = useChatConfigStore.getState().editorOpsHandlers.get(payload.targetId);
+          if (handler) {
+            try {
+              await handler(payload);
+            } catch (err) {
+              console.warn('[ChatAdapter] editorOpsHandler threw', err);
+            }
+          } else {
+            console.warn(
+              '[ChatAdapter] editor_operations received but no handler registered for target',
+              payload.targetId
             );
           }
           break;
@@ -943,9 +1104,9 @@ export async function* parseSSEStream(
         }
 
         case 'error': {
-          const { error } = data as { error: string };
+          const payload = data as ChatErrorEventPayload;
           transitionStep('error');
-          throw new Error(error);
+          throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
         }
       }
     }
@@ -957,7 +1118,7 @@ export async function* parseSSEStream(
 
   outcome.interrupted = interruptPending;
 
-  if (receivedMetadata && !interruptPending) {
+  if (receivedMetadata && !interruptPending && !clientToolPending) {
     callbacks.onComplete?.(receivedMetadata);
   }
 }

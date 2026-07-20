@@ -57,9 +57,11 @@ const NOTEBOOK_IONICONS = {
   'bayern-notebook': 'location',
   'sachsen-anhalt-notebook': 'leaf',
   'hessen-notebook': 'ribbon',
+  'saarland-notebook': 'location',
   'oesterreich-notebook': 'globe',
   'kommunalwiki-notebook': 'scale',
   'gruenblog-notebook': 'newspaper',
+  'abgeordnetenwatch-notebook': 'checkbox',
   'boell-stiftung-notebook': 'bulb',
 } satisfies Record<NotebookId, IoniconsIconName>;
 
@@ -113,9 +115,11 @@ const NOTEBOOK_RESEARCH_COLLECTIONS = {
   'bayern-notebook': ['bayern-system'],
   'sachsen-anhalt-notebook': ['sachsen-anhalt-system'],
   'hessen-notebook': ['hessen-system'],
+  'saarland-notebook': ['saarland-system'],
   'oesterreich-notebook': ['oesterreich-gruene-system'],
   'kommunalwiki-notebook': ['kommunalwiki-system'],
   'gruenblog-notebook': ['gruenblog-system'],
+  'abgeordnetenwatch-notebook': ['abgeordnetenwatch-system'],
   'boell-stiftung-notebook': ['boell-stiftung-system'],
 } satisfies Record<NotebookId, string[]>;
 

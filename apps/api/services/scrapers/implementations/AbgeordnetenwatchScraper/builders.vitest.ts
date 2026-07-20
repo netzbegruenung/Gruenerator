@@ -19,6 +19,7 @@ import {
   deriveParliament,
   deriveParty,
   mandateToInfo,
+  parseMandateLabel,
   stripHtml,
   POLL_ID_BASE,
   SIDEJOB_ID_BASE,
@@ -44,8 +45,18 @@ describe('helpers', () => {
     );
   });
 
-  it('stripHtml removes tags and collapses whitespace', () => {
+  it('stripHtml removes tags and named/numeric/hex entities', () => {
     expect(stripHtml('<p>Der  <b>Bundestag</b>\n hat</p>')).toBe('Der Bundestag hat');
+    expect(stripHtml('Gr&#252;ne &amp; Co. &#x2013; Ende')).toBe('Gr ne Co. Ende');
+  });
+
+  it('parseMandateLabel extracts person + parliament from the mandate label', () => {
+    expect(parseMandateLabel('Albert Stegemann (Bundestag 2021 - 2025)')).toEqual({
+      person: 'Albert Stegemann',
+      parliament: 'Bundestag',
+    });
+    expect(parseMandateLabel('Jane Doe')).toEqual({ person: 'Jane Doe', parliament: null });
+    expect(parseMandateLabel(null)).toEqual({ person: null, parliament: null });
   });
 });
 
@@ -119,32 +130,43 @@ describe('buildSidejobDocument', () => {
     label: 'Vertragspartner',
     income_level: '10',
     job_title_extra: 'Einkommen im Jahr 2022',
+    data_change_date: '2023-05-01',
     sidejob_organization: { label: 'Landwirtschaftsbetrieb' },
     field_topics: [{ label: 'Landwirtschaft' }],
-    mandates: [{ id: 70563 }],
+    mandates: [{ id: 70563, label: 'Albert Stegemann (Bundestag 2021 - 2025)' }],
   };
 
-  it('joins the MP + party, parses income level, and namespaces the id', () => {
+  it('derives person + parliament from the mandate label, party from the map', () => {
     const { text, payload } = buildSidejobDocument(
       sidejob,
-      { politician: 'Albert Stegemann', party: 'CDU/CSU', parliament: 'Bundestag' },
+      { politician: 'ignored', party: 'CDU/CSU', parliament: 'ignored' },
       hash
     );
     expect(payload.content_type).toBe('nebentaetigkeit');
     expect(payload.document_id).toBe('aw_sidejob_42');
-    expect(payload.person).toBe('Albert Stegemann');
-    expect(payload.party).toBe('CDU/CSU');
+    expect(payload.person).toBe('Albert Stegemann'); // from label, not the map
+    expect(payload.parliament).toBe('Bundestag'); // from label
+    expect(payload.party).toBe('CDU/CSU'); // best-effort from map
     expect(payload.income_level).toBe('10'); // string for keyword facet
+    // published_at must be an ISO date (date_range facet), never the "Jahr" prose
+    expect(payload.published_at).toBe('2023-05-01');
+    expect(payload.year).toBe('Einkommen im Jahr 2022');
     expect(text).toContain('Albert Stegemann');
     expect(text).toContain('Einkommensstufe: 10/10');
     // point-id namespaces never collide with polls
     expect(SIDEJOB_ID_BASE + 42).not.toBe(POLL_ID_BASE + 42);
   });
 
-  it('degrades gracefully when the mandate is unresolved', () => {
+  it('still resolves person from the label when the mandate map misses (party null)', () => {
     const { payload } = buildSidejobDocument(sidejob, null, hash);
-    expect(payload.person).toBeNull();
+    expect(payload.person).toBe('Albert Stegemann');
+    expect(payload.parliament).toBe('Bundestag');
     expect(payload.party).toBeNull();
+  });
+
+  it('keeps a legitimate income_level of 0 instead of coercing to null', () => {
+    const { payload } = buildSidejobDocument({ ...sidejob, income_level: '0' }, null, hash);
+    expect(payload.income_level).toBe('0');
   });
 });
 

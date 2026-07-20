@@ -15,6 +15,8 @@ export {
   imageEditNode,
   summarizeNode,
   computeNode,
+  pandasComputeNode,
+  computeVerifierNode,
   respondNode,
   buildSystemMessage,
 } from './nodes/index.js';

@@ -2,6 +2,8 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { type UsageMap } from '@gruenerator/shared/utils';
 import { useQuery } from '@tanstack/react-query';
 
+import { useOptimizedAuth } from '../../hooks/useAuth';
+
 export type ItemUsageType = 'notebook' | 'agent';
 
 /**
@@ -11,8 +13,12 @@ export type ItemUsageType = 'notebook' | 'agent';
  * / agents). Server-sorted lists (user notebooks / agents) don't need this.
  */
 export function useItemUsage(type: ItemUsageType) {
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   return useQuery({
     queryKey: ['item-usage', type] as const,
+    // Gate on resolved auth: the sidebar mounts before the auth bootstrap
+    // finishes, and an ungated query 401s during the login redirect.
+    enabled: !!user?.id && isAuthenticated && !authLoading,
     queryFn: async (): Promise<UsageMap> => {
       const res = await getContractsClient().itemUsage.getUsage({ query: { type } });
       if (res.status !== 200) return {};

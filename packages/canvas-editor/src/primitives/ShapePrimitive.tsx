@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, memo } from 'react';
+import React, { useRef, useEffect, useState, memo } from 'react';
 import {
   Rect,
   Circle,
@@ -13,6 +13,7 @@ import {
 } from 'react-konva';
 
 import { assertNever, type ShapeInstance } from '../utils/shapes';
+import { gradientToKonvaProps } from '../utils/gradientFill';
 
 import type Konva from 'konva';
 
@@ -167,6 +168,15 @@ interface CommonShapeProps {
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: () => void;
   name: string;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+  fillPriority?: 'color' | 'linear-gradient';
+  fillLinearGradientStartPoint?: { x: number; y: number };
+  fillLinearGradientEndPoint?: { x: number; y: number };
+  fillLinearGradientColorStops?: Array<number | string>;
 }
 
 function renderShape(
@@ -471,6 +481,19 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     }
   }, [isSelected]);
 
+  // Gradient fill is painted in the shape's local box. getSelfRect() gives the
+  // correct box for both top-left (Rect) and center-origin (Circle/Star) shapes.
+  const [gradientProps, setGradientProps] = useState<ReturnType<
+    typeof gradientToKonvaProps
+  > | null>(null);
+  useEffect(() => {
+    if (shape.fillGradient && shapeRef.current) {
+      setGradientProps(gradientToKonvaProps(shape.fillGradient, shapeRef.current.getSelfRect()));
+    } else {
+      setGradientProps(null);
+    }
+  }, [shape.fillGradient, shape.type, shape.width, shape.height]);
+
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     onChange({
       x: e.target.x(),
@@ -519,6 +542,14 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
     name: `shape-${shape.id}`,
+    shadowColor: shape.shadowColor,
+    shadowBlur: shape.shadowBlur,
+    shadowOffsetX: shape.shadowOffsetX,
+    shadowOffsetY: shape.shadowOffsetY,
+    shadowOpacity: shape.shadowOpacity,
+    ...(gradientProps
+      ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
+      : { fillPriority: 'color' as const }),
   };
 
   const transformerStroke =
@@ -540,6 +571,8 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
           anchorSize={10}
           anchorCornerRadius={5}
           rotateEnabled={true}
+          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+          rotationSnapTolerance={7}
           borderStroke={transformerStroke}
           anchorStroke={transformerStroke}
           anchorFill="#ffffff"
@@ -567,6 +600,12 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.cornerRadius !== nextShape.cornerRadius) return false;
   if (prevShape.strokeWidth !== nextShape.strokeWidth) return false;
   if (prevShape.dash !== nextShape.dash) return false;
+  if (prevShape.shadowColor !== nextShape.shadowColor) return false;
+  if (prevShape.shadowBlur !== nextShape.shadowBlur) return false;
+  if (prevShape.shadowOffsetX !== nextShape.shadowOffsetX) return false;
+  if (prevShape.shadowOffsetY !== nextShape.shadowOffsetY) return false;
+  if (prevShape.shadowOpacity !== nextShape.shadowOpacity) return false;
+  if (prevShape.fillGradient !== nextShape.fillGradient) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;

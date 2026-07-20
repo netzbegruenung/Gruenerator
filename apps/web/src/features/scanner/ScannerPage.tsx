@@ -3,7 +3,6 @@
  */
 
 import { Particles } from '@gruenerator/ui';
-import { useState } from 'react';
 
 import ScannerTab from './tabs/ScannerTab';
 
@@ -34,8 +33,6 @@ const ScannerPageHeader = () => (
 );
 
 const ScannerPage = () => {
-  const [hasResults, setHasResults] = useState(false);
-
   return (
     <div className="relative h-full w-full overflow-clip">
       <Particles
@@ -47,8 +44,8 @@ const ScannerPage = () => {
         ease={60}
       />
       <div className="relative z-[1] flex h-full min-h-0 flex-col justify-start overflow-x-clip">
-        {!hasResults && <ScannerPageHeader />}
-        <ScannerTab onResultsChange={setHasResults} />
+        <ScannerPageHeader />
+        <ScannerTab />
       </div>
     </div>
   );

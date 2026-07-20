@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useEvent } from 'expo';
@@ -18,7 +19,6 @@ import {
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
-import { getGlobalApiClient } from '../../services/api';
 import { copyToClipboard } from '../../services/share';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
@@ -160,13 +160,12 @@ export function ExportScreen({
         return;
       }
 
-      const apiClient = getGlobalApiClient();
-      const response = await apiClient.post<{ content: string }>('/subtitler/generate-social', {
-        subtitles: subtitlesText,
+      const res = await getContractsClient().subtitler.generateSocial({
+        body: { subtitles: subtitlesText },
       });
 
-      if (response.data?.content) {
-        setSocialText(response.data.content);
+      if (res.status === 200 && res.body.content) {
+        setSocialText(res.body.content);
       } else {
         Alert.alert('Fehler', 'Der Text konnte nicht erstellt werden. Bitte versuche es erneut.');
       }
