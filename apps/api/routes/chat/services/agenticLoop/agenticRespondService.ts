@@ -38,6 +38,7 @@ import {
 
 import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
+import { resolveEditorSurfaceKind } from './routing.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildMcpReplayMessages } from './mcpReplay.js';
 import { createSourceRegistry } from './sourceRegistry.js';
@@ -352,6 +353,15 @@ export async function streamAgenticResponse(params: {
           : '',
         finalState.compoundEdit === true
           ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
+          : '',
+        // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
+        // mounted, so any "I changed X" would be a false claim the client never
+        // applied. Force the model to say editing is off instead.
+        resolveEditorSurfaceKind(finalState.agentConfig?.identifier, finalState.enabledTools) !=
+          null &&
+        finalState.enabledTools?.['edit_current_doc'] !== true &&
+        finalState.enabledTools?.['edit_current_board'] !== true
+          ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
           : '',
       ]
         .filter(Boolean)
