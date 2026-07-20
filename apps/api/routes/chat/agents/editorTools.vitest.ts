@@ -20,6 +20,11 @@ vi.mock('../../presentations/presentationAiService.js', () => ({
   generatePresentationOperations: (o: unknown): Promise<unknown> => generatePresentationOperations(o),
 }));
 
+const generateBoardOperations = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../../boards/boardAiService.js', () => ({
+  generateBoardOperations: (o: unknown): Promise<unknown> => generateBoardOperations(o),
+}));
+
 type SseEvent = { type: string; payload: unknown };
 function fakeSse(sink: SseEvent[]) {
   return {
@@ -41,6 +46,15 @@ function sheetState(overrides?: Partial<ChatGraphState>): ChatGraphState {
   } as unknown as ChatGraphState;
 }
 
+function boardState(overrides?: Partial<ChatGraphState>): ChatGraphState {
+  return {
+    intent: 'edit_current_board',
+    editToolSurface: 'board',
+    currentBoard: { id: 'board-1', title: 'Kampagne' },
+    ...overrides,
+  } as unknown as ChatGraphState;
+}
+
 function ctx(events: SseEvent[], state: ChatGraphState): EditorToolCtx {
   return { sse: fakeSse(events), state, sourceRegistry: createSourceRegistry(), appliedOpsLog: [] };
 }
@@ -56,17 +70,43 @@ describe('makeEditArtifactTool (sheet)', () => {
   beforeEach(() => {
     generateSheetOperations.mockReset();
     generatePresentationOperations.mockReset();
+    generateBoardOperations.mockReset();
   });
 
-  it('is built for plan-and-send surfaces (sheet, presentation) only', () => {
+  it('is built for plan-and-send surfaces (sheet, presentation, board) only', () => {
     expect(makeEditArtifactTool(ctx([], sheetState()))).not.toBeNull();
     expect(
       makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'presentation' })))
     ).not.toBeNull();
-    // Dispatch-strategy / not-yet-wired surfaces have no plan-and-send tool.
-    expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'board' })))).toBeNull();
+    expect(
+      makeEditArtifactTool(ctx([], boardState({ editToolSurface: 'board' })))
+    ).not.toBeNull();
+    // Dispatch-strategy surfaces (docs, canvas) have no plan-and-send tool.
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'canvas' })))).toBeNull();
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: null })))).toBeNull();
+  });
+
+  it('emits editor_operations with surface=board on a planned board edit', async () => {
+    generateBoardOperations.mockResolvedValue([{ type: 'create_task', title: 'Neu' }]);
+    const events: SseEvent[] = [];
+    const out = (await exec(makeEditArtifactTool(ctx(events, boardState()))!, {
+      instruction: 'Lege eine Aufgabe an',
+    })) as { ok: boolean; operationCount: number };
+
+    expect(out).toMatchObject({ ok: true, operationCount: 1 });
+    const emitted = events.find((e) => e.type === 'editor_operations');
+    expect((emitted!.payload as { surface: string; targetId: string }).surface).toBe('board');
+    expect((emitted!.payload as { targetId: string }).targetId).toBe('board-1');
+  });
+
+  it('errors when no board is open', async () => {
+    const events: SseEvent[] = [];
+    const out = (await exec(
+      makeEditArtifactTool(ctx(events, boardState({ currentBoard: null })))!,
+      { instruction: 'x' }
+    )) as { error?: string };
+    expect(out.error).toBeTruthy();
+    expect(generateBoardOperations).not.toHaveBeenCalled();
   });
 
   it('emits editor_operations with surface=presentation on a planned deck edit', async () => {

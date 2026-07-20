@@ -518,10 +518,12 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, editToolEnabled: false })).toBe(false);
   });
 
-  it('keeps the legacy trigger path for a surface without a tool implementation', () => {
-    // doc/board/canvas are still live and have no tool path yet.
+  it('enters the loop for board too (plan-and-send)', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(true);
+  });
+
+  it('keeps the legacy dispatch path for docs and canvas (no plan-and-send tool)', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(false);
     expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
   });
 

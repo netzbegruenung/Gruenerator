@@ -11,7 +11,7 @@ import {
   type ChatRequestContext,
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
-import { chatThreadResponseSchema } from '@gruenerator/contracts';
+import { boardOperationSchema, chatThreadResponseSchema } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   AlertDialog,
@@ -123,9 +123,14 @@ export function BoardAssistantProvider({
           edit_current_board: edit,
         },
       }),
+      // Tool-based edit: the loop's edit_document tool plans board ops
+      // server-side (generateBoardOperations) and streams them as
+      // editor_operations; we apply them to the live Yjs board via the existing
+      // client executor (with its delete-confirm dialog). Replaces the old
+      // trigger_board_action → /api/boards/:id/ai round-trip.
       registerEditHandler: (ctx) =>
-        useChatConfigStore.getState().registerBoardActionHandler(boardId, async (payload) => {
-          if (payload.targetBoardId !== boardId) return;
+        useChatConfigStore.getState().registerEditorOpsHandler(boardId, async (payload) => {
+          if (payload.targetId !== boardId || payload.surface !== 'board') return;
           // The toggle may have been switched off after the request was sent (the
           // classifier read enabledTools at send time). Don't apply, but tell the
           // user so the chat's success-sounding reply isn't mistaken for a real edit.
@@ -133,33 +138,19 @@ export function BoardAssistantProvider({
             toast.info('KI-Bearbeitung ist deaktiviert — es wurde nichts am Board geändert.');
             return;
           }
+          // Defence in depth: the wire carries ops as unknown[]; re-validate each
+          // against the op schema so one malformed op drops alone.
+          const ops = [];
+          for (const raw of payload.operations) {
+            const parsed = boardOperationSchema.safeParse(raw);
+            if (parsed.success) ops.push(parsed.data);
+          }
+          if (ops.length === 0) {
+            toast.info('Es wurde keine Board-Änderung erkannt — nichts wurde geändert.');
+            return;
+          }
           try {
-            const result = await getContractsClient().boards.ai({
-              params: { id: boardId },
-              body: {
-                userPrompt: payload.userPrompt,
-                board: serializeBoardForChat({
-                  boardId,
-                  boardTitle: boardTitleRef.current,
-                  fields: boardStateRef.current.fields,
-                  rows: boardStateRef.current.rows,
-                  views: boardStateRef.current.views,
-                  assignableMembers: membersRef.current,
-                }),
-                ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
-              },
-            });
-            if (result.status !== 200) {
-              toast.error('Board-Aktion fehlgeschlagen.');
-              return;
-            }
-            if (result.body.operations.length === 0) {
-              // The planner returned no operations — the chat reply may still sound
-              // like a success, so surface that nothing was applied.
-              toast.info('Es wurde keine Board-Änderung erkannt — nichts wurde geändert.');
-              return;
-            }
-            const { applied, skipped } = await applyBoardOperations(result.body.operations, {
+            const { applied, skipped } = await applyBoardOperations(ops, {
               boardState: boardStateRef.current,
               currentUserId: userId ?? '',
               assignableMembers: membersRef.current,
