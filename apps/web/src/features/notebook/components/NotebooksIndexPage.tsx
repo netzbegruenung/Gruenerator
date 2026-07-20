@@ -11,11 +11,19 @@ import {
   DropdownMenuTrigger,
   SectionHeader,
   Skeleton,
+  cn,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { HiDotsVertical, HiOutlineTrash, HiPencil, HiShare, HiUserGroup } from 'react-icons/hi';
+import {
+  HiChevronRight,
+  HiDotsVertical,
+  HiOutlineTrash,
+  HiPencil,
+  HiShare,
+  HiUserGroup,
+} from 'react-icons/hi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { NotebookIcon } from '../../../config/icons';
@@ -25,6 +33,8 @@ import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
+import { useWhatHappened } from '../../monitor/hooks/useMonitor';
+import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
   getAustrianNotebooks,
@@ -385,6 +395,93 @@ EigeneNotebooks.displayName = 'EigeneNotebooks';
 
 const EMPTY_GROUPS: GroupSummary[] = [];
 
+const WHAT_HAPPENED_MAX = 8;
+
+function formatWhatHappenedDay(date: string): string {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+function formatArticleDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+}
+
+// Tagesaktuelle Content-Sync-Beiträge im selben Scroll-Strip-Look wie die
+// Notebook-Reihen. Zieht die Monitor-Daten, verlinkt in den vollen Feed.
+const WhatHappenedRow = memo(() => {
+  const navigate = useNavigate();
+  const { locale, withLocale } = useMonitorLocaleParam();
+  const { data, isLoading } = useWhatHappened(locale, { days: 7 });
+  const day = data?.days[0];
+
+  if (!isLoading && !day) return null;
+
+  const feedPath = withLocale('/experiments/monitor/feed');
+
+  return (
+    <section className="mt-xl">
+      <SectionHeader
+        title="Was ist passiert"
+        onTitleClick={() => navigate(feedPath)}
+        actions={
+          <span className="inline-flex items-center gap-sm">
+            {day && (
+              <span className="text-xs text-grey-400">{formatWhatHappenedDay(day.date)}</span>
+            )}
+            <Link
+              to={feedPath}
+              className="inline-flex items-center gap-0.5 text-xs text-grey-400 hover:text-foreground transition-colors no-underline"
+            >
+              Alle anzeigen
+              <HiChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </span>
+        }
+      />
+      <div className={NOTEBOOK_SCROLL_ROW}>
+        {day
+          ? day.articles.slice(0, WHAT_HAPPENED_MAX).map((article) => (
+              <a
+                key={article.sourceUrl}
+                href={article.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  NOTEBOOK_SCROLL_ITEM,
+                  'group flex flex-col gap-2 rounded-xl border bg-background p-4 no-underline transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md',
+                  'border-[#EFC9DD] hover:border-[#D6006E] dark:border-[#4A2A3B] dark:hover:border-[#EC5AA0]'
+                )}
+              >
+                <h3 className="m-0 line-clamp-2 text-sm font-semibold leading-snug text-foreground-heading group-hover:text-[#D6006E] dark:group-hover:text-[#EC5AA0]">
+                  {article.title}
+                </h3>
+                {article.excerpt && (
+                  <p className="m-0 line-clamp-4 flex-1 text-xs leading-relaxed text-grey-500 dark:text-grey-400">
+                    {article.excerpt}
+                  </p>
+                )}
+                <div className="mt-auto flex items-center gap-1.5 truncate pt-1 text-[11px] text-grey-400">
+                  <span className="truncate">{article.sourceName}</span>
+                  {article.publishedAt && (
+                    <span className="shrink-0">· {formatArticleDate(article.publishedAt)}</span>
+                  )}
+                </div>
+              </a>
+            ))
+          : ['a', 'b', 'c', 'd'].map((key) => (
+              <div key={key} className={NOTEBOOK_SCROLL_ITEM}>
+                <Skeleton className="h-40 w-full rounded-xl" />
+              </div>
+            ))}
+      </div>
+    </section>
+  );
+});
+WhatHappenedRow.displayName = 'WhatHappenedRow';
+
 function NotebooksIndexFooter() {
   const navigate = useNavigate();
   const locale = useAuthStore((state) => state.locale);
@@ -487,6 +584,8 @@ function NotebooksIndexFooter() {
       />
 
       <VonDerBasisSection />
+
+      <WhatHappenedRow />
     </section>
   );
 }
