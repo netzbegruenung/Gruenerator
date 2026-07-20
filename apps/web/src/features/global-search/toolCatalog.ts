@@ -85,9 +85,17 @@ const CATALOG: ToolCatalogEntry[] = [
     icon: nav('vorlagen'),
     keywords: ['vorlagen', 'vorlage', 'template', 'design'],
   },
+  {
+    id: 'office',
+    title: 'Office',
+    subtitle: 'Dokumente, Boards, Tabellen & Slides',
+    path: '/office',
+    icon: nav('desk'),
+    keywords: ['office', 'dokumente', 'boards', 'tabellen', 'slides', 'praesentationen'],
+  },
   // ids/paths mirror the getDirectMenuItems() nav entries so featureIndex
   // dedupes them (catalog is indexed first → its richer keywords win), while
-  // each type gets its own synonym set for search.
+  // each type gets its own synonym set for search. Paths now redirect to /office.
   {
     id: 'docs',
     title: 'Dokumente',
