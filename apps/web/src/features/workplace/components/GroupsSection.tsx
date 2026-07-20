@@ -50,13 +50,13 @@ const GroupsSection: React.FC = memo(() => {
   return (
     <section className="mb-xl">
       <SectionHeader
-        title="Gruppen"
+        title="Spaces"
         onCreate={handleCreate}
-        createLabel={isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
+        createLabel={isCreatingGroup ? 'Wird erstellt...' : 'Neuen Space erstellen'}
       />
       {tools.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-          Noch keine Gruppen vorhanden.
+          Noch keine Spaces vorhanden.
         </p>
       ) : (
         <ToolGrid tools={tools} columns={3} compact showFavourites onShare={handleShare} />
