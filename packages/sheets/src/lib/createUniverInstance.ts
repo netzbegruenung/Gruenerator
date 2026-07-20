@@ -31,6 +31,30 @@ import UniverSheetsZenEditorDeDE from '@univerjs/sheets-zen-editor/locale/de-DE'
 
 import type { FUniver, Univer } from '@univerjs/presets';
 
+/**
+ * Hide Univer's "Bereich/Blatt schützen" menu entries (context menu + sheet-bar
+ * + toolbar). In our setup range/sheet protection is a landmine: the built-in
+ * AuthzIoLocalService recognises the owner only by a userID string-prefix
+ * (isDevRole), so a real user can never be re-granted style permission once a
+ * range is protected — it locks background/CF/table edits for EVERYONE forever
+ * (the "Der Bereich ist geschützt" error). We have no real owner/collaborator
+ * authorization model, so the feature can never work correctly here; remove its
+ * entry points. Keyed by the menu item id (= the command id each entry triggers).
+ */
+const HIDDEN_PROTECTION_MENU: Record<string, { hidden: boolean }> = Object.fromEntries(
+  [
+    'sheet.command.add-range-protection-from-context-menu',
+    'sheet.command.set-range-protection-from-context-menu',
+    'sheet.command.delete-range-protection-from-context-menu',
+    'sheet.command.view-sheet-permission-from-context-menu',
+    'sheet.command.add-range-protection-from-toolbar',
+    'sheet.command.add-range-protection-from-sheet-bar',
+    'sheet.command.change-sheet-protection-from-sheet-bar',
+    'sheet.command.delete-worksheet-protection-from-sheet-bar',
+    'sheet.command.view-sheet-permission-from-sheet-bar',
+  ].map((id) => [id, { hidden: true }])
+);
+
 /** Univer's current-user shape (drives comment/note authorship). */
 export interface SheetCurrentUser {
   userID: string;
@@ -96,6 +120,7 @@ export function createUniverInstance({
         container,
         header: false,
         toolbar: false,
+        menu: HIDDEN_PROTECTION_MENU,
         formulaBar: true,
         footer: {
           sheetBar: true,
