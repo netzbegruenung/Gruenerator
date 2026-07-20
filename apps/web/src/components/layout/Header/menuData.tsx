@@ -1,6 +1,6 @@
 import { FaCloud, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
-import { PiGlobe } from 'react-icons/pi';
+import { PiGlobe, PiSparkle } from 'react-icons/pi';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
@@ -74,6 +74,15 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     // Exact tab paths only — a /workplace prefix would also claim the Wissen
     // tab, which the dedicated entry below highlights.
     exactActivePaths: ['/', '/workplace', '/workplace/arbeiten'],
+  };
+
+  items.grueneratoren = {
+    id: 'grueneratoren',
+    path: '/agentura',
+    title: 'Grüneratoren',
+    description: 'Deine KI-Grüneratoren',
+    icon: PiSparkle,
+    activePaths: ['/agentura', '/agents'],
   };
 
   // No `path`: the sidebar opens the global search palette instead of

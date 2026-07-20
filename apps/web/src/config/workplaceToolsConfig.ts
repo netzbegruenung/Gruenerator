@@ -121,7 +121,7 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   {
     id: 'agents',
     title: 'Agentura',
-    description: 'Agent*innen & Skills',
+    description: 'Grüneratoren & Skills',
     path: '/agentura',
     icon: RiSpyLine,
   },
