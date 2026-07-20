@@ -62,7 +62,9 @@ Permitted operation types (each object needs a "type" field):
 - { "type": "create_filter", "range": "A1:E30", "sheet"?: "Name" }
     // turns on the auto-filter (header dropdowns) over "range". Include the header row.
 - { "type": "add_table", "range": "A1:E30", "name"?: "Umsätze", "sheet"?: "Name" }
-    // wraps "range" (header row included) into a styled, filterable table.
+    // turns "range" into a STRUCTURED table object (Excel "Als Tabelle formatieren"):
+    // header row + banded rows + built-in filter dropdowns + auto-expand. Only for an
+    // explicit "als Tabelle formatieren" ask — normal data entry does NOT need this.
 - { "type": "add_conditional_format", "range": "B2:B20", "rule": {...}, "sheet"?: "Name" }
     // colors cells that match a rule. "rule" is one of:
     //   { "kind": "cell_number", "operator": "greater_than"|"greater_equal"|"less_than"|"less_equal"|"equal"|"not_equal"|"between"|"not_between", "value": 100, "value2"?: 200 (upper bound for between), "background"?: "#ffcdd2", "fontColor"?: "#b71c1c", "bold"?: true }
