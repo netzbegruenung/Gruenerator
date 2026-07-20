@@ -35,7 +35,12 @@ import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
-import { useWhatHappened } from '../../monitor/hooks/useMonitor';
+import {
+  useEntityResults,
+  useMonitorSnapshot,
+  usePolls,
+  useWhatHappened,
+} from '../../monitor/hooks/useMonitor';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
@@ -479,8 +484,46 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
   },
 ];
 
+/** Extract the Grüne polling average from a poll's party map, if present. */
+function pickGrueneValue(average: Record<string, number> | undefined): number | null {
+  if (!average) return null;
+  for (const [k, v] of Object.entries(average)) {
+    if (k === 'GRÜNE' || k.toLowerCase().includes('grüne')) return v;
+  }
+  return null;
+}
+
+/**
+ * Live "intelligence" subtext for the three Monitor tiles: the current hot topic
+ * (Themen), the Grüne polling value (Umfragen) and the count of watched media
+ * mentions (Watcher). Falls back to the tile's static description while loading.
+ */
+function useWissenTileIntel(locale: 'de' | 'at') {
+  const { data: snapshot } = useMonitorSnapshot(locale);
+  const { data: polls } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
+  const { data: watcher } = useEntityResults(locale === 'at' ? 'gruene-at' : 'gruene', locale);
+
+  return useCallback(
+    (id: string): string | null => {
+      if (id === 'monitor-themen') return snapshot?.topics[0]?.topArticles[0]?.title ?? null;
+      if (id === 'monitor-umfragen') {
+        const g = pickGrueneValue(polls?.average);
+        return g != null
+          ? `Grüne aktuell bei ${g.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+          : null;
+      }
+      if (id === 'monitor-watcher') {
+        return watcher?.count != null ? `${watcher.count} Beiträge im Blick` : null;
+      }
+      return null;
+    },
+    [snapshot, polls, watcher]
+  );
+}
+
 const WissenToolsRow = memo(() => {
-  const { withLocale } = useMonitorLocaleParam();
+  const { locale, withLocale } = useMonitorLocaleParam();
+  const intel = useWissenTileIntel(locale);
 
   return (
     <section className="mt-xl">
@@ -513,7 +556,7 @@ const WissenToolsRow = memo(() => {
                     tile.descColor
                   )}
                 >
-                  {tile.description}
+                  {intel(tile.id) ?? tile.description}
                 </span>
               </span>
             </Link>
