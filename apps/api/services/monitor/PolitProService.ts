@@ -340,6 +340,8 @@ export interface EuGreenPartyEntry {
   partyShort: string;
   partyLabel: string;
   note?: string;
+  /** Greens are only a minority partner in this alliance total (FR NFP, ES Sumar). */
+  broadAlliance?: boolean;
   website: string | null;
   /** Wikipedia article title (verified), null when no article exists. */
   wikipedia: string | null;
@@ -505,6 +507,29 @@ export const EU_GREEN_PARTIES: EuGreenPartyEntry[] = [
     website: 'https://greenparty.org.uk',
     wikipedia: 'Green Party of England and Wales',
   },
+  // Broad left alliances where the greens are only a minority partner. Included
+  // (per product decision) but flagged so the map hatches them instead of
+  // coloring them as pure green strength.
+  {
+    countryCode: 'fr',
+    countryName: 'Frankreich',
+    partyShort: 'NFP',
+    partyLabel: 'Nouveau Front populaire',
+    note: 'Bündniswert — Grüne (Les Écologistes) mit Sozialdemokraten & Linken im NFP',
+    broadAlliance: true,
+    website: 'https://www.lesecologistes.fr',
+    wikipedia: 'Les Écologistes',
+  },
+  {
+    countryCode: 'es',
+    countryName: 'Spanien',
+    partyShort: 'Sumar',
+    partyLabel: 'Sumar',
+    note: 'Bündniswert — Grüne (Verdes Equo) in der Sumar-Plattform',
+    broadAlliance: true,
+    website: 'https://sumar.es',
+    wikipedia: 'Sumar (Wahlplattform)',
+  },
 ];
 
 export async function getEuGreens(): Promise<EuGreensData | null> {
@@ -541,6 +566,7 @@ export async function getEuGreens(): Promise<EuGreensData | null> {
         electionDiff: party.election_diff != null ? round1(party.election_diff) : null,
         date: trendResult.data.poll.date,
         note: entry.note ?? null,
+        ...(entry.broadAlliance ? { broadAlliance: true } : {}),
       };
     })
   );
