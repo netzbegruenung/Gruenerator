@@ -81,8 +81,10 @@ const CHIP_BASE =
 // The colored Office tiles live in a single horizontal strip — same scroll idiom
 // as the Wissen notebook covers: fractional widths keep the next tile half-visible
 // so the scroll affordance is obvious; pt/pb leave room for the hover lift. Also
-// reused by the /studio landing tool strip so both read identically.
-export const OFFICE_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
+// reused by the /studio landing tool strip so both read identically. Centered when
+// the tiles fit; `-safe` falls back to start-aligned (no clipping) when they overflow.
+export const OFFICE_SCROLL_ROW =
+  'flex justify-center-safe gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
 // Tile width = (row − its gaps) ÷ an .5 count, so the next tile is always ~half
 // visible (a deliberate scroll tease) at any width — the gap subtraction is what
 // keeps the peek from collapsing as the container grows. ~2.5 tiles on mobile → 5.5
@@ -100,7 +102,8 @@ export const OFFICE_SCROLL_ITEM =
 // tiles are smallest.
 const OFFICE_TILE_BASE =
   'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
-  'transition-shadow duration-150';
+  'transition-shadow duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ' +
+  'dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.30)]';
 
 // Icon-over-title/desc content shared by the link tiles and the dropdown tile.
 function OfficeTileInner({
@@ -139,22 +142,53 @@ function OfficeTileInner({
 }
 
 // Square color-field Office tile (design 1e) with a favourite star top-right.
-// Exported so the /studio landing tool strip renders the same colourful tiles.
-export function OfficeTile({ tool }: { tool: WorkplaceToolItem }) {
+// Exported so the /studio landing tool strip renders the same tiles. `themeKey`
+// overrides the colour source: the top-level Arbeiten strip leaves it unset so
+// each tile wears its own hue, while a subpage passes its own tool id so all
+// tiles there share the page's colour instead of being colourful again.
+export function OfficeTile({ tool, themeKey }: { tool: WorkplaceToolItem; themeKey?: string }) {
   const favouritable = isFavouritableTool(tool);
+  const styleKey = themeKey ?? tool.id;
   return (
     <Link
       to={tool.path ?? '/'}
-      className={`${OFFICE_TILE_BASE} ${getToolTheme(tool.id)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+      className={`${OFFICE_TILE_BASE} ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
     >
       {favouritable && <FavouriteStar id={tool.id} size={16} className="absolute right-3 top-3" />}
       <OfficeTileInner
-        styleKey={tool.id}
+        styleKey={styleKey}
         Icon={tool.icon}
         title={tool.title}
         description={tool.description}
       />
     </Link>
+  );
+}
+
+// Same colourful square tile, but an action button instead of a navigation Link
+// — the /office landing page uses these to create an empty doc/board/sheet/pres.
+// No favourite star (a create-action isn't pinnable).
+export function OfficeActionTile({
+  styleKey,
+  icon: Icon,
+  title,
+  description,
+  onClick,
+}: {
+  styleKey: string;
+  icon: IconType;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${OFFICE_TILE_BASE} w-full text-left ${getToolTheme(styleKey)?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
+    >
+      <OfficeTileInner styleKey={styleKey} Icon={Icon} title={title} description={description} />
+    </button>
   );
 }
 
@@ -267,21 +301,18 @@ export const OfficeSection = React.memo(() => {
   );
 
   return (
-    <>
-      <SectionHeading title="Tools" />
-      <div className={OFFICE_SCROLL_ROW}>
-        {tiles.map((tool) => (
-          <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
-            <OfficeTile tool={tool} />
-          </div>
-        ))}
-        {TOOL_MENUS.map((menu) => (
-          <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
-            <OfficeDropdownTile menu={menu} />
-          </div>
-        ))}
-      </div>
-    </>
+    <div className={OFFICE_SCROLL_ROW}>
+      {tiles.map((tool) => (
+        <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+          <OfficeTile tool={tool} />
+        </div>
+      ))}
+      {TOOL_MENUS.map((menu) => (
+        <div key={menu.id} className={OFFICE_SCROLL_ITEM}>
+          <OfficeDropdownTile menu={menu} />
+        </div>
+      ))}
+    </div>
   );
 });
 
