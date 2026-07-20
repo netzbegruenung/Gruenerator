@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -39,9 +40,31 @@ export const chatThreads = pgTable(
     // Sticky MCP scope: last connected server the loop was scoped to, so an
     // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
     last_mcp_server_id: uuid('last_mcp_server_id'),
+    // Optional OpenWebUI-style folder grouping the thread into a workspace.
+    // FK → chat_thread_folders(id) ON DELETE SET NULL. Mirrors the proven
+    // collaborative_documents.folder_id pattern.
+    folder_id: uuid('folder_id'),
   },
-  (t) => [index('idx_chat_threads_tags').using('gin', t.tags)]
+  (t) => [
+    index('idx_chat_threads_tags').using('gin', t.tags),
+    index('idx_chat_threads_folder_id').on(t.folder_id),
+  ]
 );
+
+/**
+ * OpenWebUI-style folders that group chat threads into workspaces. Purely a
+ * grouping + search-scope primitive (instructions/knowledge live on the
+ * Grünerator/agent, not here). Clones the collaborative_document_folders shape.
+ */
+export const chatThreadFolders = pgTable('chat_thread_folders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  user_id: uuid('user_id'),
+  name: text('name').notNull(),
+  parent_id: uuid('parent_id'),
+  sort: integer('sort').notNull().default(0),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  is_deleted: boolean('is_deleted').default(false),
+});
 
 export const chatMessages = pgTable('chat_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -107,6 +130,7 @@ export const chatThreadReels = pgTable('chat_thread_reels', {
 });
 
 export type ChatThread = InferSelectModel<typeof chatThreads>;
+export type ChatThreadFolder = InferSelectModel<typeof chatThreadFolders>;
 export type ChatMessage = InferSelectModel<typeof chatMessages>;
 export type ChatThreadAttachment = InferSelectModel<typeof chatThreadAttachments>;
 export type ChatThreadCanvas = InferSelectModel<typeof chatThreadCanvases>;

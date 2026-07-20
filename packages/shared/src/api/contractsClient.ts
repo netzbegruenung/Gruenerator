@@ -18,6 +18,7 @@
 
 import {
   threadsContract,
+  chatThreadFoldersContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,
@@ -177,6 +178,7 @@ const CLIENT_OPTS = {
 // Infer types directly from initClient — avoids importing InitClientReturn
 // which may not be exported in all @ts-rest/core minor versions.
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
+const _chatThreadFoldersClient = () => initClient(chatThreadFoldersContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
@@ -228,6 +230,7 @@ const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
+  chatThreadFolders: ReturnType<typeof _chatThreadFoldersClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
@@ -296,6 +299,7 @@ export function getContractsClient(): ContractsClient {
 
   _client = {
     threads: _threadsClient(),
+    chatThreadFolders: _chatThreadFoldersClient(),
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
     recentActivity: _recentActivityClient(),

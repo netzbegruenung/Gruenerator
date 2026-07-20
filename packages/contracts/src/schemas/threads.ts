@@ -21,6 +21,7 @@ export const threadSchema = z.object({
   status: z.string(),
   threadType: z.string(),
   notebookCollectionId: z.string().nullable(),
+  folderId: z.string().nullable(),
   tags: z.array(z.string()).default([]),
   slugSuffix: z.string().nullable(),
   createdAt: z.string(), // ISO date string
@@ -41,6 +42,8 @@ export const patchThreadBodySchema = z.object({
   title: z.string().optional(),
   status: z.enum(['regular', 'archived']).optional(),
   tags: z.array(z.string()).optional(),
+  // Move the thread into a folder (null = remove from its folder).
+  folderId: z.string().nullable().optional(),
 });
 
 export const patchThreadSettingsBodySchema = z.object({

@@ -55,6 +55,7 @@ import {
   makeGroupsTool,
   makeMediaTool,
   makeNotebooksTool,
+  makeSearchThreadsTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
 import { createSearchTools } from './searchTools.js';
@@ -230,6 +231,9 @@ NUTZE WENN:
     };
     if (state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
+    }
+    if (state.enabledTools?.['search_threads'] !== false) {
+      tools.search_threads = makeSearchThreadsTool(personalCtx);
     }
     if (state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);

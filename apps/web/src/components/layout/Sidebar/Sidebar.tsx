@@ -17,6 +17,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
 import { useUserAgents } from '../../../features/agents/api';
+import { FoldersSidebarSection } from '../../../features/folders/FoldersSidebarSection';
 import { useItemUsage } from '../../../features/usage/useItemUsage';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
@@ -330,13 +331,18 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         />
       </nav>
 
-      {/* Scroll region: chat threads */}
+      {/* Scroll region: folders + chat threads */}
       <div
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
         )}
       >
+        <FoldersSidebarSection
+          sidebarExpanded={sidebarExpanded}
+          onLinkClick={handleLinkClick}
+          isActive={isActive}
+        />
         {/* Registers the slot node synchronously (ref callback fires during
             commit), so the global chat runtime's thread-list portal follows it
             atomically across per-route remounts — no flicker. */}

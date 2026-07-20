@@ -234,6 +234,15 @@ function buildToolGuidelines(
     );
   }
 
+  if (check('search_threads')) {
+    tools.push(
+      '- **search_threads**: Durchsuche die FRÜHEREN CHATS des Nutzers (nicht Dokumente).\n' +
+        '  Nutze dieses Tool bei Bezug auf vergangene Unterhaltungen — "worüber haben wir letztens gesprochen",\n' +
+        '  "such in diesem Ordner", "was hatten wir zu X besprochen". scope="folder" durchsucht nur die\n' +
+        '  Chats des aktuellen Ordners, scope="all" alle eigenen Chats; action="read" liest einen Thread ganz.'
+    );
+  }
+
   if (check('self_review')) {
     tools.push(
       '- **self_review**: Bewerte einen Entwurf gegen Qualitätskriterien.\n' +

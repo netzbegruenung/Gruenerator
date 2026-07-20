@@ -80,6 +80,12 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     label: 'Eigene Inhalte',
     description: 'Durchsucht die eigenen gespeicherten Texte und Dokumente.',
   },
+  {
+    key: 'search_threads',
+    label: 'Frühere Chats',
+    description:
+      'Durchsucht frühere Unterhaltungen — im aktuellen Ordner oder über alle Chats hinweg.',
+  },
 ] as const;
 
 /**

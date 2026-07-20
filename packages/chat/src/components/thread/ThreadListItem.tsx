@@ -7,7 +7,17 @@ import {
   useThreadListItem,
   useAui,
 } from '@assistant-ui/react';
-import { MoreVertical, Pencil, Archive, Trash2, Share2, Pin, PinOff, Tag } from 'lucide-react';
+import {
+  MoreVertical,
+  Pencil,
+  Archive,
+  Trash2,
+  Share2,
+  Pin,
+  PinOff,
+  Tag,
+  FolderInput,
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
@@ -19,6 +29,7 @@ import {
   subscribeThreadTags,
 } from '../../runtime/GrueneratorThreadListAdapter';
 import { EditTagsDialog } from './EditTagsDialog';
+import { MoveToFolderDialog } from './MoveToFolderDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
@@ -72,6 +83,7 @@ export function GrueneratorThreadListItem() {
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   // Live read from the tags cache: fresh per remoteId (no stale value on item
   // recycle) and re-renders when list()/edits change the cache.
   const tags = useSyncExternalStore(
@@ -173,6 +185,13 @@ export function GrueneratorThreadListItem() {
               Tags bearbeiten
             </ThreadListItemMorePrimitive.Item>
             <ThreadListItemMorePrimitive.Item
+              onClick={() => setMoveOpen(true)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <FolderInput className="h-3.5 w-3.5" />
+              Verschieben nach…
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemMorePrimitive.Item
               onClick={() => setShareOpen(true)}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             >
@@ -212,6 +231,14 @@ export function GrueneratorThreadListItem() {
           initialTags={tags}
           open={tagsOpen}
           onOpenChange={setTagsOpen}
+        />
+      )}
+
+      {moveOpen && (
+        <MoveToFolderDialog
+          threadId={remoteId ?? null}
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
         />
       )}
     </>

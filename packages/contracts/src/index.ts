@@ -19,6 +19,7 @@ export { initClient, type ClientInferRequest, type ClientInferResponses } from '
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
+  chatThreadFoldersContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,

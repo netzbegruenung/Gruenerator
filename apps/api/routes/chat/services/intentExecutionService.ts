@@ -33,6 +33,7 @@ import {
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  getFolderRecallScope,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
 import {
@@ -1283,12 +1284,17 @@ export async function executeIntentPipeline(opts: {
             : '');
         const dateFrom = finalState.detectedFilters?.date_from;
         const dateTo = finalState.detectedFilters?.date_to;
+        // Folder scope: restrict recall to the current folder's chats + roster.
+        const folderScope = opts.threadId
+          ? await getFolderRecallScope(opts.threadId, userId).catch(() => null)
+          : null;
         const [rawChats, rawOfficeDocs] = await Promise.all([
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
             ...(dateFrom && { startDate: new Date(dateFrom) }),
             ...(dateTo && { endDate: new Date(dateTo) }),
+            ...(folderScope && { threadIds: folderScope.threadIds }),
           }),
           recallOfficeDocuments(userId, query, 5),
         ]);
@@ -1314,6 +1320,7 @@ export async function executeIntentPipeline(opts: {
         ];
 
         const contextBlocks = [
+          folderScope?.rosterBlock ?? '',
           hits.length ? formatPastChatsBlock(hits, deepRead) : '',
           formatOfficeDocsBlock(officeDocs),
         ].filter(Boolean);

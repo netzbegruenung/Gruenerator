@@ -70,7 +70,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
+                t.notebook_collection_id, t.folder_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -107,6 +107,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: (row.status as string) || 'regular',
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
+        folderId: (row.folder_id as string) || null,
         tags: (row.tags as string[]) ?? [],
         slugSuffix: (row.slug_suffix as string) ?? null,
         createdAt: row.created_at as Date | string,
@@ -133,6 +134,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: t.status,
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
+        folderId: t.folderId ?? null,
         tags: t.tags,
         slugSuffix: t.slugSuffix,
         createdAt: toIsoString(t.createdAt),
@@ -196,7 +198,7 @@ export const threadsContractRouter = s.router(threadsContract, {
   update: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { threadId, title, status, tags } = args.body;
+      const { threadId, title, status, tags, folderId } = args.body;
 
       const postgres = getPostgresInstance();
 
@@ -232,6 +234,13 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (tags !== undefined) {
         setClauses.push(`tags = $${paramIdx}::jsonb`);
         params.push(JSON.stringify(tags));
+        paramIdx++;
+      }
+
+      if (folderId !== undefined) {
+        // Move into a folder, or clear (null). Null-safe UUID cast.
+        setClauses.push(`folder_id = $${paramIdx}::uuid`);
+        params.push(folderId);
         paramIdx++;
       }
 

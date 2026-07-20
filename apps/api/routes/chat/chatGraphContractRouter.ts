@@ -66,6 +66,7 @@ import {
   rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  getFolderRecallScope,
 } from './services/pastChatRecallService.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
@@ -829,6 +830,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !!lastUserMessage &&
         classifiedState.intent !== 'chat_history';
 
+      // Folder scope: when the thread lives in a folder, recall is restricted to
+      // that folder's chats and the model is told which threads it can search.
+      const folderScope = actualThreadId
+        ? await getFolderRecallScope(actualThreadId, userId).catch(() => null)
+        : null;
+
       if (explicitRecall || proactiveRecall) {
         try {
           const recallQuery =
@@ -845,6 +852,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   recallPastChats(userId, recallQuery, {
                     ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
                     limit: 3,
+                    ...(folderScope && { threadIds: folderScope.threadIds }),
                   }),
                   recallOfficeDocuments(userId, recallQuery, 3),
                 ]);
@@ -856,6 +864,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
             );
             const blocks = [
+              folderScope?.rosterBlock ?? '',
               recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
               formatOfficeDocsBlock(recalled.officeDocs),
             ].filter(Boolean);
@@ -868,6 +877,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
         } catch (err) {
           log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
+        }
+      }
+
+      // Always surface the folder roster when in a folder, even if no recall pass
+      // ran (so the model knows it can search the folder's chats on demand).
+      if (folderScope) {
+        const existing = classifiedState.chatHistoryContext;
+        if (!existing) {
+          classifiedState.chatHistoryContext = folderScope.rosterBlock;
+        } else if (!existing.includes(folderScope.rosterBlock)) {
+          classifiedState.chatHistoryContext = `${folderScope.rosterBlock}\n\n${existing}`;
         }
       }
 
