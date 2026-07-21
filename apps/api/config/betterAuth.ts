@@ -1,5 +1,4 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
-import { type UserProfile } from '@gruenerator/contracts';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
 import { mcp } from 'better-auth/plugins';
@@ -12,6 +11,7 @@ import pg from 'pg';
 import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
+import { setUserLocale } from '../services/localization/localeCache.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
@@ -89,6 +89,7 @@ async function syncLocaleFromProvider(userId: string, providerId: string): Promi
     const current = rows[0]?.locale ?? null;
     if (current === locale) return;
     await db.update(schema.profiles).set({ locale }).where(eq(schema.profiles.id, userId));
+    await setUserLocale(userId, locale);
     log.info(
       `[Auth] locale-synced user=${userId} provider=${providerId} ${current ?? 'none'} → ${locale}`
     );
