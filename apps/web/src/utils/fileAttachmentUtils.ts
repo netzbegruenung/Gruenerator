@@ -29,11 +29,6 @@ interface FileSummary {
   }>;
 }
 
-interface PrivacyValidationResult {
-  valid: boolean;
-  error?: string;
-}
-
 // File type validation
 const ALLOWED_FILE_TYPES: Record<AllowedMimeType, string> = {
   'application/pdf': 'PDF',
@@ -313,53 +308,6 @@ export const getPDFPageCount = async (file: File): Promise<number> => {
   }
 };
 
-/**
- * Validates files for privacy mode with PDF page count restrictions
- * @param files - Array of files to validate
- * @param privacyModeActive - Whether privacy mode is active
- * @returns Validation result
- */
-export const validateFilesForPrivacyMode = async (
-  files: File[],
-  privacyModeActive: boolean
-): Promise<PrivacyValidationResult> => {
-  if (!privacyModeActive) {
-    return { valid: true };
-  }
-
-  const MAX_PDF_PAGES = 10; // Conservative limit for 16k token context
-
-  for (const file of files) {
-    if (file.type === 'application/pdf') {
-      try {
-        const pageCount = await getPDFPageCount(file);
-
-        if (pageCount > MAX_PDF_PAGES) {
-          return {
-            valid: false,
-            error: `PDF "${file.name}" hat ${pageCount} Seiten. Im Privacy Mode sind maximal ${MAX_PDF_PAGES} Seiten erlaubt. Bitte deaktivieren Sie den Privacy Mode oder verwenden Sie ein kürzeres PDF.`,
-          };
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        return {
-          valid: false,
-          error: `Fehler beim Verarbeiten von "${file.name}": ${errorMessage}`,
-        };
-      }
-    }
-    // Images are skipped in privacy mode (as mentioned in requirements)
-    else if (file.type.startsWith('image/')) {
-      return {
-        valid: false,
-        error: `Bilder können im Privacy Mode nicht verarbeitet werden. Bitte deaktivieren Sie den Privacy Mode oder entfernen Sie "${file.name}".`,
-      };
-    }
-  }
-
-  return { valid: true };
-};
-
 // Export constants for external use
 export const FILE_LIMITS = {
   MAX_FILE_SIZE,
@@ -369,4 +317,4 @@ export const FILE_LIMITS = {
 };
 
 // Export types for external use
-export type { ProcessedFile, FileSummary, PrivacyValidationResult, AllowedMimeType };
+export type { ProcessedFile, FileSummary, AllowedMimeType };

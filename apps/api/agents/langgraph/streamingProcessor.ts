@@ -10,13 +10,13 @@ import { streamText } from 'ai';
 
 import { createSSEStream } from '../../routes/chat/services/sseHelpers.js';
 import { getModel, type ProviderName } from '../../services/ai/providers.js';
-import { PrivacyCounter } from '../../services/counters/index.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
   type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
+import { type ProviderOptions } from '../../services/providers/types.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
@@ -89,7 +89,6 @@ export async function processGraphRequestStreaming(
     const requestData = req.body as {
       platforms?: string[];
       customPrompt?: { instructions?: string; knowledgeContent?: string } | string;
-      usePrivacyMode?: boolean;
       provider?: string;
       model?: string;
       knowledgeContent?: string;
@@ -97,8 +96,6 @@ export async function processGraphRequestStreaming(
       selectedTextIds?: string[];
       searchQuery?: string;
       useNotebookEnrich?: boolean;
-      useProMode?: boolean;
-      useUltraMode?: boolean;
       reasoningEffort?: string;
       slug?: string;
       theme?: string;
@@ -108,7 +105,6 @@ export async function processGraphRequestStreaming(
     };
     const {
       customPrompt,
-      usePrivacyMode,
       provider,
       knowledgeContent,
       selectedDocumentIds,
@@ -181,8 +177,6 @@ export async function processGraphRequestStreaming(
         enableUrls: config.features?.urlCrawl !== false,
         enableWebSearch: !!webSearchQuery,
         enableDocQnA: config.features?.docQnA !== false,
-        usePrivacyMode: usePrivacyMode || false,
-        useProMode: requestData.useProMode || false,
         webSearchQuery,
         systemRole,
         constraints,
@@ -241,32 +235,14 @@ export async function processGraphRequestStreaming(
 
     const selection = selectProviderAndModel({
       type: routeType,
-      options: {
-        ...aiOptions,
-        useProMode: !!requestData.useProMode,
-        useUltraMode: !!requestData.useUltraMode,
-      },
+      // AIOptions carries provider/model via index signature; ProviderOptions is a weak type
+      options: aiOptions as ProviderOptions,
       metadata: {},
       env: process.env,
     });
 
     let effectiveProvider = selection.provider;
     let effectiveModel = selection.model;
-
-    // Privacy mode rotation
-    if (usePrivacyMode) {
-      try {
-        const { redisClient } = await import('../../utils/redis/index.js');
-        const privacyCounter = new PrivacyCounter(redisClient);
-        const userId = authReq.user?.id;
-        if (userId) {
-          const privacyProvider = await privacyCounter.getProviderForUser(userId);
-          effectiveProvider = privacyProvider as ProviderName;
-        }
-      } catch (privacyError) {
-        log.warn('[streaming] Privacy mode error, using default provider:', privacyError);
-      }
-    }
 
     // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {

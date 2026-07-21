@@ -1,22 +1,17 @@
 // Shared types for provider system
 
-export type ProviderName = 'ionos' | 'litellm' | 'mistral' | 'regolo';
+export type ProviderName = 'litellm' | 'mistral' | 'regolo';
 
 export type ModelName = string;
 
 export interface ProviderOptions {
   provider?: ProviderName | undefined;
   model?: ModelName | undefined;
-  useUltraMode?: boolean | undefined;
-  useProMode?: boolean | undefined;
-  privacyMode?: boolean | undefined;
-  disableExternalProviders?: boolean | undefined;
   explicitProvider?: ProviderName | undefined;
 }
 
 export interface RequestMetadata {
-  privacyMode?: boolean | undefined;
-  requiresPrivacy?: boolean | undefined;
+  [key: string]: unknown;
 }
 
 export interface ProviderResult {
@@ -24,7 +19,7 @@ export interface ProviderResult {
   model: ModelName;
 }
 
-export interface PrivacyProviderData {
+export interface FallbackProviderData {
   type?: string | undefined;
   options: ProviderOptions;
   [key: string]: unknown;
@@ -32,7 +27,7 @@ export interface PrivacyProviderData {
 
 export type ProviderExecutor = (
   providerName: ProviderName,
-  data: PrivacyProviderData
+  data: FallbackProviderData
 ) => Promise<ExecutionResponse>;
 
 export interface ExecutionResponse {
