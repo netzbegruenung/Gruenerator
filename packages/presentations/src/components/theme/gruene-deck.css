@@ -1,0 +1,359 @@
+/*
+ * Grünerator default deck theme. Styles live on `.gruene-slide` (the fixed
+ * 960×540 surface) so the SAME look applies in the editor canvas, in
+ * thumbnails, and inside a real reveal.js deck in present mode. Only a few
+ * rules are scoped to `.reveal.gruene-deck` for the reveal chrome (background,
+ * fonts, progress bar).
+ *
+ * Colours/fonts consume the app's CSS custom properties with hardcoded
+ * fallbacks — the fallbacks matter in the print/PDF window where the app's
+ * variables.css may not be loaded.
+ */
+
+.gruene-slide {
+  --deck-green: var(--primary-600, #316049);
+  --deck-klee: var(--primary-500, #52907a);
+  /* Deck brand accent — set inline by SlideSurface from the deck option. */
+  --deck-accent: var(--deck-green);
+  --deck-ink: var(--grey-800, #262a28);
+  --deck-paper: #ffffff;
+
+  position: relative;
+  box-sizing: border-box;
+  width: 960px;
+  height: 540px;
+  padding: 64px 72px;
+  background: var(--deck-paper);
+  color: var(--deck-ink);
+  font-family:
+    'PT Sans',
+    'Raleway',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 26px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.gruene-slide h1,
+.gruene-slide h2,
+.gruene-slide .gruene-slide__title {
+  font-family: 'Raleway', 'PT Sans', system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--deck-accent);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.gruene-slide__title {
+  font-size: 44px;
+}
+
+.gruene-slide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-size: 28px;
+}
+
+.gruene-slide__body ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gruene-slide__body ul li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 14px;
+}
+
+/* Accent dot bullet (matches the Präsentations-Editor design). */
+.gruene-slide__body ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--deck-accent);
+}
+
+.gruene-slide__body ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.gruene-slide__body ol li {
+  margin-bottom: 12px;
+}
+
+.gruene-slide__body p {
+  margin: 0 0 0.5em;
+}
+
+.gruene-slide__body a {
+  color: var(--deck-klee);
+}
+
+.gruene-slide__body img {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* ── Dark surfaces (custom dark bg, or title/quote defaults) ─────────────── */
+/* Text colour is driven by `.is-dark` (computed from the resolved background),
+ * NOT hardcoded per layout, so a custom light background on a title slide still
+ * reads correctly and a dark background on a content slide flips the text. */
+.gruene-slide.is-dark {
+  color: #ffffff;
+}
+.gruene-slide.is-dark h2,
+.gruene-slide.is-dark .gruene-slide__title {
+  color: #ffffff;
+}
+.gruene-slide.is-dark .gruene-slide__body {
+  color: rgba(255, 255, 255, 0.92);
+}
+.gruene-slide.is-dark .gruene-slide__body ul li::before {
+  background: #a9d3be;
+}
+.gruene-slide.is-dark .gruene-slide__body a,
+.gruene-slide.is-dark .gruene-slide__input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Layout presets (background comes from SlideSurface) ─────────────────── */
+
+/* Title. v0 Klassisch = centered; v1 Geteilt = left text + accent side panel;
+ * v2 Sand = left text with a short accent bar on top. */
+.gruene-slide.layout-title .gruene-slide__title {
+  font-size: 56px;
+}
+.gruene-slide.layout-title .gruene-slide__body {
+  flex: 0 0 auto;
+}
+.gruene-slide.layout-title.variant-0 {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.gruene-slide.layout-title.variant-1 {
+  align-items: flex-start;
+  justify-content: center;
+  padding-right: 42%;
+}
+.gruene-slide.layout-title.variant-1 .gruene-slide__side {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 36%;
+  background: var(--deck-accent);
+}
+.gruene-slide.layout-title.variant-2 {
+  align-items: flex-start;
+  justify-content: center;
+}
+.gruene-slide.layout-title .gruene-slide__bar {
+  width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--deck-accent);
+  flex: none;
+  margin-bottom: 4px;
+}
+
+/* Quote. v0 = left aligned; v1 = centered. Accent left rule (light on dark). */
+.gruene-slide.layout-quote {
+  justify-content: center;
+}
+.gruene-slide.layout-quote.variant-1 {
+  align-items: center;
+  text-align: center;
+}
+.gruene-slide.layout-quote .gruene-slide__body {
+  flex: 0 0 auto;
+  font-size: 34px;
+  font-style: italic;
+  border-left: 6px solid var(--deck-accent);
+  padding-left: 28px;
+}
+.gruene-slide.layout-quote.is-dark .gruene-slide__body {
+  border-left-color: #a9d3be;
+}
+.gruene-slide.layout-quote.variant-1 .gruene-slide__body {
+  border-left: none;
+  padding-left: 0;
+}
+
+/* Content variants. v0 Liste = accent dot bullets (default). v1 Karten =
+ * two-column cards. v2 Nummeriert = numbered accent circles. */
+.gruene-slide.layout-content.variant-1 .gruene-slide__body ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-content: start;
+}
+.gruene-slide.layout-content.variant-1 .gruene-slide__body ul li {
+  margin: 0;
+  padding: 18px 20px;
+  background: #f0f5f2;
+  border-radius: 12px;
+}
+.gruene-slide.layout-content.variant-1 .gruene-slide__body ul li::before {
+  display: none;
+}
+.gruene-slide.is-dark.layout-content.variant-1 .gruene-slide__body ul li {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gruene-slide.layout-content.variant-2 .gruene-slide__body ul {
+  counter-reset: gs-num;
+}
+.gruene-slide.layout-content.variant-2 .gruene-slide__body ul li {
+  counter-increment: gs-num;
+  padding-left: 46px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+}
+.gruene-slide.layout-content.variant-2 .gruene-slide__body ul li::before {
+  content: counter(gs-num);
+  width: 30px;
+  height: 30px;
+  top: 0;
+  border-radius: 999px;
+  background: #eaf2ee;
+  color: var(--deck-accent);
+  font-family: 'Raleway', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gruene-slide.is-dark.layout-content.variant-2 .gruene-slide__body ul li::before {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+/* Split: title top, body in two columns. */
+.gruene-slide.layout-split .gruene-slide__body {
+  column-count: 2;
+  column-gap: 48px;
+}
+
+/* Image. v0 Groß = title on top, image fills below. v1 Geteilt = title left,
+ * image right. */
+.gruene-slide.layout-image .gruene-slide__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gruene-slide.layout-image .gruene-slide__body img {
+  max-height: 380px;
+}
+.gruene-slide.layout-image.variant-1 {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 36px;
+}
+.gruene-slide.layout-image.variant-1 .gruene-slide__title {
+  width: 34%;
+  flex: none;
+  align-self: center;
+}
+.gruene-slide.layout-image.variant-1 .gruene-slide__body {
+  flex: 1;
+}
+
+/* Code: monospace block on a dark panel. */
+.gruene-slide.layout-code .gruene-slide__body,
+.gruene-slide.layout-code .gruene-slide__code {
+  flex: 1 1 auto;
+  min-height: 0;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 20px;
+  line-height: 1.45;
+  background: #1e2420;
+  color: #e8efe9;
+  border-radius: 8px;
+  padding: 20px 24px;
+  overflow: auto;
+  white-space: pre;
+}
+.gruene-slide.layout-code pre {
+  margin: 0;
+}
+
+/* Editable fields reuse the surface typography but drop input chrome. */
+.gruene-slide__input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  resize: none;
+  padding: 0;
+}
+.gruene-slide__input::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+.gruene-slide.layout-title .gruene-slide__input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── WYSIWYG editing surfaces (TipTap body + contentEditable title) ───────── */
+
+/* The EditorContent wrapper must not break the slide's flex column — its child
+ * (the `.gruene-slide__body` ProseMirror element) is the real body box. */
+.gruene-slide__editor {
+  display: contents;
+}
+.gruene-slide__body.ProseMirror:focus,
+.gruene-slide__title:focus {
+  outline: none;
+}
+
+/* Empty-state placeholder for the inline title (a truly-empty contentEditable). */
+.gruene-slide__title[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+.gruene-slide.layout-title .gruene-slide__title[contenteditable]:empty::before,
+.gruene-slide.is-dark .gruene-slide__title[contenteditable]:empty::before {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── reveal.js chrome (present mode only) ────────────────────────────────── */
+
+.reveal.gruene-deck {
+  background: var(--grey-100, #f2f4f3);
+  font-family: 'PT Sans', 'Raleway', system-ui, sans-serif;
+}
+.reveal.gruene-deck .slides section {
+  padding: 0;
+}
+.reveal.gruene-deck .progress {
+  color: var(--primary-500, #52907a);
+}
+.reveal.gruene-deck .controls {
+  color: var(--primary-600, #316049);
+}
+/* Overview: reveal's base rule leaves non-current sections at display:none, so
+ * with this deck's React-rendered <section>s every slide but the active one
+ * collapses to 0×0 and shows blank in the grid. reveal's overview CSS forces
+ * opacity/visibility but never display — so force it here. */
+.reveal.gruene-deck.overview .slides > section {
+  display: block !important;
+}

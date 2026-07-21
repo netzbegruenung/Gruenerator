@@ -11,6 +11,18 @@
  *   Tier 4: LLM classification (full context)
  */
 
+import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
+import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
+import {
+  McpServerRegistry,
+  type McpClassifierServer,
+} from '../../../../services/mcp/McpServerRegistry.js';
+import {
+  DE_ONLY_SYSTEM_INTENTS,
+  SYSTEM_MCP_INTENTS,
+  isSystemIntentAvailable,
+} from '../../../../services/mcp/systemMcpServers.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -33,11 +45,20 @@ import {
   looksMultiTopic,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
+  detectSocialPlatform,
+  resolveSocialPostEscape,
+  nounNearCreateVerb,
+  NOUN_TRIGGER_MAX_LENGTH,
+  SOCIAL_BARE_NOUN_PATTERN,
+  SOCIAL_META_QUESTION_PATTERN,
+  SHAREPIC_NOUN_PATTERN,
+  SHAREPIC_INCLUSION_PATTERN,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
   detectComplexity,
   detectSearchSources,
+  CHAT_HISTORY_KEYWORDS,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -46,6 +67,21 @@ import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
+/** Heuristic verdicts eligible for loop demotion (Tier 3.5): the retrieval
+ *  family only — every member is in AGENTIC_INTENTS and none is platform-
+ *  gated. Generation intents (sharepic, social_post, image, ...) and
+ *  interrupt/confirm intents must keep the LLM tier so their gates, HITL and
+ *  fixed UX contracts stay intact. */
+const DEMOTABLE_HEURISTIC_INTENTS: ReadonlySet<string> = new Set([
+  'search',
+  'web',
+  'examples',
+  'pressemitteilung_examples',
+  'compare',
+  'abgeordnetenwatch',
+  'bundestag',
+]);
+
 // Content-creation agent (öffentlichkeitsarbeit) routing heuristics.
 // Module-scope so V8 doesn't recompile per classification call. Hoisted out
 // of the override block where they were originally inlined.
@@ -53,8 +89,6 @@ const PM_NOUN_PATTERN =
   /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
 const SOCIAL_NOUN_PATTERN =
   /\b(post|tweet|tweete|tweeten|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
-const INSTAGRAM_PATTERN = /\b(instagram|insta|reel|story)\b/i;
-const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
 
 /**
  * Public classifier node — wraps the inner implementation with multi-document
@@ -65,6 +99,28 @@ const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
  * Kept as a wrapper so the inner classifier's many return paths stay focused
  * on intent/query/filters and don't each have to remember the doc-source plumbing.
  */
+// Conservative prose routing for connected MCP servers: fire only when the
+// message both names a connected service AND carries an imperative action shape,
+// so statements ("Ich finde Notion super") never trigger a write-capable tool
+// loop. Deliberately excludes opinion-/question-prone stems (finde, frag, welche)
+// that read as commentary rather than a command.
+const MCP_ACTION_PATTERN =
+  /(?<![\p{L}])(erstell\w*|leg\w*|f(?:ü|ue)g\w*|hinzu|aktualisier\w*|(?:ä|ae)nder\w*|l(?:ö|oe)sch\w*|entfern\w*|hol\w*|zeig\w*|list\w*|such\w*|send\w*|schick\w*|abruf\w*|abfrag\w*|(?:ö|oe)ffn\w*|starte?|wie\s+viele?|gib\s+mir)/iu;
+
+/**
+ * Returns the id of the single connected server named in the message, or null.
+ * Word-boundary match on the server name (so "Brevo-Kampagne" matches "Brevo");
+ * the caller gates on MCP_ACTION_PATTERN. Ambiguous (≥2 named) → null.
+ */
+function matchMcpServerByName(userContent: string, servers: McpClassifierServer[]): string | null {
+  const hits = servers.filter((srv) => {
+    const name = srv.name.trim();
+    if (name.length < 3) return false;
+    return new RegExp(`(?<![\\p{L}])${escapeRegExp(name)}(?![\\p{L}])`, 'iu').test(userContent);
+  });
+  return hits.length === 1 ? hits[0]!.id : null;
+}
+
 export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const result = await classifierNodeImpl(state);
 
@@ -98,6 +154,54 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'compare';
   }
 
+  // Abgeordnetenwatch covers German parliaments only (Bundestag/Landtage), not
+  // the Austrian Nationalrat. For de-AT users never route here — fall back to
+  // web so the question still gets answered instead of returning empty data.
+  if (intent === 'abgeordnetenwatch' && state.userLocale === 'de-AT') {
+    log.info('[Classifier] abgeordnetenwatch downgraded to web for de-AT locale (DE-only source)');
+    intent = 'web';
+  }
+
+  // Same DE-only rule for the Bundestag DIP: it covers the Deutsche Bundestag
+  // only, never the Austrian Nationalrat — downgrade to web for de-AT users.
+  if (intent === 'bundestag' && state.userLocale === 'de-AT') {
+    log.info('[Classifier] bundestag downgraded to web for de-AT locale (DE-only source)');
+    intent = 'web';
+  }
+
+  // Conservative MCP guard: the LLM tier can return `mcp` but can't name a
+  // concrete connected server. Only the deterministic name-match tier (which
+  // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
+  // in the router) may run the write-capable tool loop. An unscoped prose `mcp`
+  // would risk acting on the wrong server, so downgrade it to direct.
+  if (intent === 'mcp' && !result.mcpServerScope) {
+    log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');
+    intent = 'direct';
+  }
+
+  // Downgrades to `web` must carry a query: system intents sit in
+  // NON_SEARCH_INTENTS, so the parse nulled searchQuery — an un-backfilled
+  // downgrade would run the web search on the empty string.
+  let downgradedSearchQuery: string | null = null;
+
+  // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
+  // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
+  if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
+    log.info(`[Classifier] ${intent} downgraded to web for de-AT locale (DE-only source)`);
+    intent = 'web';
+    downgradedSearchQuery = userText;
+  }
+
+  // System MCP sources are env-gated: without the deploy env URL the intent has
+  // no tools behind it — degrade so the question still gets answered (wetter/
+  // news → web has a chance; a live train query without the source doesn't).
+  if (intent && SYSTEM_MCP_INTENTS.has(intent) && !isSystemIntentAvailable(intent)) {
+    const fallback = intent === 'bahn' ? 'direct' : 'web';
+    log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
+    intent = fallback;
+    if (fallback === 'web') downgradedSearchQuery = userText;
+  }
+
   // ── URL context: pasted link(s) → additive scrape_url step ──
   // When the active agent has scraping enabled and the message contains URL(s),
   // crawl them so the page content becomes context. Additive, not exclusive:
@@ -113,11 +217,18 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     scrapeWhitelist.includes('scrape') ||
     scrapeWhitelist.includes('scrape_url');
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
-  const detectedUrls = scrapeEnabled ? extractUrls(userText) : [];
+  // @web-attached URLs are explicit user intent — union them with auto-detected
+  // ones (deduped, attached first so they rank highest in scrape_url).
+  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  const detectedUrls = scrapeEnabled
+    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    : [];
   if (detectedUrls.length > 0) {
     if (!intent || intent === 'direct') {
       intent = 'scrape_url';
-    } else if (!secondaryIntent && intent !== 'scrape_url') {
+    } else if (!secondaryIntent && intent !== 'scrape_url' && intent !== 'agentic') {
+      // 'agentic' turns keep secondary null: the loop has its own scrape_url
+      // tool, and a secondary would kick the turn out of the loop (routing.ts).
       secondaryIntent = 'scrape_url';
     }
     log.info(
@@ -130,6 +241,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   return {
     ...result,
     intent: intent ?? result.intent,
+    ...(downgradedSearchQuery != null && !result.searchQuery
+      ? { searchQuery: downgradedSearchQuery }
+      : {}),
     secondaryIntent,
     detectedUrls,
     documentSources,
@@ -580,17 +694,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const wantsPm = PM_NOUN_PATTERN.test(userContent);
       const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
       if (wantsPm || wantsSocial) {
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'examples';
+        // Social-only prompts route to the EXPERIMENTAL combined post (text +
+        // sharepic) unless an escape hatch ("nur Text", "nur Sharepic")
+        // applies. Mixed PM+social prompts keep the dual-search behavior.
+        const socialIntent: SearchIntent = resolveSocialPostEscape(userContent) ?? 'social_post';
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : socialIntent;
         const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
-        // Platform hint for the social composer: Insta vs FB. Heuristic-only;
-        // the social_media_examples Qdrant collection contains exactly these
-        // two platforms, so detecting more would be misleading. Null when
-        // unspecified → composer falls back to the combined rubric.
-        const platform: 'instagram' | 'facebook' | null = INSTAGRAM_PATTERN.test(userContent)
-          ? 'instagram'
-          : FACEBOOK_PATTERN.test(userContent)
-            ? 'facebook'
-            : null;
+        // Platform hint for the social composer/generator. Null when
+        // unspecified → generic rubric.
+        const platform = detectSocialPlatform(userContent);
         log.info(
           `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
         );
@@ -636,10 +748,119 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Bundestag agent is a dedicated DIP research assistant: selecting it means
+    // the user wants Bundestag document/speech research. enabledTools only gates
+    // which tools are allowed, it does not force the intent, so bare topic
+    // prompts otherwise fall through to `direct` and never reach the bundestag
+    // search branch. Force it here — except obvious meta/help questions. de-AT
+    // never reaches this (agent is de-DE only; downgrade guard above also covers it).
+    const isBundestagAgent = state.agentConfig.identifier === 'gruenerator-bundestag';
+    if (
+      isBundestagAgent &&
+      state.userLocale !== 'de-AT' &&
+      userContent.length >= 10 &&
+      !looksLikeMetaQuestion
+    ) {
+      log.info(
+        `[Classifier] Bundestag agent (${state.agentConfig.identifier}) active → forcing bundestag intent`
+      );
+      return {
+        intent: 'bundestag',
+        searchSources: [],
+        searchQuery: extractSearchTopic(userContent) || userContent,
+        detectedFilters: null,
+        reasoning: 'Bundestag agent selected — routing to DIP research',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // EXPERIMENTAL per-server MCP prose routing: when the user names one of their
+    // connected external services alongside an action ("erstelle eine Brevo-
+    // Kampagne"), scope the tool-loop to that server — without needing an explicit
+    // @-mention. Conservative by construction: only connected servers are known,
+    // and only a name + action verb fires (see matchMcpServerByName). Runs before
+    // the social-post block so "Brevo-Kampagne" isn't misrouted to social_post.
+    // Gate the DB/cache lookup behind the cheap action-verb regex so the
+    // overwhelmingly common no-action message never touches the servers table.
+    const mcpUserId = state.agentConfig?.userId;
+    if (mcpUserId && userContent.length >= 8 && MCP_ACTION_PATTERN.test(userContent)) {
+      const servers = await McpServerRegistry.getClassifierContext(mcpUserId).catch(() => []);
+      const scopedServerId = matchMcpServerByName(userContent, servers);
+      if (scopedServerId) {
+        log.info('[Classifier] MCP prose routing → mcp intent', { scope: scopedServerId });
+        return {
+          intent: 'mcp',
+          mcpServerScope: scopedServerId,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'Connected MCP service named with an action — routing to tool loop',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
+    // EXPERIMENTAL combined social post — for ALL users, not just
+    // content-creation agents: a social-post creation request yields text +
+    // sharepic variants in one turn. Requires a bare noun-phrase shape
+    // ("Instagram-Post zu Tempo 30", ^-anchored, so valid even before a long
+    // paste) or a creation verb NEAR a social noun in a short message —
+    // "schreibe eine Produktvorstellung … [Paste erwähnt Instagram]" must not
+    // pair the instruction's verb with a noun inside pasted material.
+    // Questions and example-browsing never create. Explicit sharepic wording
+    // ("Sharepic für Instagram") keeps the shipped sharepic-only flow, "nur
+    // Text" the examples flow — both via resolveSocialPostEscape. PM prompts
+    // keep their own routes (handled above for agents, LLM tier otherwise).
+    const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
+    const looksLikeSocialCreation =
+      SOCIAL_NOUN_PATTERN.test(userContent) &&
+      !PM_NOUN_PATTERN.test(userContent) &&
+      !SOCIAL_META_QUESTION_PATTERN.test(userContent) &&
+      !looksLikeMetaQuestion &&
+      (SOCIAL_BARE_NOUN_PATTERN.test(userContent) ||
+        (!isLongPaste && nounNearCreateVerb(userContent, SOCIAL_NOUN_PATTERN)));
+    if (looksLikeSocialCreation && userContent.length >= 10) {
+      if (
+        SHAREPIC_NOUN_PATTERN.test(userContent) &&
+        !SHAREPIC_INCLUSION_PATTERN.test(userContent)
+      ) {
+        // "Sharepic für Instagram" — let the heuristic/LLM tiers route to the
+        // sharepic intent as before this feature. Inclusion phrasing
+        // ("Post mit Sharepic") stays here: it's the explicit combined ask.
+        log.info('[Classifier] Social creation with explicit sharepic wording — deferring');
+      } else {
+        const escape = resolveSocialPostEscape(userContent);
+        const intent: SearchIntent = escape ?? 'social_post';
+        const platform = detectSocialPlatform(userContent);
+        log.info(
+          `[Classifier] Social post creation → ${intent}${platform ? ` (platform=${platform})` : ''}${escape ? ' via escape hatch' : ''}`
+        );
+        return {
+          intent,
+          platform,
+          searchSources: [],
+          searchQuery: extractSearchTopic(userContent) || userContent,
+          detectedFilters: null,
+          reasoning: escape
+            ? `Social post request with "${escape}" escape hatch`
+            : 'Social post creation — combined text + sharepic (experimental)',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
-      const result = heuristicClassify(userContent);
+      const result = heuristicClassify(userContent, {
+        hasTabularAttachment: state.hasTabularAttachment ?? false,
+      });
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
@@ -656,7 +877,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     }
 
     // Try heuristics first - check confidence
-    const heuristic = heuristicClassify(userContent);
+    const heuristic = heuristicClassify(userContent, {
+      hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
 
     // Penalize confidence for multi-topic search queries → forces LLM decomposition
     const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
@@ -716,6 +939,33 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // ── TIER 3.5: Loop demotion ──
+    // A low-confidence but TOOLABLE verdict skips the LLM call (~800ms) and
+    // hands the turn to the agentic loop, whose model picks the tools itself.
+    // Only retrieval-shaped intents demote — generation/platform-gated intents
+    // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
+    // LLM tier so their gates/HITL/routing stay intact.
+    const demotable =
+      isAgenticLoopEnabled() &&
+      (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
+        (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
+      !CHAT_HISTORY_KEYWORDS.test(userContent);
+    if (demotable) {
+      log.info(
+        `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
+      );
+      return {
+        intent: 'agentic',
+        searchSources: detectSearchSources(userContent, heuristic.intent),
+        searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
+        detectedFilters: heuristicExtractFilters(userContent),
+        reasoning: `Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} below threshold`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 4: LLM classification ──
     log.debug(
       `[Classifier] Low heuristic confidence (${heuristic.confidence.toFixed(2)}), using LLM`
@@ -763,6 +1013,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     return {
       intent: classification.intent,
       secondaryIntent: classification.secondaryIntent || null,
+      // The LLM JSON schema carries no platform field — recover it here so
+      // social asks that miss the fast path (long paste, verbose phrasing)
+      // still get the platform-specific composer rubric.
+      platform: classification.intent === 'social_post' ? detectSocialPlatform(userContent) : null,
       searchSources: llmSearchSources,
       searchQuery: classification.searchQuery?.slice(0, 500) || null,
       subQueries: classification.subQueries || null,
@@ -786,7 +1040,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
     const userContent = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '';
 
-    const fallbackResult = heuristicClassify(userContent);
+    const fallbackResult = heuristicClassify(userContent, {
+      hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
 
     return {
       intent: fallbackResult.intent,

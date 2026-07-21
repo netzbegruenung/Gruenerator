@@ -40,19 +40,36 @@ jobs:
         id: sync
         continue-on-error: true
         run: |
-          ARGS="--source social-media"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
-          pnpm --filter @gruenerator/api run update:all -- $ARGS
+          FORCE=false
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
+          DRY_RUN=false
+          if [ "${{ inputs.dry_run }}" = "true" ]; then DRY_RUN=true; fi
+
+          BODY=$(jq -nc --argjson force $FORCE --argjson dryRun $DRY_RUN \
+            '{forceUpdate: $force, dryRun: $dryRun}')
+
+          echo "POST $CONTENT_SYNC_API_URL/api/internal/content-sync/source/social-media ($BODY)"
+          RESPONSE=$(curl -s -w '\n%{http_code}' -X POST \
+            "$CONTENT_SYNC_API_URL/api/internal/content-sync/source/social-media" \
+            -H "x-admin-token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
+            -d "$BODY" --max-time 3300)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "$RESPONSE_BODY" | jq . 2>/dev/null || echo "$RESPONSE_BODY"
+
+          WRAP_FLAGS="--id social-media --http-code $HTTP_CODE"
+          if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
+          if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
+          echo "$RESPONSE_BODY" | pnpm --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+            > "$GITHUB_WORKSPACE/sync-summary.json"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Sync failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
         env:
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
       - name: Generate job summary
         if: always()
@@ -83,14 +100,13 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: pnpm --filter @gruenerator/api run stats:content
+        run: |
+          curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
+            "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
+            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
         env:
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
-          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
-          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
-          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
 
       - name: Create PR for stats page update
         if: always()

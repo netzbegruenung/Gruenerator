@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildFileSetup, isTabularFile, isXlsx, isLegacySpreadsheet } from './spreadsheetSetup';
+import { buildFileSetup, isTabularFile, isXlsx, isXls } from './spreadsheetSetup';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const XLS_MIME = 'application/vnd.ms-excel';
@@ -25,28 +25,48 @@ describe('isXlsx', () => {
 });
 
 describe('buildFileSetup', () => {
-  it('reads .xlsx via read_excel', () => {
-    expect(buildFileSetup('umsatz.xlsx', XLSX_MIME)).toBe(
-      'import pandas as pd\ndf = pd.read_excel("umsatz.xlsx")'
-    );
+  it('reads .xlsx with ALL sheets, cleaned, df = first sheet', () => {
+    const setup = buildFileSetup('umsatz.xlsx', XLSX_MIME);
+    expect(setup).toContain('pd.read_excel("umsatz.xlsx", sheet_name=None)');
+    // Every sheet runs through the aggregate-row guard.
+    expect(setup).toContain('def _gruen_clean(');
+    expect(setup).toContain('sheets[_gruen_n] = _gruen_clean(');
+    // Backward compatible: df stays the first (workbook-order) sheet.
+    expect(setup).toContain('df = sheets[next(iter(sheets))]');
+    // Multi-sheet workbooks announce their sheet map into stdout → card.
+    expect(setup).toContain('Arbeitsmappe mit');
   });
 
-  it('reads CSV with separator sniffing', () => {
-    expect(buildFileSetup('data.csv', 'text/csv')).toBe(
-      "import pandas as pd\ndf = pd.read_csv(\"data.csv\", sep=None, engine='python')"
-    );
+  it('reads CSV with separator sniffing, encoding fallback and German-number normalization', () => {
+    const setup = buildFileSetup('data.csv', 'text/csv');
+    // Separator sniffing for German `;`-CSVs.
+    expect(setup).toContain("sep=None, engine='python'");
+    // Encoding fallback chain: BOM-tolerant UTF-8 first, then cp1252 (Excel).
+    expect(setup).toContain("'utf-8-sig', 'cp1252'");
+    // Decimal-comma columns ("1.234,56") get converted to floats.
+    expect(setup).toContain('pd.to_numeric');
+    // Loaded df goes through the trailing-aggregate-row guard (GESAMT rows).
+    expect(setup).toContain('_gruen_clean(_gruen_load_csv("data.csv"))');
+    // The exact runtime behavior is covered by the Pyodide integration suite
+    // (runCore.integration.vitest.ts) against real pandas.
   });
 
-  it('rejects legacy .xls and .ods with a clear hint (no read call)', () => {
-    for (const [name, mime] of [
-      ['alt.xls', XLS_MIME],
-      ['tabelle.ods', ODS_MIME],
-    ] as const) {
-      const setup = buildFileSetup(name, mime);
-      expect(setup).toContain('RuntimeError');
-      expect(setup).not.toContain('read_excel');
-      expect(setup).not.toContain('read_csv');
-    }
+  it('reads legacy .xls via the same multi-sheet path', () => {
+    const setup = buildFileSetup('alt.xls', XLS_MIME);
+    expect(setup).toContain('pd.read_excel("alt.xls", sheet_name=None)');
+    expect(setup).toContain('df = sheets[next(iter(sheets))]');
+  });
+
+  it('keeps the guard snippet free of typographic characters (sanitizer gotcha)', () => {
+    // NBSP / smart quotes in the embedded Python would be a SyntaxError at
+    // runtime. Built from code points because literal typographic characters
+    // get silently normalized by editors/models - the exact failure mode
+    // this test guards against.
+    const typographic = new RegExp(
+      `[${String.fromCharCode(0x00a0, 0x202f, 0x200b, 0x201c, 0x201d, 0x201e, 0x2018, 0x2019)}]`
+    );
+    const setup = buildFileSetup('umsatz.xlsx', XLSX_MIME);
+    expect(setup).not.toMatch(typographic);
   });
 
   it('escapes odd file names safely into the Python literal', () => {
@@ -61,16 +81,18 @@ describe('isTabularFile (composer capture gate)', () => {
     expect(isTabularFile('x.xls', XLS_MIME)).toBe(true);
   });
 
-  it('ignores unrelated attachments', () => {
+  it('ignores unrelated attachments and unsupported .ods', () => {
     expect(isTabularFile('foto.png', 'image/png')).toBe(false);
     expect(isTabularFile('brief.pdf', 'application/pdf')).toBe(false);
+    // .ods has no offline pandas engine (odfpy ships no wheel) — treated as a
+    // normal document, not captured for the interpreter.
+    expect(isTabularFile('tabelle.ods', ODS_MIME)).toBe(false);
   });
 });
 
-describe('isLegacySpreadsheet', () => {
-  it('flags .xls and .ods only', () => {
-    expect(isLegacySpreadsheet('a.xls', XLS_MIME)).toBe(true);
-    expect(isLegacySpreadsheet('a.ods', ODS_MIME)).toBe(true);
-    expect(isLegacySpreadsheet('a.xlsx', XLSX_MIME)).toBe(false);
+describe('isXls', () => {
+  it('flags .xls by extension and MIME, not .xlsx', () => {
+    expect(isXls('a.xls', XLS_MIME)).toBe(true);
+    expect(isXls('a.xlsx', XLSX_MIME)).toBe(false);
   });
 });

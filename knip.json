@@ -3,7 +3,8 @@
   "workspaces": {
     "apps/web": {
       "entry": ["src/index.tsx!", "src/config/routes.ts", "vite.config.ts"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["vite-bundle-analyzer"]
     },
     "apps/api": {
       "entry": ["server.ts!"],

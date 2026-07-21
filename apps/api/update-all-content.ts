@@ -30,15 +30,18 @@
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { Mistral } from '@mistralai/mistralai';
 
 import { env } from './config/env.js';
-import { getSourcesByLandesverband } from './config/landesverbaendeConfig.js';
+import {
+  getSourcesByLandesverband,
+  loadLandesverbandContacts,
+} from './config/landesverbaendeConfig.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
+import { getAbgeordnetenwatchScraperService } from './services/scrapers/implementations/AbgeordnetenwatchScraper/index.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
 import { gruenblogScraperService } from './services/scrapers/implementations/GruenblogScraper.js';
@@ -99,20 +102,6 @@ function parseArgs(): CliArgs {
   }
 
   return result;
-}
-
-function loadLandesverbandContacts(): Record<string, string> {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const contactsPath = path.join(here, 'config', 'landesverbaendeContacts.json');
-  try {
-    const raw = readFileSync(contactsPath, 'utf-8');
-    return JSON.parse(raw) as Record<string, string>;
-  } catch (err) {
-    console.warn(
-      `Could not load ${contactsPath} (${err instanceof Error ? err.message : err}); falling back to CONTENT_SYNC_EMAIL`
-    );
-    return {};
-  }
 }
 
 interface SourceGroup {
@@ -176,6 +165,30 @@ const SOURCE_GROUPS: SourceGroup[] = [
         skipped: result.skipped,
         fetchErrors,
         errors: Math.max(0, result.errors - fetchErrors),
+      };
+    },
+  },
+  {
+    id: 'abgeordnetenwatch',
+    name: 'Abgeordnetenwatch (Abstimmungen + Nebentätigkeiten)',
+    // Full backfill enriches ~1,900 Abstimmungen with one votes-call each
+    // (Grünen stance) at the fair-use limit → allow up to ~90 min. `--recent`
+    // runs are minutes (current-legislature polls + newest sidejobs only).
+    timeoutMs: 90 * 60 * 1000,
+    async run(args) {
+      const service = getAbgeordnetenwatchScraperService();
+      await service.init();
+      const result = await service.scrapeAllSources({
+        forceUpdate: args.force,
+        recent: args.recent,
+        dryRun: args.dryRun,
+      });
+      return {
+        stored: result.stored,
+        updated: result.updated,
+        skipped: result.skipped,
+        fetchErrors: result.fetchErrors,
+        errors: result.errors,
       };
     },
   },

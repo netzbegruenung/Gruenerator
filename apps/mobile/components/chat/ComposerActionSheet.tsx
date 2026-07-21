@@ -8,7 +8,6 @@ import {
   type ComposerToolIconKey,
   type SearchDepthIconKey,
 } from '@gruenerator/chat';
-import { QWEN_WARNING } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback } from 'react';
 import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
@@ -45,6 +44,8 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onPickFile: () => void;
+  onPickImage?: () => void;
+  onTakePhoto?: () => void;
   onOpenDocBrowser?: () => void;
 }
 
@@ -52,6 +53,8 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   visible,
   onClose,
   onPickFile,
+  onPickImage,
+  onTakePhoto,
   onOpenDocBrowser,
 }: Props) {
   const theme = useTheme();
@@ -73,6 +76,16 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     onPickFile();
   }, [onClose, onPickFile]);
 
+  const handlePickImage = useCallback(() => {
+    onClose();
+    onPickImage?.();
+  }, [onClose, onPickImage]);
+
+  const handleTakePhoto = useCallback(() => {
+    onClose();
+    onTakePhoto?.();
+  }, [onClose, onTakePhoto]);
+
   const handleOpenDocBrowser = useCallback(() => {
     onClose();
     onOpenDocBrowser?.();
@@ -93,6 +106,30 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
             <Ionicons name="attach-outline" size={22} color={colors.primary[600]} />
             <Text style={[styles.actionLabel, { color: theme.text }]}>Datei</Text>
           </Pressable>
+          {onPickImage && (
+            <Pressable
+              onPress={handlePickImage}
+              style={({ pressed }) => [
+                styles.actionCard,
+                { backgroundColor: pressed ? theme.border : theme.surface },
+              ]}
+            >
+              <Ionicons name="image-outline" size={22} color={colors.primary[600]} />
+              <Text style={[styles.actionLabel, { color: theme.text }]}>Foto</Text>
+            </Pressable>
+          )}
+          {onTakePhoto && (
+            <Pressable
+              onPress={handleTakePhoto}
+              style={({ pressed }) => [
+                styles.actionCard,
+                { backgroundColor: pressed ? theme.border : theme.surface },
+              ]}
+            >
+              <Ionicons name="camera-outline" size={22} color={colors.primary[600]} />
+              <Text style={[styles.actionLabel, { color: theme.text }]}>Kamera</Text>
+            </Pressable>
+          )}
           {onOpenDocBrowser && (
             <Pressable
               onPress={handleOpenDocBrowser}
@@ -229,16 +266,6 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 >
                   {model.description}
                 </Text>
-                {model.region === 'cn' && (
-                  <Text
-                    style={[
-                      styles.modelChipWarningText,
-                      { color: active ? colors.white : colors.warning },
-                    ]}
-                  >
-                    {QWEN_WARNING}
-                  </Text>
-                )}
               </Pressable>
             );
           })}
@@ -312,10 +339,5 @@ const styles = StyleSheet.create({
   },
   modelChipDesc: {
     fontSize: 11,
-  },
-  modelChipWarningText: {
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 2,
   },
 });

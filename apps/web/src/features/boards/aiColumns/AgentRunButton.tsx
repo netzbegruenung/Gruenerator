@@ -5,6 +5,7 @@
 import { Button } from '@gruenerator/ui';
 import { FiZap } from 'react-icons/fi';
 
+import { CardAutomationSection } from './CardAutomationSection';
 import { OUTPUT_UI, PRESET_UI, SOURCE_UI } from './catalog';
 import { buildCardContext, getCardAiTask } from './helpers';
 import { useAgentRun } from './useAgentRun';
@@ -70,6 +71,13 @@ export function AgentRunButton({ boardId, row, fields }: AgentRunButtonProps) {
         <FiZap className="mr-1.5" size={13} />
         {isRunning ? 'Wird gestartet…' : 'Grünerator-Agent starten'}
       </Button>
+
+      <CardAutomationSection
+        boardId={boardId}
+        cardId={row.id}
+        flow={aiTask}
+        cardContext={buildCardContext(row, fields, aiTask)}
+      />
     </div>
   );
 }

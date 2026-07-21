@@ -53,7 +53,7 @@ const GroupMembersList = ({
     <div className="sticky top-0 z-10 bg-background-pure flex items-center justify-between py-xs -mx-sm px-sm">
       <h4 className="flex items-center gap-sm text-xs font-medium uppercase tracking-wide text-grey-500 m-0">
         <HiUsers className="text-base text-primary-500" />
-        Gruppenmitglieder{members && members.length > 0 ? ` (${members.length})` : ''}
+        Space-Mitglieder{members && members.length > 0 ? ` (${members.length})` : ''}
       </h4>
     </div>
   );
@@ -87,7 +87,7 @@ const GroupMembersList = ({
         {header}
         <div className="text-xs text-grey-500 italic">
           <p>
-            {onlineOnly ? 'Aktuell ist niemand online.' : 'Noch keine Mitglieder in dieser Gruppe.'}
+            {onlineOnly ? 'Aktuell ist niemand online.' : 'Noch keine Mitglieder in dieser Space.'}
           </p>
         </div>
       </div>

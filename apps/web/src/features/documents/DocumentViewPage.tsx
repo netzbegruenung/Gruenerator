@@ -1,18 +1,10 @@
+import { type DocumentContent } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
-import apiClient from '../../components/utils/apiClient';
-
-interface DocumentData {
-  title: string;
-  filename: string;
-  page_count?: number;
-  status: string;
-  created_at: string;
-  ocr_text?: string;
-}
 
 const DocumentViewPage = () => {
   const { documentId } = useParams();
@@ -22,18 +14,16 @@ const DocumentViewPage = () => {
     data: document,
     isLoading,
     error,
-  } = useQuery<DocumentData, Error>({
+  } = useQuery<DocumentContent, Error>({
     queryKey: ['document-content', documentId],
     queryFn: async () => {
-      const response = await apiClient.get<{
-        success: boolean;
-        data: DocumentData;
-        message?: string;
-      }>(`/documents/${documentId}/content`);
-      if (!response.data.success) {
-        throw new Error(response.data.message ?? 'Fehler beim Laden des Dokuments');
+      const res = await getContractsClient().documents.getContent({
+        params: { id: documentId ?? '' },
+      });
+      if (res.status !== 200) {
+        throw new Error('Fehler beim Laden des Dokuments');
       }
-      return response.data.data;
+      return res.body.data;
     },
     enabled: Boolean(documentId),
   });

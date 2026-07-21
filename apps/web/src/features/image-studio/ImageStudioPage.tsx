@@ -1,4 +1,3 @@
-import { isCanvasTemplateType } from '@gruenerator/contracts';
 import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -20,6 +19,11 @@ import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
 const TemplateStudioFlow = lazy(() => import('./flows/TemplateStudioFlow'));
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useTemplateClone } from './hooks/useTemplateClone';
+import {
+  persistGalleryEditSession,
+  restoreGalleryEditSession,
+  hasRestorableGalleryEditSession,
+} from './services/editingSessionService';
 import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
 import {
   IMAGE_STUDIO_CATEGORIES,
@@ -119,7 +123,10 @@ const ImageStudioPageContent: React.FC = () => {
   // initializer ensures the spinner is rendered in the very first commit.
   const [isHydratingExisting, setIsHydratingExisting] = useState<boolean>(() => {
     const state = location.state as (GalleryEditLocationState & TemplateLocationState) | null;
-    return Boolean(state?.galleryEditMode || state?.templateMode);
+    if (state?.galleryEditMode || state?.templateMode) return true;
+    // Reload of an active edit session: the token is restored from
+    // sessionStorage below — gate rendering the same way as location.state.
+    return hasRestorableGalleryEditSession(location.pathname);
   });
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
@@ -190,6 +197,7 @@ const ImageStudioPageContent: React.FC = () => {
 
       try {
         await loadGalleryEditData(editData);
+        if (editData.shareToken) persistGalleryEditSession(editData.shareToken);
         // Clear location state to prevent reloading on refresh
         window.history.replaceState({}, document.title);
       } finally {
@@ -199,6 +207,41 @@ const ImageStudioPageContent: React.FC = () => {
 
     void loadGalleryEdit();
   }, [location.state, loadGalleryEditData]);
+
+  // Restore an edit session after a hard reload: replaceState above wiped
+  // location.state, so the share token would be lost and the next autosave
+  // would create a duplicate draft. restoreGalleryEditSession re-fetches the
+  // share so the content reflects everything autosave persisted meanwhile.
+  useEffect(() => {
+    const state = location.state as (GalleryEditLocationState & TemplateLocationState) | null;
+    // Whoever declines to restore must release the hydration gate — an early
+    // return that leaves the spinner up would hang the page (reachable under
+    // StrictMode's double-invoked effects once the module flag is set).
+    if (state?.galleryEditMode || state?.templateMode) return;
+    if (!hasRestorableGalleryEditSession(location.pathname)) {
+      setIsHydratingExisting(false);
+      return;
+    }
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        const editData = await restoreGalleryEditSession(location.pathname);
+        if (editData && !cancelled) {
+          await loadGalleryEditData(editData);
+          // Keep the session restorable across further reloads.
+          persistGalleryEditSession(editData.shareToken);
+        }
+      } finally {
+        setIsHydratingExisting(false);
+      }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only: restore is one-shot per page load by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle template cloning result from location.state (after navigation from useTemplateClone)
   useEffect(() => {
@@ -217,6 +260,7 @@ const ImageStudioPageContent: React.FC = () => {
 
       try {
         await loadGalleryEditData(editData);
+        if (editData.shareToken) persistGalleryEditSession(editData.shareToken);
 
         // Store templateCreator for display in canvas editor
         if (state.templateCreator) {
@@ -278,57 +322,9 @@ const ImageStudioPageContent: React.FC = () => {
     void loadSession();
   }, [searchParams, loadEditSessionData, navigate, location.pathname]);
 
-  // Handle sharepic handoff from chat (?handoff=<id> → load variant from localStorage)
-  useEffect(() => {
-    const handoffId = searchParams.get('handoff');
-    if (!handoffId) return;
-
-    const storageKey = `gruenerator:sharepic-handoff:${handoffId}`;
-    let raw: string | null = null;
-    try {
-      raw = localStorage.getItem(storageKey);
-      localStorage.removeItem(storageKey);
-    } catch (err) {
-      console.error('[ImageStudioPage] Failed to read sharepic handoff:', err);
-    }
-
-    const stripParam = () => {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('handoff');
-      void navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
-        replace: true,
-      });
-    };
-
-    if (!raw) {
-      stripParam();
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as {
-        canvasType?: string;
-        initialProps?: Record<string, unknown>;
-        ts?: number;
-      };
-      const isFresh = parsed.ts && Date.now() - parsed.ts < 5 * 60 * 1000;
-      // Reject at the boundary: an unknown/empty canvasType must never advance
-      // to CANVAS_EDIT (which would crash the canvas mint). Bail cleanly instead.
-      if (!isFresh || !isCanvasTemplateType(parsed.canvasType) || !parsed.initialProps) {
-        stripParam();
-        return;
-      }
-
-      useImageStudioStore
-        .getState()
-        .loadFromAIGeneration(parsed.canvasType, parsed.initialProps as Record<string, string>);
-      useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-    } catch (err) {
-      console.error('[ImageStudioPage] Failed to parse sharepic handoff payload:', err);
-    }
-
-    stripParam();
-  }, [searchParams, navigate, location.pathname]);
+  // Chat sharepic variants are now minted server-side (POST /api/canvas/from-variant)
+  // and opened directly at /studio/canvas/:id — there is no localStorage handoff
+  // into this template wizard anymore.
 
   useEffect(() => {
     return () => {
@@ -644,7 +640,11 @@ const ImageStudioPageContent: React.FC = () => {
         <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
           <h2>Fehler beim Laden der Vorlage</h2>
           <p>{cloneError}</p>
-          <Button onClick={() => navigate('/studio')} text="Zurück" icon={<HiArrowLeft />} />
+          <Button
+            onClick={() => navigate('/workplace/arbeiten')}
+            text="Zurück"
+            icon={<HiArrowLeft />}
+          />
         </div>
       </div>
     );

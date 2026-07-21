@@ -39,10 +39,13 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
 
   const zoomPercent = Math.round(zoom * 100);
 
+  const zoomBtn =
+    'size-7 rounded-md flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors';
+
   return (
     <div className="canvas-meta-bar flex items-center gap-3 px-3 py-1.5">
       <button
-        className="size-7 rounded-md flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors"
+        className={zoomBtn}
         onClick={() => onZoomChange(Math.max(minZoom, zoom - 0.1))}
         title="Verkleinern"
         type="button"
@@ -56,27 +59,27 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
         step={5}
         value={zoomPercent}
         onChange={(e) => onZoomChange(Number(e.currentTarget.value) / 100)}
-        className="w-32 accent-violet-500 cursor-pointer"
+        className="w-40 accent-[var(--editor-accent)] cursor-pointer"
         aria-label="Zoom"
       />
       <button
-        className="size-7 rounded-md flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors"
+        className={zoomBtn}
         onClick={() => onZoomChange(Math.min(maxZoom, zoom + 0.1))}
         title="Vergrößern"
         type="button"
       >
         <PiMagnifyingGlassPlus size={14} />
       </button>
-      <span className="text-xs text-white/80 tabular-nums w-10 text-center select-none">
+      <span className="text-xs font-medium text-[var(--editor-text)] tabular-nums w-10 text-center select-none">
         {zoomPercent}%
       </span>
 
-      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 text-xs text-white/80 select-none">
+      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--editor-inset)] text-xs text-[var(--editor-text-muted)] select-none">
         <PiFile size={12} />
         Seiten {currentPageIndex + 1}/{pageCount}
       </span>
       <button
-        className="size-7 rounded-md flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors"
+        className={zoomBtn}
         onClick={handleFullscreen}
         title={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
         type="button"

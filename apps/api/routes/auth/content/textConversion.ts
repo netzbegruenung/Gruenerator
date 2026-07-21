@@ -56,7 +56,7 @@ router.post(
           [existingDocId]
         );
         if (docExists.length > 0) {
-          res.json({ success: true, documentId: existingDocId, url: `/docs/${existingDocId}` });
+          res.json({ success: true, documentId: existingDocId, url: `/office/${existingDocId}` });
           return;
         }
       }
@@ -89,7 +89,7 @@ router.post(
 
       log.info(`[Convert] Text ${textId} → Doc ${docId} for user ${userId}`);
 
-      res.json({ success: true, documentId: docId, url: `/docs/${docId}` });
+      res.json({ success: true, documentId: docId, url: `/office/${docId}` });
     } catch (err: unknown) {
       log.error('[Convert Text to Doc] Error:', err);
       res.status(500).json({ success: false, message: 'Konvertierung fehlgeschlagen' });

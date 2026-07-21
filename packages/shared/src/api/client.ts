@@ -83,11 +83,25 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
         !originalRequest.skipAuthRefresh
       ) {
         originalRequest._retried = true;
-        // onUnauthorized is `() => void | Promise<boolean>`; awaiting the optional
-        // Promise variant is intentional (we act on the refreshed result). The
-        // `void` member of the union makes await-thenable flag it — safe here.
+        // Pass 401 context so the handler can log which endpoint/request failed
+        // (session-debug correlation). The backend puts `code`/`requestId` in the
+        // 401 body and mirrors the id to the `X-Request-Id` header.
+        const errorBody = error.response.data as { code?: string; requestId?: string } | undefined;
+        const requestIdHeader: unknown = error.response.headers?.['x-request-id'];
+        const info = {
+          url: originalRequest.url,
+          method: originalRequest.method,
+          status: 401,
+          code: errorBody?.code,
+          requestId:
+            errorBody?.requestId ??
+            (typeof requestIdHeader === 'string' ? requestIdHeader : undefined),
+        };
+        // onUnauthorized is `(info?) => void | Promise<boolean>`; awaiting the
+        // optional Promise variant is intentional (we act on the refreshed
+        // result). The `void` member of the union makes await-thenable flag it.
         // eslint-disable-next-line @typescript-eslint/await-thenable
-        const refreshed = await onUnauthorized();
+        const refreshed = await onUnauthorized(info);
         if (refreshed) {
           if (authMode === 'bearer' && getAuthToken) {
             const token = await getAuthToken();

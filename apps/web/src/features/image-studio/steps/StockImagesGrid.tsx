@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -90,23 +91,18 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     setIsAiSuggesting(true);
 
     try {
-      interface ImagePickerResponse {
-        success: boolean;
-        selectedImage: StockImage;
-      }
-      const response = await apiClient.post<ImagePickerResponse>('/image-picker/select', {
-        text: textForSuggestion,
-        type: 'sharepic',
+      const res = await getContractsClient().imagePicker.select({
+        body: { text: textForSuggestion, type: 'sharepic' },
       });
 
-      if (response.data.success) {
-        const suggestion = response.data;
-        setAiSuggestion({ selectedImage: suggestion.selectedImage });
-        setRecommendedCategory(suggestion.selectedImage.category ?? null);
+      if (res.status === 200 && res.body.success && res.body.selectedImage) {
+        // Contract's selectedImage is the wire shape; the grid consumes it as
+        // the app's StockImage (same fields, stricter local nullability).
+        const selectedImage = res.body.selectedImage as StockImage;
+        setAiSuggestion({ selectedImage });
+        setRecommendedCategory(selectedImage.category ?? null);
 
-        const matchingImage = stockImages.find(
-          (img) => img.filename === suggestion.selectedImage.filename
-        );
+        const matchingImage = stockImages.find((img) => img.filename === selectedImage.filename);
 
         if (matchingImage) {
           setRecommendedImage(matchingImage);

@@ -177,7 +177,7 @@ const datenschutz = [
 
   { h: 4, text: 'c. Gibt es neben dem Verantwortlichen weitere Empfänger der personenbezogenen Daten?' },
   {
-    p: 'Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert **Regolo AI** als Auftragsverarbeiter für die Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird **Mistral AI Voxtral** für die Transkription eingesetzt.',
+    p: 'Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim Reel-Grünerator fungiert **Regolo AI** als Auftragsverarbeiter für die Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird **Mistral AI Voxtral** für die Transkription eingesetzt.',
   },
   {
     p: 'Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren. Für die Anwendungsüberwachung nutzen wir die selbst gehostete Open-Source-Software **GlitchTip** auf eigenen Servern in der EU; eine Weitergabe an Dritte findet dabei nicht statt.',
@@ -205,11 +205,12 @@ const datenschutz = [
   { li: 'Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung, keine Nutzung zu Trainingszwecken' },
   { li: 'Details: [[Datenschutzerklärung|https://www.ionos.de/terms-gtc/datenschutzerklaerung/]]' },
 
-  { p: '**3. Black Forest Labs Inc.**' },
-  { li: 'Zweck: Bildbearbeitung (FLUX-Modell im Grünerator Imagine)' },
-  { li: 'Server: Ausschließlich EU' },
+  { p: '**3. Black Forest Labs** (FLUX-Bildgenerierung)' },
+  { li: 'Zweck: Bildbearbeitung und -generierung (FLUX-Modell im Grünerator Imagine)' },
+  { li: 'Server: Ausschließlich EU – über die EU-API von Black Forest Labs (api.eu.bfl.ai) bzw. alternativ über bei IONOS (Deutschland) oder Seeweb/Regolo AI (Italien) betriebene FLUX-Modelle' },
   { li: 'Besonderheit: Keine Speicherung auf unseren Servern, direkte Weiterleitung' },
   { li: 'Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten' },
+  { li: 'Kontakt: support@blackforestlabs.ai' },
 
   { p: '**4. Seeweb S.r.l. / Regolo AI** (C.so Lazio 9/a, 03100 Frosinone, Italien)' },
   { li: 'Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme) sowie KI-Textmodelle und semantische Aufbereitung (Reranking)' },

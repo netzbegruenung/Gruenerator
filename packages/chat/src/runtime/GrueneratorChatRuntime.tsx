@@ -13,6 +13,7 @@ import {
   AssistantRuntimeProvider,
   useLocalRuntime,
   useAui,
+  useAuiState,
   Tools,
   Suggestions,
   useRemoteThreadListRuntime,
@@ -23,6 +24,7 @@ import {
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
+import { usePythonFileStore } from '../stores/pythonFileStore';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
@@ -48,6 +50,15 @@ import { chatSuggestions } from '../lib/suggestions';
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
 
+/** Decode raw base64 (no data-URL prefix) to an ArrayBuffer for the Pyodide worker. */
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const clean = base64.includes(',') ? base64.slice(base64.indexOf(',') + 1) : base64;
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
 function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const aui = useAui();
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
@@ -63,16 +74,35 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
   const history = useMemo(
     () => ({
       async load() {
-        let remoteId: string | undefined;
+        let remoteId: string | null;
         try {
-          const result = await aui.threadListItem().initialize();
-          remoteId = result.remoteId;
+          const itemState = aui.threadListItem().getState();
+          remoteId = itemState.status === 'new' ? null : (itemState.remoteId ?? null);
         } catch (err) {
           console.warn('[History] Thread entry not available (likely deleted):', err);
           return { messages: [] };
         }
 
-        if (remoteId) {
+        if (!remoteId) {
+          // Fresh draft: no server-side thread yet. assistant-ui's run-start
+          // hook calls adapter.initialize() on the first message send, so an
+          // abandoned draft never creates an empty "Neue Unterhaltung" row.
+          useAgentStore.getState().setCurrentThread(null);
+          const initialMsg = useAgentStore.getState().pendingInitialAssistantMessage;
+          if (initialMsg) {
+            useAgentStore.getState().setPendingInitialAssistantMessage(null);
+            return ExportedMessageRepository.fromArray([
+              {
+                role: 'assistant' as const,
+                content: [{ type: 'text' as const, text: initialMsg }],
+                id: 'initial_draft',
+              },
+            ]);
+          }
+          return { messages: [] };
+        }
+
+        {
           useAgentStore.getState().setCurrentThread(remoteId);
 
           try {
@@ -95,6 +125,28 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 
             loadCompactionState(remoteId, apiClient);
             useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
+
+            // Rehydrate the in-browser pandas interpreter: setCurrentThread()
+            // cleared the tabular file store, so re-fetch this thread's persisted
+            // spreadsheet bytes and repopulate it — otherwise "Ausführen" on a
+            // reloaded thread has no `df`. Best-effort; on failure the user just
+            // re-attaches the file.
+            try {
+              const tabular = await apiClient.get<{
+                files: Array<{ name: string; mimeType: string; data: string }>;
+              }>(`/api/chat-service/threads/${remoteId}/tabular-files`);
+              const fileStore = usePythonFileStore.getState();
+              for (const f of tabular.files) {
+                fileStore.setFile({
+                  name: f.name,
+                  mimeType: f.mimeType,
+                  bytes: base64ToArrayBuffer(f.data),
+                });
+              }
+            } catch (rehydrateErr) {
+              console.warn('[History] Tabular file rehydration failed:', rehydrateErr);
+            }
+
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);
@@ -253,10 +305,31 @@ function useGrueneratorThreadRuntime() {
 }
 
 /**
+ * Keeps the store's currentThreadId in lockstep with the active main thread.
+ * history.load() only runs once per thread runtime instance, so switching
+ * A → draft → back to A would leave a stale id — with lazy thread creation
+ * a send in A would then hit the backend with threadId null and mint a wrong
+ * new thread. Also nulls the persisted currentThreadId on boot (the initial
+ * draft is main); the thread URL is the restore mechanism now.
+ */
+function MainThreadSyncEffect() {
+  const mainRemoteId = useAuiState(
+    (s) => s.threads.threadItems.find((t) => t.id === s.threads.mainThreadId)?.remoteId ?? null
+  );
+
+  useEffect(() => {
+    useAgentStore.getState().setCurrentThread(mainRemoteId);
+  }, [mainRemoteId]);
+
+  return null;
+}
+
+/**
  * Watches for first message completion and triggers title generation.
- * Assistant UI's built-in trigger never fires because initialize() pre-creates
- * the thread (status transitions to "regular" before the first message).
- * This effect bypasses that by calling generateTitle() directly via aui.
+ * With lazy initialize(), assistant-ui's built-in runEnd trigger fires for
+ * new threads; this effect stays as the trigger for legacy pre-created
+ * threads (status already "regular" before the first message). The adapter's
+ * generateTitle dedupes so double invocation runs its side effects once.
  */
 function ThreadTitleEffect() {
   const aui = useAui();
@@ -367,6 +440,7 @@ export function GrueneratorChatRuntimeProvider({
     <ChatRuntimeReadyProvider>
       <AssistantRuntimeProvider aui={aui} runtime={runtime}>
         <ExternalThreadProvider value={externalCtx}>
+          <MainThreadSyncEffect />
           <ThreadTitleEffect />
           <AgentSwitchListener />
           {threadListPortalSlotId && (

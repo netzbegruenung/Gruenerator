@@ -5,6 +5,7 @@ export {
 } from './hooks/useCollaboration';
 export { useCollaborators } from './hooks/useCollaborators';
 export { useSyncGate } from './hooks/useSyncGate';
+export { useDelayedConnectionStatus } from './hooks/useDelayedConnectionStatus';
 export { useAwarenessState } from './hooks/useAwarenessState';
 export { PresenceAvatars } from './components/PresenceAvatars';
 export { TypingIndicator } from './components/TypingIndicator';

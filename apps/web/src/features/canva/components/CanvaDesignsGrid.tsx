@@ -11,14 +11,8 @@ import { useCanvaDesigns } from '../hooks/useCanva';
  * Canva editor.
  */
 const CanvaDesignsGrid = memo(({ connected }: { connected: boolean }): JSX.Element | null => {
-  const {
-    data,
-    isLoading,
-    isError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useCanvaDesigns(connected);
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useCanvaDesigns(connected);
 
   if (!connected) return null;
 

@@ -119,7 +119,7 @@ export interface DocumentShareEmailParams {
 export async function sendDocumentShareEmail(params: DocumentShareEmailParams): Promise<boolean> {
   if (!isConfigured()) return false;
 
-  const documentUrl = `${PRIMARY_URL}/docs/${params.documentId}`;
+  const documentUrl = `${PRIMARY_URL}/office/${params.documentId}`;
 
   const templateParams: DocumentShareTemplateParams = {
     recipientName: params.recipientName,

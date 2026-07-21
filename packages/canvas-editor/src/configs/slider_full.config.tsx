@@ -490,6 +490,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
@@ -618,6 +619,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       circleBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      chartInstances: [],
       userImageInstances: [],
 
       // Base state

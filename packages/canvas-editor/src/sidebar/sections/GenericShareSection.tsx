@@ -1,16 +1,7 @@
 import { useShareStore, shareApi } from '@gruenerator/shared/share';
 import { useCallback, useState, useMemo, useRef, useEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  FaDownload,
-  FaImages,
-  FaSave,
-  FaCheck,
-  FaFileArchive,
-  FaFileImage,
-  FaFilePowerpoint,
-  FaFilePdf,
-} from 'react-icons/fa';
+import { FaDownload, FaImages, FaSave, FaCheck, FaFileArchive, FaFileImage } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
 import { Skeleton } from '@gruenerator/ui';
@@ -33,8 +24,6 @@ export interface GenericShareSectionProps {
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
   exportError?: string | null;
-  onDownloadPptx?: () => Promise<void>;
-  onDownloadPdf?: () => Promise<void>;
 }
 
 const iconBtn =
@@ -116,8 +105,6 @@ function DownloadShareSubsection({
   isMultiExporting = false,
   exportProgress,
   exportError,
-  onDownloadPptx,
-  onDownloadPdf,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
   const [isSharing, setIsSharing] = useState(false);
@@ -169,20 +156,6 @@ function DownloadShareSubsection({
       await onDownloadAllZip();
     }
   };
-
-  const handleDownloadPptx = onDownloadPptx
-    ? async () => {
-        lastExportOpRef.current = onDownloadPptx;
-        await onDownloadPptx();
-      }
-    : undefined;
-
-  const handleDownloadPdf = onDownloadPdf
-    ? async () => {
-        lastExportOpRef.current = onDownloadPdf;
-        await onDownloadPdf();
-      }
-    : undefined;
 
   const handleDownloadClick = async () => {
     if (isMultiPage) {
@@ -319,30 +292,6 @@ function DownloadShareSubsection({
                     </>
                   )}
                 </button>
-                {handleDownloadPptx && (
-                  <button
-                    className={dropdownOption}
-                    onClick={handleDownloadPptx}
-                    disabled={isMultiExporting}
-                    role="menuitem"
-                    type="button"
-                  >
-                    <FaFilePowerpoint />
-                    <span>PowerPoint (PPTX)</span>
-                  </button>
-                )}
-                {handleDownloadPdf && (
-                  <button
-                    className={dropdownOption}
-                    onClick={handleDownloadPdf}
-                    disabled={isMultiExporting}
-                    role="menuitem"
-                    type="button"
-                  >
-                    <FaFilePdf />
-                    <span>PDF</span>
-                  </button>
-                )}
               </div>,
               document.body
             )}
@@ -577,8 +526,6 @@ export function GenericShareSection({
   isMultiExporting,
   exportProgress,
   exportError,
-  onDownloadPptx,
-  onDownloadPdf,
 }: GenericShareSectionProps) {
   const subsections = useMemo(
     () => [
@@ -600,8 +547,6 @@ export function GenericShareSection({
             isMultiExporting={isMultiExporting}
             exportProgress={exportProgress}
             exportError={exportError}
-            onDownloadPptx={onDownloadPptx}
-            onDownloadPdf={onDownloadPdf}
           />
         ),
       },
@@ -632,8 +577,6 @@ export function GenericShareSection({
       isMultiExporting,
       exportProgress,
       exportError,
-      onDownloadPptx,
-      onDownloadPdf,
     ]
   );
 

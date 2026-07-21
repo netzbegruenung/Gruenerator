@@ -138,24 +138,37 @@ export const CardChecklists = memo(function CardChecklists({
     [mutate]
   );
 
+  const overall = checklistProgress(groups);
+  const overallPct = overall.total > 0 ? Math.round((overall.done / overall.total) * 100) : 0;
+
   return (
-    <div className="flex flex-row items-start">
-      <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
-        <FiCheckSquare className="inline mr-1.5" size={13} />
-        Checkliste
-      </p>
-      <div className="flex-1 space-y-3">
+    <section className="flex flex-col gap-2.5">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-[13px] font-bold text-foreground">
+          <FiCheckSquare size={16} />
+          Checkliste
+        </div>
+        {overall.total > 0 && (
+          <span className="ml-auto text-xs font-bold text-primary-600 dark:text-primary-400">
+            {overall.done} / {overall.total}
+          </span>
+        )}
+      </div>
+      {overall.total > 0 && (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-grey-100 dark:bg-grey-800">
+          <div
+            className="h-full rounded-full bg-primary-500 transition-all"
+            style={{ width: `${overallPct}%` }}
+          />
+        </div>
+      )}
+      <div className="flex flex-col gap-3">
         {groups.map((group) => {
-          const { done, total } = checklistProgress([group]);
-          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
           return (
             <div key={group.id} className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground flex-1 truncate">
+                <span className="text-sm font-semibold text-foreground flex-1 truncate">
                   {group.title}
-                </span>
-                <span className="text-[11px] text-grey-400 shrink-0">
-                  {done}/{total}
                 </span>
                 <button
                   onClick={async () => {
@@ -171,14 +184,6 @@ export const CardChecklists = memo(function CardChecklists({
                   <FiTrash2 size={12} />
                 </button>
               </div>
-              {total > 0 && (
-                <div className="h-1 w-full rounded-full bg-grey-200 dark:bg-grey-700 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary-500 transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              )}
               <div className="space-y-0.5">
                 {group.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-2 group/item">
@@ -271,6 +276,6 @@ export const CardChecklists = memo(function CardChecklists({
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 });

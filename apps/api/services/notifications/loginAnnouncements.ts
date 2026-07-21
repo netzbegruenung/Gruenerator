@@ -4,15 +4,15 @@
  * Fired from the Better Auth `session.create.after` hook (config/betterAuth.ts),
  * so every user receives each active announcement exactly once — the next time
  * they log in. Delivery is:
- *   - idempotent per user (skips if a notification of that type already exists),
+ *   - idempotent per user (recorded in `login_announcement_deliveries`, which
+ *     survives the user dismissing the notification — the notification row
+ *     itself is hard-deleted on dismiss and must not be the delivery marker),
  *   - bounded by `until` (the per-login check retires itself after the window),
  *   - best-effort (never throws into the auth flow).
  *
  * To retire an announcement, delete its entry here (or let `until` pass).
  */
-import { and, eq } from 'drizzle-orm';
-
-import { notifications } from '../../database/schema/index.js';
+import { loginAnnouncementDeliveries } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -49,12 +49,14 @@ export async function deliverLoginAnnouncements(userId: string): Promise<void> {
   try {
     const db = getDrizzleInstance();
     for (const announcement of active) {
-      const existing = await db
-        .select({ id: notifications.id })
-        .from(notifications)
-        .where(and(eq(notifications.user_id, userId), eq(notifications.type, announcement.type)))
-        .limit(1);
-      if (existing.length > 0) continue;
+      // Atomic claim: the insert only returns a row for the first session that
+      // records the delivery, so concurrent logins can't double-deliver.
+      const claimed = await db
+        .insert(loginAnnouncementDeliveries)
+        .values({ user_id: userId, announcement_type: announcement.type })
+        .onConflictDoNothing()
+        .returning({ user_id: loginAnnouncementDeliveries.user_id });
+      if (claimed.length === 0) continue;
 
       await createNotification({
         userId,

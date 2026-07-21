@@ -106,6 +106,9 @@ router.get('/', async (req, res) => {
             searchResults?: unknown[];
             roleName?: string;
             generatedImage?: Record<string, unknown>;
+            createdDocument?: Record<string, unknown>;
+            computeData?: Record<string, unknown>;
+            agentId?: string;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -136,6 +139,13 @@ router.get('/', async (req, res) => {
             ...(meta.generatedImage && typeof meta.generatedImage === 'object'
               ? { generatedImage: meta.generatedImage as Record<string, unknown> }
               : {}),
+            ...(meta.createdDocument && typeof meta.createdDocument === 'object'
+              ? { createdDocument: meta.createdDocument as Record<string, unknown> }
+              : {}),
+            ...(meta.computeData && typeof meta.computeData === 'object'
+              ? { computeData: meta.computeData as Record<string, unknown> }
+              : {}),
+            ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
           };
           if (Array.isArray(meta.toolCalls)) {
             embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];

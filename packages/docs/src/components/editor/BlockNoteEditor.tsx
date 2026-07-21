@@ -55,6 +55,10 @@ import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
 import { EditorDictationButton } from './EditorDictationButton';
+import { SuggestionPopover } from './SuggestionPopover';
+import { isDocAIForked } from '../../lib/aiExtension';
+import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
+import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
 
 export interface BlockNoteEditorProps {
@@ -76,12 +80,31 @@ export interface BlockNoteEditorProps {
    * and drive dictation via the OS recognizer + an insert-text bridge instead.
    */
   showDictationButton?: boolean;
+  /**
+   * The local user's reliable identity (from auth / guest), used to attribute
+   * track-changes suggestions. Preferred over Yjs awareness, which can be
+   * unpopulated at the moment an edit is dispatched — the same reason the docs
+   * assistant chat takes the display name from the auth user, not awareness.
+   */
+  localUser?: SuggestionAuthor | null;
+}
+
+interface SuggestionAuthor {
+  id: string;
+  name: string;
+  color?: string;
 }
 
 interface CollaborationUser {
   id: string;
   name: string;
   color: string;
+}
+
+function isCollaborationUser(value: unknown): value is CollaborationUser {
+  if (typeof value !== 'object' || value === null) return false;
+  const u = value as Record<string, unknown>;
+  return typeof u.id === 'string' && typeof u.name === 'string' && typeof u.color === 'string';
 }
 
 function subscribeToTheme(callback: () => void) {
@@ -136,6 +159,7 @@ const BlockNoteEditorInner = ({
   useStaticFormattingToolbar = false,
   hideFormattingToolbar = false,
   showDictationButton = true,
+  localUser,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, setDocContext, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
@@ -147,6 +171,10 @@ const BlockNoteEditorInner = ({
   const hasInitialized = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Read live in the attribution closure so identity resolving after mount still
+  // applies, without churning the editor.
+  const localUserRef = useRef(localUser);
+  localUserRef.current = localUser;
 
   const scrollSelectionIntoView = useCallback(() => {
     const sel = window.getSelection();
@@ -203,8 +231,8 @@ const BlockNoteEditorInner = ({
   const collaborationUser = useMemo(() => {
     if (!provider?.awareness) return null;
 
-    const localState = provider.awareness.getLocalState();
-    return (localState?.user as CollaborationUser) || null;
+    const user = provider.awareness.getLocalState()?.user;
+    return isCollaborationUser(user) ? user : null;
   }, [provider?.awareness]);
 
   const fragment = useMemo(() => {
@@ -237,6 +265,11 @@ const BlockNoteEditorInner = ({
     user: collaborationUser,
     canEdit: editable,
   });
+
+  // When track changes is on, the AI editing surface is suppressed: AI writes the
+  // same suggestion marks on a forked doc and its accept applies ALL of them, so
+  // the two must not run at once (mutual exclusion, see suggestChangesExtension).
+  const { enabled: suggestionModeEnabled } = useSuggestionMode(ydoc, documentId);
 
   const aiApiUrl = `${adapter.getApiBaseUrl()}/docs/ai`;
 
@@ -277,8 +310,55 @@ const BlockNoteEditorInner = ({
       );
     }
 
+    // Word-like track changes. Only meaningful with a synced Y.Doc — the mode
+    // flag and suggestion attribution both live in it. Reads the awareness user
+    // live so attribution stays correct if identity resolves after mount, and
+    // hands off while AI suggestions occupy the same marks on a forked doc.
+    if (ydoc) {
+      exts.push(
+        SuggestChangesExtension({
+          ydoc,
+          getUser: () => {
+            const awarenessUser = provider?.awareness?.getLocalState()?.user;
+            const awarenessColor = isCollaborationUser(awarenessUser)
+              ? awarenessUser.color
+              : undefined;
+            // Reliable id + name from auth; awareness only supplies the color
+            // (to match the user's cursor color), with a neutral fallback.
+            const local = localUserRef.current;
+            if (local) {
+              return {
+                id: local.id,
+                name: local.name,
+                color: local.color ?? awarenessColor ?? '#9ca3af',
+              };
+            }
+            return isCollaborationUser(awarenessUser)
+              ? { id: awarenessUser.id, name: awarenessUser.name, color: awarenessUser.color }
+              : null;
+          },
+          subscribeUser: (cb) => {
+            const awareness = provider?.awareness;
+            if (!awareness) return () => {};
+            awareness.on('change', cb);
+            return () => awareness.off('change', cb);
+          },
+          isAiForked: () => isDocAIForked(documentId),
+        })
+      );
+    }
+
     return exts;
-  }, [showComments, threadStore, resolveUsers, aiApiUrl, documentId, collaborationOptions]);
+  }, [
+    showComments,
+    threadStore,
+    resolveUsers,
+    aiApiUrl,
+    documentId,
+    collaborationOptions,
+    ydoc,
+    provider,
+  ]);
 
   const editor = useCreateBlockNote(
     {
@@ -420,10 +500,10 @@ const BlockNoteEditorInner = ({
     () => (
       <FormattingToolbar>
         {toolbarItems}
-        <AIToolbarButton />
+        {!suggestionModeEnabled && <AIToolbarButton />}
       </FormattingToolbar>
     ),
-    [toolbarItems]
+    [toolbarItems, suggestionModeEnabled]
   );
 
   if (!editor) {
@@ -451,7 +531,7 @@ const BlockNoteEditorInner = ({
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
               {toolbarItems}
-              {!isTouchDevice && <AIToolbarButton />}
+              {!isTouchDevice && !suggestionModeEnabled && <AIToolbarButton />}
             </FormattingToolbar>
           ) : (
             <FormattingToolbarController formattingToolbar={formattingToolbar} />
@@ -464,7 +544,10 @@ const BlockNoteEditorInner = ({
               triggerCharacter="/"
               getItems={async (query) =>
                 filterSuggestionItems(
-                  [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
+                  [
+                    ...getDefaultReactSlashMenuItems(editor),
+                    ...(suggestionModeEnabled ? [] : getAISlashMenuItems(editor)),
+                  ],
                   query
                 )
               }
@@ -474,6 +557,9 @@ const BlockNoteEditorInner = ({
             triggerCharacter="@"
             getItems={async (query) => getMentionMenuItems(editor, query)}
           />
+          {ydoc && !hideFormattingToolbar && (
+            <SuggestionPopover editor={editor} ydoc={ydoc} canEdit={editable} />
+          )}
           {commentsPortalTarget &&
             showComments &&
             threadStore &&

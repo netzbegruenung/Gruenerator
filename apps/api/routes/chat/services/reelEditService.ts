@@ -41,12 +41,14 @@ import {
 } from '../../../services/subtitler/tusService.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { APP_REDIRECT_TEXTS } from './platformGating.js';
 import { hasStrongReelNoun } from './reelEditHeuristics.js';
 import { runReelEdit } from './reelEditLlm.js';
 import { applyReelOps, validateReelOps } from './reelEditOps.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
+import type { ClientPlatform } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type { ReelPickerProject } from '@gruenerator/contracts';
 
@@ -100,6 +102,7 @@ export interface HandleReelEditArgs {
   currentReel: { projectId: string } | null;
   reelUpload: { uploadId: string; filename: string } | null;
   userLocale: string;
+  clientPlatform: ClientPlatform;
   aiWorkerPool: AIWorkerPool;
   startTime: number;
   classificationTimeMs?: number;
@@ -278,6 +281,10 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
   try {
     // ── 1. Upload path: kick off auto-transcription, end the turn ──────────
     if (reelUpload) {
+      if (args.clientPlatform === 'app') {
+        await finishWithText(args, APP_REDIRECT_TEXTS.reelEdit);
+        return true;
+      }
       const videoPath = getFilePathFromUploadId(reelUpload.uploadId);
       if (!(await checkFileExists(videoPath))) {
         await finishWithText(
@@ -329,11 +336,19 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
     // ── 2. Resolve target; no target → picker (or fall through) ───────────
     const project = await resolveReelTarget(threadId, userId, currentReel);
 
-    if (!project) {
-      // Generic nouns ("Segment 2 kürzen") without any reel context likely
-      // mean a sharepic — let the sharepic branch have the turn.
-      if (!hasStrongReelNoun(instruction)) return false;
+    // Generic nouns ("Segment 2 kürzen") without any reel context likely
+    // mean a sharepic — let the sharepic branch have the turn.
+    if (!project && !hasStrongReelNoun(instruction)) return false;
 
+    // The app has no reel picker/editor UI — redirect exactly where the turn
+    // would otherwise commit to a reel flow, so ordinary messages still fall
+    // through above.
+    if (args.clientPlatform === 'app') {
+      await finishWithText(args, APP_REDIRECT_TEXTS.reelEdit);
+      return true;
+    }
+
+    if (!project) {
       const projects = await listPickerProjects(userId);
       if (projects.length === 0) {
         await finishWithText(

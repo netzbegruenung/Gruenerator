@@ -37,21 +37,36 @@ export function useMultiPageExport({
   const [exportProgress, setExportProgress] = useState<ExportProgress>({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
 
+  // A page whose stage is not mounted or whose capture fails must surface as
+  // an error, not silently shrink the export — a ZIP with fewer images than
+  // pages reads as data loss.
   const exportAllPages = useCallback(async (): Promise<string[]> => {
     const total = canvasRefs.length;
     const images: string[] = [];
+    const failedPages: number[] = [];
 
     setExportProgress({ current: 0, total });
 
     for (let i = 0; i < canvasRefs.length; i++) {
       const ref = canvasRefs[i];
+      let dataUrl: string | null = null;
       if (ref.current) {
-        const dataUrl = await ref.current.captureCanvas();
-        if (dataUrl) {
-          images.push(dataUrl);
+        try {
+          dataUrl = await ref.current.captureCanvas();
+        } catch {
+          dataUrl = null;
         }
       }
+      if (dataUrl) {
+        images.push(dataUrl);
+      } else {
+        failedPages.push(i + 1);
+      }
       setExportProgress({ current: i + 1, total });
+    }
+
+    if (failedPages.length > 0) {
+      throw new Error(`Seite(n) ${failedPages.join(', ')} konnten nicht exportiert werden`);
     }
 
     return images;

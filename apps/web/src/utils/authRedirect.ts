@@ -5,7 +5,14 @@
 
 const PUBLIC_PATHS = ['/datenschutz', '/impressum', '/support', '/login', '/auth'];
 
-const PUBLIC_PREFIXES = ['/auth/', '/shared/', '/subtitler/shared/', '/texte', '/docs/'];
+const PUBLIC_PREFIXES = [
+  '/auth/',
+  '/shared/',
+  '/subtitler/shared/',
+  '/texte',
+  '/office/',
+  '/docs/',
+];
 
 export const isPublicPage = (pathname: string = window.location.pathname): boolean =>
   pathname === '/' ||

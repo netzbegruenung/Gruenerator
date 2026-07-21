@@ -64,7 +64,7 @@ const NewItemDropdown = memo(function NewItemDropdown({
   const handleCreateDoc = useCallback(() => {
     createEmptyDoc.mutate(undefined, {
       onSuccess: (data) => {
-        void navigate(`/docs/${data.id}`);
+        void navigate(`/office/${data.id}`);
         onClose();
       },
     });
@@ -130,7 +130,7 @@ const NewItemDropdown = memo(function NewItemDropdown({
             <PiPencilLine />
             <span>Neues Whiteboard</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onLinkClick('/imagine', 'Bild erstellen')}>
+          <DropdownMenuItem onClick={() => onLinkClick('/bild-editor', 'Bild erstellen')}>
             <PiImageSquare />
             <span>Bild erstellen</span>
           </DropdownMenuItem>

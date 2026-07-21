@@ -15,6 +15,7 @@ import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { isSourceAvailabilityError } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
@@ -254,7 +255,20 @@ export async function formatSearchContext(
     );
   }
 
+  // Infrastructure failure must not read like "no results on this topic":
+  // without this block the model confidently answers "dazu gibt es nichts",
+  // although the sources were simply unreachable.
+  const sourcesUnreachable = state.searchErrors?.some(isSourceAvailabilityError) ?? false;
   if (state.searchResults.length === 0) {
+    if (sourcesUnreachable) {
+      return (
+        `\n\n## HINWEIS: QUELLENSUCHE FEHLGESCHLAGEN\n\n` +
+        `Die Suche in den Quellen ist technisch fehlgeschlagen (Quellen nicht erreichbar) — ` +
+        `das bedeutet NICHT, dass es zum Thema keine Inhalte gibt. ` +
+        `Sag der*dem Nutzer*in transparent, dass die Quellen gerade nicht erreichbar waren, ` +
+        `beantworte nur, was du ohne Quellen sicher weißt, und schlage vor, es später erneut zu versuchen.`
+      );
+    }
     return '';
   }
 
@@ -324,7 +338,11 @@ export async function formatSearchContext(
     })
     .join('\n\n');
 
-  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]`;
+  const degradedNote = sourcesUnreachable
+    ? `\n\nHINWEIS: Ein Teil der Quellen war nicht erreichbar — die Ergebnisse sind unvollständig. Erwähne das, wenn es für die Antwort relevant ist.`
+    : '';
+
+  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]${degradedNote}`;
 }
 
 /**
@@ -478,30 +496,58 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
 
 /**
  * Format thread attachments (from previous messages) as context.
- * Only includes document summaries, not full text (for token efficiency).
+ * Documents re-inject their FULL extracted text (budget-capped) so a file stays
+ * chattable across every turn — not just on the message it was uploaded on. The
+ * short async summary is only a fallback for legacy rows without stored text.
+ * Images carry a vision-generated description as their summary, letting
+ * follow-up turns reason about an earlier image without re-sending the pixels.
  */
 function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
   if (!attachments || attachments.length === 0) {
     return '';
   }
 
-  const docs = attachments
-    .filter((a) => !a.isImage && a.summary)
-    .map((a, i) => `${i + 1}. **${a.name}**: ${a.summary}`)
-    .join('\n');
+  const sections: string[] = [];
 
-  if (!docs) {
-    return '';
-  }
+  const docBlocks = attachments
+    // Docs with a documentId were embedded into Qdrant — they come back via
+    // per-query RAG retrieval (searchNode), so don't also dump their full text
+    // here (would duplicate and blow the budget). Small docs stay full-context.
+    .filter((a) => !a.isImage && !a.documentId && (a.extractedText || a.summary))
+    .map((a, i) => `### ${i + 1}. ${a.name}\n\n${a.extractedText ?? a.summary}`)
+    .join('\n\n');
 
-  return `
+  if (docBlocks) {
+    // Reuse the same per-document + total budget limiter as current-turn
+    // attachments so re-injected full text can't blow the context window.
+    const docs = limitAttachmentContext(docBlocks);
+    sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
 
 ${docs}
 
 ---
-Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", etc.).`;
+Nutze diese Dokumentinhalte wenn der Nutzer sich darauf bezieht (z.B. "das PDF", "das Dokument", "die Tabelle", etc.).`);
+  }
+
+  const images = attachments
+    .filter((a) => a.isImage && a.summary)
+    .map((a, i) => `${i + 1}. **${a.name}**: ${a.summary}`)
+    .join('\n');
+
+  if (images) {
+    sections.push(`
+
+## FRÜHERE BILDER IN DIESEM GESPRÄCH (vom Vision-Modell beschrieben)
+
+${images}
+
+---
+Beziehe dich auf diese Bildbeschreibungen, wenn der Nutzer nach einem früher gesendeten Bild fragt (z.B. "das Bild", "das Foto", "was war darauf zu sehen").`);
+  }
+
+  return sections.join('');
 }
 
 /**
@@ -522,6 +568,97 @@ Nutze diese Zusammenfassung als Grundlage für deine Antwort.`;
 }
 
 /**
+ * Format the deterministic computation result (compute intent). These numbers
+ * were produced by computeEngine in plain JS, so the model must echo them
+ * verbatim and is explicitly told NOT to recompute — the whole point is that it
+ * cannot count/calculate reliably itself.
+ */
+function formatComputedResultContext(computedResult: ChatGraphState['computedResult']): string {
+  if (!computedResult) return '';
+  const lines = computedResult.entries.map((e) => `- ${e.label}: ${e.value}`).join('\n');
+  const figureCount =
+    (computedResult.figures?.length ?? 0) + (computedResult.figureUrls?.length ?? 0);
+  const figureNote =
+    figureCount > 0
+      ? `\n${figureCount === 1 ? 'Ein Diagramm wurde' : `${figureCount} Diagramme wurden`} bei der Berechnung erstellt und der*dem Nutzer*in bereits angezeigt — erwähne das kurz und erstelle KEIN weiteres Diagramm.`
+      : '';
+  const fileNames = [
+    ...(computedResult.files?.map((f) => f.name) ?? []),
+    ...(computedResult.fileAssets?.map((f) => f.name) ?? []),
+  ];
+  const fileNote =
+    fileNames.length > 0
+      ? `\nFolgende Datei${fileNames.length === 1 ? ' wurde' : 'en wurden'} erstellt und ${fileNames.length === 1 ? 'steht' : 'stehen'} der*dem Nutzer*in bereits zum Download bereit: ${fileNames.join(', ')} — erwähne das kurz.`
+      : '';
+  return `
+
+## BERECHNUNGSERGEBNIS (deterministisch per Programm berechnet — NICHT selbst nachrechnen)
+
+Operation: ${computedResult.operation}
+${lines}
+
+Zusammenfassung: ${computedResult.summary}${figureNote}${fileNote}
+
+---
+Übernimm diese Werte EXAKT und unverändert in deine Antwort. Sie wurden per Code berechnet und sind korrekt. Zähle oder rechne NICHT selbst nach.`;
+}
+
+/**
+ * Steer the model to compute over an attached spreadsheet with the in-browser
+ * pandas interpreter instead of doing arithmetic in its head. When the composer
+ * bridges a CSV/Excel/ODS file it is pre-loaded as a pandas DataFrame `df`. The
+ * client auto-runs the emitted block and shows the result — so the model must
+ * emit a properly language-tagged ```python block and must NOT tell the user to
+ * click "Run" or apologise that it can't execute (both were happening).
+ *
+ * Forks on `clientCanRunPython`: clients without the run_python client tool
+ * (mobile/voice) instead get guidance to derive the answer from the document
+ * context — never a code block that would silently do nothing there.
+ */
+export function formatTabularComputeGuidance(state: ChatGraphState): string {
+  if (!state.hasTabularAttachment) return '';
+  // Run-then-answer resume: the numbers were already computed client-side
+  // (run_python client tool) and injected as BERECHNUNGSERGEBNIS. The model
+  // must only phrase the answer — emitting another code block here would
+  // trigger a second execution round. Only for a FRESH result: a forwarded
+  // last-turn result must not block a new follow-up computation.
+  if (state.computedResult && state.computedResultFresh) {
+    return `
+
+## TABELLENDATEN — ERGEBNIS LIEGT BEREITS VOR
+
+Die Berechnung über die angehängte Tabelle wurde bereits per Code ausgeführt (siehe BERECHNUNGSERGEBNIS unten). Übernimm die Werte EXAKT und formuliere eine kurze, klare Antwort. Gib KEINEN Code-Block aus und rechne NICHT selbst nach.`;
+  }
+  // Client cannot execute Python (mobile/voice declare no run_python client
+  // tool). The pandas guidance below would produce a dead "wird automatisch
+  // ausgeführt" code block on those clients — steer the model to derive the
+  // answer from the attached document context instead.
+  if (!state.clientCanRunPython) {
+    return `
+
+## TABELLENDATEN — OHNE CODE-AUSFÜHRUNG RECHNEN
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät steht KEIN Python-Interpreter zur Verfügung — Code-Blöcke werden hier NICHT ausgeführt.
+- Gib KEINEN ausführbaren Code-Block aus und behaupte NIEMALS, dass Code automatisch ausgeführt wird.
+- Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im angehängten Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
+- Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
+  }
+  return `
+
+## TABELLENDATEN — MIT DEM INTERPRETER RECHNEN, NICHT IM KOPF
+
+Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Im Browser läuft ein Python-Interpreter, in dem die Datei bereits als pandas-DataFrame \`df\` vorgeladen ist (die Spaltennamen findest du im angehängten Dokumentkontext). Dein Code-Block wird **automatisch ausgeführt** und das Ergebnis wird der*dem Nutzer*in direkt angezeigt.
+
+Für JEDE Frage, die eine Berechnung, Aggregation, Sortierung oder Filterung über die Daten erfordert (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …):
+- Gib einen ausführbaren Code-Block aus, der zwingend mit dem Sprach-Tag \`\`\`python beginnt (NIEMALS nur \`\`\` ohne \`python\`), auf \`df\` arbeitet und das Ergebnis mit \`print(...)\` ausgibt — mit einem klaren Label, z.B. \`print("Gesamtgewinn:", ...)\`.
+- Rechne NIEMALS selbst im Kopf und gib KEINE Handlungsanleitung ("erstelle eine Pivot-Tabelle") — schreibe den Code, der die Antwort direkt berechnet.
+- Verwende die echten Spaltennamen aus dem Dokumentkontext. Halte den Code kurz und robust.
+- Schreibe höchstens 1 kurzen Satz vor den Block. Fordere NICHT zum Klicken/Kopieren/„Ausführen" auf und entschuldige dich NICHT, du könntest keinen Code ausführen — die Ausführung passiert automatisch.
+- Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
+}
+
+/**
  * Format board context (from @board mentions).
  * Injects the board's columns and cards as structured text.
  */
@@ -533,6 +670,20 @@ function formatBoardContext(boardContext: string | null): string {
 ## BOARD-KONTEXT
 
 ${boardContext}`;
+}
+
+/**
+ * Format sheet context (from @sheet mentions).
+ * Injects the spreadsheet's cells (markdown with A1 coordinates).
+ */
+function formatSheetContext(sheetContext: string | null): string {
+  if (!sheetContext) return '';
+
+  return `
+
+## TABELLEN-KONTEXT (Spreadsheet)
+
+${sheetContext}`;
 }
 
 /**
@@ -591,6 +742,25 @@ Der Nutzer ist in Österreich. Beachte:
   return '';
 }
 
+/**
+ * Platform context for the system prompt. The mobile app can't render several
+ * web-only surfaces; without this the model happily offers them ("Soll ich dir
+ * ein Sharepic machen?") and the deterministic router gates read as abrupt.
+ */
+function formatPlatformContext(platform: string | undefined): string {
+  if (platform === 'app') {
+    return `
+
+## PLATTFORMKONTEXT: APP
+
+Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
+- Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
+- Biete diese Funktionen nicht von dir aus an`;
+  }
+  return '';
+}
+
 /** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
   'edit_current_doc',
@@ -619,6 +789,57 @@ Regeln:
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
+/**
+ * Chart guidance. When the run_python interrupt already computed the values
+ * (chart over an attached spreadsheet), the model must chart EXACTLY those
+ * numbers — the plain CHART_GUIDANCE's "plausible Daten" licence produced
+ * fabricated category splits in beta.
+ */
+function getChartGuidance(state: ChatGraphState): string {
+  if (state.computedResult && state.computedResultFresh) {
+    return `\nDer*die Nutzer*in möchte ein Diagramm. Die Werte wurden bereits deterministisch per Code berechnet (siehe BERECHNUNGSERGEBNIS) — verwende AUSSCHLIESSLICH diese Werte und erfinde KEINE Zahlen.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey — die Werte EXAKT aus dem BERECHNUNGSERGEBNIS übernehmen
+- xKey: Name des Feldes für die X-Achse; yKeys: Array der Wert-Feldnamen
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+  }
+  return CHART_GUIDANCE;
+}
+
+const ARTIFACT_GUIDANCE = `\nDer*die Nutzer*in möchte ein darstellbares Artefakt (HTML/CSS oder SVG). Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann GENAU EINEN Code-Block mit dem vollständigen, in sich geschlossenen Artefakt:
+
+- Für Web-/Layout-Inhalte: ein \`\`\`html-Block mit komplettem, eigenständigem HTML (inkl. \`<style>\` inline, KEINE externen Ressourcen, KEINE \`<script>\`-Tags — das Artefakt wird in einer gesperrten Sandbox ohne JavaScript gerendert).
+- Für Vektorgrafiken/Diagramme/Icons: ein \`\`\`svg-Block mit einem vollständigen \`<svg>\`-Element (mit \`viewBox\`, ohne \`<script>\`).
+
+Regeln:
+- Nur EIN Code-Block, vollständig und eigenständig lauffähig.
+- Kein externer CSS-/JS-/Bild-Link, keine \`<script>\`-Tags (werden ohnehin entfernt).
+- Nutze wo passend die Grünen-Markenfarbe (#005538) und klares, barrierearmes Layout.`;
+
+// Compute guidance is state-aware (mirrors image/image_edit): when a
+// deterministic result exists it is ALSO rendered as a card, so the model must
+// answer from it and never deny the capability. The static version bundled both
+// branches into one string, and the model latched onto the "if no result, ask
+// the user for it" clause even when a result was present — producing a denial
+// ("könnten Sie mir bitte das Berechnungsergebnis mitteilen?") next to a correct
+// card. Splitting on `computedResult` keeps the fallback wording out of the
+// prompt entirely when a number is available. The prose is the real answer (a
+// conversational reply to the user's concrete question); the card is a
+// supplementary breakdown, not a substitute for answering.
+function getComputeGuidance(state: ChatGraphState): string {
+  if (state.computedResult) {
+    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.';
+  }
+  return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert, aber es konnte kein sicheres Ergebnis ermittelt werden. Erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung (z.B. den genauen Text oder Ausdruck). Erfinde niemals eine Zahl.';
+}
 
 const IMAGE_FAILED_GUIDANCE =
   '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
@@ -670,14 +891,18 @@ function getSynthesisGuidance(state: ChatGraphState): string {
   return `\n\n## MEHR-DOKUMENT-KONTEXT\n\nDer*die Nutzer*in hat ${sources.length} Dokumente referenziert:\n${docList}\n\nAntworte als zusammenhängende Prosa, aber:\n1. Stütze jede Kernaussage durch eine Inline-Quellenreferenz [N].\n2. Wenn ein Dokument zur Frage relevant ist, muss es mindestens einmal zitiert werden — sonst kennzeichne explizit, dass es im jeweiligen Punkt schweigt.\n3. Mische nicht stillschweigend Quellen — der*die Leser*in soll erkennen können, welches Dokument welche Aussage stützt.\n4. Genderstern verwenden.`;
 }
 
-function getModeGuidance(state: ChatGraphState): string {
+export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
       return EDIT_CURRENT_DOC_GUIDANCE;
     case 'summary':
       return SUMMARY_GUIDANCE;
     case 'chart':
-      return CHART_GUIDANCE;
+      return getChartGuidance(state);
+    case 'artifact':
+      return ARTIFACT_GUIDANCE;
+    case 'compute':
+      return getComputeGuidance(state);
     case 'image':
       return state.generatedImage
         ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
@@ -759,6 +984,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     threadAttachments,
     memoryContext,
     summaryContext,
+    computedResult,
     boardContext,
     documentMentionContext,
   } = state;
@@ -768,12 +994,16 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const attachmentContext = formatAttachmentContext(state);
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
+  const computedResultFormatted = formatComputedResultContext(computedResult);
+  const tabularComputeGuidance = formatTabularComputeGuidance(state);
   const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
+  const sheetContextFormatted = formatSheetContext(state.sheetContext);
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
+  const platformContext = formatPlatformContext(state.clientPlatform);
 
   const intentGuidance =
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
@@ -814,7 +1044,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -846,7 +1076,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
     intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

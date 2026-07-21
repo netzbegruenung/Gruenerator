@@ -14,16 +14,28 @@ import { type AgentTask } from '../../../../database/schema/agentTasks.js';
 import { commentOutput } from './commentOutput.js';
 import { documentOutput } from './documentOutput.js';
 import { emailOutput } from './emailOutput.js';
+import { presentationOutput } from './presentationOutput.js';
+import { sheetOutput } from './sheetOutput.js';
 import { type OutputExecutor } from './types.js';
 
 const OUTPUT_EXECUTORS: Record<BoardFlowOutputType, OutputExecutor> = {
   comment: commentOutput,
   document: documentOutput,
+  sheet: sheetOutput,
+  presentation: presentationOutput,
   email: emailOutput,
 };
 
-// Document first so comment/email can link to it.
-const OUTPUT_ORDER: BoardFlowOutputType[] = ['document', 'comment', 'email'];
+// Artifact producers first so comment/email can link to the created doc. If more
+// than one artifact is selected, the last one wins for the comment/email link and
+// the returned documentId (v1 limitation — all artifacts are still created/linked).
+const OUTPUT_ORDER: BoardFlowOutputType[] = [
+  'document',
+  'sheet',
+  'presentation',
+  'comment',
+  'email',
+];
 
 export interface ExecuteOutputsResult {
   documentId: string | null;

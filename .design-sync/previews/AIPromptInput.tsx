@@ -8,18 +8,43 @@ import { AIPromptInput } from '@gruenerator/ui';
 
 // Tiny inline toolbar glyphs (dependency-free; the component sizes child svgs).
 const Paperclip = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
 const Sparkles = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.4 2.4M15.3 15.3l2.4 2.4M17.7 6.3l-2.4 2.4M8.7 15.3l-2.4 2.4" />
   </svg>
 );
 
 const toolbar = (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted-foreground, #71717a)' }}>
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      color: 'var(--muted-foreground, #71717a)',
+    }}
+  >
     <Paperclip />
     <Sparkles />
   </div>

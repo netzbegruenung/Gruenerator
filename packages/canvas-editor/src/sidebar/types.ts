@@ -35,6 +35,8 @@ export type SidebarTabId =
   | 'position'
   | 'settings'
   | 'frame-settings'
+  | 'chart-settings'
+  | 'image-adjust'
   | 'image-background'
   | 'design';
 

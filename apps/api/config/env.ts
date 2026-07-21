@@ -46,6 +46,9 @@ const envSchema = z.object({
   WEB_BASE_URL: z.string().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
 
+  // External: Abgeordnetenwatch API (public, no key). Override only for testing.
+  ABGEORDNETENWATCH_BASE_URL: z.string().default('https://www.abgeordnetenwatch.de/api/v2'),
+
   // ── Database (Postgres) ────────────────────────────────────────────────
   DATABASE_URL: z.string().optional(),
   POSTGRES_HOST: z.string().optional(),

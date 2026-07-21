@@ -550,6 +550,7 @@ function BalkenGroupInner({
         {/* Selection indicator */}
         {selected && editingIndex === null && (
           <Rect
+            name="selection-chrome"
             x={bounds.left - 4}
             y={bounds.top - 4}
             width={bounds.width + 8}

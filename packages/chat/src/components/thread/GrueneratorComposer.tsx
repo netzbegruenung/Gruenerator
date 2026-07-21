@@ -11,10 +11,9 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { RiVoiceAiFill } from 'react-icons/ri';
-import { cn } from '@gruenerator/ui';
+import { cn, useIsMobile } from '@gruenerator/ui';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore, type ThreadMode } from '../../stores/chatStore';
-import { ToolToggles } from '../ToolToggles';
 import { SearchDepthToggle } from '../SearchDepthToggle';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { ComposerAttachments } from '../assistant-ui/attachment';
@@ -28,6 +27,7 @@ import { WolkeMentionPopover } from './WolkeMentionPopover';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
+import { WebMentionPopover } from './WebMentionPopover';
 import type { CollabDocSelection } from '../../lib/documentMentionables';
 import type {
   WolkeFileToken,
@@ -35,7 +35,7 @@ import type {
   CanvaDesignToken,
   VorlageToken,
 } from '../../lib/mentionables';
-import { PlusMenu } from './PlusMenu';
+import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { registerDocumentSlug } from '../../lib/documentMentionables';
@@ -63,8 +63,18 @@ interface GrueneratorComposerProps {
    * implicit thread mode. */
   modelPickerThreadModeOverride?: ThreadMode;
   insideAgent?: boolean;
+  /** Surface-specific prompt presets, shown as a "Vorlagen" submenu in the
+   * plus menu (e.g. the workplace example prompts). */
+  presets?: ComposerPreset[];
+  /** 'card' (default): textarea with toolbar row below. 'pill': slim
+   * single-row composer — plus menu, input, model picker and send inline —
+   * that grows with the textarea (workplace hero). */
+  variant?: 'card' | 'pill';
   /** Render-prop slots for surface-specific UI. */
   slots?: {
+    /** Far-left control, where the plus menu sits. Lets a surface that turns
+     * the plus menu off still place a button in that position. */
+    leading?: React.ReactNode;
     /** Above the input — selection chips, contextual hints. */
     aboveInput?: React.ReactNode;
     /** Below the input/toolbar — quick actions, status rows. */
@@ -81,7 +91,8 @@ interface GrueneratorComposerProps {
   requireProfileHydration?: boolean;
 }
 
-const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
+const ROUND_BTN_BASE =
+  'flex items-center justify-center rounded-full transition-[background-color,color,transform,opacity]';
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
 function SearchDepthToggleSlot() {
@@ -111,7 +122,7 @@ function SendButton({ requireProfileHydration }: { requireProfileHydration?: boo
 
   return (
     <ComposerPrimitive.Send
-      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white disabled:opacity-30`}
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
       aria-label="Nachricht senden"
     >
       <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
@@ -123,7 +134,7 @@ function CancelButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Cancel
-      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white`}
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white hover:bg-error/90 active:scale-95`}
       aria-label="Abbrechen"
     >
       <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
@@ -135,7 +146,7 @@ function DictateButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Dictate
-      className={`${roundBtnSize(isCompact)} flex items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800`}
+      className={`${roundBtnSize(isCompact)} flex items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground active:bg-grey-200 dark:hover:bg-grey-800 dark:active:bg-grey-700`}
       aria-label="Diktat starten"
     >
       <Mic className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
@@ -147,7 +158,7 @@ function StopDictationButton() {
   const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.StopDictation
-      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white animate-pulse`}
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white animate-pulse hover:bg-error/90`}
       aria-label="Diktat beenden"
     >
       <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
@@ -204,7 +215,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen';
+  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -225,7 +236,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   toolbarExtra,
   onNavigate,
   firstName,
-  placeholder = 'Nachricht schreiben...',
+  placeholder,
   disclaimer = 'Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.',
   disclaimerCompact = 'Kann Fehler machen.',
   showMentions = true,
@@ -234,11 +245,15 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showModelPicker = true,
   modelPickerThreadModeOverride,
   insideAgent = false,
+  presets,
+  variant = 'card',
   slots,
   requireProfileHydration = false,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const isCompact = useChatDensity() === 'compact';
+  const isMobile = useIsMobile();
+  const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
@@ -342,6 +357,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           });
         }
         setMention((prev) => ({ ...prev, mode: 'vorlagen', visible: true, mentionStart: -1 }));
+        return;
+      }
+
+      // When user selects the @web trigger, swap to the URL input popover
+      if (mentionable.type === 'webpage') {
+        if (mention.mentionStart >= 0) {
+          const currentText = composerRuntime.getState().text;
+          const before = currentText.slice(0, mention.mentionStart);
+          const after = currentText.slice(textarea.selectionStart);
+          composerRuntime.setText(`${before}${after}`);
+          requestAnimationFrame(() => {
+            const pos = before.length;
+            textarea.setSelectionRange(pos, pos);
+          });
+        }
+        setMention((prev) => ({ ...prev, mode: 'web', visible: true, mentionStart: -1 }));
         return;
       }
 
@@ -496,6 +527,34 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover]
   );
 
+  const handleWebSelect = useCallback(
+    (url: string) => {
+      const hostname = (() => {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return url;
+        }
+      })();
+      void composerRuntime.addAttachment({
+        id: `gruenerator-webpage-${url}`,
+        type: 'document',
+        name: hostname,
+        contentType: 'application/x-gruenerator-webpage',
+        content: [
+          {
+            type: 'data',
+            name: 'gruenerator-mention',
+            data: { kind: 'webpage', url, name: hostname },
+          },
+        ],
+      });
+      dismissPopover();
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [composerRuntime, dismissPopover]
+  );
+
   const handleCanvaSelect = useCallback(
     (designs: CanvaDesignToken[]) => {
       if (designs.length === 0) return;
@@ -550,7 +609,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         mention.mode === 'wolke' ||
         mention.mode === 'connect' ||
         mention.mode === 'canva' ||
-        mention.mode === 'vorlagen'
+        mention.mode === 'vorlagen' ||
+        mention.mode === 'web'
       )
         return;
 
@@ -589,7 +649,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         mention.mode === 'wolke' ||
         mention.mode === 'connect' ||
         mention.mode === 'canva' ||
-        mention.mode === 'vorlagen'
+        mention.mode === 'vorlagen' ||
+        mention.mode === 'web'
       ) {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -649,12 +710,80 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
   }, []);
 
+  const handleApplyPreset = useCallback(
+    (text: string) => {
+      composerRuntime.setText(text);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.setSelectionRange(text.length, text.length);
+          textarea.focus();
+        }
+      });
+    },
+    [composerRuntime]
+  );
+
+  const isPill = variant === 'pill';
+
+  const hiddenUploadButton = (
+    <ComposerPrimitive.AddAttachment asChild>
+      <button ref={uploadRef} className="hidden" aria-hidden="true" />
+    </ComposerPrimitive.AddAttachment>
+  );
+
+  const plusMenuNode = showPlusMenu ? (
+    <PlusMenu
+      onInsertMention={handleSelect}
+      onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
+      onUploadFile={handlePlusMenuUpload}
+      includeModes={showToolToggles}
+      insideAgent={insideAgent}
+      firstName={firstName ?? null}
+      {...(presets && presets.length > 0 && { presets, onApplyPreset: handleApplyPreset })}
+      {...(onNavigate ? { onNavigate, onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
+    />
+  ) : null;
+
+  const modelPickerNode = showModelPicker ? (
+    <ModelPicker
+      {...(modelPickerThreadModeOverride && {
+        threadModeOverride: modelPickerThreadModeOverride,
+      })}
+    />
+  ) : null;
+
+  const composerInput = (
+    <ComposerPrimitive.Input
+      ref={textareaRef}
+      autoFocus={typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches}
+      placeholder={effectivePlaceholder}
+      minRows={1}
+      maxRows={isPill ? 6 : isCompact ? 4 : 8}
+      className={
+        isPill
+          ? 'min-h-0 w-full min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-foreground outline-none placeholder:text-foreground-muted/60'
+          : isCompact
+            ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
+            : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
+      }
+      onChange={showMentions ? handleChange : undefined}
+      onKeyDown={showMentions ? handleKeyDown : undefined}
+    />
+  );
+
   return (
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root
         className={cn(
-          'composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md',
-          isMistral ? 'border-[#003399]' : 'border-border'
+          'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
+          // Design v2: the pill keeps its resting border/shadow on focus.
+          isPill
+            ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
+            : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
+          // The Mistral brand border reads as a focus ring on the slim pill —
+          // card layout only.
+          isMistral && !isPill ? 'border-[#003399]' : 'border-border'
         )}
       >
         <ComposerPrimitive.Quote
@@ -706,6 +835,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               onSelect={handleVorlagenSelect}
               onDismiss={dismissPopover}
             />
+          ) : mention.mode === 'web' ? (
+            <WebMentionPopover
+              visible={mention.visible}
+              onSelect={handleWebSelect}
+              onDismiss={dismissPopover}
+            />
           ) : mention.mode === 'skills' ? (
             <SkillPopover
               query={mention.query}
@@ -726,64 +861,47 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             />
           ))}
 
-        <ComposerPrimitive.Input
-          ref={textareaRef}
-          autoFocus={
-            typeof window !== 'undefined' && !window.matchMedia('(pointer: coarse)').matches
-          }
-          placeholder={placeholder}
-          minRows={1}
-          maxRows={isCompact ? 4 : 8}
-          className={
-            isCompact
-              ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
-              : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
-          }
-          onChange={showMentions ? handleChange : undefined}
-          onKeyDown={showMentions ? handleKeyDown : undefined}
-        />
-
-        <div className="flex items-center justify-between px-2 pb-1">
-          <div className="flex items-center gap-0.5">
-            <ComposerPrimitive.AddAttachment asChild>
-              <button ref={uploadRef} className="hidden" aria-hidden="true" />
-            </ComposerPrimitive.AddAttachment>
-            {showPlusMenu && (
-              <PlusMenu
-                onInsertMention={handleSelect}
-                onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
-                onUploadFile={handlePlusMenuUpload}
-                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
-              />
-            )}
-            {showToolToggles && (
-              <ToolToggles
-                onNavigate={onNavigate}
-                firstName={firstName}
-                insideAgent={insideAgent}
-              />
-            )}
+        {isPill ? (
+          <div className="flex items-center gap-0.5 px-1.5 py-1">
+            {hiddenUploadButton}
+            {plusMenuNode}
+            {slots?.leading}
+            {composerInput}
             {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
-          </div>
-          <div className="flex items-center gap-0.5">
-            {showModelPicker && (
-              <ModelPicker
-                {...(modelPickerThreadModeOverride && {
-                  threadModeOverride: modelPickerThreadModeOverride,
-                })}
-              />
-            )}
-            {/* TODO: re-enable when realtime voice agent is ready for users
-            <ComposerVoiceToggle />
-            */}
+            {modelPickerNode}
             {slots?.sendAdornment}
             <ComposerButtons
               isRunning={isRunning}
               requireProfileHydration={requireProfileHydration}
             />
           </div>
-        </div>
+        ) : (
+          <>
+            {composerInput}
+
+            <div className="flex items-center justify-between px-2 pb-1">
+              <div className="flex items-center gap-0.5">
+                {hiddenUploadButton}
+                {plusMenuNode}
+                {slots?.leading}
+                {showToolToggles && <SearchDepthToggleSlot />}
+                {toolbarExtra}
+              </div>
+              <div className="flex items-center gap-0.5">
+                {modelPickerNode}
+                {/* TODO: re-enable when realtime voice agent is ready for users
+                <ComposerVoiceToggle />
+                */}
+                {slots?.sendAdornment}
+                <ComposerButtons
+                  isRunning={isRunning}
+                  requireProfileHydration={requireProfileHydration}
+                />
+              </div>
+            </div>
+          </>
+        )}
         {slots?.belowInput}
       </ComposerPrimitive.Root>
       <p

@@ -6,6 +6,7 @@ import {
   parseLabeledText,
   parseLabeledTextBatch,
   sanitizeField,
+  truncateAtSentence,
   truncateField,
 } from '../../../utils/sharepic/textParser.js';
 
@@ -26,7 +27,9 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
   info: {
     fields: ['header', 'subheader', 'body', 'suchbegriff'],
     mainKey: 'mainInfo',
-    maxLengths: { header: 65, subheader: 125, body: 255 },
+    // body headroom above the prompt's 150-250 target so a slightly-long final
+    // sentence is kept whole (sentence-safe trim), not chopped. Renderer auto-fits.
+    maxLengths: { header: 65, subheader: 125, body: 300 },
   },
   dreizeilen: {
     fields: ['zeile1', 'zeile2', 'zeile3', 'suchbegriff'],
@@ -227,7 +230,11 @@ export async function generateUnifiedTexts(
           for (const [key, value] of Object.entries(parseResult.data)) {
             let processed = sanitizeField(value);
             if (limits?.[key]) {
-              processed = truncateField(processed, limits[key]);
+              // Prose body fields must not be chopped mid-sentence.
+              processed =
+                key === 'body'
+                  ? truncateAtSentence(processed, limits[key])
+                  : truncateField(processed, limits[key]);
             }
             processedData[key] = processed;
           }
@@ -252,7 +259,11 @@ export async function generateUnifiedTexts(
         for (const [key, value] of Object.entries(parseResult.data)) {
           let processed = sanitizeField(value);
           if (config.maxLengths?.[key]) {
-            processed = truncateField(processed, config.maxLengths[key]);
+            // Prose body fields must not be chopped mid-sentence.
+            processed =
+              key === 'body'
+                ? truncateAtSentence(processed, config.maxLengths[key])
+                : truncateField(processed, config.maxLengths[key]);
           }
           processedData[key] = processed;
         }

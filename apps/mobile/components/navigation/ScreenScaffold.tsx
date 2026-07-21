@@ -11,10 +11,21 @@ import { SidebarMenuButton } from './SidebarMenuButton';
 /**
  * Shared tab-screen chrome: top-safe area + the app gradient background + the standard
  * header bar (drawer button · centered title · profile menu). Screens render only their
- * own content as children. Replaces the header/gradient/SafeAreaView trio that was
- * duplicated across start, tools, notebooks and (now) docs.
+ * own content as children.
+ *
+ * Pass `backdrop` to layer a per-tab background behind the content (the mobile echoes of
+ * the web workplace's per-tab tints: Chat sunrise, Wissen pink, Arbeiten flat). It renders
+ * above the default app gradient but below the header + content.
  */
-export function ScreenScaffold({ title, children }: { title: string; children: ReactNode }) {
+export function ScreenScaffold({
+  title,
+  children,
+  backdrop,
+}: {
+  title: string;
+  children: ReactNode;
+  backdrop?: ReactNode;
+}) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -30,6 +41,7 @@ export function ScreenScaffold({ title, children }: { title: string; children: R
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       />
+      {backdrop}
       <View style={styles.header}>
         <View style={styles.headerSide}>
           <SidebarMenuButton color={theme.text} size={24} />
