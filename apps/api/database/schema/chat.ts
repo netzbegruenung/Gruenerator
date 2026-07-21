@@ -11,6 +11,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import { type ThreadToolContext } from '../../agents/langgraph/ChatGraph/types.js';
+
 export const chatThreads = pgTable(
   'chat_threads',
   {
@@ -42,11 +44,7 @@ export const chatThreads = pgTable(
     // Generalised tool memory: which tool family the last substantive turn used
     // ({kind, ref?, label?}) — injected into the classifier so vague follow-ups
     // route back to the same tool (mentions are stripped from message text).
-    last_tool_context: jsonb('last_tool_context').$type<{
-      kind: string;
-      ref?: string | null;
-      label?: string | null;
-    }>(),
+    last_tool_context: jsonb('last_tool_context').$type<ThreadToolContext>(),
     // Home "Space" (a group) this thread is filed in. NULL = unfiled. FK →
     // groups(id) ON DELETE SET NULL. A thread has one home space (personal or
     // team); it can additionally be shared to more spaces via group_content_shares.

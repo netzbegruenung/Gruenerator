@@ -444,6 +444,10 @@ export interface ChatGraphState {
   clientPlatform: ClientPlatform;
   /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
   lastToolContext?: ThreadToolContext | null;
+  /** Last user text with mention tokens fully REMOVED — for regex heuristics
+   *  that would false-positive on labels ("Bild generieren"). The messages on
+   *  state carry the label form ("@Label") instead. */
+  lastUserTextNoMentions?: string;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays
