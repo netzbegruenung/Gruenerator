@@ -1,11 +1,11 @@
 export type TextProvider = 'mistral' | 'litellm' | 'regolo';
-export type ImageBackend = 'hosted' | 'regolo' | 'ionos';
+export type ImageBackend = 'hosted' | 'regolo';
 
 export type Provider = TextProvider;
 
 export type TextModelId = 'mistral-medium-3.5' | 'litellm' | 'gemma-litellm';
 
-export type ImageModelId = 'flux-klein' | 'flux-pro' | 'flux-max' | 'regolo-image' | 'ionos-image';
+export type ImageModelId = 'flux-klein' | 'flux-pro' | 'flux-max' | 'regolo-image';
 
 export type ModelId = TextModelId | ImageModelId;
 
@@ -30,7 +30,7 @@ export interface TextModelOption extends BaseModelOption {
   offByDefault?: boolean;
 }
 
-export type ImageFamilyId = 'flux' | 'regolo' | 'ionos';
+export type ImageFamilyId = 'flux' | 'regolo';
 
 export interface ImageModelOption extends BaseModelOption {
   modality: 'image';
@@ -145,17 +145,6 @@ export const MODEL_OPTIONS: ModelOption[] = [
     icon: 'server',
     region: 'self-hosted',
   },
-  {
-    modality: 'image',
-    id: 'ionos-image',
-    family: 'ionos',
-    name: '🌳 IONOS Schnell',
-    description: 'Schnell, EU-Cloud',
-    backend: 'ionos',
-    costMultiplier: 1,
-    icon: 'server',
-    region: 'self-hosted',
-  },
 ];
 
 export const IMAGE_FAMILIES: ImageFamilyOption[] = [
@@ -166,15 +155,6 @@ export const IMAGE_FAMILIES: ImageFamilyOption[] = [
     description: 'Selbst gehostet, klimaneutral',
     region: 'self-hosted',
   },
-  // IONOS is hidden from the pickers for now (quality/availability issues).
-  // The 'ionos-image' model entry stays in IMAGE_MODELS so stored
-  // preferences keep resolving on the backend.
-  // {
-  //   id: 'ionos',
-  //   name: '🌳 IONOS Schnell',
-  //   description: 'EU-Cloud, klimaneutral',
-  //   region: 'self-hosted',
-  // },
 ];
 
 export const DEFAULT_FLUX_MODEL_ID: ImageModelId = 'flux-pro';
@@ -185,9 +165,8 @@ export function getImageFamily(id: ImageModelId): ImageFamilyId {
 }
 
 export function getDefaultModelForFamily(family: ImageFamilyId): ImageModelId {
-  if (family === 'flux') return DEFAULT_FLUX_MODEL_ID;
   if (family === 'regolo') return 'regolo-image';
-  return 'ionos-image';
+  return DEFAULT_FLUX_MODEL_ID;
 }
 
 export const TEXT_MODELS: TextModelOption[] = MODEL_OPTIONS.filter(

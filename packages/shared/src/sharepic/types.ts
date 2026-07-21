@@ -34,9 +34,7 @@ export interface SharepicRequest {
   /** Image attachments */
   attachments?: SharepicAttachment[];
   /** Enable privacy mode */
-  usePrivacyMode?: boolean;
   /** Enable Bedrock/Pro mode */
-  useBedrock?: boolean;
 }
 
 /** Options for the useSharepicGeneration hook */
@@ -52,9 +50,7 @@ export interface SharepicGenerationOptions {
   /** Base64 image data (for dreizeilen, quote types) */
   imageData?: string;
   /** Enable privacy mode */
-  usePrivacyMode?: boolean;
   /** Enable Pro mode */
-  useProMode?: boolean;
 }
 
 /** Single sharepic result from generation */
