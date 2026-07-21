@@ -19,6 +19,7 @@ import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
 import { chatGraphContract } from '@gruenerator/contracts';
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -173,11 +174,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         memoryEnabled,
         contextWindowTokens,
+        mentionTokenFields,
+        lastUserTextRaw,
       } = ctxResult.ctx;
 
       const {
         agentId,
-        forcedTools,
+        forcedTools: bodyForcedTools,
         enabledTools,
         modelId,
         documentIds: rawDocumentIds,
@@ -191,6 +194,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         currentReel: rawCurrentReel,
         reelUpload: rawReelUpload,
       } = args.body;
+
+      // Durable mention tokens (parsed in streamContext) are the source of
+      // truth; legacy body forcedTools (older clients) union in. Regex edit
+      // heuristics below need the text with tokens fully removed — labels like
+      // "Bild generieren" would false-positive their noun patterns.
+      const mergedForcedTools = [
+        ...new Set([...(bodyForcedTools ?? []), ...mentionTokenFields.forcedTools]),
+      ];
+      const forcedTools = mergedForcedTools.length > 0 ? mergedForcedTools : undefined;
+      const lastUserTextNoMentions = sanitizeMentionTokens(lastUserTextRaw, 'remove');
 
       // === Stage 1: Classify ===
       const classifiedState = {
@@ -435,7 +448,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const reelText = (extractTextContent(lastUserMessage.content) || '').trim();
+        const reelText = lastUserTextNoMentions.trim();
         const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelText);
         if (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed)) {
           const handled = await handleReelEdit({
@@ -551,7 +564,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !universalEditForced &&
         (rawCurrentSocialPost != null || rawCurrentSharepic == null)
       ) {
-        const editText = ((extractTextContent(lastUserMessage.content) as string) || '').trim();
+        const editText = lastUserTextNoMentions.trim();
         if (editText && isSocialTextEditInstruction(editText)) {
           const handled = await handleSocialPostTextEdit({
             sse,
@@ -586,9 +599,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const editText = ((extractTextContent(lastUserMessage.content) as string) || '')
-          .replace(/@sharepic\b/gi, ' ')
-          .trim();
+        const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
         // With an explicitly activated sharepic (Sharepic-Modus) AND the tool
         // loop on, an edit verb alone is enough — the loop can answer with
         // plain text when the message turns out not to be sharepic-related,
@@ -645,7 +656,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const followText = (extractTextContent(lastUserMessage.content) as string) || '';
+        const followText = lastUserTextNoMentions;
         if (isSharepicRefinement(followText)) {
           const prior = await getLastSharepicVariant(actualThreadId);
           if (prior) {
@@ -763,6 +774,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (
         classifiedState.intent === 'modify_board' &&
         (!rawBoardIds || rawBoardIds.length === 0) &&
+        mentionTokenFields.boardIds.length === 0 &&
         !rawCurrentBoard &&
         !forcedTool
       ) {
