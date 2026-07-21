@@ -676,8 +676,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // OAuth callback is public (identity comes from the one-time Redis state, not
   // a cookie — the cross-site provider redirect can't carry our session).
   mountMcpOAuthCallbackRouter(app);
-  // Authenticated MCP SERVER (inbound; mcp.gruenerator.eu/v2). Auth is resolved
-  // inside the router (OAuth access token or API key), NOT via requireAuth.
+  // Inbound MCP server (mcp.gruenerator.eu/v2) — auth resolved in the router.
   if (env.MCP_SERVER_ENABLED) {
     app.use('/api/mcp-server', mcpServerRouter);
   }

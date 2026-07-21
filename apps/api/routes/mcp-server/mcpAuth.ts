@@ -16,13 +16,9 @@ export interface McpAuthContext {
 }
 
 /**
- * Resolve the caller of the MCP endpoint.
- *
- * Admin-minted `api_keys` PATs are self-identifying (`gru_` prefix) and go
- * straight to the key lookup — DCR+PKCE is impractical from cron/scripts.
- * Everything else is treated as a Better Auth OAuth access token (`mcp`
- * plugin, ba_oauth_access_tokens). API-key scopes map onto MCP scopes
- * literally; `*` grants everything.
+ * `gru_`-prefixed bearers are api_keys PATs (DCR+PKCE is impractical from
+ * cron/scripts); their scopes map onto MCP scopes literally, `*` grants all.
+ * Everything else is a Better Auth OAuth access token.
  */
 export async function resolveMcpAuth(req: Request): Promise<McpAuthContext | null> {
   const bearer = extractBearer(req);
