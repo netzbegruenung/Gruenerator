@@ -297,7 +297,7 @@ const content = [
       head: ['Subunternehmen', 'Sitz', 'AV/DPA', 'Leistungsgegenstand', 'Rechtsgrundlage / Übermittlung'],
       rows: [
         ['Hetzner Online GmbH', 'Industriestr. 25, 91710 Gunzenhausen, DE', 'Bestehend', 'Hosting der Webanwendung & Server', 'Verarbeitung in DE (EU); ISO-27001 zertifiziert.'],
-        ['netzbegrünung – Verein für grüne Netzkultur e.V.', 'Deutschland', 'Ausstehend', 'Infrastruktur „Privacy Mode", eigene KI-Modelle, Datenbanken, Vektorsuche, Authentifizierung', 'Verarbeitung in DE/Finnland (EU).'],
+        ['netzbegrünung – Verein für grüne Netzkultur e.V.', 'Deutschland', 'Ausstehend', 'Infrastruktur, eigene KI-Modelle, Datenbanken, Vektorsuche, Authentifizierung', 'Verarbeitung in DE/Finnland (EU).'],
         ['Mistral AI', '15 rue des Halles, 75001 Paris, FR', 'Bestehend', 'KI-Text- & Sprachverarbeitung (KI-Textmodelle, Voxtral-Spracherkennung, Mistral Speech/TTS)', 'Verarbeitung in FR (EU). DPA vorhanden. Kein Training.'],
         ['Seeweb S.r.l. / Regolo AI', 'C.so Lazio 9/a, 03100 Frosinone, IT', 'Bestehend', 'Video-/Audio-Transkription, KI-Textmodelle, Reranking', 'Verarbeitung in IT (EU). Zero Data Retention (Transkription). Kein Training.'],
         ['Linkup Technologies SAS', '28 avenue des Pépinières, 94260 Fresnes, FR', 'Bestehend', 'Agentische Web-Recherche mit Quellenangaben (Suchanfragen)', 'Verarbeitung in FR (EU).'],

@@ -26,7 +26,6 @@ interface TrackedRequest extends Request {
 
 const simpleGenerationSchema = z
   .object({
-    usePrivacyMode: z.boolean().optional(),
     useWebSearchTool: z.boolean().optional(),
     useAgentMode: z.boolean().optional(),
   })
@@ -101,7 +100,6 @@ router.post(
   validateBody(simpleGenerationSchema),
   async (req: TypedRequest<SimpleGenerationBody>, res: Response): Promise<void> => {
     log.debug('[simpleGeneration] Incoming request body flags:', {
-      usePrivacyMode: req.body.usePrivacyMode,
       useWebSearchTool: req.body.useWebSearchTool,
       useAgentMode: req.body.useAgentMode,
     });

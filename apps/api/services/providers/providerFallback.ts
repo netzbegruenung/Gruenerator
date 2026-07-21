@@ -1,6 +1,6 @@
 /**
- * Privacy mode fallback execution helper
- * Provides automatic failover across privacy-friendly LLM providers
+ * Provider fallback execution helper
+ * Provides automatic failover across configured LLM providers
  */
 
 import { env } from '../../config/env.js';
@@ -9,7 +9,7 @@ import type {
   ProviderName,
   ModelName,
   ProviderExecutor,
-  PrivacyProviderData,
+  FallbackProviderData,
   ExecutionResponse,
 } from './types.js';
 
@@ -30,9 +30,9 @@ export function isProviderAvailable(provider: ProviderName): boolean {
 }
 
 /**
- * Get the appropriate model for a privacy fallback provider
+ * Get the appropriate model for a fallback provider
  */
-export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
+export function getFallbackModelForProvider(provider: ProviderName): ModelName {
   switch (provider) {
     case 'litellm':
       return 'verdigado-pro';
@@ -67,7 +67,7 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
 export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'litellm', 'regolo'];
 
 /**
- * Try privacy-friendly providers in order, using a caller-supplied executor.
+ * Try fallback providers in order, using a caller-supplied executor.
  * Only attempts providers that have the required API tokens configured.
  *
  * @param execForProvider - Async function that executes the request for a given provider
@@ -77,10 +77,10 @@ export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'litellm', 'r
  * @throws {Error} When no providers are configured or all providers fail
  * @returns The successful response from the first working provider
  */
-export async function tryPrivacyModeProviders(
+export async function tryFallbackProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
-  data: PrivacyProviderData,
+  data: FallbackProviderData,
   chain: ProviderName[] = ['litellm', 'regolo', 'mistral']
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
@@ -97,15 +97,15 @@ export async function tryPrivacyModeProviders(
 
     try {
       console.log(`[ProviderFallback ${requestId}] Trying fallback provider: ${provider}`);
-      const privacyData: PrivacyProviderData = {
+      const fallbackData: FallbackProviderData = {
         ...data,
         options: {
           ...(data.options || {}),
           provider,
-          model: getPrivacyModelForProvider(provider),
+          model: getFallbackModelForProvider(provider),
         },
       };
-      const result = await execForProvider(provider, privacyData);
+      const result = await execForProvider(provider, fallbackData);
 
       // Validate the response has content
       if (result?.content || result?.stop_reason === 'tool_use') {
@@ -126,13 +126,13 @@ export async function tryPrivacyModeProviders(
 
   if (attemptedProviders.length === 0) {
     throw new Error(
-      'No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or REGOLO_API_KEY'
+      'No fallback providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or REGOLO_API_KEY'
     );
   }
 
   const msg = lastError?.message || 'Unknown error';
   throw new Error(
-    `All privacy mode providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`
+    `All fallback providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`
   );
 }
 
@@ -143,7 +143,7 @@ export async function tryPrivacyModeProviders(
 export async function trySharepicFallbackProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
-  data: PrivacyProviderData
+  data: FallbackProviderData
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
   const attemptedProviders: ProviderName[] = [];
@@ -158,7 +158,7 @@ export async function trySharepicFallbackProviders(
 
     try {
       console.log(`[SharepicFallback ${requestId}] Trying fallback provider: ${provider}`);
-      const fallbackData: PrivacyProviderData = {
+      const fallbackData: FallbackProviderData = {
         ...data,
         options: {
           ...(data.options || {}),

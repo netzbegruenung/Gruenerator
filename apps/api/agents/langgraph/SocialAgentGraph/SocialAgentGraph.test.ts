@@ -76,7 +76,6 @@ const mockEnrichedState: EnrichedState = {
     inhalt: 'Klimaschutz in Alfter: nachhaltige Mobilität und erneuerbare Energien',
     zitatgeber: '',
     platforms: ['instagram'],
-    usePrivacyMode: false,
   },
   examples: [{ content: 'Beispiel Instagram-Post zum Klimaschutz' }],
   toolInstructions: [],
@@ -97,7 +96,6 @@ function buildTestState(overrides: Partial<SocialAgentState> = {}): SocialAgentS
     zitatgeber: null,
     features: {
       useWebSearchTool: false,
-      usePrivacyMode: false,
     },
     selectedDocumentIds: [],
     selectedTextIds: [],
@@ -204,7 +202,6 @@ async function runTests() {
     zitatgeber: null,
     features: {
       useWebSearchTool: false,
-      usePrivacyMode: true,
     },
     selectedDocumentIds: [],
     selectedTextIds: [],

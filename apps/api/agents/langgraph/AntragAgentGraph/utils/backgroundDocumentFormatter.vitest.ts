@@ -40,7 +40,6 @@ function makeState(overrides: Partial<AntragAgentState> = {}): AntragAgentState 
     gliederung: 'OV Alfter',
     features: {
       useWebSearchTool: false,
-      usePrivacyMode: false,
     },
     selectedDocumentIds: [],
     selectedTextIds: [],

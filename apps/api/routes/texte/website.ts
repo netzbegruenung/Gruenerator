@@ -18,7 +18,6 @@ const router: Router = createAuthenticatedRouter();
 const websiteSchema = z.object({
   description: z.string().min(1, 'Bitte gib eine Beschreibung an'),
   email: z.string().optional(),
-  usePrivacyMode: z.boolean().optional(),
 });
 type WebsiteBody = z.infer<typeof websiteSchema>;
 
@@ -26,7 +25,7 @@ router.post(
   '/',
   validateBody(websiteSchema),
   async (req: TypedRequest<WebsiteBody>, res: Response): Promise<void> => {
-    const { description, email, usePrivacyMode } = req.body;
+    const { description, email } = req.body;
 
     log.debug('[claude_website] Request received:', {
       hasDescription: !!description,
@@ -137,7 +136,6 @@ ${description}`;
       const result = await aiWorkerPool.processRequest(
         {
           type: 'website',
-          usePrivacyMode: usePrivacyMode || false,
           ...payload,
         },
         req

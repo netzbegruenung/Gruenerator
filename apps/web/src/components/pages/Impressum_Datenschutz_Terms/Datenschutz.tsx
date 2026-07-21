@@ -224,9 +224,7 @@ const Datenschutz = () => {
             <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
             <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
             <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
-            <li>
-              KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)
-            </li>
+            <li>KI-Modelle der netzbegrünung (selbst gehostete Open-Source-Modelle)</li>
           </ul>
         </li>
         <li>

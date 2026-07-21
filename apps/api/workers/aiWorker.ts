@@ -13,7 +13,7 @@ import type {
   AIWorkerResult,
   AIRequestOptions,
 } from './types.js';
-import type { ProviderName, PrivacyProviderData } from '../services/providers/types.js';
+import type { ProviderName, FallbackProviderData } from '../services/providers/types.js';
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -153,9 +153,9 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       const isSharepicType = SHAREPIC_TYPES.includes(type);
       const fallbackFn = isSharepicType
         ? providerFallback.trySharepicFallbackProviders
-        : providerFallback.tryPrivacyModeProviders;
+        : providerFallback.tryFallbackProviders;
 
-      const fallbackData: PrivacyProviderData = {
+      const fallbackData: FallbackProviderData = {
         ...data,
         options: data.options || {},
       };
@@ -178,12 +178,12 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       const isSharepicType = SHAREPIC_TYPES.includes(type);
       const fallbackFn = isSharepicType
         ? providerFallback.trySharepicFallbackProviders
-        : providerFallback.tryPrivacyModeProviders;
+        : providerFallback.tryFallbackProviders;
 
       console.log(
-        `[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`
+        `[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'default'} providers`
       );
-      const errorFallbackData: PrivacyProviderData = {
+      const errorFallbackData: FallbackProviderData = {
         ...data,
         options: data.options || {},
       };

@@ -31,7 +31,7 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
 
     // Build web search query following the standard pipeline pattern (antrag_simple.json template)
     const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
-    const shouldWebSearch = !state.features.usePrivacyMode && state.features.useWebSearchTool;
+    const shouldWebSearch = state.features.useWebSearchTool;
     const webSearchQuery = shouldWebSearch ? `${state.inhalt} ${partySearchTerm} Politik` : null;
     const aiWorkerPool = state.req ? getAIWorkerPool(state.req) : undefined;
 
@@ -44,18 +44,16 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
           gliederung: state.gliederung || '',
           attachments: state.attachments,
           useWebSearchTool: state.features.useWebSearchTool,
-          usePrivacyMode: state.features.usePrivacyMode,
           selectedDocumentIds: state.selectedDocumentIds,
           selectedTextIds: state.selectedTextIds,
           searchQuery: state.searchQuery,
         },
         {
           type: 'antrag',
-          enableUrls: !state.features.usePrivacyMode,
+          enableUrls: true,
           enableWebSearch: shouldWebSearch,
           webSearchQuery,
           aiWorkerPool,
-          usePrivacyMode: state.features.usePrivacyMode,
           selectedDocumentIds: state.selectedDocumentIds,
           selectedTextIds: state.selectedTextIds,
           searchQuery: state.searchQuery,

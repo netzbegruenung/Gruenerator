@@ -37,18 +37,6 @@ export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
 }
 
 /**
- * Determine if MAIN_LLM_OVERRIDE environment variable should be applied
- */
-export function shouldAllowMainLlmOverride(
-  options: ProviderOptions = {},
-  metadata: RequestMetadata = {}
-): boolean {
-  if (options.privacyMode === true || metadata.privacyMode === true) return false;
-  if (options.disableExternalProviders || metadata.requiresPrivacy) return false;
-  return true;
-}
-
-/**
  * Infer provider from model name patterns
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
@@ -89,7 +77,7 @@ interface SelectProviderParams {
 
 /**
  * Select provider and model given request context and environment
- * Handles mode flags (ultra, pro), type-based routing, and environment overrides
+ * Handles type-based routing and environment overrides
  */
 export function selectProviderAndModel({
   type,
@@ -171,7 +159,7 @@ export function selectProviderAndModel({
 
   // MAIN_LLM_OVERRIDE environment variable
   const mainLlmOverride = env.MAIN_LLM_OVERRIDE;
-  if (mainLlmOverride && shouldAllowMainLlmOverride(options, metadata)) {
+  if (mainLlmOverride) {
     model = mainLlmOverride;
     provider = determineProviderFromModel(mainLlmOverride);
   }

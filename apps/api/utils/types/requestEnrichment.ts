@@ -13,7 +13,6 @@ export interface EnrichmentOptions {
   enableUrls?: boolean | undefined;
   enableWebSearch?: boolean | undefined;
   enableDocQnA?: boolean | undefined;
-  usePrivacyMode?: boolean | undefined;
   webSearchQuery?: string | null | undefined;
   systemRole?: string | null | undefined;
   constraints?: string | null | undefined;
@@ -90,7 +89,6 @@ export interface EnrichmentMetadata {
   totalDocuments: number;
   enableDocQnA: boolean;
   webSearchSources: WebSearchSource[] | null;
-  usePrivacyMode: boolean;
   urlsProcessed?: string[] | undefined;
   documentsPreProcessed?: boolean | undefined;
   documentsReferences?: DocumentReference[] | undefined;

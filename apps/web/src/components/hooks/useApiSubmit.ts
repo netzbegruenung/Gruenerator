@@ -46,11 +46,10 @@ const useApiSubmit = (endpoint: string) => {
     setRetryCount(0);
 
     try {
-      // Pass only intent flags; provider/model selection remains on the backend.
+      // Provider/model selection happens on the backend.
       const requestData: Record<string, unknown> = {
         ...formData,
         ...options,
-        usePrivacyMode: !!formData.usePrivacyMode,
         onRetry: (attempt: number, delay: number) => {
           setRetryCount(attempt);
           setError(

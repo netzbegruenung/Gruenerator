@@ -313,7 +313,6 @@ class RequestEnricher {
       enableUrls = true,
       enableWebSearch = false,
       enableDocQnA = true,
-      usePrivacyMode = false,
       webSearchQuery = null,
       systemRole = null,
       constraints = null,
@@ -334,7 +333,7 @@ class RequestEnricher {
     // Extract user locale for localization
     const userLocale = req ? extractLocaleFromRequest(req as RequestWithLocale) : 'de-DE';
     console.log(
-      `🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`
+      `🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`
     );
 
     // Initialize state with content selection and locale
@@ -372,7 +371,6 @@ class RequestEnricher {
       // Process attachments (normal flow for non-chat routes)
       const attachmentResult = await this.processRequestAttachments(
         requestBody.attachments,
-        usePrivacyMode,
         type,
         (requestBody.userId as string) || 'unknown'
       );
@@ -389,8 +387,8 @@ class RequestEnricher {
     // Prepare parallel enrichment tasks
     const enrichmentTasks: Promise<EnrichmentTaskResult>[] = [];
 
-    // URL detection and crawling (if enabled and not in privacy mode)
-    if (enableUrls && !usePrivacyMode) {
+    // URL detection and crawling (if enabled)
+    if (enableUrls) {
       enrichmentTasks.push(
         this.detectAndCrawlUrls(requestBody, state.documents)
           .then((docs) => ({ type: 'urls' as const, documents: docs }))
@@ -418,7 +416,7 @@ class RequestEnricher {
     }
 
     // KnowledgeSelector document vector search (if documents selected)
-    if (selectedDocumentIds.length > 0 && searchQuery && !usePrivacyMode) {
+    if (selectedDocumentIds.length > 0 && searchQuery) {
       enrichmentTasks.push(
         this.performDocumentVectorSearch(
           selectedDocumentIds,
@@ -466,7 +464,7 @@ class RequestEnricher {
 
     // Fast mode pre-answer (if enabled) - generates quick preliminary draft
     // Runs in parallel with other enrichments since it doesn't need their context
-    if (enableNotebookEnrich && !usePrivacyMode) {
+    if (enableNotebookEnrich) {
       enrichmentTasks.push(
         this.generateNotebookEnrich(requestBody, options)
           .then((result) => ({
@@ -564,7 +562,6 @@ class RequestEnricher {
       totalDocuments: state.documents.length,
       enableDocQnA: enableDocQnA && state.documents.length > 0,
       webSearchSources,
-      usePrivacyMode,
       documentsPreProcessed:
         (state as { _documentsPreProcessed?: boolean })._documentsPreProcessed ?? false,
       documentsReferences: allDocumentReferences.length > 0 ? allDocumentReferences : undefined,
@@ -586,17 +583,11 @@ class RequestEnricher {
    */
   async processRequestAttachments(
     attachments: unknown,
-    usePrivacyMode: boolean,
     routeName: string,
     userId?: string
   ): Promise<AttachmentProcessingResult> {
     try {
-      const result = await processAndBuildAttachments(
-        attachments,
-        usePrivacyMode,
-        routeName,
-        userId
-      );
+      const result = await processAndBuildAttachments(attachments, routeName, userId);
       const output: AttachmentProcessingResult = {
         hasAttachments: result.hasAttachments,
         summary: result.summary,
