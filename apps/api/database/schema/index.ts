@@ -1,4 +1,5 @@
 export * from './auth.js';
+export * from './oauthProvider.js';
 export * from './chat.js';
 export * from './core.js';
 export * from './documents.js';
