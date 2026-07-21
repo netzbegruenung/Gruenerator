@@ -93,7 +93,6 @@ const envSchema = z.object({
   MISTRAL_API_KEY: z.string().optional(),
   LITELLM_API_KEY: z.string().optional(),
   LITELLM_BASE_URL: z.string().optional(),
-  IONOS_API_TOKEN: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
   REGOLO_DEFAULT_MODEL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),

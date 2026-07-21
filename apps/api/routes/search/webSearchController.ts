@@ -23,7 +23,6 @@ const searchRequestSchema = z.object({
   language: z.string().optional(),
   timeRange: z.string().optional(),
   safesearch: z.number().optional(),
-  usePrivacyMode: z.boolean().optional(),
 });
 
 interface SearchRequestUser {
@@ -129,7 +128,6 @@ router.post(
             getAIWorkerPool(req),
             {
               maxResults: searchOptions.maxResults,
-              usePrivacyMode: req.body.usePrivacyMode || false,
             },
             req
           )) as FormattedSearchResults;
