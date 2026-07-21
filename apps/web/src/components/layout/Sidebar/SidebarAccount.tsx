@@ -14,15 +14,19 @@ import {
 } from '@gruenerator/ui';
 import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
-import { PiCompass, PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
+import { FaUsers } from 'react-icons/fa';
+import { FiServer, FiSliders } from 'react-icons/fi';
+import { HiCog } from 'react-icons/hi';
 
 import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import NotificationList from '../../../features/notifications/components/NotificationList';
 import { useNotifications } from '../../../features/notifications/hooks/useNotifications';
+import {
+  useSettingsDialogStore,
+  type SettingsTab,
+} from '../../../features/settings/settingsDialogStore';
 import { useAuthStore } from '../../../stores/authStore';
-import useDarkMode from '../../hooks/useDarkMode';
-import { NAV_ITEMS } from '../Header/menuData';
 
 import { cn } from '@/utils/cn';
 
@@ -32,8 +36,14 @@ interface SidebarAccountProps {
   onNavigate: (path: string, title: string) => void;
 }
 
+// Defer past the dropdown's close so the closing menu and the opening dialog
+// don't fight over the Radix body pointer-events / focus lock in one commit.
+const openSettingsDeferred = (tab?: SettingsTab) => {
+  setTimeout(() => useSettingsDialogStore.getState().openSettings(tab), 0);
+};
+
 // Bottom-of-sidebar account block. Two distinct triggers, never one mixed
-// element: the avatar opens the account menu (nav targets + theme + logout),
+// element: the avatar opens the account menu (nav targets + settings + logout),
 // and a separate bell opens a notifications Popover. Notifications live in a
 // Popover (not the DropdownMenu) so their action buttons, scrolling and
 // pagination behave natively instead of closing the menu. Mirrors the
@@ -46,7 +56,6 @@ const SidebarAccount = memo(function SidebarAccount({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const [, , themePreference, cycleTheme] = useDarkMode();
   // Badge and popover both derive from this one unread-only query (shared
   // cache), so the count can never disagree with the listed notifications.
   // Page size (20) exceeds the "9+" cap, so page 1 always renders the badge
@@ -99,64 +108,50 @@ const SidebarAccount = memo(function SidebarAccount({
       sideOffset={8}
       className="w-80"
     >
-      {NAV_ITEMS.map((item) => (
-        <DropdownMenuItem key={item.key} onClick={() => onNavigate(item.path, item.label)}>
-          <item.icon className="size-4" />
-          <span>{item.label}</span>
-        </DropdownMenuItem>
-      ))}
-      <DropdownMenuItem onClick={() => onNavigate('/support', 'Support')}>
-        <PiQuestion className="size-4" />
-        <span>Support</span>
-      </DropdownMenuItem>
+      {/* Profile header — avatar + name on top, opens the Konto tab. */}
       <DropdownMenuItem
-        onClick={() => {
-          onNavigate('/workplace', 'Workplace');
-          void import('../../../features/tours/workplaceTour').then((m) =>
-            m.startWorkplaceTour((path) => onNavigate(path, ''))
-          );
-        }}
+        onSelect={() => openSettingsDeferred('konto')}
+        className="items-center gap-2 py-2"
       >
-        <PiCompass className="size-4" />
-        <span>Tour starten</span>
+        <span className="shrink-0">{avatarEl}</span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-semibold text-foreground-heading">
+            {displayName || 'Profil'}
+          </span>
+          {user.email && (
+            <span className="truncate text-xs font-normal text-grey-500">{user.email}</span>
+          )}
+        </span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      {/* Theme + logout share one row to save vertical space. */}
-      <div className="flex items-center gap-1">
-        <DropdownMenuItem
-          className="flex-1"
-          onSelect={(e) => {
-            // Keep the menu open so the user can click through Hell → Dunkel → System.
-            e.preventDefault();
-            cycleTheme();
-          }}
-        >
-          {themePreference === 'light' ? (
-            <PiSun className="size-4" />
-          ) : themePreference === 'dark' ? (
-            <PiMoon className="size-4" />
-          ) : (
-            <PiDesktop className="size-4" />
-          )}
-          <span>
-            {themePreference === 'light'
-              ? 'Heller Modus'
-              : themePreference === 'dark'
-                ? 'Dunkler Modus'
-                : 'System'}
-          </span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={isLoggingOut}
-          onClick={() => {
-            if (!isLoggingOut) void logout();
-          }}
-        >
-          <LogOut className="size-4" />
-          <span>{isLoggingOut ? 'Wird abgemeldet…' : 'Abmelden'}</span>
-        </DropdownMenuItem>
-      </div>
+      <DropdownMenuItem onClick={() => onNavigate('/gruppen', 'Spaces')}>
+        <FaUsers className="size-4" />
+        <span>Spaces</span>
+      </DropdownMenuItem>
+      {/* Deep links to specific settings tabs; deferred so the closing dropdown
+          and the opening dialog don't fight over the Radix body/focus lock. */}
+      <DropdownMenuItem onSelect={() => openSettingsDeferred('personalisierung')}>
+        <FiSliders className="size-4" />
+        <span>Personalisierung</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => openSettingsDeferred('konnektoren')}>
+        <FiServer className="size-4" />
+        <span>Konnektoren</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => openSettingsDeferred()}>
+        <HiCog className="size-4" />
+        <span>Einstellungen</span>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={isLoggingOut}
+        onClick={() => {
+          if (!isLoggingOut) void logout();
+        }}
+      >
+        <LogOut className="size-4" />
+        <span>{isLoggingOut ? 'Wird abgemeldet…' : 'Abmelden'}</span>
+      </DropdownMenuItem>
     </DropdownMenuContent>
   );
 
@@ -169,33 +164,37 @@ const SidebarAccount = memo(function SidebarAccount({
 
   // Separate bell trigger → notifications Popover. Tooltip and Popover triggers
   // both attach to the one button via nested asChild (same idiom as the avatar).
-  const notificationsBell = (
-    <Popover open={notifOpen} onOpenChange={setNotifOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
-              aria-label="Benachrichtigungen"
-            >
-              <Bell className="size-[18px]" />
-              {unreadBadge('-top-0.5 -right-0.5')}
-            </button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent side={sidebarExpanded ? 'top' : 'right'}>Benachrichtigungen</TooltipContent>
-      </Tooltip>
-      <PopoverContent
-        side={sidebarExpanded ? 'top' : 'right'}
-        align="end"
-        sideOffset={8}
-        className="w-80 p-0"
-      >
-        <NotificationList />
-      </PopoverContent>
-    </Popover>
-  );
+  // Hidden entirely when there is nothing unread — no empty bell.
+  const notificationsBell =
+    unreadCount === 0 ? null : (
+      <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-hover-alt"
+                aria-label="Benachrichtigungen"
+              >
+                <Bell className="size-[18px]" />
+                {unreadBadge('-top-0.5 -right-0.5')}
+              </button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side={sidebarExpanded ? 'top' : 'right'}>
+            Benachrichtigungen
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent
+          side={sidebarExpanded ? 'top' : 'right'}
+          align="end"
+          sideOffset={8}
+          className="w-80 p-0"
+        >
+          <NotificationList />
+        </PopoverContent>
+      </Popover>
+    );
 
   return (
     <div className="mt-auto shrink-0 px-2 py-2">

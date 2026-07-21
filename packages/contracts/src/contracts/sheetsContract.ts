@@ -6,6 +6,7 @@ import {
   generateSheetResponseSchema,
   sheetAiRequestBodySchema,
   sheetAiResponseSchema,
+  sheetContentResponseSchema,
   sheetErrorResponseSchema,
 } from '../schemas/sheets.js';
 
@@ -13,11 +14,30 @@ const c = initContract();
 
 /**
  * Sheets (Univer spreadsheets, collaborative_documents subtype 'sheets').
- * CRUD/share/permissions run through the polymorphic /api/docs/* endpoints;
- * this contract only owns the sheet-specific AI planning route.
+ * CRUD/share/permissions run through the polymorphic /api/docs/* endpoints.
+ * Sheet EDITING is tool-based: the agentic loop's edit_document tool plans ops
+ * server-side (sheetAiService) and streams them as `editor_operations` — there
+ * is no client-called planning route anymore.
  * Mirrors apps/api/routes/sheets/sheetsContractRouter.ts.
  */
 export const sheetsContract = c.router({
+  /**
+   * GET /api/sheets/:id/content
+   * Decoded workbook snapshot (loadSheetState) for a read-only viewer — no
+   * live collab connection. Used by the mobile Office sheet viewer.
+   */
+  getContent: {
+    method: 'GET',
+    path: '/api/sheets/:id/content',
+    pathParams: z.object({ id: z.string() }),
+    responses: {
+      200: sheetContentResponseSchema,
+      401: sheetErrorResponseSchema,
+      404: sheetErrorResponseSchema,
+      500: sheetErrorResponseSchema,
+    },
+    summary: 'Read-only workbook snapshot for the sheet viewer',
+  },
   /**
    * POST /api/sheets/:id/ai
    * Plan sheet operations from a natural-language request (applied

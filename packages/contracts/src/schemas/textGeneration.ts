@@ -29,8 +29,6 @@ export const textGenErrorSchema = z.object({ error: z.string() });
  * (JSON) path.
  */
 export const simpleGenerationBodySchema = z.object({
-  useProMode: z.boolean().nullish(),
-  usePrivacyMode: z.boolean().nullish(),
   useWebSearchTool: z.boolean().nullish(),
   useAgentMode: z.boolean().nullish(),
 });

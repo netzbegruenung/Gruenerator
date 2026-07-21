@@ -2,9 +2,9 @@
  * ts-rest contract router for sheets (Univer spreadsheets).
  *
  * Sheets are collaborative_documents rows (subtype 'sheets'); CRUD, sharing
- * and permissions run through the polymorphic /api/docs/* endpoints. This
- * router only owns the sheet-specific AI planning route, mirroring the boards
- * plan-then-apply pattern.
+ * and permissions run through the polymorphic /api/docs/* endpoints. Sheet
+ * EDITING is tool-based (the agentic loop's edit_document tool → sheetAiService
+ * → `editor_operations` SSE) — this router only owns the direct generator.
  */
 
 import { sheetsContract } from '@gruenerator/contracts';
@@ -24,6 +24,40 @@ const log = createLogger('SheetsContract');
 const s = initServer();
 
 export const sheetsContractRouter = s.router(sheetsContract, {
+  getContent: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const { loadSheetState } = await import('../../services/sheets/SheetGenerationService.js');
+      // Access control lives inside the loader (owner / permissions / group
+      // share); null covers both not-found and no-access → 404.
+      const state = await loadSheetState(id, userId);
+      if (!state) {
+        return { status: 404 as const, body: { error: 'Sheet not found' } };
+      }
+
+      return {
+        status: 200 as const,
+        body: {
+          id: state.id,
+          title: state.title,
+          // Opaque Univer IWorkbookData JSON — the viewer renders it as-is.
+          workbook: state.workbook as Record<string, unknown> | null,
+        },
+      };
+    } catch (error) {
+      log.error('[Sheets Contract] Error loading sheet content:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to load sheet content',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
   ai: async (args) => {
     try {
       const { id } = args.params;

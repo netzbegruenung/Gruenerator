@@ -4,9 +4,8 @@ import type { AIRequestData, AIWorkerResult } from '../../../workers/types.js';
 
 const mockExecuteProvider = vi.fn();
 const mockSelectProviderAndModel = vi.fn();
-const mockTryPrivacyModeProviders = vi.fn();
+const mockTryFallbackProviders = vi.fn();
 const mockTrySharepicFallbackProviders = vi.fn();
-const mockGetProviderForUser = vi.fn();
 
 vi.mock('../../../workers/providers/index.js', () => ({
   executeProvider: (...args: unknown[]) => mockExecuteProvider(...args),
@@ -17,18 +16,12 @@ vi.mock('../../providers/providerSelector.js', () => ({
 }));
 
 vi.mock('../../providers/providerFallback.js', () => ({
-  tryPrivacyModeProviders: (...args: unknown[]) => mockTryPrivacyModeProviders(...args),
+  tryFallbackProviders: (...args: unknown[]) => mockTryFallbackProviders(...args),
   trySharepicFallbackProviders: (...args: unknown[]) => mockTrySharepicFallbackProviders(...args),
 }));
 
 vi.mock('../../../workers/worker.config.js', () => ({
   default: { worker: { requestTimeout: 5000 } },
-}));
-
-vi.mock('../../counters/index.js', () => ({
-  PrivacyCounter: class MockPrivacyCounter {
-    getProviderForUser = mockGetProviderForUser;
-  },
 }));
 
 import { AIService } from '../aiService.js';
@@ -103,89 +96,33 @@ describe('AIService', () => {
   });
 
   it('uses explicit provider when specified', async () => {
-    const data = makeRequest({ provider: 'ionos' });
+    const data = makeRequest({ provider: 'regolo' });
     await service.processRequest(data);
 
-    expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'ionos',
-      expect.stringMatching(/^req_/),
-      expect.objectContaining({ provider: 'ionos' })
-    );
-  });
-
-  it('routes ultra mode to IONOS', async () => {
-    const data = makeRequest({ options: { useUltraMode: true } });
-    await service.processRequest(data);
-
-    expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'ionos',
-      expect.any(String),
-      expect.objectContaining({
-        options: expect.objectContaining({ model: 'openai/gpt-oss-120b' }),
-      })
-    );
-  });
-
-  it('routes pro mode to LiteLLM', async () => {
-    mockSelectProviderAndModel.mockReturnValue({
-      provider: 'litellm',
-      model: 'verdigado-pro',
-    });
-    const data = makeRequest({ options: { useProMode: true } });
-    await service.processRequest(data);
-
-    expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'litellm',
-      expect.any(String),
-      expect.objectContaining({
-        options: expect.objectContaining({ useProMode: true }),
-      })
-    );
-  });
-
-  it('resolves privacy provider when usePrivacyMode + userId', async () => {
-    mockGetProviderForUser.mockResolvedValue('regolo');
-    const mockRedisClient = {} as any;
-    const privacyService = new AIService(mockRedisClient);
-
-    const data = makeRequest({ usePrivacyMode: true });
-    await privacyService.processRequest(data, { user: { id: 'user-123' } });
-
-    expect(mockGetProviderForUser).toHaveBeenCalledWith('user-123');
     expect(mockExecuteProvider).toHaveBeenCalledWith(
       'regolo',
-      expect.any(String),
+      expect.stringMatching(/^req_/),
       expect.objectContaining({ provider: 'regolo' })
     );
   });
 
-  it('falls back to default provider when privacy mode but no userId', async () => {
-    const mockRedisClient = {} as any;
-    const privacyService = new AIService(mockRedisClient);
-
-    const data = makeRequest({ usePrivacyMode: true });
-    await privacyService.processRequest(data, { user: {} });
-
-    expect(mockGetProviderForUser).not.toHaveBeenCalled();
-  });
-
   it('triggers fallback on empty response', async () => {
     mockExecuteProvider.mockResolvedValue({ content: null, success: false });
-    mockTryPrivacyModeProviders.mockResolvedValue(VALID_RESULT);
+    mockTryFallbackProviders.mockResolvedValue(VALID_RESULT);
 
     const result = await service.processRequest(makeRequest());
 
-    expect(mockTryPrivacyModeProviders).toHaveBeenCalled();
+    expect(mockTryFallbackProviders).toHaveBeenCalled();
     expect(result.content).toBe('Generated text');
   });
 
   it('triggers fallback on error', async () => {
     mockExecuteProvider.mockRejectedValue(new Error('Provider down'));
-    mockTryPrivacyModeProviders.mockResolvedValue(VALID_RESULT);
+    mockTryFallbackProviders.mockResolvedValue(VALID_RESULT);
 
     const result = await service.processRequest(makeRequest());
 
-    expect(mockTryPrivacyModeProviders).toHaveBeenCalled();
+    expect(mockTryFallbackProviders).toHaveBeenCalled();
     expect(result.success).toBe(true);
   });
 
@@ -197,17 +134,17 @@ describe('AIService', () => {
     await service.processRequest(data);
 
     expect(mockTrySharepicFallbackProviders).toHaveBeenCalled();
-    expect(mockTryPrivacyModeProviders).not.toHaveBeenCalled();
+    expect(mockTryFallbackProviders).not.toHaveBeenCalled();
   });
 
   it('uses privacy fallback for non-sharepic types', async () => {
     mockExecuteProvider.mockResolvedValue({ content: null, success: false });
-    mockTryPrivacyModeProviders.mockResolvedValue(VALID_RESULT);
+    mockTryFallbackProviders.mockResolvedValue(VALID_RESULT);
 
     const data = makeRequest({ type: 'text_generation' });
     await service.processRequest(data);
 
-    expect(mockTryPrivacyModeProviders).toHaveBeenCalled();
+    expect(mockTryFallbackProviders).toHaveBeenCalled();
     expect(mockTrySharepicFallbackProviders).not.toHaveBeenCalled();
   });
 
@@ -228,7 +165,7 @@ describe('AIService', () => {
       success: true,
       metadata: { provider: 'mistral', timestamp: new Date().toISOString() },
     });
-    mockTryPrivacyModeProviders.mockRejectedValue(new Error('All fallbacks failed'));
+    mockTryFallbackProviders.mockRejectedValue(new Error('All fallbacks failed'));
 
     await expect(service.processRequest(makeRequest())).rejects.toThrow(
       'Tool use indicated but no tool calls found'

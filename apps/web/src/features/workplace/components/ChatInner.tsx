@@ -6,7 +6,7 @@ import {
 } from '@assistant-ui/react';
 import { GrueneratorComposer, useAgentStore, useChatRuntimeReady } from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useFirstName } from '../../../hooks/useFirstName';
 
@@ -16,9 +16,14 @@ import { cn } from '@/utils/cn';
 
 function NavigateToChatOnSend() {
   const navigate = useNavigate();
+  const location = useLocation();
   const threadRuntime = useThreadRuntime({ optional: true });
   const voiceState = useVoiceState();
   const hasNavigated = useRef(false);
+  // On /chat itself the view-mode flip suffices (ChatPage renders the thread
+  // and ChatThreadRouting upgrades the URL); navigating again would push a
+  // duplicate history entry.
+  const onChat = location.pathname.startsWith('/chat');
 
   // Voice sessions don't flip `threadRuntime.isRunning` because transcripts
   // bypass the model adapter. Without this hop, voice messages would be
@@ -29,9 +34,9 @@ function NavigateToChatOnSend() {
     if (voiceActive && !hasNavigated.current) {
       hasNavigated.current = true;
       useAgentStore.getState().setChatViewMode('thread');
-      void navigate('/chat');
+      if (!onChat) void navigate('/chat');
     }
-  }, [voiceActive, navigate]);
+  }, [voiceActive, navigate, onChat]);
 
   useEffect(() => {
     if (!threadRuntime) return;
@@ -39,22 +44,24 @@ function NavigateToChatOnSend() {
       if (threadRuntime.getState().isRunning && !hasNavigated.current) {
         hasNavigated.current = true;
         useAgentStore.getState().setChatViewMode('thread');
-        void navigate('/chat');
+        if (!onChat) void navigate('/chat');
       }
       if (!threadRuntime.getState().isRunning && !voiceActive) {
         hasNavigated.current = false;
       }
     });
-  }, [threadRuntime, navigate, voiceActive]);
+  }, [threadRuntime, navigate, voiceActive, onChat]);
 
   return null;
 }
 
 const ChatInnerReady: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const firstName = useFirstName();
   const threadRuntime = useThreadRuntime({ optional: true });
   const assistantRuntime = useAssistantRuntime();
+  const onChat = location.pathname.startsWith('/chat');
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -67,11 +74,16 @@ const ChatInnerReady: React.FC = () => {
     const { pendingMessage, pendingDraft, pendingInitialAssistantMessage } =
       useAgentStore.getState();
     // A pending message means another surface queued content for /chat; don't
-    // clobber it by switching threads (same guard ChatOverview uses).
-    if (pendingMessage || pendingDraft || pendingInitialAssistantMessage) return;
+    // clobber it by switching threads. On /chat flip straight to the thread
+    // view so AutoMessageSender (which only lives in the thread) consumes it;
+    // on /workplace the queuing surface navigates to /chat itself.
+    if (pendingMessage || pendingDraft || pendingInitialAssistantMessage) {
+      if (onChat) useAgentStore.getState().setChatViewMode('thread');
+      return;
+    }
     useAgentStore.getState().resetChatContext();
     void assistantRuntime.threads.switchToNewThread();
-  }, [assistantRuntime]);
+  }, [assistantRuntime, onChat]);
 
   if (!threadRuntime) return null;
 

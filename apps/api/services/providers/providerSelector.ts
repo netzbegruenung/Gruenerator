@@ -1,6 +1,6 @@
 /**
  * Centralized provider selection and model override logic
- * Handles routing between Mistral, IONOS, LiteLLM, and other providers
+ * Handles routing between Mistral, LiteLLM, and other providers
  */
 
 import { INTERMEDIATE_MODEL } from '../ai/providers.js';
@@ -37,18 +37,6 @@ export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
 }
 
 /**
- * Determine if MAIN_LLM_OVERRIDE environment variable should be applied
- */
-export function shouldAllowMainLlmOverride(
-  options: ProviderOptions = {},
-  metadata: RequestMetadata = {}
-): boolean {
-  if (options.privacyMode === true || metadata.privacyMode === true) return false;
-  if (options.disableExternalProviders || metadata.requiresPrivacy) return false;
-  return true;
-}
-
-/**
  * Infer provider from model name patterns
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
@@ -69,9 +57,9 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   if (name.includes('mistral') || name.includes('mixtral')) {
     return 'litellm';
   }
-  // Llama models via IONOS
+  // Llama models via Regolo (hosts Llama-3.3-70B-Instruct)
   if (name.includes('llama') || name.includes('meta-llama')) {
-    return 'ionos';
+    return 'regolo';
   }
   // Regolo-prefixed models
   if (name.startsWith('regolo/') || name.includes('regolo')) {
@@ -89,7 +77,7 @@ interface SelectProviderParams {
 
 /**
  * Select provider and model given request context and environment
- * Handles mode flags (ultra, pro), type-based routing, and environment overrides
+ * Handles type-based routing and environment overrides
  */
 export function selectProviderAndModel({
   type,
@@ -100,17 +88,6 @@ export function selectProviderAndModel({
   // Base defaults — GPT-OSS 120B via LiteLLM as primary model
   let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
   let model: ModelName = options.model || 'verdigado-pro';
-
-  // Ultra mode (useUltraMode flag) - routes to IONOS with high-quality model
-  if (options.useUltraMode === true) {
-    provider = 'ionos';
-    model = 'openai/gpt-oss-120b';
-  }
-  // Pro mode (useProMode flag) - routes to high-quality reasoning model
-  else if (options.useProMode === true) {
-    provider = 'litellm';
-    model = options.model || 'verdigado-pro';
-  }
 
   // Type-based defaults
   // Notebook enrichment - fast model
@@ -182,7 +159,7 @@ export function selectProviderAndModel({
 
   // MAIN_LLM_OVERRIDE environment variable
   const mainLlmOverride = env.MAIN_LLM_OVERRIDE;
-  if (mainLlmOverride && shouldAllowMainLlmOverride(options, metadata)) {
+  if (mainLlmOverride) {
     model = mainLlmOverride;
     provider = determineProviderFromModel(mainLlmOverride);
   }

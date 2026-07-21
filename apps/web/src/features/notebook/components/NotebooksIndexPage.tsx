@@ -11,37 +11,59 @@ import {
   DropdownMenuTrigger,
   SectionHeader,
   Skeleton,
+  cn,
 } from '@gruenerator/ui';
+import { BarChart3, Flame, Map as MapIcon, Plus, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { HiDotsVertical, HiOutlineTrash, HiPencil, HiShare, HiUserGroup } from 'react-icons/hi';
-import { PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
+import {
+  HiBookOpen,
+  HiDotsVertical,
+  HiOutlineTrash,
+  HiPencil,
+  HiShare,
+  HiUserGroup,
+} from 'react-icons/hi';
+import { Link, useNavigate } from 'react-router-dom';
 
+import FavouriteStar from '../../../components/common/FavouriteStar';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import { NotebookIcon } from '../../../config/icons';
+import { sortToolsByFavourites } from '../../../config/workplaceToolsConfig';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
-import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
+import { useGroups } from '../../groups/hooks/useGroups';
+import { useMonitorSnapshot, usePolls } from '../../monitor/hooks/useMonitor';
+import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
   getAustrianNotebooks,
+  getNotebookById,
   getNotebooksByCategory,
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
+import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
 
 import NotebookCreateCard from './NotebookCreateCard';
 import NotebookGalleryCard from './NotebookGalleryCard';
 import { NotebookPageContent } from './NotebookPage';
-import { VonDerBasisSection } from './VonDerBasisSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
+import type { IconType } from 'react-icons';
 
-// Responsive grid of the tall notebook cards — shared by the system and the
-// "Eigene" sections so both read as one gallery.
-const NOTEBOOK_GRID_CLASS =
-  'grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-md max-sm:grid-cols-2';
+// Responsive grid of the notebook cards — used by the "Eigene" section. Capped
+// at 5 per row.
+const NOTEBOOK_GRID_CLASS = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-md';
+
+// System notebooks live in a single horizontal strip. Fractional tile widths keep
+// the next card half-visible at the edge so the scroll affordance is obvious; the
+// pt/pb leave room for the hover lift + shadow inside the clipping container.
+const NOTEBOOK_SCROLL_ROW = 'flex gap-3 overflow-x-auto pt-1 pb-3 sm:gap-4';
+// Tile width = (row − its gaps) ÷ an .5 count, so the next card stays ~half visible
+// (a deliberate scroll tease) at any width. Mirrors the Arbeiten tool strip.
+const NOTEBOOK_SCROLL_ITEM =
+  'shrink-0 basis-[calc((100%_-_1.5rem)_*_0.4)] sm:basis-[calc((100%_-_3rem)_*_0.2857)] md:basis-[calc((100%_-_4rem)_*_0.2222)] lg:basis-[calc((100%_-_5rem)_*_0.1818)]';
 
 const EMPTY_COLLECTIONS: NotebookCollection[] = [];
 
@@ -49,119 +71,40 @@ const HIDDEN_NOTEBOOK_IDS = [
   'gruenerator-notebook',
   'gruenblog-notebook',
   'boell-stiftung-notebook',
+  // Vorerst ausgeblendet — Kachel wieder einblenden = diese Zeile entfernen.
+  'abgeordnetenwatch-notebook',
 ];
 
-const NotebookCard = memo(
-  ({ notebook, groups }: { notebook: NotebookConfigEntry; groups: GroupSummary[] }) => {
-    const navigate = useNavigate();
-    const isFavourite = useSidebarFavouritesStore((s) => s.isFavourite);
-    const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
-    const isFull = useSidebarFavouritesStore((s) => s.isFull);
-    const starred = isFavourite(notebook.id);
-    const canStar = starred || !isFull();
-    const [sharedGroupId, setSharedGroupId] = useState<string | null>(null);
+// Branded Cover für die aufklappbaren Sammel-Kategorien. Die webp-Dateien
+// liegen (wie die übrigen Notebook-Cover) unter apps/web/public/notebook-covers/.
+const LAENDER_COVER = '/notebook-covers/landesverbaende.webp';
+const EIGENE_COVER = '/notebook-covers/eigene.webp';
+const NEU_COVER = '/notebook-covers/notebook-neu.webp';
 
-    const handleShareToGroup = async (groupId: string) => {
-      try {
-        const res = await getContractsClient().groups.shareContent({
-          params: { groupId },
-          body: {
-            contentType: 'system_notebooks',
-            contentId: notebook.id,
-            permissions: { read: true, write: false, collaborative: false },
-          },
-        });
-        if (res.status !== 200) throw new Error('share failed');
-        setSharedGroupId(groupId);
-        setTimeout(() => setSharedGroupId(null), 2000);
-      } catch {
-        // best-effort
-      }
-    };
-
-    const hasMenu = canStar || groups.length > 0;
-
-    return (
-      <NotebookGalleryCard
-        title={notebook.title}
-        meta={notebook.meta}
-        icon={notebook.icon}
-        accent="pink"
-        onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
-        menu={
-          hasMenu ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex items-center justify-center size-7 rounded-full text-grey-400 hover:text-foreground transition-colors cursor-pointer"
-                  aria-label="Aktionen"
-                >
-                  <HiDotsVertical size={14} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canStar && (
-                  <DropdownMenuItem onClick={() => toggleFavourite(notebook.id)}>
-                    {starred ? <PiStarFill /> : <PiStar />}
-                    {starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                  </DropdownMenuItem>
-                )}
-                {groups.length > 0 && (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <HiShare />
-                      Teilen
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      {groups.map((group) => (
-                        <DropdownMenuItem
-                          key={group.id}
-                          onClick={() => handleShareToGroup(group.id)}
-                        >
-                          <HiUserGroup />
-                          {sharedGroupId === group.id ? 'Geteilt!' : group.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : undefined
-        }
-      />
-    );
-  }
-);
+const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
+  const navigate = useNavigate();
+  return (
+    <NotebookGalleryCard
+      title={notebook.title}
+      meta={notebook.meta}
+      icon={notebook.icon}
+      coverImage={notebook.coverImage}
+      accent="pink"
+      onActivate={() => navigate(notebook.path, { state: { freshConversation: true } })}
+      action={<FavouriteStar id={notebook.id} size={16} />}
+    />
+  );
+});
 NotebookCard.displayName = 'NotebookCard';
 
-const NotebookSection = memo(
-  ({
-    title,
-    notebooks,
-    groups = [],
-  }: {
-    title: string;
-    notebooks: NotebookConfigEntry[];
-    groups?: GroupSummary[];
-  }) => {
-    const filtered = notebooks.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));
-    if (filtered.length === 0) return null;
-
-    return (
-      <section className="mt-xl">
-        <SectionHeader title={title} />
-        <div className={NOTEBOOK_GRID_CLASS}>
-          {filtered.map((notebook) => (
-            <NotebookCard key={notebook.id} notebook={notebook} groups={groups} />
-          ))}
-        </div>
-      </section>
-    );
-  }
-);
-NotebookSection.displayName = 'NotebookSection';
+interface NotebookSearchHit {
+  key: string;
+  title: string;
+  meta?: string;
+  icon: IconType;
+  coverImage?: string;
+  onActivate: () => void;
+}
 
 const COLLAPSE_THRESHOLD = 3;
 
@@ -359,14 +302,145 @@ const EigeneNotebooks = memo(
 );
 EigeneNotebooks.displayName = 'EigeneNotebooks';
 
-const EMPTY_GROUPS: GroupSummary[] = [];
+// Wissen-Tools als farbige Kacheln (Look wie das Arbeiten-Tool-Grid). Erste
+// Kachel erstellt ein Notebook, danach die Monitor-Bereiche. Farbklassen
+// literal, damit Tailwind-JIT sie behält.
+interface WissenToolTile {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  Icon: LucideIcon;
+  tile: string;
+  icon: string;
+  titleColor: string;
+  descColor: string;
+  /** Monitor-Pfade tragen den Locale-Param; interne Tools wie /notebooks/neu nicht. */
+  localeAware?: boolean;
+}
+
+const WISSEN_TOOL_TILES: WissenToolTile[] = [
+  {
+    id: 'notebook-neu',
+    title: 'Neues Notebook erstellen',
+    description: 'Wissen sammeln und befragen.',
+    path: '/notebooks/neu',
+    Icon: Plus,
+    tile: 'bg-[#FCDDE4] hover:shadow-[0_14px_30px_rgba(214,0,74,0.18)] dark:bg-[#2C121A]',
+    icon: 'text-[#C80050] dark:text-[#EE6090]',
+    titleColor: 'text-[#A00044] dark:text-[#F2A6C0]',
+    descColor: 'text-[#8C5666] dark:text-[#BA7892]',
+  },
+  {
+    id: 'monitor-themen',
+    title: 'Themen',
+    description: 'Meistdiskutierte Themen der letzten 24 Stunden.',
+    path: '/experiments/monitor/themen',
+    Icon: Flame,
+    tile: 'bg-[#FADFEA] hover:shadow-[0_14px_30px_rgba(206,0,92,0.18)] dark:bg-[#2C121F]',
+    icon: 'text-[#C4006A] dark:text-[#EC5AA0]',
+    titleColor: 'text-[#9E0056] dark:text-[#EFA0C8]',
+    descColor: 'text-[#8A5570] dark:text-[#B77697]',
+    localeAware: true,
+  },
+  {
+    id: 'monitor-umfragen',
+    title: 'Umfragen',
+    description: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
+    path: '/experiments/monitor/umfragen',
+    Icon: BarChart3,
+    tile: 'bg-[#F5DDEE] hover:shadow-[0_14px_30px_rgba(184,0,108,0.18)] dark:bg-[#291224]',
+    icon: 'text-[#B00070] dark:text-[#E85AAE]',
+    titleColor: 'text-[#8E005C] dark:text-[#EAA0D0]',
+    descColor: 'text-[#845576] dark:text-[#B2769C]',
+    localeAware: true,
+  },
+];
+
+/** Extract the Grüne polling average from a poll's party map, if present. */
+function pickGrueneValue(average: Record<string, number> | undefined): number | null {
+  if (!average) return null;
+  for (const [k, v] of Object.entries(average)) {
+    if (k === 'GRÜNE' || k.toLowerCase().includes('grüne')) return v;
+  }
+  return null;
+}
+
+/**
+ * Live "intelligence" subtext for the Monitor tiles: the current hot topic
+ * (Themen) and the Grüne polling value (Umfragen). Falls back to the tile's
+ * static description while loading.
+ */
+function useWissenTileIntel(locale: 'de' | 'at') {
+  const { data: snapshot } = useMonitorSnapshot(locale);
+  const { data: polls } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
+
+  return useCallback(
+    (id: string): string | null => {
+      if (id === 'monitor-themen') return snapshot?.topics[0]?.topArticles[0]?.title ?? null;
+      if (id === 'monitor-umfragen') {
+        const g = pickGrueneValue(polls?.average);
+        return g != null
+          ? `Grüne aktuell bei ${g.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+          : null;
+      }
+      return null;
+    },
+    [snapshot, polls]
+  );
+}
+
+const WissenToolsRow = memo(() => {
+  const { locale, withLocale } = useMonitorLocaleParam();
+  const intel = useWissenTileIntel(locale);
+
+  return (
+    <section className="mt-xl">
+      <SectionHeader title="Tools" />
+      <div className={NOTEBOOK_SCROLL_ROW}>
+        {WISSEN_TOOL_TILES.map((tile) => (
+          <div key={tile.id} className={NOTEBOOK_SCROLL_ITEM}>
+            <Link
+              to={tile.localeAware ? withLocale(tile.path) : tile.path}
+              className={cn(
+                'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline transition-shadow duration-150',
+                tile.tile
+              )}
+            >
+              <span className={cn('flex text-[24px] sm:text-[28px] lg:text-[30px]', tile.icon)}>
+                <tile.Icon />
+              </span>
+              <span className="min-w-0">
+                <span
+                  className={cn(
+                    'block text-[16px] font-bold leading-tight line-clamp-2 sm:text-[19px] lg:text-[22px]',
+                    tile.titleColor
+                  )}
+                >
+                  {tile.title}
+                </span>
+                <span
+                  className={cn(
+                    'mt-0.5 block min-h-[2.75em] text-[12px] leading-snug line-clamp-2 sm:mt-1 sm:text-[13px] lg:text-[14px]',
+                    tile.descColor
+                  )}
+                >
+                  {intel(tile.id) ?? tile.description}
+                </span>
+              </span>
+            </Link>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+});
+WissenToolsRow.displayName = 'WissenToolsRow';
 
 function NotebooksIndexFooter() {
   const navigate = useNavigate();
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
-  const { userGroups } = useGroups({ isActive: true });
-  const stableGroups = userGroups ?? EMPTY_GROUPS;
 
   const allNotebooks = useMemo(
     () =>
@@ -379,6 +453,30 @@ function NotebooksIndexFooter() {
           ],
     [isAustrian]
   );
+
+  // Erste Reihe: Direkt-Notebooks + aufklappbare Sammel-Kategorien. Für AT ist
+  // es nur das eine Österreich-Notebook (+ Eigene, falls vorhanden).
+  const laenderNotebooks = useMemo(() => getNotebooksByCategory('landesebene'), []);
+  const directBefore = useMemo(
+    () =>
+      isAustrian
+        ? getAustrianNotebooks()
+        : [
+            getNotebookById('gruene-notebook'),
+            getNotebookById('bundestagsfraktion-notebook'),
+          ].filter((nb): nb is NotebookConfigEntry => Boolean(nb)),
+    [isAustrian]
+  );
+  const directAfter = useMemo(
+    () =>
+      isAustrian
+        ? []
+        : [getNotebookById('kommunalwiki-notebook')].filter((nb): nb is NotebookConfigEntry =>
+            Boolean(nb)
+          ),
+    [isAustrian]
+  );
+  const [openCategory, setOpenCategory] = useState<'laender' | 'eigene' | null>(null);
 
   const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
     isActive: true,
@@ -447,23 +545,177 @@ function NotebooksIndexFooter() {
     [buildSlugFragment]
   );
 
+  const [search, setSearch] = useState('');
+  const trimmed = search.trim().toLowerCase();
+
+  const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
+  // Favourited notebooks float to the front (same store as the sidebar/tool
+  // favourites); the rest keep their curated order.
+  const orderedSystem = useMemo(
+    () =>
+      sortToolsByFavourites(
+        allNotebooks.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id)),
+        favouriteIds
+      ),
+    [allNotebooks, favouriteIds]
+  );
+
+  // "Von der Basis" bekommt keine eigene Reihe mehr, taucht aber in der
+  // vereinten Suche auf (System + eigene + öffentliche Notebooks).
+  const { data: basisData } = usePublicNotebookCollections({ enabled: true });
+  const basisCollections = useMemo(() => basisData ?? EMPTY_COLLECTIONS, [basisData]);
+
+  const searchHits = useMemo<NotebookSearchHit[]>(() => {
+    if (!trimmed) return [];
+    const hit = (a?: string | null, b?: string | null) =>
+      (a ?? '').toLowerCase().includes(trimmed) || (b ?? '').toLowerCase().includes(trimmed);
+    const hits: NotebookSearchHit[] = [];
+    for (const nb of orderedSystem) {
+      if (hit(nb.title, nb.meta)) {
+        hits.push({
+          key: `sys-${nb.id}`,
+          title: nb.title,
+          meta: nb.meta,
+          icon: nb.icon,
+          coverImage: nb.coverImage,
+          onActivate: () => void navigate(nb.path, { state: { freshConversation: true } }),
+        });
+      }
+    }
+    const ownIds = new Set(qaCollections.map((c) => c.id));
+    for (const c of qaCollections) {
+      if (hit(c.name, c.description)) {
+        hits.push({
+          key: `own-${c.id}`,
+          title: c.name,
+          meta: c.description || 'Eigenes Notebook',
+          icon: NotebookIcon,
+          onActivate: () => handleView(c.id),
+        });
+      }
+    }
+    for (const c of basisCollections) {
+      if (ownIds.has(c.id) || !hit(c.name, c.description)) continue;
+      hits.push({
+        key: `basis-${c.id}`,
+        title: c.name,
+        meta: c.creator_name ? `von ${c.creator_name}` : (c.description ?? undefined),
+        icon: HiBookOpen,
+        onActivate: () =>
+          void navigate(
+            `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`
+          ),
+      });
+    }
+    return hits;
+  }, [trimmed, orderedSystem, qaCollections, basisCollections, navigate, handleView]);
+
   return (
-    <section className="mt-xl" data-tour="wissen-notebooks">
-      <NotebookSection title="Notebooks" notebooks={allNotebooks} groups={stableGroups} />
+    <>
+      <section className="mt-xl" data-tour="wissen-notebooks">
+        <SectionHeader
+          title="Notebooks"
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Alle Notebooks durchsuchen…"
+        />
+        {trimmed ? (
+          searchHits.length > 0 ? (
+            <div className={NOTEBOOK_GRID_CLASS}>
+              {searchHits.map((h) => (
+                <NotebookGalleryCard
+                  key={h.key}
+                  title={h.title}
+                  meta={h.meta}
+                  icon={h.icon}
+                  coverImage={h.coverImage}
+                  accent="pink"
+                  onActivate={h.onActivate}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-md border border-dashed border-grey-300 px-md py-lg text-center text-sm text-grey-500 dark:border-grey-700 dark:text-grey-400">
+              Keine Notebooks für „{search}“.
+            </p>
+          )
+        ) : (
+          <div className={NOTEBOOK_SCROLL_ROW}>
+            {directBefore.map((nb) => (
+              <div key={nb.id} className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookCard notebook={nb} />
+              </div>
+            ))}
+            {laenderNotebooks.length > 0 && (
+              <div className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookGalleryCard
+                  title="Landesverbände"
+                  meta={`${laenderNotebooks.length} Landesverbände`}
+                  coverImage={LAENDER_COVER}
+                  icon={MapIcon}
+                  accent="pink"
+                  onActivate={() => setOpenCategory((c) => (c === 'laender' ? null : 'laender'))}
+                />
+              </div>
+            )}
+            {qaCollections.length > 0 ? (
+              <div className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookGalleryCard
+                  title="Eigene Notebooks"
+                  meta={`${qaCollections.length} ${qaCollections.length === 1 ? 'Notebook' : 'Notebooks'}`}
+                  coverImage={EIGENE_COVER}
+                  icon={NotebookIcon}
+                  accent="pink"
+                  onActivate={() => setOpenCategory((c) => (c === 'eigene' ? null : 'eigene'))}
+                />
+              </div>
+            ) : (
+              <div className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookGalleryCard
+                  title="Neues erstellen"
+                  coverImage={NEU_COVER}
+                  accent="pink"
+                  onActivate={handleCreate}
+                />
+              </div>
+            )}
+            {directAfter.map((nb) => (
+              <div key={nb.id} className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookCard notebook={nb} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-      <EigeneNotebooks
-        qaCollections={qaCollections}
-        onView={handleView}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onShare={handleShare}
-        onCreate={handleCreate}
-        loading={collectionsLoading}
-        copiedId={copiedId}
-      />
+      {!trimmed && openCategory === 'laender' && (
+        <section className="mt-md">
+          <SectionHeader title="Landesverbände" />
+          <div className={NOTEBOOK_SCROLL_ROW}>
+            {laenderNotebooks.map((nb) => (
+              <div key={nb.id} className={NOTEBOOK_SCROLL_ITEM}>
+                <NotebookCard notebook={nb} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-      <VonDerBasisSection />
-    </section>
+      {!trimmed && openCategory === 'eigene' && qaCollections.length > 0 && (
+        <EigeneNotebooks
+          qaCollections={qaCollections}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onShare={handleShare}
+          onCreate={handleCreate}
+          loading={collectionsLoading}
+          copiedId={copiedId}
+        />
+      )}
+
+      {!trimmed && <WissenToolsRow />}
+    </>
   );
 }
 

@@ -6,6 +6,7 @@
 import express from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
+import { env } from './config/env.js';
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
@@ -59,6 +60,7 @@ import {
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter.js';
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
+import mcpServerRouter from './routes/mcp-server/index.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
@@ -674,6 +676,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // OAuth callback is public (identity comes from the one-time Redis state, not
   // a cookie — the cross-site provider redirect can't carry our session).
   mountMcpOAuthCallbackRouter(app);
+  // Inbound MCP server (mcp.gruenerator.eu/v2) — auth resolved in the router.
+  if (env.MCP_SERVER_ENABLED) {
+    app.use('/api/mcp-server', mcpServerRouter);
+  }
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);

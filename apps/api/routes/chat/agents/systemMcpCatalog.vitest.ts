@@ -54,6 +54,31 @@ describe('condenseBahnTimetable', () => {
     expect(rb?.destination).toBe('Köln Messe/Deutz');
   });
 
+  it('derives the header from the EARLIEST departure, not raw server order', () => {
+    const sample = JSON.stringify({
+      '@station': 'Köln Hbf',
+      s: [
+        // Arrival-only terminating train from the previous day listed FIRST.
+        { '@id': 'a', tl: { '@c': 'IC', '@n': '99' }, ar: { '@pt': '2607162358', '@pp': '9' } },
+        {
+          '@id': 'b',
+          tl: { '@c': 'RE', '@n': '7' },
+          dp: { '@pt': '2607170007', '@pp': '3', '@ppth': 'Bonn Hbf' },
+        },
+      ],
+    });
+    const payload = condenseBahnTimetable(sample);
+    expect(payload?.date).toBe('2026-07-16');
+    expect(payload?.hour).toBe('23');
+    // Earliest pt across ALL stops (dp preferred per stop) wins — deterministic
+    // regardless of the server's list order.
+    const reversed = condenseBahnTimetable(
+      JSON.stringify({ '@station': 'Köln Hbf', s: JSON.parse(sample).s.reverse() })
+    );
+    expect(reversed?.date).toBe('2026-07-16');
+    expect(reversed?.hour).toBe('23');
+  });
+
   it('returns null for non-JSON / unexpected shapes (raw passthrough)', () => {
     expect(condenseBahnTimetable('Error executing tool …')).toBeNull();
     expect(condenseBahnTimetable('{"foo": 1}')).toBeNull();

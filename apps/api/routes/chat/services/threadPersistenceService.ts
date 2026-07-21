@@ -11,6 +11,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 
 import { type PersistedStep } from './agenticLoop/types.js';
 
+import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
 import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
@@ -222,12 +223,74 @@ export async function setThreadLastMcpServer(threadId: string, serverId: string)
 }
 
 /**
- * Recent MCP tool steps of a thread, oldest → newest, for cross-turn replay.
- * Reads the `toolCalls` array persisted on each assistant message's
- * `tool_results` metadata (see createMessage) and keeps only MCP steps (those
- * carrying a `serverName`). Bounded so replay stays token-cheap.
+ * Generalised tool memory (see ThreadToolContext): which tool family the last
+ * substantive turn used. Only written when a turn actually used one — plain
+ * chat turns keep the previous context, mirroring the MCP sticky semantics.
  */
-export async function getRecentMcpSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
+export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(`SELECT last_tool_context FROM chat_threads WHERE id = $1`, [
+    threadId,
+  ]);
+  const raw = result[0]?.last_tool_context;
+  if (!raw) return null;
+  try {
+    const parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as ThreadToolContext;
+    return parsed?.kind ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setThreadToolContext(
+  threadId: string,
+  context: ThreadToolContext
+): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(`UPDATE chat_threads SET last_tool_context = $1 WHERE id = $2`, [
+    JSON.stringify(context),
+    threadId,
+  ]);
+}
+
+/**
+ * URL of the most recent generated image in the thread (assistant message
+ * metadata `generatedImage.url`). Lets a vague follow-up ("mach es blauer")
+ * rehydrate the previous result as the image_edit input instead of erroring
+ * with "Bitte hänge ein Bild an".
+ */
+export async function getLastGeneratedImageUrl(threadId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 10`,
+    [threadId]
+  )) as Array<{ tool_results?: unknown }>;
+  for (const row of rows) {
+    const raw = row.tool_results;
+    if (!raw) continue;
+    try {
+      const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+        generatedImage?: { url?: string };
+      };
+      const url = meta.generatedImage?.url;
+      if (typeof url === 'string' && url) return url;
+    } catch {
+      // malformed row — keep scanning older messages
+    }
+  }
+  return null;
+}
+
+/**
+ * Recent tool steps of a thread, oldest → newest, for cross-turn replay.
+ * Reads the `toolCalls` array persisted on each assistant message's
+ * `tool_results` metadata (see createMessage). Returns ALL steps (MCP + search
+ * + others); the caller decides which to replay (MCP filters on `serverName`,
+ * search filters on tool name). Bounded so replay stays token-cheap.
+ */
+export async function getRecentToolSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
   const postgres = getPostgresInstance();
   const rows = await postgres.query(
     `SELECT tool_results FROM chat_messages
@@ -243,13 +306,53 @@ export async function getRecentMcpSteps(threadId: string, limit = 6): Promise<Pe
         ? ((meta as { toolCalls: unknown[] }).toolCalls as PersistedStep[])
         : [];
     for (const c of calls) {
-      if (c && typeof c === 'object' && typeof (c as PersistedStep).serverName === 'string') {
+      if (c && typeof c === 'object' && typeof (c as PersistedStep).toolName === 'string') {
         steps.push(c);
       }
     }
     if (steps.length >= limit) break;
   }
   return steps.slice(0, limit).reverse();
+}
+
+/**
+ * Recent search sources of a thread, for cross-turn REGISTRY rehydration.
+ * Reads the `searchResults` array persisted on each assistant message's
+ * `tool_results` metadata (see postResponseService) and returns them so a later
+ * turn's source registry can be seeded with what earlier research gathered —
+ * this is the grounding the op-planner (sheets/presentations/boards edit) needs
+ * when the user says "trag die recherchierten Zahlen ein" turns after the search.
+ *
+ * Only the MOST RECENT assistant message carrying sources is used (the latest
+ * research), newest-first within it, capped — a tight recency window so a new
+ * unrelated question doesn't inherit stale sources. Content is already snippet-
+ * sized at persist time (SearchResult[] slice(0,10)), so this stays token-cheap.
+ */
+export async function getRecentThreadSources(
+  threadId: string,
+  limit = 10
+): Promise<SearchResult[]> {
+  const postgres = getPostgresInstance();
+  const rows = await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 12`,
+    [threadId]
+  );
+  for (const row of rows as Array<{ tool_results?: unknown }>) {
+    const meta = row.tool_results;
+    const results =
+      meta &&
+      typeof meta === 'object' &&
+      Array.isArray((meta as { searchResults?: unknown }).searchResults)
+        ? ((meta as { searchResults: unknown[] }).searchResults as SearchResult[])
+        : [];
+    const valid = results.filter(
+      (r) => r && typeof r === 'object' && typeof r.content === 'string' && r.content.trim() !== ''
+    );
+    if (valid.length > 0) return valid.slice(0, limit);
+  }
+  return [];
 }
 
 export interface ThreadSettings {

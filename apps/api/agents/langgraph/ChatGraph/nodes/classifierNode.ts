@@ -19,6 +19,7 @@ import {
   type McpClassifierServer,
 } from '../../../../services/mcp/McpServerRegistry.js';
 import {
+  DE_ONLY_SYSTEM_INTENTS,
   SYSTEM_MCP_INTENTS,
   isSystemIntentAvailable,
 } from '../../../../services/mcp/systemMcpServers.js';
@@ -172,10 +173,32 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // concrete connected server. Only the deterministic name-match tier (which
   // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
   // in the router) may run the write-capable tool loop. An unscoped prose `mcp`
-  // would risk acting on the wrong server, so downgrade it to direct.
+  // would risk acting on the wrong server, so downgrade it to direct — UNLESS
+  // this thread's last substantive turn worked with a CONCRETE MCP server
+  // (ThreadToolContext.ref set): then the loop re-scopes to that same server
+  // via the sticky last_mcp_server_id. Deliberately do NOT write the ref into
+  // mcpServerScope — that field means "user-explicit this turn" downstream
+  // (stale-server honesty notice + retry-unscoped guard key off it).
   if (intent === 'mcp' && !result.mcpServerScope) {
-    log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');
-    intent = 'direct';
+    if (state.lastToolContext?.kind === 'mcp' && state.lastToolContext.ref) {
+      log.info('[Classifier] Unscoped mcp intent kept — thread recently used an MCP server');
+    } else {
+      log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');
+      intent = 'direct';
+    }
+  }
+
+  // Downgrades to `web` must carry a query: system intents sit in
+  // NON_SEARCH_INTENTS, so the parse nulled searchQuery — an un-backfilled
+  // downgrade would run the web search on the empty string.
+  let downgradedSearchQuery: string | null = null;
+
+  // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
+  // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
+  if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
+    log.info(`[Classifier] ${intent} downgraded to web for de-AT locale (DE-only source)`);
+    intent = 'web';
+    downgradedSearchQuery = userText;
   }
 
   // System MCP sources are env-gated: without the deploy env URL the intent has
@@ -185,6 +208,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const fallback = intent === 'bahn' ? 'direct' : 'web';
     log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
     intent = fallback;
+    if (fallback === 'web') downgradedSearchQuery = userText;
   }
 
   // ── URL context: pasted link(s) → additive scrape_url step ──
@@ -226,6 +250,9 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   return {
     ...result,
     intent: intent ?? result.intent,
+    ...(downgradedSearchQuery != null && !result.searchQuery
+      ? { searchQuery: downgradedSearchQuery }
+      : {}),
     secondaryIntent,
     detectedUrls,
     documentSources,
@@ -953,6 +980,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       `[Classifier] Low heuristic confidence (${heuristic.confidence.toFixed(2)}), using LLM`
     );
 
+    // Tool memory of the thread: mentions are stripped from message text on
+    // send, so this line is the only signal that e.g. "@tally" or a generated
+    // image preceded a vague follow-up ("denk dir was aus", "mach es blauer").
+    const toolContextLine = formatToolContextLine(state.lastToolContext ?? null);
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
@@ -962,8 +993,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           {
             role: 'user',
             content: conversationContext
-              ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
-              : `Analysiere: "${userContent}"`,
+              ? `${conversationContext}${toolContextLine}\n\nAktuelle Nachricht: "${userContent}"`
+              : `${toolContextLine ? toolContextLine.trimStart() + '\n\n' : ''}Analysiere: "${userContent}"`,
           },
         ],
         options: {
@@ -1090,6 +1121,28 @@ function formatTopicalContext(state: ChatGraphState): string | null {
 
   if (lines.length === 0) return null;
   return `Themenkontext (zur Auflösung von "dazu", "dies" etc.):\n${lines.join('\n')}`;
+}
+
+const TOOL_CONTEXT_HINTS: Record<NonNullable<ChatGraphState['lastToolContext']>['kind'], string> = {
+  mcp: 'einem verbundenen Dienst (MCP) — Folgeaufträge dazu sind Intent "mcp"',
+  image: 'der Bildgenerierung — Folgeaufträge wie "mach es blauer" sind Intent "image_edit"',
+  sharepic: 'der Sharepic-Erstellung',
+  bundestag: 'der Bundestag-Recherche',
+  abgeordnetenwatch: 'der Abgeordnetenwatch-Recherche',
+  notebook: 'einer Notebook-Recherche',
+  presentation: 'der Präsentations-Erstellung',
+  sheet: 'der Tabellen-Erstellung',
+  document: 'der Dokument-Erstellung',
+  board: 'der Board-Erstellung',
+};
+
+/** One-line thread tool memory for the LLM classifier (empty string when none). */
+function formatToolContextLine(tc: ChatGraphState['lastToolContext'] | null): string {
+  if (!tc) return '';
+  const hint = TOOL_CONTEXT_HINTS[tc.kind];
+  if (!hint) return '';
+  const label = tc.label ? ` („${tc.label}")` : '';
+  return `\n\nHinweis: Der vorherige Turn dieses Gesprächs arbeitete mit ${hint}${label}. Vage Folgeaufträge beziehen sich meist darauf.`;
 }
 
 /**

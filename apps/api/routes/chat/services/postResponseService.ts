@@ -26,7 +26,7 @@ import {
 } from './attachmentPersistenceService.js';
 import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
 
 import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
@@ -38,6 +38,7 @@ import type {
   ResearchToolResult,
   SearchResult,
   SearchSource,
+  ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   SocialPostPayload,
@@ -288,6 +289,46 @@ export interface PersistParams {
 }
 
 /**
+ * Which tool family this turn actually used (see ThreadToolContext). Artefacts
+ * take precedence over intents (a compound research turn that produced a sheet
+ * is a "sheet" turn). Returns null for plain turns — the caller then leaves the
+ * previous thread context untouched.
+ */
+function deriveToolContext(p: {
+  finalState: ChatGraphState;
+  classifiedState: ChatGraphState;
+  generatedImage: GeneratedImageResult | null;
+  sharepicVariants: SharepicVariant[];
+  createdDocument: CreatedDocument | null;
+  agenticSteps?: PersistedStep[] | undefined;
+}): ThreadToolContext | null {
+  if (p.generatedImage) return { kind: 'image' };
+  if (p.sharepicVariants.length > 0) return { kind: 'sharepic' };
+  if (p.createdDocument) {
+    const sub = p.createdDocument.subtype;
+    const kind = sub.startsWith('presentation')
+      ? 'presentation'
+      : sub.startsWith('sheet')
+        ? 'sheet'
+        : 'document';
+    return { kind, ref: p.createdDocument.documentId, label: p.createdDocument.title };
+  }
+  const mcpStep = p.agenticSteps?.find((s) => s.serverName);
+  if (p.finalState.intent === 'mcp' || mcpStep) {
+    return {
+      kind: 'mcp',
+      ref: p.finalState.mcpServerScope ?? null,
+      label: mcpStep?.serverName ?? null,
+    };
+  }
+  if (p.finalState.intent === 'bundestag' || p.finalState.intent === 'abgeordnetenwatch') {
+    return { kind: p.finalState.intent };
+  }
+  if (p.classifiedState.isCompound) return { kind: 'notebook' };
+  return null;
+}
+
+/**
  * Persist the assistant response and handle all post-response side effects.
  */
 export async function persistAssistantResponse(params: PersistParams): Promise<void> {
@@ -368,6 +409,24 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     if (toolCalls) {
       log.debug(
         `[ChatGraph] Persisted ${toolCalls.length} toolCall(s): ${toolCalls.map((tc) => tc.toolName).join(', ')}, results=${finalState.searchResults?.length ?? 0}`
+      );
+    }
+
+    // Thread tool memory: remember which tool family this turn used so a vague
+    // follow-up (mentions are stripped from message text) can route back to it.
+    // Only written when a tool was actually used — plain turns keep the prior
+    // context (sticky semantics, like last_mcp_server_id).
+    const toolContext = deriveToolContext({
+      finalState,
+      classifiedState,
+      generatedImage,
+      sharepicVariants,
+      createdDocument: createdDocument ?? null,
+      agenticSteps,
+    });
+    if (toolContext) {
+      void setThreadToolContext(threadId, toolContext).catch((err) =>
+        log.warn('[ChatGraph] Failed to persist thread tool context:', err)
       );
     }
 

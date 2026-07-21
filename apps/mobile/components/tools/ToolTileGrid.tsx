@@ -2,6 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { View, Text, StyleSheet, Pressable, ScrollView, useColorScheme } from 'react-native';
 
+import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
 import { type ToolDef } from './toolsConfig';
@@ -50,6 +51,8 @@ export function ToolTileGrid({ tools }: { tools: ToolDef[] }) {
   const theme = isDark ? darkTheme : lightTheme;
   const router = useRouter();
   const iconColor = isDark ? colors.secondary[300] : colors.secondary[600];
+  const favorites = useToolFavoritesStore((s) => s.favorites);
+  const toggleFavorite = useToolFavoritesStore((s) => s.toggleFavorite);
 
   return (
     <ScrollView
@@ -57,31 +60,41 @@ export function ToolTileGrid({ tools }: { tools: ToolDef[] }) {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
     >
-      {tools.map((tool) => (
-        <Pressable
-          key={tool.id}
-          onPress={() => router.push(tool.route as Href)}
-          style={({ pressed }) => [
-            styles.tile,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.cardBorder,
-              opacity: pressed ? 0.9 : 1,
-              transform: [{ scale: pressed ? 0.98 : 1 }],
-            },
-          ]}
-        >
-          <View style={styles.tileHead}>
-            <Ionicons name={tool.icon} size={18} color={iconColor} />
-            <Text style={[styles.tileTitle, { color: theme.text }]} numberOfLines={1}>
-              {tool.title}
+      {tools.map((tool) => {
+        const isFavorite = favorites.includes(tool.id);
+        return (
+          <Pressable
+            key={tool.id}
+            onPress={() => router.push(tool.route as Href)}
+            style={({ pressed }) => [
+              styles.tile,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.cardBorder,
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              },
+            ]}
+          >
+            <View style={styles.tileHead}>
+              <Ionicons name={tool.icon} size={18} color={iconColor} />
+              <Text style={[styles.tileTitle, { color: theme.text }]} numberOfLines={1}>
+                {tool.title}
+              </Text>
+              <Pressable onPress={() => toggleFavorite(tool.id)} hitSlop={8} style={styles.star}>
+                <Ionicons
+                  name={isFavorite ? 'star' : 'star-outline'}
+                  size={16}
+                  color={isFavorite ? colors.secondary[500] : theme.textSecondary}
+                />
+              </Pressable>
+            </View>
+            <Text style={[styles.tileDesc, { color: theme.textSecondary }]} numberOfLines={2}>
+              {tool.description}
             </Text>
-          </View>
-          <Text style={[styles.tileDesc, { color: theme.textSecondary }]} numberOfLines={2}>
-            {tool.description}
-          </Text>
-        </Pressable>
-      ))}
+          </Pressable>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -126,6 +139,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: 'Raleway_600SemiBold',
     fontSize: 15,
+  },
+  star: {
+    marginLeft: 'auto',
+    padding: 2,
   },
   tileDesc: {
     fontSize: 12.5,

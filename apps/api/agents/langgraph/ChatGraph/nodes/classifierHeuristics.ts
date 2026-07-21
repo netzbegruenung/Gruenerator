@@ -311,6 +311,19 @@ export function extractMessageText(content: unknown): string {
   return String(content || '');
 }
 
+/** The user's RAW last message. Preferred over searchQuery: when the router's
+ *  regex gate fires on a search-classified follow-up, searchQuery holds the
+ *  retrieval-optimized rewrite (or null for direct/summary/chart intents) —
+ *  consumers must judge against the actual question. */
+export function lastUserText(state: { messages?: ModelMessage[] }): string {
+  const messages = state.messages ?? [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg?.role === 'user') return extractMessageText(msg.content);
+  }
+  return '';
+}
+
 /**
  * Detect http(s) URLs in user-typed text. Ported from the frontend's
  * `urlDetection.ts` regex (web/api boundary forbids a cross-import). Used by the

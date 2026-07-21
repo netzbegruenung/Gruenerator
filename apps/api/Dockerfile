@@ -87,7 +87,6 @@ LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruener
 # Runtime dependencies only - NO build tools needed
 # @napi-rs/canvas uses pre-built binaries with embedded dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
     curl \
     fontconfig \
     fonts-dejavu-core \

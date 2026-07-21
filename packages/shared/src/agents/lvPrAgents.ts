@@ -26,6 +26,14 @@ export const LV_PR_SPECS = [
     themes:
       'Energiewende (Windkraft Nord, Wasserstoff), Küstenschutz, Tourismus, Landwirtschaft, dänische Minderheit',
   },
+  {
+    lv: 'saarland',
+    title: 'Saarland',
+    codes: 'SL',
+    notebook: 'saarland-notebook',
+    themes:
+      'Strukturwandel und Industrie (Stahl, Automobil), Energiewende, Mobilität und ÖPNV (Saarbahn), Bildung, Gesundheit und Krankenhäuser, Grenzregion zu Frankreich',
+  },
 ] as const satisfies ReadonlyArray<{
   lv: string;
   title: string;

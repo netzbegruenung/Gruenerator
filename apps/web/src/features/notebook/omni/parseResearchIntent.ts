@@ -11,12 +11,13 @@ import { detectNotebookEntities, type OmniTarget } from './omniIntent';
  * Turns a free-text notebook question into the structured research search that
  * the manual-research surface already consumes — "was hat berlin seit 2023 zu
  * thema klima beschlossen" → collection = berlin-system, date_from = 2023-01-01,
- * themes = [klima], content_type = [beschluss], plus the residual semantic query.
+ * themes = [klima], plus the residual semantic query.
  *
- * Deliberately local + deterministic (regex + lexicon, no LLM, no network). The
- * topic/type vocabulary is NOT hardcoded: it is read from the `filterFields` the
- * caller already fetched via `useResearchFilters` (real enumerated facet values),
- * so the parser can only ever emit filters the collections actually carry.
+ * Deliberately local + deterministic (regex + lexicon, no LLM, no network). Only
+ * keyword-anchored dates and themes gated to the real facet vocabulary (read from
+ * the `filterFields` the caller fetched via `useResearchFilters`) are emitted —
+ * so the parser can only ever emit filters the collections actually carry, and
+ * never a bare-year or free-text-type guess.
  */
 export interface ParsedResearchIntent {
   /** The full query — semantic/hybrid search tolerates the extra words and topic terms help recall. */
@@ -30,7 +31,6 @@ export interface ParsedResearchIntent {
     region?: string;
     dateLabel?: string;
     themes?: string[];
-    contentType?: string[];
   };
   /** Any structured scope/filter was detected — drives the "Gefiltert suchen" affordance. */
   hasStructure: boolean;
@@ -38,7 +38,7 @@ export interface ParsedResearchIntent {
 
 /** One recognised filter dimension, as a droppable chip / summary token. */
 export interface ParsedFilterChip {
-  /** The active-filter key ('region' | 'published_at' | 'themes' | 'content_type'). */
+  /** The active-filter key ('region' | 'published_at' | 'themes'). */
   key: string;
   label: string;
 }
@@ -58,9 +58,6 @@ export function describeParsedFilters(parsed: ParsedResearchIntent): ParsedFilte
   }
   if (parsed.matched.themes?.length) {
     chips.push({ key: 'themes', label: parsed.matched.themes.join(', ') });
-  }
-  if (parsed.matched.contentType?.length) {
-    chips.push({ key: 'content_type', label: parsed.matched.contentType.join(', ') });
   }
   return chips;
 }
@@ -120,16 +117,6 @@ const NUMBER_WORDS: Record<string, number> = {
   neun: 9,
   zehn: 10,
 };
-
-const CONTENT_TYPE_LEXICON: { code: string; re: RegExp }[] = [
-  { code: 'beschluss', re: /\bbeschl(uss|üsse|uesse|ossen|ießen|iessen)\w*/i },
-  { code: 'antrag', re: /\b(anträge|antraege|antrag|beantragt)\w*/i },
-  { code: 'presse', re: /\b(pressemitteilung\w*|pressemeldung\w*|presse)\b/i },
-  { code: 'wahlprogramm', re: /\bwahlprogramm\w*/i },
-  { code: 'blog', re: /\bblog\w*/i },
-  { code: 'position', re: /\bposition\w*/i },
-  { code: 'rede', re: /\breden?\b/i },
-];
 
 const RECENCY_RE = /\b(neuest\w*|neust\w*|aktuell\w*|jüngst\w*|juengst\w*|zuletzt)\b/i;
 
@@ -212,18 +199,8 @@ function detectDate(text: string): DateMatch {
     }
   }
 
-  // bare standalone year → treat as that full year, but only within a plausible
-  // recent window so round quantities ("über 2000 Geflüchtete", "1990
-  // Unterschriften") aren't misread as dates.
-  const bare = text.match(/(?:^|\s)((?:19|20)\d{2})(?:$|\s|\?|\.)/);
-  if (bare) {
-    const y = Number(bare[1]);
-    const now = new Date().getFullYear();
-    if (y >= now - 15 && y <= now + 2) {
-      return { date_from: startOfYear(y), date_to: endOfYear(y), label: String(y) };
-    }
-  }
-
+  // No bare-year fallback: a standalone year mid-sentence ("Drucksache 2020",
+  // "2024 Stimmen") is too often not a date. Dates must be keyword-anchored above.
   return {};
 }
 
@@ -282,25 +259,6 @@ export function parseResearchIntent(query: string, ctx: ParseContext): ParsedRes
       filters['themes'] = hits;
       matched.themes = labels;
     }
-  }
-
-  // ── Content type — lexicon, gated to values the collections actually have ────
-  // When the facet is present (even empty) only its values may pass; when it is
-  // absent entirely the lexicon is ungated (best-effort).
-  const contentTypeConfig = ctx.filterFields['content_type'];
-  const hasTypeFacet = contentTypeConfig != null;
-  const availableTypes = new Set((contentTypeConfig?.values ?? []).map((v) => v.value));
-  const typeHits: string[] = [];
-  const typeLabels: string[] = [];
-  for (const { code, re } of CONTENT_TYPE_LEXICON) {
-    if (re.test(text) && (!hasTypeFacet || availableTypes.has(code))) {
-      typeHits.push(code);
-      typeLabels.push(contentTypeConfig?.valueLabels?.[code] ?? code);
-    }
-  }
-  if (typeHits.length > 0) {
-    filters['content_type'] = typeHits;
-    matched.contentType = typeLabels;
   }
 
   // ── Recency → sort ──────────────────────────────────────────────────────────

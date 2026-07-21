@@ -38,7 +38,7 @@ export function useNotebookHasAgents(notebookId?: string): boolean {
 // without agents simply render nothing.
 export function NotebookAgentsSection({
   notebookId,
-  title = 'Agenten für diesen Landesverband',
+  title = 'Grüneratoren für diesen Landesverband',
   embedded = false,
 }: NotebookAgentsSectionProps) {
   const navigate = useNavigate();

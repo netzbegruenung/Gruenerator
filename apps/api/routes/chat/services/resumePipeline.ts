@@ -21,6 +21,7 @@ import {
   rerankNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
+import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
 import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import {
   buildAiTelemetry,
@@ -47,7 +48,9 @@ import {
   type createSSEStream,
   getIntentMessage,
   PROGRESS_MESSAGES,
+  sendSearchDegradedWarning,
   sseFail,
+  sseInternalError,
 } from './sseHelpers.js';
 import { getUser } from './threadPersistenceService.js';
 
@@ -76,33 +79,40 @@ export async function runChatGraphResume({
     const { threadId } = body;
     const resumeInput = resolveResumeInput(body);
     if (!resumeInput) {
-      return sseFail(sse, 'Ungültige Resume-Anfrage.');
+      return sseFail(sse, 'Ungültige Resume-Anfrage.', { code: 'invalid_request' });
     }
     if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
-      return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.');
+      return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.', {
+        code: 'invalid_request',
+      });
     }
     const userAnswer = resumeInput.kind === 'ask_human' ? resumeInput.answer : null;
 
     const user = getUser(req);
     if (!user?.id) {
-      return sseFail(sse, PROGRESS_MESSAGES.unauthorized);
+      return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
     }
 
     const stored = await pipelineStateStore.get(threadId);
     if (!stored) {
-      return sseFail(sse, 'Pipeline-Status abgelaufen. Bitte sende deine Nachricht erneut.');
+      return sseFail(sse, 'Pipeline-Status abgelaufen. Bitte sende deine Nachricht erneut.', {
+        code: 'invalid_request',
+      });
     }
     await pipelineStateStore.delete(threadId);
 
     const { classifiedState, requestContext } = stored;
 
     if (requestContext.userId !== user.id) {
-      return sseFail(sse, PROGRESS_MESSAGES.unauthorized);
+      return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
     }
 
     const aiWorkerPool = getAIWorkerPool(req);
     if (!aiWorkerPool) {
-      return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable);
+      return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable, {
+        code: 'provider_unavailable',
+        retryable: true,
+      });
     }
 
     log.info(
@@ -357,8 +367,13 @@ export async function runChatGraphResume({
         }
 
         const resultCount = finalState.searchResults?.length || 0;
+        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
         sse.send('search_complete', {
-          message: PROGRESS_MESSAGES.searchComplete(resultCount),
+          message:
+            searchDegraded && resultCount === 0
+              ? PROGRESS_MESSAGES.searchDegraded
+              : PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results:
             finalState.searchResults?.slice(0, 10).map((r) => {
@@ -500,10 +515,7 @@ export async function runChatGraphResume({
     const errorStack = error instanceof Error ? error.stack : undefined;
     log.error(`[ChatGraph:Resume] Controller error: ${errorMessage}`);
     if (errorStack) log.error(`[ChatGraph:Resume] Stack: ${errorStack}`);
-    if (!sse.isEnded()) {
-      sse.send('error', { error: PROGRESS_MESSAGES.internalError });
-      sse.end();
-    }
+    sseInternalError(sse, error);
     return { status: 200 as const, body: undefined };
   }
 }

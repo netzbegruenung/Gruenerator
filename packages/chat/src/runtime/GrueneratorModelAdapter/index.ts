@@ -12,7 +12,7 @@ import { streamErrorMessage } from '../streamErrorMessage';
 
 import { getClientToolExecutor } from '../clientTools';
 
-import { buildRequestBody } from './buildRequestBody';
+import { buildRequestBody, resolveRuntimeThreadId, type ThreadBinding } from './buildRequestBody';
 import { parseSSEStream } from './parseSSEStream';
 import { truncateAttachmentContext } from './truncation';
 
@@ -131,8 +131,10 @@ async function* runClientToolResumes(params: {
 
 export function createGrueneratorModelAdapter(
   getConfig: () => GrueneratorAdapterConfig,
-  callbacks: GrueneratorAdapterCallbacks
+  callbacks: GrueneratorAdapterCallbacks,
+  opts?: { threadBinding?: ThreadBinding }
 ): ChatModelAdapter {
+  const threadBinding: ThreadBinding = opts?.threadBinding ?? 'runtime';
   // Tracks which thread has a pending HITL interrupt — persists across run() calls
   let interruptedThreadId: string | null = null;
   let lastInterruptedResult: ChatModelRunResult | null = null;
@@ -146,16 +148,23 @@ export function createGrueneratorModelAdapter(
       // thread switches; a fresh thread has no remoteId snapshot yet, so fall
       // back to the store id that initialize() just set.
       //
-      // BUT assistant-ui's *local* runtime (editor sidebars: docs/sheets/boards/
-      // presentations via useLocalRuntime) reports the local thread-list sentinel
-      // "__DEFAULT_ID__" as unstable_threadId. That is not a real thread — letting
-      // it override would make contextProviders.get(threadId) miss (providers are
-      // registered under the real getChatThread id), so currentDocument never
-      // reaches the backend and edit_current_doc never classifies. Ignore it.
-      const runtimeThreadId =
-        options.unstable_threadId && options.unstable_threadId !== '__DEFAULT_ID__'
-          ? options.unstable_threadId
-          : null;
+      // BUT assistant-ui also reports its INTERNAL ids as unstable_threadId:
+      // the legacy local sentinel "__DEFAULT_ID__" AND — since useLocalRuntime
+      // was rebuilt on the remote-thread-list machinery (aui 0.14.2x) —
+      // initialized local threads as "__LOCALID_<id>". Neither is a real server
+      // thread — letting one override would make the backend drop the non-UUID
+      // (a NEW thread per message, chat lost on reload) and
+      // contextProviders.get(threadId) miss, so currentDocument never reaches
+      // the backend and the editor never edits. Pinned surfaces (editor
+      // sidebars) skip the runtime id entirely; 'runtime' surfaces filter the
+      // "__"-prefixed internals (see resolveRuntimeThreadId).
+      const runtimeThreadId = resolveRuntimeThreadId(threadBinding, options.unstable_threadId);
+      if (!runtimeThreadId && options.unstable_threadId && !baseConfig.threadId) {
+        console.warn(
+          '[ChatAdapter] no usable thread id (runtime id ignored, no surface threadId) — request will create a new thread',
+          options.unstable_threadId
+        );
+      }
       const config = runtimeThreadId ? { ...baseConfig, threadId: runtimeThreadId } : baseConfig;
 
       // unstable_getMessage() provides the current assistant message (not in messages array).
@@ -404,7 +413,11 @@ export function createGrueneratorModelAdapter(
             wolkeFiles = parsed.wolkeFiles;
             connectFiles = parsed.connectFiles;
             hasDocumentChat = parsed.hasDocumentChat;
-            textPart.text = parsed.cleanText;
+            // Durable mention tokens instead of stripping: the sent/persisted
+            // message keeps @[Label](type:id), so history, retries and the
+            // backend can re-derive the mention. Legacy fields above are still
+            // sent for compat (old backend / old mobile apps).
+            textPart.text = parsed.tokenText;
 
             if (parsed.unresolvedMentions.length > 0) {
               const names = parsed.unresolvedMentions.map((m) => `@${m}`).join(', ');

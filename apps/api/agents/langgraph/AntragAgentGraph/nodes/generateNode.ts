@@ -101,7 +101,6 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
     const aiResult = await aiWorkerPool.processRequest(
       {
         type: 'antrag',
-        usePrivacyMode: (request.usePrivacyMode as boolean) || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages as unknown as Message[],
         options: {

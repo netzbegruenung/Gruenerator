@@ -5,6 +5,8 @@
  * Used both by the search node (for agent context) and the REST API (for frontend search).
  */
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { likeContainsPattern } from '../../../utils/sqlLike.js';
@@ -24,6 +26,8 @@ export interface ChatSearchOptions {
   endDate?: Date;
   /** Filter to threads carrying at least one of these tags. */
   tags?: string[];
+  /** Space scope: restrict to this set of thread ids (a space's chats). */
+  threadIds?: string[];
   /**
    * Restrict to threads the user owns or was explicitly shared. Without it,
    * every `is_public` thread in the system matches — right for agent context
@@ -75,6 +79,7 @@ export async function searchChatHistory(
     startDate,
     endDate,
     tags,
+    threadIds,
     ownedOnly = false,
   } = options;
   const db = getPostgresInstance();
@@ -128,6 +133,14 @@ export async function searchChatHistory(
     paramIdx++;
   }
 
+  let spaceScopeClause = '';
+  if (threadIds && threadIds.length > 0) {
+    // Space scope: restrict to a specific set of thread ids.
+    spaceScopeClause = `AND t.id = ANY($${paramIdx}::uuid[])`;
+    params.push(threadIds);
+    paramIdx++;
+  }
+
   params.push(limit * 3); // Fetch extra for dedup (multiple messages per thread)
   const limitParam = `$${paramIdx}`;
 
@@ -156,6 +169,7 @@ export async function searchChatHistory(
     ${dateFromClause}
     ${dateToClause}
     ${tagsClause}
+    ${spaceScopeClause}
     ORDER BY m.created_at DESC
     LIMIT ${limitParam}
   `;
@@ -186,7 +200,11 @@ export async function searchChatHistory(
         threadTitle: row.thread_title,
         threadSlugSuffix: row.thread_slug_suffix,
         agentId: row.agent_id,
-        snippet: extractSnippet(row.message_content || row.thread_title || '', query),
+        // Persisted content carries durable mention tokens — show the label form.
+        snippet: extractSnippet(
+          sanitizeMentionTokens(row.message_content || row.thread_title || '', 'label'),
+          query
+        ),
         messageRole: row.message_role as 'user' | 'assistant',
         matchedAt: toIsoString(row.matched_at),
         threadUpdatedAt: toIsoString(row.thread_updated_at),

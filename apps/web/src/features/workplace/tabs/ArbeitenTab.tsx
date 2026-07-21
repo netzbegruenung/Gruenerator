@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 
 import PageContainer from '../../../components/common/PageContainer';
 import { DocsHome } from '../../docs/DocsPage';
-import ToolsSection, { OfficeSection } from '../components/ToolsSection';
+import { OfficeSection } from '../components/ToolsSection';
 // "Grünerators Favoriten" (externe Dienste) sind vorerst ausgeblendet — zum
 // Reaktivieren `FavoritesSection` wieder importieren und den Block unten einblenden.
 
@@ -20,12 +20,8 @@ const ArbeitenTab = () => {
         <DocsHome />
       </div>
 
-      <section className="mb-xl mt-2xl">
+      <section className="mb-xl mt-xl" data-tour="arbeiten-tools">
         <OfficeSection />
-      </section>
-
-      <section className="mb-xl" data-tour="arbeiten-tools">
-        <ToolsSection />
       </section>
 
       <div data-tour="arbeiten-recents">

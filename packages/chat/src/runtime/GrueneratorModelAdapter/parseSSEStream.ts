@@ -1,11 +1,14 @@
 import {
   triggerDocEditSchema,
   triggerBoardActionSchema,
+  editorOperationsEventSchema,
   isCanvasTemplateType,
   chatStreamEventSchemas,
+  type ChatErrorEventPayload,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { ChatStreamError } from '../streamErrorMessage';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
@@ -991,6 +994,34 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'editor_operations': {
+          // Tool-based editor edit (CHAT_EDIT_TOOL_SURFACES): the agentic loop's
+          // edit_document tool planned ops server-side; apply them in place via
+          // the surface's registered handler (Univer / Yjs / Konva bridge).
+          // Keyed by targetId, parallel to the trigger_doc_edit path (which stays
+          // the fallback when the backend flag is off).
+          const parsed = editorOperationsEventSchema.safeParse(data);
+          if (!parsed.success) {
+            console.warn('[ChatAdapter] editor_operations payload failed validation', parsed.error);
+            break;
+          }
+          const payload = parsed.data;
+          const handler = useChatConfigStore.getState().editorOpsHandlers.get(payload.targetId);
+          if (handler) {
+            try {
+              await handler(payload);
+            } catch (err) {
+              console.warn('[ChatAdapter] editorOpsHandler threw', err);
+            }
+          } else {
+            console.warn(
+              '[ChatAdapter] editor_operations received but no handler registered for target',
+              payload.targetId
+            );
+          }
+          break;
+        }
+
         // ── Search mode events ──
         case 'sources_preview': {
           const { results: previewResults, resultCount } = data as {
@@ -1073,9 +1104,9 @@ export async function* parseSSEStream(
         }
 
         case 'error': {
-          const { error } = data as { error: string };
+          const payload = data as ChatErrorEventPayload;
           transitionStep('error');
-          throw new Error(error);
+          throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
         }
       }
     }

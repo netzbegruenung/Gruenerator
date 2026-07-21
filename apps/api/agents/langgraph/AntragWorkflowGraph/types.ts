@@ -20,7 +20,6 @@ export interface AntragWorkflowInput {
   gliederung?: string | undefined;
   locale?: 'de-DE' | 'de-AT' | undefined;
   useWebSearch?: boolean | undefined;
-  usePrivacyMode?: boolean | undefined;
   selectedDocumentIds?: string[] | undefined;
   selectedTextIds?: string[] | undefined;
 

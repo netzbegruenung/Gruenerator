@@ -26,37 +26,31 @@ import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
-import { type McpCatalog } from './mcpCatalog.js';
+import { createSerializer, sanitizeToolName, type McpCatalog } from './mcpCatalog.js';
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
 const log = createLogger('systemMcpCatalog');
 
 /** Oversized results are condensed here, not clipped mid-JSON by the client. */
 const RAW_RESULT_MAX_CHARS = 400_000;
-const CONDENSED_MAX_ENTRIES = 40;
+/**
+ * Every value postProcess returns must stay UNDER the loop's model budget
+ * (wrapTools truncateResultForModel, 6000 chars): once an object exceeds it,
+ * deepTruncate slices each string LEAF to ~750 chars — which would shred the
+ * bahn board mid-JSON and clip the news [N]-citation block. Staying below the
+ * threshold means the model always sees the complete, untruncated result.
+ */
+const MODEL_RESULT_MAX_CHARS = 5_000;
+const ERROR_MAX_CHARS = 2_000;
+// ~15 entries ≈ 3-4k chars serialized — complete for the model AND more than
+// the card renders (8 rows + "+N weitere").
+const CONDENSED_MAX_ENTRIES = 15;
 const NEWS_MAX_CITATIONS = 10;
 
 // listTools is stable per deployment of a first-party server — cache it so hot
 // turns skip one round-trip (connect still happens per turn for the calls).
 const TOOL_LIST_TTL_MS = 10 * 60_000;
 const toolListCache = new Map<SystemMcpKey, { at: number; tools: McpToolDescriptor[] }>();
-
-function sanitizeToolName(raw: string): string {
-  return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-}
-
-/** Per-client mutex — one MCP session is one JSON-RPC transport. */
-function createSerializer(): <T>(fn: () => Promise<T>) => Promise<T> {
-  let chain: Promise<unknown> = Promise.resolve();
-  return <T>(fn: () => Promise<T>): Promise<T> => {
-    const run = chain.then(fn, fn) as Promise<T>;
-    chain = run.then(
-      () => undefined,
-      () => undefined
-    );
-    return run;
-  };
-}
 
 // ── Bahn: DB IRIS timetable condenser ────────────────────────────────────────
 
@@ -120,13 +114,18 @@ export function condenseBahnTimetable(text: string): BahnPayload | null {
       b.departureTime ?? b.arrivalTime ?? '99:99'
     )
   );
-  const first = root.s.find((s) => s.dp?.['@pt'] ?? s.ar?.['@pt']);
-  const anyPt = first?.dp?.['@pt'] ?? first?.ar?.['@pt'];
+  // Header date/hour from the EARLIEST departure — the raw stop order is
+  // unordered, so "first element" can be a terminating arrival from the
+  // previous hour/day. YYMMDDHHmm sorts lexicographically.
+  const earliestPt = root.s
+    .map((s) => s.dp?.['@pt'] ?? s.ar?.['@pt'])
+    .filter((pt): pt is string => typeof pt === 'string' && pt.length === 10)
+    .sort()[0];
   return bahnPayloadSchema.parse({
     kind: 'timetable',
     station: root['@station'] ?? 'Unbekannter Bahnhof',
-    date: irisDate(anyPt),
-    hour: typeof anyPt === 'string' ? anyPt.slice(6, 8) : null,
+    date: irisDate(earliestPt),
+    hour: earliestPt ? earliestPt.slice(6, 8) : null,
     entries: entries.slice(0, CONDENSED_MAX_ENTRIES),
   });
 }
@@ -194,6 +193,7 @@ export async function loadSystemMcpCatalog(params: {
   const clients: UserMCPClient[] = [];
   const tools: ToolSet = {};
   const labels = new Map<string, { serverName: string; toolName: string }>();
+  const mountedKeys = new Set<string>();
 
   await Promise.all(
     sources.map(async (source) => {
@@ -202,6 +202,7 @@ export async function loadSystemMcpCatalog(params: {
         await client.connect();
         const listed = await listToolsCached(source, client);
         clients.push(client);
+        mountedKeys.add(source.key);
         const allowed = source.toolAllowlist
           ? listed.filter((t) => source.toolAllowlist?.includes(t.name))
           : listed;
@@ -220,7 +221,13 @@ export async function loadSystemMcpCatalog(params: {
                   maxChars: RAW_RESULT_MAX_CHARS,
                 })
               );
-              if (!result.ok) return { error: result.content || 'Fehler beim Tool-Aufruf.' };
+              // Error content is capped too: this object is persisted + streamed
+              // verbatim, and a server-reported error can echo a huge payload.
+              if (!result.ok) {
+                return {
+                  error: result.content.slice(0, ERROR_MAX_CHARS) || 'Fehler beim Tool-Aufruf.',
+                };
+              }
               return postProcess(source, t.name, result.content, params);
             },
           });
@@ -238,6 +245,7 @@ export async function loadSystemMcpCatalog(params: {
     tools,
     labels,
     scopedServerMissing: false,
+    systemSourceKeys: mountedKeys,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
     },
@@ -273,9 +281,12 @@ function postProcess(
     const results = extractNewsResults(content);
     if (results.length > 0) {
       const numbered = ctx.sourceRegistry.register(results);
-      // Numbered snippets first so the model cites [N]; full text as context.
-      return { content: `${numbered}\n\n${content.slice(0, 20_000)}` };
+      // Numbered snippets first so the model cites [N] — the citation block
+      // must NEVER be the part that gets cut, so the raw text fills only the
+      // remaining model budget.
+      const room = Math.max(0, MODEL_RESULT_MAX_CHARS - numbered.length);
+      return { content: `${numbered}\n\n${content.slice(0, room)}` };
     }
   }
-  return { content: content.slice(0, 20_000) };
+  return { content: content.slice(0, MODEL_RESULT_MAX_CHARS) };
 }

@@ -121,6 +121,31 @@ export interface CreatedDocument {
 }
 
 /**
+ * Thread-level memory of the tool family the last substantive turn used.
+ * @mentions are stripped from the message text on send and every forcing field
+ * is per-request, so a vague follow-up carries no textual trace of the tool —
+ * this is the generic carrier (generalising the sticky last_mcp_server_id).
+ * Written by postResponseService, injected into the classifier's LLM context.
+ */
+export interface ThreadToolContext {
+  kind:
+    | 'mcp'
+    | 'image'
+    | 'sharepic'
+    | 'bundestag'
+    | 'abgeordnetenwatch'
+    | 'notebook'
+    | 'presentation'
+    | 'sheet'
+    | 'document'
+    | 'board';
+  /** Kind-specific reference (mcp: serverId, created docs: documentId). */
+  ref?: string | null;
+  /** Human-readable label for prompt injection (e.g. the MCP server name). */
+  label?: string | null;
+}
+
+/**
  * Source prefixes used in SearchResult.source to identify result provenance.
  * Use these instead of raw strings to avoid silent mismatches across the pipeline.
  */
@@ -135,6 +160,18 @@ export const SOURCE_PREFIX = {
   WOLKE: 'wolke:',
   CONNECT: 'connect:',
 } as const;
+
+/**
+ * True when a searchErrors entry means a search backend was unreachable
+ * (Qdrant collection, web search, whole-search catch) — as opposed to soft
+ * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
+ * searchErrors but must not trigger "Quellen nicht erreichbar" messaging.
+ */
+export function isSourceAvailabilityError(entry: { source: string }): boolean {
+  return (
+    entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
 
 /**
  * Unified search result structure from any tool.
@@ -405,6 +442,12 @@ export interface ChatGraphState {
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;
+  /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
+  lastToolContext?: ThreadToolContext | null;
+  /** Last user text with mention tokens fully REMOVED — for regex heuristics
+   *  that would false-positive on labels ("Bild generieren"). The messages on
+   *  state carry the label form ("@Label") instead. */
+  lastUserTextNoMentions?: string;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays
@@ -569,7 +612,11 @@ export interface ChatGraphState {
   qualityAssessmentTimeMs: number;
   topRerankScore: number | null;
 
-  // Reliability flags & structured error log
+  // Reliability flags & structured error log. Sources 'web' / 'search' /
+  // 'documents:*' mean a search backend was unreachable; soft LLM-stage
+  // failures (briefGenerator, qualityGate, rerank) also append here but say
+  // nothing about source availability — filter with isSourceAvailabilityError
+  // before telling anyone the sources were down.
   searchErrors: { source: string; message: string }[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
@@ -593,6 +640,15 @@ export interface ChatGraphState {
   // research loop, then emits trigger_doc_edit/trigger_board_action with the
   // gathered sources as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
+  // Tool-based editor edit: the resolved editor surface whose `edit_document`
+  // tool the loop mounts. Set only for surfaces with a tool path
+  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
+  // trigger_doc_edit path for the still-live surfaces.
+  editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
+  // Human summary of edits the edit_document tool made THIS turn (set by
+  // editorTools). Feeds the synth prompt so the model confirms the change in
+  // past tense instead of writing empty text (→ fallback) or a false "I can't".
+  editorEditsSummary?: string | null;
   sharepicVariants?: SharepicVariant[] | null;
   // Presentation/sheet/text-doc fat tool result (compound turns) — lifted by the
   // router into the persisted assistant message's `createdDocument` metadata.

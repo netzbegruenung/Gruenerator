@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { ClientPlatform, CurrentBoard } from '@gruenerator/contracts';
+import type { ClientPlatform, CurrentBoard, EditorOperationsEvent } from '@gruenerator/contracts';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -240,6 +240,15 @@ export type BoardActionTriggerHandler = (
   payload: BoardActionTriggerPayload
 ) => void | Promise<void>;
 
+/**
+ * Handler an editor surface registers to receive `editor_operations` SSE events
+ * — the tool-based edit path (CHAT_EDIT_TOOL_SURFACES). The agentic loop planned
+ * the ops server-side; the handler applies them in place (Univer / Yjs / Konva)
+ * via the surface's bridge. Keyed by targetId (documentId | boardId | docKey),
+ * parallel to documentEditHandlers so the legacy trigger path stays as fallback.
+ */
+export type EditorOperationsHandler = (payload: EditorOperationsEvent) => void | Promise<void>;
+
 interface ChatConfigStore extends ResolvedChatConfig {
   configure: (config?: ChatConfig) => void;
   getDocsUrl: () => string;
@@ -286,6 +295,10 @@ interface ChatConfigStore extends ResolvedChatConfig {
   boardActionHandlers: Map<string, BoardActionTriggerHandler>;
   /** Register a board-action handler for a board. Returns the unregister function. */
   registerBoardActionHandler: (boardId: string, handler: BoardActionTriggerHandler) => () => void;
+  /** targetId → editor_operations dispatcher (tool-based edit path). */
+  editorOpsHandlers: Map<string, EditorOperationsHandler>;
+  /** Register an editor-operations handler for a target. Returns the unregister function. */
+  registerEditorOpsHandler: (targetId: string, handler: EditorOperationsHandler) => () => void;
   /**
    * Transient signal set by the regenerate / edit-resubmit UI and consumed once
    * by the model adapter on the next run. Tells the backend to replace the last
@@ -370,6 +383,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   boardActionHandlers: new Map(),
+  editorOpsHandlers: new Map(),
   pendingRunSignal: null,
 
   configure: (config?: ChatConfig) => {
@@ -433,6 +447,19 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       if (after.get(boardId) === handler) {
         after.delete(boardId);
         set({ boardActionHandlers: after });
+      }
+    };
+  },
+
+  registerEditorOpsHandler: (targetId, handler) => {
+    const next = new Map(get().editorOpsHandlers);
+    next.set(targetId, handler);
+    set({ editorOpsHandlers: next });
+    return () => {
+      const after = new Map(get().editorOpsHandlers);
+      if (after.get(targetId) === handler) {
+        after.delete(targetId);
+        set({ editorOpsHandlers: after });
       }
     };
   },

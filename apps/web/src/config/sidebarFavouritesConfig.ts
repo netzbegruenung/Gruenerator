@@ -18,6 +18,9 @@ export interface FavouriteItemConfig {
 }
 
 const TOOL_ITEMS: FavouriteItemConfig[] = [
+  { id: 'office', title: 'Office', path: '/office', icon: getIcon('navigation', 'desk')! },
+  // Legacy office-app ids kept so already-pinned favourites still resolve; their
+  // paths now redirect to the unified /office hub.
   { id: 'docs', title: 'Dokumente', path: '/docs', icon: getIcon('navigation', 'docs')! },
   { id: 'boards', title: 'Boards', path: '/boards', icon: getIcon('navigation', 'boards')! },
   { id: 'sheets', title: 'Tabellen', path: '/sheets', icon: getIcon('navigation', 'sheets')! },
@@ -29,16 +32,18 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
   },
   {
     id: 'canvas',
-    title: 'Bild & Grafik',
-    path: '/canvas',
+    title: 'Bilder & Videos',
+    path: '/studio',
     icon: getIcon('navigation', 'sharepic')!,
   },
-  { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
+  { id: 'wissen', title: 'Wissen', path: '/wissen', icon: getIcon('navigation', 'notebooks')! },
+  { id: 'gruppen', title: 'Spaces', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
   {
+    // Legacy id kept so already-pinned "Wissen" favourites still resolve.
     id: 'notebooks',
     title: 'Wissen',
-    path: '/workplace/wissen',
+    path: '/wissen',
     icon: getIcon('navigation', 'notebooks')!,
   },
   { id: 'scanner', title: 'Scanner', path: '/scanner', icon: getIcon('navigation', 'scanner')! },

@@ -9,6 +9,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { getToolGradient } from '../../../config/toolTheme';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
@@ -131,7 +132,7 @@ const SubtitlerPage = (): React.ReactElement => {
 
   const { status: exportStatus, exportToken, resetExport } = useSubtitlerExportStore();
 
-  const { user } = useAuthStore();
+  const { user, locale } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // User-initiated step transitions push a new history entry. The
@@ -420,7 +421,7 @@ const SubtitlerPage = (): React.ReactElement => {
     async (uploadId: string): Promise<void> => {
       try {
         const res = await getContractsClient().subtitler.postProcessAuto({
-          body: { uploadId, locale: 'de-DE', userId: user?.id || null },
+          body: { uploadId, locale, userId: user?.id || null },
         });
         if (res.status === 202) {
           console.log('[SubtitlerPage] Auto processing started for:', uploadId);
@@ -440,7 +441,7 @@ const SubtitlerPage = (): React.ReactElement => {
         goToStep('upload');
       }
     },
-    [user?.id, goToStep]
+    [user?.id, locale, goToStep]
   );
 
   // Handler for automatic processing completion
@@ -487,6 +488,7 @@ const SubtitlerPage = (): React.ReactElement => {
     <ErrorBoundary>
       <PageContainer
         gradient={step !== 'edit'}
+        bgClassName={step !== 'edit' ? getToolGradient('reels-untertitel') : undefined}
         className={cn(step === 'edit' && 'max-w-[1600px] 2xl:max-w-[90vw]')}
       >
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (

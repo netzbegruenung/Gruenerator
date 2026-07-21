@@ -6,6 +6,7 @@
  * and only the summary + recent messages are sent to the LLM.
  */
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { generateText, type ModelMessage } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -157,7 +158,9 @@ function formatMessagesForSummary(messages: Message[]): string {
     .filter((m) => m.content && m.role !== 'system')
     .map((m) => {
       const role = m.role === 'user' ? 'Benutzer' : 'Assistent';
-      return `${role}: ${m.content}`;
+      // Persisted content carries durable mention tokens — the summarizer (and
+      // the stored summary it produces) must see the readable "@Label" form.
+      return `${role}: ${sanitizeMentionTokens(m.content ?? '', 'label')}`;
     })
     .join('\n\n');
 }
