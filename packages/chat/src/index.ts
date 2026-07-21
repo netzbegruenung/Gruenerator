@@ -117,6 +117,23 @@ export {
 } from './context/ChatCollaborationContext';
 export { useChatCollaboration } from './hooks/useChatCollaboration';
 
+// Editor Assistant — shared host for embedded editor chat sidebars
+// (docs / sheets / presentations / boards / canvas).
+export {
+  EditorAssistantProvider,
+  useEditorAssistant,
+  usePeerMessageSync,
+  deriveGateState,
+  shouldImportHistory,
+  isReady as isEditorAssistantReady,
+  type EditorAssistantProviderProps,
+  type EditorAssistantState,
+  type EditorSurfaceAdapter,
+  type EditorSurfaceKind,
+  type EditorToolConfig,
+  type EditorRegistrationCtx,
+} from './editor-surface';
+
 // Notebook Runtime
 export {
   NotebookChatProvider,
@@ -204,7 +221,6 @@ export { CitationSidePanel } from './components/message-parts/CitationSidePanel'
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
-export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ChatThreadRouting, type ChatThreadRoutingProps } from './components/ChatThreadRouting';

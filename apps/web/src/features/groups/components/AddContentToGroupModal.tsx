@@ -27,6 +27,7 @@ import { PiSquaresFour } from 'react-icons/pi';
 
 import { ICONS } from '../../../config/icons';
 import { profileApiService } from '../../auth/services/profileApiService';
+import { subtypeToKind } from '../../docs/docTypeMeta';
 import { SYSTEM_NOTEBOOKS } from '../../notebook/config/notebooksConfig';
 import {
   LINK_ICONS,
@@ -49,12 +50,10 @@ interface ContentItem {
   document_subtype?: string;
 }
 
-// Office collaborative_documents share the same 'collaborative_documents'
-// content_type and the same listDocuments query, but read as distinct
-// categories in the picker (matching the workplace "Zuletzt" vocabulary):
-// spreadsheets (Univer 'sheets' + legacy HTML 'tabelle') and reveal decks.
-const SHEET_SUBTYPES = new Set(['sheets', 'tabelle']);
-const PRESENTATION_SUBTYPES = new Set(['presentations']);
+// Office collaborative_documents share one 'collaborative_documents' content_type
+// and the same listDocuments query, but read as distinct picker categories
+// (matching the workplace "Zuletzt" vocabulary). `subtypeToKind` is the single
+// source for that subtype→category mapping (incl. legacy 'tabelle' → sheet).
 
 interface ContentCategory {
   id: CategoryId;
@@ -229,13 +228,11 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     }));
     // One listDocuments query backs three doc categories; split by subtype so
     // office items read as Sheets/Präsentationen instead of being lumped into Docs.
-    const subtypeOf = (item: ContentItem) => item.document_subtype ?? '';
+    const kindOf = (item: ContentItem) => subtypeToKind(item.document_subtype);
     return {
-      collabDocs: allCollabDocs.filter(
-        (d) => !SHEET_SUBTYPES.has(subtypeOf(d)) && !PRESENTATION_SUBTYPES.has(subtypeOf(d))
-      ),
-      sheets: allCollabDocs.filter((d) => SHEET_SUBTYPES.has(subtypeOf(d))),
-      presentations: allCollabDocs.filter((d) => PRESENTATION_SUBTYPES.has(subtypeOf(d))),
+      collabDocs: allCollabDocs.filter((d) => kindOf(d) === 'doc'),
+      sheets: allCollabDocs.filter((d) => kindOf(d) === 'sheet'),
+      presentations: allCollabDocs.filter((d) => kindOf(d) === 'pres'),
       boards,
       documents: docs,
       notebooks: [...notebooks, ...systemNotebookItems],
@@ -533,7 +530,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                       setLinkTitle(e.target.value);
                       setLinkTitleManual(true);
                     }}
-                    placeholder="z.B. Signal-Gruppe"
+                    placeholder="z.B. Signal-Space"
                     maxLength={100}
                   />
                 </div>

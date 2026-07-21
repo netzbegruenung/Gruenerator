@@ -11,6 +11,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import { type ThreadToolContext } from '../../agents/langgraph/ChatGraph/types.js';
+
 export const chatThreads = pgTable(
   'chat_threads',
   {
@@ -39,8 +41,19 @@ export const chatThreads = pgTable(
     // Sticky MCP scope: last connected server the loop was scoped to, so an
     // unscoped follow-up re-scopes to it instead of fanning out. No FK (loose).
     last_mcp_server_id: uuid('last_mcp_server_id'),
+    // Generalised tool memory: which tool family the last substantive turn used
+    // ({kind, ref?, label?}) — injected into the classifier so vague follow-ups
+    // route back to the same tool (mentions are stripped from message text).
+    last_tool_context: jsonb('last_tool_context').$type<ThreadToolContext>(),
+    // Home "Space" (a group) this thread is filed in. NULL = unfiled. FK →
+    // groups(id) ON DELETE SET NULL. A thread has one home space (personal or
+    // team); it can additionally be shared to more spaces via group_content_shares.
+    group_id: uuid('group_id'),
   },
-  (t) => [index('idx_chat_threads_tags').using('gin', t.tags)]
+  (t) => [
+    index('idx_chat_threads_tags').using('gin', t.tags),
+    index('idx_chat_threads_group_id').on(t.group_id),
+  ]
 );
 
 export const chatMessages = pgTable('chat_messages', {

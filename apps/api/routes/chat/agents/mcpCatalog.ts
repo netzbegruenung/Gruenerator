@@ -27,13 +27,13 @@ const log = createLogger('mcpCatalog');
 
 const MAX_TOOLS = 60;
 
-/** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. */
-function sanitizeToolName(raw: string): string {
+/** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. Shared with systemMcpCatalog. */
+export function sanitizeToolName(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
 }
 
 /** Per-client mutex: serialize callTool on one MCP session (no p-limit dep). */
-function createSerializer(): <T>(fn: () => Promise<T>) => Promise<T> {
+export function createSerializer(): <T>(fn: () => Promise<T>) => Promise<T> {
   let chain: Promise<unknown> = Promise.resolve();
   return <T>(fn: () => Promise<T>): Promise<T> => {
     const run = chain.then(fn, fn) as Promise<T>;
@@ -53,6 +53,10 @@ export interface McpCatalog {
   /** True when a scope was requested but the server is gone/disabled — the
    *  caller should answer honestly instead of running a tool-less loop. */
   scopedServerMissing: boolean;
+  /** System catalogs only: keys of the sources that actually CONNECTED this
+   *  turn (env-configured but unreachable sources are absent) — the prompt
+   *  hints must be keyed to this, not to the env config. */
+  systemSourceKeys?: ReadonlySet<string>;
   /** Close all opened connections. MUST be awaited in the caller's finally. */
   close: () => Promise<void>;
 }

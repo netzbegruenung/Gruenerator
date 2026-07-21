@@ -15,7 +15,11 @@
  * - `resume` delegates wholesale to ./services/resumePipeline.
  */
 
+import { promises as fsPromises } from 'node:fs';
+import nodePath from 'node:path';
+
 import { chatGraphContract } from '@gruenerator/contracts';
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -25,7 +29,10 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
-import { isSystemIntentAvailable } from '../../services/mcp/systemMcpServers.js';
+import {
+  SYSTEM_TOOL_INTENTS,
+  isSystemIntentAvailable,
+} from '../../services/mcp/systemMcpServers.js';
 import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -41,6 +48,8 @@ import {
   looksLikeCompoundEdit,
   isEditorSurface,
   decideRunAgentic,
+  resolveEditorSurfaceKind,
+  decideEditToolLoop,
 } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
@@ -64,6 +73,7 @@ import {
   rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
@@ -98,9 +108,18 @@ import {
   handleSocialPostTextEdit,
   isSocialTextEditInstruction,
 } from './services/socialPostEditService.js';
-import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
+import {
+  createSSEStream,
+  getIntentMessage,
+  PROGRESS_MESSAGES,
+  sseInternalError,
+} from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
-import { createMessage, touchThread } from './services/threadPersistenceService.js';
+import {
+  createMessage,
+  getLastGeneratedImageUrl,
+  touchThread,
+} from './services/threadPersistenceService.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -185,11 +204,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         memoryEnabled,
         contextWindowTokens,
+        mentionTokenFields,
+        lastUserTextRaw,
       } = ctxResult.ctx;
 
       const {
         agentId,
-        forcedTools,
+        forcedTools: bodyForcedTools,
         enabledTools,
         modelId,
         documentIds: rawDocumentIds,
@@ -204,11 +225,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         reelUpload: rawReelUpload,
       } = args.body;
 
+      // Durable mention tokens (parsed in streamContext) are the source of
+      // truth; legacy body forcedTools (older clients) union in. Regex edit
+      // heuristics below need the text with tokens fully removed — labels like
+      // "Bild generieren" would false-positive their noun patterns.
+      const mergedForcedTools = [
+        ...new Set([...(bodyForcedTools ?? []), ...mentionTokenFields.forcedTools]),
+      ];
+      const forcedTools = mergedForcedTools.length > 0 ? mergedForcedTools : undefined;
+      const lastUserTextNoMentions = sanitizeMentionTokens(lastUserTextRaw, 'remove');
+
       // === Stage 1: Classify ===
       const classifiedState = {
         ...initialState,
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
+      classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
 
       let forcedTool: boolean = false;
       log.info(
@@ -225,8 +257,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
 
         if (!classifiedState.searchQuery) {
-          const userText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-          classifiedState.searchQuery = extractCompoundTopic(userText, notebookIds);
+          // Remove-form: "@Label" fragments are self-referential query noise.
+          classifiedState.searchQuery = extractCompoundTopic(lastUserTextNoMentions, notebookIds);
           log.info(`[ChatGraph] Compound topic extracted: "${classifiedState.searchQuery}"`);
         }
 
@@ -265,7 +297,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
           lastUserMessage
         ) {
-          const userText = extractTextContent(lastUserMessage.content).trim();
+          const userText = lastUserTextNoMentions.trim();
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
@@ -281,7 +313,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
           lastUserMessage
         ) {
-          const userText = extractTextContent(lastUserMessage.content).trim();
+          const userText = lastUserTextNoMentions.trim();
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
@@ -351,7 +383,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
             lastUserMessage
           ) {
-            const userText = extractTextContent(lastUserMessage.content).trim();
+            const userText = lastUserTextNoMentions.trim();
             if (userText) {
               classifiedState.searchQuery = userText;
               log.info(
@@ -373,6 +405,36 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
+      }
+
+      // image_edit without an attachment: rehydrate the thread's last generated
+      // image as the edit input ("mach es blauer" after a generation turn) —
+      // without this the edit node errors with "Bitte hänge ein Bild an".
+      // Only local flux results are eligible (strict path shape, no traversal).
+      if (
+        classifiedState.intent === 'image_edit' &&
+        imageAttachments.length === 0 &&
+        actualThreadId
+      ) {
+        const lastUrl = await getLastGeneratedImageUrl(actualThreadId).catch(() => null);
+        const m = lastUrl?.match(/^\/uploads\/(flux\/results\/[\w.-]+\/[\w.-]+)$/);
+        if (m?.[1]) {
+          try {
+            const filePath = nodePath.join(process.cwd(), 'uploads', m[1]);
+            const data = await fsPromises.readFile(filePath);
+            imageAttachments.push({
+              name: nodePath.basename(filePath),
+              type: 'image/jpeg',
+              data: data.toString('base64'),
+            });
+            classifiedState.imageAttachments = imageAttachments;
+            log.info('[ChatGraph] Rehydrated previous generated image for image_edit');
+          } catch (err) {
+            log.warn(
+              `[ChatGraph] Could not rehydrate previous image (${err instanceof Error ? err.message : err})`
+            );
+          }
+        }
       }
 
       // === Reel upload: composer-attached video → auto-transcription ===
@@ -417,7 +479,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const reelText = (extractTextContent(lastUserMessage.content) || '').trim();
+        const reelText = lastUserTextNoMentions.trim();
         const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelText);
         if (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed)) {
           const handled = await handleReelEdit({
@@ -533,7 +595,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !universalEditForced &&
         (rawCurrentSocialPost != null || rawCurrentSharepic == null)
       ) {
-        const editText = ((extractTextContent(lastUserMessage.content) as string) || '').trim();
+        const editText = lastUserTextNoMentions.trim();
         if (editText && isSocialTextEditInstruction(editText)) {
           const handled = await handleSocialPostTextEdit({
             sse,
@@ -568,9 +630,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const editText = ((extractTextContent(lastUserMessage.content) as string) || '')
-          .replace(/@sharepic\b/gi, ' ')
-          .trim();
+        const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
         // With an explicitly activated sharepic (Sharepic-Modus) AND the tool
         // loop on, an edit verb alone is enough — the loop can answer with
         // plain text when the message turns out not to be sharepic-related,
@@ -627,7 +687,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const followText = (extractTextContent(lastUserMessage.content) as string) || '';
+        const followText = lastUserTextNoMentions;
         if (isSharepicRefinement(followText)) {
           const prior = await getLastSharepicVariant(actualThreadId);
           if (prior) {
@@ -666,6 +726,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
         (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
+      const isSystemToolIntent =
+        classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -703,6 +765,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // signal. Respects the SAME single-pass kill-switches as decideRunAgentic
       // (loop flag, notebook-compound, image attachments) so forcing the loop
       // here can't bypass them.
+      const isCompoundEdit = looksLikeCompoundEdit(lastUserText);
       const compoundEdit =
         editorSurface &&
         editTarget != null &&
@@ -710,8 +773,38 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         isAgenticLoopEnabled() &&
         !isCompound &&
         imageAttachments.length === 0 &&
-        looksLikeCompoundEdit(lastUserText);
+        isCompoundEdit;
       if (compoundEdit) classifiedState.compoundEdit = true;
+
+      // Tool-based editor edit: route the turn into the loop with the surface's
+      // `edit_document` tool mounted, so the model can search then edit the OPEN
+      // artifact in place (editor_operations SSE) instead of the client
+      // round-trip to /api/{sheets,…}/:id/ai. Enabled by default for surfaces
+      // with a tool path (TOOL_EDIT_SURFACES — currently only sheets, which isn't
+      // live). The still-live surfaces (doc/board/canvas) resolve to a kind not
+      // in that set → editToolLoop false → legacy trigger_doc_edit path unchanged.
+      const editToolSurfaceKind = resolveEditorSurfaceKind(
+        classifiedState.agentConfig?.identifier,
+        enabledTools ?? undefined
+      );
+      const editToolLoop = decideEditToolLoop({
+        loopEnabled: isAgenticLoopEnabled(),
+        surfaceKind: editToolSurfaceKind,
+        editToolEnabled:
+          enabledTools?.['edit_current_doc'] === true ||
+          enabledTools?.['edit_current_board'] === true,
+        hasEditTarget: editTarget != null,
+        forcedTool: !!forcedTool,
+        isCompound,
+        hasImageAttachments: imageAttachments.length > 0,
+        secondaryIntent: classifiedState.secondaryIntent ?? null,
+      });
+      if (editToolLoop && editToolSurfaceKind) {
+        classifiedState.editToolSurface = editToolSurfaceKind;
+        log.info(
+          `[ChatGraph] editToolLoop active — surface=${editToolSurfaceKind}, edit_document mounted (classifier intent=${classifiedState.intent})`
+        );
+      }
 
       // Conversational board add ("häng den fertigen Post an mein Kanban-Board"):
       // the classifier labels it modify_board, but the single-pass confirm path
@@ -723,6 +816,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (
         classifiedState.intent === 'modify_board' &&
         (!rawBoardIds || rawBoardIds.length === 0) &&
+        mentionTokenFields.boardIds.length === 0 &&
         !rawCurrentBoard &&
         !forcedTool
       ) {
@@ -734,6 +828,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // compoundEdit forces the loop even for an edit_current_* intent (which
       // isn't otherwise a loop intent) — its guards above mirror decideRunAgentic's.
       const runAgentic =
+        editToolLoop ||
         compoundEdit ||
         decideRunAgentic({
           loopEnabled: isAgenticLoopEnabled(),
@@ -754,14 +849,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!runAgentic && classifiedState.intent === 'agentic') {
         classifiedState.intent = 'search';
       }
-      // Same insurance for system MCP intents: their tools exist only in the
+      // Same insurance for system tool intents: their tools exist only in the
       // loop, so an edge turn a kill-switch kept out degrades to web search.
-      if (
-        !runAgentic &&
-        classifiedState.intent != null &&
-        ['bahn', 'reise', 'hotel', 'wetter', 'news', 'umfragen'].includes(classifiedState.intent)
-      ) {
+      // Backfill the query — these intents are NON_SEARCH, so the classifier
+      // nulled searchQuery and the web branch would otherwise search ''.
+      if (!runAgentic && isSystemToolIntent) {
         classifiedState.intent = 'web';
+        if (!classifiedState.searchQuery && lastUserText) {
+          classifiedState.searchQuery = lastUserText;
+        }
       }
 
       sse.send('intent', {
@@ -819,6 +915,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !!lastUserMessage &&
         classifiedState.intent !== 'chat_history';
 
+      // Space scope: when the thread is filed in a Space, recall is restricted to
+      // that Space's chats and the model is told which threads it can search.
+      const spaceScope = actualThreadId
+        ? await getSpaceRecallScope(actualThreadId, userId).catch(() => null)
+        : null;
+
       if (explicitRecall || proactiveRecall) {
         try {
           const recallQuery =
@@ -835,6 +937,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   recallPastChats(userId, recallQuery, {
                     ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
                     limit: 3,
+                    ...(spaceScope && { threadIds: spaceScope.threadIds }),
                   }),
                   recallOfficeDocuments(userId, recallQuery, 3),
                 ]);
@@ -846,6 +949,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
             );
             const blocks = [
+              spaceScope?.rosterBlock ?? '',
               recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
               formatOfficeDocsBlock(recalled.officeDocs),
             ].filter(Boolean);
@@ -858,6 +962,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
         } catch (err) {
           log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
+        }
+      }
+
+      // Always surface the Space roster when filed in a Space, even if no recall
+      // pass ran (so the model knows it can search the Space's chats on demand).
+      if (spaceScope) {
+        const existing = classifiedState.chatHistoryContext;
+        if (!existing) {
+          classifiedState.chatHistoryContext = spaceScope.rosterBlock;
+        } else if (!existing.includes(spaceScope.rosterBlock)) {
+          classifiedState.chatHistoryContext = `${spaceScope.rosterBlock}\n\n${existing}`;
         }
       }
 
@@ -1148,7 +1263,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Unlike the generic clarification above this fires even for forced @sharepic,
       // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
       if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
-        const sharepicText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const sharepicText = lastUserTextNoMentions;
         if (isSharepicTopicMissing(sharepicText as string)) {
           log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
 
@@ -1496,7 +1611,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // compoundEdit (research + edit) forces this even when the intent isn't
       // edit_current_doc: the research loop just ran, and its gathered sources
       // become the reference material (instead of a prior assistant turn).
+      // NOTE: the CANVAS (sharepic editor) also rides this path — it sets
+      // customEnabledTools.edit_current_doc and sends currentDocument.id = docKey,
+      // so a canvas edit dispatches trigger_doc_edit here too (its handler calls
+      // /api/canvas/ai-suggest). Don't add doc-only assumptions under this branch
+      // without also checking resolveEditorSurfaceKind !== 'canvas'.
       if (
+        !editToolLoop &&
         (finalState.intent === 'edit_current_doc' || (compoundEdit && editTarget === 'doc')) &&
         rawCurrentDocument?.id
       ) {
@@ -1525,6 +1646,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // /api/boards/:id/ai to plan operations, then applies them to the live
       // Yjs board. ChatGraph never edits the board itself — classify + forward.
       if (
+        !editToolLoop &&
         (finalState.intent === 'edit_current_board' || (compoundEdit && editTarget === 'board')) &&
         rawCurrentBoard?.id
       ) {
@@ -1651,10 +1773,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
-      if (!sse.isEnded()) {
-        sse.send('error', { error: PROGRESS_MESSAGES.internalError });
-        sse.end();
-      }
+      sseInternalError(sse, error);
       return { status: 200 as const, body: undefined };
     }
   },

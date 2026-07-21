@@ -9,6 +9,7 @@
  */
 
 import { threadsContract } from '@gruenerator/contracts';
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -18,6 +19,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { toIsoString } from '../../utils/toIsoString.js';
+import { getPostgresAndCheckMembership } from '../auth/groups/index.js';
 
 import {
   deleteThreadAttachmentVectors,
@@ -70,7 +72,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const rows = await postgres.query(
         `SELECT t.id, t.user_id, t.agent_id, t.title, t.created_at, t.updated_at,
                 COALESCE(t.status, 'regular') as status, COALESCE(t.thread_type, 'chat') as thread_type,
-                t.notebook_collection_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
+                t.notebook_collection_id, t.group_id, COALESCE(t.tags, '[]'::jsonb) as tags, t.slug_suffix,
                 CASE
                   WHEN t.user_id::text = $1 THEN 'owner'
                   WHEN t.permissions ? $2::text THEN 'shared'
@@ -107,6 +109,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: (row.status as string) || 'regular',
         threadType: (row.thread_type as string) || 'chat',
         notebookCollectionId: (row.notebook_collection_id as string) || null,
+        groupId: (row.group_id as string) || null,
         tags: (row.tags as string[]) ?? [],
         slugSuffix: (row.slug_suffix as string) ?? null,
         createdAt: row.created_at as Date | string,
@@ -133,6 +136,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         status: t.status,
         threadType: t.threadType,
         notebookCollectionId: t.notebookCollectionId ?? null,
+        groupId: t.groupId ?? null,
         tags: t.tags,
         slugSuffix: t.slugSuffix,
         createdAt: toIsoString(t.createdAt),
@@ -196,7 +200,7 @@ export const threadsContractRouter = s.router(threadsContract, {
   update: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const { threadId, title, status, tags } = args.body;
+      const { threadId, title, status, tags, groupId } = args.body;
 
       const postgres = getPostgresInstance();
 
@@ -211,6 +215,16 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       if (existingThreads[0].user_id !== userId) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
+      }
+
+      // Filing into a Space: only into a group the user belongs to (personal or
+      // team). null clears the home space.
+      if (groupId != null) {
+        try {
+          await getPostgresAndCheckMembership(groupId, userId);
+        } catch {
+          return { status: 403 as const, body: { error: 'Kein Zugriff auf diesen Space.' } };
+        }
       }
 
       const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP'];
@@ -232,6 +246,12 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (tags !== undefined) {
         setClauses.push(`tags = $${paramIdx}::jsonb`);
         params.push(JSON.stringify(tags));
+        paramIdx++;
+      }
+
+      if (groupId !== undefined) {
+        setClauses.push(`group_id = $${paramIdx}::uuid`);
+        params.push(groupId);
         paramIdx++;
       }
 
@@ -423,7 +443,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       // it covers every flow, not just this client-driven endpoint.)
       generateThreadTitle(
         threadId,
-        String(userMsg.content),
+        sanitizeMentionTokens(String(userMsg.content), 'label'),
         String(assistantMsg.content),
         aiWorkerPool
       ).catch((err) => {

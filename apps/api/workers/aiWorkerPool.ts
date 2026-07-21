@@ -2,7 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
 
-import { PrivacyCounter } from '../services/counters/index.js';
+import { AiProviderError } from '../services/providers/providerErrors.js';
 
 import config from './worker.config.js';
 
@@ -29,11 +29,8 @@ class AIWorkerPool {
   private workers: WorkerInstance[] = [];
   private currentWorker = 0;
   private pendingRequests = new Map<string, PendingRequest>();
-  private privacyCounter: PrivacyCounter | null;
 
-  constructor(numWorkers: number = config.worker.workersPerNode, redisClient: Redis | null = null) {
-    this.privacyCounter = redisClient ? new PrivacyCounter(redisClient) : null;
-
+  constructor(numWorkers: number = config.worker.workersPerNode) {
     for (let i = 0; i < numWorkers; i++) {
       this.createWorker(i);
     }
@@ -114,7 +111,8 @@ class AIWorkerPool {
       clearTimeout(timeout);
 
       console.error(`[AIWorkerPool] Error for request ${requestId}:`, error);
-      reject(new Error(error));
+      const errorInfo = (message as WorkerErrorMessage).errorInfo;
+      reject(errorInfo ? new AiProviderError(error, errorInfo) : new Error(error));
     } else {
       console.warn(`[AIWorkerPool] Unknown message type: ${type}`);
       this.pendingRequests.delete(requestId);
@@ -162,28 +160,11 @@ class AIWorkerPool {
 
   async processRequest(
     data: AIRequestData,
-    req: RequestWithUser | null = null
+    _req: RequestWithUser | null = null
   ): Promise<AIWorkerResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
     const processedData = { ...data };
-
-    if (data.usePrivacyMode && this.privacyCounter && req) {
-      try {
-        const userId = req.user?.id;
-
-        if (userId) {
-          const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
-          processedData.provider = privacyProvider;
-        } else {
-          console.warn(
-            '[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider'
-          );
-        }
-      } catch (error) {
-        console.error('[AIWorkerPool] Privacy mode error:', error);
-      }
-    }
 
     return new Promise<AIWorkerResult>((resolve, reject) => {
       const { workerIndex, worker } = this.selectWorker();

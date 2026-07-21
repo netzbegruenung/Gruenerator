@@ -93,3 +93,5 @@ Du kannst die Verbindung auch manuell im Chat aktivieren, indem du sie in der To
 ## Und jetzt?
 
 Du hast den Grünerator mit deinem KI-Chat verbunden — erfahre jetzt, **[was du alles fragen kannst](./mcp-was-kann-ich-fragen)**: von der Suche in Parteiprogrammen über Social-Media-Beispiele bis hin zu spezialisierten Assistenten für Reden, Anträge und Öffentlichkeitsarbeit.
+
+Es geht übrigens auch andersherum: Mit **[Konnektoren](./konnektoren)** verbindest du externe Dienste wie Notion oder Tally mit dem Grünerator-Chat.

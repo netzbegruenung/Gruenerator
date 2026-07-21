@@ -157,6 +157,92 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
   return null;
 }
 
+/**
+ * The five embedded editor surfaces whose sidebar can drive a tool-based edit of
+ * the OPEN artifact inside the agentic loop (see editorTools). Distinct from
+ * {@link CompoundGenerationKind} (which is about spawning a NEW artifact).
+ */
+export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
+
+const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
+  ['gruenerator-sheets-editor', 'sheet'],
+  ['gruenerator-presentations-editor', 'presentation'],
+  ['gruenerator-boards-editor', 'board'],
+  ['gruenerator-sharepic-editor', 'canvas'],
+  ['gruenerator-docs-editor', 'doc'],
+];
+
+/**
+ * Resolves which editor surface (if any) a turn belongs to. Prefers the dedicated
+ * editor agent's identifier; falls back to the enabled edit_current_* tool so a
+ * turn on a custom agent inside an editor sidebar still resolves. Returns null for
+ * every non-editor turn (the common case), so the caller can early-out cheaply.
+ */
+export function resolveEditorSurfaceKind(
+  agentIdentifier: string | undefined,
+  enabledTools: Record<string, boolean> | undefined
+): EditorSurfaceKind | null {
+  if (agentIdentifier) {
+    for (const [id, kind] of EDITOR_AGENT_KIND) {
+      if (agentIdentifier === id) return kind;
+    }
+  }
+  if (enabledTools?.['edit_current_board'] === true) return 'board';
+  if (enabledTools?.['edit_current_doc'] === true) return 'doc';
+  return null;
+}
+
+/**
+ * Editor surfaces with a tool-based edit path implemented — the loop plans ops
+ * and streams `editor_operations` instead of the client round-trip. These are
+ * NOT live yet, so there is no legacy behaviour to protect and no rollout flag:
+ * the tool path is simply the default for them. The still-live surfaces
+ * (`doc`, `board`, `canvas`) are absent here and keep the trigger_doc_edit path.
+ * Add a surface once its editorTools branch AND client ops handler are wired.
+ */
+export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
+  'sheet',
+  'presentation',
+  'board',
+]);
+
+export interface EditToolLoopInput {
+  /** CHAT_AGENT_LOOP — the edit tool only exists inside the loop. */
+  loopEnabled: boolean;
+  /** Surface resolved via {@link resolveEditorSurfaceKind}. */
+  surfaceKind: EditorSurfaceKind | null;
+  /** The AI-edit toggle is ON (edit_current_doc/board enabled). When OFF, the
+   *  tool must NOT mount — otherwise the model "edits" and claims success while
+   *  the client (which also gates on the toggle) refuses to apply. */
+  editToolEnabled: boolean;
+  /** A current document/board is actually open (rawCurrentDocument/Board id present). */
+  hasEditTarget: boolean;
+  forcedTool: boolean;
+  isCompound: boolean;
+  hasImageAttachments: boolean;
+  secondaryIntent: string | null;
+}
+
+/**
+ * Whether a turn should route into the loop with the surface's `edit_document`
+ * tool mounted. An editor sidebar is fundamentally an editing surface, so the
+ * tool is mounted (and loop entry forced) for EVERY substantive turn with an
+ * open target on a tool-path surface ({@link TOOL_EDIT_SURFACES}) — the MODEL
+ * then decides whether to edit. Deliberately NOT gated on the classifier's
+ * `edit_current_*` intent: it routinely mislabels edit asks as `direct`
+ * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
+ * single-pass `direct` turn, both of which must still be able to edit. The same
+ * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
+ * without a tool path (doc/board/canvas) returns false → legacy trigger path.
+ */
+export function decideEditToolLoop(p: EditToolLoopInput): boolean {
+  if (!p.loopEnabled) return false;
+  if (!p.surfaceKind || !TOOL_EDIT_SURFACES.has(p.surfaceKind)) return false;
+  if (!p.editToolEnabled) return false;
+  if (!p.hasEditTarget) return false;
+  return !p.forcedTool && !p.isCompound && !p.hasImageAttachments && p.secondaryIntent == null;
+}
+
 export interface AgenticDecisionInput {
   /** CHAT_AGENT_LOOP flag resolved by the caller. */
   loopEnabled: boolean;

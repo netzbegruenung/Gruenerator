@@ -20,6 +20,40 @@ import { socialPostPayloadSchema } from './socialPost.js';
  */
 
 /**
+ * Machine-readable cause of a chat stream failure — travels on the SSE `error`
+ * event alongside the human-readable German `error` message. The enum types
+ * the backend emitters; the wire schema below deliberately validates `code`
+ * as a plain string so an OLDER client never drops an error event just
+ * because a NEWER backend introduced a code it doesn't know yet.
+ */
+export const chatErrorCodeSchema = z.enum([
+  'rate_limited',
+  'provider_unavailable',
+  'first_token_timeout',
+  'stream_interrupted',
+  'search_degraded',
+  'unauthorized',
+  'invalid_request',
+  'internal',
+  // Tool-based editor edits (editor_operations path): planning exhausted its
+  // retries server-side, or the client bridge failed to apply the ops.
+  'edit_planning_failed',
+  'edit_apply_failed',
+]);
+export type ChatErrorCode = z.infer<typeof chatErrorCodeSchema>;
+
+/** Wire payload of the SSE `error` event (see chatErrorCodeSchema for `code`). */
+export const chatErrorEventPayloadSchema = z
+  .object({
+    error: z.string().optional(),
+    code: z.string().optional(),
+    retryable: z.boolean().optional(),
+    retryAfterMs: z.number().optional(),
+  })
+  .passthrough();
+export type ChatErrorEventPayload = z.infer<typeof chatErrorEventPayloadSchema>;
+
+/**
  * Every chat intent the backend classifier can emit — single source of truth
  * for the `intent` SSE event AND the API's `SearchIntent` type (derived via
  * z.infer in apps/api ChatGraph/types.ts, re-exported by packages/chat).
@@ -180,6 +214,25 @@ export const documentCreatedEventSchema = z.object({
   url: z.string(),
 });
 export type DocumentCreatedEvent = z.infer<typeof documentCreatedEventSchema>;
+
+/**
+ * `editor_operations` SSE payload — the agentic loop's editor edit tool planned
+ * a batch of operations for the OPEN artifact; the client applies them in place
+ * (Univer / Yjs / Konva) via its per-surface bridge. `operations` stays
+ * `unknown[]` on the wire (like sharepic variants): the client re-validates each
+ * op against the surface's op schema so one malformed op drops alone. `stepId`
+ * matches the tool's tool_step_start so the existing tool card updates in place.
+ */
+export const editorOperationsEventSchema = z
+  .object({
+    surface: z.enum(['doc', 'sheet', 'presentation', 'board', 'canvas']),
+    targetId: z.string(),
+    operations: z.array(z.unknown()),
+    summary: z.string().optional(),
+    stepId: z.string().optional(),
+  })
+  .passthrough();
+export type EditorOperationsEvent = z.infer<typeof editorOperationsEventSchema>;
 
 /**
  * `chart_data` SSE payload — a data visualization the backend `chart` intent
@@ -454,6 +507,7 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   confirm_action: confirmActionEventSchema.passthrough(),
   document_created: documentCreatedEventSchema.passthrough(),
+  editor_operations: editorOperationsEventSchema,
   document_indexed: z.object({ documentId: z.string() }).passthrough(),
   sources_preview: z
     .object({
@@ -470,5 +524,5 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       citations: z.array(z.unknown()).optional(),
     })
     .passthrough(),
-  error: z.object({ error: z.string().optional() }).passthrough(),
+  error: chatErrorEventPayloadSchema,
 };

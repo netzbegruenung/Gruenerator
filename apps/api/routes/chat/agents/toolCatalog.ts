@@ -33,6 +33,11 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import {
+  buildProductKnowledgeBlock,
+  isProductMetaQuestion,
+} from '../../../services/chat/productKnowledge.js';
 import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
@@ -48,10 +53,12 @@ import {
   makeSummaryTool,
   makeUmfragenTool,
 } from './domainTools.js';
+import { makeEditArtifactTool } from './editorTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeFindContentTool,
+  makeSearchThreadsTool,
   makeGroupsTool,
   makeMediaTool,
   makeNotebooksTool,
@@ -66,6 +73,16 @@ import type { SSEWriter } from '../services/sseHelpers.js';
 import type { Request } from 'express';
 
 const log = createLogger('toolCatalog');
+
+/**
+ * Explicit image phrasing gate for demoted `agentic` turns. Without it, ANY
+ * "erstelle …"-request whose real tool is missing from the catalog gets funneled
+ * into generate_image by the gather prompt's creation push (seen live: a Tally
+ * form request rendered as a FLUX image). Confidently classified `image` turns
+ * bypass this — the classifier already vetted the phrasing.
+ */
+const IMAGE_REQUEST_PATTERN =
+  /\b(bild(er)?|foto|illustration|grafik|motiv|zeichnung|zeichne|male|visualisier\w*|image|sujet)\b/i;
 
 /** Tools exposed to the Phase-1 agentic loop (research intentionally excluded). */
 const CATALOG_TOOLS = new Set([
@@ -212,10 +229,50 @@ NUTZE WENN:
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
+    // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
+    // injects when the meta regex matches — the loop inherits that system
+    // prompt, so the tool is only mounted for turns the regex MISSED (the
+    // model decides); otherwise the block would land in context twice and the
+    // connected-servers DB read would run twice per turn.
+    if (
+      state.enabledTools?.['product_knowledge'] !== false &&
+      !isProductMetaQuestion(state.lastUserTextNoMentions ?? lastUserText(state))
+    ) {
+      tools.product_knowledge = tool({
+        description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
+
+NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche.`,
+        inputSchema: z.object({
+          topic: z
+            .string()
+            .describe('Fokus der Frage, z.B. "mcp", "sharepic"; leer für den Überblick')
+            .default(''),
+        }),
+        execute: async ({ topic }) => {
+          const knowledge = await buildProductKnowledgeBlock({
+            locale: state.userLocale,
+            userId: state.agentConfig?.userId ?? null,
+            question: `${topic} ${lastUserText(state)}`.trim(),
+          });
+          return { knowledge };
+        },
+      });
+    }
     // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
     // — they must never spawn a NEW artifact (image OR create fat tool). Gated
     // server-side (the frontend not setting the tools:false is not enough).
     const editorSurface = isEditorSurface(state.enabledTools);
+
+    // Tool-based editor edit: the loop edits the OPEN artifact in place via
+    // `edit_document` instead of the client round-trip to the bespoke
+    // /api/{sheets,…}/:id/ai endpoint. Mounted only when the router resolved a
+    // surface with a tool path (state.editToolSurface set); otherwise the legacy
+    // trigger_doc_edit path stays in force. appliedOpsLog is per-turn.
+    if (state.editToolSurface) {
+      const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
+      if (editTool) tools.edit_document = editTool;
+    }
 
     // Personal-data resource tools: the user's OWN documents, boards, tasks,
     // groups, media and notebooks (read + light management). Always mounted (the
@@ -230,6 +287,9 @@ NUTZE WENN:
     };
     if (state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
+    }
+    if (state.enabledTools?.['search_threads'] !== false) {
+      tools.search_threads = makeSearchThreadsTool(personalCtx);
     }
     if (state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);
@@ -248,12 +308,15 @@ NUTZE WENN:
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
-    // 'agentic' (demoted) turns also mount it — image phrasings the confident
-    // heuristic misses land there; idempotency + forceFinish cap quota at one
-    // image per turn. Never in an editor surface (that would create a new image).
+    // 'agentic' (demoted) turns mount it ONLY on explicit image phrasing
+    // (IMAGE_REQUEST_PATTERN) — image phrasings the confident heuristic misses
+    // land there; idempotency + forceFinish cap quota at one image per turn.
+    // Never in an editor surface (that would create a new image).
     if (
       !editorSurface &&
-      (state.intent === 'image' || state.intent === 'agentic') &&
+      (state.intent === 'image' ||
+        (state.intent === 'agentic' &&
+          IMAGE_REQUEST_PATTERN.test(state.lastUserTextNoMentions ?? lastUserText(state)))) &&
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });

@@ -28,6 +28,10 @@ import {
   createDocumentBodySchema,
   generateDocumentBodySchema,
   listDocumentsQuerySchema,
+  updateDocumentBodySchema,
+  docsMessageResponseSchema,
+  userGroupsListSchema,
+  documentGroupSharesListSchema,
 } from '../schemas/docs.js';
 
 const c = initContract();
@@ -51,6 +55,47 @@ export const docsContract = c.router(
         500: docsErrorWithDetailsSchema,
       },
       summary: 'Get document metadata by ID',
+    },
+
+    /**
+     * PUT /api/docs/:id
+     * Update a collaborative document's metadata (title/folder) or editor state
+     * (content/wolke_live_sync). Requires edit access (owner / direct editor /
+     * group-write). Scoped server-side to document subtypes (NOT boards/canvas).
+     */
+    updateDocument: {
+      method: 'PUT',
+      path: '/api/docs/:id',
+      pathParams: z.object({ id: z.string() }),
+      body: updateDocumentBodySchema,
+      responses: {
+        200: collaborativeDocumentSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'Update document metadata',
+    },
+
+    /**
+     * DELETE /api/docs/:id
+     * Soft-delete a collaborative document. Owner only. Scoped server-side to
+     * document subtypes (NOT boards/canvas — those delete via their own routes).
+     */
+    deleteDocument: {
+      method: 'DELETE',
+      path: '/api/docs/:id',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: docsMessageResponseSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'Soft-delete a document',
     },
 
     /**
@@ -88,6 +133,59 @@ export const docsContract = c.router(
         500: docsErrorSchema,
       },
       summary: 'Disable public sharing for a document',
+    },
+
+    /**
+     * GET /api/docs/groups/me
+     * List the groups the current user belongs to (ShareModal dropdown).
+     * 4-segment path so it never collides with GET /api/docs/:id/groups.
+     */
+    listMyGroups: {
+      method: 'GET',
+      path: '/api/docs/groups/me',
+      responses: {
+        200: userGroupsListSchema,
+        401: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'List the current user groups',
+    },
+
+    /**
+     * GET /api/docs/:id/groups
+     * List the groups a document is shared with. Owner only.
+     */
+    listDocumentGroupShares: {
+      method: 'GET',
+      path: '/api/docs/:id/groups',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: documentGroupSharesListSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'List a document group shares',
+    },
+
+    /**
+     * DELETE /api/docs/:id/groups/:groupId
+     * Unshare a document from a group. Owner only.
+     */
+    removeGroupShare: {
+      method: 'DELETE',
+      path: '/api/docs/:id/groups/:groupId',
+      pathParams: z.object({ id: z.string(), groupId: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: docsMessageResponseSchema,
+        401: docsErrorSchema,
+        403: docsErrorSchema,
+        404: docsErrorSchema,
+        500: docsErrorWithDetailsSchema,
+      },
+      summary: 'Unshare a document from a group',
     },
 
     /**

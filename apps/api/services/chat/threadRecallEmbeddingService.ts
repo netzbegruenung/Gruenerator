@@ -14,6 +14,8 @@
 
 import * as crypto from 'crypto';
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { QdrantOperations } from '../../database/services/QdrantService/operations/index.js';
@@ -84,7 +86,8 @@ export async function upsertThreadRecallPoint(threadId: string): Promise<void> {
   const parts = [
     row.title ?? '',
     tags ? `Themen: ${tags}` : '',
-    row.first_message ?? '',
+    // Stored content may carry durable mention tokens — pure embedding noise.
+    sanitizeMentionTokens(row.first_message ?? '', 'remove'),
     row.compaction_summary ?? '',
   ].filter((p) => p.trim());
 
@@ -134,13 +137,18 @@ export async function deleteThreadRecallPoint(threadId: string): Promise<void> {
 export async function searchThreadRecall(
   userId: string,
   query: string,
-  limit: number
+  limit: number,
+  threadIds?: string[]
 ): Promise<string[]> {
   await mistralEmbeddingService.init();
   const vector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
   const ops = await getOps();
   const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
+  // Space scope: restrict to a specific set of thread ids (indexed keyword).
+  if (threadIds && threadIds.length > 0) {
+    filter.must!.push({ key: 'thread_id', match: { any: threadIds } });
+  }
   const hits = await ops.vectorSearch(CHAT_THREAD_RECALL_COLLECTION, vector, filter, {
     limit,
     threshold: SEMANTIC_SCORE_THRESHOLD,

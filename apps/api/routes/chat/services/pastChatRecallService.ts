@@ -16,6 +16,8 @@
  * references with titles and dates the model can reference naturally.
  */
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
@@ -36,6 +38,74 @@ const log = createLogger('PastChatRecallService');
 
 const DEEP_READ_MAX_MESSAGES = 10;
 const DEEP_READ_MAX_CHARS = 4_000;
+
+/**
+ * Owned, regular thread ids filed into a Space (group_id) — the scope for
+ * space-aware recall. Returns [] on error/empty so callers treat it as
+ * "no threads in scope".
+ */
+export async function resolveSpaceThreadIds(
+  groupId: string,
+  userId: string
+): Promise<{ id: string; title: string | null }[]> {
+  const db = getPostgresInstance();
+  try {
+    const rows = (await db.query(
+      `SELECT id, title FROM chat_threads
+       WHERE group_id = $1::uuid AND user_id = $2
+         AND COALESCE(status, 'regular') = 'regular'
+       ORDER BY updated_at DESC`,
+      [groupId, userId]
+    )) as Array<{ id: string; title: string | null }>;
+    return rows.map((r) => ({ id: r.id, title: r.title }));
+  } catch (err) {
+    log.warn(`[Recall] resolveSpaceThreadIds failed: ${err}`);
+    return [];
+  }
+}
+
+/**
+ * Space scope for the current thread: the sibling chats in the same Space plus a
+ * roster block telling the model "this Space holds threads X, Y, Z — you can
+ * search them with search_threads". Returns null when the thread isn't filed in
+ * a Space (recall stays global). The current thread is excluded from the roster.
+ */
+export async function getSpaceRecallScope(
+  threadId: string | null,
+  userId: string
+): Promise<{ spaceName: string; threadIds: string[]; rosterBlock: string } | null> {
+  if (!threadId) return null;
+  const db = getPostgresInstance();
+  try {
+    const rows = (await db.query(
+      `SELECT g.id, g.name
+       FROM chat_threads t
+       JOIN groups g ON g.id = t.group_id
+       WHERE t.id = $1::uuid AND t.user_id = $2 AND COALESCE(g.is_active, TRUE) = TRUE
+       LIMIT 1`,
+      [threadId, userId]
+    )) as Array<{ id: string; name: string }>;
+    if (rows.length === 0) return null;
+    const space = rows[0];
+
+    const siblings = (await resolveSpaceThreadIds(space.id, userId)).filter(
+      (s) => s.id !== threadId
+    );
+    const threadIds = siblings.map((s) => s.id);
+    const list =
+      siblings.length > 0
+        ? siblings.map((s) => `- ${s.title || 'Unbenannter Chat'}`).join('\n')
+        : '- (noch keine weiteren Chats)';
+    const rosterBlock =
+      `## SPACE: ${space.name}\n` +
+      `Dieser Chat liegt im Space „${space.name}". Enthaltene weitere Chats:\n${list}\n` +
+      `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="space") durchsuchen.`;
+    return { spaceName: space.name, threadIds, rosterBlock };
+  } catch (err) {
+    log.warn(`[Recall] getSpaceRecallScope failed: ${err}`);
+    return null;
+  }
+}
 
 export interface OfficeDocHit {
   id: string;
@@ -146,6 +216,8 @@ export interface PastChatRecallOptions {
   limit?: number;
   startDate?: Date;
   endDate?: Date;
+  // Space scope: restrict recall to this set of thread ids (a space's chats).
+  threadIds?: string[];
 }
 
 /**
@@ -159,7 +231,11 @@ export async function recallPastChats(
   query: string,
   options: PastChatRecallOptions = {}
 ): Promise<ChatSearchResult[]> {
-  const { excludeThreadId, limit = 3, startDate, endDate } = options;
+  const { excludeThreadId, limit = 3, startDate, endDate, threadIds } = options;
+
+  // An empty space scope means "no threads to search" — short-circuit so a
+  // space with no chats doesn't fall through to an unscoped global recall.
+  if (threadIds && threadIds.length === 0) return [];
 
   const keywordPromise = searchChatHistory(userId, query, {
     ownedOnly: true,
@@ -167,11 +243,12 @@ export async function recallPastChats(
     ...(excludeThreadId != null && { excludeThreadId }),
     ...(startDate != null && { startDate }),
     ...(endDate != null && { endDate }),
+    ...(threadIds != null && { threadIds }),
   });
 
   // Semantic is best-effort: a Qdrant/Mistral outage must never break recall.
   const semanticPromise = query.trim()
-    ? searchThreadRecall(userId, query, limit).catch((err) => {
+    ? searchThreadRecall(userId, query, limit, threadIds).catch((err) => {
         log.warn(`[Recall] Semantic thread search failed (using keyword only): ${err}`);
         return [] as string[];
       })
@@ -368,7 +445,11 @@ async function hydrateThreadsAsResults(
         threadTitle: r.thread_title,
         threadSlugSuffix: r.thread_slug_suffix,
         agentId: r.agent_id,
-        snippet: (r.snippet_content || r.compaction_summary || r.thread_title || '').slice(0, 200),
+        // Stored content may carry durable mention tokens — show the label form.
+        snippet: sanitizeMentionTokens(
+          r.snippet_content || r.compaction_summary || r.thread_title || '',
+          'label'
+        ).slice(0, 200),
         messageRole: 'assistant' as const,
         matchedAt: toIsoString(r.thread_updated_at),
         threadUpdatedAt: toIsoString(r.thread_updated_at),

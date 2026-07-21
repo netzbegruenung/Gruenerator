@@ -150,17 +150,22 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
 
   // Tool-derived: Deutsche-Bahn departure board. The condensed timetable a
   // `bahn__*` loop step returned as its result IS the BahnPayload the live
-  // `bahn` SSE event carried — last matching step wins (freshest board).
-  const bahnCall = [...(metadata.toolCalls ?? [])]
-    .reverse()
-    .find((tc) => tc.toolName.startsWith('bahn__'));
-  const bahnContent = (bahnCall?.result as { content?: unknown } | undefined)?.content;
-  if (typeof bahnContent === 'string') {
+  // `bahn` SSE event carried. The LAST step that PARSES wins (freshest board) —
+  // not merely the last bahn__ step: the prompt instructs a raw
+  // get_full_timetable_changes call AFTER the condensed timetable, which must
+  // not shadow the board on reload.
+  for (const tc of [...(metadata.toolCalls ?? [])].reverse()) {
+    if (!tc.toolName.startsWith('bahn__')) continue;
+    const bahnContent = (tc.result as { content?: unknown } | undefined)?.content;
+    if (typeof bahnContent !== 'string') continue;
     try {
       const parsedBahn = bahnPayloadSchema.safeParse(JSON.parse(bahnContent));
-      if (parsedBahn.success) custom.bahnData = parsedBahn.data;
+      if (parsedBahn.success) {
+        custom.bahnData = parsedBahn.data;
+        break;
+      }
     } catch {
-      /* raw (non-condensed) tool result — no card */
+      /* raw (non-condensed) tool result — keep looking */
     }
   }
 

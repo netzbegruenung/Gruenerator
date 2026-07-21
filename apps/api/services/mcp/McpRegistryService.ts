@@ -47,20 +47,19 @@ const SEEDS: Seed[] = [
   ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
   ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
   ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
-  ['Typeform', 'https://api.typeform.com/mcp', 'oauth', 'Formulare bauen, Automationen und Antworten verwalten.', 'https://typeform.com', 'Formulare'],
-  ['Typeform (EU)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare bauen und Antworten verwalten (EU-Rechenzentrum).', 'https://typeform.com', 'Formulare'],
-  ['Zoom', 'https://zoom.us/mcp/meeting/streamable', 'oauth', 'Meetings planen, Aufzeichnungen und Zusammenfassungen abrufen.', 'https://zoom.us', 'Kommunikation'],
   ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität'],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
-  ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'oauth', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
-  ['DocuSign', 'https://mcp.docusign.com/mcp', 'oauth', 'Verträge und Signaturen erstellen, senden und verfolgen.', 'https://docusign.com', 'Dokumente'],
-  ['IFTTT', 'https://ifttt.com/mcp', 'oauth', 'Automatisierungen (Applets) über tausende Dienste auslösen.', 'https://ifttt.com', 'Automatisierung'],
-  ['Booking.com', 'https://demandapi-mcp.booking.com/v1/mcp/8132308', 'oauth', 'Unterkünfte, Verfügbarkeit und Reisedaten abfragen.', 'https://booking.com', 'Reisen'],
-  ['Expedia', 'https://www.expedia.com/mcp', 'oauth', 'Flüge, Hotels und Reisen suchen und planen.', 'https://expedia.com', 'Reisen'],
-  ['trivago', 'https://mcp.trivago.com/mcp', 'oauth', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
+  // Goodnotes/trivago serve MCP without any auth (verified 2026-07-21).
+  ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
+  // Removed (audit 2026-07-21): IFTTT, Booking.com, Expedia — allowlisted
+  // clients only (no DCR for our domain, no public app registration); Typeform,
+  // Typeform (EU), Zoom, DocuSign — would require users to register their own
+  // vendor app (manual Client-ID/Secret), deliberately shelved for now.
+  ['trivago', 'https://mcp.trivago.com/mcp', 'none', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
   ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],
+  ['Ansvar', 'https://gateway.ansvar.eu/mcp', 'oauth', 'EU-Recht und Compliance recherchieren — mit verifizierten Zitaten und Quellenangaben.', 'https://ansvar.eu', 'Recht & Compliance'],
 ];
 
 const RECOMMENDED: McpRegistryEntry[] = SEEDS.map(

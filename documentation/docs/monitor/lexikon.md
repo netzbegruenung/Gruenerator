@@ -5,7 +5,7 @@ title: Lexikon — Alle Erkennungsbegriffe
 
 # Lexikon — Alle Erkennungsbegriffe
 
-Diese Seite listet alle Begriffe, die der Themen-Monitor zur automatischen Erkennung von Themen und Emotionen verwendet. Wenn ein Begriff in einem Nachrichtenartikel vorkommt, wird er der entsprechenden Kategorie zugeordnet.
+Diese Seite listet alle Begriffe, die der Themen-Monitor zur automatischen Erkennung von Themen verwendet. Wenn ein Begriff in einem Nachrichtenartikel vorkommt, wird er der entsprechenden Kategorie zugeordnet.
 
 :::info Hintergrund
 Die Begriffe werden in ihrer Grundform (Lemma) abgeglichen — das heißt, „Flüchtlinge" wird als „Flüchtling" erkannt, „warnte" als „warnen". Groß-/Kleinschreibung spielt keine Rolle.
@@ -92,77 +92,3 @@ arbeitnehmer, arbeitnehmerin, beschäftigte, belegschaft, angestellte, arbeiter,
 _Verkehr, Bahn, Auto, ÖPNV_
 
 öpnv, nahverkehr, fernverkehr, personenverkehr, bahnhof, haltestelle, busverkehr, straßenbahn, s-bahn, u-bahn, regionalbahn, ice, bahn, deutsche-bahn, schiene, schienennetz, bahnstrecke, zugverkehr, schienenverkehr, bahnverbindung, zugverbindung, pünktlichkeit, auto, pkw, fahrzeug, autobahn, straßenverkehr, stau, tempolimit, geschwindigkeitsbegrenzung, führerschein, fahrerlaubnis, kfz, elektromobilität, e-auto, elektroauto, elektrofahrzeug, ladesäule, ladeinfrastruktur, ladepunkt, wallbox, flughafen, flugzeug, flugverkehr, luftverkehr, fluglinie, inlandsflüge, schiff, schifffahrt, hafen, binnenschifffahrt, seeverkehr, containerhafen, fahrrad, radverkehr, radweg, fußverkehr, fußgänger, gehweg, verkehrswende, verkehrspolitik, mobilitätswende, verkehrsinfrastruktur, verkehrsminister, deutschlandticket, 49-euro-ticket, verbrenner-aus, e-scooter, antriebswende, sanierungsstau, brückenprüfung
-
----
-
-## Emotions-Lexikon (7 Kategorien)
-
-### Angst
-
-_Furcht, Bedrohung, Unsicherheit_
-
-**Substantive:** angst, panik, schrecken, furcht, eskalation, katastrophe, zusammenbruch, kollaps, bedrängnis, notlage, existenzangst, kriegsangst, schreckensszenario, ohnmacht
-
-**Verben:** befürchten, fürchten, bangen, eskalieren, bedrohen, gefährden, alarmieren
-
-**Adjektive:** bedrohlich, prekär, instabil, existenzbedrohend, alarmierend, beunruhigend, besorgniserregend, beängstigend, dramatisch, verheerend, fatal
-
-### Wut
-
-_Empörung, Skandal, Zorn_
-
-**Substantive:** skandal, empörung, wut, ärger, aufschrei, entrüstung, zorn, aufruhr, wutbürger, shitstorm, hassrede, hetze
-
-**Verben:** empören, anprangern, attackieren, beschuldigen, vorwerfen, brandmarken, geißeln
-
-**Adjektive:** skandalös, empörend, unverantwortlich, unerhört, unverschämt, dreist, ungeheuerlich, schändlich, inakzeptabel, schamlos, unentschuldbar, verwerflich, rücksichtslos, skrupellos, verantwortungslos, fassungslos
-
-### Hoffnung
-
-_Zuversicht, Fortschritt, Optimismus_
-
-**Substantive:** chance, hoffnung, fortschritt, durchbruch, aufbruch, zukunft, perspektive, innovation, wende, aufstieg, aufschwung, lichtblick, zuversicht, mutmacher
-
-**Verben:** gelingen, vorankommen, erreichen, ermöglichen, stärken, aufbauen, voranbringen, verwirklichen
-
-**Adjektive:** optimistisch, vielversprechend, zukunftsfähig, konstruktiv, ermutigend, hoffnungsvoll, zuversichtlich, chancenreich
-
-### Enttäuschung
-
-_Frustration, Versagen, Ernüchterung_
-
-**Substantive:** enttäuschung, frustration, versagen, rückschlag, niederlage, misserfolg, resignation, desillusionierung, vertrauensverlust
-
-**Verben:** scheitern, versagen, verfehlen, enttäuschen, resignieren, aufgeben
-
-**Adjektive:** gescheitert, verfehlt, ernüchternd, desillusioniert, resigniert, erfolglos, wirkungslos, mangelhaft, unzureichend, enttäuschend, frustrierend, bitter
-
-### Vertrauen
-
-_Stabilität, Verlässlichkeit, Kompetenz_
-
-**Substantive:** vertrauen, stabilität, verlässlichkeit, kompetenz, glaubwürdigkeit, seriosität, beständigkeit, zuverlässigkeit, integrität, rückhalt, planungssicherheit, vertrauensvorschuss
-
-**Verben:** vertrauen, stabilisieren, gewährleisten, garantieren, bewähren
-
-**Adjektive:** verlässlich, stabil, kompetent, glaubwürdig, bewährt, solide, verantwortungsvoll, seriös, professionell, zuverlässig, beständig, integer
-
-### Solidarität
-
-_Zusammenhalt, Gemeinschaft, Einigkeit_
-
-**Substantive:** solidarität, zusammenhalt, gemeinschaft, einigkeit, hilfsbereitschaft, beistand, schulterschluss, mitgefühl, zusammenarbeit, teamgeist, gemeinsinn, wir-gefühl, brandmauer, solidarpakt
-
-**Verben:** zusammenstehen, unterstützen, helfen, vereinen, zusammenhalten, kooperieren, beistehen, beitragen, mithelfen, zusammenwirken
-
-**Adjektive:** solidarisch, gemeinsam, vereint, geschlossen, partnerschaftlich, verbunden, miteinander, überparteilich, einig, hilfsbereit, füreinander
-
-### Stolz
-
-_Erfolg, Anerkennung, Leistung_
-
-**Substantive:** stolz, anerkennung, vorbild, meilenstein, meisterleistung, auszeichnung, triumph, errungenschaft, ehre, vorreiterrolle, aushängeschild, glanzleistung
-
-**Verben:** würdigen, anerkennen, feiern, loben, gratulieren, ehren, auszeichnen, meistern, brillieren
-
-**Adjektive:** herausragend, vorbildlich, beispielgebend, historisch, beeindruckend, verdient, exzellent, preisgekrönt, gefeiert, überwältigend, großartig, bemerkenswert

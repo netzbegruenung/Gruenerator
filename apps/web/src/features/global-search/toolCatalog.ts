@@ -40,10 +40,10 @@ const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-imagine',
     title: 'KI-Bild erstellen',
-    subtitle: 'Bilder mit KI generieren',
-    path: '/imagine',
+    subtitle: 'Bilder mit KI erstellen & bearbeiten',
+    path: '/bild-editor',
     icon: nav('imagine'),
-    keywords: ['imagine', 'ki-bild', 'bild', 'image', 'foto', 'generieren', 'flux', 'ai'],
+    keywords: ['imagine', 'ki-bild', 'bild', 'image', 'foto', 'generieren', 'flux', 'ai', 'editor'],
   },
   {
     id: 'tool-scanner',
@@ -85,9 +85,17 @@ const CATALOG: ToolCatalogEntry[] = [
     icon: nav('vorlagen'),
     keywords: ['vorlagen', 'vorlage', 'template', 'design'],
   },
+  {
+    id: 'office',
+    title: 'Office',
+    subtitle: 'Dokumente, Boards, Tabellen & Slides',
+    path: '/office',
+    icon: nav('desk'),
+    keywords: ['office', 'dokumente', 'boards', 'tabellen', 'slides', 'praesentationen'],
+  },
   // ids/paths mirror the getDirectMenuItems() nav entries so featureIndex
   // dedupes them (catalog is indexed first → its richer keywords win), while
-  // each type gets its own synonym set for search.
+  // each type gets its own synonym set for search. Paths now redirect to /office.
   {
     id: 'docs',
     title: 'Dokumente',
@@ -147,18 +155,18 @@ const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-agentura',
     title: 'Agentura',
-    subtitle: 'KI-Agent*innen & Skills entdecken',
+    subtitle: 'KI-Grüneratoren & Skills entdecken',
     path: '/agentura',
     icon: nav('desk'),
-    keywords: ['agentura', 'agent', 'agenten', 'skills', 'ki'],
+    keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
   },
   {
     id: 'tool-gruppen',
-    title: 'Gruppen',
-    subtitle: 'Zusammenarbeit im Team',
+    title: 'Spaces',
+    subtitle: 'Chats & Inhalte bündeln, Zusammenarbeit im Team',
     path: '/gruppen',
     icon: nav('gruppen'),
-    keywords: ['gruppen', 'gruppe', 'team', 'organisation', 'zusammenarbeit'],
+    keywords: ['spaces', 'space', 'gruppen', 'gruppe', 'team', 'organisation', 'zusammenarbeit'],
   },
   {
     id: 'tool-transfer',

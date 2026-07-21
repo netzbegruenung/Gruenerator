@@ -1,5 +1,5 @@
 /**
- * "Connectoren" surface (EXPERIMENTAL) — connect external MCP servers and use
+ * "Konnektoren" surface (EXPERIMENTAL) — connect external MCP servers and use
  * them in chat via per-server mentions (@notion, @brevo, …). A curated directory
  * of hand-picked, remote-hosted servers plus a custom-server form. Auth is
  * `none`, `bearer` (token dialog) or `oauth` (PKCE/DCR popup).
@@ -16,7 +16,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiLock, FiCheck } from 'react-icons/fi';
+import { FiServer, FiSearch, FiCheck, FiRefreshCw } from 'react-icons/fi';
 import {
   SiNotion,
   SiCoda,
@@ -47,33 +47,64 @@ import {
 import {
   createMcpServer,
   deleteMcpServer,
+  fetchMcpServers,
   startMcpOAuth,
   testMcpServer,
+  McpOAuthStartError,
   type McpAuthType,
+  type McpOAuthErrorCode,
   type McpRegistryEntry,
   type McpServerSummary,
 } from '../lib/mcpApi';
-import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
+import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
 
 import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
+interface RunOAuthResult {
+  status: 'success' | 'error' | 'dismissed' | 'no_auth_required';
+  serverId?: string;
+  error?: string;
+  code?: McpOAuthErrorCode;
+  /** True when oauthStart itself failed (before any provider login) — the
+   * caller may roll back a server it just created for this attempt. */
+  startFailed?: boolean;
+}
+
 /**
  * Drive the OAuth popup. The popup MUST be opened synchronously (first line,
  * before any await) or the browser blocks it; `resolveServerId` then creates or
- * looks up the server before we navigate the popup to the provider.
+ * looks up the server before we navigate the popup to the provider. Servers
+ * that turn out to need no auth at all resolve as `no_auth_required` (the
+ * backend already flipped them to authType 'none').
  */
-async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAuthResult> {
+async function runOAuth(resolveServerId: () => Promise<string>): Promise<RunOAuthResult> {
   const popup = openOAuthPopup();
   if (!popup) return { status: 'error', error: 'Popup wurde blockiert' };
   try {
     const serverId = await resolveServerId();
-    popup.location.href = await startMcpOAuth(serverId);
-    return await waitForOAuthPopup(popup);
+    const start = await startMcpOAuth(serverId);
+    if (start.status === 'no_auth_required') {
+      popup.close();
+      return { status: 'no_auth_required' };
+    }
+    popup.location.href = start.authorizationUrl;
+    return await waitForOAuthPopup(popup, async () => {
+      const servers = await fetchMcpServers();
+      const s = servers.find((x) => x.id === serverId);
+      return !!s && (s.authType !== 'oauth' || s.hasToken);
+    });
   } catch (e) {
     popup.close();
-    return { status: 'error', error: e instanceof Error ? e.message : 'Fehler' };
+    // waitForOAuthPopup never rejects, so everything caught here failed before
+    // the provider login (create/start phase).
+    return {
+      status: 'error',
+      error: e instanceof Error ? e.message : 'Fehler',
+      startFailed: true,
+      ...(e instanceof McpOAuthStartError && e.code ? { code: e.code } : {}),
+    };
   }
 }
 
@@ -119,18 +150,8 @@ const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) =>
 });
 McpLogo.displayName = 'McpLogo';
 
-const authLabel: Record<McpRegistryEntry['authHint'], string> = {
-  none: 'Ohne Auth',
-  bearer: 'Token',
-  oauth: 'OAuth',
-  unknown: '—',
-};
-
 const inputClass =
   'w-full px-md py-sm rounded-xl border border-grey-200 dark:border-grey-700 bg-background-pure text-sm text-foreground focus:border-primary-400 focus:outline-none transition-colors';
-
-const authBadgeClass =
-  'flex-none inline-flex items-center gap-1 px-2 py-1 rounded-full bg-grey-100 dark:bg-grey-800 text-grey-500 text-[11px] font-semibold border border-grey-200 dark:border-grey-700';
 
 const connectBtnClass =
   'text-xs font-semibold px-md py-1.5 rounded-lg border border-primary text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30 transition-colors cursor-pointer';
@@ -188,8 +209,9 @@ const McpAddForm = memo(
     const create = useCreateMcpServer();
     const [name, setName] = useState('');
     const [url, setUrl] = useState('');
+    // Manual adds are always tokenless; OAuth is only reached via a prefill from
+    // the directory (providers that need pre-registration).
     const [authType, setAuthType] = useState<McpAuthType>('none');
-    const [token, setToken] = useState('');
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
     const [setupUrl, setSetupUrl] = useState<string | null>(null);
@@ -213,7 +235,7 @@ const McpAddForm = memo(
           name: name.trim(),
           url: url.trim(),
           authType,
-          token: authType === 'bearer' ? token.trim() || null : null,
+          token: null,
           oauthClientId: authType === 'oauth' ? clientId.trim() || null : null,
           oauthClientSecret: authType === 'oauth' ? clientSecret.trim() || null : null,
         },
@@ -222,7 +244,6 @@ const McpAddForm = memo(
             setName('');
             setUrl('');
             setAuthType('none');
-            setToken('');
             setClientId('');
             setClientSecret('');
             setSetupUrl(null);
@@ -252,26 +273,6 @@ const McpAddForm = memo(
             value={url}
             onChange={(e) => setUrl(e.target.value)}
           />
-        </div>
-        <div className="flex flex-col sm:flex-row gap-sm">
-          <select
-            className={cn(inputClass, 'sm:w-auto')}
-            value={authType}
-            onChange={(e) => setAuthType(e.target.value as McpAuthType)}
-          >
-            <option value="none">Keine Auth</option>
-            <option value="bearer">Bearer-Token</option>
-            <option value="oauth">OAuth</option>
-          </select>
-          {authType === 'bearer' && (
-            <input
-              className={inputClass}
-              type="password"
-              placeholder="Token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-          )}
         </div>
         {authType === 'oauth' && (
           <div className="flex flex-col gap-xs">
@@ -349,6 +350,8 @@ const McpServerRow = memo(
       void runOAuth(async () => server.id).then((result) => {
         void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
         if (result.status === 'success') onSuccess(`${server.name} verbunden`);
+        else if (result.status === 'no_auth_required')
+          onSuccess(`${server.name} verbunden — der Server benötigt keine Anmeldung`);
         else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
       });
     };
@@ -429,7 +432,7 @@ const McpServerRow = memo(
               type="button"
               onClick={() =>
                 del.mutate(server.id, {
-                  onSuccess: () => onSuccess('Connector entfernt'),
+                  onSuccess: () => onSuccess('Konnektor entfernt'),
                   onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
                 })
               }
@@ -465,58 +468,33 @@ McpServerRow.displayName = 'McpServerRow';
 
 // ── Available cards ──────────────────────────────────────────────────────────
 
+// Compact one-line card: logo + name + connect. No auth badge, description or
+// category (the section heading already carries the category).
 const CardShell = memo(
   ({
     title,
-    description,
-    badge,
-    recommended,
-    category,
     connecting,
     onConnect,
   }: {
     title: string;
-    description: string | null | undefined;
-    badge: string;
-    recommended: boolean;
-    category: string | undefined;
     connecting: boolean;
     onConnect: () => void;
   }) => (
-    <div className="flex flex-col bg-background-pure border border-grey-200 dark:border-grey-700 rounded-2xl p-md transition-all hover:shadow-lg hover:border-primary-300 hover:-translate-y-0.5">
-      <div className="flex items-start gap-md">
-        <McpLogo title={title} size={48} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-sm flex-wrap">
-            <span className="text-[15px] font-bold text-foreground-heading truncate">{title}</span>
-            {recommended && (
-              <span className={cn(chipClass, 'rounded-full font-semibold')}>Empfohlen</span>
-            )}
-          </div>
-          {description && (
-            <p className="mt-1.5 text-xs leading-relaxed text-grey-500 line-clamp-2">
-              {description}
-            </p>
-          )}
-        </div>
-        <span className={authBadgeClass}>
-          <FiLock className="w-2.5 h-2.5" />
-          {badge}
+    <div className="flex items-center gap-sm rounded-xl border border-grey-200 bg-background-pure p-sm transition-colors hover:border-primary-300 dark:border-grey-700">
+      <McpLogo title={title} size={30} />
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground-heading">
+        {title}
+      </span>
+      {connecting ? (
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary dark:text-primary-400">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-200 border-t-primary dark:border-primary-800" />
+          Verbinden …
         </span>
-      </div>
-      <div className="flex items-center justify-between gap-sm mt-md">
-        <span className="text-[11px] text-grey-400 font-medium">{category}</span>
-        {connecting ? (
-          <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary dark:text-primary-400">
-            <span className="w-3.5 h-3.5 border-2 border-primary-200 dark:border-primary-800 border-t-primary rounded-full animate-spin" />
-            Verbindung wird hergestellt …
-          </span>
-        ) : (
-          <button type="button" onClick={onConnect} className={connectBtnClass}>
-            Verbinden
-          </button>
-        )}
-      </div>
+      ) : (
+        <button type="button" onClick={onConnect} className={connectBtnClass}>
+          Verbinden
+        </button>
+      )}
     </div>
   )
 );
@@ -677,32 +655,48 @@ interface AvailableItem {
   entry: McpRegistryEntry;
 }
 
-// Display order for category pills + grouped sections. Anything not listed
-// (a future category) sorts alphabetically after these; uncategorised → "Weitere".
-const CATEGORY_ORDER = [
+// The registry ships ~12 fine-grained categories; we fold them into a few broad
+// buckets. Anything unmapped (or a bucket with too few entries) lands in "Sonstige".
+const OTHER_CATEGORY = 'Sonstige';
+const MIN_PER_CATEGORY = 4;
+const CATEGORY_MERGE: Record<string, string> = {
+  Produktivität: 'Produktivität',
+  Dokumente: 'Produktivität',
+  Formulare: 'Produktivität',
+  Automatisierung: 'Produktivität',
+  'CRM & Marketing': 'Marketing & Vertrieb',
+  'Social Media': 'Marketing & Vertrieb',
+  'Analyse & SEO': 'Marketing & Vertrieb',
+  Finanzen: 'Marketing & Vertrieb',
+  Kommunikation: 'Kommunikation',
+  'Recht & Compliance': 'Recht & Finanzen',
+  Reisen: 'Reisen & Karten',
+  Karten: 'Reisen & Karten',
+};
+// Display order for the merged pills/sections; "Sonstige" always sorts last.
+const MERGED_CATEGORY_ORDER = [
   'Produktivität',
-  'CRM & Marketing',
-  'Social Media',
-  'Analyse & SEO',
-  'Finanzen',
-  'Formulare',
-  'Dokumente',
-  'Automatisierung',
+  'Marketing & Vertrieb',
   'Kommunikation',
-  'Reisen',
-  'Karten',
-] as const;
-const UNCATEGORISED = 'Weitere';
+  'Recht & Finanzen',
+  'Reisen & Karten',
+];
+const UNCATEGORISED = OTHER_CATEGORY;
+
+const mergeCategory = (raw: string | undefined): string =>
+  (raw && CATEGORY_MERGE[raw]) || OTHER_CATEGORY;
 
 function orderCategories(present: Iterable<string>): string[] {
   const set = new Set(present);
-  const known = CATEGORY_ORDER.filter((c) => set.has(c));
-  const extra = [...set].filter((c) => !(CATEGORY_ORDER as readonly string[]).includes(c)).sort();
-  return [...known, ...extra];
+  const known = MERGED_CATEGORY_ORDER.filter((c) => set.has(c));
+  const extra = [...set]
+    .filter((c) => c !== OTHER_CATEGORY && !MERGED_CATEGORY_ORDER.includes(c))
+    .sort();
+  return [...known, ...extra, ...(set.has(OTHER_CATEGORY) ? [OTHER_CATEGORY] : [])];
 }
 
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
-  const { data: servers = [], isLoading } = useMcpServers();
+  const { data: servers = [], isLoading, isFetching } = useMcpServers();
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -722,13 +716,17 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
   const connectedUrls = useMemo(() => new Set(servers.map((s) => s.url)), [servers]);
 
-  const available = useMemo<AvailableItem[]>(
-    () =>
-      (registry?.recommended ?? [])
-        .filter((e) => !connectedUrls.has(e.url))
-        .map((entry) => ({ key: entry.url, category: entry.category, entry })),
-    [registry, connectedUrls]
-  );
+  const available = useMemo<AvailableItem[]>(() => {
+    const merged = (registry?.recommended ?? [])
+      .filter((e) => !connectedUrls.has(e.url))
+      .map((entry) => ({ key: entry.url, category: mergeCategory(entry.category), entry }));
+    // Collapse buckets below the minimum into "Sonstige" so no pill is near-empty.
+    const counts = new Map<string, number>();
+    for (const it of merged) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
+    return merged.map((it) =>
+      (counts.get(it.category) ?? 0) < MIN_PER_CATEGORY ? { ...it, category: OTHER_CATEGORY } : it
+    );
+  }, [registry, connectedUrls]);
 
   const cats = useMemo(() => {
     const present: string[] = [];
@@ -753,7 +751,11 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
     [registry, connectedUrls]
   );
-  const activeCount = servers.filter((s) => s.enabled).length;
+  // OAuth servers without a token aren't usable yet — listing them under
+  // "Verbunden" would suggest they work. They get their own action section.
+  const authPending = servers.filter((s) => s.authType === 'oauth' && !s.hasToken);
+  const connected = servers.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
+  const activeCount = connected.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
     if (entry.authHint === 'oauth') {
@@ -774,18 +776,43 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       }
       // Popup opens synchronously inside runOAuth; create the server, then auth.
       setConnecting(entry.url);
+      let createdId: string | null = null;
       void runOAuth(async () => {
         const server = await createMcpServer({
           name: entry.title,
           url: entry.url,
           authType: 'oauth',
         });
+        createdId = server.id;
         return server.id;
-      }).then((result) => {
+      }).then(async (result) => {
         setConnecting(null);
+        if (result.status === 'error' && result.startFailed && createdId) {
+          // OAuth never even started — roll the just-created server back so no
+          // zombie "Nicht autorisiert" row remains and the card stays available.
+          await deleteMcpServer(createdId).catch(() => {});
+        }
         refreshMcp();
         if (result.status === 'success') onSuccess(`${entry.title} verbunden`);
-        else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
+        else if (result.status === 'no_auth_required')
+          onSuccess(`${entry.title} verbunden — der Server benötigt keine Anmeldung`);
+        else if (result.status === 'error') {
+          if (result.code === 'dcr_rejected') {
+            // Provider refuses automatic registration → guide the user into the
+            // manual app-registration form instead of leaving them at a banner.
+            setPrefill({
+              name: entry.title,
+              url: entry.url,
+              authType: 'oauth',
+              manual: true,
+              setupUrl: entry.setupUrl,
+            });
+            requestAnimationFrame(() =>
+              addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            );
+          }
+          onError(result.error || 'OAuth fehlgeschlagen');
+        }
       });
       return;
     }
@@ -811,7 +838,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
-  const hasConnected = servers.length > 0;
+  const hasConnected = connected.length > 0;
 
   return (
     <div className="mt-xl">
@@ -822,13 +849,22 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         </div>
         <div className="flex items-center gap-sm flex-wrap">
           <h2 className="text-2xl font-semibold text-foreground-heading m-0 tracking-tight">
-            Connectoren
+            Konnektoren
           </h2>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-50 text-secondary-700 border-secondary-100 dark:bg-secondary-900/30 dark:text-secondary-300 dark:border-secondary-600 text-xs font-semibold border">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary-500" />
             Experimentell
           </span>
         </div>
+        <button
+          type="button"
+          onClick={refreshMcp}
+          disabled={isFetching}
+          className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+        >
+          <FiRefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} />
+          Aktualisieren
+        </button>
       </div>
       <p className="mt-sm max-w-xl text-sm text-grey-500 leading-relaxed">
         Verbinde externe Dienste und nutze sie direkt im Chat – jeder verbundene Server ist per
@@ -840,17 +876,18 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
       {isLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
 
-      {/* Connected */}
-      <div className="mt-xl">
-        <div className="flex items-baseline gap-sm mb-sm">
-          <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
-            Verbunden
-          </h3>
-          {hasConnected && <span className="text-xs text-grey-400">{activeCount} aktiv</span>}
-        </div>
-        {hasConnected ? (
+      {/* OAuth servers still waiting for their authorization — kept out of
+          "Verbunden" so a pending server never looks usable. */}
+      {authPending.length > 0 && (
+        <div className="mt-xl">
+          <div className="flex items-baseline gap-sm mb-sm">
+            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-amber-600 dark:text-amber-400">
+              Autorisierung erforderlich
+            </h3>
+            <span className="text-xs text-grey-400">noch nicht nutzbar</span>
+          </div>
           <div className="flex flex-col gap-sm">
-            {servers.map((server) => (
+            {authPending.map((server) => (
               <McpServerRow
                 key={server.id}
                 server={server}
@@ -859,14 +896,31 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
               />
             ))}
           </div>
-        ) : (
-          !isLoading && (
-            <div className="border border-dashed border-grey-300 dark:border-grey-700 rounded-2xl p-lg text-center text-sm text-grey-500 bg-background-pure">
-              Noch nichts verbunden. Wähle unten einen Dienst aus, um zu starten.
-            </div>
-          )
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Connected — only shown once at least one server is connected; an empty
+          state here would just be noise. */}
+      {hasConnected && (
+        <div className="mt-xl">
+          <div className="flex items-baseline gap-sm mb-sm">
+            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
+              Verbunden
+            </h3>
+            <span className="text-xs text-grey-400">{activeCount} aktiv</span>
+          </div>
+          <div className="flex flex-col gap-sm">
+            {connected.map((server) => (
+              <McpServerRow
+                key={server.id}
+                server={server}
+                onSuccess={onSuccess}
+                onError={onError}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Available */}
       <div className="mt-xl">
@@ -928,10 +982,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                       <CardShell
                         key={it.key}
                         title={it.entry.title}
-                        description={it.entry.description}
-                        badge={authLabel[it.entry.authHint]}
-                        recommended={it.entry.recommended}
-                        category={it.category}
                         connecting={connecting === it.entry.url}
                         onConnect={() => handlePickMcp(it.entry)}
                       />
@@ -946,10 +996,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 <CardShell
                   key={it.key}
                   title={it.entry.title}
-                  description={it.entry.description}
-                  badge={authLabel[it.entry.authHint]}
-                  recommended={it.entry.recommended}
-                  category={it.category}
                   connecting={connecting === it.entry.url}
                   onConnect={() => handlePickMcp(it.entry)}
                 />
@@ -971,10 +1017,6 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
                 <CardShell
                   key={entry.url}
                   title={entry.title}
-                  description={entry.description}
-                  badge={authLabel[entry.authHint]}
-                  recommended={false}
-                  category={undefined}
                   connecting={connecting === entry.url}
                   onConnect={() => handlePickExternal(entry)}
                 />

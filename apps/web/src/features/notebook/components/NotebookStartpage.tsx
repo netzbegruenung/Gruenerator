@@ -8,6 +8,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
 
 import PageContainer from '../../../components/common/PageContainer';
+import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import { useNotebookStats } from '../hooks/useNotebookStats';
 import { NOTEBOOK_MAGENTA_BG } from '../notebookTheme';
 import { NotebookOmniComposer } from '../omni/NotebookOmniComposer';
@@ -78,37 +79,35 @@ const HERO_FILL = 'relative flex min-h-[calc(100vh-11rem)] flex-col';
 
 const SEG_CONTAINER = cn(
   'inline-flex gap-0.5 rounded-full p-1',
-  'bg-white/75 dark:bg-[#14281F]/55',
-  'shadow-[0_2px_10px_rgba(31,63,51,0.06)]'
+  'bg-white/75 dark:bg-[#241820]/55',
+  'shadow-[0_2px_10px_rgba(40,16,25,0.06)]'
 );
 const segBase = 'rounded-full px-5 py-1.5 text-[13.5px] transition-all cursor-pointer select-none';
 const segActive = cn(
-  'bg-white dark:bg-[#1B2C24] font-bold text-[#22382E] dark:text-[#E4EDE8]',
-  'shadow-[0_1px_4px_rgba(31,63,51,0.08)]'
+  'bg-white dark:bg-[#2A1B23] font-bold text-[#3A343B] dark:text-[#E4EDE8]',
+  'shadow-[0_1px_4px_rgba(40,16,25,0.08)]'
 );
-const segInactive = 'font-normal text-[#5C6B63] dark:text-[#9AA8A1]';
+const segInactive = 'font-normal text-[#6B646E] dark:text-[#9E97A0]';
 
 const HEADING = cn(
   'text-center text-[38px] font-extrabold leading-[1.1] tracking-[-0.02em]',
-  'text-[#3A4A42] dark:text-[#E4EDE8] max-md:text-3xl'
+  'text-[#3A343B] dark:text-[#E4EDE8] max-md:text-3xl'
 );
-
-const QUICK_LINK =
-  'text-[13.5px] font-bold text-[#316049] dark:text-[#7DB89E] hover:underline cursor-pointer';
 
 const subBase = cn(
   'inline-flex items-center gap-2 rounded-full px-[17px] py-[9px] text-[13.5px] font-semibold',
   'border transition-all cursor-pointer select-none'
 );
-const subActive = 'bg-white dark:bg-[#1B2C24] border-[#52907A] text-[#316049] dark:text-[#7DB89E]';
+const subActive =
+  'bg-white dark:bg-[#2A1B23] border-[#9E93A0] dark:border-[#5A4B57] text-[#4A444C] dark:text-[#C9C2CB]';
 const subInactive = cn(
-  'bg-white/90 dark:bg-white/5 border-[rgba(82,144,122,0.25)]',
-  'text-[#22382E] dark:text-[#C0D8CB] hover:border-[#52907A]'
+  'bg-white/90 dark:bg-white/5 border-[rgba(90,75,87,0.25)]',
+  'text-[#4A444C] dark:text-[#C9C2CB] hover:border-[#9E93A0]'
 );
 
 const BROWSE_TABS: { id: BrowseTab; label: string; Icon: typeof HiOutlineClock }[] = [
   { id: 'zuletzt', label: 'Zuletzt', Icon: HiOutlineClock },
-  { id: 'agenten', label: 'Agenten', Icon: HiOutlineSparkles },
+  { id: 'agenten', label: 'Grüneratoren', Icon: HiOutlineSparkles },
   { id: 'stats', label: 'Statistiken', Icon: HiOutlineChartBar },
 ];
 
@@ -177,11 +176,6 @@ export function NotebookStartpage({
     ? browseTab
     : (availableBrowseTabs[0]?.id ?? 'zuletzt');
 
-  const openRecherche = (tab: BrowseTab) => {
-    setBrowseTab(tab);
-    setViewMode('recherche');
-  };
-
   // Total document count for the Manuelle-Recherche heading. Shares the
   // react-query cache with StatisticsSection, so no duplicate fetch.
   const { data: stats } = useNotebookStats({
@@ -203,14 +197,9 @@ export function NotebookStartpage({
         gradient={false}
         bgClassName={pageGradient ? NOTEBOOK_MAGENTA_BG : undefined}
       >
-        {/* Container + heading kept in lockstep with the Arbeiten hero
-            (DocsPage `DocumentsContent`) so the two workplace composers align. */}
-        <div className="mx-auto max-w-[860px] px-4 pb-2 pt-10 max-md:pt-4">
-          <h1 className="mb-6 text-center font-[Raleway,PT_Sans,Arial,sans-serif] text-[30px] font-extrabold tracking-[-.02em] text-foreground-heading [text-wrap:balance] max-sm:text-2xl">
-            {title}
-          </h1>
+        <WorkplaceHero title={title}>
           <NotebookOmniComposer />
-        </div>
+        </WorkplaceHero>
         {footer}
       </PageContainer>
     );
@@ -229,7 +218,7 @@ export function NotebookStartpage({
               aria-pressed={activeBrowseTab === id}
               className={cn(subBase, activeBrowseTab === id ? subActive : subInactive)}
             >
-              <Icon className="size-[15px] text-[#316049] dark:text-[#7DB89E]" />
+              <Icon className="size-[15px] text-[#4A444C] dark:text-[#C9C2CB]" />
               {label}
             </button>
           ))}
@@ -285,28 +274,6 @@ export function NotebookStartpage({
                 onModeChange={onModeChange}
               />
             </div>
-            {manualSearchAvailable && (lastAddedAvailable || statsAvailable) && (
-              <div className="mt-7 flex flex-col items-center gap-2.5">
-                {lastAddedAvailable && (
-                  <button
-                    type="button"
-                    className={QUICK_LINK}
-                    onClick={() => openRecherche('zuletzt')}
-                  >
-                    Zuletzt hinzugefügt ansehen
-                  </button>
-                )}
-                {statsAvailable && (
-                  <button
-                    type="button"
-                    className={QUICK_LINK}
-                    onClick={() => openRecherche('stats')}
-                  >
-                    Statistiken &amp; Themen
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         )}
 

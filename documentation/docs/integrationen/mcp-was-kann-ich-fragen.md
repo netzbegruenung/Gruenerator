@@ -28,7 +28,7 @@ Die Kernfunktion des MCP-Servers ist die **semantische Suche** über grüne Part
 
 ### Welche Sammlungen gibt es?
 
-Der Server durchsucht verschiedene Dokumentensammlungen — darunter **7 bundesweite Sammlungen** und **5 Landesverbände**:
+Der Server durchsucht verschiedene Dokumentensammlungen — **9 überregionale Sammlungen** und **9 Landesverbände**:
 
 | Sammlung                     | Was ist drin?                                                         | Beispielfrage                            |
 | ---------------------------- | --------------------------------------------------------------------- | ---------------------------------------- |
@@ -39,18 +39,24 @@ Der Server durchsucht verschiedene Dokumentensammlungen — darunter **7 bundesw
 | **gruene.at**                | Aktuelle Positionen und Themen der Grünen Österreich                  | _„Was sagen die Grünen AT zu X?"_        |
 | **KommunalWiki**             | Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)               | _„Wie macht man X in der Kommune?"_      |
 | **Heinrich-Böll-Stiftung**   | Analysen, Dossiers und Atlanten                                       | _„Analyse zu X"_, _„Hintergründe zu X"_  |
+| **Grünblog**                 | Beiträge aus dem Grünblog                                             | _„Grünblog-Beiträge zu X"_               |
+| **Abgeordnetenwatch**        | Abstimmungen, Fragen & Antworten von Abgeordneten                     | _„Wie hat X bei Y abgestimmt?"_          |
 
 ### Landesverbände
 
 Zusätzlich kannst du gezielt in **Dokumenten einzelner Landesverbände** suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen.
 
-| Sammlung                     | Was ist drin?                        | Beispielfrage                                       |
-| ---------------------------- | ------------------------------------ | --------------------------------------------------- |
-| **Grüne Hamburg**            | Beschlüsse und Pressemitteilungen    | _„Was sagen die Grünen Hamburg zum Thema Verkehr?"_ |
-| **Grüne Schleswig-Holstein** | Wahlprogramm zur Landtagswahl        | _„Wahlprogramm der Grünen SH zu Bildung"_           |
-| **Grüne Thüringen**          | Beschlüsse, Wahlprogramme und Presse | _„Grüne Thüringen Position zu Energie?"_            |
-| **Grüne Bayern**             | Regierungsprogramm zur Landtagswahl  | _„Was steht im Bayern-Programm zur Wirtschaft?"_    |
-| **Grüne Berlin**             | Pressemitteilungen und Beschlüsse    | _„Grüne Berlin Beschlüsse zum Thema Wohnen"_        |
+| Sammlung                         | Was ist drin?                         | Beispielfrage                                       |
+| -------------------------------- | ------------------------------------- | --------------------------------------------------- |
+| **Grüne Hamburg**                | Beschlüsse und Pressemitteilungen     | _„Was sagen die Grünen Hamburg zum Thema Verkehr?"_ |
+| **Grüne Schleswig-Holstein**     | Wahlprogramm zur Landtagswahl         | _„Wahlprogramm der Grünen SH zu Bildung"_           |
+| **Grüne Thüringen**              | Beschlüsse, Wahlprogramme und Presse  | _„Grüne Thüringen Position zu Energie?"_            |
+| **Grüne Bayern**                 | Regierungsprogramm zur Landtagswahl   | _„Was steht im Bayern-Programm zur Wirtschaft?"_    |
+| **Grüne Berlin**                 | Pressemitteilungen und Beschlüsse     | _„Grüne Berlin Beschlüsse zum Thema Wohnen"_        |
+| **Grüne Mecklenburg-Vorpommern** | Beschlüsse und Presse (LV + Fraktion) | _„Grüne MV Position zu X"_                          |
+| **Grüne Brandenburg**            | Beschlüsse und Presse                 | _„Grüne Brandenburg zu X"_                          |
+| **Grüne Sachsen-Anhalt**         | Beschlüsse und Presse (LV + Fraktion) | _„Grüne Sachsen-Anhalt zu X"_                       |
+| **Grüne Hessen**                 | Beschlüsse und Presse (LV + Fraktion) | _„Grüne Hessen zu X"_                               |
 
 :::tip Mehrere Sammlungen vergleichen
 Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: _„Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität."_ Die KI sucht dann automatisch in beiden Sammlungen.
@@ -110,7 +116,7 @@ Du kannst nach **Plattform** (Instagram, Facebook) und **Land** (Deutschland, Ö
 
 ## Spezialisierte Assistenten (Prompts)
 
-Das Herzstück für die Inhaltserstellung: Der MCP-Server bietet **7 spezialisierte KI-Assistenten**, die jeweils für eine bestimmte Textform optimiert sind. Jeder Assistent kennt den richtigen Ton, die passende Struktur und die formalen Anforderungen.
+Das Herzstück für die Inhaltserstellung: Der MCP-Server bietet **über 30 spezialisierte KI-Assistenten**, die jeweils für eine bestimmte Textform optimiert sind. Jeder Assistent kennt den richtigen Ton, die passende Struktur und die formalen Anforderungen. Die wichtigsten stellen wir hier vor.
 
 :::tip Wie nutze ich die Assistenten?
 In Claude kannst du Prompts direkt über die Prompt-Auswahl aktivieren. In anderen Clients beschreibe einfach, was du brauchst — die KI wählt den passenden Assistenten automatisch.
@@ -152,15 +158,16 @@ Erstellt plattformgerechte Inhalte für Presse und soziale Medien.
 
 ---
 
-### Anträge & Anfragen
+### Kommunalpolitik (Anträge & Anfragen)
 
-Erstellt formal korrekte kommunalpolitische Dokumente.
+Der Kommunalpolitik-Assistent erstellt formal korrekte kommunalpolitische Dokumente und berät bei der Gremienarbeit — in drei Modi: **Entwurf** (Dokumente schreiben), **Diskussion/Beratung** und **Bewertung** (z. B. Feedback zu Haushalten).
 
 **Kann erstellen:**
 
 - **Anträge** — Beschlussvorschläge für kommunale Gremien
 - **Kleine Anfragen** — Faktensammlung, präzise Fragen an die Verwaltung
 - **Große Anfragen** — Themen auf die Tagesordnung setzen, Debatte anstoßen
+- **Haushaltsanträge, Resolutionen und Redebeiträge**
 
 > _„Erstelle einen Antrag für mehr Straßenbäume in der Innenstadt"_
 >
@@ -189,20 +196,6 @@ Schreibt politische Reden mit Struktur, Rhetorik und Redehinweisen.
 
 ---
 
-### Grüne Jugend
-
-Erstellt aktivistischen Social-Media-Content im authentischen Stil der Grünen Jugend.
-
-**Stil:** Direkt, rebellisch, solidarisch, handlungsorientiert — mit klarer linker politischer Positionierung.
-
-> _„Post zur Seenotrettung im Mittelmeer"_
->
-> _„Story-Reihe zum Thema Mietenwahnsinn"_
->
-> _„Mobilisierungspost für die nächste Klimademo"_
-
----
-
 ### Bürger\*innenanfragen
 
 Beantwortet Bürger\*innenanfragen professionell und verständlich.
@@ -228,6 +221,22 @@ Erstellt strukturierte Wahlprogramm-Kapitel mit konkreten Forderungen.
 > _„Abschnitt zu Bildung und Betreuung"_
 >
 > _„Wahlprogramm-Kapitel zur Verkehrswende"_
+
+---
+
+### Weitere Assistenten
+
+Darüber hinaus gibt es u. a. Assistenten für **Sharepics**, **Leichte Sprache**, **Dokumente, Tabellen, Präsentationen und Boards**, für **Bundestag** und **Abgeordnetenwatch** (Parlamentsrecherche) sowie **Landesverbands-Varianten** der Pressemitteilungs- und Bürger\*innenanfragen-Assistenten (z. B. Berlin, Hamburg, Bayern, Österreich) — sie schreiben im Stil und mit dem Wissen des jeweiligen Landesverbands.
+
+---
+
+## Notizbücher durchsuchen
+
+Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich **Notizbuch-Tools** bereit: deine Notebooks auflisten, durchsuchen und Fragen an sie stellen.
+
+> _„Liste meine Notebooks auf"_
+>
+> _„Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?"_
 
 ---
 

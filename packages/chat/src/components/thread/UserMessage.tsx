@@ -12,6 +12,7 @@ import { UserMessageAttachments } from '../assistant-ui/attachment';
 import { useAgentStore } from '../../stores/chatStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { MessageBranchPicker } from '../message-parts/MessageBranchPicker';
+import { UserMessageText } from '../message-parts/UserMessageText';
 import { useChatDensity } from './chatDensityContext';
 
 function QuoteBlock() {
@@ -86,6 +87,9 @@ function UserMessageEditor({ initialText, onDone }: { initialText: string; onDon
   );
 }
 
+// Durable mention tokens in the text render as chips (plain text passes through).
+const userPartComponents = { Text: UserMessageText };
+
 export function UserMessage() {
   const message = useMessage();
   const runtime = useMessageRuntime();
@@ -146,7 +150,7 @@ export function UserMessage() {
               <UserMessageAttachments />
               <QuoteBlock />
               <div className="whitespace-pre-wrap break-words text-foreground">
-                <MessagePrimitive.Parts />
+                <MessagePrimitive.Parts components={userPartComponents} />
               </div>
             </div>
             <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

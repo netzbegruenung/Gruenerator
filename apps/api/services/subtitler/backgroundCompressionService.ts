@@ -258,8 +258,6 @@ async function compressVideoInBackground(
       output: compressedPath,
     });
 
-    const useHwAccel = await hwaccel.detectVaapi();
-
     await ffmpegPool.run(async () => {
       await new Promise<void>((resolve, reject) => {
         const command = ffmpeg(originalVideoPath).setDuration(
@@ -267,76 +265,41 @@ async function compressVideoInBackground(
         );
 
         const is4K = metadata.width >= 2160;
-        let videoCodec: string;
-        let outputOptions: string[];
+        const videoCodec = is4K ? 'libx265' : 'libx264';
 
-        if (useHwAccel) {
-          videoCodec = hwaccel.getVaapiEncoder(is4K, false);
-          const qp = hwaccel.crfToQp(settings.crf);
+        const outputOptions = [
+          '-y',
+          '-c:v',
+          videoCodec,
+          '-preset',
+          settings.preset,
+          '-crf',
+          settings.crf.toString(),
+          '-tune',
+          settings.tune,
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          '-movflags',
+          '+faststart',
+          '-avoid_negative_ts',
+          'make_zero',
+        ];
 
-          command.inputOptions(hwaccel.getVaapiInputOptions());
-
-          outputOptions = [
-            '-y',
-            ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-            '-c:a',
-            'aac',
-            '-b:a',
-            '192k',
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          log.debug(
-            `[BackgroundCompression] Using VAAPI hardware encoding: ${videoCodec}, QP: ${qp}`
-          );
-        } else {
-          videoCodec = is4K ? 'libx265' : 'libx264';
-
-          outputOptions = [
-            '-y',
-            '-c:v',
-            videoCodec,
-            '-preset',
-            settings.preset,
-            '-crf',
-            settings.crf.toString(),
-            '-tune',
-            settings.tune,
-            '-c:a',
-            'aac',
-            '-b:a',
-            '192k',
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          if (videoCodec === 'libx264') {
-            outputOptions.push(...hwaccel.getX264QualityParams());
-          }
-
-          log.debug(
-            `[BackgroundCompression] Using CPU encoding: ${videoCodec}, CRF: ${settings.crf}`
-          );
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
         }
+
+        log.debug(
+          `[BackgroundCompression] Using CPU encoding: ${videoCodec}, CRF: ${settings.crf}`
+        );
 
         const scaleFilter = targetResolution
           ? `scale=${targetResolution.width}:${targetResolution.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`
           : null;
 
-        if (useHwAccel) {
-          const filterChain = hwaccel.getCompressionFilterChain(scaleFilter);
-          command.videoFilters([filterChain]);
-          if (scaleFilter) {
-            log.debug(
-              `[BackgroundCompression] Applying VAAPI scaling: ${metadata.width}x${metadata.height} → ${targetResolution?.width}x${targetResolution?.height}`
-            );
-          }
-        } else if (scaleFilter) {
+        if (scaleFilter) {
           command.videoFilters([scaleFilter]);
           log.debug(
             `[BackgroundCompression] Applying CPU scaling: ${metadata.width}x${metadata.height} → ${targetResolution?.width}x${targetResolution?.height}`

@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
@@ -59,12 +60,14 @@ export function useCreateDocument() {
 }
 
 export function useDeleteDocument() {
-  const adapter = useDocsAdapter();
-  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/docs/${id}`),
+    mutationFn: async (id: string) => {
+      const res = await getContractsClient().docs.deleteDocument({ params: { id } });
+      if (res.status !== 200) throw new Error(`Delete failed (${res.status})`);
+      return res.body;
+    },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: docsKeys.list() });
       const previous = queryClient.getQueryData<Document[]>(docsKeys.list());
@@ -78,26 +81,35 @@ export function useDeleteDocument() {
         queryClient.setQueryData(docsKeys.list(), context.previous);
       }
     },
+    // Reconcile with the server after the optimistic remove (success or rollback).
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: docsKeys.list() });
+    },
   });
 }
 
 export function useUpdateDocument() {
-  const adapter = useDocsAdapter();
-  const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       id,
       updates,
     }: {
       id: string;
       updates: Partial<Pick<Document, 'title' | 'folder_id'>>;
-    }) => apiClient.put<Document>(`/docs/${id}`, updates),
+    }) => {
+      const res = await getContractsClient().docs.updateDocument({ params: { id }, body: updates });
+      if (res.status !== 200) throw new Error(`Update failed (${res.status})`);
+      // The contract's document type is a narrower core of the richer frontend
+      // Document (extra wolke_*/last_edited_at fields); the response carries them.
+      return res.body as unknown as Document;
+    },
     onSuccess: (updatedDoc) => {
       queryClient.setQueryData<Document[]>(docsKeys.list(), (old) =>
         old?.map((doc) => (doc.id === updatedDoc.id ? updatedDoc : doc))
       );
+      void queryClient.invalidateQueries({ queryKey: docsKeys.list() });
     },
   });
 }
