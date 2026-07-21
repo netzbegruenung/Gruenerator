@@ -214,14 +214,12 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
    * All-in-one attachment processing for routes
    * Combines validation, summary creation, and logging
    * @param attachments - Attachments from request
-   * @param usePrivacyMode - Whether privacy mode is enabled
    * @param routeName - Route name for logging context
    * @param userId - User ID for logging (optional)
    * @returns Processing result with hasAttachments, summary, and validation status
    */
   processAttachmentsForRoute(
     attachments: unknown,
-    usePrivacyMode: boolean,
     routeName: string,
     userId: string = 'unknown'
   ): {
@@ -257,7 +255,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
       result.summary = this.createAttachmentsSummary(attachments);
 
       // Enhanced logging with context
-      this.logAttachmentProcessing(result.summary, routeName, userId, usePrivacyMode);
+      this.logAttachmentProcessing(result.summary, routeName, userId);
     } catch (error) {
       result.error = (error as Error).message;
       console.error(
@@ -274,13 +272,9 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
   /**
    * Creates documents array for PromptBuilder.addDocuments()
    * @param attachments - Validated attachment objects
-   * @param usePrivacyMode - Whether privacy mode is enabled
    * @returns Documents array formatted for PromptBuilder
    */
-  buildDocumentsForPromptBuilder(
-    attachments: Attachment[],
-    _usePrivacyMode: boolean = false
-  ): ClaudeDocument[] {
+  buildDocumentsForPromptBuilder(attachments: Attachment[]): ClaudeDocument[] {
     if (!Array.isArray(attachments) || attachments.length === 0) {
       return [];
     }
@@ -320,20 +314,13 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
    * @param summary - Attachment summary object
    * @param routeName - Route name for logging
    * @param userId - User ID for logging
-   * @param usePrivacyMode - Privacy mode status
    */
-  logAttachmentProcessing(
-    summary: AttachmentSummary,
-    routeName: string,
-    userId: string,
-    usePrivacyMode: boolean = false
-  ): void {
+  logAttachmentProcessing(summary: AttachmentSummary, routeName: string, userId: string): void {
     if (!summary || summary.count === 0) return;
 
-    const privacyNote = usePrivacyMode ? ' (privacy mode)' : '';
     console.log(
       `[${routeName}] User ${userId}: Processing ${summary.count} attachments` +
-        ` (${summary.totalSizeMB}MB total)${privacyNote}`
+        ` (${summary.totalSizeMB}MB total)`
     );
 
     // Log individual files for debugging
@@ -346,24 +333,17 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
    * Comprehensive attachment processing for routes that need everything
    * Combines processAttachmentsForRoute with document building
    * @param attachments - Attachments from request
-   * @param usePrivacyMode - Whether privacy mode is enabled
    * @param routeName - Route name for logging
    * @param userId - User ID for logging (optional)
    * @returns Complete processing result with documents array
    */
   async processAndBuildAttachments(
     attachments: unknown,
-    usePrivacyMode: boolean,
     routeName: string,
     userId: string = 'unknown'
   ): Promise<AttachmentProcessingResult> {
     // First process and validate
-    const processResult = this.processAttachmentsForRoute(
-      attachments,
-      usePrivacyMode,
-      routeName,
-      userId
-    );
+    const processResult = this.processAttachmentsForRoute(attachments, routeName, userId);
 
     // If processing failed or no attachments, return early
     if (!processResult.hasAttachments || processResult.error) {
@@ -374,10 +354,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
     }
 
     // Build documents array for PromptBuilder
-    const documents = this.buildDocumentsForPromptBuilder(
-      attachments as Attachment[],
-      usePrivacyMode
-    );
+    const documents = this.buildDocumentsForPromptBuilder(attachments as Attachment[]);
 
     return {
       ...processResult,
@@ -411,26 +388,21 @@ export const hasValidAttachments = (attachments: unknown) =>
 
 export const processAttachmentsForRoute = (
   attachments: unknown,
-  usePrivacyMode: boolean,
   routeName: string,
   userId?: string
-) => attachmentProcessor.processAttachmentsForRoute(attachments, usePrivacyMode, routeName, userId);
+) => attachmentProcessor.processAttachmentsForRoute(attachments, routeName, userId);
 
-export const buildDocumentsForPromptBuilder = (
-  attachments: Attachment[],
-  usePrivacyMode?: boolean
-) => attachmentProcessor.buildDocumentsForPromptBuilder(attachments, usePrivacyMode);
+export const buildDocumentsForPromptBuilder = (attachments: Attachment[]) =>
+  attachmentProcessor.buildDocumentsForPromptBuilder(attachments);
 
 export const logAttachmentProcessing = (
   summary: AttachmentSummary,
   routeName: string,
-  userId: string,
-  usePrivacyMode?: boolean
-) => attachmentProcessor.logAttachmentProcessing(summary, routeName, userId, usePrivacyMode);
+  userId: string
+) => attachmentProcessor.logAttachmentProcessing(summary, routeName, userId);
 
 export const processAndBuildAttachments = (
   attachments: unknown,
-  usePrivacyMode: boolean,
   routeName: string,
   userId?: string
-) => attachmentProcessor.processAndBuildAttachments(attachments, usePrivacyMode, routeName, userId);
+) => attachmentProcessor.processAndBuildAttachments(attachments, routeName, userId);

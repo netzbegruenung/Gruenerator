@@ -17,8 +17,6 @@ export async function generateVisualBriefing(
 ): Promise<string> {
   console.log('[PR Agent] Generating visual briefing');
 
-  const request = enrichedState.request as { usePrivacyMode?: boolean };
-
   const systemRole = `Du bist ein Social Media Manager mit Fokus auf visuelle Kommunikation für {{partyName}}.
 
 Deine Aufgabe: Konkrete visuelle Empfehlungen und Timing-Strategie entwickeln.
@@ -58,7 +56,6 @@ Entwickle visuelle Empfehlungen und Timing-Strategie für diese Kampagne.`;
   const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
     {
       type: 'social',
-      usePrivacyMode: request.usePrivacyMode || false,
       systemPrompt: promptResult.system,
       messages: promptResult.messages,
       options: {

@@ -82,9 +82,14 @@ class AssSubtitleService {
       '../../public/fonts/GrueneTypeNeue-Regular.ttf'
     );
     // Austria (de-AT) uses Gotham Narrow Ultra (brand font) for at_* styles.
+    // TTF (not the source OTF): the OTF's family name (name ID 1) is
+    // "Gotham Narrow Ultra", so libass never matched fontName "Gotham Narrow"
+    // and fell back to a default sans. This TTF is CFF→glyf converted with the
+    // family normalized to "Gotham Narrow" (same shape as GrueneTypeNeue), so
+    // the fontName below matches and the real Ultra glyphs render.
     this.gothamNarrowFontPath = path.resolve(
       __dirname,
-      '../../public/fonts/GothamNarrow-Ultra.otf'
+      '../../public/fonts/GothamNarrow-Ultra.ttf'
     );
 
     this.localeStyleMapping = {
