@@ -53,6 +53,8 @@ export interface GroupSummary {
   content_count?: number;
   role: string;
   isAdmin?: boolean;
+  /** 'personal' = solo Space (lean UI); else team Space. */
+  group_type?: 'standard' | 'personal' | null;
   created_at?: string;
   created_by?: string;
   join_token?: string;
