@@ -199,10 +199,9 @@ async function startWorker(): Promise<void> {
   const allowedOrigins = getCorsOrigins(isDevelopment);
   const corsOptions = createCorsOptions(allowedOrigins);
   const strictCors = cors(corsOptions);
-  // The Bearer-authenticated MCP endpoint is origin-agnostic: browser-based MCP
-  // clients (Inspector, embedded clients) send Origins outside the app
-  // allowlist and must still reach the 401/WWW-Authenticate challenge instead
-  // of dying in the strict validator.
+  // The Bearer-authenticated MCP endpoint is origin-agnostic: browser MCP
+  // clients send Origins outside the allowlist and must still reach the
+  // 401/WWW-Authenticate challenge instead of dying in the strict validator.
   const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate', 'Mcp-Session-Id'] });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/mcp-server')) {
@@ -434,12 +433,10 @@ async function startWorker(): Promise<void> {
         });
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
 
-  // MCP OAuth: force the consent step. The `mcp` plugin skips the consent page
-  // unless the query is EXACTLY `prompt=consent` — MCP clients (claude.ai)
-  // don't send it, and a malicious DCR client could send `prompt=none` to mint
-  // a token silently. Rewrite (not append — appending loops on duplicated or
-  // empty prompt params) every other prompt value. Registered BEFORE the
-  // catch-all Better Auth handler.
+  // MCP OAuth: the `mcp` plugin skips the consent page unless the query is
+  // EXACTLY `prompt=consent` — a malicious DCR client could send `prompt=none`
+  // to mint a token silently. Rewrite every other value (append would loop on
+  // duplicated/empty prompt params). Must run before the catch-all handler.
   app.get('/api/auth/v2/mcp/authorize', (req, res, next) => {
     if (req.query.prompt === 'consent') {
       next();
@@ -459,9 +456,7 @@ async function startWorker(): Promise<void> {
   });
 
   // OAuth discovery at the ORIGIN ROOT (RFC 8414/9728) — Better Auth serves
-  // these only under its basePath, but clients resolve them at the root (with
-  // optional path-insertion suffix). nginx proxies the same paths on both
-  // gruenerator.eu (AS metadata) and mcp.gruenerator.eu (resource metadata).
+  // these only under its basePath, but clients resolve them at the root.
   {
     const { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } =
       await import('better-auth/plugins');

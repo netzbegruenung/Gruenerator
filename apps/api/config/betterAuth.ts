@@ -483,18 +483,15 @@ export const auth = betterAuth({
     }),
     bearer(),
     mobileTokenExchange(),
-    // OAuth 2.1 authorization server (DCR + PKCE) for the authenticated MCP
-    // endpoint. Keycloak stays the only IdP: /mcp/authorize rides the existing
-    // Better Auth session — without one it redirects to the login page and a
-    // plugin after-hook resumes the flow once Keycloak sign-in completes.
-    // Consent is only triggered when `prompt=consent` is present; the Express
-    // shim in server.ts forces it for every MCP authorize request.
+    // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
+    // stays the only IdP: /mcp/authorize rides the existing session, the
+    // after-hook resumes the flow post-login. The plugin skips consent unless
+    // `prompt=consent` — the shim in server.ts forces it.
     mcp({
       loginPage: MCP_LOGIN_PAGE,
       resource: MCP_RESOURCE_URL,
       oidcConfig: {
-        // Also required by OIDCOptions' type; the plugin overrides it with the
-        // top-level loginPage either way.
+        // required by OIDCOptions' type; the plugin overrides it anyway
         loginPage: MCP_LOGIN_PAGE,
         requirePKCE: true,
         scopes: [...MCP_SCOPES],

@@ -41,11 +41,7 @@ export type VerifyApiKeyResult =
   | { ok: true; ctx: ApiKeyContext }
   | { ok: false; reason: 'invalid' | 'revoked' | 'expired' };
 
-/**
- * Verify a plaintext API key against the `api_keys` table.
- * Throws on DB failure. Shared by `requireApiKey` and the MCP server's
- * bearer fallback (routes/mcp-server).
- */
+/** Throws on DB failure. Shared by `requireApiKey` and routes/mcp-server. */
 export async function verifyApiKey(plaintext: string): Promise<VerifyApiKeyResult> {
   const hash = hashApiKey(plaintext);
   const db = getDrizzleInstance();

@@ -3,12 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 
 import { authClient } from '../../../lib/authClient';
 
-/**
- * OAuth consent screen for the MCP authorization server (Better Auth `mcp`
- * plugin). The authorize endpoint redirects here with `consent_code`,
- * `client_id` and `scope`; accepting/declining POSTs to
- * `/api/auth/v2/oauth2/consent`, which answers with the client redirect URI.
- */
+// OAuth consent for the MCP authorization server: authorize redirects here
+// with consent_code/client_id/scope; the consent POST answers with the client
+// redirect URI.
 
 const SCOPE_LABELS: Record<string, string> = {
   search: 'Programme, Beschlüsse und Umfragen durchsuchen',
