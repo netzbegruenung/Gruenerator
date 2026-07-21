@@ -53,3 +53,13 @@ export { getGreeting, isPrideMonth } from './greeting.js';
 // Natural-language notebook/research query parser (region/date/topic)
 export { parseNotebookQuery } from './notebookQuery.js';
 export type { NotebookQueryFilters } from './notebookQuery.js';
+
+// Durable mention tokens (@[Label](type:id)) — shared FE/BE spec
+export {
+  buildMentionToken,
+  parseMentionTokens,
+  sanitizeMentionTokens,
+  hasMentionTokens,
+  mentionTokenRegex,
+} from './mentionTokens.js';
+export type { MentionToken, MentionTokenType } from './mentionTokens.js';
