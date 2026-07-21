@@ -20,10 +20,14 @@ import {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
+  globalSearchContract,
   researchContract,
   boardsContract,
+  sheetsContract,
+  presentationsContract,
   boardCommentsContract,
   boardAgentContract,
   boardActivityContract,
@@ -36,28 +40,35 @@ import {
   notebookCollectionsContract,
   wolkePendingContract,
   notebookSharingContract,
-  wordpressContract,
   transferContract,
   notificationsContract,
   emailContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
+  mcpServersContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  recurringTasksContract,
   docsContract,
   documentsContract,
   groupsContract,
   userProfileContract,
   canvasContract,
+  canvasAiContract,
   monitorContract,
   sitesContract,
   subtitlerContract,
+  reisekostenContract,
+  imagePickerContract,
+  sharesReadContract,
+  promptsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
+import { isAxiosError } from 'axios';
 
 import { getGlobalApiClient } from './client.js';
 
@@ -117,16 +128,31 @@ async function axiosFetcher({
   // the set keeps using the canonical contract paths.
   const relativePath = stripApiPrefix(path);
 
-  const response = await axios.request({
-    url: relativePath,
-    method,
-    headers,
-    data: body,
-    // Let axios resolve with the full response even on 4xx/5xx so ts-rest
-    // can match the status to the contract's response map.
-    validateStatus: () => true,
-    ...(isBinary && { responseType: 'blob' as const }),
-  });
+  const response = await axios
+    .request({
+      url: relativePath,
+      method,
+      headers,
+      data: body,
+      // Let axios resolve with the full response on 4xx/5xx so ts-rest can
+      // match the status to the contract's response map — EXCEPT 401. The
+      // global session handling (probe → transparent retry, or login
+      // redirect + auth-cache wipe) lives in the shared client's *error*
+      // interceptor, which only runs on rejected promises. Resolving 401s
+      // here silently disabled logout for every contract-based endpoint:
+      // the session died server-side but the app kept rendering the
+      // authenticated shell ("half logged in").
+      validateStatus: (status) => status !== 401,
+      ...(isBinary && { responseType: 'blob' as const }),
+    })
+    .catch((error: unknown) => {
+      // The error interceptor has already run (session probe, possible
+      // redirect). If the server answered, hand the response to ts-rest
+      // unchanged so callers keep receiving `{ status: 401, body }` exactly
+      // as before instead of a thrown AxiosError.
+      if (isAxiosError(error) && error.response) return error.response;
+      throw error;
+    });
 
   // Convert axios headers (AxiosResponseHeaders) to native Headers
   const nativeHeaders = new Headers();
@@ -153,10 +179,14 @@ const CLIENT_OPTS = {
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
+const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
+const _sheetsClient = () => initClient(sheetsContract, CLIENT_OPTS);
+const _presentationsClient = () => initClient(presentationsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
 const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
@@ -169,35 +199,45 @@ const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
-const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
+const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
+const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
+const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _subtitlerClient = () => initClient(subtitlerContract, CLIENT_OPTS);
+const _reisekostenClient = () => initClient(reisekostenContract, CLIENT_OPTS);
+const _imagePickerClient = () => initClient(imagePickerContract, CLIENT_OPTS);
+const _sharesReadClient = () => initClient(sharesReadContract, CLIENT_OPTS);
+const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
+  recentActivity: ReturnType<typeof _recentActivityClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   search: ReturnType<typeof _searchClient>;
+  globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
+  sheets: ReturnType<typeof _sheetsClient>;
+  presentations: ReturnType<typeof _presentationsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
   boardAgent: ReturnType<typeof _boardAgentClient>;
   boardActivity: ReturnType<typeof _boardActivityClient>;
@@ -210,26 +250,32 @@ export interface ContractsClient {
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wolkePending: ReturnType<typeof _wolkePendingClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
-  wordpress: ReturnType<typeof _wordpressClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   email: ReturnType<typeof _emailClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
+  mcpServers: ReturnType<typeof _mcpServersClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
+  recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
   canvas: ReturnType<typeof _canvasClient>;
+  canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
   subtitler: ReturnType<typeof _subtitlerClient>;
+  reisekosten: ReturnType<typeof _reisekostenClient>;
+  imagePicker: ReturnType<typeof _imagePickerClient>;
+  sharesRead: ReturnType<typeof _sharesReadClient>;
+  prompts: ReturnType<typeof _promptsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -252,10 +298,14 @@ export function getContractsClient(): ContractsClient {
     threads: _threadsClient(),
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
+    recentActivity: _recentActivityClient(),
     itemUsage: _itemUsageClient(),
     search: _searchClient(),
+    globalSearch: _globalSearchClient(),
     research: _researchClient(),
     boards: _boardsClient(),
+    sheets: _sheetsClient(),
+    presentations: _presentationsClient(),
     boardComments: _boardCommentsClient(),
     boardAgent: _boardAgentClient(),
     boardActivity: _boardActivityClient(),
@@ -268,26 +318,32 @@ export function getContractsClient(): ContractsClient {
     notebookCollections: _notebookCollectionsClient(),
     wolkePending: _wolkePendingClient(),
     notebookSharing: _notebookSharingClient(),
-    wordpress: _wordpressClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
     email: _emailClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
+    mcpServers: _mcpServersClient(),
     imageEdit: _imageEditClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
+    recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),
     userProfile: _userProfileClient(),
     canvas: _canvasClient(),
+    canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
     subtitler: _subtitlerClient(),
+    reisekosten: _reisekostenClient(),
+    imagePicker: _imagePickerClient(),
+    sharesRead: _sharesReadClient(),
+    prompts: _promptsClient(),
   };
 
   return _client;

@@ -33,6 +33,10 @@ export { ShareModal } from './components/permissions/ShareModal';
 // Components — Version History
 export { VersionHistory } from './components/version/VersionHistory';
 
+// Components — Track Changes (Änderungsmodus)
+export { SuggestionsSidebar } from './components/suggestions/SuggestionsSidebar';
+export { SuggestionPopover } from './components/editor/SuggestionPopover';
+
 // Components — Common
 export { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -52,6 +56,8 @@ export {
 } from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
 export { usePendingDocAI } from './hooks/usePendingDocAI';
+export { useSuggestionMode } from './hooks/useSuggestionMode';
+export { useDocSuggestions } from './hooks/useDocSuggestions';
 export {
   useDocUndoState,
   getDocUndoFlags,
@@ -90,6 +96,16 @@ export {
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
 export {
+  isSuggestionModeEnabled,
+  setSuggestionMode,
+  hasPendingSuggestions,
+  collectSuggestions,
+  observeSuggestionMeta,
+  type DocSuggestion,
+  type SuggestionKind,
+  type SuggestionMeta,
+} from './lib/suggestionMode';
+export {
   invokeDocumentAI,
   isDocAIInvocationInFlight,
   subscribeDocAIInFlight,
@@ -106,3 +122,8 @@ export { isChunkLoadError } from './utils/chunkErrors';
 
 // Icons
 export { DocsIcon } from './components/icons/DocsIcon';
+
+// Collaborative-document sharing (docs, boards, canvas, sheets) — lives here
+// rather than @gruenerator/shared because the components need @gruenerator/ui,
+// which the API/MCP/hocuspocus Docker builds of shared don't ship.
+export * from './collab-share';

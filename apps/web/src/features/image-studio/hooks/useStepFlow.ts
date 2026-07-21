@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -393,17 +394,16 @@ export const useStepFlow = (): UseStepFlowReturn => {
   const fetchAiImageSuggestion = useCallback(
     async (text: string): Promise<AiImageSuggestionResult | null> => {
       try {
-        const response = await apiClient.post<{
-          success: boolean;
-          selectedImage?: AiImageSuggestionResult['image'];
-        }>('/image-picker/select', {
-          text,
-          type: 'sharepic',
+        const res = await getContractsClient().imagePicker.select({
+          body: { text, type: 'sharepic' },
         });
-        if (response.data.success) {
+        if (res.status === 200 && res.body.success) {
+          // Contract's selectedImage is the wire shape; consumed as the app's
+          // AiImageSuggestionResult['image'] (same fields, local nullability).
+          const selectedImage = res.body.selectedImage as AiImageSuggestionResult['image'];
           return {
-            image: response.data.selectedImage,
-            category: response.data.selectedImage?.category,
+            image: selectedImage,
+            category: selectedImage?.category,
           };
         }
       } catch (error) {

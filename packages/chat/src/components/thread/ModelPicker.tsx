@@ -58,10 +58,9 @@ export const ModelPicker = memo(function ModelPicker({
   }, [enabledModelIds]);
 
   const resolvedAuto = useMemo(() => {
-    if (selectedModel !== AUTO_MODEL_ID) return null;
     const agent = selectedAgentId ? (getSystemAgent(selectedAgentId) ?? null) : null;
     return TEXT_MODEL_BY_ID[resolveAutoModel({ threadMode, agent })];
-  }, [selectedModel, selectedAgentId, threadMode]);
+  }, [selectedAgentId, threadMode]);
 
   const fallback = visibleCatalogModels[0] ?? MODEL_OPTIONS[0];
   const current =
@@ -94,9 +93,10 @@ export const ModelPicker = memo(function ModelPicker({
         )}
       >
         <span className="text-sm font-medium leading-tight">{AUTO_OPTION.name}</span>
-        <span className="text-muted-foreground line-clamp-1 text-xs leading-tight">
+        <span className="text-muted-foreground text-xs leading-tight">
           {AUTO_OPTION.description}
         </span>
+        <span className="text-muted-foreground text-xs leading-tight">→ {resolvedAuto.name}</span>
       </DropdownMenuItem>
       {visibleCatalogModels.map((model) => {
         const isActive = selectedModel === model.id;
@@ -131,6 +131,7 @@ export const ModelPicker = memo(function ModelPicker({
       >
         <span className="block font-medium">{AUTO_OPTION.name}</span>
         <span className="text-muted-foreground block text-xs">{AUTO_OPTION.description}</span>
+        <span className="text-muted-foreground block text-xs">→ {resolvedAuto.name}</span>
       </ResponsiveMenuItem>
       {visibleCatalogModels.map((model) => (
         <ResponsiveMenuItem
@@ -147,22 +148,24 @@ export const ModelPicker = memo(function ModelPicker({
     </ResponsiveMenuSection>
   );
 
+  const currentShortName = ('shortName' in current && current.shortName) || current.name;
+
+  // The resolved model is only shown inside the opened menu — the trigger
+  // stays a terse "Auto" so it doesn't squeeze the composer input.
   const triggerLabel =
-    selectedModel === AUTO_MODEL_ID && resolvedAuto ? (
-      <span className="flex flex-col items-start leading-tight">
-        <span className="text-sm font-medium">Automatisch</span>
-        <span className="text-muted-foreground text-xs">→ {resolvedAuto.name}</span>
-      </span>
+    selectedModel === AUTO_MODEL_ID ? (
+      <span>Auto</span>
     ) : (
-      <span>{current.name}</span>
+      <span>
+        <span className="max-sm:hidden">{current.name}</span>
+        <span className="sm:hidden">{currentShortName}</span>
+      </span>
     );
 
   const ariaLabel =
-    selectedModel === AUTO_MODEL_ID && resolvedAuto
+    selectedModel === AUTO_MODEL_ID
       ? `Modell wählen – Automatisch (${resolvedAuto.name})`
-      : 'region' in current && current.region === 'cn'
-        ? `Modell wählen – ${current.name} (Warnhinweis)`
-        : 'Modell wählen';
+      : 'Modell wählen';
 
   return (
     <ResponsiveMenu

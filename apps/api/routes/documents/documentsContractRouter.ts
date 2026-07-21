@@ -161,6 +161,64 @@ export const documentsContractRouter = s.router(documentsContract, {
     }
   },
 
+  getContent: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+
+      const document = await postgresDocumentService.getDocumentById(id, userId);
+      if (!document) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Document not found or access denied' },
+        };
+      }
+
+      // Full text lives in Qdrant, not the DB column. A Qdrant miss/failure
+      // degrades to empty text rather than failing the whole request.
+      let ocrText = '';
+      try {
+        const qdrantResult = await documentSearchService.getDocumentFullText(userId, id);
+        if (qdrantResult.success && qdrantResult.fullText) {
+          ocrText = qdrantResult.fullText;
+        }
+      } catch (qdrantError) {
+        log.error('[documentsContract.getContent] Qdrant fetch failed:', qdrantError);
+      }
+
+      // Coalesce the nullable Drizzle columns to their schema defaults so the
+      // wire shape is stable (mirrors the column defaults in the schema file).
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          data: {
+            id: document.id,
+            title: document.title,
+            filename: document.filename ?? null,
+            // page_count reaches DocumentRecord via its index signature (typed
+            // `unknown`); narrow the real integer column back to number | null.
+            page_count: typeof document.page_count === 'number' ? document.page_count : null,
+            status: document.status ?? 'pending',
+            vector_count: document.vector_count ?? 0,
+            source_type: document.source_type ?? 'manual',
+            ocr_text: ocrText,
+            created_at: document.created_at,
+          },
+        },
+      };
+    } catch (error) {
+      log.error('[documentsContract.getContent] Error:', error);
+      return {
+        status: 500 as const,
+        body: {
+          success: false as const,
+          message: (error as Error).message || 'Failed to get document content',
+        },
+      };
+    }
+  },
+
   getDocumentStatuses: async (args) => {
     try {
       const userId = getUserId(args.req);

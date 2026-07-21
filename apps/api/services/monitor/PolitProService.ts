@@ -4,10 +4,10 @@
  *
  * The previous unofficial sources (undocumented JSON endpoint + HTML
  * scraping) were shut down by PolitPro and have been removed. Sub-national
- * parliaments (Bundesländer, AT-Länder) are documented but currently rejected
- * for our token ("Parliament not found or not supported"), so each parliament
- * is probed and negative-cached for 12h; they start working automatically
- * once PolitPro unlocks them for our plan.
+ * parliaments (Bundesländer, AT-Länder) ARE served by our token (verified
+ * 2026-07-20: de/de-bw/de-by/de-be/de-nw/de-th all return live data). The
+ * 'unsupported' probe + 12h negative-cache stays as a guard for any single
+ * parliament PolitPro genuinely 404s, without blocking the rest.
  */
 import {
   euGreensHistoryResponseSchema,
@@ -340,6 +340,8 @@ export interface EuGreenPartyEntry {
   partyShort: string;
   partyLabel: string;
   note?: string;
+  /** Greens are only a minority partner in this alliance total (FR NFP, ES Sumar). */
+  broadAlliance?: boolean;
   website: string | null;
   /** Wikipedia article title (verified), null when no article exists. */
   wikipedia: string | null;
@@ -480,6 +482,54 @@ export const EU_GREEN_PARTIES: EuGreenPartyEntry[] = [
     website: 'https://rohelised.ee',
     wikipedia: 'Eestimaa Rohelised',
   },
+  {
+    countryCode: 'ch',
+    countryName: 'Schweiz',
+    partyShort: 'G',
+    partyLabel: 'GRÜNE',
+    note: 'Grüne Partei der Schweiz (nicht die Grünliberalen)',
+    website: 'https://gruene.ch',
+    wikipedia: 'Grüne (Schweiz)',
+  },
+  {
+    countryCode: 'no',
+    countryName: 'Norwegen',
+    partyShort: 'MDG',
+    partyLabel: 'MDG',
+    website: 'https://mdg.no',
+    wikipedia: 'Miljøpartiet De Grønne',
+  },
+  {
+    countryCode: 'gb',
+    countryName: 'Großbritannien',
+    partyShort: 'Greens',
+    partyLabel: 'Green Party',
+    website: 'https://greenparty.org.uk',
+    wikipedia: 'Green Party of England and Wales',
+  },
+  // Broad left alliances where the greens are only a minority partner. Included
+  // (per product decision) but flagged so the map hatches them instead of
+  // coloring them as pure green strength.
+  {
+    countryCode: 'fr',
+    countryName: 'Frankreich',
+    partyShort: 'NFP',
+    partyLabel: 'Nouveau Front populaire',
+    note: 'Bündniswert — Grüne (Les Écologistes) mit Sozialdemokraten & Linken im NFP',
+    broadAlliance: true,
+    website: 'https://www.lesecologistes.fr',
+    wikipedia: 'Les Écologistes',
+  },
+  {
+    countryCode: 'es',
+    countryName: 'Spanien',
+    partyShort: 'Sumar',
+    partyLabel: 'Sumar',
+    note: 'Bündniswert — Grüne (Verdes Equo) in der Sumar-Plattform',
+    broadAlliance: true,
+    website: 'https://sumar.es',
+    wikipedia: 'Sumar (Wahlplattform)',
+  },
 ];
 
 export async function getEuGreens(): Promise<EuGreensData | null> {
@@ -516,6 +566,7 @@ export async function getEuGreens(): Promise<EuGreensData | null> {
         electionDiff: party.election_diff != null ? round1(party.election_diff) : null,
         date: trendResult.data.poll.date,
         note: entry.note ?? null,
+        ...(entry.broadAlliance ? { broadAlliance: true } : {}),
       };
     })
   );

@@ -111,7 +111,7 @@ async function ocrBufferToDocument(
 
   console.log(`[DocsImport] Created document ${document.id} from ${filename} (${source})`);
 
-  return { documentId: document.id as string, url: `/docs/${document.id}` };
+  return { documentId: document.id as string, url: `/office/${document.id}` };
 }
 
 class OcrImportError extends Error {

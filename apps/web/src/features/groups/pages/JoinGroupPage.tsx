@@ -58,7 +58,7 @@ const JoinGroupPage = () => {
           setPostJoinStatus('already_member');
         } else {
           setPostJoinStatus('success');
-          setTimeout(() => navigate('/profile'), 3000);
+          setTimeout(() => navigate('/gruppen'), 3000);
         }
       },
       onError: () => {
@@ -72,11 +72,11 @@ const JoinGroupPage = () => {
       <div className="flex min-h-[70vh] items-center justify-center p-md">
         <Card className="max-w-[500px] w-full shadow-md">
           <CardHeader>
-            <CardTitle className="text-2xl">Gruppe beitreten</CardTitle>
+            <CardTitle className="text-2xl">Space beitreten</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="mb-lg text-grey-600 dark:text-grey-400">
-              Du musst angemeldet sein, um einer Gruppe beizutreten.
+              Du musst angemeldet sein, um einer Space beizutreten.
             </p>
             <div className="flex justify-end gap-sm">
               <Button asChild>
@@ -114,12 +114,12 @@ const JoinGroupPage = () => {
           <CardContent>
             <p className="mb-lg text-grey-600 dark:text-grey-400">
               {isJoinGroupError && joinGroupError
-                ? `Fehler beim Beitreten der Gruppe: ${joinGroupError.message}`
+                ? `Fehler beim Beitreten der Space: ${joinGroupError.message}`
                 : 'Ungültiger oder abgelaufener Einladungslink.'}
             </p>
             <div className="flex justify-end gap-sm">
               <Button variant="outline" asChild>
-                <Link to="/profile">Zurück zum Profil</Link>
+                <Link to="/gruppen">Zu deinen Spaces</Link>
               </Button>
             </div>
           </CardContent>
@@ -137,11 +137,11 @@ const JoinGroupPage = () => {
           </CardHeader>
           <CardContent>
             <p className="mb-lg text-grey-600 dark:text-grey-400">
-              Du bist bereits Mitglied der Gruppe &quot;{groupName}&quot;.
+              Du bist bereits Mitglied der Space &quot;{groupName}&quot;.
             </p>
             <div className="flex justify-end gap-sm">
               <Button asChild>
-                <Link to="/profile">Zum Profil</Link>
+                <Link to="/gruppen">Zu deinen Spaces</Link>
               </Button>
             </div>
           </CardContent>
@@ -159,14 +159,14 @@ const JoinGroupPage = () => {
           </CardHeader>
           <CardContent>
             <p className="mb-sm text-grey-600 dark:text-grey-400">
-              Du bist der Gruppe &quot;{groupName}&quot; erfolgreich beigetreten.
+              Du bist der Space &quot;{groupName}&quot; erfolgreich beigetreten.
             </p>
             <p className="mb-lg text-sm text-grey-500">
               Du wirst in wenigen Sekunden weitergeleitet...
             </p>
             <div className="flex justify-end gap-sm">
               <Button asChild>
-                <Link to="/profile">Zum Profil</Link>
+                <Link to="/gruppen">Zu deinen Spaces</Link>
               </Button>
             </div>
           </CardContent>
@@ -179,17 +179,17 @@ const JoinGroupPage = () => {
     <div className="flex min-h-[70vh] items-center justify-center p-md">
       <Card className="max-w-[500px] w-full shadow-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Gruppe beitreten</CardTitle>
+          <CardTitle className="text-2xl">Space beitreten</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-sm text-grey-600 dark:text-grey-400">
-            Du wurdest eingeladen, der Gruppe &quot;{groupName}&quot; beizutreten.
+            Du wurdest eingeladen, der Space &quot;{groupName}&quot; beizutreten.
           </p>
           <p className="mb-lg text-sm text-grey-500">
             Als Mitglied kannst du auf gemeinsame Anweisungen und Wissen zugreifen.
           </p>
           <div className="flex justify-end gap-sm">
-            <Button variant="outline" onClick={() => navigate('/profile')} type="button">
+            <Button variant="outline" onClick={() => navigate('/gruppen')} type="button">
               Abbrechen
             </Button>
             <Button onClick={handleJoin} disabled={isJoiningGroup} type="button">

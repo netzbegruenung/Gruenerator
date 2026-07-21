@@ -3,6 +3,8 @@
  * Uses Better Auth sessions (cookie or bearer token)
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { userProfileSchema, type UserProfile } from '@gruenerator/contracts';
 import { fromNodeHeaders } from 'better-auth/node';
 import { type Request, type Response, type NextFunction } from 'express';
@@ -39,7 +41,6 @@ const DEV_BYPASS_USER: Express.User = {
   interactive_antrag_enabled: false,
   vorlagen: false,
   video_editor: false,
-  wordpress_enabled: true,
   created_at: new Date(),
   updated_at: new Date(),
 };
@@ -94,17 +95,97 @@ export function toBetterAuthUser(user: BetterAuthUser): UserProfile {
 }
 
 /**
- * Returned by `tryResolveUser` when the auth backend (Postgres/Redis) failed
- * while resolving the session — as opposed to `null`, which means "no valid
- * session". The distinction matters: an infra hiccup must surface as 503, not
- * 401, or the frontend treats a logged-in user as logged out and forces a
- * re-login (observed in production as sporadic forced logouts).
+ * Classification of a session-resolution attempt. Replaces the old
+ * `Express.User | null | typeof AUTH_UNAVAILABLE` return so the null case
+ * carries WHY it was null — the single most useful signal for diagnosing the
+ * "half logged in" bug:
+ *   - `no_cookie`         — no `ba.session_token` cookie / bearer at all. The
+ *                           steady-state logged-out path (debug-level noise).
+ *   - `session_not_found` — a session token WAS presented but getSession
+ *                           returned nothing → expired / revoked / row gone.
+ *                           The smoking-gun case (warn-level).
  */
-const AUTH_UNAVAILABLE = Symbol('auth-unavailable');
+type ResolveResult =
+  | { kind: 'user'; user: Express.User }
+  | {
+      kind: 'none';
+      reason: 'no_cookie' | 'session_not_found';
+      tokenPrefix?: string | undefined;
+      sessionDataPresent: boolean;
+    }
+  | { kind: 'unavailable' };
 
-async function tryResolveUser(
-  req: Request
-): Promise<Express.User | null | typeof AUTH_UNAVAILABLE> {
+/**
+ * Cookie-based session-token classification, robust to the `__Secure-` prefix
+ * production adds (the secure name contains the base name as a substring).
+ * Returns the 8-char token prefix — the SAME 8 chars the `session-created`
+ * hook logs — so a single `grep token=<8>` reconstructs a session's lifecycle.
+ */
+function classifySessionCookies(cookieHeader: string | undefined): {
+  hasSessionToken: boolean;
+  tokenPrefix?: string | undefined;
+  sessionDataPresent: boolean;
+} {
+  if (!cookieHeader) return { hasSessionToken: false, sessionDataPresent: false };
+  const pairs = cookieHeader.split(';').map((c) => c.trim());
+  let tokenPrefix: string | undefined;
+  let hasSessionToken = false;
+  let sessionDataPresent = false;
+  for (const pair of pairs) {
+    const eq = pair.indexOf('=');
+    if (eq === -1) continue;
+    const name = pair.slice(0, eq);
+    const value = pair.slice(eq + 1);
+    if (name.includes('ba.session_token')) {
+      hasSessionToken = true;
+      try {
+        tokenPrefix = decodeURIComponent(value).split('.')[0]?.slice(0, 8);
+      } catch {
+        // Malformed cookie value — leave prefix undefined.
+      }
+    } else if (name.includes('ba.session_data')) {
+      sessionDataPresent = true;
+    }
+  }
+  return { hasSessionToken, tokenPrefix, sessionDataPresent };
+}
+
+// Debounce the `[Session] resolve-null-with-token` warn line PER TOKEN PREFIX
+// (not per route): one dying browser firing 10 parallel queries collapses to
+// one line/30s, but two DIFFERENT dying sessions both stay visible (a per-route
+// debounce would hide the second user entirely).
+const RESOLVE_NULL_DEBOUNCE_MS = 30_000;
+const lastResolveNullLogAt = new Map<string, number>();
+
+function maybeLogResolveNull(tokenPrefix: string, path: string, sessionDataPresent: boolean): void {
+  const now = Date.now();
+  const last = lastResolveNullLogAt.get(tokenPrefix) ?? 0;
+  if (now - last < RESOLVE_NULL_DEBOUNCE_MS) return;
+  lastResolveNullLogAt.set(tokenPrefix, now);
+  // The smoking gun: a session token was presented but resolved to null →
+  // expired / revoked / row-gone. `session_data_cookie=present` alongside this
+  // flags the cookie-cache-divergence window.
+  log.warn(
+    '[Session] resolve-null-with-token token=%s path=%s session_data_cookie=%s',
+    tokenPrefix,
+    path,
+    sessionDataPresent ? 'present' : 'absent'
+  );
+  const cutoff = now - RESOLVE_NULL_DEBOUNCE_MS * 2;
+  for (const [k, t] of lastResolveNullLogAt) {
+    if (t < cutoff) lastResolveNullLogAt.delete(k);
+  }
+}
+
+/**
+ * Returned by `tryResolveUser` (via {@link ResolveResult} kind `'unavailable'`)
+ * when the auth backend (Postgres/Redis) failed while resolving the session —
+ * as opposed to a genuine "no valid session". The distinction matters: an infra
+ * hiccup must surface as 503, not 401, or the frontend treats a logged-in user
+ * as logged out and forces a re-login (observed in production as sporadic
+ * forced logouts).
+ */
+async function tryResolveUser(req: Request): Promise<ResolveResult> {
   if (
     env.NODE_ENV === 'development' &&
     env.ALLOW_DEV_AUTH_BYPASS &&
@@ -112,9 +193,13 @@ async function tryResolveUser(
   ) {
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
     if (bypassToken && bypassToken === env.DEV_AUTH_BYPASS_TOKEN) {
-      return DEV_BYPASS_USER;
+      return { kind: 'user', user: DEV_BYPASS_USER };
     }
   }
+
+  const cookies = classifySessionCookies(req.headers.cookie);
+  // A bearer token (mobile/desktop) counts as a presented credential too.
+  const hasCredential = cookies.hasSessionToken || req.headers.authorization != null;
 
   try {
     const session = await auth.api.getSession({
@@ -122,31 +207,40 @@ async function tryResolveUser(
     });
     if (session?.user) {
       log.debug(
-        '[Auth] Session resolved: user_id=%s, email=%s, url=%s',
+        '[Session] resolved user_id=%s email=%s url=%s',
         session.user.id,
         session.user.email,
         req.originalUrl
       );
-      return toBetterAuthUser(session.user);
+      return { kind: 'user', user: toBetterAuthUser(session.user) };
     }
-    // No session was returned (no cookie / expired / no Bearer token).
-    // This is the common "user not logged in" path; log at debug to avoid noise.
-    log.debug(
-      '[Auth] No session for %s (cookie=%s, authorization=%s)',
-      req.originalUrl,
-      req.headers.cookie ? 'present' : 'absent',
-      req.headers.authorization ? 'present' : 'absent'
-    );
+    const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
+    if (hasCredential) {
+      // Credential presented but no session resolved → expired / revoked.
+      if (cookies.tokenPrefix) {
+        maybeLogResolveNull(cookies.tokenPrefix, path, cookies.sessionDataPresent);
+      } else {
+        // Bearer-only (mobile/desktop): no cookie token prefix to key on.
+        log.warn('[Session] resolve-null-with-token token=bearer path=%s', path);
+      }
+      return {
+        kind: 'none',
+        reason: 'session_not_found',
+        tokenPrefix: cookies.tokenPrefix,
+        sessionDataPresent: cookies.sessionDataPresent,
+      };
+    }
+    // No credential at all — the common logged-out path; debug to avoid noise.
+    log.debug('[Session] resolve-null reason=no_cookie path=%s', path);
+    return { kind: 'none', reason: 'no_cookie', sessionDataPresent: cookies.sessionDataPresent };
   } catch (err) {
     // Silent-catch boundary: this never reaches Express's error middleware,
     // so Sentry's `setupExpressErrorHandler` would never see it. Capture
     // explicitly to surface session-resolution failures (DB errors, Redis
     // outages, malformed cookies) that would otherwise be invisible.
     captureAuthIssue({ stage: 'session-resolve', cause: err, req });
-    return AUTH_UNAVAILABLE;
+    return { kind: 'unavailable' };
   }
-
-  return null;
 }
 
 // Per-route debounce for the [Auth] 401 log line. When a tab is left open
@@ -161,7 +255,13 @@ async function tryResolveUser(
 const LOG_401_DEBOUNCE_MS = 60_000;
 const last401LogAt = new Map<string, number>();
 
-function maybeLog401Once(method: string, originalUrl: string): void {
+function maybeLog401Once(
+  method: string,
+  originalUrl: string,
+  reason: string,
+  requestId: string,
+  tokenPrefix?: string
+): void {
   // Strip query string so `?foo=1` and `?foo=2` debounce together.
   const path = originalUrl.split('?')[0] ?? originalUrl;
   const key = `${method} ${path}`;
@@ -170,7 +270,14 @@ function maybeLog401Once(method: string, originalUrl: string): void {
   if (now - last < LOG_401_DEBOUNCE_MS) return;
 
   last401LogAt.set(key, now);
-  console.warn('[Auth] 401 %s %s', method, path);
+  log.warn(
+    '[Session] 401 %s %s reason=%s token=%s req=%s',
+    method,
+    path,
+    reason,
+    tokenPrefix ?? '-',
+    requestId
+  );
 
   // Lazy prune: drop entries older than 2× the debounce window so the Map
   // can't grow unbounded if a long-running process sees a wide variety of
@@ -193,31 +300,50 @@ async function requireAuth(req: Request, res: Response, next: NextFunction): Pro
     return;
   }
 
-  const user = await tryResolveUser(req);
-  if (user === AUTH_UNAVAILABLE) {
+  const resolved = await tryResolveUser(req);
+  if (resolved.kind === 'unavailable') {
     // Auth backend failure, not a dead session — 503 instead of 401 so the
     // client neither wipes its auth state nor redirects to login. No
     // /auth/login redirect in the HTML branch either: that bounce is exactly
     // what forces an unnecessary re-login.
+    const requestId = randomUUID().slice(0, 8);
+    res.setHeader('X-Request-Id', requestId);
     res.status(503).json({
       error: 'auth_unavailable',
+      code: 'auth_unavailable',
+      requestId,
       message: 'Anmeldedienst vorübergehend nicht erreichbar',
     });
     return;
   }
-  if (user) {
-    req.user = user;
+  if (resolved.kind === 'user') {
+    req.user = resolved.user;
     return next();
   }
+
+  // No valid session. `code` distinguishes "never sent a credential"
+  // (definitively logged out) from "credential presented but not found"
+  // (expired/revoked — could be mid-rotation). Frontend uses it as a hint.
+  const code = resolved.reason === 'no_cookie' ? 'no_session_cookie' : 'session_not_found';
+  const requestId = randomUUID().slice(0, 8);
+  res.setHeader('X-Request-Id', requestId);
 
   if (
     req.headers['content-type'] === 'application/json' ||
     req.headers.accept === 'application/json' ||
     req.originalUrl.startsWith('/api/')
   ) {
-    maybeLog401Once(req.method, req.originalUrl);
+    // The human-facing warn is debounced per-route/60s (anti-flood), so only
+    // the first 401's requestId lands in it. Emit every requestId at debug so
+    // that with LOG_LEVEL=debug during an incident, EACH client-visible
+    // requestId is greppable in the backend log (the token prefix remains the
+    // reliable spine at info level).
+    log.debug('[Session] 401 req=%s %s %s code=%s', requestId, req.method, req.originalUrl, code);
+    maybeLog401Once(req.method, req.originalUrl, code, requestId, resolved.tokenPrefix);
     res.status(401).json({
       error: 'Authentication required',
+      code,
+      requestId,
       redirectUrl: '/auth/login',
     });
     return;
@@ -240,14 +366,33 @@ async function optionalAuth(req: Request, _res: Response, next: NextFunction): P
     return next();
   }
 
-  const user = await tryResolveUser(req);
-  // AUTH_UNAVAILABLE degrades to the guest view here instead of failing the
-  // whole request: optional-auth routes serve public content, and a logged-in
-  // user transiently seeing the guest variant beats a hard 503 on it.
-  if (user && user !== AUTH_UNAVAILABLE) {
-    req.user = user;
+  const resolved = await tryResolveUser(req);
+  // 'unavailable' degrades to the guest view here instead of failing the whole
+  // request: optional-auth routes serve public content, and a logged-in user
+  // transiently seeing the guest variant beats a hard 503 on it.
+  if (resolved.kind === 'user') {
+    req.user = resolved.user;
+  } else if (resolved.kind === 'none' && resolved.reason === 'session_not_found') {
+    // A user who presented a (dead) credential is being silently served the
+    // guest variant — itself a half-logged-in contributor. Surface it,
+    // debounced per token prefix via the same map as the 401 path.
+    maybeLogOptionalDegraded(req, resolved.tokenPrefix);
   }
   return next();
+}
+
+function maybeLogOptionalDegraded(req: Request, tokenPrefix?: string): void {
+  const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
+  const key = tokenPrefix ?? 'bearer';
+  const now = Date.now();
+  const last = lastResolveNullLogAt.get(`opt:${key}`) ?? 0;
+  if (now - last < RESOLVE_NULL_DEBOUNCE_MS) return;
+  lastResolveNullLogAt.set(`opt:${key}`, now);
+  log.info('[Session] optional-auth-degraded path=%s token=%s', path, tokenPrefix ?? '-');
+  const cutoff = now - RESOLVE_NULL_DEBOUNCE_MS * 2;
+  for (const [k, t] of lastResolveNullLogAt) {
+    if (t < cutoff) lastResolveNullLogAt.delete(k);
+  }
 }
 
 /**

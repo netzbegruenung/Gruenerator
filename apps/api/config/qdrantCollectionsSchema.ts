@@ -461,6 +461,18 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'memory_text', type: 'text' },
     ],
   },
+  // One point per chat thread (title + tags + first message + compaction
+  // summary) for semantic recall of the user's own past conversations.
+  chat_thread_recall: {
+    name: 'chat_thread_recall',
+    optimizer: 'small',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'user_id', type: 'keywordTenant' },
+      { field: 'thread_id', type: 'keyword' },
+      { field: 'thread_type', type: 'keyword' },
+    ],
+  },
 };
 
 // =============================================================================

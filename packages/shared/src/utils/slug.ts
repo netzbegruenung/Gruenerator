@@ -81,6 +81,15 @@ export function buildGroupSlug(name: string, suffix: string): string {
 }
 
 /**
+ * Chat-thread variant of {@link buildNotebookSlug}: `<slugified-title>-<suffix>`
+ * with a "chat" fallback for untitled threads. Resolution reuses the shared
+ * {@link extractSlugSuffix}.
+ */
+export function buildChatThreadSlug(title: string | null, suffix: string): string {
+  return `${slugifyName(title ?? '', 'chat')}-${suffix}`;
+}
+
+/**
  * Pull the stable 6-char suffix back out of a slug. Returns null if the
  * input does not end in `-<6 alphabet chars>`. Callers should fall back
  * to UUID-style lookup when this returns null.

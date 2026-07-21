@@ -16,7 +16,7 @@
     0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="dark"] .blocknote-wrapper {
+[data-theme='dark'] .blocknote-wrapper {
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.3),
     0 1px 2px rgba(0, 0, 0, 0.2);
@@ -65,7 +65,7 @@
   --bn-colors-tooltip-background: var(--grey-800, #1f2937);
   --bn-colors-tooltip-text: var(--white, #ffffff);
   --bn-colors-hovered-background: var(--grey-100, #f3f4f6);
-  --bn-colors-selected-background: var(--secondary-100, #D5E1DC);
+  --bn-colors-selected-background: var(--secondary-100, #d5e1dc);
   --bn-colors-disabled-background: var(--grey-200, #e5e7eb);
   --bn-colors-disabled-text: var(--grey-400, #9ca3af);
   --bn-colors-shadow: rgba(0, 0, 0, 0.1);
@@ -76,7 +76,7 @@
   --bn-colors-highlights-red-background: #fee2e2;
   --bn-colors-highlights-orange-background: #ffedd5;
   --bn-colors-highlights-yellow-background: #fef9c3;
-  --bn-colors-highlights-green-background: var(--secondary-100, #D5E1DC);
+  --bn-colors-highlights-green-background: var(--secondary-100, #d5e1dc);
   --bn-colors-highlights-blue-background: #dbeafe;
   --bn-colors-highlights-purple-background: #f3e8ff;
   --bn-colors-highlights-pink-background: #fce7f3;
@@ -85,7 +85,7 @@
   --bn-colors-highlights-red-text: #dc2626;
   --bn-colors-highlights-orange-text: #ea580c;
   --bn-colors-highlights-yellow-text: #ca8a04;
-  --bn-colors-highlights-green-text: var(--secondary-700, #445F54);
+  --bn-colors-highlights-green-text: var(--secondary-700, #445f54);
   --bn-colors-highlights-blue-text: #2563eb;
   --bn-colors-highlights-purple-text: #9333ea;
   --bn-colors-highlights-pink-text: #db2777;
@@ -94,13 +94,13 @@
 }
 
 /* Dark mode support */
-[data-theme="dark"] .bn-root {
+[data-theme='dark'] .bn-root {
   --bn-colors-editor-background: var(--background-color, #1f2937);
   --bn-colors-editor-text: var(--font-color, #f9fafb);
   --bn-colors-menu-background: var(--grey-800, #1f2937);
   --bn-colors-menu-text: var(--font-color, #f9fafb);
   --bn-colors-hovered-background: var(--grey-700, #374151);
-  --bn-colors-selected-background: var(--secondary-800, #31453C);
+  --bn-colors-selected-background: var(--secondary-800, #31453c);
   --bn-colors-disabled-background: var(--grey-700, #374151);
   --bn-colors-disabled-text: var(--grey-500, #6b7280);
   --bn-colors-highlights-gray-background: var(--grey-700, #374151);
@@ -116,7 +116,7 @@
   border: 1px solid var(--grey-200, #e5e7eb);
 }
 
-[data-theme="dark"] .bn-formatting-toolbar {
+[data-theme='dark'] .bn-formatting-toolbar {
   border-color: var(--grey-600, #4b5563);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
@@ -130,7 +130,6 @@
 .bn-side-menu:hover {
   opacity: 1;
 }
-
 
 /* Static formatting toolbar — overlays document like Google Docs / Word */
 .blocknote-static-toolbar {
@@ -158,7 +157,7 @@
   justify-content: center;
 }
 
-[data-theme="dark"] .blocknote-static-toolbar .bn-formatting-toolbar {
+[data-theme='dark'] .blocknote-static-toolbar .bn-formatting-toolbar {
   border-bottom-color: var(--grey-700, #374151);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   background: var(--grey-900, #111827);
@@ -183,7 +182,9 @@
     border-radius: 0;
     z-index: 50;
     background: var(--grey-100, #f3f4f6);
-    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+    transition:
+      opacity 0.15s ease-out,
+      transform 0.15s ease-out;
     touch-action: pan-x;
     opacity: 0;
     transform: translateY(100%);
@@ -199,7 +200,7 @@
     pointer-events: auto;
   }
 
-  [data-theme="dark"] .blocknote-static-toolbar .bn-formatting-toolbar {
+  [data-theme='dark'] .blocknote-static-toolbar .bn-formatting-toolbar {
     border-top-color: var(--grey-700, #374151);
     box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.2);
     background: var(--grey-900, #111827);
@@ -209,7 +210,6 @@
 .blocknote-static-toolbar .bn-suggestion-menu {
   max-height: 30dvh;
 }
-
 
 /* Link toolbar */
 .bn-link-toolbar {
@@ -230,41 +230,41 @@
 }
 
 /* Heading styles */
-.bn-block-content[data-content-type="heading"] {
+.bn-block-content[data-content-type='heading'] {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
   font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
 }
 
-.bn-block-content[data-content-type="heading"][data-level="1"] {
+.bn-block-content[data-content-type='heading'][data-level='1'] {
   font-size: 2em;
   font-weight: 700;
 }
 
-.bn-block-content[data-content-type="heading"][data-level="2"] {
+.bn-block-content[data-content-type='heading'][data-level='2'] {
   font-size: 1.5em;
   font-weight: 600;
 }
 
-.bn-block-content[data-content-type="heading"][data-level="3"] {
+.bn-block-content[data-content-type='heading'][data-level='3'] {
   font-size: 1.25em;
   font-weight: 600;
 }
 
 /* Paragraph styles */
-.bn-block-content[data-content-type="paragraph"] {
+.bn-block-content[data-content-type='paragraph'] {
   line-height: 1.6;
   margin-bottom: 0.5em;
 }
 
 /* List styles */
-.bn-block-content[data-content-type="bulletListItem"],
-.bn-block-content[data-content-type="numberedListItem"] {
+.bn-block-content[data-content-type='bulletListItem'],
+.bn-block-content[data-content-type='numberedListItem'] {
   line-height: 1.5;
 }
 
 /* Checklist — custom checkbox following suitenumerique-docs pattern */
-.bn-block-content[data-content-type="checkListItem"] > div > input {
+.bn-block-content[data-content-type='checkListItem'] > div > input {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
@@ -278,16 +278,18 @@
   margin-top: 3px;
   margin-right: 8px;
   background: transparent;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.bn-block-content[data-content-type="checkListItem"] > div > input:checked {
-  background-color: var(--secondary-500, #6A9583);
-  border-color: var(--secondary-500, #6A9583);
+.bn-block-content[data-content-type='checkListItem'] > div > input:checked {
+  background-color: var(--secondary-500, #6a9583);
+  border-color: var(--secondary-500, #6a9583);
 }
 
-.bn-block-content[data-content-type="checkListItem"] > div > input:checked::after {
-  content: "";
+.bn-block-content[data-content-type='checkListItem'] > div > input:checked::after {
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -298,17 +300,17 @@
   transform: translate(-50%, -60%) rotate(45deg);
 }
 
-[data-theme="dark"] .bn-block-content[data-content-type="checkListItem"] > div > input {
+[data-theme='dark'] .bn-block-content[data-content-type='checkListItem'] > div > input {
   border-color: var(--grey-500, #6b7280);
 }
 
-[data-theme="dark"] .bn-block-content[data-content-type="checkListItem"] > div > input:checked {
-  background-color: var(--secondary-400, #8AB5A0);
-  border-color: var(--secondary-400, #8AB5A0);
+[data-theme='dark'] .bn-block-content[data-content-type='checkListItem'] > div > input:checked {
+  background-color: var(--secondary-400, #8ab5a0);
+  border-color: var(--secondary-400, #8ab5a0);
 }
 
 /* Code block */
-.bn-block-content[data-content-type="codeBlock"] {
+.bn-block-content[data-content-type='codeBlock'] {
   background-color: var(--grey-100, #f3f4f6);
   border-radius: 6px;
   padding: 1rem;
@@ -317,57 +319,57 @@
   overflow-x: auto;
 }
 
-[data-theme="dark"] .bn-block-content[data-content-type="codeBlock"] {
+[data-theme='dark'] .bn-block-content[data-content-type='codeBlock'] {
   background-color: var(--grey-800, #1f2937);
 }
 
 /* Image block */
-.bn-block-content[data-content-type="image"] {
+.bn-block-content[data-content-type='image'] {
   margin: 1rem 0;
 }
 
-.bn-block-content[data-content-type="image"] img {
+.bn-block-content[data-content-type='image'] img {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
 }
 
 /* Table styles */
-.bn-block-content[data-content-type="table"] {
+.bn-block-content[data-content-type='table'] {
   margin: 1rem 0;
   overflow-x: auto;
 }
 
-.bn-block-content[data-content-type="table"] table {
+.bn-block-content[data-content-type='table'] table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.bn-block-content[data-content-type="table"] th,
-.bn-block-content[data-content-type="table"] td {
+.bn-block-content[data-content-type='table'] th,
+.bn-block-content[data-content-type='table'] td {
   border: 1px solid var(--grey-300, #d1d5db);
   padding: 0.5rem;
 }
 
-[data-theme="dark"] .bn-block-content[data-content-type="table"] th,
-[data-theme="dark"] .bn-block-content[data-content-type="table"] td {
+[data-theme='dark'] .bn-block-content[data-content-type='table'] th,
+[data-theme='dark'] .bn-block-content[data-content-type='table'] td {
   border-color: var(--grey-600, #4b5563);
 }
 
 /* Blockquote */
-.bn-block-content[data-content-type="paragraph"][data-text-alignment] {
+.bn-block-content[data-content-type='paragraph'][data-text-alignment] {
   padding-left: 1rem;
-  border-left: 3px solid var(--secondary-500, #6A9583);
+  border-left: 3px solid var(--secondary-500, #6a9583);
   font-style: italic;
   color: var(--grey-600, #4b5563);
 }
 
-[data-theme="dark"] .bn-block-content[data-content-type="paragraph"][data-text-alignment] {
+[data-theme='dark'] .bn-block-content[data-content-type='paragraph'][data-text-alignment] {
   color: var(--grey-400, #9ca3af);
 }
 
 /* Placeholder text */
-.bn-block-content[data-content-type="paragraph"].bn-is-empty::before {
+.bn-block-content[data-content-type='paragraph'].bn-is-empty::before {
   color: var(--grey-400, #9ca3af);
   content: attr(data-placeholder);
   pointer-events: none;
@@ -384,7 +386,7 @@
   color: var(--font-color, #1a1a1a);
 }
 
-[data-theme="dark"] .bn-thread {
+[data-theme='dark'] .bn-thread {
   background: var(--grey-800, #1f2937);
   color: var(--grey-100, #f3f4f6);
 }
@@ -393,18 +395,20 @@
 .comments-portal-content .bn-thread {
   margin-bottom: 0.75rem;
   border: 1px solid var(--grey-200, #e5e7eb);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .comments-portal-content .bn-thread:hover {
   border-color: var(--grey-300, #d1d5db);
 }
 
-[data-theme="dark"] .comments-portal-content .bn-thread {
+[data-theme='dark'] .comments-portal-content .bn-thread {
   border-color: var(--grey-700, #374151);
 }
 
-[data-theme="dark"] .comments-portal-content .bn-thread:hover {
+[data-theme='dark'] .comments-portal-content .bn-thread:hover {
   border-color: var(--grey-600, #4b5563);
 }
 
@@ -419,7 +423,7 @@
   padding-bottom: 0.75rem;
 }
 
-[data-theme="dark"] .bn-comment:not(:last-child) {
+[data-theme='dark'] .bn-comment:not(:last-child) {
   border-color: var(--grey-700, #374151);
 }
 
@@ -445,7 +449,7 @@
   color: var(--grey-800, #1f2937);
 }
 
-[data-theme="dark"] .bn-comment-author-name {
+[data-theme='dark'] .bn-comment-author-name {
   color: var(--grey-200, #e5e7eb);
 }
 
@@ -462,7 +466,7 @@
   color: var(--grey-700, #374151);
 }
 
-[data-theme="dark"] .bn-comment-content {
+[data-theme='dark'] .bn-comment-content {
   color: var(--grey-300, #d1d5db);
 }
 
@@ -478,11 +482,11 @@
   background-color: rgba(255, 214, 0, 0.4);
 }
 
-[data-theme="dark"] .bn-inline-comment-mark {
+[data-theme='dark'] .bn-inline-comment-mark {
   background-color: rgba(255, 214, 0, 0.15);
 }
 
-[data-theme="dark"] .bn-inline-comment-mark:hover {
+[data-theme='dark'] .bn-inline-comment-mark:hover {
   background-color: rgba(255, 214, 0, 0.25);
 }
 
@@ -491,18 +495,17 @@
   background-color: rgba(255, 214, 0, 0.4);
 }
 
-[data-theme="dark"] .bn-inline-comment-mark--selected {
+[data-theme='dark'] .bn-inline-comment-mark--selected {
   background-color: rgba(255, 214, 0, 0.3);
 }
-
 
 /* ============================================
    @Mention Badge Styles
    ============================================ */
 
 .bn-mention {
-  background-color: var(--secondary-100, #D5E1DC);
-  color: var(--secondary-800, #31453C);
+  background-color: var(--secondary-100, #d5e1dc);
+  color: var(--secondary-800, #31453c);
   padding: 1px 4px;
   border-radius: 4px;
   font-weight: 500;
@@ -510,8 +513,68 @@
   cursor: default;
 }
 
-[data-theme="dark"] .bn-mention {
-  background-color: var(--secondary-800, #31453C);
-  color: var(--secondary-200, #B5CEC3);
+[data-theme='dark'] .bn-mention {
+  background-color: var(--secondary-800, #31453c);
+  color: var(--secondary-200, #b5cec3);
 }
 
+/* Track changes (Änderungsmodus) — insertion/deletion suggestion marks.
+   Override xl-ai's global ins/del styling (its AI-review blue). `--suggest-color`
+   is set per author by the suggestion decorations plugin; the green/red values
+   are the fallback for not-yet-attributed marks. Kind is conveyed by underline
+   vs. strikethrough, so per-author color works for both (Word semantics). */
+.blocknote-editor-content ins[data-id] {
+  color: var(--suggest-color, var(--primary-700, #1a7f37));
+  background-color: rgba(26, 127, 55, 0.1);
+  text-decoration: underline;
+  text-decoration-color: var(--suggest-color, var(--primary-700, #1a7f37));
+  text-decoration-thickness: 1px;
+}
+
+.blocknote-editor-content del[data-id] {
+  color: var(--suggest-color, #c0392b);
+  background-color: rgba(192, 57, 43, 0.08);
+  text-decoration: line-through;
+  text-decoration-color: var(--suggest-color, #c0392b);
+}
+
+.blocknote-editor-content ins[data-id][data-inline='false'] {
+  display: block;
+  border-left: 3px solid var(--suggest-color, var(--primary-600, #268758));
+  padding-left: 8px;
+}
+
+.blocknote-editor-content del[data-id][data-inline='false'] {
+  display: block;
+  border-left: 3px solid var(--suggest-color, #c0392b);
+  padding-left: 8px;
+}
+
+.blocknote-editor-content [data-type='modification'][data-id] {
+  background-color: rgba(217, 164, 6, 0.14);
+  border-radius: 2px;
+}
+
+/* Whole-block insertion / deletion (every child marked) — from node decorations. */
+.blocknote-editor-content [data-node-insertion='true'] {
+  border-left: 3px solid var(--primary-600, #268758);
+  padding-left: 8px;
+}
+
+.blocknote-editor-content [data-node-deletion='true'] {
+  border-left: 3px solid #c0392b;
+  padding-left: 8px;
+  opacity: 0.7;
+}
+
+[data-theme='dark'] .blocknote-editor-content ins[data-id] {
+  color: var(--suggest-color, #4ade80);
+  background-color: rgba(74, 222, 128, 0.12);
+  text-decoration-color: var(--suggest-color, #4ade80);
+}
+
+[data-theme='dark'] .blocknote-editor-content del[data-id] {
+  color: var(--suggest-color, #f87171);
+  background-color: rgba(248, 113, 113, 0.12);
+  text-decoration-color: var(--suggest-color, #f87171);
+}

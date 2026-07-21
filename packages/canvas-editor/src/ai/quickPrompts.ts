@@ -69,26 +69,6 @@ const PROMPTS_BY_TEMPLATE: Record<string, string[]> = {
     'Wechsle zum sand-tanne Farbschema.',
     'Untertext informativer formulieren.',
   ],
-  'pres-title': [
-    'Titel prägnanter formulieren.',
-    'Untertitel als kurze Erläuterung.',
-    'Wechsle in den Dunkel-Modus.',
-    'Genderstern einbauen.',
-    'Hoffnungsvoller Ton.',
-  ],
-  'pres-image': [
-    'Titel auf das Bildmotiv beziehen.',
-    'Untertitel als kurzen Kontext.',
-    'Wechsle in den Hell-Modus.',
-    'Genderstern einbauen.',
-  ],
-  'pres-content': [
-    'Titel zentral und prägnant formulieren.',
-    'Inhalt in stichpunktartiger Form aufbereiten.',
-    'Zweite Spalte zur Vertiefung nutzen.',
-    'Wechsle in den Dunkel-Modus.',
-    'Genderstern einbauen.',
-  ],
 };
 
 const FALLBACK_POOL = SHARED_PROMPTS;

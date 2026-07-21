@@ -30,6 +30,7 @@ export function usePageRefs(pagesLength: number): PageRefs {
   while (canvasRefsRef.current.length < pagesLength) {
     canvasRefsRef.current.push(React.createRef<GenericCanvasRef>());
   }
+  canvasRefsRef.current.length = pagesLength;
 
   // DOM refs to each PageWrapper root — used for IntersectionObserver scroll tracking
   // and scroll-into-view from the thumbnail strip.

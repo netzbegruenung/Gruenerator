@@ -40,6 +40,8 @@ export interface FilterableField<F extends FilterableFieldName = FilterableField
   label: string;
   type: 'keyword' | 'date_range';
   valueLabels?: ValueLabelsFor<F>;
+  // Backend-only facet (themes/persons): in the notebook UI, out of the MCP catalog.
+  mcpHidden?: boolean;
 }
 
 export interface DefaultFilter {
@@ -49,6 +51,9 @@ export interface DefaultFilter {
 
 export interface SystemCollectionConfig {
   id: string;
+  // Chat-facing key (e.g. `bayern`) COLLECTION_MAP derives from; distinct from
+  // the `-system` id, which is the wire contract for notebook filters + embed.
+  key: string;
   qdrantCollection: string;
   name: string;
   description: string;
@@ -56,6 +61,11 @@ export interface SystemCollectionConfig {
   recallLimit: number;
   filterableFields: FilterableField[];
   defaultFilter?: DefaultFilter; // Auto-applied filter for this collection view
+  country?: 'DE' | 'AT';
+  includeInDefaultSearch?: boolean;
+  mcpExposed: boolean;
+  // Agent-only: never in galleries, the MCP catalog, or "search all" sweeps.
+  agentOnly?: boolean;
 }
 
 export interface SearchParams {
@@ -169,17 +179,23 @@ const THEMES_FIELD: FilterableField<'themes'> = {
   label: 'Thema',
   type: 'keyword',
   valueLabels: TOPIC_NAMES,
+  mcpHidden: true,
 };
 
 const PERSONS_FIELD: FilterableField<'persons'> = {
   field: 'persons',
   label: 'Person',
   type: 'keyword',
+  mcpHidden: true,
 };
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'grundsatz-system': {
     id: 'grundsatz-system',
+    key: 'deutschland',
+    country: 'DE',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'grundsatz_documents',
     name: 'Grüne Grundsatzprogramme',
     description: 'Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025',
@@ -189,6 +205,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'bundestagsfraktion-system': {
     id: 'bundestagsfraktion-system',
+    key: 'bundestagsfraktion',
+    country: 'DE',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'bundestag_content',
     name: 'Grüne Bundestagsfraktion',
     description: 'Fachtexte, Ziele und Positionen von gruene-bundestag.de',
@@ -202,6 +222,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'oesterreich-gruene-system': {
     id: 'oesterreich-gruene-system',
+    key: 'oesterreich',
+    country: 'AT',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'oesterreich_gruene_documents',
     name: 'Die Grünen Österreich',
     description: 'Programme der Grünen – Die Grüne Alternative Österreich',
@@ -211,6 +235,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'abgeordnetenwatch-system': {
     id: 'abgeordnetenwatch-system',
+    key: 'abgeordnetenwatch',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'abgeordnetenwatch_documents',
     name: 'Abgeordnetenwatch',
     description:
@@ -245,6 +273,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'gruene-de-system': {
     id: 'gruene-de-system',
+    key: 'gruene-de',
+    country: 'DE',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'gruene_de_documents',
     name: 'Grüne Deutschland (gruene.de)',
     description: 'Inhalte von gruene.de – Positionen, Themen und Aktuelles',
@@ -258,6 +290,9 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'kommunalwiki-system': {
     id: 'kommunalwiki-system',
+    key: 'kommunalwiki',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'kommunalwiki_documents',
     name: 'KommunalWiki',
     description: 'Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)',
@@ -272,6 +307,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'gruene-at-system': {
     id: 'gruene-at-system',
+    key: 'gruene-at',
+    country: 'AT',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'gruene_at_documents',
     name: 'Grüne Österreich (gruene.at)',
     description: 'Inhalte von gruene.at – Positionen, Themen und Aktuelles',
@@ -285,6 +324,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'gruenblog-system': {
     id: 'gruenblog-system',
+    key: 'gruenblog',
+    country: 'DE',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'gruenblog_documents',
     name: 'Grünblog',
     description: 'Onlinemagazin der Grünen – Artikel zu Wissen, Meinen, Machen',
@@ -297,6 +340,9 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'boell-stiftung-system': {
     id: 'boell-stiftung-system',
+    key: 'boell-stiftung',
+    includeInDefaultSearch: true,
+    mcpExposed: true,
     qdrantCollection: 'boell_stiftung_documents',
     name: 'Heinrich-Böll-Stiftung',
     description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',
@@ -312,6 +358,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'satzungen-system': {
     id: 'satzungen-system',
+    key: 'satzungen',
+    includeInDefaultSearch: false,
+    // Dormant collection — hidden from the public MCP catalog (/api/v1/collections).
+    mcpExposed: false,
     qdrantCollection: 'satzungen_documents',
     name: 'Satzungen',
     description: 'Satzungen der Kreisverbände und Ortsverbände',
@@ -324,6 +374,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'hamburg-system': {
     id: 'hamburg-system',
+    key: 'hamburg',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Hamburg',
     description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
@@ -339,6 +393,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'schleswig-holstein-system': {
     id: 'schleswig-holstein-system',
+    key: 'schleswig-holstein',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
@@ -354,6 +412,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'thueringen-system': {
     id: 'thueringen-system',
+    key: 'thueringen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Thüringen',
     description: 'Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen',
@@ -370,6 +432,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'bayern-system': {
     id: 'bayern-system',
+    key: 'bayern',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Bayern',
     description:
@@ -385,6 +451,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'berlin-system': {
     id: 'berlin-system',
+    key: 'berlin',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Berlin',
     description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin (Landesverband & Fraktion)',
@@ -399,6 +469,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'mecklenburg-vorpommern-system': {
     id: 'mecklenburg-vorpommern-system',
+    key: 'mecklenburg-vorpommern',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Mecklenburg-Vorpommern',
     description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
@@ -415,6 +489,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'brandenburg-system': {
     id: 'brandenburg-system',
+    key: 'brandenburg',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Brandenburg',
     description:
@@ -431,6 +509,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'sachsen-anhalt-system': {
     id: 'sachsen-anhalt-system',
+    key: 'sachsen-anhalt',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Sachsen-Anhalt',
     description:
@@ -446,6 +528,10 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   },
   'hessen-system': {
     id: 'hessen-system',
+    key: 'hessen',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Hessen',
     description: 'Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)',
@@ -458,13 +544,67 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     ],
     defaultFilter: { field: 'landesverband', value: ['HE', 'HE-F'] },
   },
+  'saarland-system': {
+    id: 'saarland-system',
+    key: 'saarland',
+    country: 'DE',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'landesverbaende_documents',
+    name: 'Grüne Saarland',
+    description: 'Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      LV_CONTENT_TYPE_FIELD,
+      { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
+      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      { field: 'published_at', label: 'Datum', type: 'date_range' },
+    ],
+    defaultFilter: { field: 'landesverband', value: 'SL' },
+  },
+  // Previously missing → getSearchParams('examples-system') silently fell back.
+  'examples-system': {
+    id: 'examples-system',
+    key: 'examples',
+    includeInDefaultSearch: false,
+    mcpExposed: true,
+    qdrantCollection: 'social_media_examples',
+    name: 'Social Media Beispiele',
+    description: 'Erfolgreiche Instagram- und Facebook-Posts als Inspiration für eigene Inhalte',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [
+      { field: 'platform', label: 'Plattform', type: 'keyword' },
+      { field: 'country', label: 'Land', type: 'keyword' },
+      { field: 'content_type', label: 'Inhaltstyp', type: 'keyword' },
+    ],
+  },
+  // Agent-only (gruenerator-ricarda-lang). Configured so getSearchParams /
+  // COLLECTION_MAP resolution stops silently falling back.
+  'ricarda-lang-tweets-system': {
+    id: 'ricarda-lang-tweets-system',
+    key: 'ricarda-lang-tweets',
+    includeInDefaultSearch: false,
+    mcpExposed: false,
+    agentOnly: true,
+    qdrantCollection: 'ricarda_lang_tweets',
+    name: 'Ricarda Lang Tweets',
+    description: 'Tweets von Ricarda Lang (nur über den spezialisierten Agenten erreichbar)',
+    minQuality: 0.3,
+    recallLimit: 60,
+    filterableFields: [{ field: 'published_at', label: 'Datum', type: 'date_range' }],
+  },
 };
 
-// Append the NLP-enriched theme + person facets to every in-scope collection.
-// Done here (rather than in each literal) to keep the 18 collection blocks
-// focused on their distinctive filters. Excludes dormant `satzungen-system`.
+// Append the NLP theme + person facets to every NLP-enriched document collection.
+const NLP_INJECTION_EXCLUDED = new Set([
+  'satzungen-system',
+  'examples-system',
+  'ricarda-lang-tweets-system',
+]);
 for (const [id, config] of Object.entries(SYSTEM_COLLECTIONS)) {
-  if (id === 'satzungen-system') continue;
+  if (NLP_INJECTION_EXCLUDED.has(id)) continue;
   config.filterableFields = [...config.filterableFields, THEMES_FIELD, PERSONS_FIELD];
 }
 
@@ -500,11 +640,31 @@ export function getSystemQdrantCollections(): string[] {
   return Object.values(SYSTEM_COLLECTIONS).map((c) => c.qdrantCollection);
 }
 
-/**
- * Get all system collection IDs
- */
+/** All system collection IDs, incl. agent-only + examples. */
 export function getAllSystemCollectionIds(): string[] {
   return Object.keys(SYSTEM_COLLECTIONS);
+}
+
+/** General document corpus — excludes agent-only + the social-media examples. */
+export function getSearchableSystemCollectionIds(): string[] {
+  return Object.values(SYSTEM_COLLECTIONS)
+    .filter((c) => !c.agentOnly && c.qdrantCollection !== 'social_media_examples')
+    .map((c) => c.id);
+}
+
+/** Collections surfaced in the public MCP catalog (`GET /api/v1/collections`). */
+export function getMcpExposedCollections(): SystemCollectionConfig[] {
+  return Object.values(SYSTEM_COLLECTIONS).filter((c) => c.mcpExposed);
+}
+
+/** Resolve a canonical collection config by its chat-facing `key` (e.g. `bayern`). */
+export function getCanonicalByKey(key: string): SystemCollectionConfig | undefined {
+  return Object.values(SYSTEM_COLLECTIONS).find((c) => c.key === key);
+}
+
+/** True when the id is an agent-only collection (never user-selectable, e.g. ricarda). */
+export function isAgentOnlyCollectionId(id: string): boolean {
+  return SYSTEM_COLLECTIONS[id]?.agentOnly === true;
 }
 
 /**
@@ -531,7 +691,7 @@ export function buildSystemCollectionObject(id: string): SystemCollectionObject 
  * Returns all system collections for comprehensive search
  */
 export function getDefaultMultiCollectionIds(): string[] {
-  return getAllSystemCollectionIds();
+  return getSearchableSystemCollectionIds();
 }
 
 /**
@@ -648,6 +808,9 @@ export default {
   getSystemCollectionConfig,
   getSystemQdrantCollections,
   getAllSystemCollectionIds,
+  getSearchableSystemCollectionIds,
+  getMcpExposedCollections,
+  getCanonicalByKey,
   buildSystemCollectionObject,
   getDefaultMultiCollectionIds,
   getCollectionFilterableFields,

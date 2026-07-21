@@ -10,6 +10,7 @@ import {
   SESSION_EXPIRED_FLAG,
 } from '../../features/auth/storageKeys';
 import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
+import { sessionDebug } from '../../lib/sessionDebug';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
 import { isDesktopApp } from '../../utils/platform';
@@ -86,37 +87,72 @@ async function probeSessionVerdict(): Promise<ProbeVerdict> {
   // Return cached result if recent.
   const now = Date.now();
   if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
+    sessionDebug('probe.start', {
+      cached: true,
+      cachedVerdict: lastProbe.verdict,
+      cachedAgeMs: now - lastProbe.timestamp,
+    });
     return lastProbe.verdict;
   }
 
   // Coalesce in-flight probes.
   if (probeInFlight) {
+    sessionDebug('probe.start', { cached: false, coalesced: true });
     return probeInFlight;
   }
 
+  sessionDebug('probe.start', { cached: false, coalesced: false });
+
   probeInFlight = (async (): Promise<ProbeVerdict> => {
+    const startedAt = Date.now();
     let verdict: ProbeVerdict;
+    let httpStatus: number | undefined;
+    let hasUserInBody = false;
     try {
       // Hit Better Auth's native session endpoint directly. Going through
       // `apiClient` would re-enter the interceptor and infinite-loop;
       // this raw axios call is a peer of `apiClient` so it doesn't
       // share the interceptor chain.
+      //
+      // `disableCookieCache=true` forces a real store lookup: without it,
+      // Better Auth answers from the ≤60s signed `ba.session_data` snapshot,
+      // so a freshly-dead session reads as 'alive' and this whole machinery
+      // retry-loops instead of tearing down — the core of the half-logged-in
+      // bug. The probe is rare (5s cache + coalescing), so the extra Redis/PG
+      // read is negligible.
+      const headers: Record<string, string> = {};
+      if (isDesktopApp()) {
+        // Desktop is bearer-mode (no cookie); without the token the probe
+        // always sees a null session and every 401 reads as 'dead'.
+        const token = await getDesktopToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+      }
       const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
+        params: { disableCookieCache: 'true' },
         withCredentials: useCredentials,
+        headers,
         timeout: 10_000,
       });
+      httpStatus = response.status;
       const data = response.data as { user?: unknown } | null | undefined;
-      verdict = data != null && data.user != null ? 'alive' : 'dead';
+      hasUserInBody = data != null && data.user != null;
+      verdict = hasUserInBody ? 'alive' : 'dead';
     } catch (probeError) {
       // Only a definitive 401/403 from the probe proves the session is
       // dead. Anything else (timeout, network error, 5xx) is an infra
       // signal, not a session signal.
-      const status = (probeError as AxiosError).response?.status;
-      verdict = status === 401 || status === 403 ? 'dead' : 'indeterminate';
+      httpStatus = (probeError as AxiosError).response?.status;
+      verdict = httpStatus === 401 || httpStatus === 403 ? 'dead' : 'indeterminate';
     } finally {
       probeInFlight = null;
     }
     lastProbe = { timestamp: Date.now(), verdict };
+    sessionDebug('probe.verdict', {
+      verdict,
+      httpStatus,
+      hasUserInBody,
+      durationMs: Date.now() - startedAt,
+    });
     return verdict;
   })();
 
@@ -193,6 +229,7 @@ export const notifyAuthConfirmed = (): void => {
  * redirect to /login so the next page load can't re-seed a stale true.
  */
 function wipeAllAuthCaches(): void {
+  sessionDebug('cache.clear', { source: 'wipeAllAuthCaches' });
   for (const key of ALL_AUTH_LOCAL_KEYS) {
     try {
       localStorage.removeItem(key);
@@ -224,6 +261,7 @@ function wipeAllAuthCaches(): void {
  *     logged out" branch and skips the auto-reauth machinery.
  */
 function markBackendDeadSession(): void {
+  sessionDebug('cache.clear', { source: 'markBackendDeadSession' });
   try {
     localStorage.removeItem(INSTANT_AUTH_CACHE);
   } catch {
@@ -236,12 +274,28 @@ function markBackendDeadSession(): void {
   }
 }
 
-function performLoginRedirect(): void {
+function performLoginRedirect(source: string): void {
   const now = Date.now();
   const recent = readRedirectTimestamps()
     .filter((ts) => now - ts < CIRCUIT_BREAKER_WINDOW_MS)
     .concat(now);
   writeRedirectTimestamps(recent);
+
+  const breakerTripped = recent.length >= CIRCUIT_BREAKER_THRESHOLD;
+  sessionDebug('teardown.redirect', {
+    source,
+    redirectCount: recent.length,
+    breakerTripped,
+  });
+  // A session teardown is NEVER benign — this fires on every dead-session
+  // redirect, not just circuit-breaker trips, closing the telemetry blind
+  // spot where ordinary half-logged-in deaths went unreported. The attached
+  // sessionDebug ring buffer carries the full lead-up.
+  captureAuthIssue({
+    stage: 'session-teardown',
+    cause: new Error(`session teardown via ${source}`),
+    extras: { source, redirectCount: recent.length, breakerTripped },
+  });
 
   // Tell the login page WHY the user landed there. sessionStorage so it
   // survives the full-page navigation but stays scoped to this tab; the
@@ -268,6 +322,10 @@ function performLoginRedirect(): void {
     console.warn(
       '[apiClient] Auth-redirect circuit breaker tripped — wiping all auth state and forcing clean /login'
     );
+    sessionDebug('breaker.tripped', {
+      redirectCount: recent.length,
+      windowMs: CIRCUIT_BREAKER_WINDOW_MS,
+    });
     captureAuthIssue({
       stage: 'redirect-loop',
       cause: new Error(
@@ -285,6 +343,45 @@ function performLoginRedirect(): void {
   window.location.href = buildLoginUrl(currentPath);
 }
 
+// Page-scoped latch: once ONE stack has decided the session is dead and fired
+// the redirect, every other stack's concurrent dead-verdict is a no-op. Without
+// it, a single session death fires 401s from thread-list + docs + notifications
+// + avatar near-simultaneously; each would call performLoginRedirect, pushing
+// 3+ timestamps into the breaker window and falsely tripping the circuit breaker
+// on every ordinary expiry. The latch collapses the intra-pageload burst to one
+// redirect; the sessionStorage breaker still catches genuine cross-pageload loops.
+// Never reset — the redirect is a full-page navigation.
+let redirectInFlight = false;
+
+export type UnauthorizedOutcome = 'retry' | 'logout' | 'stay';
+
+/**
+ * The single authority every client stack routes a 401 through. Probes the
+ * session and returns the caller's action:
+ *   - 'retry'  — probe says the session is alive (cookie rotated mid-flight);
+ *                the caller should replay the request once.
+ *   - 'logout' — probe says dead; an atomic teardown+redirect has been fired
+ *                (once, via the latch). The caller should stop.
+ *   - 'stay'   — logging out already, on a public/login page, or the probe was
+ *                indeterminate (infra blip). Never log out on this — the caller
+ *                should surface the error without redirecting.
+ */
+export async function handleUnauthorized(source: string): Promise<UnauthorizedOutcome> {
+  if (_isLoggingOut) return 'stay';
+  const verdict = await probeSessionVerdict();
+  if (verdict === 'alive') return 'retry';
+  if (verdict === 'dead') {
+    if (isPublicPage() || window.location.pathname === '/login') return 'stay';
+    if (!redirectInFlight) {
+      redirectInFlight = true;
+      performLoginRedirect(source);
+    }
+    return 'logout';
+  }
+  // indeterminate → infra blip, never a logout signal.
+  return 'stay';
+}
+
 // Desktop app uses JWT tokens, web app uses session cookies.
 // Declared early because the probe fetch needs it.
 const useCredentials: boolean = !isDesktopApp();
@@ -292,32 +389,30 @@ const useCredentials: boolean = !isDesktopApp();
 // Initialize global API client for @gruenerator/shared hooks (useShareStore, etc.)
 // This is separate from the legacy apiClient below, but uses the same baseURL.
 //
-// `onUnauthorized` has a subtle dual role here:
-//   - Return `true` → shared client retries the original request. We return
-//     true when the session probe confirms the session is still alive, so a
-//     transient 401 during cookie revalidation transparently recovers.
-//   - Return `false` → shared client propagates the 401 to the caller. We
-//     return false when the probe says the session is dead; `performLoginRedirect`
-//     has already fired, so the navigation is in flight and the rejected
-//     promise just unblocks any await'ing code. An 'indeterminate' verdict
-//     (probe failed on infra, not auth) also returns false — but WITHOUT
-//     the redirect, so an outage doesn't log the user out.
+// `onUnauthorized` routes through the shared `handleUnauthorized` authority:
+//   - 'retry'  → return true, shared client replays the request (probe said the
+//                session is alive; the cookie just rotated mid-flight).
+//   - 'logout' → return false; the atomic teardown+redirect already fired (once,
+//                via the latch), so the rejected promise just unblocks awaiters.
+//   - 'stay'   → return false WITHOUT redirect (logging out, public page, or an
+//                infra-blip indeterminate verdict), so an outage never logs out.
 const sharedApiClient = createApiClient({
   baseURL,
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
   getAuthToken: isDesktopApp() ? async () => getDesktopToken() : undefined,
-  onUnauthorized: async () => {
-    if (_isLoggingOut || isPublicPage() || window.location.pathname === '/login') {
-      return false;
-    }
-    const verdict = await probeSessionVerdict();
-    if (verdict === 'alive') {
-      // Session is actually healthy — tell the shared client to retry
-      // the original request. The cookie just got rotated mid-flight.
+  onUnauthorized: async (info) => {
+    sessionDebug('http.401', {
+      stack: 'shared',
+      endpoint: info?.url,
+      method: info?.method,
+      status: info?.status,
+      requestId: info?.requestId,
+      code: info?.code,
+    });
+    const outcome = await handleUnauthorized('shared-401');
+    if (outcome === 'retry') {
+      sessionDebug('retry.after-probe', { stack: 'shared', endpoint: info?.url });
       return true;
-    }
-    if (verdict === 'dead') {
-      performLoginRedirect();
     }
     return false;
   },
@@ -369,19 +464,17 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for error handling.
 //
-// On a 401, `probeSessionVerdict` silently classifies the failure (see the
-// long-form explanation above the helper):
-//   'alive'         → the 401 was transient (cookie rotation mid-flight).
-//                     Re-fire the original request ONCE. Without this, the
-//                     swallowed 401 reached the caller, `toastApiError`
-//                     skipped it (401s never toast), and the user's click
-//                     simply did nothing — especially for mutations, which
-//                     TanStack Query never retries. Safe to replay: a 401
-//                     means `requireAuth` rejected before the handler ran,
-//                     so no server-side side effect happened; the re-dispatch
-//                     re-runs the request interceptor (fresh desktop token).
-//   'dead'          → redirect to login (except on public pages / /login).
-//   'indeterminate' → neither: propagate the error to the caller.
+// On a 401, `handleUnauthorized` (the shared authority) probes and returns:
+//   'retry'  → the 401 was transient (cookie rotation mid-flight). Re-fire the
+//              original request ONCE. Without this, the swallowed 401 reached
+//              the caller, `toastApiError` skipped it (401s never toast), and
+//              the user's click simply did nothing — especially for mutations,
+//              which TanStack Query never retries. Safe to replay: a 401 means
+//              `requireAuth` rejected before the handler ran, so no server-side
+//              side effect happened; the re-dispatch re-runs the request
+//              interceptor (fresh desktop token).
+//   'logout' → the atomic teardown+redirect already fired (once, via the latch).
+//   'stay'   → infra-blip indeterminate / public page: propagate to the caller.
 //
 // Routes tagged `skipAuthRedirect: true` bypass the whole path.
 apiClient.interceptors.response.use(
@@ -393,18 +486,31 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401 && !_isLoggingOut) {
-      const verdict = await probeSessionVerdict();
-      if (verdict === 'alive' && config && !config._retried401) {
+      const errorBody = error.response.data as { code?: string; requestId?: string } | undefined;
+      sessionDebug('http.401', {
+        stack: 'legacy-axios',
+        endpoint: config?.url,
+        method: config?.method,
+        status: 401,
+        code: errorBody?.code,
+        requestId: errorBody?.requestId ?? error.response.headers?.['x-request-id'],
+      });
+      const outcome = await handleUnauthorized('legacy-axios-401');
+      if (outcome === 'retry' && config && !config._retried401) {
         config._retried401 = true;
-        return apiClient.request(config);
+        sessionDebug('retry.after-probe', { stack: 'legacy-axios', endpoint: config.url });
+        const retryResult = await apiClient.request(config);
+        sessionDebug('retry.result', {
+          stack: 'legacy-axios',
+          endpoint: config.url,
+          status: retryResult.status,
+        });
+        return retryResult;
       }
-      if (verdict === 'dead' && !isPublicPage() && window.location.pathname !== '/login') {
-        performLoginRedirect();
-      }
-      // Always reject otherwise so the caller's `.catch` / TanStack Query
-      // error handler can surface a sensible error state. Swallowing to
-      // `undefined` would hide real failures (non-auth 500s, network
-      // errors) from component-level retry logic.
+      // 'logout' → teardown+redirect already fired (latched); 'stay' → infra
+      // blip / public page, no redirect. Both fall through to reject so the
+      // caller's `.catch` / TanStack Query error handler surfaces a sensible
+      // error state. Swallowing to `undefined` would hide real failures.
     }
     return Promise.reject(error);
   }

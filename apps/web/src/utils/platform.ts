@@ -40,6 +40,47 @@ export const getDesktopOS = (): DesktopOS => {
 
 export const isMacDesktop = (): boolean => isDesktopApp() && getDesktopOS() === 'macos';
 
+export type VisitorDevice = 'macos' | 'linux' | 'ios' | 'android' | null;
+
+/**
+ * Best-effort UA detection of the visitor's device for the /apps download page.
+ * iPadOS reports a Mac UA but exposes touch points, hence the maxTouchPoints check.
+ */
+export const getVisitorDevice = (): VisitorDevice => {
+  if (typeof navigator === 'undefined') return null;
+  const ua = navigator.userAgent;
+  if (/android/i.test(ua)) return 'android';
+  if (/iphone|ipad|ipod/i.test(ua) || (/mac/i.test(ua) && navigator.maxTouchPoints > 1))
+    return 'ios';
+  if (/mac/i.test(ua)) return 'macos';
+  // ChromeOS UAs contain "X11; CrOS" but can't run the Linux desktop builds.
+  if (/cros/i.test(ua)) return null;
+  if (/linux|x11/i.test(ua)) return 'linux';
+  return null;
+};
+
+const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
+
+/**
+ * Canvas documents store their thumbnail as `/api/share/<token>/download` —
+ * the raw full-resolution render (a multi-MB PNG at pixelRatio 2). For
+ * card-sized `<img>`s, rewrite to the resized-variant route (webp, served
+ * from the server's thumbs disk cache). Other URLs pass through unchanged.
+ */
+export function shareThumbnailPreviewUrl(url: string, width?: 200 | 400 | 800): string;
+export function shareThumbnailPreviewUrl(
+  url: string | undefined,
+  width?: 200 | 400 | 800
+): string | undefined;
+export function shareThumbnailPreviewUrl(
+  url: string | undefined,
+  width: 200 | 400 | 800 = 400
+): string | undefined {
+  if (!url) return url;
+  const match = SHARE_DOWNLOAD_RE.exec(url);
+  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+}
+
 /**
  * Resolve a (possibly root-relative) API/media URL to one usable by plain
  * `<img>` / `<video>` tags in the desktop webview.

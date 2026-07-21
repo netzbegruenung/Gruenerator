@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
+import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
+
+import { getCachedSharepicRender, seedThumbnailCache } from './useSharepicThumbnail';
 
 import type { SharepicVariant } from './useChatGraphStream';
 
@@ -55,8 +58,16 @@ export function maybeUploadThumbnail(
  * the same sharepicLiveStore entry, so SSE updates reach them identically.
  */
 export function useSharepicArtifact(variant: SharepicVariant) {
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
-  const [isRendering, setIsRendering] = useState(true);
+  const live = useSharepicLiveStore((s) => s.entries[variant.id]);
+  const isActiveForChat = useSharepicLiveStore((s) => s.activeVariant?.variantId === variant.id);
+
+  // Cache-first initial paint: the version-keyed render cache (shared with the
+  // thumbnail strip) already holds the full-res head render, so a remount —
+  // hero switch (keyed by variant id) or thread re-open — paints instantly
+  // instead of showing a spinner through a fresh Konva render.
+  const initialCached = getCachedSharepicRender(variant.id, live?.version ?? null);
+  const [imageBase64, setImageBase64] = useState<string | null>(initialCached);
+  const [isRendering, setIsRendering] = useState(initialCached == null);
   const [renderError, setRenderError] = useState(false);
   const [versions, setVersions] = useState<SharepicVersionEntry[] | null>(null);
   /** Version being previewed via the stepper; null = current head. */
@@ -65,9 +76,6 @@ export function useSharepicArtifact(variant: SharepicVariant) {
   const versionStateCache = useRef(new Map<number, Record<string, unknown>>());
   const hydratedRef = useRef(false);
 
-  const live = useSharepicLiveStore((s) => s.entries[variant.id]);
-  const isActiveForChat = useSharepicLiveStore((s) => s.activeVariant?.variantId === variant.id);
-
   const canvasId = live?.canvasId ?? variant.canvasId ?? null;
   const headVersion = live?.version ?? null;
   const renderInput = viewState ?? live?.state ?? variant.initialProps;
@@ -75,7 +83,22 @@ export function useSharepicArtifact(variant: SharepicVariant) {
   // Render (and re-render after each chat edit / version step). renderInput
   // is the full flat state — StandaloneCanvas's createInitialState accepts it
   // in place of the original initialProps.
+  //
+  // Cache-first: during streaming the message metadata (and with it the
+  // variant/renderInput identity) is recreated on every SSE tick, re-running
+  // this effect. A version-keyed cache hit resolves those runs without
+  // touching Konva — only a real content change (version bump / first render
+  // / version preview) pays for a render.
   useEffect(() => {
+    if (viewState == null) {
+      const cached = getCachedSharepicRender(variant.id, headVersion);
+      if (cached) {
+        setImageBase64(cached);
+        setRenderError(false);
+        setIsRendering(false);
+        return undefined;
+      }
+    }
     let cancelled = false;
     const renderFn = useChatConfigStore.getState().renderSharepic;
     if (!renderFn) {
@@ -91,6 +114,8 @@ export function useSharepicArtifact(variant: SharepicVariant) {
           setImageBase64(dataUrl);
           setRenderError(false);
           maybeUploadThumbnail(variant.id, dataUrl, viewState != null);
+          // Head renders double as strip thumbnails (version previews don't).
+          if (viewState == null) seedThumbnailCache(variant.id, dataUrl);
         } else {
           setRenderError(true);
         }
@@ -104,7 +129,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     return () => {
       cancelled = true;
     };
-  }, [variant.canvasType, variant.id, renderInput, viewState]);
+  }, [variant.canvasType, variant.id, renderInput, viewState, headVersion]);
 
   // Thread-reload rehydration: a minted variant renders its CURRENT state
   // (which may have changed in the studio), not the stale initialProps.
@@ -219,11 +244,15 @@ export function useSharepicArtifact(variant: SharepicVariant) {
   }, [imageBase64, variant.canvasType]);
 
   const openInStudio = useCallback(() => {
-    useChatConfigStore.getState().onEditSharepic?.({
-      ...variant,
-      initialProps: live?.state ?? variant.initialProps,
-      ...(canvasId ? { canvasId } : {}),
-    });
+    const threadId = useAgentStore.getState().currentThreadId;
+    useChatConfigStore.getState().onEditSharepic?.(
+      {
+        ...variant,
+        initialProps: live?.state ?? variant.initialProps,
+        ...(canvasId ? { canvasId } : {}),
+      },
+      { threadId }
+    );
   }, [variant, live?.state, canvasId]);
 
   const showStepper = canvasId != null && headVersion != null && headVersion > 1;

@@ -5,8 +5,13 @@
  * Wraps PostgreSQL queries for thread CRUD and message storage.
  */
 
+import { generateSlugSuffix } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
+import { type PersistedStep } from './agenticLoop/types.js';
+
+import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
 import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
@@ -17,6 +22,29 @@ import type express from 'express';
  */
 export const getUser = (req: AuthRequest | express.Request): UserProfile | undefined =>
   (req as AuthRequest).user;
+
+const UNIQUE_VIOLATION = '23505';
+const MAX_SLUG_ATTEMPTS = 5;
+
+/**
+ * Run a thread INSERT with a freshly generated slug suffix, regenerating on a
+ * unique-index collision (idx_chat_threads_slug_suffix). Bounded so we never
+ * loop forever; with a 56^6 keyspace a second attempt is already exceptional.
+ */
+export async function insertThreadWithSlugRetry<T>(
+  insert: (slugSuffix: string) => Promise<T>
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+    try {
+      return await insert(generateSlugSuffix());
+    } catch (error) {
+      if ((error as { code?: string }).code !== UNIQUE_VIOLATION) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 
 /**
  * Create a new chat thread.
@@ -36,26 +64,31 @@ export async function createThread(
   agent_id: string;
   title: string | null;
   thread_type: string;
+  slug_suffix: string | null;
 }> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, user_id, agent_id, title, thread_type`,
-    [
-      userId,
-      agentId,
-      title || null,
-      threadType || 'chat',
-      options?.notebookCollectionId || null,
-      options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
-    ]
+  const result = (await insertThreadWithSlugRetry((slugSuffix) =>
+    postgres.query(
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, notebook_collection_id, notebook_collection_ids, slug_suffix)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, user_id, agent_id, title, thread_type, slug_suffix`,
+      [
+        userId,
+        agentId,
+        title || null,
+        threadType || 'chat',
+        options?.notebookCollectionId || null,
+        options?.notebookCollectionIds ? JSON.stringify(options.notebookCollectionIds) : null,
+        slugSuffix,
+      ]
+    )
   )) as {
     id: string;
     user_id: string;
     agent_id: string;
     title: string | null;
     thread_type: string;
+    slug_suffix: string | null;
   }[];
   return result[0];
 }
@@ -73,13 +106,15 @@ export async function ensureDocChatThread(
   agentId: string = 'gruenerator-universal'
 ): Promise<{ id: string }> {
   const postgres = getPostgresInstance();
-  const result = (await postgres.query(
-    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, doc_id)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL
-     DO UPDATE SET updated_at = CURRENT_TIMESTAMP
-     RETURNING id`,
-    [userId, agentId, 'Dokument-Chat', 'chat', docId]
+  const result = (await insertThreadWithSlugRetry((slugSuffix) =>
+    postgres.query(
+      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, doc_id, slug_suffix)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL
+       DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+       RETURNING id`,
+      [userId, agentId, 'Dokument-Chat', 'chat', docId, slugSuffix]
+    )
   )) as { id: string }[];
   return result[0];
 }
@@ -103,6 +138,48 @@ export async function createMessage(
 }
 
 /**
+ * Truncate a thread from a given message onward — deletes that message and
+ * every message created at or after it (by `created_at`). Used for
+ * edit-and-resubmit: the edited user message and its now-stale replies are
+ * removed before the fresh turn is written. Returns the number of rows deleted
+ * (0 when the id doesn't resolve to a message in this thread).
+ */
+export async function deleteMessagesFrom(threadId: string, messageId: string): Promise<number> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `DELETE FROM chat_messages
+     WHERE thread_id = $1
+       AND created_at >= (
+         SELECT created_at FROM chat_messages WHERE id = $2 AND thread_id = $1
+       )
+     RETURNING id`,
+    [threadId, messageId]
+  )) as unknown[];
+  return result.length;
+}
+
+/**
+ * Delete the trailing assistant message(s) of a thread — everything after the
+ * most recent user message. Used for regenerate (the user message stays; only
+ * the last reply is replaced) and as the fallback for edit-resubmit when the
+ * frontend id doesn't resolve to a persisted row (in-session message).
+ */
+export async function deleteTrailingAssistant(threadId: string): Promise<number> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `DELETE FROM chat_messages
+     WHERE thread_id = $1
+       AND created_at > COALESCE(
+         (SELECT MAX(created_at) FROM chat_messages WHERE thread_id = $1 AND role = 'user'),
+         '-infinity'::timestamptz
+       )
+     RETURNING id`,
+    [threadId]
+  )) as unknown[];
+  return result.length;
+}
+
+/**
  * Check if a thread exists.
  */
 export async function threadExists(threadId: string): Promise<boolean> {
@@ -121,6 +198,100 @@ export async function touchThread(threadId: string): Promise<void> {
   await postgres.query(`UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [
     threadId,
   ]);
+}
+
+/**
+ * Sticky MCP scope: the last connected server this thread's agentic loop was
+ * scoped to. Read as the fallback when a follow-up names no server; written
+ * (fire-and-forget) after a scoped MCP turn. A stale id (server since deleted)
+ * simply resolves to no config → the loop falls back to the fan-out.
+ */
+export async function getThreadLastMcpServer(threadId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(`SELECT last_mcp_server_id FROM chat_threads WHERE id = $1`, [
+    threadId,
+  ]);
+  return (result[0]?.last_mcp_server_id as string) || null;
+}
+
+export async function setThreadLastMcpServer(threadId: string, serverId: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(`UPDATE chat_threads SET last_mcp_server_id = $1 WHERE id = $2`, [
+    serverId,
+    threadId,
+  ]);
+}
+
+/**
+ * Recent tool steps of a thread, oldest → newest, for cross-turn replay.
+ * Reads the `toolCalls` array persisted on each assistant message's
+ * `tool_results` metadata (see createMessage). Returns ALL steps (MCP + search
+ * + others); the caller decides which to replay (MCP filters on `serverName`,
+ * search filters on tool name). Bounded so replay stays token-cheap.
+ */
+export async function getRecentToolSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
+  const postgres = getPostgresInstance();
+  const rows = await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 12`,
+    [threadId]
+  );
+  const steps: PersistedStep[] = [];
+  for (const row of rows as Array<{ tool_results?: unknown }>) {
+    const meta = row.tool_results;
+    const calls =
+      meta && typeof meta === 'object' && Array.isArray((meta as { toolCalls?: unknown }).toolCalls)
+        ? ((meta as { toolCalls: unknown[] }).toolCalls as PersistedStep[])
+        : [];
+    for (const c of calls) {
+      if (c && typeof c === 'object' && typeof (c as PersistedStep).toolName === 'string') {
+        steps.push(c);
+      }
+    }
+    if (steps.length >= limit) break;
+  }
+  return steps.slice(0, limit).reverse();
+}
+
+/**
+ * Recent search sources of a thread, for cross-turn REGISTRY rehydration.
+ * Reads the `searchResults` array persisted on each assistant message's
+ * `tool_results` metadata (see postResponseService) and returns them so a later
+ * turn's source registry can be seeded with what earlier research gathered —
+ * this is the grounding the op-planner (sheets/presentations/boards edit) needs
+ * when the user says "trag die recherchierten Zahlen ein" turns after the search.
+ *
+ * Only the MOST RECENT assistant message carrying sources is used (the latest
+ * research), newest-first within it, capped — a tight recency window so a new
+ * unrelated question doesn't inherit stale sources. Content is already snippet-
+ * sized at persist time (SearchResult[] slice(0,10)), so this stays token-cheap.
+ */
+export async function getRecentThreadSources(
+  threadId: string,
+  limit = 10
+): Promise<SearchResult[]> {
+  const postgres = getPostgresInstance();
+  const rows = await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 12`,
+    [threadId]
+  );
+  for (const row of rows as Array<{ tool_results?: unknown }>) {
+    const meta = row.tool_results;
+    const results =
+      meta &&
+      typeof meta === 'object' &&
+      Array.isArray((meta as { searchResults?: unknown }).searchResults)
+        ? ((meta as { searchResults: unknown[] }).searchResults as SearchResult[])
+        : [];
+    const valid = results.filter(
+      (r) => r && typeof r === 'object' && typeof r.content === 'string' && r.content.trim() !== ''
+    );
+    if (valid.length > 0) return valid.slice(0, limit);
+  }
+  return [];
 }
 
 export interface ThreadSettings {

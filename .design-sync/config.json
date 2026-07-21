@@ -27,35 +27,124 @@
   },
   "readmeHeader": ".design-sync/conventions.md",
   "overrides": {
-    "WorkplacePage": { "cardMode": "single", "viewport": "1040x1560" },
-    "WorkplaceCreator": { "cardMode": "single", "viewport": "820x340" },
-    "WorkplaceRecent": { "cardMode": "single", "viewport": "1040x520" },
-    "WorkplaceNotebooks": { "cardMode": "single", "viewport": "1060x440" },
-    "WorkplaceTools": { "cardMode": "single", "viewport": "880x380" },
-    "WorkplaceFavorites": { "cardMode": "single", "viewport": "880x360" },
-    "Dialog": { "cardMode": "single", "viewport": "560x440" },
-    "AlertDialog": { "cardMode": "single", "viewport": "560x440" },
-    "Sheet": { "cardMode": "single", "viewport": "640x460" },
-    "Popover": { "cardMode": "single", "viewport": "520x400" },
-    "Tooltip": { "cardMode": "single", "viewport": "440x300" },
-    "DropdownMenu": { "cardMode": "single", "viewport": "520x440" },
-    "ContextMenu": { "cardMode": "single", "viewport": "520x440" },
-    "Select": { "cardMode": "single", "viewport": "480x440" },
-    "Combobox": { "cardMode": "single", "viewport": "480x440" },
-    "Toaster": { "cardMode": "single", "viewport": "480x340" },
-    "Table": { "cardMode": "column", "viewport": "900x600" },
-    "Pagination": { "cardMode": "column", "viewport": "760x320" },
-    "CardGrid": { "cardMode": "column", "viewport": "900x600" },
-    "StepBreadcrumb": { "cardMode": "column", "viewport": "900x320" },
-    "CardActionsMenu": { "cardMode": "column" },
-    "FeatureToggle": { "cardMode": "column" },
-    "LoadingSection": { "cardMode": "column" },
-    "PillGroup": { "cardMode": "column" },
-    "ProcessingState": { "cardMode": "column" },
-    "ScrollArea": { "cardMode": "column" },
-    "SelectCard": { "cardMode": "column" },
-    "Skeleton": { "cardMode": "column" },
-    "TypingAnimation": { "cardMode": "column" },
-    "UploadZone": { "cardMode": "column" }
+    "WorkplacePage": {
+      "cardMode": "single",
+      "viewport": "1040x1560"
+    },
+    "WorkplaceCreator": {
+      "cardMode": "single",
+      "viewport": "820x340"
+    },
+    "WorkplaceRecent": {
+      "cardMode": "single",
+      "viewport": "1040x520"
+    },
+    "WorkplaceNotebooks": {
+      "cardMode": "single",
+      "viewport": "1060x440"
+    },
+    "WorkplaceTools": {
+      "cardMode": "single",
+      "viewport": "880x380"
+    },
+    "WorkplaceFavorites": {
+      "cardMode": "single",
+      "viewport": "880x360"
+    },
+    "Dialog": {
+      "cardMode": "single",
+      "viewport": "560x440"
+    },
+    "AlertDialog": {
+      "cardMode": "single",
+      "viewport": "560x440"
+    },
+    "Sheet": {
+      "cardMode": "single",
+      "viewport": "640x460"
+    },
+    "Popover": {
+      "cardMode": "single",
+      "viewport": "520x400"
+    },
+    "Tooltip": {
+      "cardMode": "single",
+      "viewport": "440x300"
+    },
+    "DropdownMenu": {
+      "cardMode": "single",
+      "viewport": "520x440"
+    },
+    "ContextMenu": {
+      "cardMode": "single",
+      "viewport": "520x440"
+    },
+    "Select": {
+      "cardMode": "single",
+      "viewport": "480x440"
+    },
+    "Combobox": {
+      "cardMode": "single",
+      "viewport": "480x440"
+    },
+    "Toaster": {
+      "cardMode": "single",
+      "viewport": "480x340"
+    },
+    "Table": {
+      "cardMode": "column",
+      "viewport": "900x600"
+    },
+    "Pagination": {
+      "cardMode": "column",
+      "viewport": "760x320"
+    },
+    "CardGrid": {
+      "cardMode": "column",
+      "viewport": "900x600"
+    },
+    "StepBreadcrumb": {
+      "cardMode": "column",
+      "viewport": "900x320"
+    },
+    "CardActionsMenu": {
+      "cardMode": "column"
+    },
+    "FeatureToggle": {
+      "cardMode": "column"
+    },
+    "LoadingSection": {
+      "cardMode": "column"
+    },
+    "PillGroup": {
+      "cardMode": "column"
+    },
+    "ProcessingState": {
+      "cardMode": "column"
+    },
+    "ScrollArea": {
+      "cardMode": "column"
+    },
+    "SelectCard": {
+      "cardMode": "column"
+    },
+    "Skeleton": {
+      "cardMode": "column"
+    },
+    "TypingAnimation": {
+      "cardMode": "column"
+    },
+    "UploadZone": {
+      "cardMode": "column"
+    },
+    "FeatureCard": {
+      "cardMode": "column"
+    },
+    "VideoCard": {
+      "cardMode": "column"
+    },
+    "WordCloud": {
+      "cardMode": "column"
+    }
   }
 }

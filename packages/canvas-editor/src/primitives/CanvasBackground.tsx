@@ -60,6 +60,7 @@ function CanvasBackgroundInner({
         height={height}
         opacity={opacity}
         listening={false}
+        name="canvas-background"
       />
     );
   }
@@ -80,6 +81,7 @@ function CanvasBackgroundInner({
         fillLinearGradientColorStops={colorStops}
         opacity={opacity}
         listening={false}
+        name="canvas-background"
       />
     );
   }
@@ -102,6 +104,7 @@ function CanvasBackgroundInner({
         fillRadialGradientColorStops={colorStops}
         opacity={opacity}
         listening={false}
+        name="canvas-background"
       />
     );
   }
@@ -115,6 +118,7 @@ function CanvasBackgroundInner({
       fill={color}
       opacity={opacity}
       listening={false}
+      name="canvas-background"
     />
   );
 }

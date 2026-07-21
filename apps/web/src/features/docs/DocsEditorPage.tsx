@@ -1,6 +1,7 @@
 import {
   useCollaboration,
   useCollaborators,
+  useDelayedConnectionStatus,
   useSyncGate,
   getAuthErrorMessage,
 } from '@gruenerator/collab';
@@ -9,8 +10,11 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  SuggestionsSidebar,
   usePendingDocAI,
   useDocUndoState,
+  useSuggestionMode,
+  hasPendingSuggestions,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -19,16 +23,9 @@ import {
   ErrorBoundary,
   type Document,
 } from '@gruenerator/docs';
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
-import {
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  AvatarGroup,
-  AvatarGroupCount,
-  Skeleton,
-} from '@gruenerator/ui';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
+import { Skeleton } from '@gruenerator/ui';
 import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -43,12 +40,15 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  FiCheck,
   FiChevronDown,
   FiClock,
   FiCloud,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
+  FiEdit3,
+  FiList,
   FiMessageCircle,
   FiMessageSquare,
   FiMoreVertical,
@@ -58,18 +58,20 @@ import {
 } from 'react-icons/fi';
 import { PiSun, PiMoon, PiDesktop } from 'react-icons/pi';
 import { useBeforeUnload, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { z } from 'zod';
 
+import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { isDesktopApp } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
+import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
+import { getOrCreateGuestIdentity } from './guestIdentity';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { BlockNoteEditor } from '@blocknote/core';
@@ -86,58 +88,14 @@ const DocsChatPanel = lazyWithRetry(() =>
   import('./DocsChatPanel').then((m) => ({ default: m.DocsChatPanel }))
 );
 
-const GUEST_COLORS = [
-  '#FF6B6B',
-  '#4ECDC4',
-  '#45B7D1',
-  '#FFA07A',
-  '#98D8C8',
-  '#F7DC6F',
-  '#BB8FCE',
-  '#85C1E2',
-  '#F8B739',
-  '#52B788',
-];
-
-const guestIdentitySchema = z.object({
-  guestId: z.string(),
-  guestName: z.string(),
-  guestColor: z.string(),
-  guestAnimalIndex: z.number(),
-});
-
-type GuestIdentity = z.infer<typeof guestIdentitySchema>;
-
-function getOrCreateGuestIdentity(): GuestIdentity {
-  const stored = localStorage.getItem('docs-guest-identity');
-  if (stored) {
-    try {
-      const parsed = guestIdentitySchema.safeParse(JSON.parse(stored));
-      if (parsed.success) return parsed.data;
-    } catch {
-      /* malformed JSON — fall through to regenerate */
-    }
-  }
-
-  const animalIndex = Math.floor(Math.random() * GUEST_ANIMALS.length);
-  const identity: GuestIdentity = {
-    guestId: `guest-${crypto.randomUUID().slice(0, 8)}`,
-    guestName: GUEST_ANIMALS[animalIndex].name,
-    guestColor: GUEST_COLORS[Math.floor(Math.random() * GUEST_COLORS.length)],
-    guestAnimalIndex: animalIndex,
-  };
-
-  localStorage.setItem('docs-guest-identity', JSON.stringify(identity));
-  return identity;
-}
-
-type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions';
+type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions' | 'suggestions';
 
 const SIDEBAR_TITLES: Record<SidebarPanel, string> = {
   chat: 'Chat',
   'legacy-chat': 'Älterer Chat',
   comments: 'Kommentare',
   versions: 'Versionen',
+  suggestions: 'Änderungen',
 };
 
 function EditorFAB({
@@ -175,6 +133,26 @@ function EditorContent() {
   const [, , themePreference, cycleTheme] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
+
+  // Reliable identity for track-changes attribution — the auth user (or guest),
+  // the same source the assistant chat uses for the display name. Passed to the
+  // editor so suggestions aren't left "Unbekannt" when Yjs awareness is empty.
+  const suggestionAuthor = useMemo(() => {
+    if (user) {
+      return {
+        id: String(user.id),
+        name: user.display_name || user.email || 'Unbekannt',
+      };
+    }
+    if (guestIdentity) {
+      return {
+        id: guestIdentity.guestId,
+        name: guestIdentity.guestName,
+        color: guestIdentity.guestColor,
+      };
+    }
+    return null;
+  }, [user, guestIdentity]);
 
   const API_BASE = useMemo(() => adapter.getApiBaseUrl(), [adapter]);
 
@@ -270,6 +248,10 @@ function EditorContent() {
   // "nodeSize undefined" when the first server state restructures the doc.
   const editorReady = useSyncGate(provider, isSynced);
 
+  useTourAutostart('docs', editorReady && !!docData && !isGuest, () => {
+    void import('../tours/docsTour').then((m) => m.startDocsTour());
+  });
+
   const commentCount = useSyncExternalStore(
     useCallback(
       (onChange) => {
@@ -283,6 +265,25 @@ function EditorContent() {
     () => (ydoc ? ydoc.getMap('threads').size : 0),
     () => 0
   );
+
+  const { enabled: suggestionModeEnabled, toggle: toggleSuggestionMode } = useSuggestionMode(
+    ydoc,
+    id ?? ''
+  );
+  // Tailwind max-md boundary — below it the sidebar is a full-screen overlay.
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  // Mode and panel are independent: on desktop enabling still auto-opens the
+  // sidebar for review, but on mobile the panel is a full-screen overlay that
+  // would trap the user, so it only opens via "Änderungen prüfen".
+  const toggleSuggestions = useCallback(() => {
+    const willEnable = !suggestionModeEnabled;
+    toggleSuggestionMode();
+    if (willEnable) {
+      if (!isMobile) setActiveSidebar('suggestions');
+    } else {
+      setActiveSidebar((prev) => (prev === 'suggestions' ? null : prev));
+    }
+  }, [suggestionModeEnabled, toggleSuggestionMode, isMobile]);
 
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
@@ -343,8 +344,23 @@ function EditorContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showActionsMenu]);
 
+  // Exporters render suggestion marks as normal text (deletions would leak,
+  // insertions lose their pending status), so block export while any are open.
+  // The message is actionable only for editors; viewers (who can't resolve
+  // suggestions) get a plain statement instead of a dead-end instruction.
+  const exportBlockedBySuggestions = useCallback(() => {
+    const view = editor?.prosemirrorView;
+    if (!view || !hasPendingSuggestions(view.state.doc)) return false;
+    const message = canEdit
+      ? 'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+      : 'Das Dokument enthält offene Änderungsvorschläge und kann derzeit nicht exportiert werden.';
+    void import('sonner').then(({ toast }) => toast.error(message));
+    return true;
+  }, [editor, canEdit]);
+
   const handleExport = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
@@ -361,12 +377,13 @@ function EditorContent() {
       console.error('Export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
   // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
   const handleExportPDF = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
       const { pdf } = await import('@react-pdf/renderer');
@@ -386,10 +403,11 @@ function EditorContent() {
       console.error('PDF export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('PDF-Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
+    if (exportBlockedBySuggestions()) return;
     try {
       const { ODTExporter, odtDefaultSchemaMappings } = await import('@blocknote/xl-odt-exporter');
       const exporter = new ODTExporter(editor.schema, odtDefaultSchemaMappings);
@@ -405,11 +423,17 @@ function EditorContent() {
       console.error('ODT export failed:', error);
       void import('sonner').then(({ toast }) => toast.error('ODT-Export fehlgeschlagen'));
     }
-  }, [docData, editor]);
+  }, [docData, editor, exportBlockedBySuggestions]);
 
   const handleSaveToWolke = useCallback(
     async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
       if (!docData || !editor) throw new Error('Editor not ready');
+      const view = editor.prosemirrorView;
+      if (view && hasPendingSuggestions(view.state.doc)) {
+        throw new Error(
+          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
+        );
+      }
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
       const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
@@ -451,21 +475,8 @@ function EditorContent() {
 
   const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
 
-  const [showDisconnected, setShowDisconnected] = useState(false);
-  useEffect(() => {
-    if (isConnected) {
-      setShowDisconnected(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowDisconnected(true), 5000);
-    return () => clearTimeout(timer);
-  }, [isConnected]);
-
-  const connectionStatus: 'disconnected' | 'offline-cached' | undefined = showDisconnected
-    ? isLocalLoaded
-      ? 'offline-cached'
-      : 'disconnected'
-    : undefined;
+  const connectionStatus = useDelayedConnectionStatus(isConnected, isLocalLoaded);
+  const showDisconnected = connectionStatus !== undefined;
 
   if (docIsLoading || !isAuthResolved) {
     return (
@@ -495,7 +506,7 @@ function EditorContent() {
         <span className="text-foreground-heading font-medium">{docData.title || 'Dokument'}</span>
         <span>Dieses Dokument erfordert eine Anmeldung.</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 no-underline transition-colors"
         >
           Anmelden
@@ -510,7 +521,7 @@ function EditorContent() {
         <span>Dokument nicht gefunden oder nicht öffentlich</span>
         {isGuest && (
           <a
-            href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+            href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
             className="text-secondary-600 underline"
           >
             Anmelden
@@ -525,7 +536,7 @@ function EditorContent() {
       <div className="flex items-center justify-center h-full flex-col gap-4 text-grey-500">
         <span>{getAuthErrorMessage(authError) || 'Verbindung zum Dokument fehlgeschlagen.'}</span>
         <a
-          href={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+          href={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
           className="text-secondary-600 underline"
         >
           Anmelden
@@ -554,9 +565,10 @@ function EditorContent() {
         />
       ) : (
         <EditorTopBar
+          dataTour="docs-topbar"
           title={docData.title}
           connectionStatus={connectionStatus}
-          onBack={isGuest ? undefined : () => navigate('/docs')}
+          onBack={isGuest ? undefined : () => navigate('/office')}
           editable={isEditable}
           onTitleChange={handleTitleChange}
           rightActions={
@@ -587,7 +599,7 @@ function EditorContent() {
                   guestName={guestIdentity.guestName}
                   guestColor={guestIdentity.guestColor}
                   guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/docs/${id}`)}`}
+                  loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
                 />
               )}
               {!isGuest && !canEdit && docData && (
@@ -595,25 +607,7 @@ function EditorContent() {
                   Lesezugriff
                 </div>
               )}
-              {collaborators.length > 0 && (
-                <>
-                  <AvatarGroup>
-                    {collaborators.slice(0, 5).map((c) => (
-                      <Avatar key={c.id} size="sm" title={c.name}>
-                        {c.avatarRobotId ? (
-                          <AvatarImage src={getRobotAvatarPath(c.avatarRobotId)} alt={c.name} />
-                        ) : null}
-                        <AvatarFallback style={{ backgroundColor: c.color, color: 'white' }}>
-                          {c.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                    {collaborators.length > 5 && (
-                      <AvatarGroupCount>+{collaborators.length - 5}</AvatarGroupCount>
-                    )}
-                  </AvatarGroup>
-                </>
-              )}
+              <CollaboratorAvatars collaborators={collaborators} />
 
               {isEditable && (
                 <>
@@ -643,6 +637,7 @@ function EditorContent() {
                 onClick={() => togglePanel('chat')}
                 aria-label="Chat"
                 title="Chat"
+                data-tour="docs-chat-toggle"
               >
                 <FiMessageSquare />
               </button>
@@ -712,6 +707,39 @@ function EditorContent() {
                           <FiClock />
                           Versionshistorie
                         </button>
+                        {canEdit && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            disabled={hasPendingAIChanges}
+                            title={
+                              hasPendingAIChanges
+                                ? 'Während einer KI-Überprüfung nicht verfügbar'
+                                : undefined
+                            }
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              toggleSuggestions();
+                            }}
+                          >
+                            <FiEdit3 />
+                            <span className="flex-1">Änderungen nachverfolgen (Experimentell)</span>
+                            {suggestionModeEnabled && (
+                              <FiCheck className="!h-4 !w-4 text-primary-600" />
+                            )}
+                          </button>
+                        )}
+                        {canEdit && suggestionModeEnabled && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              togglePanel('suggestions');
+                            }}
+                          >
+                            <FiList />
+                            Änderungen prüfen
+                          </button>
+                        )}
                         {wolkeConnected && (
                           <button
                             className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
@@ -796,6 +824,7 @@ function EditorContent() {
 
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
         <main
+          data-tour="docs-surface"
           className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] ${
             isDesktopApp()
               ? // Desktop app only: match the editor backdrop to the top bar so
@@ -817,6 +846,7 @@ function EditorContent() {
               editable={isEditable}
               commentsPortalTarget={commentsPortalTarget}
               onEditorReady={handleEditorReady}
+              localUser={suggestionAuthor}
             />
           ) : (
             <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
@@ -834,6 +864,7 @@ function EditorContent() {
           // and in-flight streams. The aside is hidden via CSS when the chat
           // panel isn't the active sidebar.
           <aside
+            data-tour="docs-chat"
             className={
               effectivePanel === 'chat'
                 ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
@@ -922,6 +953,10 @@ function EditorContent() {
                   }
                 }}
               />
+            )}
+
+            {effectivePanel === 'suggestions' && editor && (
+              <SuggestionsSidebar editor={editor} ydoc={ydoc} canEdit={isEditable} />
             )}
           </aside>
         )}
