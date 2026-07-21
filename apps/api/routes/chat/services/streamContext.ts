@@ -13,6 +13,7 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
+import { parseMentionTokens, sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
@@ -48,6 +49,7 @@ import {
   createMessage,
   deleteMessagesFrom,
   deleteTrailingAssistant,
+  getThreadToolContext,
 } from './threadPersistenceService.js';
 
 import type {
@@ -99,6 +101,12 @@ export interface StreamContext {
   memoryRetrieveTimeMs: number;
   memoryEnabled: boolean;
   contextWindowTokens: number;
+  /** Routing fields derived from durable mention tokens in the last user
+   *  message ("@[Label](type:id)") — merged with the legacy body fields. */
+  mentionTokenFields: MentionTokenFields;
+  /** Last user message text WITH tokens (pre-sanitization) — for regex
+   *  heuristics that need the remove-form. */
+  lastUserTextRaw: string;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -146,6 +154,15 @@ export async function buildStreamContext({
     platform: rawPlatform,
   } = body;
 
+  // Durable mention tokens in the last user message are the routing source of
+  // truth; legacy per-request fields (older clients) merge in by union. Ids in
+  // tokens are user-typed text — every consumer below keeps its access checks.
+  const mentionTokenFields = deriveMentionTokenFields(clientMessages);
+  const mergedNotebookIds = unionIds(rawNotebookIds, mentionTokenFields.notebookIds);
+  const mergedBoardIds = unionIds(rawBoardIds, mentionTokenFields.boardIds);
+  const mergedSheetIds = unionIds(rawSheetIds, mentionTokenFields.sheetIds);
+  const mergedDocMentionIds = unionIds(rawDocMentionIds, mentionTokenFields.docMentionIds);
+
   // === Validate ===
   const user = getUser(req);
   if (!user?.id) {
@@ -173,8 +190,8 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const systemNotebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
-  const userNotebookUuids = rawNotebookIds?.filter(isUserNotebookId) ?? [];
+  const systemNotebookIds = mergedNotebookIds.filter(isKnownNotebook);
+  const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
@@ -281,14 +298,14 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const validMessages = filterEmptyAssistantMessages(
+  let validMessages = filterEmptyAssistantMessages(
     modelMessages as ModelMessage[]
   ) as ChatGraphInput['messages'];
   log.info(
     `[ChatGraph] Converted ${(clientMessages as unknown[]).length} → ${validMessages.length} valid messages`
   );
 
-  const lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+  let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
@@ -391,6 +408,13 @@ export async function buildStreamContext({
       );
     }
   }
+
+  // Raw (token-bearing) text is persisted above; everything downstream —
+  // classifier, heuristics, memory query, LLM prompts — sees the readable
+  // "@Label" form. Tokens never reach a prompt.
+  const lastUserTextRaw = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+  validMessages = validMessages.map(sanitizeMessageMentions);
+  lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
   // instead of looking frozen during attachment processing + memory fetch
@@ -532,8 +556,8 @@ export async function buildStreamContext({
       : docAttachments.length > 0 || documentChatMode
         ? []
         : undefined,
-    boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
-    sheetIds: rawSheetIds?.length ? rawSheetIds : undefined,
+    boardIds: mergedBoardIds.length ? mergedBoardIds : undefined,
+    sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
     connectFiles,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
@@ -541,8 +565,8 @@ export async function buildStreamContext({
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
     // precedence — we only fall back to currentDocument.id otherwise.
-    docMentionIds: rawDocMentionIds?.length
-      ? rawDocMentionIds
+    docMentionIds: mergedDocMentionIds.length
+      ? mergedDocMentionIds
       : rawCurrentDocument?.id
         ? [rawCurrentDocument.id]
         : undefined,
@@ -566,6 +590,12 @@ export async function buildStreamContext({
   log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
   initialState.agentConfig.userId = userId;
+  // Thread tool memory for the classifier: which tool family the previous
+  // substantive turn used ("@tally" is stripped from message text on send, so
+  // this is the only carrier a vague follow-up has). Non-fatal on failure.
+  if (actualThreadId && !isNewThread) {
+    initialState.lastToolContext = await getThreadToolContext(actualThreadId).catch(() => null);
+  }
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
     initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
@@ -584,9 +614,9 @@ export async function buildStreamContext({
     userId,
     ...(rawDocumentIds != null && { rawDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
-    ...(rawBoardIds != null && { rawBoardIds }),
-    ...(rawSheetIds != null && { rawSheetIds }),
-    ...(rawDocMentionIds != null && { rawDocMentionIds }),
+    ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
+    ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
+    ...(mergedDocMentionIds.length > 0 && { rawDocMentionIds: mergedDocMentionIds }),
     docAttachments,
     processedMeta,
     contextWindowTokens,
@@ -612,6 +642,87 @@ export async function buildStreamContext({
       memoryRetrieveTimeMs,
       memoryEnabled,
       contextWindowTokens,
+      mentionTokenFields,
+      lastUserTextRaw,
     },
   };
+}
+
+// ── Durable mention tokens ───────────────────────────────────────────────────
+
+export interface MentionTokenFields {
+  forcedTools: string[];
+  notebookIds: string[];
+  boardIds: string[];
+  sheetIds: string[];
+  docMentionIds: string[];
+}
+
+function unionIds(a: string[] | null | undefined, b: string[]): string[] {
+  return [...new Set([...(a ?? []), ...b])];
+}
+
+function lastUserTextFromClient(clientMessages: unknown): string {
+  if (!Array.isArray(clientMessages)) return '';
+  for (let i = clientMessages.length - 1; i >= 0; i--) {
+    const m = clientMessages[i] as {
+      role?: string;
+      parts?: Array<{ type?: string; text?: string }>;
+      content?: unknown;
+    };
+    if (m?.role !== 'user') continue;
+    if (Array.isArray(m.parts)) {
+      return m.parts
+        .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+        .map((part) => part.text)
+        .join(' ');
+    }
+    return typeof m.content === 'string' ? m.content : '';
+  }
+  return '';
+}
+
+/**
+ * Inverse of the client-side token mapping (mentionParser.mentionTokenFor):
+ * derive the routing fields from durable tokens in the last user message.
+ * `agent` tokens are skipped — the effective agent still travels via the body
+ * (store-selected agent must win, and agent resolution is validated elsewhere).
+ */
+function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
+  const fields: MentionTokenFields = {
+    forcedTools: [],
+    notebookIds: [],
+    boardIds: [],
+    sheetIds: [],
+    docMentionIds: [],
+  };
+  for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
+    if (token.type === 'tool') fields.forcedTools.push(token.id);
+    else if (token.type === 'mcp') fields.forcedTools.push(`mcp:${token.id}`);
+    else if (token.type === 'notebook') fields.notebookIds.push(token.id);
+    else if (token.type === 'board') fields.boardIds.push(token.id);
+    else if (token.type === 'sheet') fields.sheetIds.push(token.id);
+    else if (token.type === 'doc') fields.docMentionIds.push(token.id);
+  }
+  return fields;
+}
+
+/** Token → "@Label" on every text part; non-text parts stay untouched. */
+function sanitizeMessageMentions<T extends { role: string; content: unknown }>(message: T): T {
+  const { content } = message;
+  if (typeof content === 'string') {
+    return { ...message, content: sanitizeMentionTokens(content, 'label') };
+  }
+  if (Array.isArray(content)) {
+    const parts = content as Array<Record<string, unknown>>;
+    return {
+      ...message,
+      content: parts.map((part) =>
+        part && part.type === 'text' && typeof part.text === 'string'
+          ? { ...part, text: sanitizeMentionTokens(part.text, 'label') }
+          : part
+      ),
+    };
+  }
+  return message;
 }
