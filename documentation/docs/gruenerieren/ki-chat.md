@@ -84,6 +84,10 @@ Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung h
 Klicke auf das **Schraubenschlüssel-Symbol** neben dem Eingabefeld, um Werkzeuge dauerhaft zu aktivieren oder zu deaktivieren. So musst du sie nicht bei jeder Nachricht erneut erwähnen. Dort findest du vier Hauptwerkzeuge: Recherche, Dokumente, Web und Beispiele.
 :::
 
+### Externe Dienste (Konnektoren)
+
+Du kannst auch **externe Dienste** wie Notion, Tally oder Todoist per `@`-Mention nutzen — z. B. _„Erstelle ein Anmeldeformular mit @tally"_. Dafür verbindest du den Dienst einmalig unter **Konnektoren**. Wie das geht, steht im [Konnektoren-Tutorial](../integrationen/konnektoren).
+
 ## Dateien im Chat
 
 Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Klicke auf das **📎-Symbol** im Eingabefeld und wähle deine Dateien aus.
