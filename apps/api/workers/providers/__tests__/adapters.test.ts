@@ -2,7 +2,7 @@
  * Integration Test for AI Provider Adapters (Vercel SDK Migration)
  * Run with: cd apps/api && npx tsx workers/providers/__tests__/adapters.test.ts
  *
- * This test verifies that Mistral, IONOS, and LiteLLM adapters work correctly
+ * This test verifies that Mistral and LiteLLM adapters work correctly
  * with the new Vercel AI SDK implementation.
  */
 
@@ -54,7 +54,6 @@ console.log('\n--- Test 2: Provider Configuration ---');
 try {
   console.log('Mistral configured:', isProviderConfigured('mistral') ? '✅' : '⚠️ Not configured');
   console.log('LiteLLM configured:', isProviderConfigured('litellm') ? '✅' : '⚠️ Not configured');
-  console.log('IONOS configured:', isProviderConfigured('ionos') ? '✅' : '⚠️ Not configured');
 } catch (error: unknown) {
   console.log('Test 2 failed:', (error as { message?: string }).message);
 }
@@ -64,7 +63,6 @@ console.log('\n--- Test 3: Default Models ---');
 try {
   console.log('Mistral default:', getDefaultModel('mistral'));
   console.log('LiteLLM default:', getDefaultModel('litellm'));
-  console.log('IONOS default:', getDefaultModel('ionos'));
 } catch (error: unknown) {
   console.log('Test 3 failed:', (error as { message?: string }).message);
 }
@@ -74,7 +72,6 @@ console.log('\n--- Test 4: Provider Exports ---');
 try {
   console.log('mistral adapter exported:', providers.mistral ? '✅' : '❌');
   console.log('litellm adapter exported:', providers.litellm ? '✅' : '❌');
-  console.log('ionos adapter exported:', providers.ionos ? '✅' : '❌');
   console.log(
     'executeProvider function:',
     typeof providers.executeProvider === 'function' ? '✅' : '❌'
@@ -100,13 +97,6 @@ try {
     console.log('LiteLLM model instance:', model ? '✅ Created' : '❌ Failed');
   } else {
     console.log('LiteLLM model instance: ⚠️ Skipped (not configured)');
-  }
-
-  if (isProviderConfigured('ionos')) {
-    const model = getModel('ionos');
-    console.log('IONOS model instance:', model ? '✅ Created' : '❌ Failed');
-  } else {
-    console.log('IONOS model instance: ⚠️ Skipped (not configured)');
   }
 } catch (error: unknown) {
   console.log('Test 5 failed:', (error as { message?: string }).message);

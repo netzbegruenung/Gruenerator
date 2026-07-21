@@ -6,7 +6,6 @@
 // Class exports
 export { TokenCounter, tokenCounter } from './TokenCounter.js';
 export { ImageGenerationCounter } from './ImageGenerationCounter.js';
-export { PrivacyCounter } from './PrivacyCounter.js';
 
 // Named function exports from TokenCounter (backward compatibility)
 export {
@@ -20,7 +19,6 @@ export {
 
 // Default exports for backward compatibility
 export { default as ImageGenerationCounterClass } from './ImageGenerationCounter.js';
-export { default as PrivacyCounterClass } from './PrivacyCounter.js';
 
 // Type exports
 export type {

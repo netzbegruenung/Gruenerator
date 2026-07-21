@@ -93,10 +93,6 @@ export function useSharepicGeneration(
         ...(options.details != null && { details: options.details }),
       };
 
-      if (options.usePrivacyMode) {
-        requestData.usePrivacyMode = true;
-      }
-
       const response = await client.post<DefaultSharepicsResponse>(
         DEFAULT_SHAREPICS_ENDPOINT,
         requestData
@@ -130,14 +126,6 @@ export function useSharepicGeneration(
       // Add author for quote types
       if (options.author) {
         requestData.name = options.author;
-      }
-
-      if (options.usePrivacyMode) {
-        requestData.usePrivacyMode = true;
-      }
-
-      if (options.useProMode) {
-        requestData.useBedrock = true;
       }
 
       // Add image data if provided (for dreizeilen, quote types)
