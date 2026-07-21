@@ -14,6 +14,8 @@
 
 import * as crypto from 'crypto';
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { QdrantOperations } from '../../database/services/QdrantService/operations/index.js';
@@ -84,7 +86,8 @@ export async function upsertThreadRecallPoint(threadId: string): Promise<void> {
   const parts = [
     row.title ?? '',
     tags ? `Themen: ${tags}` : '',
-    row.first_message ?? '',
+    // Stored content may carry durable mention tokens — pure embedding noise.
+    sanitizeMentionTokens(row.first_message ?? '', 'remove'),
     row.compaction_summary ?? '',
   ].filter((p) => p.trim());
 

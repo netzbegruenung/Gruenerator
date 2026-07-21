@@ -59,9 +59,7 @@ export function createSuccessResponseWithAttachments(
   result: AIWorkerResult,
   routePath: string,
   formData: Record<string, unknown>,
-  attachmentInfo: AttachmentInfo,
-  usePrivacyMode: boolean = false,
-  provider: string | null = null
+  attachmentInfo: AttachmentInfo
 ): SuccessResponse {
   // Extract web search sources from result metadata
   const webSearchSources = result?.metadata?.webSearchSources || null;
@@ -72,8 +70,6 @@ export function createSuccessResponseWithAttachments(
   const enrichmentSummary = attachmentInfo.enrichmentSummary || null;
 
   const attachmentMetadata = {
-    privacyModeUsed: usePrivacyMode,
-    provider: usePrivacyMode && provider ? provider : 'default',
     attachmentsUsed: attachmentInfo.hasAttachments,
     attachmentsCount: attachmentInfo.summary?.count || 0,
     attachmentsTotalSizeMB: attachmentInfo.summary?.totalSizeMB || 0,
@@ -138,17 +134,13 @@ export function sendSuccessResponseWithAttachments(
   result: AIWorkerResult,
   routePath: string,
   formData: Record<string, unknown>,
-  attachmentInfo: AttachmentInfo,
-  usePrivacyMode: boolean,
-  provider: string | null
+  attachmentInfo: AttachmentInfo
 ): void {
   const response = createSuccessResponseWithAttachments(
     result,
     routePath,
     formData,
-    attachmentInfo,
-    usePrivacyMode,
-    provider
+    attachmentInfo
   );
 
   // Extract route name for logging

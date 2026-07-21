@@ -12,7 +12,7 @@ Eigene Agent\*innen sind noch in der Erprobung. Verhalten und Funktionen können
 
 ## Schritt 1: Den Creator öffnen
 
-Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Agenten** und klicke oben rechts auf **Neuer Agent**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
+Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Agent**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
 
 ## Schritt 2: Agent beschreiben (empfohlen)
 
@@ -26,33 +26,34 @@ Klicke auf **„Lieber manuell anlegen?"**, um den Editor mit leerem Formular zu
 
 ## Schritt 3: Im Editor anpassen
 
-Der Editor zeigt links das Formular und rechts eine Live-**Vorschau**. Diese Felder gibt es:
+Der Editor zeigt links das Formular und rechts eine Live-**Vorschau**. Die Felder sind in Tabs gegliedert: **Grundlagen**, **Werkzeuge** und **Wissen** (bei wiederkehrenden Aufgaben zusätzlich **Zeitplan**).
 
-**Pflichtfelder (immer sichtbar):**
+**Pflichtfelder (Tab Grundlagen):**
 
 - **Name** — der Anzeigename deines Agenten. Daneben wählst du über den Icon-Picker ein Symbol.
 - **Beschreibung** — ein kurzer Satz, was der Agent macht.
 - **Anleitung** — die eigentliche Anweisung an die KI (das „System-Prompt"), z.B. beginnend mit _„Du bist ein\*e …"_. Mindestens 10 Zeichen.
 
-**Werkzeuge** — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind **Grünerator-Wissen** und **Websuche** aktiv. Zur Auswahl stehen:
+**Tab Werkzeuge** — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind **Grünerator-Wissen** und **Recherche** aktiv. Zur Auswahl stehen:
 
-| Werkzeug                   | Funktion                                                                          |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| **Grünerator-Wissen**      | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki). |
-| **Websuche**               | Sucht im Web nach aktuellen Informationen.                                        |
-| **Tiefenrecherche**        | Führt eine mehrstufige Recherche mit Quellenangaben durch.                        |
-| **Social-Media-Beispiele** | Findet passende Beispiel-Posts aus dem Grünerator-Fundus.                         |
-| **Bildgenerierung**        | Erstellt Bilder aus einer Beschreibung.                                           |
-| **Bildbearbeitung**        | Bearbeitet ein vorhandenes Bild nach Anweisung.                                   |
-| **Bildanalyse**            | Beschreibt und analysiert hochgeladene Bilder.                                    |
-| **Webseiten lesen**        | Liest den Inhalt einer angegebenen URL aus.                                       |
-| **Umfragen**               | Ruft aktuelle Umfragewerte ab.                                                    |
-| **Eigene Inhalte**         | Durchsucht die eigenen gespeicherten Texte und Dokumente.                         |
+| Werkzeug                   | Funktion                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Grünerator-Wissen**      | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki).                  |
+| **Recherche**              | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. |
+| **Social-Media-Beispiele** | Findet passende Beispiel-Posts aus dem Grünerator-Fundus.                                          |
+| **Bildgenerierung**        | Erstellt Bilder aus einer Beschreibung.                                                            |
+| **Bildbearbeitung**        | Bearbeitet ein vorhandenes Bild nach Anweisung.                                                    |
+| **Bildanalyse**            | Beschreibt und analysiert hochgeladene Bilder.                                                     |
+| **Webseiten lesen**        | Liest den Inhalt einer angegebenen URL aus.                                                        |
+| **Umfragen**               | Ruft aktuelle Umfragewerte ab.                                                                     |
+| **Frühere Chats**          | Durchsucht deine früheren Unterhaltungen.                                                          |
+| **Eigene Inhalte**         | Durchsucht die eigenen gespeicherten Texte und Dokumente.                                          |
 
-Darunter:
+Darunter im selben Tab:
 
 - **Quell-Links direkt im Antworttext** — für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche erscheinen inline im Text statt nur als Quellen-Karten.
-- **Wissen** — wähle ein Standard-Notebook, das beim Öffnen automatisch als Wissensquelle aktiv ist. Im Auswahlmenü gibt es **Kein Standard-Notebook**, die Gruppe **Grünerator-Notebooks** und – sobald du eigene Notebooks hast – **Meine Notebooks**.
+
+**Tab Wissen** — wähle per Checkbox die Notebooks, die dein Agent automatisch als Wissensquelle durchsucht. **Mehrfachauswahl ist möglich**; zur Auswahl stehen die Gruppen **Grünerator-Notebooks** und – sobald du eigene Notebooks hast – **Meine Notebooks**.
 
 **Aufklappbare Bereiche (optional):**
 
@@ -61,6 +62,10 @@ Darunter:
 
 :::tip Erst das Wissen, dann der Agent
 Lege dir vorher unter [Notebooks](../notebooks/eigenes-notebook-erstellen) ein eigenes Notebook an und lade eure Dokumente hoch. Im Editor kannst du es dann unter **Wissen → Meine Notebooks** auswählen — und dein Agent antwortet ausschließlich aus euren Quellen, mit nachprüfbaren Quellenangaben.
+:::
+
+:::info Wiederkehrende Aufgaben
+Du kannst einen Agenten auch als **wiederkehrende Aufgabe** anlegen — er läuft dann automatisch nach Zeitplan (z. B. „jeden Montag eine Presseschau"). Starte dazu die Erstellung aus dem Regal **Wiederkehrende Aufgaben** in der Agentura; im Editor erscheint ein zusätzlicher **Zeitplan**-Tab.
 :::
 
 ## Schritt 4: Speichern und nutzen

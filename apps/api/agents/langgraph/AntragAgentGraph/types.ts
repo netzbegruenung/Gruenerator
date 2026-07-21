@@ -10,9 +10,6 @@ export interface AntragAgentInput {
   gliederung: string;
   features: {
     useWebSearchTool: boolean;
-    usePrivacyMode: boolean;
-    useProMode: boolean;
-    useUltraMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];
@@ -28,9 +25,6 @@ export interface AntragAgentState {
   gliederung: string;
   features: {
     useWebSearchTool: boolean;
-    usePrivacyMode: boolean;
-    useProMode: boolean;
-    useUltraMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];

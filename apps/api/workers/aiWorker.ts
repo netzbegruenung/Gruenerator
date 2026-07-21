@@ -13,7 +13,7 @@ import type {
   AIWorkerResult,
   AIRequestOptions,
 } from './types.js';
-import type { ProviderName, PrivacyProviderData } from '../services/providers/types.js';
+import type { ProviderName, FallbackProviderData } from '../services/providers/types.js';
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -88,15 +88,11 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     ...options,
     provider: selection.provider,
     model: selection.model,
-    useProMode: !!options.useProMode,
-    useUltraMode: !!options.useUltraMode,
   };
 
   console.log(`[AI Worker ${requestId}] Provider selection:`, {
     selectedProvider: selection.provider,
     selectedModel: selection.model,
-    useProMode: !!effectiveOptions.useProMode,
-    useUltraMode: !!effectiveOptions.useUltraMode,
     temperature: effectiveOptions.temperature ?? 'default',
     explicitProvider: data.provider || 'none',
   });
@@ -120,36 +116,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     }
 
-    if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
-      // Ultra Mode now uses IONOS with high-quality model
-      console.log(
-        `[AI Worker ${requestId}] Using Ultra Mode (IONOS) with temperature: ${effectiveOptions.temperature ?? 'default'}`
-      );
-      sendProgress(requestId, 15);
-      effectiveOptions.model = 'openai/gpt-oss-120b';
-      result = await providers.executeProvider('ionos', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
-      console.log(
-        `[AI Worker ${requestId}] Using Pro Mode (Magistral) provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
-      );
-      sendProgress(requestId, 15);
-      result = await providers.executeProvider('mistral', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && selection.provider === 'ionos' && !explicitProvider) {
-      console.log(
-        `[AI Worker ${requestId}] Using IONOS provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
-      );
-      sendProgress(requestId, 15);
-      result = await providers.executeProvider('ionos', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
+    if (!result && selection.provider === 'litellm' && !explicitProvider) {
       console.log(
         `[AI Worker ${requestId}] Using LiteLLM provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
@@ -186,9 +153,9 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       const isSharepicType = SHAREPIC_TYPES.includes(type);
       const fallbackFn = isSharepicType
         ? providerFallback.trySharepicFallbackProviders
-        : providerFallback.tryPrivacyModeProviders;
+        : providerFallback.tryFallbackProviders;
 
-      const fallbackData: PrivacyProviderData = {
+      const fallbackData: FallbackProviderData = {
         ...data,
         options: data.options || {},
       };
@@ -211,12 +178,12 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       const isSharepicType = SHAREPIC_TYPES.includes(type);
       const fallbackFn = isSharepicType
         ? providerFallback.trySharepicFallbackProviders
-        : providerFallback.tryPrivacyModeProviders;
+        : providerFallback.tryFallbackProviders;
 
       console.log(
-        `[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`
+        `[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'default'} providers`
       );
-      const errorFallbackData: PrivacyProviderData = {
+      const errorFallbackData: FallbackProviderData = {
         ...data,
         options: data.options || {},
       };

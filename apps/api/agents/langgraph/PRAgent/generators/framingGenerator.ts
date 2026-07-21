@@ -55,7 +55,6 @@ Entwickle das strategische Framing für dieses Thema.`;
   const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
     {
       type: 'social',
-      usePrivacyMode: request.usePrivacyMode || false,
       systemPrompt: promptResult.system,
       messages: promptResult.messages,
       options: {
