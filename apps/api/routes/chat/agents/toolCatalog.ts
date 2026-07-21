@@ -42,7 +42,6 @@ import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
-import { extractTextContent } from '../services/messageHelpers.js';
 
 import {
   makeAbgeordnetenwatchTool,
@@ -84,15 +83,6 @@ const log = createLogger('toolCatalog');
  */
 const IMAGE_REQUEST_PATTERN =
   /\b(bild(er)?|foto|illustration|grafik|motiv|zeichnung|zeichne|male|visualisier\w*|image|sujet)\b/i;
-
-function lastUserText(messages: ChatGraphState['messages'] | undefined): string {
-  if (!messages) return '';
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role === 'user') return extractTextContent(m.content);
-  }
-  return '';
-}
 
 /** Tools exposed to the Phase-1 agentic loop (research intentionally excluded). */
 const CATALOG_TOOLS = new Set([
@@ -325,7 +315,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (
       !editorSurface &&
       (state.intent === 'image' ||
-        (state.intent === 'agentic' && IMAGE_REQUEST_PATTERN.test(lastUserText(state.messages)))) &&
+        (state.intent === 'agentic' && IMAGE_REQUEST_PATTERN.test(lastUserText(state)))) &&
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });
