@@ -13,7 +13,7 @@ import { strategizeNode } from './nodes/strategizeNode.js';
 import type { SocialAgentState } from './types.js';
 import type { EnrichedState } from '../../../utils/types/requestEnrichment.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 // Track all aiWorkerPool.processRequest calls
 const aiCalls: Array<{
@@ -77,8 +77,6 @@ const mockEnrichedState: EnrichedState = {
     zitatgeber: '',
     platforms: ['instagram'],
     usePrivacyMode: false,
-    useProMode: false,
-    useUltraMode: false,
   },
   examples: [{ content: 'Beispiel Instagram-Post zum Klimaschutz' }],
   toolInstructions: [],
@@ -100,8 +98,6 @@ function buildTestState(overrides: Partial<SocialAgentState> = {}): SocialAgentS
     features: {
       useWebSearchTool: false,
       usePrivacyMode: false,
-      useProMode: false,
-      useUltraMode: false,
     },
     selectedDocumentIds: [],
     selectedTextIds: [],
@@ -209,8 +205,6 @@ async function runTests() {
     features: {
       useWebSearchTool: false,
       usePrivacyMode: true,
-      useProMode: false,
-      useUltraMode: false,
     },
     selectedDocumentIds: [],
     selectedTextIds: [],

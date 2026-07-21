@@ -314,7 +314,6 @@ class RequestEnricher {
       enableWebSearch = false,
       enableDocQnA = true,
       usePrivacyMode = false,
-      useProMode = false,
       webSearchQuery = null,
       systemRole = null,
       constraints = null,
@@ -358,8 +357,6 @@ class RequestEnricher {
       selectedDocumentIds,
       selectedTextIds,
       searchQuery,
-      // Pro Mode flag for reasoning
-      useProMode,
       // Initialize enrichment metadata
       enrichmentMetadata: undefined,
     };

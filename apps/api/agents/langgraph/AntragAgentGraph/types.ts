@@ -11,8 +11,6 @@ export interface AntragAgentInput {
   features: {
     useWebSearchTool: boolean;
     usePrivacyMode: boolean;
-    useProMode: boolean;
-    useUltraMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];
@@ -29,8 +27,6 @@ export interface AntragAgentState {
   features: {
     useWebSearchTool: boolean;
     usePrivacyMode: boolean;
-    useProMode: boolean;
-    useUltraMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];

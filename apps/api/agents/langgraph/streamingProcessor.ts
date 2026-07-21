@@ -17,6 +17,7 @@ import {
   type RequestWithLocale,
 } from '../../services/localization/index.js';
 import { selectProviderAndModel } from '../../services/providers/providerSelector.js';
+import { type ProviderOptions } from '../../services/providers/types.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
@@ -97,8 +98,6 @@ export async function processGraphRequestStreaming(
       selectedTextIds?: string[];
       searchQuery?: string;
       useNotebookEnrich?: boolean;
-      useProMode?: boolean;
-      useUltraMode?: boolean;
       reasoningEffort?: string;
       slug?: string;
       theme?: string;
@@ -182,7 +181,6 @@ export async function processGraphRequestStreaming(
         enableWebSearch: !!webSearchQuery,
         enableDocQnA: config.features?.docQnA !== false,
         usePrivacyMode: usePrivacyMode || false,
-        useProMode: requestData.useProMode || false,
         webSearchQuery,
         systemRole,
         constraints,
@@ -241,11 +239,8 @@ export async function processGraphRequestStreaming(
 
     const selection = selectProviderAndModel({
       type: routeType,
-      options: {
-        ...aiOptions,
-        useProMode: !!requestData.useProMode,
-        useUltraMode: !!requestData.useUltraMode,
-      },
+      // AIOptions carries provider/model via index signature; ProviderOptions is a weak type
+      options: aiOptions as ProviderOptions,
       metadata: {},
       env: process.env,
     });
@@ -352,7 +347,6 @@ export async function processGraphRequestStreaming(
     }, 8000);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/await-thenable -- AI SDK fullStream is async-iterable; the rule mis-types it
       for await (const part of result.fullStream) {
         if (abortController.signal.aborted) break;
 

@@ -9,8 +9,6 @@ export interface SocialAgentInput {
   features: {
     useWebSearchTool: boolean;
     usePrivacyMode: boolean;
-    useProMode: boolean;
-    useUltraMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];
@@ -27,8 +25,6 @@ export interface SocialAgentState {
   features: {
     useWebSearchTool: boolean;
     usePrivacyMode: boolean;
-    useProMode: boolean;
-    useUltraMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];

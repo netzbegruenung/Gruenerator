@@ -17,8 +17,6 @@ interface AntragRequestBody {
   gliederung?: string;
   useWebSearchTool?: boolean;
   usePrivacyMode?: boolean;
-  useProMode?: boolean;
-  useUltraMode?: boolean;
   selectedDocumentIds?: string[];
   selectedTextIds?: string[];
   attachments?: unknown[];
@@ -36,8 +34,6 @@ function buildInputFromRequest(req: Request): AntragAgentInput {
     features: {
       useWebSearchTool: body.useWebSearchTool || false,
       usePrivacyMode: body.usePrivacyMode || false,
-      useProMode: body.useProMode || false,
-      useUltraMode: body.useUltraMode || false,
     },
     selectedDocumentIds: body.selectedDocumentIds || [],
     selectedTextIds: body.selectedTextIds || [],
@@ -78,7 +74,6 @@ export async function processAntragAgentStreaming(req: Request, res: Response): 
     let fullOutput = '';
     let finalState: Record<string, unknown> | null = null;
 
-    // eslint-disable-next-line @typescript-eslint/await-thenable -- LangGraph .stream() yields an async-iterable stream; the rule mis-types it
     for await (const update of stream) {
       if (abortController.signal.aborted) {
         log.debug('[agentMode] Stream aborted by client');

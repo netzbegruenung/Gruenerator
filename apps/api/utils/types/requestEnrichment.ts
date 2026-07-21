@@ -14,7 +14,6 @@ export interface EnrichmentOptions {
   enableWebSearch?: boolean | undefined;
   enableDocQnA?: boolean | undefined;
   usePrivacyMode?: boolean | undefined;
-  useProMode?: boolean | undefined;
   webSearchQuery?: string | null | undefined;
   systemRole?: string | null | undefined;
   constraints?: string | null | undefined;
@@ -120,7 +119,6 @@ export interface EnrichedState {
   selectedDocumentIds: string[];
   selectedTextIds: string[];
   searchQuery: string | null;
-  useProMode: boolean;
   enrichmentMetadata?: EnrichmentMetadata | undefined;
   requestFormatted?: string | undefined;
   tools?: ClaudeTool[] | undefined;
