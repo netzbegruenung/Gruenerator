@@ -52,6 +52,8 @@ export interface ChatTrace {
   editorOps: boolean;
   /** A sharepic_updated event fired (sharepic edit actually applied). */
   sharepicUpdated: boolean;
+  /** Raw variant objects from sharepic_complete (id, canvasType, canvasId?). */
+  sharepicVariants: Record<string, unknown>[];
 }
 
 /** Per-prompt expectations. All fields optional — only assert what's known. */
@@ -63,6 +65,8 @@ export interface EvalExpect {
   /** intent event must carry `agentic: true`. */
   demoted?: boolean;
   toolsMustInclude?: string[];
+  /** Each inner group: at least one of these tools must have been called. */
+  toolsAnyOf?: string[][];
   toolsMustNotInclude?: string[];
   maxToolCalls?: number;
   generatesSharepic?: boolean;
@@ -102,6 +106,9 @@ export interface EvalTurn {
   /** Prepend N synthetic filler user/assistant pairs to the wire history
    *  (long-thread breadth probe — exercises pruning without replaying turns). */
   padTurns?: number;
+  /** Send the previously created sharepic variant as `currentSharepic` — mimics
+   *  the client's "Im Chat bearbeiten" toggle so edit turns hit the edit branch. */
+  useCreatedSharepic?: boolean;
 }
 
 export interface EvalScenario {
@@ -139,6 +146,8 @@ export interface ScenarioContext {
   firstThreadId: string | null;
   /** Artifact ids created in all earlier turns. */
   priorArtifactIds: string[];
+  /** Raw first variant of the last sharepic_complete (for useCreatedSharepic). */
+  lastSharepicVariant: Record<string, unknown> | null;
 }
 
 /** One executed turn — enriched so the LLM judge can consume last-run.json. */

@@ -163,10 +163,22 @@ async function runTurn(
   const userMessage = wireMessage(`eval-${scenario.id}-t${turnIdx}`, 'user', turn.prompt);
   const messages = [...padded, ...ctx.history, userMessage];
   const modelId = scenario.modelId ?? MODEL_ID;
+  // Mimic the client's "Im Chat bearbeiten" toggle: target the variant created
+  // earlier in the scenario so this turn hits the sharepic-edit branch.
+  const v = scenarioCtx.lastSharepicVariant;
+  const currentSharepic =
+    turn.useCreatedSharepic && v && typeof v.id === 'string'
+      ? {
+          variantId: v.id,
+          ...(typeof v.canvasId === 'string' ? { canvasId: v.canvasId } : {}),
+          canvasType: typeof v.canvasType === 'string' ? v.canvasType : 'sharepic',
+        }
+      : null;
   const body = {
     messages,
     ...(modelId ? { modelId } : {}),
     ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
+    ...(currentSharepic ? { currentSharepic } : {}),
   };
 
   const { rawBody, networkError } = await postSse('/api/chat-graph/stream', body);
@@ -201,6 +213,10 @@ async function runTurn(
 
   const latencyMs = Date.now() - started;
   const trace: ChatTrace = buildTrace(events, latencyMs);
+  // On follow-up turns the backend only emits thread_created when it MINTS a
+  // thread — silence means it accepted the one we sent. A re-mint therefore
+  // shows up as a thread_created with a DIFFERENT id, which sameThread catches.
+  if (trace.threadId == null && ctx.threadId) trace.threadId = ctx.threadId;
   if (networkError) trace.error = networkError;
   if (resumeError) trace.error = trace.error ?? resumeError;
   if (interrupted && !turn.onInterrupt) {
@@ -218,6 +234,9 @@ async function runTurn(
     ctx.history.push(wireMessage(`eval-${scenario.id}-t${turnIdx}-a`, 'assistant', trace.fullText));
   }
   scenarioCtx.priorArtifactIds.push(...trace.artifactIds);
+  if (trace.sharepicVariants.length > 0) {
+    scenarioCtx.lastSharepicVariant = trace.sharepicVariants[0];
+  }
   if (scenarioCtx.firstThreadId == null) scenarioCtx.firstThreadId = trace.threadId;
 
   return {
@@ -249,7 +268,11 @@ async function runTurn(
 
 async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
   const ctx: TurnCtx = { threadId: null, history: [] };
-  const scenarioCtx: ScenarioContext = { firstThreadId: null, priorArtifactIds: [] };
+  const scenarioCtx: ScenarioContext = {
+    firstThreadId: null,
+    priorArtifactIds: [],
+    lastSharepicVariant: null,
+  };
   const turns: TurnResult[] = [];
 
   for (const [i, turn] of scenario.turns.entries()) {
