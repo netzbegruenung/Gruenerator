@@ -47,20 +47,14 @@ const SEEDS: Seed[] = [
   ['Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'bearer', 'Über 7.000 Apps und Workflows verbinden.', 'https://zapier.com', 'Automatisierung'],
   ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
   ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
-  // Typeform allowlists DCR redirect domains (ours is rejected) → users must
-  // register a Developer App with our redirect URI and paste Client-ID/Secret.
-  ['Typeform', 'https://api.typeform.com/mcp', 'oauth', 'Formulare bauen, Automationen und Antworten verwalten.', 'https://typeform.com', 'Formulare', { setupUrl: 'https://www.typeform.com/developers/get-started/applications/' }],
-  ['Typeform (EU)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare bauen und Antworten verwalten (EU-Rechenzentrum).', 'https://typeform.com', 'Formulare', { setupUrl: 'https://www.typeform.com/developers/get-started/applications/' }],
-  // Zoom/DocuSign expose OAuth metadata but no registration_endpoint → the app
-  // must be created in the vendor console.
-  ['Zoom', 'https://zoom.us/mcp/meeting/streamable', 'oauth', 'Meetings planen, Aufzeichnungen und Zusammenfassungen abrufen.', 'https://zoom.us', 'Kommunikation', { setupUrl: 'https://marketplace.zoom.us/develop/create' }],
   ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität'],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
   // Goodnotes/trivago serve MCP without any auth (verified 2026-07-21).
   ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
-  ['DocuSign', 'https://mcp.docusign.com/mcp', 'oauth', 'Verträge und Signaturen erstellen, senden und verfolgen.', 'https://docusign.com', 'Dokumente', { setupUrl: 'https://developers.docusign.com/platform/build-integration/' }],
-  // Removed: IFTTT, Booking.com, Expedia — their MCPs only accept allowlisted
-  // clients (no DCR for our domain, no public app registration) → dead ends.
+  // Removed (audit 2026-07-21): IFTTT, Booking.com, Expedia — allowlisted
+  // clients only (no DCR for our domain, no public app registration); Typeform,
+  // Typeform (EU), Zoom, DocuSign — would require users to register their own
+  // vendor app (manual Client-ID/Secret), deliberately shelved for now.
   ['trivago', 'https://mcp.trivago.com/mcp', 'none', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
