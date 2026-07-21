@@ -11,6 +11,7 @@ import { type Request, type Response, type NextFunction } from 'express';
 
 import { auth, type BetterAuthUser } from '../config/betterAuth.js';
 import { env } from '../config/env.js';
+import { getUserLocale } from '../services/localization/localeCache.js';
 import { isAdminByEmail } from '../utils/adminEmails.js';
 import { BRAND } from '../utils/domainUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -212,7 +213,14 @@ async function tryResolveUser(req: Request): Promise<ResolveResult> {
         session.user.email,
         req.originalUrl
       );
-      return { kind: 'user', user: toBetterAuthUser(session.user) };
+      const user = toBetterAuthUser(session.user);
+      // `session.user.locale` comes from Better Auth's 300s cookie cache and can
+      // lag the DB. Overlay with the DB-backed, short-TTL cached value so every
+      // downstream reader gets the current locale. Best-effort: keep the session
+      // value if the lookup fails.
+      const freshLocale = await getUserLocale(user.id);
+      if (freshLocale) user.locale = freshLocale;
+      return { kind: 'user', user };
     }
     const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
     if (hasCredential) {
