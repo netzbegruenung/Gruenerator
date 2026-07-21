@@ -65,6 +65,7 @@ import type {
   SynthesisMode,
   WolkeFileRef,
   ConnectFileRef,
+  ThreadToolContext,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -99,6 +100,10 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   clientPlatform: Annotation<ClientPlatform>({
     reducer: (x, y) => y ?? x,
+  }),
+  // Thread tool memory (see ThreadToolContext) — loaded once per request.
+  lastToolContext: Annotation<ThreadToolContext | null>({
+    reducer: (x, y) => y ?? x ?? null,
   }),
 
   // Attachment context
@@ -816,6 +821,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     aiWorkerPool: input.aiWorkerPool,
     userLocale: input.userLocale || 'de-DE',
     clientPlatform: input.clientPlatform || 'web',
+    lastToolContext: null,
 
     // Attachment context
     attachmentContext: input.attachmentContext || null,

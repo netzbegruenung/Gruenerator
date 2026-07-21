@@ -48,6 +48,7 @@ import {
   createMessage,
   deleteMessagesFrom,
   deleteTrailingAssistant,
+  getThreadToolContext,
 } from './threadPersistenceService.js';
 
 import type {
@@ -566,6 +567,12 @@ export async function buildStreamContext({
   log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
   initialState.agentConfig.userId = userId;
+  // Thread tool memory for the classifier: which tool family the previous
+  // substantive turn used ("@tally" is stripped from message text on send, so
+  // this is the only carrier a vague follow-up has). Non-fatal on failure.
+  if (actualThreadId && !isNewThread) {
+    initialState.lastToolContext = await getThreadToolContext(actualThreadId).catch(() => null);
+  }
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
     initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
