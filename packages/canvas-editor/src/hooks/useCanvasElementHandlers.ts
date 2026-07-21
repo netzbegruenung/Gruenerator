@@ -3,6 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { FrameInstance } from '../utils/frameUtils';
 import type { ShapeInstance } from '../utils/shapes';
 import type { UserImageInstance } from '../utils/userImageUtils';
@@ -80,6 +81,7 @@ export interface OptionalCanvasActions {
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
+  updateChart?: (id: string, attrs: Partial<ChartInstance>) => void;
 
   // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
   // delete-key shortcuts; same factory-provided implementations).
@@ -92,6 +94,7 @@ export interface OptionalCanvasActions {
   removePillBadge?: (id: string) => void;
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
+  removeChart?: (id: string) => void;
 }
 
 export interface UseCanvasElementHandlersOptions<
@@ -182,6 +185,14 @@ export interface UseCanvasElementHandlersResult {
     y: number,
     width: number,
     height: number,
+    rotation: number
+  ) => void;
+  handleChartDragEnd: (id: string, x: number, y: number) => void;
+  handleChartTransformEnd: (
+    id: string,
+    x: number,
+    y: number,
+    scale: number,
     rotation: number
   ) => void;
 }
@@ -550,6 +561,20 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleChartDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      actions.updateChart?.(id, { x, y });
+    },
+    [actions]
+  );
+
+  const handleChartTransformEnd = useCallback(
+    (id: string, x: number, y: number, scale: number, rotation: number) => {
+      actions.updateChart?.(id, { x, y, scale, rotation });
+    },
+    [actions]
+  );
+
   return useMemo(
     () => ({
       handleElementSelect,
@@ -582,6 +607,8 @@ export function useCanvasElementHandlers<
       handleFrameImageUpload,
       handleUserImageDragEnd,
       handleUserImageTransformEnd,
+      handleChartDragEnd,
+      handleChartTransformEnd,
     }),
     [
       handleElementSelect,
@@ -614,6 +641,8 @@ export function useCanvasElementHandlers<
       handleFrameImageUpload,
       handleUserImageDragEnd,
       handleUserImageTransformEnd,
+      handleChartDragEnd,
+      handleChartTransformEnd,
     ]
   );
 }

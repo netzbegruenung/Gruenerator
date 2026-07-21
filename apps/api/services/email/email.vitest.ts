@@ -286,9 +286,10 @@ describe('emailService', () => {
       expect(call.subject).toContain('geteilt');
       expect(call.html).toContain('Anna');
       expect(call.html).toContain('Antrag Klimaschutz');
-      expect(call.html).toContain('/docs/doc-123');
+      // Share links moved to the office docs route (/office/<id>).
+      expect(call.html).toContain('/office/doc-123');
       expect(call.text).toContain('Anna');
-      expect(call.text).toContain('/docs/doc-123');
+      expect(call.text).toContain('/office/doc-123');
     });
   });
 

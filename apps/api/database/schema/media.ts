@@ -57,6 +57,20 @@ export interface TransferFileEntry {
   wolkePath: string;
 }
 
+/**
+ * Shape stored in `shared_media.image_metadata`. Open-ended (callers spread
+ * arbitrary generator metadata) but documents the fields the responsive-image
+ * pipeline relies on. See `sharedMediaService.processMediaVariants`.
+ */
+export interface SharedMediaImageMetadata extends Record<string, unknown> {
+  width?: number;
+  height?: number;
+  blurhash?: string;
+  variants?: number[];
+  hasOriginalImage?: boolean;
+  originalImageFilename?: string | null;
+}
+
 export const sharedMedia = pgTable(
   'shared_media',
   {
@@ -73,7 +87,7 @@ export const sharedMedia = pgTable(
     duration: numeric('duration'),
     project_id: uuid('project_id'),
     image_type: text('image_type'),
-    image_metadata: jsonb('image_metadata').$type<Record<string, unknown>>().notNull().default({}),
+    image_metadata: jsonb('image_metadata').$type<SharedMediaImageMetadata>().notNull().default({}),
     status: varchar('status', { length: 20 }).notNull().default('ready'),
     download_count: integer('download_count').notNull().default(0),
     view_count: integer('view_count').notNull().default(0),

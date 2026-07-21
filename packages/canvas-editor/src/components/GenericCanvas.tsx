@@ -41,6 +41,7 @@ import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
 import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
+import { captureStageImage } from '../utils/captureStage';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -70,6 +71,8 @@ import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
+import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
+import type { GradientFill } from '../utils/gradientFill';
 import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
@@ -107,12 +110,35 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   /** Callback to report toolbar state to parent (for layout-level toolbar rendering) */
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
   /**
-   * When provided, the per-instance Zustand store is bound to the supplied
-   * page Y.Map for collaborative editing. The page Y.Map owns its own
-   * `layers` (Y.Array<Y.Map>) and `config` (Y.Map) sub-collections so each
-   * page in a multi-page canvas has independent CRDT state.
+   * Reports the auto-save share token to the host as soon as a save creates
+   * or adopts one. Called from the save routine itself (not a store
+   * subscription) so tokens resolving after unmount still reach the host.
    */
-  collaborative?: {
+  onAutoSaveShareToken?: (token: string) => void;
+  /**
+   * Gallery autosave of this page. Defaults to true (standalone usage); the
+   * multi-page CanvasEditor passes an explicit value because deck-level
+   * autosave replaces the per-page path beyond one page, and collab docs
+   * persist via Hocuspocus.
+   */
+  autoSave?: boolean;
+  /**
+   * Pushes this page's live state/actions/selection to the host on every
+   * change — the multi-page editor's shared sidebar renders from it.
+   */
+  onLiveState?: (
+    state: Record<string, unknown>,
+    actions: Record<string, unknown>,
+    selectedElement: string | null
+  ) => void;
+  /**
+   * When provided, the per-instance Zustand store is bound to the supplied
+   * page Y.Map. The page Y.Map owns its own `layers` (Y.Array<Y.Map>) and
+   * `config` (Y.Map) sub-collections so each page has independent state.
+   * Set in BOTH modes now (collab doc or the editor's local Y.Doc);
+   * `provider` is only present in collab mode.
+   */
+  pageBinding?: {
     pageYMap: import('yjs').Map<unknown>;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */
@@ -126,24 +152,14 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
 
 export interface GenericCanvasRef {
   toDataURL: (options?: {
-    format?: 'png' | 'jpeg';
+    format?: 'png' | 'jpeg' | 'webp';
     pixelRatio?: number;
     quality?: number;
+    includeBackground?: boolean;
   }) => string | undefined;
   captureCanvas: () => Promise<string | null>;
   /** Lightweight JPEG capture for sending the canvas to vision models. */
   captureCanvasForAi: () => Promise<string | null>;
-  /** Get the current canvas state (for shared sidebar in multi-page mode) */
-  getState: () => Record<string, unknown>;
-  /**
-   * Get the canvas actions (for shared sidebar in multi-page mode).
-   * Existentially typed: each page's GenericCanvas holds its own concrete
-   * TActions; the multi-page CanvasEditor consumes them polymorphically.
-   * Use OptionalCanvasActions for typed access to shared optional methods.
-   */
-  getActions: () => Record<string, unknown>;
-  /** Get the currently selected element ID (for shared sidebar tab visibility) */
-  getSelectedElement?: () => string | null;
   /** Toolbar handlers — called by parent when toolbar is rendered at layout level */
   undo?: () => void;
   redo?: () => void;
@@ -152,6 +168,10 @@ export interface GenericCanvasRef {
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
   handleAlign?: (direction: AlignmentDirection) => void;
+  handleShadowChange?: (id: string, patch: ShadowPatch, type: string) => void;
+  handleOutlineChange?: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
+  handleBlurChange?: (id: string, blur: number) => void;
+  handleGradientSelect?: (gradient: GradientFill | null) => void;
 }
 
 // Generic component with forwardRef - uses type assertion pattern for TypeScript compatibility
@@ -167,6 +187,7 @@ function GenericCanvasWithRef<
     forwardedRef,
     mobileBridge,
     onToolbarStateChange,
+    onAutoSaveShareToken,
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
@@ -265,8 +286,8 @@ function GenericCanvasWithRef<
     [config]
   );
   useYjsPageStateSync({
-    pageYMap: props.collaborative?.pageYMap ?? null,
-    isSynced: props.collaborative?.isSynced ?? false,
+    pageYMap: props.pageBinding?.pageYMap ?? null,
+    isSynced: props.pageBinding?.isSynced ?? false,
     onRemoteState: handleRemotePageState,
   });
 
@@ -354,19 +375,29 @@ function GenericCanvasWithRef<
   const referenceWidth = config.canvas.width;
   const referenceHeight = config.canvas.height;
 
-  // Auto-save hook for gallery integration. Skipped in collaborative mode —
-  // Hocuspocus persists Yjs updates server-side; the gallery share-token path
-  // would race with Y.Doc state.
-  const autoSaveEnabled = !mobileBridge && !props.collaborative;
+  // Auto-save hook for gallery integration. The multi-page editor passes an
+  // explicit value (off in collab — Hocuspocus persists server-side — and off
+  // beyond one page, where deck-level autosave takes over); standalone
+  // consumers keep the historical default of on.
+  const autoSaveEnabled = !mobileBridge && (props.autoSave ?? true);
+
+  // Fresh capture for the unmount-flush path — transformer hiding makes the
+  // shot clean even while an element is still selected.
+  const captureForAutoSaveFlush = useCallback(
+    (): string | null => captureStageImage(stageRef.current),
+    []
+  );
+
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
     enabled: autoSaveEnabled,
+    captureImage: captureForAutoSaveFlush,
+    onShareToken: onAutoSaveShareToken,
   });
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes
   const historyIndex = useCanvasStoreSelector((s) => s.historyIndex);
-  const selectedElementForCapture = useCanvasStoreSelector((s) => s.selectedElement);
   const setAutoSaveDirty = useAutoSaveStore((s) => s.setDirty);
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
@@ -380,18 +411,14 @@ function GenericCanvasWithRef<
     ) {
       setAutoSaveDirty(true);
     }
-    // Capture waits until nothing is selected (selection handles would end up in
-    // the screenshot); selectedElementForCapture in the deps re-runs this effect
-    // on deselect so the pending historyIndex still gets captured.
-    if (store.getState().selectedElement) return;
     if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
-    // 1500ms ensures we only capture after the user stops editing.
+    // 1500ms ensures we only capture after the user stops editing. Transformer
+    // hiding inside captureStageImage keeps the shot clean even while an
+    // element is selected, so edits made with a live selection auto-save too.
     const timer = setTimeout(() => {
-      // Re-check at capture time in case selection changed during debounce
-      if (store.getState().selectedElement) return;
-      const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
+      const dataUrl = captureStageImage(stageRef.current);
       if (dataUrl) {
         setExportedImage(dataUrl);
         exportedImageRef.current = dataUrl;
@@ -402,22 +429,43 @@ function GenericCanvasWithRef<
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [
-    historyIndex,
-    isExporting,
-    store,
-    selectedElementForCapture,
-    autoSaveEnabled,
-    setAutoSaveDirty,
-  ]);
+  }, [historyIndex, isExporting, autoSaveEnabled, setAutoSaveDirty]);
+
+  // Push live state/actions/selection up to the shared sidebar. Replaces the
+  // old 200ms poll in PageWrapper: updates land synchronously with edits.
+  const onLiveState = props.onLiveState;
+  const liveStateRef = useRef({ state, actions });
+  liveStateRef.current = { state, actions };
+  useEffect(() => {
+    if (!onLiveState) return;
+    onLiveState(
+      state as Record<string, unknown>,
+      actions as unknown as Record<string, unknown>,
+      store.getState().selectedElement
+    );
+  }, [onLiveState, state, actions, store]);
+  useEffect(() => {
+    if (!onLiveState) return undefined;
+    let prev = store.getState().selectedElement;
+    return store.subscribe((s) => {
+      if (s.selectedElement === prev) return;
+      prev = s.selectedElement;
+      const { state: liveState, actions: liveActions } = liveStateRef.current;
+      onLiveState(
+        liveState as Record<string, unknown>,
+        liveActions as unknown as Record<string, unknown>,
+        s.selectedElement
+      );
+    });
+  }, [onLiveState, store]);
 
   // Live remote selections (collab mode). Publishes the local selection to
   // awareness (active page only) and maps remote peers' selections on this
   // page to element ids for the render layer's outlines.
-  const collabPageId = props.collaborative?.pageId ?? null;
-  const remoteSelectionsRaw = useSelectionAwareness(props.collaborative?.provider ?? null, {
+  const collabPageId = props.pageBinding?.pageId ?? null;
+  const remoteSelectionsRaw = useSelectionAwareness(props.pageBinding?.provider ?? null, {
     activePageId: collabPageId,
-    publish: props.collaborative?.publishSelection ?? true,
+    publish: props.pageBinding?.publishSelection ?? true,
   });
   const remoteSelections = useMemo(() => {
     if (remoteSelectionsRaw.length === 0) return undefined;
@@ -514,25 +562,11 @@ function GenericCanvasWithRef<
       toDataURL: (options) => {
         return stageRef.current?.toDataURL(options);
       },
-      captureCanvas: async () => {
-        if (store.getState().selectedElement) {
-          setSelectedElement(null);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        return stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
-      },
-      captureCanvasForAi: async () => {
-        if (store.getState().selectedElement) {
-          setSelectedElement(null);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        return (
-          stageRef.current?.toDataURL({ format: 'jpeg', pixelRatio: 1, quality: 0.85 }) ?? null
-        );
-      },
-      getState: () => state as Record<string, unknown>,
-      getActions: () => actions as unknown as Record<string, unknown>,
-      getSelectedElement: () => store.getState().selectedElement,
+      // Transformer hiding replaces the old deselect + 50ms-rerender hack:
+      // the user's selection survives a capture.
+      captureCanvas: async () => captureStageImage(stageRef.current),
+      captureCanvasForAi: async () =>
+        captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
@@ -540,17 +574,13 @@ function GenericCanvasWithRef<
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
       handleAlign,
+      handleShadowChange: (id, patch, type) =>
+        bridgeRef.current?.handleShadowChange(id, patch, type),
+      handleOutlineChange: (id, patch) => bridgeRef.current?.handleOutlineChange(id, patch),
+      handleBlurChange: (id, blur) => bridgeRef.current?.handleBlurChange(id, blur),
+      handleGradientSelect: (gradient) => bridgeRef.current?.handleGradientSelect(gradient),
     }),
-    [
-      state,
-      actions,
-      store,
-      setSelectedElement,
-      undo,
-      redo,
-      elementHandlers.handleFontSizeChange,
-      handleAlign,
-    ]
+    [undo, redo, elementHandlers.handleFontSizeChange, handleAlign]
   );
 
   return (
@@ -642,10 +672,10 @@ function GenericCanvasWithProvider<
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
   return (
     <CanvasStoreProvider>
-      {props.collaborative ? (
+      {props.pageBinding ? (
         <CanvasYjsBindingMount
-          pageYMap={props.collaborative.pageYMap}
-          isSynced={props.collaborative.isSynced}
+          pageYMap={props.pageBinding.pageYMap}
+          isSynced={props.pageBinding.isSynced}
         />
       ) : null}
       <MemoizedGenericCanvas {...props} />

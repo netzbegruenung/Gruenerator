@@ -1,13 +1,16 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { Copy, Check, Download, Loader2 } from 'lucide-react';
+import { Copy, Check, Download, Loader2, RefreshCw } from 'lucide-react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
+import { useMessageRuntime } from '@assistant-ui/react';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useAgentStore } from '../../stores/chatStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
 // import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
+import { MessageBranchPicker } from './MessageBranchPicker';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {
@@ -20,10 +23,19 @@ export const MessageActions = memo(function MessageActions({
   metadata,
 }: MessageActionsProps) {
   const extraActions = useExtraActions();
+  const messageRuntime = useMessageRuntime();
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isCreatingDoc, setIsCreatingDoc] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
+
+  const handleRegenerate = () => {
+    // Signal the backend to replace (not append) the last turn, then let
+    // assistant-ui re-run the adapter for this message.
+    const threadId = useAgentStore.getState().currentThreadId;
+    if (threadId) useChatConfigStore.getState().signalRegenerate(threadId);
+    messageRuntime.reload();
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -155,6 +167,15 @@ export const MessageActions = memo(function MessageActions({
           <HiOutlineDocumentText className="h-4 w-4" />
         )}
       </button>
+      <button
+        onClick={handleRegenerate}
+        className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+        aria-label="Neu generieren"
+        title="Neu generieren"
+      >
+        <RefreshCw className="h-4 w-4" />
+      </button>
+      <MessageBranchPicker />
       {extraActions?.map((action) => (
         <button
           key={action.id}

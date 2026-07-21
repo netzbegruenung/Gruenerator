@@ -5,7 +5,6 @@
 
 import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Image } from 'expo-image';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchMediathekImage } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { SharedMediaImage } from '../common/SharedMediaImage';
 
 const NUM_COLUMNS = 3;
 const ITEM_GAP = spacing.xsmall;
@@ -82,8 +82,6 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
   const renderItem = useCallback(
     ({ item }: { item: Share }) => {
       const isSelected = selectedToken === item.shareToken;
-      const thumbnailUrl =
-        item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
       const isOriginal = item.imageMetadata?.hasOriginalImage === true;
 
       return (
@@ -96,7 +94,14 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
           onPress={() => handleImagePress(item)}
           disabled={loadingImage}
         >
-          <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} contentFit="cover" />
+          <SharedMediaImage
+            shareToken={item.shareToken}
+            blurhash={item.imageMetadata?.blurhash}
+            width={400}
+            style={styles.thumbnail}
+            contentFit="cover"
+            accessibilityLabel={item.title || 'Mediathek Bild'}
+          />
           {isSelected && loadingImage && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="small" color={colors.white} />

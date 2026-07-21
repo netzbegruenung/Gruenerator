@@ -45,6 +45,7 @@ export const notificationTypeSchema = z.enum([
   'wolke_new_files',
   'agent_task_completed',
   'agent_task_failed',
+  'agent_task_awaiting_review',
   'new_avatars',
   'template_approved',
   'template_rejected',

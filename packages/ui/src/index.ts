@@ -52,6 +52,7 @@ export {
 } from './components/avatar';
 export { Badge, badgeVariants } from './components/badge';
 export { Button, buttonVariants } from './components/button';
+export { CopyLinkRow } from './components/copy-link-row';
 export { Fab, type FabProps } from './components/fab';
 export { Checkbox } from './components/checkbox';
 export {
@@ -184,6 +185,7 @@ export {
   CardContent,
 } from './components/card';
 export { CardGrid, cardGridVariants } from './components/card-grid';
+export { MasonryGrid, MasonryItem, masonryGridVariants } from './components/masonry-grid';
 export {
   ListCard,
   ListCardIcon,
@@ -202,6 +204,7 @@ export {
   ChartStyle,
   type ChartConfig,
 } from './components/chart';
+export { ChatChart, type ChatChartData } from './components/ChatChart';
 export { LoadingSection } from './components/loading-section';
 export { ArticleCard, type ArticleCardProps } from './components/article-card';
 export { CollapsibleSection, type CollapsibleSectionProps } from './components/collapsible-section';

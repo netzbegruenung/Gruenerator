@@ -10,7 +10,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { isCanvasEditorType, type Template } from '../types';
+import { isCanvasEditorType, isGrueneratorType, type Template } from '../types';
+
+import { useGrueneratorVorlage } from './useGrueneratorVorlage';
 
 import { useUserTemplates } from '@/features/auth/hooks/useProfileData';
 
@@ -35,11 +37,16 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
   const { query, deleteTemplate, updateTemplateVisibility, updateTemplate } = useUserTemplates({
     isActive: true,
   });
+  const { openVorlage } = useGrueneratorVorlage();
   // Guards the async open of a canvas-editor template against double-clicks.
   const [openingId, setOpeningId] = useState<string | null>(null);
 
   const openTemplate = useCallback(
     async (t: Template): Promise<void> => {
+      if (isGrueneratorType(t)) {
+        await openVorlage({ id: t.id, content_data: t.content_data });
+        return;
+      }
       if (isCanvasEditorType(t)) {
         if (openingId) return;
         setOpeningId(t.id);
@@ -51,7 +58,7 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
           void navigate(
             result.subtype === 'boards'
               ? `/boards/${result.documentId}`
-              : `/docs/${result.documentId}`
+              : `/office/${result.documentId}`
           );
         } catch (e) {
           toast.error('Vorlage konnte nicht geöffnet werden: ' + errText(e));
@@ -63,7 +70,7 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
       const url = externalUrl(t);
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     },
-    [navigate, openingId]
+    [navigate, openingId, openVorlage]
   );
 
   const toggleVisibility = useCallback(
@@ -97,9 +104,9 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
       const actions: TemplateAction[] = [
         { label: 'Bearbeiten', icon: HiOutlinePencil, onClick: () => onEdit(t) },
       ];
-      if (isCanvasEditorType(t) || externalUrl(t)) {
+      if (isGrueneratorType(t) || isCanvasEditorType(t) || externalUrl(t)) {
         actions.push({
-          label: 'Öffnen',
+          label: isGrueneratorType(t) ? 'Verwenden' : 'Öffnen',
           icon: HiExternalLink,
           onClick: () => void openTemplate(t),
         });

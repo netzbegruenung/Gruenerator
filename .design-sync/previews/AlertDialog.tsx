@@ -19,9 +19,9 @@ export function DeleteCampaign() {
         <AlertDialogHeader>
           <AlertDialogTitle>Kampagne wirklich löschen?</AlertDialogTitle>
           <AlertDialogDescription>
-            Die Kampagne „Klimaschutz vor Ort" und alle zugehörigen Entwürfe,
-            Termine und Statistiken werden dauerhaft entfernt. Dieser Schritt
-            kann nicht rückgängig gemacht werden.
+            Die Kampagne „Klimaschutz vor Ort" und alle zugehörigen Entwürfe, Termine und
+            Statistiken werden dauerhaft entfernt. Dieser Schritt kann nicht rückgängig gemacht
+            werden.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

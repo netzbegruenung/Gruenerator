@@ -1,3 +1,4 @@
+import type { ProviderErrorInfo } from '../services/providers/providerErrors.js';
 import type {
   ProviderName,
   ProviderOptions,
@@ -25,6 +26,8 @@ export interface WorkerErrorMessage {
   type: 'error';
   requestId: string;
   error: string;
+  /** Classification survives the postMessage boundary; the pool rebuilds an AiProviderError from it. */
+  errorInfo?: ProviderErrorInfo;
 }
 
 export interface WorkerProgressMessage {
@@ -111,7 +114,6 @@ export interface AIRequestData {
   fileMetadata?: FileMetadata | undefined;
   instructions?: string | undefined;
   provider?: ProviderName | string | undefined;
-  usePrivacyMode?: boolean | undefined;
   platforms?: string[] | undefined;
   documents?: DocumentReference[] | undefined;
   tools?: Tool[] | undefined;

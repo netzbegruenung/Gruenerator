@@ -59,11 +59,6 @@ export const profiles = pgTable(
       .$type<Record<string, unknown>[]>()
       .notNull()
       .default([]),
-    wordpress_sites: jsonb('wordpress_sites')
-      .$type<Record<string, unknown>[]>()
-      .notNull()
-      .default([]),
-    wordpress_enabled: boolean('wordpress_enabled').notNull().default(false),
     document_mode: text('document_mode').notNull().default('manual'),
     user_defaults: jsonb('user_defaults')
       .$type<Record<string, Record<string, unknown>>>()

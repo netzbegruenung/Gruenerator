@@ -101,6 +101,9 @@ export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
+  getThreadSlugSuffix,
+  getThreadAgentId,
+  resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -113,6 +116,23 @@ export {
   useChatCollaborationContext,
 } from './context/ChatCollaborationContext';
 export { useChatCollaboration } from './hooks/useChatCollaboration';
+
+// Editor Assistant — shared host for embedded editor chat sidebars
+// (docs / sheets / presentations / boards / canvas).
+export {
+  EditorAssistantProvider,
+  useEditorAssistant,
+  usePeerMessageSync,
+  deriveGateState,
+  shouldImportHistory,
+  isReady as isEditorAssistantReady,
+  type EditorAssistantProviderProps,
+  type EditorAssistantState,
+  type EditorSurfaceAdapter,
+  type EditorSurfaceKind,
+  type EditorToolConfig,
+  type EditorRegistrationCtx,
+} from './editor-surface';
 
 // Notebook Runtime
 export {
@@ -138,9 +158,11 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
 export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
 export { ReelArtifactPanel } from './components/ReelArtifactPanel';
+export { ArtifactPanel } from './components/ArtifactPanel';
 export { composerToolbarButtonClass } from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
+export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillPopover } from './components/thread/SkillPopover';
@@ -199,10 +221,9 @@ export { CitationSidePanel } from './components/message-parts/CitationSidePanel'
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
-export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
-export { ToolToggles } from './components/ToolToggles';
+export { ChatThreadRouting, type ChatThreadRoutingProps } from './components/ChatThreadRouting';
 export { MarkdownContent } from './components/MarkdownContent';
 export { CitationMarkdownText } from './components/message-parts/CitationMarkdownText';
 export { ToolCallUI } from './components/ToolCallUI';

@@ -1,12 +1,6 @@
 import { z } from 'zod';
 
-export const imageModelIdSchema = z.enum([
-  'flux-klein',
-  'flux-pro',
-  'flux-max',
-  'regolo-image',
-  'ionos-image',
-]);
+export const imageModelIdSchema = z.enum(['flux-klein', 'flux-pro', 'flux-max', 'regolo-image']);
 
 export const imageModelPreferenceResponseSchema = z.object({
   success: z.boolean(),

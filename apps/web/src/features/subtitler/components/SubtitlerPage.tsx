@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button, UploadZone } from '@gruenerator/ui';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PiVideoCamera } from 'react-icons/pi';
@@ -8,10 +9,10 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import apiClient from '../../../components/utils/apiClient';
+import { getToolGradient } from '../../../config/toolTheme';
 import { useAuthStore } from '../../../stores/authStore';
-import { getPublicAppOrigin } from '../../../utils/platform';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+import { getPublicAppOrigin } from '../../../utils/platform';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
@@ -29,13 +30,6 @@ import type {
 } from '../types';
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface ProjectResponse {
-  success?: boolean;
-  project?: LoadedProject;
-}
 
 import { cn } from '@/utils/cn';
 
@@ -138,7 +132,7 @@ const SubtitlerPage = (): React.ReactElement => {
 
   const { status: exportStatus, exportToken, resetExport } = useSubtitlerExportStore();
 
-  const { user } = useAuthStore();
+  const { user, locale } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // User-initiated step transitions push a new history entry. The
@@ -157,10 +151,13 @@ const SubtitlerPage = (): React.ReactElement => {
     if (!projectId || !user?.id || deepLinkLoadedRef.current) return;
     deepLinkLoadedRef.current = true;
 
-    apiClient
-      .get<ProjectResponse>(`/subtitler/projects/${projectId}`)
+    getContractsClient()
+      .subtitler.getProject({ params: { projectId } })
       .then((res) => {
-        const project = res.data?.project;
+        if (res.status !== 200) throw new Error('Projekt konnte nicht geladen werden.');
+        // Contract SubtitlerProject is nullability-wide and lacks `upload_id`;
+        // LoadedProject is the tight local shape the editor reads off.
+        const project = res.body.project as unknown as LoadedProject;
         if (!project) return;
 
         setLoadedProject(project);
@@ -346,9 +343,10 @@ const SubtitlerPage = (): React.ReactElement => {
             videoSize: uploadInfo.size || 0,
           };
 
-          const res = await apiClient.post<ProjectResponse>('/subtitler/projects', projectData);
-          if (res.data?.project?.id) {
-            setAutoSavedProjectId(res.data.project.id);
+          const res = await getContractsClient().subtitler.createProject({ body: projectData });
+          if (res.status === 200 || res.status === 201) {
+            const project = res.body.project;
+            if (project?.id) setAutoSavedProjectId(project.id);
           }
         } catch (err) {
           console.warn('[SubtitlerPage] Failed to auto-create project:', err);
@@ -378,9 +376,9 @@ const SubtitlerPage = (): React.ReactElement => {
     // Send cleanup signal before reset
     if (uploadInfo?.uploadId) {
       console.log(`[SubtitlerPage] Manual cleanup on reset for uploadId: ${uploadInfo.uploadId}`);
-      fetch(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`, { method: 'DELETE' }).catch(
-        (error) => console.warn('[SubtitlerPage] Cleanup request failed:', error)
-      );
+      void getContractsClient()
+        .subtitler.deleteCleanup({ params: { uploadId: uploadInfo.uploadId } })
+        .catch((error) => console.warn('[SubtitlerPage] Cleanup request failed:', error));
     }
 
     // Reset export store
@@ -395,7 +393,7 @@ const SubtitlerPage = (): React.ReactElement => {
       setAutoSavedProjectId(null);
       resetSocialText();
     }, 300);
-  }, [resetSocialText, uploadInfo?.uploadId, baseURL, resetExport, goToStep]);
+  }, [resetSocialText, uploadInfo?.uploadId, resetExport, goToStep]);
 
   // Function to go back to the editor without resetting everything
   const handleEditAgain = useCallback(() => {
@@ -422,13 +420,17 @@ const SubtitlerPage = (): React.ReactElement => {
   const handleStartAutoProcessing = useCallback(
     async (uploadId: string): Promise<void> => {
       try {
-        const response = await apiClient.post('/subtitler/process-auto', {
-          uploadId,
-          locale: 'de-DE',
-          userId: user?.id || null,
+        const res = await getContractsClient().subtitler.postProcessAuto({
+          body: { uploadId, locale, userId: user?.id || null },
         });
-        if (response.status === 202) {
+        if (res.status === 202) {
           console.log('[SubtitlerPage] Auto processing started for:', uploadId);
+        } else {
+          const msg =
+            (res.body as { error?: string })?.error ||
+            'Fehler beim Starten der automatischen Verarbeitung.';
+          setError(msg);
+          goToStep('upload');
         }
       } catch (error) {
         console.error('[SubtitlerPage] Error starting auto processing:', error);
@@ -439,7 +441,7 @@ const SubtitlerPage = (): React.ReactElement => {
         goToStep('upload');
       }
     },
-    [user?.id, goToStep]
+    [user?.id, locale, goToStep]
   );
 
   // Handler for automatic processing completion
@@ -486,6 +488,7 @@ const SubtitlerPage = (): React.ReactElement => {
     <ErrorBoundary>
       <PageContainer
         gradient={step !== 'edit'}
+        bgClassName={step !== 'edit' ? getToolGradient('reels-untertitel') : undefined}
         className={cn(step === 'edit' && 'max-w-[1600px] 2xl:max-w-[90vw]')}
       >
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (

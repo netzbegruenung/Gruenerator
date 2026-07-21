@@ -22,6 +22,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/query/package.json ./packages/query/
 COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
@@ -29,14 +30,19 @@ COPY apps/api/package.json ./apps/api/
 
 # Install dependencies
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/api...
+    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/api...
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY packages/query ./packages/query
 COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
+
+# Compile query package (shared re-exports @gruenerator/query/*; must build first)
+WORKDIR /app/packages/query
+RUN pnpm exec tsc --project tsconfig.json
 
 # Compile core package (shared re-exports @gruenerator/core; must build first)
 WORKDIR /app/packages/core
@@ -81,7 +87,6 @@ LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruener
 # Runtime dependencies only - NO build tools needed
 # @napi-rs/canvas uses pre-built binaries with embedded dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
     curl \
     fontconfig \
     fonts-dejavu-core \
@@ -105,6 +110,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/package.json ./packages/query/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
@@ -122,6 +128,7 @@ RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/s
 # is needed — prod Node resolution falls through the `development` condition
 # (not active here) and hits `default`, which points at the compiled dist.
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/query/dist ./packages/query/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist

@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 
 import {
+  BOARD_FIELD_IDS,
+  appendRowsToBoardDoc,
   applyDeckChangesToDoc,
   applyPatchToDoc,
+  isNewBoardRow,
   readMergedState,
   type PageDef,
 } from './internalApi.js';
@@ -142,5 +145,115 @@ describe('applyDeckChangesToDoc', () => {
 
     const { pages } = readMergedState(doc);
     for (const p of pages) expect(p.state.headline).toBe('Überall');
+  });
+});
+
+describe('pagesById container', () => {
+  it('new decks are seeded into pagesById with pos ordering and the watermark', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+
+    const pagesMap = doc.getMap<Y.Map<unknown>>('pagesById');
+    expect(pagesMap.size).toBe(3);
+    expect(doc.getMap<unknown>('meta').get('pagesSeeded')).toBe(true);
+    expect(doc.getArray('pages').length).toBe(0);
+    for (const yMap of ['p1', 'p2', 'p3'].map((id) => pagesMap.get(id)!)) {
+      expect(typeof yMap.get('pos')).toBe('string');
+    }
+  });
+
+  it('page ops insert at the right position via pos keys', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    applyDeckChangesToDoc(doc, {
+      pageOps: [
+        { op: 'add', index: 1, page: { id: 'mid', configId: 'slider', state: {} } },
+        { op: 'add', index: 0, page: { id: 'first', configId: 'slider', state: {} } },
+      ],
+    });
+    expect(readMergedState(doc).pages.map((p) => p.id)).toEqual(['first', 'p1', 'mid', 'p2', 'p3']);
+  });
+
+  it('pagesById docs ignore formState in the merged state', () => {
+    const doc = new Y.Doc();
+    applyDeckChangesToDoc(doc, { seedPages: deckPages() });
+    doc.getMap<unknown>('formState').set('headline', 'Legacy-Müll');
+    expect(readMergedState(doc).state.headline).toBe('Cover');
+  });
+
+  it('legacy-array docs keep being patched in place', () => {
+    const doc = new Y.Doc();
+    const legacy = doc.getArray<Y.Map<unknown>>('pages');
+    doc.transact(() => {
+      legacy.push([buildPage({ line1: 'Alt' })]);
+    });
+
+    applyDeckChangesToDoc(doc, {
+      pagePatches: [{ pageId: 'page-1', patch: { line1: 'Neu' } }],
+    });
+    expect(doc.getMap('pagesById').size).toBe(0);
+    expect((legacy.get(0).get('state') as Y.Map<unknown>).get('line1')).toBe('Neu');
+    expect(readMergedState(doc).pages[0]?.state.line1).toBe('Neu');
+  });
+});
+
+describe('isNewBoardRow', () => {
+  it('accepts a minimal row and a full row', () => {
+    expect(isNewBoardRow({ title: 'A' })).toBe(true);
+    expect(
+      isNewBoardRow({ title: 'A', status: 's1', description: 'd', dueDate: '2026-01-01' })
+    ).toBe(true);
+    expect(isNewBoardRow({ title: 'A', dueDate: null })).toBe(true);
+  });
+
+  it('rejects a missing/invalid title or wrong field types', () => {
+    expect(isNewBoardRow({})).toBe(false);
+    expect(isNewBoardRow({ title: 42 })).toBe(false);
+    expect(isNewBoardRow({ title: 'A', status: 5 })).toBe(false);
+    expect(isNewBoardRow({ title: 'A', dueDate: 5 })).toBe(false);
+    expect(isNewBoardRow(null)).toBe(false);
+  });
+});
+
+describe('appendRowsToBoardDoc', () => {
+  it('appends rows with the well-known cell layout', () => {
+    const doc = new Y.Doc();
+    appendRowsToBoardDoc(
+      doc,
+      [
+        { title: 'Erste Aufgabe', status: 'status-2', description: 'Kontext' },
+        { title: 'Zweite', dueDate: '2026-08-01' },
+      ],
+      'user-1'
+    );
+
+    const rows = doc.getArray('rows').toJSON() as Array<{
+      id: string;
+      createdBy: string;
+      cells: Record<string, unknown>;
+    }>;
+    expect(rows).toHaveLength(2);
+
+    const first = rows[0];
+    expect(first.createdBy).toBe('user-1');
+    expect(typeof first.id).toBe('string');
+    expect(first.cells[BOARD_FIELD_IDS.TITLE]).toBe('Erste Aufgabe');
+    expect(first.cells[BOARD_FIELD_IDS.STATUS]).toBe('status-2');
+    expect(first.cells[BOARD_FIELD_IDS.DESCRIPTION]).toBe('Kontext');
+    expect(first.cells[BOARD_FIELD_IDS.DUE_DATE]).toBe(null);
+    expect(first.cells[BOARD_FIELD_IDS.LABELS]).toEqual([]);
+    expect(first.cells[BOARD_FIELD_IDS.LINKED_DOCS]).toBe('[]');
+
+    const second = rows[1];
+    expect(second.cells[BOARD_FIELD_IDS.STATUS]).toBe(''); // no status → uncategorised
+    expect(second.cells[BOARD_FIELD_IDS.DUE_DATE]).toBe('2026-08-01');
+  });
+
+  it('appends to an existing rows array without dropping prior rows', () => {
+    const doc = new Y.Doc();
+    appendRowsToBoardDoc(doc, [{ title: 'A' }], 'u');
+    appendRowsToBoardDoc(doc, [{ title: 'B' }], 'u');
+    const rows = doc.getArray('rows').toJSON() as Array<{ cells: Record<string, unknown> }>;
+    expect(rows.map((r) => r.cells[BOARD_FIELD_IDS.TITLE])).toEqual(['A', 'B']);
   });
 });

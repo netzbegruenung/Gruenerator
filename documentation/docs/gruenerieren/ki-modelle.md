@@ -18,15 +18,13 @@ Im Modus **Automatisch** wählt der Grünerator das passende Modell für deine j
 
 **🌳 GPT-OSS** – Das schnellste Modell. Vollständig quelloffen und selbst gehostet auf europäischen Servern – ideal, wenn du Wert auf maximale Datensouveränität legst.
 
-:::info Optionale Modelle
-In den Einstellungen kannst du weitere Modelle aktivieren, etwa **Qwen** (chinesisches Modell). Diese sind standardmäßig deaktiviert.
-
-Hinweis: Qwen unterliegt staatlicher Zensur – Antworten zu politisch sensiblen Themen können eingeschränkt sein.
+:::info Bildmodelle
+Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern.
 :::
 
 ## Datenschutz
 
-Alle standardmäßig verfügbaren Modelle erfüllen höchste Datenschutzstandards:
+Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:
 
 - **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – entweder bei Mistral AI (Frankreich) oder auf selbst gehosteten Servern.
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet.

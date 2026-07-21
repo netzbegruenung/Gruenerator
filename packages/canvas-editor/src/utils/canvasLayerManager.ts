@@ -2,6 +2,7 @@ import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../c
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { AssetInstance } from './canvasAssets';
+import type { ChartInstance } from './chartUtils';
 import type { FrameInstance } from './frameUtils';
 import type { IllustrationInstance } from './illustrations/types';
 import type { PillBadgeInstance } from './pillBadgeUtils';
@@ -26,7 +27,8 @@ export type CanvasItem =
   | { id: string; type: 'asset'; data: AssetInstance }
   | { id: string; type: 'circle-badge'; data: CircleBadgeInstance }
   | { id: string; type: 'pill-badge'; data: PillBadgeInstance }
-  | { id: string; type: 'user-image'; data: UserImageInstance };
+  | { id: string; type: 'user-image'; data: UserImageInstance }
+  | { id: string; type: 'chart'; data: ChartInstance };
 
 interface StateWithFeatures {
   balkenInstances?: BalkenInstance[];
@@ -39,6 +41,7 @@ interface StateWithFeatures {
   circleBadgeInstances?: CircleBadgeInstance[];
   pillBadgeInstances?: PillBadgeInstance[];
   userImageInstances?: UserImageInstance[];
+  chartInstances?: ChartInstance[];
 }
 
 /**
@@ -122,6 +125,11 @@ export function buildCanvasItems<
   // 10. User-uploaded images
   if (state.userImageInstances) {
     state.userImageInstances.forEach((u) => items.push({ id: u.id, type: 'user-image', data: u }));
+  }
+
+  // 11. Charts
+  if (state.chartInstances) {
+    state.chartInstances.forEach((c) => items.push({ id: c.id, type: 'chart', data: c }));
   }
 
   return items;

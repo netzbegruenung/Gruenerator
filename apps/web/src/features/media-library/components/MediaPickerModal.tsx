@@ -3,6 +3,7 @@ import { Button } from '@gruenerator/ui';
 import React from 'react';
 import { FaImage, FaVideo, FaCheck, FaTimes, FaUpload } from 'react-icons/fa';
 
+import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import { cn } from '../../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
@@ -127,7 +128,7 @@ const MediaPickerModal: React.FC = () => {
               <p>Keine Medien gefunden</p>
             </div>
           ) : (
-            items.map((item) => (
+            items.map((item, i) => (
               <div
                 key={item.id}
                 className="cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
@@ -144,13 +145,16 @@ const MediaPickerModal: React.FC = () => {
                       src={`${baseURL}/share/${item.shareToken}/preview`}
                       muted
                       playsInline
+                      preload="metadata"
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <img
-                      src={`${baseURL}/share/${item.shareToken}/preview`}
+                    <SharedMediaImage
+                      shareToken={item.shareToken}
                       alt={item.title || 'Media'}
-                      loading="lazy"
+                      blurhash={item.imageMetadata?.blurhash}
+                      priority={i < 5}
+                      sizes="150px"
                       className="w-full h-full object-cover"
                     />
                   )}

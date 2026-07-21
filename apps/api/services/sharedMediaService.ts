@@ -3,9 +3,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import { encode as encodeBlurhash } from 'blurhash';
+import sharp from 'sharp';
 
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
+import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import type {
   SharedMediaRow,
@@ -32,6 +35,32 @@ const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
 const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
 
+/**
+ * Statuses a user sees in their own creation listings (galleries, recent
+ * strips). Canvas autosave writes 'draft' and only an explicit publish
+ * promotes to 'ready', so user-facing lists must include drafts — a
+ * ready-only filter permanently hides autosaved work. Surfaces that
+ * intentionally narrow (the curated media library is ready-only) should pass
+ * an explicit status instead of duplicating the policy in raw SQL.
+ */
+export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
+
+// Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
+// with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
+// on-demand fallback in shareFileRouter's `/preview` handler.
+const VARIANT_WIDTHS = [200, 400, 800] as const;
+
+/**
+ * Result of pre-generating responsive thumbnails + a BlurHash for an image.
+ */
+export interface MediaVariantResult {
+  thumbnailPath: string | null; // relative `${shareToken}/thumbnail.jpg`
+  blurhash: string | null;
+  width: number;
+  height: number;
+  variants: number[]; // widths actually generated (<= source width)
+}
+
 function getSafeShareDir(shareToken: string): string {
   const safeToken = path.basename(shareToken);
   const shareDir = path.join(SHARED_MEDIA_PATH, safeToken);
@@ -40,6 +69,92 @@ function getSafeShareDir(shareToken: string): string {
     throw new Error('Invalid share token: path traversal detected');
   }
   return shareDir;
+}
+
+/**
+ * Generate everything the responsive image standard needs from a source image,
+ * in one pass with sharp:
+ *  - WebP + AVIF variants at {@link VARIANT_WIDTHS} into `<shareDir>/thumbs/`,
+ *    named `<base>_w<width>.<fmt>` to match shareFileRouter's `/preview` reader.
+ *  - A 400px `thumbnail.jpg` (legacy thumbnail endpoint + poster fallback).
+ *  - A compact BlurHash string for an instant placeholder.
+ *  - Intrinsic width/height.
+ *
+ * Only downscales — widths larger than the source are skipped (never upscale).
+ * Throws if the source can't be decoded; callers mark the row `failed`.
+ */
+async function generateMediaVariants(
+  shareToken: string,
+  sourcePath: string
+): Promise<MediaVariantResult> {
+  const shareDir = getSafeShareDir(shareToken);
+  const thumbsDir = path.join(shareDir, 'thumbs');
+  const base = path.basename(sourcePath, path.extname(sourcePath)); // e.g. "media"
+
+  // `failOn: 'none'` keeps slightly-truncated uploads decodable instead of throwing.
+  const pipeline = sharp(sourcePath, { failOn: 'none' });
+  const meta = await pipeline.metadata();
+  const srcWidth = meta.width ?? 0;
+  const srcHeight = meta.height ?? 0;
+  if (!srcWidth || !srcHeight) {
+    throw new Error('generateMediaVariants: could not read image dimensions');
+  }
+
+  await fs.mkdir(thumbsDir, { recursive: true });
+
+  // Responsive WebP + AVIF variants (downscale only).
+  const widths: number[] = VARIANT_WIDTHS.filter((w) => w <= srcWidth);
+  if (widths.length === 0) widths.push(srcWidth); // tiny source: emit one at native width
+  const generated: number[] = [];
+  for (const width of widths) {
+    const resized = sharp(sourcePath, { failOn: 'none' }).resize({
+      width,
+      withoutEnlargement: true,
+    });
+    await Promise.all([
+      resized
+        .clone()
+        .webp({ quality: 78 })
+        .toFile(path.join(thumbsDir, `${base}_w${width}.webp`)),
+      resized
+        .clone()
+        .avif({ quality: 60 })
+        .toFile(path.join(thumbsDir, `${base}_w${width}.avif`)),
+    ]);
+    generated.push(width);
+  }
+
+  // Legacy 400px JPEG thumbnail (kept for `/thumbnail` + video-poster fallbacks).
+  let thumbnailPath: string | null = null;
+  try {
+    await sharp(sourcePath, { failOn: 'none' })
+      .resize({
+        width: THUMBNAIL_SIZE,
+        height: THUMBNAIL_SIZE,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 80 })
+      .toFile(path.join(shareDir, 'thumbnail.jpg'));
+    thumbnailPath = `${shareToken}/thumbnail.jpg`;
+  } catch (err) {
+    console.warn('[SharedMediaService] thumbnail.jpg generation failed:', err);
+  }
+
+  // BlurHash from a tiny raw-RGBA downscale.
+  let blurhash: string | null = null;
+  try {
+    const { data, info } = await sharp(sourcePath, { failOn: 'none' })
+      .raw()
+      .ensureAlpha()
+      .resize(32, 32, { fit: 'inside' })
+      .toBuffer({ resolveWithObject: true });
+    blurhash = encodeBlurhash(new Uint8ClampedArray(data), info.width, info.height, 4, 3);
+  } catch (err) {
+    console.warn('[SharedMediaService] BlurHash encode failed:', err);
+  }
+
+  return { thumbnailPath, blurhash, width: srcWidth, height: srcHeight, variants: generated };
 }
 
 class SharedMediaService {
@@ -77,11 +192,66 @@ class SharedMediaService {
     return crypto.randomBytes(16).toString('hex');
   }
 
+  /**
+   * Background worker: pre-generate responsive variants + BlurHash for an image
+   * and merge the results into its row. Fire-and-forget from the create/upload
+   * paths (the row is already usable as `ready`; the `/preview` on-demand
+   * fallback covers the brief window before this finishes). Never throws.
+   */
+  private async processMediaVariants(shareToken: string, sourcePath: string): Promise<void> {
+    try {
+      const result = await generateMediaVariants(shareToken, sourcePath);
+      await this.ensureInitialized();
+      await this.postgres!.query(
+        `UPDATE shared_media
+           SET thumbnail_path = COALESCE($2, thumbnail_path),
+               image_metadata = COALESCE(image_metadata, '{}'::jsonb) || $3::jsonb
+         WHERE share_token = $1`,
+        [
+          shareToken,
+          result.thumbnailPath,
+          JSON.stringify({
+            blurhash: result.blurhash,
+            width: result.width,
+            height: result.height,
+            variants: result.variants,
+          }),
+        ]
+      );
+    } catch (err) {
+      console.error(`[SharedMediaService] Variant generation failed for ${shareToken}:`, err);
+    }
+  }
+
+  /**
+   * Public entry point for the backfill script: (re)generate variants + BlurHash
+   * for an existing image share. Resolves the source from the stored file_path.
+   * Awaits completion (unlike the fire-and-forget upload path) so backfill can
+   * report progress. Returns false when the source file is missing/unreadable.
+   */
+  async regenerateMediaVariants(shareToken: string, relativeFilePath: string): Promise<boolean> {
+    const sourcePath = this.getMediaFilePath(relativeFilePath);
+    if (!sourcePath) return false;
+    try {
+      await fs.access(sourcePath);
+    } catch {
+      return false;
+    }
+    await this.processMediaVariants(shareToken, sourcePath);
+    return true;
+  }
+
   async enforceUserLimit(userId: string): Promise<number> {
     await this.ensureInitialized();
 
     try {
-      const countQuery = `SELECT COUNT(*) as count FROM shared_media WHERE user_id = $1`;
+      // Internal artifacts (canvas/chat thumbnails, template previews —
+      // is_library_item = FALSE) neither count against the user's quota nor
+      // get evicted: they are referenced by canvas_documents.thumbnail_url,
+      // and evicting one silently blanks that document's gallery preview.
+      // Their lifecycle is delete-on-replace in updateCanvas instead.
+      const countQuery = `SELECT COUNT(*) as count FROM shared_media
+                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
       const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
       const count = parseInt(countResult?.count ?? '0', 10);
 
@@ -92,7 +262,7 @@ class SharedMediaService {
                     WITH oldest AS (
                         SELECT id, share_token, file_path, thumbnail_path
                         FROM shared_media
-                        WHERE user_id = $1
+                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
                         ORDER BY created_at ASC
                         LIMIT $2
                     )
@@ -280,33 +450,15 @@ class SharedMediaService {
         await fs.writeFile(targetOriginalPath, origBuffer);
       }
 
-      let relativeThumbnailPath: string | null = null;
+      // Intrinsic dimensions are cheap to read; the heavy thumbnail/variant +
+      // BlurHash work runs in the background (see processMediaVariants) so the
+      // share is created without blocking on AVIF encoding.
       let imageInfo: ImageInfo = { width: 0, height: 0 };
-
       try {
-        const image = await loadImage(targetImagePath);
-        imageInfo = {
-          width: image.width,
-          height: image.height,
-        };
-
-        const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
-        const thumbWidth = Math.round(image.width * scale);
-        const thumbHeight = Math.round(image.height * scale);
-
-        const canvas = createCanvas(thumbWidth, thumbHeight);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
-
-        const thumbnailBuffer = canvas.toBuffer('image/jpeg', 80);
-        const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
-        await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
-        relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
-      } catch (thumbnailError) {
-        console.warn(
-          '[SharedMediaService] Thumbnail generation failed, saving without thumbnail:',
-          thumbnailError
-        );
+        const m = await sharp(targetImagePath, { failOn: 'none' }).metadata();
+        imageInfo = { width: m.width ?? 0, height: m.height ?? 0 };
+      } catch (metaError) {
+        console.warn('[SharedMediaService] Could not read image dimensions:', metaError);
       }
 
       const relativeImagePath = `${shareToken}/media.${extension}`;
@@ -338,13 +490,16 @@ class SharedMediaService {
         title || 'Geteiltes Bild',
         relativeImagePath,
         `media.${extension}`,
-        relativeThumbnailPath,
+        null, // thumbnail_path filled by processMediaVariants
         imageBuffer.length,
         mimeType,
         imageType || null,
         JSON.stringify(enrichedMetadata),
         status,
       ]);
+
+      // Fire-and-forget: responsive variants + BlurHash, then merge into the row.
+      void this.processMediaVariants(shareToken, targetImagePath);
 
       console.log(
         `[SharedMediaService] Created image share ${shareToken} for user ${userId}${originalImage ? ' (with original)' : ''}`
@@ -508,7 +663,8 @@ class SharedMediaService {
   async getUserShares(
     userId: string,
     mediaType: 'image' | 'video' | null = null,
-    status: string | null = null
+    status: string | readonly string[] | null = null,
+    limit: number = 100
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -518,9 +674,10 @@ class SharedMediaService {
                        duration, image_type, image_metadata, status, download_count, created_at
                 FROM shared_media
                 WHERE user_id = $1
+                  AND (upload_source IS NULL OR upload_source != ALL($2))
             `;
-      const params: unknown[] = [userId];
-      let paramIndex = 2;
+      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
+      let paramIndex = 3;
 
       if (mediaType) {
         query += ` AND media_type = $${paramIndex}`;
@@ -528,13 +685,18 @@ class SharedMediaService {
         paramIndex++;
       }
 
-      if (status) {
+      if (Array.isArray(status)) {
+        query += ` AND status = ANY($${paramIndex})`;
+        params.push(status);
+        paramIndex++;
+      } else if (status) {
         query += ` AND status = $${paramIndex}`;
         params.push(status);
         paramIndex++;
       }
 
-      query += ` ORDER BY created_at DESC LIMIT 100`;
+      query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
+      params.push(Math.min(Math.max(1, Math.trunc(limit)), 100));
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
       return results;
@@ -632,6 +794,21 @@ class SharedMediaService {
     }
   }
 
+  /** Rename a share (title only), owner-scoped. No file work — unlike the
+   * PUT /image path this doesn't re-render, so a sharepic can be retitled
+   * cheaply. Throws when the share isn't found or isn't owned by the user. */
+  async renameShare(userId: string, shareToken: string, title: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const rows = await this.postgres!.query(
+      'UPDATE shared_media SET title = $1 WHERE share_token = $2 AND user_id = $3 RETURNING id',
+      [title, shareToken, userId]
+    );
+    if (!rows || (rows as unknown[]).length === 0) {
+      throw new Error('Share not found or not owned by user');
+    }
+    return true;
+  }
+
   getMediaFilePath(relativePath: string | null): string | null {
     if (!relativePath) return null;
     const safePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');
@@ -691,6 +868,8 @@ class SharedMediaService {
     const { type = 'all', search = null, limit = 50, offset = 0, sort = 'newest' } = filters;
 
     try {
+      // Intentionally narrower than USER_VISIBLE_SHARE_STATUSES: the media
+      // library is a curated asset pool, drafts stay out until published.
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
@@ -712,7 +891,7 @@ class SharedMediaService {
 
       if (search) {
         query += ` AND (title ILIKE $${paramIndex} OR alt_text ILIKE $${paramIndex})`;
-        params.push(`%${search}%`);
+        params.push(likeContainsPattern(search));
         paramIndex++;
       }
 
@@ -849,43 +1028,31 @@ class SharedMediaService {
       await fs.writeFile(targetPath, fileBuffer);
 
       const relativeFilePath = `${shareToken}/media.${extension}`;
-      let relativeThumbnailPath: string | null = null;
       let imageInfo: ImageInfo | null = null;
 
       if (isImage) {
+        // Cheap dimension read; thumbnail/variants/BlurHash run in the background.
         try {
-          const image = await loadImage(targetPath);
-          imageInfo = {
-            width: image.width,
-            height: image.height,
-          };
-
-          const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
-          const thumbWidth = Math.round(image.width * scale);
-          const thumbHeight = Math.round(image.height * scale);
-
-          const canvas = createCanvas(thumbWidth, thumbHeight);
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
-
-          const thumbnailBuffer = canvas.toBuffer('image/jpeg', 80);
-          const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
-          await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
-          relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
-        } catch (thumbnailError) {
-          console.warn(
-            '[SharedMediaService] Thumbnail generation failed in uploadMediaFile:',
-            thumbnailError
-          );
+          const m = await sharp(targetPath, { failOn: 'none' }).metadata();
+          imageInfo = { width: m.width ?? 0, height: m.height ?? 0 };
+        } catch (metaError) {
+          console.warn('[SharedMediaService] Could not read upload dimensions:', metaError);
         }
       }
+
+      // Non-library sources (gallery thumbnails, canvas-element tool output) are
+      // internal artifacts — keep them out of the Mediathek (getMediaLibrary
+      // filters on is_library_item).
+      const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(
+        uploadSource
+      );
 
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
                  image_metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', TRUE, $10, $11, $12, $13)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14)
                 RETURNING id, share_token, created_at
             `;
 
@@ -900,14 +1067,19 @@ class SharedMediaService {
         title || originalFilename || 'Uploaded media',
         relativeFilePath,
         `media.${extension}`,
-        relativeThumbnailPath,
+        null, // thumbnail_path filled by processMediaVariants
         fileBuffer.length,
         mimeType,
+        isLibraryItem,
         altText || null,
         uploadSource,
         originalFilename,
         imageInfo ? JSON.stringify(imageInfo) : null,
       ]);
+
+      if (isImage) {
+        void this.processMediaVariants(shareToken, targetPath);
+      }
 
       console.log(`[SharedMediaService] Uploaded media ${shareToken} for user ${userId}`);
 
@@ -997,31 +1169,16 @@ class SharedMediaService {
       }
 
       let imageInfo: ImageInfo = { width: 0, height: 0 };
-
       try {
-        const image = await loadImage(targetImagePath);
-        imageInfo = {
-          width: image.width,
-          height: image.height,
-        };
-
-        const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
-        const thumbWidth = Math.round(image.width * scale);
-        const thumbHeight = Math.round(image.height * scale);
-
-        const canvas = createCanvas(thumbWidth, thumbHeight);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
-
-        const thumbnailBuffer = canvas.toBuffer('image/jpeg', 80);
-        const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
-        await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
-      } catch (thumbnailError) {
-        console.warn(
-          '[SharedMediaService] Thumbnail generation failed in updateImageShare:',
-          thumbnailError
-        );
+        const m = await sharp(targetImagePath, { failOn: 'none' }).metadata();
+        imageInfo = { width: m.width ?? 0, height: m.height ?? 0 };
+      } catch (metaError) {
+        console.warn('[SharedMediaService] Could not read updated image dimensions:', metaError);
       }
+
+      // The image changed: drop stale cached variants so the background pass and
+      // the `/preview` on-demand path don't serve the previous image.
+      await fs.rm(path.join(shareDir, 'thumbs'), { recursive: true, force: true });
 
       const enrichedMetadata: EnrichedImageMetadata = {
         ...metadata,
@@ -1051,6 +1208,8 @@ class SharedMediaService {
         JSON.stringify(enrichedMetadata),
         existingShare.id,
       ]);
+
+      void this.processMediaVariants(shareToken, targetImagePath);
 
       console.log(`[SharedMediaService] Updated image share ${shareToken}`);
 

@@ -16,7 +16,7 @@ import {
   SELECTABLE_CARD,
   SELECTABLE_CARD_ACTIVE,
   SIDEBAR_SECTION,
-} from '../primitives';
+} from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { BackgroundSectionProps, StockImageAttribution } from '../types';

@@ -21,15 +21,20 @@ export {
   threadsContract,
   exportsContract,
   recentValuesContract,
+  recentActivityContract,
   itemUsageContract,
   searchContract,
+  globalSearchContract,
   researchContract,
   chatGraphContract,
   boardsContract,
+  sheetsContract,
+  presentationsContract,
   boardCommentsContract,
   boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
+  boardSchedulesContract,
   boardAttachmentsContract,
   boardCardDocumentsContract,
   publicBoardsContract,
@@ -48,19 +53,20 @@ export {
   videoContract,
   textGenerationContract,
   sharepicContract,
-  wordpressContract,
   transferContract,
   unsplashContract,
   notificationsContract,
   emailContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
+  mcpServersContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  recurringTasksContract,
   canvasAiContract,
   canvasContract,
   groupsContract,
@@ -68,22 +74,32 @@ export {
   monitorContract,
   sitesContract,
   pushIngestContract,
+  reisekostenContract,
+  promptsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
+export * from './schemas/recentActivity.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/search.js';
+export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/socialPost.js';
+export * from './schemas/bundestag.js';
+export * from './schemas/bahn.js';
 export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
+export * from './schemas/sheets.js';
+export * from './schemas/presentations.js';
 export * from './schemas/boardComments.js';
 export * from './schemas/boardActivity.js';
 export * from './schemas/boardSubscriptions.js';
+export * from './schemas/boardSchedules.js';
 export * from './schemas/boardAttachments.js';
 export * from './schemas/boardCardDocuments.js';
 export * from './schemas/shares.js';
@@ -100,19 +116,20 @@ export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/textGeneration.js';
 export * from './schemas/sharepic.js';
-export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
 export * from './schemas/email.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
+export * from './schemas/mcpServers.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';
+export * from './schemas/recurringTasks.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/reelEdit.js';
 export * from './schemas/canvas.js';
@@ -126,3 +143,15 @@ export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
 export * from './schemas/richtext.js';
 export * from './schemas/pushIngest.js';
+export * from './schemas/reisekosten.js';
+
+// Sheets (Univer) collab schema + pure formatting helpers — Univer-free, shared
+// by the editor package and the API.
+export * from './sheetsYdoc.js';
+
+// Presentations (reveal.js) collab schema + pure formatting helpers —
+// reveal-free, shared by the editor package and the API.
+export * from './presentationsYdoc.js';
+
+export * from './schemas/scanner.js';
+export * from './schemas/prompts.js';

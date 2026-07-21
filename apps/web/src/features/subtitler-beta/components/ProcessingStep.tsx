@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import {
   Check,
@@ -10,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import apiClient from '../../../components/utils/apiClient';
 import { useWizardStore } from '../stores/wizardStore';
 
 const POLL_INTERVAL = 2000;
@@ -32,15 +32,6 @@ const STAGES = [
   { label: 'KI-Transkription', icon: Sparkles },
   { label: 'Untertitel formatieren', icon: FileText },
 ] as const;
-
-interface ProgressResponse {
-  status: string;
-  stage?: number;
-  overallProgress?: number;
-  projectId?: string;
-  subtitles?: string;
-  error?: string;
-}
 
 function mapBackendStage(backendStage: number): number {
   // Backend stages 1-4 map to our 0-3
@@ -66,12 +57,8 @@ export function ProcessingStep({ uploadId, onComplete }: ProcessingStepProps) {
     startedRef.current = true;
 
     setStatus('processing');
-    void apiClient
-      .post(`/subtitler/process-auto/${uploadId}`, {
-        subtitlePreference: 'manual',
-        stylePreference: 'shadow',
-        heightPreference: 'tief',
-      })
+    void getContractsClient()
+      .subtitler.postProcessAuto({ body: { uploadId } })
       .catch(() => {
         // auto-process may already be running, polling will pick up the state
       });
@@ -81,8 +68,15 @@ export function ProcessingStep({ uploadId, onComplete }: ProcessingStepProps) {
     if (!uploadId) return;
 
     try {
-      const response = await apiClient.get(`/subtitler/auto-progress/${uploadId}`);
-      const data = response.data as ProgressResponse;
+      const res = await getContractsClient().subtitler.getAutoProgress({ params: { uploadId } });
+      if (res.status !== 200) {
+        // 404 = auto job not yet in Redis; keep polling quietly.
+        if (res.status !== 404) {
+          console.error('[ProcessingStep] Poll error status:', res.status);
+        }
+        return;
+      }
+      const data = res.body;
 
       if (data.status === 'complete') {
         setStatus('complete');
@@ -116,7 +110,7 @@ export function ProcessingStep({ uploadId, onComplete }: ProcessingStepProps) {
       }
 
       if (data.stage) setActiveStageIndex(mapBackendStage(data.stage));
-      if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
+      if (data.overallProgress != null) setOverallProgress(data.overallProgress);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status !== 404) {

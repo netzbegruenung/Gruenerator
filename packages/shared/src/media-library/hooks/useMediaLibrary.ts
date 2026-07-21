@@ -34,6 +34,7 @@ interface UseMediaLibraryReturn {
   pagination: MediaPagination;
   filters: MediaFilters;
   isLoading: boolean;
+  isFetchingNextPage: boolean;
   error: string | null;
   setFilters: (filters: Partial<MediaFilters>) => void;
   refetch: () => Promise<void>;
@@ -180,7 +181,8 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
     items,
     pagination,
     filters,
-    isLoading: query.isLoading || query.isFetchingNextPage,
+    isLoading: query.isLoading,
+    isFetchingNextPage: query.isFetchingNextPage,
     error: query.error?.message ?? null,
     setFilters,
     refetch,

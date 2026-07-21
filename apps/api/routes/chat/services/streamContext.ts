@@ -13,6 +13,11 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
+import {
+  hasMentionTokens,
+  parseMentionTokens,
+  sanitizeMentionTokens,
+} from '@gruenerator/shared/utils';
 import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
@@ -31,17 +36,25 @@ import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { processAttachments } from './attachmentProcessingService.js';
+import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
-import { getUser, createThread, createMessage } from './threadPersistenceService.js';
+import {
+  getUser,
+  createThread,
+  createMessage,
+  deleteMessagesFrom,
+  deleteTrailingAssistant,
+  getThreadToolContext,
+} from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
@@ -58,6 +71,14 @@ const log = createLogger('chatGraphContractRouter');
 // hanging service must not stall the chat. On timeout the turn proceeds
 // without that context.
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
+
+// chat_threads.id is a uuid column. A client may send a local-only sentinel id
+// (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
+// deck editor sidebars) for a thread it has not persisted yet — that is not a
+// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
+// yet" and mint a fresh one.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
@@ -84,6 +105,12 @@ export interface StreamContext {
   memoryRetrieveTimeMs: number;
   memoryEnabled: boolean;
   contextWindowTokens: number;
+  /** Routing fields derived from durable mention tokens in the last user
+   *  message ("@[Label](type:id)") — merged with the legacy body fields. */
+  mentionTokenFields: MentionTokenFields;
+  /** Last user message text WITH tokens (pre-sanitization) — for regex
+   *  heuristics that need the remove-form. */
+  lastUserTextRaw: string;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -105,6 +132,7 @@ export async function buildStreamContext({
     notebookIds: rawNotebookIds,
     documentChatMode,
     attachmentContext: rawClientAttachmentContext,
+    computedResult: rawComputedResult,
     defaultNotebookId: rawDefaultNotebookId,
     docMentionIds: rawDocMentionIds,
     wolkeFiles: rawWolkeFiles,
@@ -121,13 +149,28 @@ export async function buildStreamContext({
     textIds: rawTextIds,
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
+    sheetIds: rawSheetIds,
     threadId,
+    clientTools,
+    regenerate: rawRegenerate,
+    replaceFromMessageId: rawReplaceFromMessageId,
+    webpageUrls: rawWebpageUrls,
+    platform: rawPlatform,
   } = body;
+
+  // Durable mention tokens in the last user message are the routing source of
+  // truth; legacy per-request fields (older clients) merge in by union. Ids in
+  // tokens are user-typed text — every consumer below keeps its access checks.
+  const mentionTokenFields = deriveMentionTokenFields(clientMessages);
+  const mergedNotebookIds = unionIds(rawNotebookIds, mentionTokenFields.notebookIds);
+  const mergedBoardIds = unionIds(rawBoardIds, mentionTokenFields.boardIds);
+  const mergedSheetIds = unionIds(rawSheetIds, mentionTokenFields.sheetIds);
+  const mergedDocMentionIds = unionIds(rawDocMentionIds, mentionTokenFields.docMentionIds);
 
   // === Validate ===
   const user = getUser(req);
   if (!user?.id) {
-    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
+    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized, code: 'unauthorized' });
     sse.end();
     return { done: true };
   }
@@ -136,19 +179,23 @@ export async function buildStreamContext({
   const aiWorkerPool = getAIWorkerPool(req);
 
   if (!aiWorkerPool) {
-    sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.aiUnavailable,
+      code: 'provider_unavailable',
+      retryable: true,
+    });
     sse.end();
     return { done: true };
   }
 
   if ((clientMessages as unknown[]).length === 0) {
-    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
+    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
 
-  const systemNotebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
-  const userNotebookUuids = rawNotebookIds?.filter(isUserNotebookId) ?? [];
+  const systemNotebookIds = mergedNotebookIds.filter(isKnownNotebook);
+  const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
@@ -244,34 +291,45 @@ export async function buildStreamContext({
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
-    sse.send('error', { error: 'Failed to process messages' });
+    sse.send('error', { error: PROGRESS_MESSAGES.invalidRequest, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
 
   if (!modelMessages || !Array.isArray(modelMessages)) {
-    sse.send('error', { error: 'Failed to process messages' });
+    sse.send('error', { error: PROGRESS_MESSAGES.invalidRequest, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
 
-  const validMessages = filterEmptyAssistantMessages(
+  let validMessages = filterEmptyAssistantMessages(
     modelMessages as ModelMessage[]
   ) as ChatGraphInput['messages'];
   log.info(
     `[ChatGraph] Converted ${(clientMessages as unknown[]).length} → ${validMessages.length} valid messages`
   );
 
-  const lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+  let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
   // both, but downstream code is typed for string | undefined.
   let actualThreadId: string | undefined = threadId ?? undefined;
+  // A non-UUID id (local sentinel for an unsaved thread) can't be looked up or
+  // stored — drop it so the create-thread branch below mints a real one and
+  // reports it back via `thread_created`. Logged: a client that persistently
+  // sends sentinels (e.g. an aui-internal "__LOCALID_..." leaking through the
+  // adapter) creates a new thread on EVERY message, which looks like lost chat
+  // history — this line is the observable trace of that failure mode.
+  if (actualThreadId && !UUID_RE.test(actualThreadId)) {
+    log.warn(`[StreamContext] Dropping non-UUID threadId "${actualThreadId}" — minting new thread`);
+    actualThreadId = undefined;
+  }
   let isNewThread = false;
 
   if (!actualThreadId && lastUserMessage) {
-    const userText = extractTextContent(lastUserMessage.content);
+    // Titles are user-visible — never show raw mention tokens.
+    const userText = sanitizeMentionTokens(extractTextContent(lastUserMessage.content), 'label');
     const thread = await createThread(
       userId,
       agentId ?? 'gruenerator-universal',
@@ -290,7 +348,20 @@ export async function buildStreamContext({
         // mid-send, or a stale client id. Recover gracefully by minting a new
         // thread for this user instead of hard-erroring. Safe: a foreign/deleted
         // id is never reused, we always create a fresh user-owned thread.
-        const userText = extractTextContent(lastUserMessage.content);
+        //
+        // The recovery is invisible to the user, so leave a breadcrumb: without
+        // it we lose all signal on how often the reap race still fires (e.g. if
+        // the client's 60s protection window proves too short).
+        captureSseError({
+          code: 'thread-reaped-recovered',
+          message: 'Thread not found mid-send; minted a fresh thread to recover',
+          level: 'warning',
+          extras: { staleThreadId: actualThreadId, userId, agentId },
+        });
+        const userText = sanitizeMentionTokens(
+          extractTextContent(lastUserMessage.content),
+          'label'
+        );
         const thread = await createThread(
           userId,
           agentId ?? 'gruenerator-universal',
@@ -318,15 +389,40 @@ export async function buildStreamContext({
       );
     }
 
-    const userText = extractTextContent(lastUserMessage.content);
-    await createMessage(
-      actualThreadId,
-      'user',
-      userText,
-      rawRoleName ? { roleName: rawRoleName } : undefined,
-      userId
-    );
+    // Regenerate / edit-resubmit: replace the last turn instead of appending,
+    // so chat_messages stays linear (no duplicate user rows / orphaned replies).
+    // Never truncates a brand-new thread (nothing to replace there).
+    if (!isNewThread) {
+      if (rawReplaceFromMessageId) {
+        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // In-session messages carry an AUI id that isn't a persisted row → the
+        // delete matches nothing; fall back to dropping the trailing reply.
+        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+      } else if (rawRegenerate) {
+        await deleteTrailingAssistant(actualThreadId);
+      }
+    }
+
+    // Regenerate keeps the existing (unchanged) user message; re-persisting it
+    // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
+    if (!rawRegenerate) {
+      const userText = extractTextContent(lastUserMessage.content);
+      await createMessage(
+        actualThreadId,
+        'user',
+        userText,
+        rawRoleName ? { roleName: rawRoleName } : undefined,
+        userId
+      );
+    }
   }
+
+  // Raw (token-bearing) text is persisted above; everything downstream —
+  // classifier, heuristics, memory query, LLM prompts — sees the readable
+  // "@Label" form. Tokens never reach a prompt.
+  const lastUserTextRaw = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+  validMessages = validMessages.map(sanitizeMessageMentions);
+  lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
   // instead of looking frozen during attachment processing + memory fetch
@@ -360,6 +456,24 @@ export async function buildStreamContext({
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
 
+  // Tabular files (this turn or earlier) are bridged into the in-browser pandas
+  // interpreter by the composer — flag it so respondNode steers the model to
+  // compute over `df` instead of doing unreliable mental math.
+  const hasTabularAttachment =
+    docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
+    previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
+
+  // Large prose attachments from earlier turns were embedded into Qdrant — route
+  // their document ids through the existing document-chat retrieval fan-out so
+  // follow-up questions pull the relevant chunks per query (RAG), instead of the
+  // now-skipped full-text injection.
+  const embeddedAttachmentDocIds = previousAttachments
+    .filter((a) => a.documentId)
+    .map((a) => a.documentId as string);
+  const mergedDocumentChatIds = [
+    ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
+  ];
+
   // === Memory retrieval (mem0) ===
   // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
   // retrieval here and the write-back in postResponseService.
@@ -383,7 +497,7 @@ export async function buildStreamContext({
         memoriesUsed = [{ content: '[Persona]', category: null }];
         log.info(`[${requestId}] Using cached persona for memory context`);
       } else {
-        const userQuery = extractTextContent(lastUserMessage.content);
+        const userQuery = sanitizeMentionTokens(lastUserTextRaw, 'remove');
         const memories = await withTimeout(
           mem0.searchMemories(userQuery, userId, 5),
           EXTERNAL_CONTEXT_TIMEOUT_MS,
@@ -436,26 +550,31 @@ export async function buildStreamContext({
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
+    hasTabularAttachment,
+    clientCanRunPython: clientTools?.includes('run_python') ?? false,
+    computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
     defaultNotebookId,
     defaultNotebookDocumentIds:
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
     documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
-    documentChatIds: rawDocumentChatIds?.length
-      ? rawDocumentChatIds
+    documentChatIds: mergedDocumentChatIds.length
+      ? mergedDocumentChatIds
       : docAttachments.length > 0 || documentChatMode
         ? []
         : undefined,
-    boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+    boardIds: mergedBoardIds.length ? mergedBoardIds : undefined,
+    sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
     connectFiles,
+    attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
     // precedence — we only fall back to currentDocument.id otherwise.
-    docMentionIds: rawDocMentionIds?.length
-      ? rawDocMentionIds
+    docMentionIds: mergedDocMentionIds.length
+      ? mergedDocMentionIds
       : rawCurrentDocument?.id
         ? [rawCurrentDocument.id]
         : undefined,
@@ -468,6 +587,7 @@ export async function buildStreamContext({
         }
       : undefined,
     userLocale: user.locale ?? 'de-DE',
+    clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt: rawCustomSystemPrompt ?? undefined,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
@@ -478,6 +598,12 @@ export async function buildStreamContext({
   log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
   initialState.agentConfig.userId = userId;
+  // Thread tool memory for the classifier: which tool family the previous
+  // substantive turn used ("@tally" is stripped from message text on send, so
+  // this is the only carrier a vague follow-up has). Non-fatal on failure.
+  if (actualThreadId && !isNewThread) {
+    initialState.lastToolContext = await getThreadToolContext(actualThreadId).catch(() => null);
+  }
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
     initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
@@ -496,8 +622,9 @@ export async function buildStreamContext({
     userId,
     ...(rawDocumentIds != null && { rawDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
-    ...(rawBoardIds != null && { rawBoardIds }),
-    ...(rawDocMentionIds != null && { rawDocMentionIds }),
+    ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
+    ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
+    ...(mergedDocMentionIds.length > 0 && { rawDocMentionIds: mergedDocMentionIds }),
     docAttachments,
     processedMeta,
     contextWindowTokens,
@@ -523,6 +650,117 @@ export async function buildStreamContext({
       memoryRetrieveTimeMs,
       memoryEnabled,
       contextWindowTokens,
+      mentionTokenFields,
+      lastUserTextRaw,
     },
   };
+}
+
+// ── Durable mention tokens ───────────────────────────────────────────────────
+
+export interface MentionTokenFields {
+  forcedTools: string[];
+  notebookIds: string[];
+  boardIds: string[];
+  sheetIds: string[];
+  docMentionIds: string[];
+}
+
+function unionIds(a: string[] | null | undefined, b: string[]): string[] {
+  return [...new Set([...(a ?? []), ...b])];
+}
+
+function lastUserTextFromClient(clientMessages: unknown): string {
+  if (!Array.isArray(clientMessages)) return '';
+  for (let i = clientMessages.length - 1; i >= 0; i--) {
+    const m = clientMessages[i] as {
+      role?: string;
+      parts?: Array<{ type?: string; text?: string }>;
+      content?: unknown;
+    };
+    if (m?.role !== 'user') continue;
+    if (Array.isArray(m.parts)) {
+      return m.parts
+        .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+        .map((part) => part.text)
+        .join(' ');
+    }
+    return typeof m.content === 'string' ? m.content : '';
+  }
+  return '';
+}
+
+/**
+ * Inverse of the client-side token mapping (mentionParser.mentionTokenFor):
+ * derive the routing fields from durable tokens in the last user message.
+ * `agent` tokens are skipped — the effective agent still travels via the body
+ * (store-selected agent must win, and agent resolution is validated elsewhere).
+ */
+function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
+  const fields: MentionTokenFields = {
+    forcedTools: [],
+    notebookIds: [],
+    boardIds: [],
+    sheetIds: [],
+    docMentionIds: [],
+  };
+  for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
+    switch (token.type) {
+      case 'tool':
+        fields.forcedTools.push(token.id);
+        break;
+      case 'mcp':
+        fields.forcedTools.push(`mcp:${token.id}`);
+        break;
+      case 'notebook':
+        fields.notebookIds.push(token.id);
+        break;
+      case 'board':
+        fields.boardIds.push(token.id);
+        break;
+      case 'sheet':
+        fields.sheetIds.push(token.id);
+        break;
+      case 'doc':
+        fields.docMentionIds.push(token.id);
+        break;
+      case 'agent':
+        // Deliberately not derived — the body agentId stays authoritative.
+        break;
+      default: {
+        const unhandled: never = token.type;
+        void unhandled;
+      }
+    }
+  }
+  return fields;
+}
+
+/** Token → "@Label" on every text part; non-text parts stay untouched. */
+function sanitizeMessageMentions<T extends { role: string; content: unknown }>(message: T): T {
+  const { content } = message;
+  // Token-free messages (the overwhelming majority) pass through by reference —
+  // no per-request reallocation of the whole history.
+  if (typeof content === 'string') {
+    return hasMentionTokens(content)
+      ? { ...message, content: sanitizeMentionTokens(content, 'label') }
+      : message;
+  }
+  if (Array.isArray(content)) {
+    const parts = content as Array<Record<string, unknown>>;
+    const needsSanitize = parts.some(
+      (part) =>
+        part && part.type === 'text' && typeof part.text === 'string' && hasMentionTokens(part.text)
+    );
+    if (!needsSanitize) return message;
+    return {
+      ...message,
+      content: parts.map((part) =>
+        part && part.type === 'text' && typeof part.text === 'string'
+          ? { ...part, text: sanitizeMentionTokens(part.text, 'label') }
+          : part
+      ),
+    };
+  }
+  return message;
 }

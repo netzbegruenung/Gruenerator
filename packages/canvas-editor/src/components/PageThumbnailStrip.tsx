@@ -38,9 +38,16 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
   const [isFlyoutOpen, setIsFlyoutOpen] = useState(false);
   const chevronRef = useRef<HTMLButtonElement>(null);
 
+  // Slider decks have no sensible single "quick add" — a page is explicitly a
+  // Start (green pill), Text or Ende slide — so "+" opens the variant picker
+  // instead of silently appending a content slide.
   const handleQuickAdd = useCallback(() => {
+    if (onAddSliderVariant) {
+      setIsFlyoutOpen(true);
+      return;
+    }
     if (currentTemplateId) onAddPage(currentTemplateId);
-  }, [currentTemplateId, onAddPage]);
+  }, [onAddSliderVariant, currentTemplateId, onAddPage]);
 
   const handleToggleFlyout = useCallback(() => {
     setIsFlyoutOpen((v) => !v);
@@ -64,8 +71,8 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
             className={cn(
               'page-thumbnail relative shrink-0 rounded-md overflow-hidden cursor-pointer transition-shadow border-2',
               isActive
-                ? 'border-violet-500 shadow-[0_0_0_1px_rgba(139,92,246,0.5)]'
-                : 'border-grey-700 hover:border-grey-500'
+                ? 'border-[var(--editor-accent)] shadow-[0_0_0_1px_var(--editor-accent)]'
+                : 'border-[var(--editor-border)] hover:border-[var(--editor-border-strong)]'
             )}
             style={{ height: 64, aspectRatio }}
             onClick={() => onSelect(index)}
@@ -88,7 +95,7 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
                 draggable={false}
               />
             ) : (
-              <div className="w-full h-full bg-grey-900" />
+              <div className="w-full h-full bg-[var(--editor-tile)]" />
             )}
 
             <span className="absolute left-1 bottom-1 px-1 py-px rounded bg-black/70 text-white text-[10px] font-semibold leading-none pointer-events-none">
@@ -99,9 +106,9 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
       })}
 
       {canAddMore && (
-        <div className="flex items-center shrink-0 ml-1 rounded-md bg-grey-800 overflow-hidden">
+        <div className="flex items-center shrink-0 ml-1 rounded-md bg-[var(--editor-inset)] border border-[var(--editor-border)] overflow-hidden">
           <button
-            className="h-12 px-3 flex items-center justify-center text-white hover:bg-grey-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-12 px-3 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleQuickAdd}
             disabled={!currentTemplateId}
             title="Seite hinzufügen"
@@ -109,10 +116,10 @@ export const PageThumbnailStrip = memo(function PageThumbnailStrip({
           >
             <PiPlus size={18} />
           </button>
-          <div className="w-px h-6 bg-grey-700" />
+          <div className="w-px h-6 bg-[var(--editor-border)]" />
           <button
             ref={chevronRef}
-            className="h-12 px-2 flex items-center justify-center text-white hover:bg-grey-700 transition-colors"
+            className="h-12 px-2 flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors"
             onClick={handleToggleFlyout}
             title="Vorlage auswählen"
             type="button"

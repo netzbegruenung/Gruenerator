@@ -22,12 +22,16 @@ Das war's — auf deiner Seite erscheint ein grüner Chat-Button unten rechts, d
 
 Das Widget lässt sich über `data-*` Attribute am Script-Tag konfigurieren:
 
-| Attribut          | Standard           | Beschreibung                                            |
-| ----------------- | ------------------ | ------------------------------------------------------- |
-| `data-collection` | `gruene-de-system` | Quellensammlung für den Chat (siehe unten)              |
-| `data-position`   | `bottom-right`     | Position des Buttons: `bottom-right` oder `bottom-left` |
-| `data-color`      | `#316049`          | Farbe des Chat-Buttons und der Titelleiste              |
-| `data-title`      | `Grün-O-Mat`       | Titel im Chat-Fenster                                   |
+| Attribut          | Standard           | Beschreibung                                                        |
+| ----------------- | ------------------ | ------------------------------------------------------------------- |
+| `data-collection` | `gruene-de-system` | Quellensammlung für den Chat (siehe unten)                          |
+| `data-mode`       | `widget`           | Darstellung: `widget` (Button), `inline` (im Seiteninhalt), `modal` |
+| `data-container`  | —                  | CSS-Selektor des Ziel-Elements — Pflicht bei `data-mode="inline"`   |
+| `data-position`   | `bottom-right`     | Position des Buttons: `bottom-right` oder `bottom-left`             |
+| `data-color`      | `#316049`          | Farbe des Chat-Buttons und der Titelleiste                          |
+| `data-title`      | `Grün-O-Mat`       | Titel im Chat-Fenster                                               |
+
+Im `modal`-Modus öffnet sich ein zentrierter Dialog statt des Widget-Fensters. Zusätzlich gibt es eine JavaScript-API, um den Chat programmatisch zu steuern (z. B. von einem eigenen Button aus): `window.GruenOMat.open()`, `.close()` und `.toggle()`.
 
 ### Verfügbare Sammlungen
 

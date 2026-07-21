@@ -1,5 +1,14 @@
 import React from 'react';
-import { PiAnchor, PiBuildings, PiFlowerLight, PiMountains, PiTree, PiWaves } from 'react-icons/pi';
+import {
+  PiBuildings,
+  PiCastleTurret,
+  PiFlowerLight,
+  PiLeaf,
+  PiMountains,
+  PiPlant,
+  PiTree,
+  PiWaves,
+} from 'react-icons/pi';
 import type { IconType } from 'react-icons';
 
 import styles from './styles.module.css';
@@ -12,8 +21,8 @@ type Landesverband = {
   agentSlug: string;
   notebookSlug: string;
   mention: string;
-  presse: string;
-  insta: string;
+  presse?: string;
+  insta?: string;
 };
 
 const LANDESVERBAENDE: Landesverband[] = [
@@ -25,15 +34,6 @@ const LANDESVERBAENDE: Landesverband[] = [
     mention: '@berlin',
     presse: '/presse-berlin',
     insta: '/insta-berlin',
-  },
-  {
-    name: 'Hamburg',
-    Icon: PiAnchor,
-    agentSlug: 'gruene-hamburg',
-    notebookSlug: 'hamburg',
-    mention: '@hamburg',
-    presse: '/presse-hamburg',
-    insta: '/insta-hamburg',
   },
   {
     name: 'Mecklenburg-Vorpommern',
@@ -71,6 +71,27 @@ const LANDESVERBAENDE: Landesverband[] = [
     presse: '/presse-bayern',
     insta: '/insta-bayern',
   },
+  {
+    name: 'Sachsen-Anhalt',
+    Icon: PiCastleTurret,
+    agentSlug: 'gruene-sachsen-anhalt',
+    notebookSlug: 'sachsen-anhalt',
+    mention: '@sachsen-anhalt',
+  },
+  {
+    name: 'Hessen',
+    Icon: PiLeaf,
+    agentSlug: 'gruene-hessen',
+    notebookSlug: 'hessen',
+    mention: '@hessen',
+  },
+  {
+    name: 'Saarland',
+    Icon: PiPlant,
+    agentSlug: 'gruene-saarland',
+    notebookSlug: 'saarland',
+    mention: '@saar',
+  },
 ];
 
 export default function AgentTiles(): React.JSX.Element {
@@ -89,10 +110,12 @@ export default function AgentTiles(): React.JSX.Element {
               </a>
             </div>
             <p className={styles.kinds}>Öffentlichkeitsarbeit · Bürger*innenanfragen</p>
-            <div className={styles.chips}>
-              <span className={styles.chip}>{lv.presse}</span>
-              <span className={styles.chip}>{lv.insta}</span>
-            </div>
+            {lv.presse && lv.insta && (
+              <div className={styles.chips}>
+                <span className={styles.chip}>{lv.presse}</span>
+                <span className={styles.chip}>{lv.insta}</span>
+              </div>
+            )}
             <a className={styles.notebook} href={`${APP}/notebooks/${lv.notebookSlug}`}>
               Notebook {lv.mention}
             </a>

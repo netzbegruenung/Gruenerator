@@ -8,6 +8,7 @@
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
+import type { ChartInstance, ChartType } from '../../utils/chartUtils';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
@@ -34,6 +35,7 @@ export interface BaseCanvasState {
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+  chartInstances: ChartInstance[];
   layerOrder?: string[];
   imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
@@ -137,6 +139,12 @@ export interface BaseCanvasActions {
   addUserImage: (file: File, objectUrl: string) => void;
   updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
   removeUserImage: (id: string) => void;
+
+  // Chart management
+  addChart: (chartType: ChartType) => void;
+  updateChart: (id: string, partial: Partial<ChartInstance>) => void;
+  removeChart: (id: string) => void;
+  duplicateChart: (id: string) => void;
 }
 
 /** Actions for image background templates */
@@ -173,6 +181,7 @@ export interface CanvasFeatures {
   pillBadge?: boolean;
   circleBadge?: boolean;
   frames?: boolean;
+  charts?: boolean;
 }
 
 /** Canvas dimension configuration */

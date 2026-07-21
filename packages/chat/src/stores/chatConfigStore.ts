@@ -1,12 +1,59 @@
 import { create } from 'zustand';
 
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { ClientPlatform, CurrentBoard, EditorOperationsEvent } from '@gruenerator/contracts';
+
+/** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
+export interface PythonFile {
+  name: string;
+  mimeType: string;
+  bytes: ArrayBuffer;
+}
+
+/** Result of executing Python in the browser (Pyodide worker). */
+export interface CodeExecutionResult {
+  ok: boolean;
+  stdout: string;
+  /** base64-encoded PNGs (no `data:` prefix) of matplotlib figures. */
+  figures: string[];
+  /** Files the code wrote to the working directory (exports like
+   *  df.to_csv('export.csv')) — collected by the harness, capped at
+   *  5 files / 10 MB total. */
+  files: Array<{ name: string; base64: string }>;
+  /** Short error summary (e.g. "KeyError: 'x'"), null on success. */
+  error: string | null;
+  /** Full Python traceback, null on success. */
+  traceback: string | null;
+  durationMs: number;
+}
+
+export interface RunPythonOptions {
+  timeoutMs?: number;
+  onProgress?: (message: string) => void;
+}
+
+/**
+ * Runs Python in a browser Pyodide worker. The actual implementation lives in
+ * apps/web (worker + wheels); packages/chat only knows the signature and
+ * receives it via {@link ChatConfig.runPython}.
+ */
+export type RunPython = (
+  code: string,
+  files?: PythonFile[],
+  options?: RunPythonOptions
+) => Promise<CodeExecutionResult>;
 
 export interface ChatConfig {
   /** Custom fetch function. Default: fetch with credentials:'include' */
   fetch?: (url: string, options?: RequestInit) => Promise<Response>;
-  /** Called on 401. Default: redirect to /login */
-  onUnauthorized?: () => void;
+  /**
+   * Called on 401. A truthy (Promise-)return means "the session was probed and
+   * is actually alive — retry the request once" (web routes this through the
+   * shared handleUnauthorized authority); void/false means "don't retry".
+   * Default: redirect to /login.
+   */
+  onUnauthorized?: () => void | boolean | Promise<boolean | void>;
+  /** Client shell sent with chat requests; unset means 'web'. */
+  platform?: ClientPlatform;
   /** API endpoint overrides (all have defaults matching current paths) */
   endpoints?: {
     chatStream?: string;
@@ -29,12 +76,17 @@ export interface ChatConfig {
     existingDocId?: string
   ) => Promise<string | void>;
   /** Opens a single sharepic variant in the canvas editor for editing. */
-  onEditSharepic?: (variant: import('../hooks/useChatGraphStream').SharepicVariant) => void;
+  onEditSharepic?: (
+    variant: import('../hooks/useChatGraphStream').SharepicVariant,
+    opts?: { threadId: string | null }
+  ) => void;
   /** Renders a sharepic to a base64 PNG using the canvas editor. */
   renderSharepic?: (
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /** Runs Python in a browser Pyodide worker (in-chat code execution). */
+  runPython?: RunPython;
   /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
   fetchSharepicState?: (canvasId: string) => Promise<{
     state: Record<string, unknown>;
@@ -117,7 +169,7 @@ export interface ResolvedEndpoints {
 
 interface ResolvedChatConfig {
   fetch: (url: string, options?: RequestInit) => Promise<Response>;
-  onUnauthorized: () => void;
+  onUnauthorized: () => void | boolean | Promise<boolean | void>;
   endpoints: ResolvedEndpoints;
   docsBaseUrl?: string;
 }
@@ -186,6 +238,15 @@ export type BoardActionTriggerHandler = (
   payload: BoardActionTriggerPayload
 ) => void | Promise<void>;
 
+/**
+ * Handler an editor surface registers to receive `editor_operations` SSE events
+ * — the tool-based edit path (CHAT_EDIT_TOOL_SURFACES). The agentic loop planned
+ * the ops server-side; the handler applies them in place (Univer / Yjs / Konva)
+ * via the surface's bridge. Keyed by targetId (documentId | boardId | docKey),
+ * parallel to documentEditHandlers so the legacy trigger path stays as fallback.
+ */
+export type EditorOperationsHandler = (payload: EditorOperationsEvent) => void | Promise<void>;
+
 interface ChatConfigStore extends ResolvedChatConfig {
   configure: (config?: ChatConfig) => void;
   getDocsUrl: () => string;
@@ -194,11 +255,15 @@ interface ChatConfigStore extends ResolvedChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
-  onEditSharepic?: (variant: import('../hooks/useChatGraphStream').SharepicVariant) => void;
+  onEditSharepic?: (
+    variant: import('../hooks/useChatGraphStream').SharepicVariant,
+    opts?: { threadId: string | null }
+  ) => void;
   renderSharepic?: (
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
@@ -210,6 +275,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchReelProject?: ChatConfig['fetchReelProject'];
   fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
   onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
+  platform?: ChatConfig['platform'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -227,6 +293,30 @@ interface ChatConfigStore extends ResolvedChatConfig {
   boardActionHandlers: Map<string, BoardActionTriggerHandler>;
   /** Register a board-action handler for a board. Returns the unregister function. */
   registerBoardActionHandler: (boardId: string, handler: BoardActionTriggerHandler) => () => void;
+  /** targetId → editor_operations dispatcher (tool-based edit path). */
+  editorOpsHandlers: Map<string, EditorOperationsHandler>;
+  /** Register an editor-operations handler for a target. Returns the unregister function. */
+  registerEditorOpsHandler: (targetId: string, handler: EditorOperationsHandler) => () => void;
+  /**
+   * Transient signal set by the regenerate / edit-resubmit UI and consumed once
+   * by the model adapter on the next run. Tells the backend to replace the last
+   * turn instead of appending it (keeps chat_messages linear). Scoped to a
+   * threadId so a stale signal can't leak into another thread's run.
+   */
+  pendingRunSignal: {
+    threadId: string;
+    regenerate?: boolean;
+    replaceFromMessageId?: string;
+  } | null;
+  /** Flag the next run as a regenerate of the thread's last assistant turn. */
+  signalRegenerate: (threadId: string) => void;
+  /** Flag the next run as an edit-resubmit starting from a persisted message. */
+  signalEditResubmit: (threadId: string, messageId: string) => void;
+  /** Read + clear the pending signal for a thread (no-op for other threads). */
+  consumeRunSignals: (threadId: string | undefined) => {
+    regenerate: boolean;
+    replaceFromMessageId: string | undefined;
+  };
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
@@ -290,6 +380,8 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   boardActionHandlers: new Map(),
+  editorOpsHandlers: new Map(),
+  pendingRunSignal: null,
 
   configure: (config?: ChatConfig) => {
     set({
@@ -300,6 +392,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditInDocs: config?.onEditInDocs,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      runPython: config?.runPython,
       fetchSharepicState: config?.fetchSharepicState,
       fetchSharepicVersions: config?.fetchSharepicVersions,
       fetchSharepicVersionState: config?.fetchSharepicVersionState,
@@ -311,6 +404,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchReelProject: config?.fetchReelProject,
       fetchReelAutoProgress: config?.fetchReelAutoProgress,
       onOpenReelStudio: config?.onOpenReelStudio,
+      platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },
@@ -351,6 +445,36 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
         after.delete(boardId);
         set({ boardActionHandlers: after });
       }
+    };
+  },
+
+  registerEditorOpsHandler: (targetId, handler) => {
+    const next = new Map(get().editorOpsHandlers);
+    next.set(targetId, handler);
+    set({ editorOpsHandlers: next });
+    return () => {
+      const after = new Map(get().editorOpsHandlers);
+      if (after.get(targetId) === handler) {
+        after.delete(targetId);
+        set({ editorOpsHandlers: after });
+      }
+    };
+  },
+
+  signalRegenerate: (threadId) => set({ pendingRunSignal: { threadId, regenerate: true } }),
+
+  signalEditResubmit: (threadId, messageId) =>
+    set({ pendingRunSignal: { threadId, replaceFromMessageId: messageId } }),
+
+  consumeRunSignals: (threadId) => {
+    const signal = get().pendingRunSignal;
+    if (!signal || !threadId || signal.threadId !== threadId) {
+      return { regenerate: false, replaceFromMessageId: undefined };
+    }
+    set({ pendingRunSignal: null });
+    return {
+      regenerate: signal.regenerate ?? false,
+      replaceFromMessageId: signal.replaceFromMessageId,
     };
   },
 

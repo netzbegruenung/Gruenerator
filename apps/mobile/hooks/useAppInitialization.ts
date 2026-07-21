@@ -1,3 +1,4 @@
+import { useAuthStore } from '@gruenerator/shared/stores';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -5,8 +6,10 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { initializeApiClient } from '../services/api';
 import { configureAuthStore, checkAuthStatus } from '../services/auth';
+import { DEV_AUTH_BYPASS, DEV_BYPASS_USER } from '../services/devAuth';
 import { registerForPushNotifications } from '../services/pushNotifications';
 import { usePreferencesStore } from '../stores/preferencesStore';
+import { actionUrlToRoute } from '../utils/actionUrl';
 
 export function useAppInitialization() {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -17,6 +20,16 @@ export function useAppInitialization() {
       try {
         initializeApiClient();
         configureAuthStore();
+
+        // DEV bypass (Tier 1): seed a fake user so the app renders past the auth
+        // gate in an emulator without Keycloak. Skip the server session probe —
+        // there may be no backend, and a 401 would clear the seeded user.
+        if (DEV_AUTH_BYPASS) {
+          useAuthStore.getState().setAuthState({ user: DEV_BYPASS_USER });
+          await loadPreferences();
+          return;
+        }
+
         const [isAuthenticated] = await Promise.all([checkAuthStatus(), loadPreferences()]);
 
         // Register push token after successful auth (non-blocking)
@@ -41,6 +54,8 @@ export function useAppInitialization() {
   // bounce a valid session to login. Throttled so quick app switches (e.g. a
   // permission dialog) don't trigger a probe.
   useEffect(() => {
+    if (DEV_AUTH_BYPASS) return;
+
     const REVALIDATE_AFTER_MS = 5 * 60 * 1000;
     let lastValidatedAt = Date.now();
 
@@ -60,7 +75,7 @@ export function useAppInitialization() {
       const data = response.notification.request.content.data as Record<string, unknown>;
       if (data?.action_url && typeof data.action_url === 'string') {
         try {
-          void router.push(data.action_url as never);
+          void router.push(actionUrlToRoute(data.action_url) as never);
         } catch {
           /* navigation may fail */
         }

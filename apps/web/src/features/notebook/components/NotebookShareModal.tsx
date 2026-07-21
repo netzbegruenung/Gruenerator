@@ -8,6 +8,7 @@
  */
 import {
   Button,
+  CopyLinkRow,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -48,6 +49,8 @@ import type {
 
 interface NotebookShareModalProps {
   notebookId: string;
+  /** Absolute URL of the notebook's viewer page, used for the copy-link row. */
+  shareUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -64,7 +67,12 @@ const EDIT_POLICY_LABELS: Record<NotebookEditPolicy, string> = {
   all_members: 'Alle Mitglieder der geteilten Gruppen',
 };
 
-export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookShareModalProps) {
+export function NotebookShareModal({
+  notebookId,
+  shareUrl,
+  open,
+  onOpenChange,
+}: NotebookShareModalProps) {
   const settingsQuery = useNotebookShareSettings(notebookId, open);
   const groupSharesQuery = useNotebookGroupShares(notebookId, open);
   const myGroupsQuery = useMyGroupsForSharing(open);
@@ -149,6 +157,25 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <p className="mb-xs text-sm font-semibold">Link zum Teilen</p>
+              {shareMode === 'private' ? (
+                <p className="text-xs text-grey-500">
+                  Solange das Notebook privat ist, kann nur die Eigentümer*in es öffnen. Stelle die
+                  Sichtbarkeit oben um, um einen Link zu teilen.
+                </p>
+              ) : (
+                <>
+                  <CopyLinkRow value={shareUrl} copyLabel="Link kopieren" copiedLabel="Kopiert" />
+                  <p className="mt-xs text-xs text-grey-500">
+                    {shareMode === 'authenticated'
+                      ? 'Eingeloggte Nutzer*innen mit diesem Link können das Notebook öffnen.'
+                      : 'Mitglieder der geteilten Gruppen können das Notebook über diesen Link öffnen.'}
+                  </p>
+                </>
+              )}
             </div>
 
             {shareMode === 'groups' ? (

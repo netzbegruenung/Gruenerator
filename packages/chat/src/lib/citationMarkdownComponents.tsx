@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { unstable_memoizeMarkdownComponents as memoizeMarkdownComponents } from '@assistant-ui/react-markdown';
 import { processChildren } from './citationProcessing';
+import { ChatCodeBlock } from '../components/message-parts/ChatCodeBlock';
 import type { Citation } from '../hooks/useChatGraphStream';
 
 export function makeCitationComponents(citationMap: Map<number, Citation>) {
@@ -35,11 +36,7 @@ export function makeCitationComponents(citationMap: Map<number, Citation>) {
         </code>
       );
     },
-    pre: ({ children }: { children?: ReactNode }) => (
-      <pre className="overflow-x-auto rounded-lg bg-code-block-bg p-4 text-code-block-fg">
-        {children}
-      </pre>
-    ),
+    pre: ({ children }: { children?: ReactNode }) => <ChatCodeBlock>{children}</ChatCodeBlock>,
     ul: ({ children }: { children?: ReactNode }) => (
       <ul className="my-2 list-disc space-y-1 pl-4">{children}</ul>
     ),

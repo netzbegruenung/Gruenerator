@@ -1,3 +1,5 @@
+import { buildMentionToken, type MentionTokenType } from '@gruenerator/shared/utils';
+
 import { getDefaultAgent } from './agents';
 import { resolveDocumentSlug } from './documentMentionables';
 import {
@@ -23,11 +25,16 @@ export interface ParsedMentions {
   documentChatIds: string[];
   hasDocumentChat: boolean;
   boardIds: string[];
+  sheetIds: string[];
   docMentionIds: string[];
   wolkeFiles: WolkeFileToken[];
   connectFiles: ConnectFileToken[];
   unresolvedMentions: string[];
   cleanText: string;
+  /** Text with resolved mentions rewritten as durable @[Label](type:id) tokens
+   *  (payload mentions like @wolke:/@connect:/@datei: stay stripped — they ride
+   *  attachments/fields). This is what actually gets sent + persisted. */
+  tokenText: string;
 }
 
 const MENTION_RE = /(?:^|\s)([@/])(\S+)/g;
@@ -61,6 +68,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   const documentIds: string[] = [];
   const textIds: string[] = [];
   const boardIds: string[] = [];
+  const sheetIds: string[] = [];
   const docMentionIds: string[] = [];
   const wolkeFiles: WolkeFileToken[] = [];
   const connectFiles: ConnectFileToken[] = [];
@@ -69,11 +77,13 @@ export function parseAllMentions(text: string): ParsedMentions {
   const seenDocuments = new Set<string>();
   const seenTexts = new Set<string>();
   const seenBoards = new Set<string>();
+  const seenSheets = new Set<string>();
   const seenDocMentions = new Set<string>();
   const seenWolke = new Set<string>();
   const seenConnect = new Set<string>();
   const unresolvedMentions: string[] = [];
-  const mentionSpans: [number, number][] = [];
+  // [start, end, tokenReplacement?] — no replacement = strip in both forms.
+  const mentionSpans: [number, number, string?][] = [];
 
   let match: RegExpExecArray | null;
   MENTION_RE.lastIndex = 0;
@@ -81,6 +91,12 @@ export function parseAllMentions(text: string): ParsedMentions {
   while ((match = MENTION_RE.exec(text)) !== null) {
     const trigger = match[1]; // '@' or '/'
     const alias = match[2];
+
+    // Already-durable token (@[Label](type:id), e.g. from edit-resubmit of a
+    // tokenized message) — leave untouched; the backend derives from it.
+    if (trigger === '@' && alias.startsWith('[')) {
+      continue;
+    }
 
     // Handle @datei:slug document mentions — route by sourceType (@ only)
     if (trigger === '@' && alias.startsWith('datei:')) {
@@ -207,6 +223,15 @@ export function parseAllMentions(text: string): ParsedMentions {
         } else {
           addUnique(seenBoards, boardIds, mentionable.identifier);
         }
+      } else if (mentionable.type === 'sheet') {
+        if (mentionable.identifier === 'sheet-erstellen') {
+          addUnique(seenTools, forcedTools, mentionable.identifier);
+        } else {
+          addUnique(seenSheets, sheetIds, mentionable.identifier);
+        }
+      } else if (mentionable.type === 'presentation') {
+        // Only the create-tool exists for presentations today (no @deck mentions).
+        addUnique(seenTools, forcedTools, mentionable.identifier);
       } else if (mentionable.type === 'doc') {
         if (mentionable.identifier === 'dokument-erstellen') {
           addUnique(seenTools, forcedTools, mentionable.identifier);
@@ -216,18 +241,24 @@ export function parseAllMentions(text: string): ParsedMentions {
       }
     }
 
-    // Record the span to strip. The match might include a leading space.
+    // Record the span. Routed @-mentions become durable tokens; /skill spans
+    // stay stripped (the skill's prompt fragment rides activeSkillMention).
     const triggerIndex = match.index + match[0].indexOf(trigger);
-    mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]); // +1 for trigger char
+    const token = trigger === '@' ? mentionTokenFor(mentionable) : undefined;
+    mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1, token]); // +1 for trigger char
   }
 
-  // Strip resolved mentions from text (reverse order to preserve indices)
+  // Rewrite spans (reverse order to preserve indices): cleanText strips all,
+  // tokenText keeps routed mentions as durable tokens.
   let cleanText = text;
+  let tokenText = text;
   for (let i = mentionSpans.length - 1; i >= 0; i--) {
-    const [start, end] = mentionSpans[i];
+    const [start, end, token] = mentionSpans[i];
     cleanText = cleanText.slice(0, start) + cleanText.slice(end);
+    tokenText = tokenText.slice(0, start) + (token ?? '') + tokenText.slice(end);
   }
   cleanText = cleanText.replace(/\s{2,}/g, ' ').trim();
+  tokenText = tokenText.replace(/[^\S\n]{2,}/g, ' ').trim();
 
   return {
     agentId: agentId ?? getDefaultAgent(),
@@ -239,12 +270,54 @@ export function parseAllMentions(text: string): ParsedMentions {
     documentChatIds: [],
     hasDocumentChat,
     boardIds,
+    sheetIds,
     docMentionIds,
     wolkeFiles,
     connectFiles,
     unresolvedMentions,
     cleanText,
+    tokenText,
   };
+}
+
+/**
+ * Durable token for a routed @-mention (see @gruenerator/shared mentionTokens).
+ * mcp servers hide inside tool identifiers as `mcp:<serverId>`; the create-*
+ * pseudo-mentions (board-erstellen, …) act as tools. Returns undefined for
+ * types that have no durable form (payload mentions handled earlier).
+ */
+function mentionTokenFor(m: {
+  type: string;
+  identifier: string;
+  title: string;
+}): string | undefined {
+  const build = (type: MentionTokenType, id: string) => buildMentionToken(m.title, type, id);
+  switch (m.type) {
+    case 'tool':
+      return m.identifier.startsWith('mcp:')
+        ? build('mcp', m.identifier.slice(4))
+        : build('tool', m.identifier);
+    case 'notebook':
+      return build('notebook', m.identifier);
+    case 'board':
+      return m.identifier === 'board-erstellen'
+        ? build('tool', m.identifier)
+        : build('board', m.identifier);
+    case 'sheet':
+      return m.identifier === 'sheet-erstellen'
+        ? build('tool', m.identifier)
+        : build('sheet', m.identifier);
+    case 'presentation':
+      return build('tool', m.identifier);
+    case 'doc':
+      return m.identifier === 'dokument-erstellen'
+        ? build('tool', m.identifier)
+        : build('doc', m.identifier);
+    case 'agent':
+      return build('agent', m.identifier);
+    default:
+      return undefined;
+  }
 }
 
 export type MentionPreviewKind =
@@ -254,6 +327,7 @@ export type MentionPreviewKind =
   | 'tool'
   | 'notebook'
   | 'board'
+  | 'sheet'
   | 'wolke'
   | 'connect'
   | 'unresolved';
@@ -396,9 +470,11 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
             ? 'notebook'
             : mentionable.type === 'board'
               ? 'board'
-              : mentionable.type === 'doc'
-                ? 'doc'
-                : 'unresolved';
+              : mentionable.type === 'sheet'
+                ? 'sheet'
+                : mentionable.type === 'doc'
+                  ? 'doc'
+                  : 'unresolved';
 
     previews.push({
       kind,

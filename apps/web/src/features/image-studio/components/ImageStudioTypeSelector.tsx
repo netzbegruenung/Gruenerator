@@ -30,15 +30,9 @@ import type { TypeConfig } from '../utils/typeConfig/types';
 // no previewImage. Picked from CANVAS_COLORS in shared/canvas-editor.
 const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
   sharepic: '#005538', // TANNE
-  story: '#0BA1DD', // HIMMEL
-  praesentation: '#008939', // KLEE
-  flyer: '#46962b', // KLEE-alt
-  plakat: '#2E2E3D', // DUNKELGRAU
 };
 
-// Section topology for the picker. Print collapses Flyer + Plakat into one
-// section because they share the print-export workflow (PDF/PNG @ 300 dpi)
-// and the user wants them browsed together.
+// Section topology for the picker. Sharepic is the only output format.
 interface SectionDef {
   key: string;
   label: string;
@@ -47,13 +41,6 @@ interface SectionDef {
 
 const SECTION_DEFS: readonly SectionDef[] = [
   { key: 'sharepic', label: CANVAS_FORMAT_GROUP_LABEL.sharepic, groups: ['sharepic'] },
-  { key: 'story', label: CANVAS_FORMAT_GROUP_LABEL.story, groups: ['story'] },
-  {
-    key: 'praesentation',
-    label: CANVAS_FORMAT_GROUP_LABEL.praesentation,
-    groups: ['praesentation'],
-  },
-  { key: 'print', label: 'Print', groups: ['flyer', 'plakat'] },
 ];
 
 // Beta wins over KI — "in early access" is the more specific UX promise.
@@ -75,8 +62,7 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
 
-  // Build sections from SECTION_DEFS — most are 1:1 with a CanvasFormatGroup,
-  // but "Print" merges flyer + plakat into a single section.
+  // Build the section for each format group, filtered by the active search.
   const sections = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return SECTION_DEFS.map((def) => {
@@ -123,17 +109,10 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
         </p>
       ) : (
         sections.map(({ def, formats, variants: secVariants }) => {
-          const isMultiSize = formats.length > 1;
-          const isMergedSection = def.groups.length > 1;
+          // With multiple variants the card label is the variant and the
+          // description is the format size, so variants stay distinguishable;
+          // with a single variant the variant's own description is shown.
           const isMultiVariant = secVariants.length > 1;
-          // Card label / description rule:
-          //  - multi-variant section: card label is the variant ("Veranstaltung"),
-          //    description is the format size ("Plakat A3"). Lets users tell
-          //    Veranstaltung-A3 apart from Freies-Design-A3.
-          //  - merged section (Print) with one variant: full format label per card.
-          //  - single-group multi-size (Präsentation): strip the group prefix
-          //    so cards read "16:9", "4:3".
-          //  - single-group single-size: show the variant label.
           return (
             <div key={def.key} className="mb-xl">
               <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-left">
@@ -150,21 +129,8 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
                         ? v.previewImageFallback
                         : undefined;
                       const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[f.group] : undefined;
-                      let cardLabel: string;
-                      let cardDescription: string | undefined;
-                      if (isMultiVariant) {
-                        cardLabel = v.label;
-                        cardDescription = f.label;
-                      } else if (isMergedSection) {
-                        cardLabel = f.label;
-                        cardDescription = f.description;
-                      } else if (isMultiSize) {
-                        cardLabel = f.label.replace(`${def.label} `, '');
-                        cardDescription = f.description;
-                      } else {
-                        cardLabel = v.label;
-                        cardDescription = v.description;
-                      }
+                      const cardLabel = v.label;
+                      const cardDescription = isMultiVariant ? f.label : v.description;
                       return (
                         <TypeCard
                           key={`${def.key}-${v.id}-${f.id}`}
@@ -198,11 +164,17 @@ const ImageStudioTypeSelector: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isAustrianUser = user?.locale === 'de-AT';
 
+  const userLocale = user?.locale ?? 'de-DE';
   const categoryConfig = useMemo(() => getCategoryConfig(category || ''), [category]);
   const typesInCategory = useMemo(() => {
     if (!category) return [];
-    return getTypesForCategory(category);
-  }, [category]);
+    // Audience gating: AT users see de-AT (+ 'all') templates, DE users see
+    // de-DE (+ 'all'). Omitted audience defaults to 'de-DE'.
+    return getTypesForCategory(category).filter((t) => {
+      const audience = t.audience ?? 'de-DE';
+      return audience === 'all' || audience === userLocale;
+    });
+  }, [category, userLocale]);
 
   const handleTypeSelect = useCallback(
     (selectedType: string) => {
@@ -297,8 +269,7 @@ const ImageStudioTypeSelector: React.FC = () => {
 
   // Templates category — merged picker: section per (format × variant) so a
   // single click sets both `type` and `format`. No separate format-vs-variant
-  // step; sharepic variants are listed under "Sharepics" (one size only) and
-  // repeated per size in multi-size groups (Flyer A4, Plakat A3, etc.).
+  // step; sharepic variants are listed under "Sharepics".
   if (category === IMAGE_STUDIO_CATEGORIES.TEMPLATES) {
     const handleVariantWithFormat = (variantId: string, formatId: string) => {
       setType(variantId);

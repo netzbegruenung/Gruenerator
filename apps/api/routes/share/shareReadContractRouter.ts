@@ -328,6 +328,38 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
       };
     }
   },
+
+  renameShare: async ({ req, params, body }) => {
+    const userId = getUserId(req);
+    if (!userId) return UNAUTHORIZED;
+    try {
+      const { shareToken } = params;
+      const service = await getSharedMediaService();
+      await service.renameShare(userId, shareToken, body.title.trim());
+
+      log.info(`Share renamed: ${shareToken} by user ${userId}`);
+      return {
+        status: 200 as const,
+        body: { success: true as const, message: 'Geteiltes Medium umbenannt' },
+      };
+    } catch (error) {
+      log.error('Failed to rename share:', error);
+      const message = (error as Error).message;
+      if (message.includes('not found') || message.includes('not owned')) {
+        return {
+          status: 404 as const,
+          body: {
+            success: false as const,
+            error: 'Geteiltes Medium nicht gefunden oder keine Berechtigung',
+          },
+        };
+      }
+      return {
+        status: 500 as const,
+        body: { success: false as const, error: 'Geteiltes Medium konnte nicht umbenannt werden' },
+      };
+    }
+  },
 });
 
 /**

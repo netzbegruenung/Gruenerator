@@ -14,7 +14,7 @@ import {
   SELECTABLE_CARD,
   SELECTABLE_CARD_DISABLED,
   SIDEBAR_SECTION,
-} from '../primitives';
+} from '../sidebarStyles';
 
 import { cn } from '../../utils/cn';
 
@@ -27,10 +27,10 @@ export interface IconsSectionProps {
 }
 
 const RECOMMENDED_ICON_IDS = [
-  'ph:flower-tulip',
-  'ph:heart-fill',
-  'ph:sparkle-fill',
-  'ph:star-fill',
+  'tabler:flower',
+  'tabler:heart-filled',
+  'tabler:sparkles',
+  'tabler:star-filled',
 ];
 
 export function IconsSection({
@@ -41,6 +41,7 @@ export function IconsSection({
   searchQuery = '',
 }: IconsSectionProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // Browsing shows the default set; search spans all bundled sets.
   const { data: allIcons = [], isLoading: iconsLoading } = useIconCatalog();
 
   const recommendedIcons = useMemo(
@@ -97,47 +98,43 @@ export function IconsSection({
     [selectedIcons, onIconToggle, maxSelections]
   );
 
-  if (iconsLoading) {
-    return (
-      <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+  return (
+    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+      {iconsLoading ? (
         <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
           {Array.from({ length: 12 }).map((_, i) => (
             <Skeleton key={i} className="aspect-square rounded-lg" />
           ))}
         </div>
-      </div>
-    );
-  }
+      ) : (
+        <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
+          {icons.map((icon) => {
+            if (!icon) return null;
+            const isSelected = selectedIcons.includes(icon.id);
+            const isDisabled = !isSelected && selectedIcons.length >= maxSelections;
 
-  return (
-    <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
-      <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
-        {icons.map((icon) => {
-          if (!icon) return null;
-          const isSelected = selectedIcons.includes(icon.id);
-          const isDisabled = !isSelected && selectedIcons.length >= maxSelections;
-
-          return (
-            <button
-              key={icon.id}
-              type="button"
-              className={cn(SELECTABLE_CARD, isDisabled && SELECTABLE_CARD_DISABLED)}
-              onClick={() => handleIconClick(icon.id)}
-              title={icon.name}
-              disabled={isDisabled}
-            >
-              <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
-                <Icon icon={icon.id} width={30} height={30} />
-                {isSelected && (
-                  <span className={CARD_CHECK_SMALL}>
-                    <FaCheck size={8} />
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={icon.id}
+                type="button"
+                className={cn(SELECTABLE_CARD, isDisabled && SELECTABLE_CARD_DISABLED)}
+                onClick={() => handleIconClick(icon.id)}
+                title={icon.name}
+                disabled={isDisabled}
+              >
+                <div className={cn(CARD_PREVIEW, 'text-[var(--font-color)]')}>
+                  <Icon icon={icon.id} width={30} height={30} />
+                  {isSelected && (
+                    <span className={CARD_CHECK_SMALL}>
+                      <FaCheck size={8} />
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {(isExpanded || hasSearch) && paginationLoading && (
         <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]', 'mt-2')}>

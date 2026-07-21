@@ -22,7 +22,6 @@ const router = express.Router();
 
 const crawlRequestSchema = z.object({
   url: z.string().url(),
-  usePrivacyMode: z.boolean().nullish(),
 });
 
 type CrawlRequestBody = z.infer<typeof crawlRequestSchema>;
@@ -68,7 +67,7 @@ router.post(
     const startTime = Date.now();
 
     try {
-      const { url, usePrivacyMode = false } = req.body;
+      const { url } = req.body;
       const userId = req.user?.id || 'anonymous';
 
       if (!url || typeof url !== 'string') {
@@ -78,9 +77,7 @@ router.post(
         });
       }
 
-      log.debug(
-        `[crawl-url] User ${userId} requesting crawl for: ${url} (privacy: ${usePrivacyMode})`
-      );
+      log.debug(`[crawl-url] User ${userId} requesting crawl for: ${url}`);
 
       const validation = await UrlValidator.validateUrl(url);
       if (!validation.isValid) {
@@ -117,7 +114,7 @@ router.post(
         name: result.data.title || 'Crawled Content',
         url: result.data.originalUrl,
         displayUrl: new URL(result.data.originalUrl).hostname,
-        content: usePrivacyMode ? result.data.content : result.data.markdownContent,
+        content: result.data.markdownContent,
         size: result.data.content.length,
         metadata: {
           wordCount: result.data.wordCount,

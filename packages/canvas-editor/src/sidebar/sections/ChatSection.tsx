@@ -1,5 +1,5 @@
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { SIDEBAR_HINT } from '../primitives';
+import { SIDEBAR_HINT } from '../sidebarStyles';
 
 import type { CanvasAiEditBridge } from '../../CanvasEditorProvider';
 
@@ -32,7 +32,7 @@ export function ChatSection({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" data-tour="canvas-chat">
       <ChatSectionContent
         canvasType={canvasType}
         getSharepicText={getSharepicText}

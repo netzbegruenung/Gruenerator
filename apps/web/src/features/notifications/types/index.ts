@@ -85,7 +85,7 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
     icon: Sparkles,
     group: 'board',
-    subtypes: ['agent_task_completed', 'agent_task_failed'],
+    subtypes: ['agent_task_completed', 'agent_task_failed', 'agent_task_awaiting_review'],
     actions: (ctx) => [openLinkAction('Dokument öffnen')(ctx)],
   },
 

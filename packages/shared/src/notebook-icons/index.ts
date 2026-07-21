@@ -9,6 +9,7 @@ import {
   PiFlowerLight,
   PiGlobe,
   PiLightbulb,
+  PiListChecks,
   PiMagnifyingGlass,
   PiMapPin,
   PiNewspaper,
@@ -49,9 +50,11 @@ export const NOTEBOOK_ICONS = {
   'oesterreich-notebook': PiGlobe,
   'kommunalwiki-notebook': PiScales,
   'gruenblog-notebook': PiNewspaper,
+  'abgeordnetenwatch-notebook': PiListChecks,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
   'hessen-notebook': GiRaccoonHead,
+  'saarland-notebook': PiMapPin,
   'boell-stiftung-notebook': PiLightbulb,
 } satisfies Record<NotebookId, IconType>;
 

@@ -1,0 +1,52 @@
+{
+  "name": "@gruenerator/presentations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./present": {
+      "types": "./src/components/PresentMode.tsx",
+      "default": "./src/components/PresentMode.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@gruenerator/contracts": "workspace:*",
+    "@revealjs/react": "^0.2.1",
+    "@tiptap/extension-collaboration": "3.26.1",
+    "@tiptap/pm": "3.26.1",
+    "@tiptap/react": "3.26.1",
+    "katex": "^0.16.47",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "reveal.js": "^6.0.1",
+    "y-prosemirror": "^1.3.7",
+    "yjs": "^13.6.31"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.7"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

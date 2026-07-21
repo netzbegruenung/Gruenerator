@@ -1,18 +1,35 @@
 'use client';
 
-import { type MouseEvent, useCallback, useState } from 'react';
+import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
   useThreadListItem,
   useAui,
 } from '@assistant-ui/react';
-import { MoreVertical, Pencil, Archive, Trash2, Share2, Pin, PinOff } from 'lucide-react';
+import {
+  MoreVertical,
+  Pencil,
+  Archive,
+  Trash2,
+  Share2,
+  Pin,
+  PinOff,
+  Tag,
+  Users,
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
-import { getThreadType, getNotebookCollectionId } from '../../runtime/GrueneratorThreadListAdapter';
+import {
+  getThreadType,
+  getNotebookCollectionId,
+  getThreadTags,
+  subscribeThreadTags,
+} from '../../runtime/GrueneratorThreadListAdapter';
+import { EditTagsDialog } from './EditTagsDialog';
+import { MoveToSpaceDialog } from './MoveToSpaceDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarchive') {
@@ -65,6 +82,15 @@ export function GrueneratorThreadListItem() {
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [spaceOpen, setSpaceOpen] = useState(false);
+  // Live read from the tags cache: fresh per remoteId (no stale value on item
+  // recycle) and re-renders when list()/edits change the cache.
+  const tags = useSyncExternalStore(
+    subscribeThreadTags,
+    () => getThreadTags(remoteId ?? ''),
+    () => getThreadTags(remoteId ?? '')
+  );
   const ctx = useExternalThread();
   const isPinned = useIsChatPinned(remoteId);
   const togglePin = useCallback(() => {
@@ -140,6 +166,20 @@ export function GrueneratorThreadListItem() {
               Umbenennen
             </ThreadListItemMorePrimitive.Item>
             <ThreadListItemMorePrimitive.Item
+              onClick={() => setTagsOpen(true)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <Tag className="h-3.5 w-3.5" />
+              Tags bearbeiten
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemMorePrimitive.Item
+              onClick={() => setSpaceOpen(true)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              <Users className="h-3.5 w-3.5" />
+              Zu Space hinzufügen
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemMorePrimitive.Item
               onClick={() => setShareOpen(true)}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             >
@@ -170,6 +210,23 @@ export function GrueneratorThreadListItem() {
           threadId={remoteId ?? null}
           open={shareOpen}
           onOpenChange={setShareOpen}
+        />
+      )}
+
+      {tagsOpen && (
+        <EditTagsDialog
+          threadId={remoteId ?? null}
+          initialTags={tags}
+          open={tagsOpen}
+          onOpenChange={setTagsOpen}
+        />
+      )}
+
+      {spaceOpen && (
+        <MoveToSpaceDialog
+          threadId={remoteId ?? null}
+          open={spaceOpen}
+          onOpenChange={setSpaceOpen}
         />
       )}
     </>

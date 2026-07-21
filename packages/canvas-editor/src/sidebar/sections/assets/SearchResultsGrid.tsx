@@ -45,12 +45,16 @@ import {
   getIllustrationThumbPath,
 } from '../../../utils/illustrations/registry';
 import { assertNever } from '../../../utils/shapes';
-import { CARD_GRID, SELECTABLE_CARD } from '../../primitives';
+import { CARD_GRID, SELECTABLE_CARD } from '../../sidebarStyles';
+import { ChartTypePreview } from '../DiagrammeSection';
+import { getShapeVariant } from '../FormenSection';
+import { IllustrationThumb } from '../IllustrationThumb';
 
 import { PREVIEW_COMPONENTS } from './constants';
 
 import type React from 'react';
 import type { SearchResult } from './useAssetSearch';
+import type { ChartType } from '../../../utils/chartUtils';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiDef, SvgDef } from '../../../utils/illustrations/types';
 import type { ShapeType } from '../../../utils/shapes';
@@ -71,15 +75,15 @@ export function SearchInput({
   return (
     <div className="relative w-full mb-3">
       <PiMagnifyingGlass
-        size={16}
-        className="absolute left-0 top-1/2 -translate-y-1/2 text-grey-500 pointer-events-none"
+        size={17}
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--editor-text-muted)] pointer-events-none"
       />
       <input
         type="text"
         placeholder={placeholder ?? 'Suche...'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full py-2 pr-0 pl-7 border-0 border-b border-b-grey-200 dark:border-b-grey-700 rounded-none text-[length:var(--font-size-sm,13px)] text-foreground bg-transparent transition-[border-color] duration-200 focus:outline-none focus:border-b-primary-600 placeholder:text-grey-500"
+        className="w-full h-11 pr-3 pl-10 rounded-[11px] border-[1.5px] border-[var(--editor-border-soft)] bg-[var(--editor-inset)] text-[13.5px] text-[var(--editor-text)] transition-[border-color] duration-200 focus:outline-none focus:border-[var(--editor-accent)] placeholder:text-[var(--editor-placeholder)]"
       />
     </div>
   );
@@ -90,7 +94,8 @@ export function SearchInput({
 export interface SearchResultsGridProps {
   results: SearchResult[];
   onAddAsset?: (assetId: string) => void;
-  onAddShape?: (type: ShapeType) => void;
+  onAddShape?: (type: ShapeType, color?: string) => void;
+  onAddChart?: (chartType: ChartType) => void;
   onAddIllustration?: (id: string) => void;
   onAddFrame?: (clipType: FrameClipType) => void;
   selectedIcons?: string[];
@@ -102,6 +107,7 @@ export function SearchResultsGrid({
   results,
   onAddAsset,
   onAddShape,
+  onAddChart,
   onAddIllustration,
   onAddFrame,
   selectedIcons = [],
@@ -135,16 +141,40 @@ export function SearchResultsGrid({
 
         if (result.type === 'shape' && result.shapeDef && onAddShape) {
           const shape = result.shapeDef;
+          const variant = getShapeVariant(shape.id);
           return (
             <button
               key={`shape-${result.id}`}
               className={SELECTABLE_CARD}
-              onClick={() => onAddShape(shape.id)}
+              onClick={() => onAddShape(shape.id, variant.color)}
               type="button"
               title={shape.name}
             >
-              <div className="flex items-center justify-center w-full h-full relative text-secondary-600 dark:text-secondary-300">
+              <div
+                className={cn(
+                  'flex items-center justify-center w-full h-full relative',
+                  variant.darkPreviewClass
+                )}
+                style={{ color: variant.color }}
+              >
                 <ShapeSearchPreview type={shape.id} />
+              </div>
+            </button>
+          );
+        }
+
+        if (result.type === 'chart' && result.chartTypeDef && onAddChart) {
+          const def = result.chartTypeDef;
+          return (
+            <button
+              key={`chart-${result.id}`}
+              className={SELECTABLE_CARD}
+              onClick={() => onAddChart(def.id)}
+              type="button"
+              title={`${def.name} einfügen`}
+            >
+              <div className="flex items-center justify-center w-full h-full relative">
+                <ChartTypePreview type={def.id} size={32} />
               </div>
             </button>
           );
@@ -204,18 +234,7 @@ export function SearchResultsGrid({
                 title={ill.name}
               >
                 <div className="flex items-center justify-center w-full h-full aspect-square [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain">
-                  <img
-                    src={getIllustrationThumbPath(ill as SvgDef, assetBaseUrl)}
-                    alt={ill.name}
-                    loading="lazy"
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      if (!img.dataset.fallback) {
-                        img.dataset.fallback = '1';
-                        img.src = getIllustrationPath(ill as SvgDef, assetBaseUrl);
-                      }
-                    }}
-                  />
+                  <IllustrationThumb def={ill as SvgDef} />
                 </div>
               </button>
             );

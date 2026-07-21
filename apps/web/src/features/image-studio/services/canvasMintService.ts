@@ -1,7 +1,9 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 
-import { getCanvasTypeFields } from '../utils/canvasTypeFields';
+import { renderSharepicToImage } from '../renderSharepicToImage';
+import { getCanvasTypeFields, isMintableCanvasType } from '../utils/canvasTypeFields';
 
+import { updateCanvasThumbnail } from './canvasThumbnailService';
 import { uploadBlobToMediaLibrary } from './mediaUploadService';
 
 import type { ImageStudioState } from '../types/storeTypes';
@@ -64,7 +66,9 @@ async function buildInitialState(
   if (!config) return initial;
 
   for (const field of config.fields) {
-    initial[field] = state[field] ?? '';
+    // Dynamic store-field access: `fields` is a closed CanvasFormField set but
+    // AT-only fields (e.g. 'accent') aren't declared on ImageStudioState.
+    initial[field] = (state as unknown as Record<string, unknown>)[field] ?? '';
   }
 
   if (config.image) {
@@ -82,8 +86,14 @@ async function buildInitialState(
 }
 
 export async function mintCanvasFromStudioStore(state: ImageStudioState): Promise<{ id: string }> {
-  if (!state.type) {
-    throw new Error('Cannot mint canvas: no template type selected');
+  // Last-resort assertion. The upstream boundaries (chat SSE validation, the
+  // handoff guard, and the validating `setType`) should already guarantee a
+  // mintable type reaches here — but keep the check so a regression fails
+  // loudly and locally instead of creating a broken canvas.
+  if (!state.type || !isMintableCanvasType(state.type)) {
+    throw new Error(
+      `Cannot mint canvas: "${state.type ?? 'none'}" is not a mintable template type`
+    );
   }
 
   const initial_state = await buildInitialState(state, state.type);
@@ -103,5 +113,16 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
     throw new Error(`Failed to create canvas (HTTP ${result.status})`);
   }
 
-  return { id: result.body.id };
+  // Fire-and-forget: renderSharepicToImage mounts its own offscreen root on
+  // document.body, so the SPA navigation to the editor doesn't cancel it and
+  // mint latency stays unchanged. Without this the /studio gallery card has no
+  // preview until the first export.
+  const canvasId = result.body.id;
+  void renderSharepicToImage(state.type, initial_state)
+    .then((dataUrl) =>
+      dataUrl ? updateCanvasThumbnail(canvasId, dataUrl, 'canvas-mint-thumbnail') : undefined
+    )
+    .catch((err) => console.warn('[canvasMint] thumbnail generation failed:', err));
+
+  return { id: canvasId };
 }

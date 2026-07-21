@@ -1,21 +1,14 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { parseNotebookQuery } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  useColorScheme,
-  Pressable,
-  TextInput,
-  Alert,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Alert } from 'react-native';
 
-import { Fab } from '../../../components/common/Fab';
+import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
+import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
 import { NotebookCard, notebookGridStyles } from '../../../components/notebook/NotebookCard';
@@ -48,9 +41,6 @@ export default function NotebooksScreen() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const isTablet = useIsTablet();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchInputRef = useRef<TextInput>(null);
   const [creatorVisible, setCreatorVisible] = useState(false);
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
@@ -73,20 +63,6 @@ export default function NotebooksScreen() {
     () => getVisibleNotebooks(locale).filter((nb) => favouriteIds.includes(nb.id)),
     [locale, favouriteIds]
   );
-
-  const filteredResults = useMemo(() => {
-    if (!searchQuery) return null;
-    const q = searchQuery.toLowerCase();
-    return getVisibleNotebooks(locale).filter(
-      (nb) => nb.title.toLowerCase().includes(q) || nb.description.toLowerCase().includes(q)
-    );
-  }, [searchQuery, locale]);
-
-  const filteredCollections = useMemo(() => {
-    if (!searchQuery) return collections;
-    const q = searchQuery.toLowerCase();
-    return collections.filter((c) => c.name.toLowerCase().includes(q));
-  }, [searchQuery, collections]);
 
   const handleNotebookPress = useCallback(
     (notebook: MobileNotebookEntry) => {
@@ -119,27 +95,27 @@ export default function NotebooksScreen() {
   // to their aggregate — Austria is a first-class locale.
   const handleHeroSend = useCallback(
     (text: string) => {
+      // Intelligent routing: parse a named region (e.g. "was hat berlin … beschlossen")
+      // and scope the notebook chat to that region's collection; otherwise the aggregate.
+      const parsed = parseNotebookQuery(text);
       const aggregateId = locale === 'de-AT' ? 'oesterreich-notebook' : 'gruenerator-notebook';
+      let notebookId = aggregateId;
+      if (parsed.region) {
+        const match = getVisibleNotebooks(locale).find(
+          (nb) => nb.title.toLowerCase() === parsed.region?.toLowerCase()
+        );
+        if (match) notebookId = match.id;
+      }
       router.push(
         routeWithParams('/(focused)/chat-conversation', {
           threadId: 'new',
-          notebookId: aggregateId,
+          notebookId,
           initialMessage: text,
         })
       );
     },
     [router, locale]
   );
-
-  const toggleSearch = useCallback(() => {
-    if (searchOpen) {
-      setSearchQuery('');
-      setSearchOpen(false);
-    } else {
-      setSearchOpen(true);
-      setTimeout(() => searchInputRef.current?.focus(), 100);
-    }
-  }, [searchOpen]);
 
   const handleDeleteCollection = useCallback(
     (id: string, name: string) => {
@@ -205,71 +181,15 @@ export default function NotebooksScreen() {
   );
 
   return (
-    <ScreenScaffold title="Notebooks">
-      {searchOpen && (
-        <View
-          style={[
-            styles.searchBar,
-            { backgroundColor: theme.background, borderColor: theme.cardBorder },
-          ]}
+    <ScreenScaffold title="Notebooks" backdrop={<NotebookGradientBackground />}>
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <Ionicons name="search" size={18} color={theme.textSecondary} />
-          <TextInput
-            ref={searchInputRef}
-            style={[styles.searchInput, { color: theme.text }]}
-            placeholder="Notebooks durchsuchen..."
-            placeholderTextColor={theme.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCorrect={false}
-          />
-          <Pressable onPress={toggleSearch} hitSlop={8}>
-            <Ionicons name="close" size={20} color={theme.textSecondary} />
-          </Pressable>
-        </View>
-      )}
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {filteredResults ? (
           <View>
-            {filteredResults.length > 0 && (
-              <NotebookSection
-                title="Notebooks"
-                notebooks={filteredResults}
-                onNotebookPress={handleNotebookPress}
-              />
-            )}
-            {filteredCollections.length > 0 && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-                <View style={isTablet ? notebookGridStyles.grid : undefined}>
-                  {filteredCollections.map((c) => (
-                    <NotebookCard
-                      key={c.id}
-                      icon="book"
-                      title={c.name}
-                      subtitle={collectionSubtitle(c)}
-                      onPress={() => handleCollectionPress(c.id, c.name)}
-                      onLongPress={() => handleCollectionActions(c)}
-                      isProcessing={processingIds.has(c.id)}
-                      style={isTablet ? notebookGridStyles.item : undefined}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-            {filteredResults.length === 0 && filteredCollections.length === 0 && (
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                Keine Ergebnisse für &ldquo;{searchQuery}&rdquo;
-              </Text>
-            )}
-          </View>
-        ) : (
-          <View>
-            <NotebooksHero onSend={handleHeroSend} />
+            <NotebooksHero />
 
             <NotebookSection
               title="Favoriten"
@@ -349,15 +269,16 @@ export default function NotebooksScreen() {
 
             <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
           </View>
-        )}
 
-        <NotebookCreator
-          visible={creatorVisible}
-          onClose={() => setCreatorVisible(false)}
-          createCollection={createCollection}
-        />
-      </ScrollView>
-      {!searchOpen && <Fab icon="search" onPress={toggleSearch} accessibilityLabel="Suchen" />}
+          <NotebookCreator
+            visible={creatorVisible}
+            onClose={() => setCreatorVisible(false)}
+            createCollection={createCollection}
+          />
+        </ScrollView>
+
+        <BottomComposerBar placeholder="Frage an alle Quellen…" onSend={handleHeroSend} />
+      </View>
     </ScreenScaffold>
   );
 }
@@ -369,19 +290,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.medium,
     paddingBottom: spacing.xxlarge,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    gap: spacing.small,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: spacing.xxsmall,
   },
   section: {
     marginBottom: spacing.large,

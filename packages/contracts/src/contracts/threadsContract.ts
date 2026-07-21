@@ -1,7 +1,7 @@
 /**
  * ts-rest contract for /api/chat-service/threads
  *
- * Covers the full CRUD surface of threadsController.ts.
+ * Covers the full CRUD surface served by threadsContractRouter.ts.
  * All authenticated — the backend enforces auth; the contract just models shape.
  */
 import { initContract } from '@ts-rest/core';
@@ -16,6 +16,7 @@ import {
   patchThreadSettingsBodySchema,
   threadSettingsResponseSchema,
   generateTitleResponseSchema,
+  tabularFilesResponseSchema,
   successResponseSchema,
   errorResponseSchema,
 } from '../schemas/threads.js';
@@ -152,6 +153,25 @@ export const threadsContract = c.router(
         500: errorResponseSchema,
       },
       summary: 'Trigger async AI title generation',
+    },
+
+    /**
+     * GET /api/chat-service/threads/:threadId/tabular-files
+     * Raw bytes (base64) of the thread's tabular attachments, so the frontend can
+     * rehydrate the in-browser pandas interpreter after a reload.
+     */
+    getTabularFiles: {
+      method: 'GET',
+      path: '/api/chat-service/threads/:threadId/tabular-files',
+      pathParams: z.object({ threadId: z.string() }),
+      responses: {
+        200: tabularFilesResponseSchema,
+        401: errorResponseSchema,
+        403: errorResponseSchema,
+        404: errorResponseSchema,
+        500: errorResponseSchema,
+      },
+      summary: 'Get raw bytes of a thread’s tabular attachments',
     },
   },
   { pathPrefix: '' }

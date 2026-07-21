@@ -17,6 +17,9 @@ playwright/.cache/
 build
 dist
 
+# Vendored Pyodide runtime (core + wheels), produced by scripts/setup-pyodide.mjs
+public/pyodide/
+
 # Miscellaneous
 .DS_Store
 .env

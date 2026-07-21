@@ -1,6 +1,7 @@
 /**
  * Zod schemas for chat thread endpoints.
- * Mirrors the schemas in apps/api/routes/chat/threadsController.ts — keep in sync.
+ * Consumed by threadsContract + the ts-rest threadsContractRouter (the sole
+ * handler for /api/chat-service/threads).
  */
 import { z } from 'zod';
 
@@ -20,6 +21,10 @@ export const threadSchema = z.object({
   status: z.string(),
   threadType: z.string(),
   notebookCollectionId: z.string().nullable(),
+  // Home Space (group) this thread is filed in (null = unfiled).
+  groupId: z.string().nullable(),
+  tags: z.array(z.string()).default([]),
+  slugSuffix: z.string().nullable(),
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),
@@ -37,6 +42,9 @@ export const patchThreadBodySchema = z.object({
   threadId: z.string(),
   title: z.string().optional(),
   status: z.enum(['regular', 'archived']).optional(),
+  tags: z.array(z.string()).optional(),
+  // File the thread into a Space (group), or null to remove it from its space.
+  groupId: z.string().nullable().optional(),
 });
 
 export const patchThreadSettingsBodySchema = z.object({
@@ -53,6 +61,7 @@ export const createThreadResponseSchema = z.object({
   userId: z.string(),
   agentId: z.string(),
   title: z.string().nullable(),
+  slugSuffix: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -83,4 +92,16 @@ export const errorResponseSchema = z.object({
 
 export const successResponseSchema = z.object({
   success: z.literal(true),
+});
+
+/** Raw bytes (base64) of a thread's tabular attachments, used to rehydrate the
+ *  in-browser pandas interpreter after a reload. */
+export const tabularFileSchema = z.object({
+  name: z.string(),
+  mimeType: z.string(),
+  data: z.string(),
+});
+
+export const tabularFilesResponseSchema = z.object({
+  files: z.array(tabularFileSchema),
 });

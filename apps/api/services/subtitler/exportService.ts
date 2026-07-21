@@ -17,7 +17,6 @@ import { redisClient } from '../../utils/redis/index.js';
 
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
-import * as hwaccel from './hwaccelUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -236,8 +235,6 @@ async function processProjectExport(
 
     const { ffmpegPool } = await import('./ffmpegPool.js');
 
-    const useHwAccel = await hwaccel.detectVaapi();
-
     const originalFormatObj = metadata.originalFormat
       ? {
           ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
@@ -277,7 +274,6 @@ async function processProjectExport(
     const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
       metadata: metadataObj,
       fileStats,
-      useHwAccel,
       includeTune: true,
     });
 
@@ -285,7 +281,6 @@ async function processProjectExport(
       assFilePath,
       tempFontPath,
       scaleFilter: null,
-      useHwAccel,
     });
 
     await ffmpegPool.run(async () => {

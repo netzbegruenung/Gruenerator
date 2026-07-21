@@ -69,9 +69,19 @@ export {
   type SearchResult,
   type StreamMetadata,
   type ChatMessage,
+  type ChartData,
+  type ComputeData,
   type UseChatGraphStreamOptions,
   type UseChatGraphStreamReturn,
 } from './hooks/useChatGraphStream';
+
+// Math rendering (platform-neutral text processing; native renders segments
+// via a KaTeX WebView, web goes through remark-math/rehype-katex instead)
+export { normalizeMathDelimiters, normalizeUnicodeMath } from './lib/normalizeMathDelimiters';
+export { splitMathSegments, type MathSegment } from './lib/mathSegments';
+
+// Compute results (run_python stdout → ComputeData entries; shared with web)
+export { parseComputeResult } from './lib/computeResult';
 
 // Stores
 export {

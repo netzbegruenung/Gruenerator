@@ -85,66 +85,70 @@ const CanvaSection = memo(({ onSuccess, onError }: CanvaSectionProps) => {
 
       {!isLoading && (
         <>
-        <div
-          className={cn(
-            'flex items-center justify-between p-md rounded-lg border bg-background-pure transition-colors',
-            connected
-              ? 'border-primary-300 dark:border-primary-700'
-              : 'border-grey-200 dark:border-grey-700'
-          )}
-        >
-          <div className="flex items-center gap-md">
-            <CanvaLogo size={20} />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-foreground-heading">Canva</span>
-              <span className="text-xs text-grey-400">
-                {connected && status?.displayName
-                  ? status.displayName
-                  : 'Designs, Brand-Vorlagen, Assets'}
-              </span>
+          <div
+            className={cn(
+              'flex items-center justify-between p-md rounded-lg border bg-background-pure transition-colors',
+              connected
+                ? 'border-primary-300 dark:border-primary-700'
+                : 'border-grey-200 dark:border-grey-700'
+            )}
+          >
+            <div className="flex items-center gap-md">
+              <CanvaLogo size={20} />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground-heading">Canva</span>
+                <span className="text-xs text-grey-400">
+                  {connected && status?.displayName
+                    ? status.displayName
+                    : 'Designs, Brand-Vorlagen, Assets'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-sm">
+              {connected && (
+                <span className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400">
+                  <FiCheck size={12} />
+                  Verbunden
+                </span>
+              )}
+
+              {connected ? (
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  disabled={isBusy}
+                  className={cn(
+                    'text-xs px-sm py-1 rounded-md cursor-pointer transition-colors',
+                    'bg-transparent border border-grey-300 dark:border-grey-600',
+                    'text-grey-500 hover:text-[var(--error-red)] hover:border-[var(--error-red)]',
+                    isBusy && 'opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  {disconnect.isPending ? (
+                    <FiLoader className="animate-spin" size={12} />
+                  ) : (
+                    'Trennen'
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConnect}
+                  disabled={isBusy}
+                  className={cn(
+                    'text-xs px-md py-1 rounded-md cursor-pointer transition-colors font-medium',
+                    'bg-primary-500 text-white hover:bg-primary-600 border-none',
+                    isBusy && 'opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  {isConnecting ? <FiLoader className="animate-spin" size={12} /> : 'Verbinden'}
+                </button>
+              )}
             </div>
           </div>
-
-          <div className="flex items-center gap-sm">
-            {connected && (
-              <span className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400">
-                <FiCheck size={12} />
-                Verbunden
-              </span>
-            )}
-
-            {connected ? (
-              <button
-                type="button"
-                onClick={handleDisconnect}
-                disabled={isBusy}
-                className={cn(
-                  'text-xs px-sm py-1 rounded-md cursor-pointer transition-colors',
-                  'bg-transparent border border-grey-300 dark:border-grey-600',
-                  'text-grey-500 hover:text-[var(--error-red)] hover:border-[var(--error-red)]',
-                  isBusy && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                {disconnect.isPending ? <FiLoader className="animate-spin" size={12} /> : 'Trennen'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleConnect}
-                disabled={isBusy}
-                className={cn(
-                  'text-xs px-md py-1 rounded-md cursor-pointer transition-colors font-medium',
-                  'bg-primary-500 text-white hover:bg-primary-600 border-none',
-                  isBusy && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                {isConnecting ? <FiLoader className="animate-spin" size={12} /> : 'Verbinden'}
-              </button>
-            )}
-          </div>
-        </div>
-        {connected && <CanvaDesignsGrid connected={connected} />}
-        <PoweredByCanva className="mt-sm" />
+          {connected && <CanvaDesignsGrid connected={connected} />}
+          <PoweredByCanva className="mt-sm" />
         </>
       )}
     </div>

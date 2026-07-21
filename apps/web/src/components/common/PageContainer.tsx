@@ -16,6 +16,9 @@ interface PageContainerProps {
   gradient?: boolean;
   noPadTop?: boolean;
   className?: string;
+  /** Background utilities applied to the full-height outer wrapper (e.g. a
+   *  custom page gradient). Takes precedence over the built-in `gradient`. */
+  bgClassName?: string;
 }
 
 export default function PageContainer({
@@ -26,13 +29,16 @@ export default function PageContainer({
   gradient = true,
   noPadTop = false,
   className,
+  bgClassName,
 }: PageContainerProps) {
   return (
     <div
       className={cn(
         'min-h-screen',
-        gradient &&
-          'bg-gradient-to-b from-background to-secondary-600/5 dark:from-background dark:to-background'
+        !bgClassName &&
+          gradient &&
+          'bg-gradient-to-b from-background to-secondary-600/5 dark:from-background dark:to-background',
+        bgClassName
       )}
     >
       <div

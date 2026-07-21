@@ -3,12 +3,16 @@
  * Centralized registry of all available decorative assets for canvas editor
  */
 
+export type AssetAudience = 'de-DE' | 'de-AT' | 'all';
+
 export interface UniversalAsset {
   id: string;
   src: string;
   label: string;
   category: 'decoration' | 'mark';
   tags: string[];
+  /** Which brand locale the asset belongs to; 'all' is locale-independent. */
+  audience: AssetAudience;
 }
 
 /**
@@ -56,6 +60,12 @@ export const SYSTEM_ASSETS = {
       src: '/sonnenblume_dunkelgruen.svg',
       label: 'Sonnenblume (Grün)',
     },
+    // Light-green flower matching the Info sharepic's server render
+    // (apps/api/public/sonnenblume_gruen.png).
+    greenLight: {
+      src: '/sonnenblume_gruen.png',
+      label: 'Sonnenblume (Hellgrün)',
+    },
   },
   quote: {
     white: {
@@ -65,6 +75,17 @@ export const SYSTEM_ASSETS = {
     default: {
       src: '/quote.svg',
       label: 'Anführungszeichen',
+    },
+  },
+  // Österreich (de-AT) — reduziertes Ein-Balken-Logo "G DIE GRÜNEN" (CI 2026)
+  logoAt: {
+    weiss: {
+      src: '/gruene-at-logo-weiss.png',
+      label: 'Die Grünen (weiß)',
+    },
+    gruen: {
+      src: '/gruene-at-logo-gruen.png',
+      label: 'Die Grünen (grün)',
     },
   },
   arrow: {
@@ -94,6 +115,7 @@ export const ALL_ASSETS: UniversalAsset[] = [
     label: SYSTEM_ASSETS.sunflower.yellow.label,
     category: 'decoration',
     tags: ['blume', 'flower', 'gelb', 'yellow', 'natur', 'pflanze', 'sommer'],
+    audience: 'de-DE',
   },
   {
     id: 'sunflower-green',
@@ -101,6 +123,23 @@ export const ALL_ASSETS: UniversalAsset[] = [
     label: SYSTEM_ASSETS.sunflower.green.label,
     category: 'decoration',
     tags: ['blume', 'flower', 'grün', 'green', 'natur', 'pflanze'],
+    audience: 'de-DE',
+  },
+  {
+    id: 'gruene-at-logo-weiss',
+    src: SYSTEM_ASSETS.logoAt.weiss.src,
+    label: SYSTEM_ASSETS.logoAt.weiss.label,
+    category: 'decoration',
+    tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'weiß', 'weiss', 'marke'],
+    audience: 'de-AT',
+  },
+  {
+    id: 'gruene-at-logo-gruen',
+    src: SYSTEM_ASSETS.logoAt.gruen.src,
+    label: SYSTEM_ASSETS.logoAt.gruen.label,
+    category: 'decoration',
+    tags: ['logo', 'grüne', 'gruene', 'österreich', 'at', 'grün', 'gruen', 'marke'],
+    audience: 'de-AT',
   },
   {
     id: 'quote-mark',
@@ -108,6 +147,7 @@ export const ALL_ASSETS: UniversalAsset[] = [
     label: SYSTEM_ASSETS.quote.default.label,
     category: 'mark',
     tags: ['zitat', 'quote', 'text', 'spruch', 'rede'],
+    audience: 'all',
   },
   {
     id: 'arrow',
@@ -115,6 +155,7 @@ export const ALL_ASSETS: UniversalAsset[] = [
     label: SYSTEM_ASSETS.arrow.label,
     category: 'mark',
     tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'],
+    audience: 'all',
   },
 ];
 
@@ -123,6 +164,25 @@ export const ALL_ASSETS: UniversalAsset[] = [
  * Only true logos (decoration) — marks like Anführungszeichen/Pfeil are excluded.
  */
 export const LOGO_ASSETS: UniversalAsset[] = ALL_ASSETS.filter((a) => a.category === 'decoration');
+
+export function assetMatchesLocale(asset: UniversalAsset, locale: AssetAudience): boolean {
+  return asset.audience === 'all' || asset.audience === locale;
+}
+
+/**
+ * Locale-filtered logos ordered recommended-first — shared by the Marke strip,
+ * the Marke drill-down and the mobile subsection. AT users only see the AT
+ * logo variants; DE users the DE marks.
+ */
+export function sortLogoAssets(
+  recommendedAssetIds: readonly string[],
+  locale: AssetAudience = 'de-DE'
+): UniversalAsset[] {
+  const logos = LOGO_ASSETS.filter((a) => assetMatchesLocale(a, locale));
+  const recommended = logos.filter((a) => recommendedAssetIds.includes(a.id));
+  const others = logos.filter((a) => !recommendedAssetIds.includes(a.id));
+  return [...recommended, ...others];
+}
 
 /**
  * Mapping of canvas types to their recommended (default) assets
@@ -135,7 +195,6 @@ export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
   info: ['arrow'],
   dreizeilen: ['sunflower'],
   veranstaltung: [],
-  'veranstaltung-plakat': [],
 };
 
 /**

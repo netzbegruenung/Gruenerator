@@ -17,7 +17,7 @@ import {
 } from '@gruenerator/shared/canvas-editor';
 import { HiPaintBrush } from 'react-icons/hi2';
 
-import { createBaseActions } from './factory/commonActions';
+import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';
@@ -104,6 +104,7 @@ function createProfilbildInitialState(props: Record<string, unknown>): Profilbil
     circleBadgeInstances: [],
     balkenInstances: [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
     transparentImage,
     backgroundColor,
@@ -196,6 +197,13 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
   id: 'profilbild',
 
   canvas: { width: CANVAS_SIZE, height: CANVAS_SIZE },
+
+  multiPage: {
+    enabled: true,
+    maxPages: 10,
+    heterogeneous: true,
+    defaultNewPageState: {},
+  },
 
   ai: profilbildAiCapabilities,
 

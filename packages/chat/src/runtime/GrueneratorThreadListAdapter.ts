@@ -1,6 +1,7 @@
 'use client';
 
 import type { ChatApiClient } from '../context/ChatContext';
+import { isUnauthorizedError } from '@gruenerator/shared/api';
 import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
 import { useAgentStore } from '../stores/chatStore';
@@ -13,6 +14,8 @@ interface ApiThread {
   status?: string;
   threadType?: string;
   notebookCollectionId?: string | null;
+  tags?: string[];
+  slugSuffix?: string | null;
   accessType?: 'owner' | 'shared' | 'group';
   createdAt: string;
   updatedAt: string;
@@ -35,6 +38,12 @@ const EXTERNAL_PREFIX = 'notebook:';
 // Module-level thread type cache — populated by list() and accessible by ThreadListItem
 const threadTypeCache = new Map<string, string>();
 const notebookCollectionCache = new Map<string, string>();
+const threadTagsCache = new Map<string, string[]>();
+// Slug + agent caches for URL routing (ChatThreadRouting): remoteId ↔ slugSuffix
+// and remoteId → agentId, populated by list()/fetch()/initialize().
+const threadSlugCache = new Map<string, string>();
+const slugToThreadCache = new Map<string, string>();
+const threadAgentCache = new Map<string, string>();
 
 export function getThreadType(remoteId: string): string {
   return threadTypeCache.get(remoteId) || 'chat';
@@ -44,9 +53,67 @@ export function getNotebookCollectionId(remoteId: string): string | null {
   return notebookCollectionCache.get(remoteId) || null;
 }
 
+export function getThreadSlugSuffix(remoteId: string): string | null {
+  return threadSlugCache.get(remoteId) ?? null;
+}
+
+export function resolveThreadBySlugSuffix(suffix: string): string | null {
+  return slugToThreadCache.get(suffix) ?? null;
+}
+
+export function getThreadAgentId(remoteId: string): string | null {
+  return threadAgentCache.get(remoteId) ?? null;
+}
+
+function cacheThreadSlug(remoteId: string, suffix: string | null | undefined): void {
+  if (!suffix) return;
+  threadSlugCache.set(remoteId, suffix);
+  slugToThreadCache.set(suffix, remoteId);
+}
+
+const EMPTY_TAGS: readonly string[] = [];
+
+export function getThreadTags(remoteId: string): string[] {
+  return (threadTagsCache.get(remoteId) ?? EMPTY_TAGS) as string[];
+}
+
+// Subscribers (ThreadListItem via useSyncExternalStore) re-render when a
+// thread's tags change — either from a list() refresh or an inline edit. This
+// keeps pills fresh without a per-item useState that would freeze the value at
+// mount and show a recycled item's stale tags.
+const tagListeners = new Set<() => void>();
+
+export function subscribeThreadTags(cb: () => void): () => void {
+  tagListeners.add(cb);
+  return () => tagListeners.delete(cb);
+}
+
+function sameTags(a: readonly string[] | undefined, b: readonly string[]): boolean {
+  if (!a || a.length !== b.length) return false;
+  return a.every((t, i) => t === b[i]);
+}
+
+/** Write tags into the cache and notify subscribers only when they changed,
+ *  so a no-op list() refresh doesn't churn re-renders. Preserves the array
+ *  reference on equality so useSyncExternalStore snapshots stay stable. */
+function updateThreadTagsCache(remoteId: string, tags: string[]): void {
+  if (sameTags(threadTagsCache.get(remoteId), tags)) return;
+  threadTagsCache.set(remoteId, tags);
+  tagListeners.forEach((l) => l());
+}
+
+/** Update the local tags cache after an edit so the sidebar reflects it
+ *  without waiting for the next list() refresh. */
+export function setThreadTagsCache(remoteId: string, tags: string[]): void {
+  updateThreadTagsCache(remoteId, tags);
+}
+
 function isExternal(remoteId: string) {
   return remoteId.startsWith(EXTERNAL_PREFIX);
 }
+
+// Threads whose title side effects (PATCH + generate-title POST) already ran.
+const titleGeneratedFor = new Set<string>();
 
 export function createGrueneratorThreadListAdapter(
   apiClient: ChatApiClient,
@@ -101,6 +168,9 @@ export function createGrueneratorThreadListAdapter(
           if (t.notebookCollectionId) {
             notebookCollectionCache.set(t.id, t.notebookCollectionId);
           }
+          updateThreadTagsCache(t.id, t.tags ?? []);
+          cacheThreadSlug(t.id, t.slugSuffix);
+          threadAgentCache.set(t.id, t.agentId);
         }
 
         const apiEntries = cachedThreads.map((t) => {
@@ -133,6 +203,10 @@ export function createGrueneratorThreadListAdapter(
           threads: all.map(({ _updatedAt, ...rest }) => rest),
         };
       } catch (error) {
+        // Don't mask a dead session as an empty sidebar — let it propagate so
+        // onUnauthorized's teardown wins. Keep the empty-list fallback for real
+        // failures (offline, 5xx) so the sidebar degrades gracefully there.
+        if (isUnauthorizedError(error)) throw error;
         console.warn('[ThreadList] Failed to fetch threads:', error);
         return { threads: [] };
       }
@@ -145,13 +219,22 @@ export function createGrueneratorThreadListAdapter(
         // Returning an existing thread's id makes its `then:` reducer overwrite
         // threadIdMap[remoteId] = mappingId(localId), aliasing two threadIds entries
         // to the same threadData slot and rendering the same thread twice in the sidebar.
-        // Stale empty drafts are reaped by the auto-cleanup in list() below.
-        const threadMode = useAgentStore.getState().threadMode;
-        const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
-          agentId,
-          threadType: threadMode,
-        });
+        // Called lazily by assistant-ui's run-start hook on the first message send
+        // (history.load() no longer initializes drafts), so an abandoned draft
+        // never creates a server-side thread.
+        const state = useAgentStore.getState();
+        const effectiveAgentId = state.selectedAgentId ?? agentId;
+        const threadMode = state.threadMode;
+        const result = await apiClient.post<{ id: string; slugSuffix?: string | null }>(
+          '/api/chat-service/threads',
+          {
+            agentId: effectiveAgentId,
+            threadType: threadMode,
+          }
+        );
         threadTypeCache.set(result.id, threadMode);
+        threadAgentCache.set(result.id, effectiveAgentId);
+        cacheThreadSlug(result.id, result.slugSuffix);
         useAgentStore.getState().setCurrentThread(result.id);
         return { remoteId: result.id, externalId: undefined };
       })().finally(() => {
@@ -202,6 +285,10 @@ export function createGrueneratorThreadListAdapter(
       }
 
       const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
+      for (const t of threads) {
+        cacheThreadSlug(t.id, t.slugSuffix);
+        threadAgentCache.set(t.id, t.agentId);
+      }
       const thread = threads.find((t) => t.id === remoteId);
       if (!thread) throw new Error(`Thread ${remoteId} not found`);
 
@@ -251,6 +338,12 @@ export function createGrueneratorThreadListAdapter(
           title = title.slice(0, 47) + '...';
         }
         controller.appendText(title);
+
+        // Both assistant-ui's built-in runEnd trigger (fires for lazily
+        // initialized threads) and ThreadTitleEffect (kept for legacy
+        // pre-created threads) may call this — run the side effects once.
+        if (titleGeneratedFor.has(remoteId)) return;
+        titleGeneratedFor.add(remoteId);
 
         if (useAgentStore.getState().currentThreadId === remoteId) {
           useAgentStore.getState().setCurrentThreadTitle(title);

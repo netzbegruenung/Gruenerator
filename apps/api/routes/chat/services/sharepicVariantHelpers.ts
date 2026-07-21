@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 
+import { type CanvasTemplateType, type SharepicVariant } from '@gruenerator/contracts';
+
 import {
   generateSharepicForChat,
   type ExpressRequest as SharepicExpressRequest,
@@ -145,35 +147,46 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
   }
 }
 
-export interface SharepicVariant {
-  id: string;
-  canvasType: string;
-  initialProps: Record<string, unknown>;
-  label?: string;
-  /** Accessibility description generated alongside the sharepic text (for screen readers / social posts). */
-  altText?: string;
-  /** Set for deck variants, which are minted at generation time. */
-  canvasId?: string;
-  /** Per-slide states for deck variants (slider); cover state doubles as initialProps. */
-  pages?: Array<Record<string, unknown>>;
-}
+// Canonical shape lives in @gruenerator/contracts (sharepicVariantSchema) —
+// shared with the sharepic_complete wire payload and the frontend cards, so
+// generator, stream and UI can't drift.
+export type { SharepicVariant };
 
-const CANVAS_TYPE_BY_SHAREPIC: Record<string, string> = {
+// Values are validated CanvasTemplateTypes, so a mapped canvasType is always a
+// canonical type the frontend canvas pipeline can mint.
+const CANVAS_TYPE_BY_SHAREPIC: Record<string, CanvasTemplateType> = {
   dreizeilen: 'dreizeilen',
   zitat: 'zitat-pure',
   zitat_pure: 'zitat-pure',
   info: 'info',
 };
 
-const VARIANT_LABEL_BY_CANVAS_TYPE: Record<string, string> = {
+const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> = {
   dreizeilen: 'Dreizeiler',
   'zitat-pure': 'Zitat',
   zitat: 'Zitat',
   info: 'Info',
+  'dreizeilen-at': 'Dreizeiler',
+  'zitat-pure-at': 'Zitat',
+  'zitat-at': 'Zitat',
+  'info-at': 'Info',
 };
 
-function mapSharepicTypeToCanvasType(sharepicType: string): string {
-  return CANVAS_TYPE_BY_SHAREPIC[sharepicType] ?? 'dreizeilen';
+/** de-AT overrides: base canvas type → Austrian variant. */
+const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
+  dreizeilen: 'dreizeilen-at',
+  'zitat-pure': 'zitat-pure-at',
+  zitat: 'zitat-at',
+  info: 'info-at',
+};
+
+function mapSharepicTypeToCanvasType(
+  sharepicType: string,
+  userLocale?: string
+): CanvasTemplateType {
+  const base = CANVAS_TYPE_BY_SHAREPIC[sharepicType] ?? 'dreizeilen';
+  if (userLocale === 'de-AT') return AT_CANVAS_TYPE[base] ?? base;
+  return base;
 }
 
 interface SharepicResponseShape {
@@ -208,7 +221,9 @@ function buildInitialPropsForType(
       };
     }
     case 'zitat-pure':
-    case 'zitat': {
+    case 'zitat':
+    case 'zitat-pure-at':
+    case 'zitat-at': {
       return {
         quote: sharepic.quote ?? '',
         name: sharepic.name ?? '',
@@ -218,6 +233,23 @@ function buildInitialPropsForType(
       return {
         header: sharepic.header ?? '',
         body: sharepic.body ?? sharepic.subheader ?? '',
+      };
+    }
+    // AT info: headline (white) + accent (gelb, Betonung) + body (subline)
+    case 'info-at': {
+      return {
+        headline: sharepic.header ?? '',
+        accent: sharepic.subheader ?? '',
+        body: sharepic.body ?? '',
+      };
+    }
+    // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
+    case 'dreizeilen-at': {
+      const slogan = sharepic.mainSlogan ?? {};
+      return {
+        line1: slogan.line1 ?? '',
+        accent: slogan.line2 ?? '',
+        line3: slogan.line3 ?? '',
       };
     }
     default:
@@ -244,6 +276,8 @@ interface GenerateVariantsArgs {
    * text plus this instruction (e.g. "verlängern"), instead of starting fresh.
    */
   refinement?: { instruction: string; prior: PriorSharepic } | null;
+  /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
+  userLocale?: string;
 }
 
 /** Maps a stored canvasType back to the generation type used by generateSharepicForChat. */
@@ -252,6 +286,12 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   zitat: 'zitat_pure',
   dreizeilen: 'dreizeilen',
   info: 'info',
+  // Österreich (de-AT) variants map back to the same generation types; the
+  // result is re-localized to the -at canvasType via toVariant(userLocale).
+  'zitat-pure-at': 'zitat_pure',
+  'zitat-at': 'zitat_pure',
+  'dreizeilen-at': 'dreizeilen',
+  'info-at': 'info',
 };
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
@@ -291,21 +331,24 @@ function buildRefinementRequest(
   }
 
   if (genType === 'info') {
-    const header = str(p.header);
+    // AT info stores headline/accent/body; DE info stores header/(subheader)/body.
+    const header = str(p.header) || str(p.headline);
+    const accent = str(p.accent);
     const body = str(p.body);
+    const combined = [header, accent, body].filter(Boolean).join(' ');
     return {
       type: 'info',
       body: {
-        text: `${header} ${body}`.trim(),
-        subject: `${header} ${body}`.trim(),
-        details: `Überarbeite diesen Infotext wie folgt: ${instruction}. Bestehender Text — Überschrift: "${header}", Inhalt: "${body}". Behalte Thema und Kernaussage bei.`,
+        text: combined,
+        subject: combined,
+        details: `Überarbeite diesen Infotext wie folgt: ${instruction}. Bestehender Text — Überschrift: "${[header, accent].filter(Boolean).join(' ')}", Inhalt: "${body}". Behalte Thema und Kernaussage bei.`,
         count: 1,
       },
     };
   }
 
-  // dreizeilen
-  const lines = [p.line1, p.line2, p.line3].map(str).filter(Boolean).join(' / ');
+  // dreizeilen (AT stores the middle line under `accent` instead of `line2`)
+  const lines = [p.line1, p.line2 ?? p.accent, p.line3].map(str).filter(Boolean).join(' / ');
   return {
     type: 'dreizeilen',
     body: {
@@ -318,8 +361,12 @@ function buildRefinementRequest(
 }
 
 /** Map a successful generation result to a frontend SharepicVariant. */
-function toVariant(sharepic: SharepicResponseShape, requestedType: string): SharepicVariant {
-  const canvasType = mapSharepicTypeToCanvasType(sharepic.type ?? requestedType);
+function toVariant(
+  sharepic: SharepicResponseShape,
+  requestedType: string,
+  userLocale?: string
+): SharepicVariant {
+  const canvasType = mapSharepicTypeToCanvasType(sharepic.type ?? requestedType, userLocale);
   return {
     id: randomUUID(),
     canvasType,
@@ -375,7 +422,7 @@ export async function generateSharepicVariants(
       return;
     }
     const sharepic = result.value.content.sharepic as SharepicResponseShape;
-    variants.push(toVariant(sharepic, requestedType));
+    variants.push(toVariant(sharepic, requestedType, args.userLocale));
   });
 
   return variants;

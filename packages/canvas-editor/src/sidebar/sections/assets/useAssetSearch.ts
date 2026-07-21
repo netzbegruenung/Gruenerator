@@ -1,17 +1,20 @@
 import { useState, useMemo, useDeferredValue } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import useDebounce from '../../../hooks/useDebounce';
-import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
-import { getIconsSync, type IconDef } from '../../../utils/canvasIcons';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
+import { ALL_ASSETS, assetMatchesLocale, type UniversalAsset } from '../../../utils/canvasAssets';
+import { getIconsSync, loadAllIcons, type IconDef } from '../../../utils/canvasIcons';
+import { CHART_TYPE_DEFS, type ChartTypeDef } from '../../../utils/chartUtils';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_PRESETS } from '../../../utils/frameUtils';
-import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
+import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { ALL_SHAPES, type ShapeDef } from '../../../utils/shapes';
 
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { IllustrationDef } from '../../../utils/illustrations/types';
 
-export type SearchResultType = 'element' | 'shape' | 'icon' | 'illustration' | 'frame';
+export type SearchResultType = 'element' | 'shape' | 'chart' | 'icon' | 'illustration' | 'frame';
 
 export interface SearchResult {
   type: SearchResultType;
@@ -19,6 +22,7 @@ export interface SearchResult {
   name: string;
   asset?: UniversalAsset;
   shapeDef?: ShapeDef;
+  chartTypeDef?: ChartTypeDef;
   iconDef?: IconDef;
   illustrationDef?: IllustrationDef;
   frameClipType?: FrameClipType;
@@ -27,6 +31,7 @@ export interface SearchResult {
 interface FeatureFlags {
   hasAssetsFeature: boolean;
   hasShapesFeature: boolean;
+  hasChartsFeature: boolean;
   hasIconsFeature: boolean;
   hasFramesFeature: boolean;
 }
@@ -44,11 +49,29 @@ export interface AssetSearchState {
 }
 
 export function useAssetSearch(features: FeatureFlags): AssetSearchState {
-  const { hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasFramesFeature } = features;
+  const {
+    hasAssetsFeature,
+    hasShapesFeature,
+    hasChartsFeature,
+    hasIconsFeature,
+    hasFramesFeature,
+  } = features;
 
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
   const deferredQuery = useDeferredValue(debouncedQuery);
+  const { userLocale = 'de-DE' } = useCanvasEditorServices();
+
+  // Browsing loads sets per-tab; a query, however, should search ALL sets. Load
+  // every set once a query is entered, gated so the no-search path stays cheap.
+  const allIconsQuery = useQuery({
+    queryKey: ['canvas', 'icons', 'catalog', '__all__'],
+    queryFn: loadAllIcons,
+    enabled: hasIconsFeature && deferredQuery.trim().length > 0,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+  const allIcons = allIconsQuery.data;
 
   const searchResults = useMemo(() => {
     if (!deferredQuery.trim()) return [];
@@ -58,6 +81,7 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
 
     if (hasAssetsFeature) {
       ALL_ASSETS.forEach((asset) => {
+        if (!assetMatchesLocale(asset, userLocale)) return;
         if (matchesQuery(query, asset.label, asset.tags)) {
           results.push({ type: 'element', id: asset.id, name: asset.label, asset });
         }
@@ -72,8 +96,16 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
       });
     }
 
+    if (hasChartsFeature) {
+      CHART_TYPE_DEFS.forEach((def) => {
+        if (matchesQuery(query, def.name, def.tags)) {
+          results.push({ type: 'chart', id: def.id, name: def.name, chartTypeDef: def });
+        }
+      });
+    }
+
     if (hasIconsFeature) {
-      const matchingIcons = filterIcons(getIconsSync() ?? [], query);
+      const matchingIcons = filterIcons(allIcons ?? getIconsSync() ?? [], query);
       for (const icon of matchingIcons.slice(0, 20)) {
         results.push({ type: 'icon', id: icon.id, name: icon.name, iconDef: icon });
       }
@@ -100,7 +132,16 @@ export function useAssetSearch(features: FeatureFlags): AssetSearchState {
     }
 
     return results;
-  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasFramesFeature]);
+  }, [
+    deferredQuery,
+    userLocale,
+    hasAssetsFeature,
+    hasShapesFeature,
+    hasChartsFeature,
+    hasIconsFeature,
+    hasFramesFeature,
+    allIcons,
+  ]);
 
   const hasQuery = searchQuery.trim().length > 0;
   const hasDeferredQuery = deferredQuery.trim().length > 0;

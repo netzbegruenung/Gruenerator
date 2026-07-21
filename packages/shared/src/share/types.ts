@@ -38,6 +38,10 @@ export interface ShareImageMetadata {
   originalImageFilename?: string;
   generatedAt?: string;
   updatedAt?: string;
+  /** Compact BlurHash for an instant placeholder (set once variants exist). */
+  blurhash?: string;
+  /** Widths (px) of the pre-generated responsive WebP/AVIF variants. */
+  variants?: number[];
 }
 
 /**

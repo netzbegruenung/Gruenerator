@@ -1,63 +1,25 @@
 import { type useDocsAdapter } from '@gruenerator/docs';
 import { cn } from '@gruenerator/ui';
 import { memo } from 'react';
-import {
-  FiCalendar,
-  FiCheck,
-  FiCheckSquare,
-  FiClipboard,
-  FiEdit3,
-  FiFile,
-  FiFileText,
-  FiMail,
-  FiRadio,
-} from 'react-icons/fi';
+import { FiCheck } from 'react-icons/fi';
 
+import {
+  PlaceholderBars,
+  SlidesPreviewBody,
+  TablePreviewBody,
+} from '../../components/common/SchematicPreviews';
 import { formatRelativeDate } from '../../utils/dateFormatter';
 import { parseDocPreview } from '../../utils/parseDocPreview';
+import { parseTablePreview } from '../../utils/parseTablePreview';
 
 import { CardActionMenu } from './CardActionMenu';
 
-const DOC_TYPE_STYLE: Record<
-  string,
-  { icon: React.ComponentType<{ size?: number; className?: string }>; bg: string; text: string }
-> = {
-  blank: { icon: FiFile, bg: 'bg-grey-100 dark:bg-grey-800', text: 'text-grey-500' },
-  antrag: {
-    icon: FiFileText,
-    bg: 'bg-blue-100 dark:bg-blue-900/30',
-    text: 'text-blue-600 dark:text-blue-400',
-  },
-  pressemitteilung: {
-    icon: FiRadio,
-    bg: 'bg-amber-100 dark:bg-amber-900/30',
-    text: 'text-amber-600 dark:text-amber-400',
-  },
-  protokoll: {
-    icon: FiClipboard,
-    bg: 'bg-violet-100 dark:bg-violet-900/30',
-    text: 'text-violet-600 dark:text-violet-400',
-  },
-  notizen: {
-    icon: FiEdit3,
-    bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-    text: 'text-yellow-600 dark:text-yellow-400',
-  },
-  redaktionsplan: {
-    icon: FiCalendar,
-    bg: 'bg-teal-100 dark:bg-teal-900/30',
-    text: 'text-teal-600 dark:text-teal-400',
-  },
-  checkliste: {
-    icon: FiCheckSquare,
-    bg: 'bg-green-100 dark:bg-green-900/30',
-    text: 'text-green-600 dark:text-green-400',
-  },
-  einladung: {
-    icon: FiMail,
-    bg: 'bg-rose-100 dark:bg-rose-900/30',
-    text: 'text-rose-600 dark:text-rose-400',
-  },
+// One calm generic label per type for the footer meta line — sheets and
+// presentations read as their own category, everything else is "Dokument".
+const docTypeLabel = (subtype: string): string => {
+  if (subtype === 'sheets' || subtype === 'tabelle') return 'Tabelle';
+  if (subtype === 'presentations') return 'Präsentation';
+  return 'Dokument';
 };
 
 export interface DocumentCardDoc {
@@ -92,11 +54,35 @@ export const DocumentCard = memo(function DocumentCard({
   isDisabled?: boolean;
   onSelect?: (id: string) => void;
 }) {
-  const style = DOC_TYPE_STYLE[doc.document_subtype] || DOC_TYPE_STYLE.blank;
-  const TypeIcon = style.icon;
   const hasContent = !!doc.content?.trim();
   const isSelectMode = mode === 'select';
-  const preview = hasContent ? parseDocPreview(doc.content!) : null;
+  // Sheets and presentations keep their data in the Y.Doc (no HTML `content`),
+  // so they get a type-faithful schematic plate instead of the prose excerpt.
+  const isSheet = doc.document_subtype === 'sheets' || doc.document_subtype === 'tabelle';
+  const isSlides = doc.document_subtype === 'presentations';
+  const preview = !isSheet && !isSlides && hasContent ? parseDocPreview(doc.content!) : null;
+
+  const sheetCols =
+    isSheet && doc.content
+      ? parseTablePreview(doc.content, 3, 100).reduce((max, row) => Math.max(max, row.length), 0)
+      : 0;
+  const scope = isSheet
+    ? sheetCols > 0
+      ? `${sheetCols} Spalten`
+      : null
+    : !isSlides && !hasContent
+      ? 'Leer'
+      : null;
+  const sharedSuffix =
+    doc.access_type && doc.access_type !== 'owner'
+      ? doc.creator_name
+        ? ` · Von ${doc.creator_name}`
+        : ' · Geteilt'
+      : '';
+  const metaLine =
+    [docTypeLabel(doc.document_subtype), scope, formatRelativeDate(doc.updated_at)]
+      .filter(Boolean)
+      .join(' · ') + sharedSuffix;
 
   const handleClick = () => {
     if (isDisabled) return;
@@ -131,39 +117,39 @@ export const DocumentCard = memo(function DocumentCard({
         </div>
       ) : null}
 
-      <div className="relative h-48 overflow-hidden border-b border-grey-100 bg-grey-50 dark:border-grey-700/60 dark:bg-grey-800/40">
-        {preview ? (
-          <div className="flex flex-col gap-1.5 px-3.5 pt-4 text-left">
+      <div className="relative h-[210px] overflow-hidden border-b border-grey-100 bg-grey-50 dark:border-grey-700/60 dark:bg-grey-800/40">
+        {isSheet ? (
+          <TablePreviewBody content={doc.content} />
+        ) : isSlides ? (
+          <div className="h-full p-4">
+            <SlidesPreviewBody content={doc.content} />
+          </div>
+        ) : preview ? (
+          <div className="flex h-full flex-col justify-center gap-1.5 px-4 text-left">
             {preview.heading && (
-              <p className="m-0 line-clamp-2 text-[13px] font-bold leading-snug text-grey-800 dark:text-grey-100">
+              <p className="m-0 line-clamp-2 text-[15px] font-bold leading-snug text-grey-800 dark:text-grey-100">
                 {preview.heading}
               </p>
             )}
             {preview.body && (
-              <p className="m-0 line-clamp-6 text-[11px] leading-relaxed text-grey-500 dark:text-grey-400">
+              <p className="m-0 line-clamp-6 text-[14px] leading-relaxed text-grey-500 dark:text-grey-400">
                 {preview.body}
               </p>
             )}
           </div>
         ) : (
-          <div className={`flex h-full items-center justify-center ${style.bg}`}>
-            <TypeIcon size={32} className={style.text} />
+          <div className="flex h-full flex-col justify-center px-4">
+            <PlaceholderBars />
           </div>
         )}
       </div>
 
-      <div className="flex items-start gap-2 px-3 py-2.5">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h3 className="m-0 flex items-center gap-1.5 min-w-0 truncate text-sm font-medium text-foreground-heading">
-            <TypeIcon size={14} className={cn('shrink-0', style.text)} />
-            <span className="truncate">{doc.title}</span>
+      <div className="flex items-start gap-2 px-4 pb-4 pt-3.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h3 className="m-0 min-w-0 truncate text-[16px] font-semibold text-foreground-heading">
+            {doc.title}
           </h3>
-          <p className="m-0 truncate text-xs text-grey-500 dark:text-grey-400">
-            {formatRelativeDate(doc.updated_at)}
-            {doc.access_type &&
-              doc.access_type !== 'owner' &&
-              (doc.creator_name ? ` · Von ${doc.creator_name}` : ' · Geteilt')}
-          </p>
+          <p className="m-0 truncate text-[13px] text-grey-500 dark:text-grey-400">{metaLine}</p>
         </div>
         {!isSelectMode && onRename && onDelete && onShare ? (
           <CardActionMenu

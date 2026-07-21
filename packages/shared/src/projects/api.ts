@@ -1,40 +1,47 @@
 /**
  * Project API functions
- * Platform-agnostic API calls using shared client
+ * Platform-agnostic API calls using the ts-rest contracts client.
+ *
+ * Project CRUD flows through `getContractsClient().subtitler.*` so web and
+ * mobile share one typed path. The contract's `SubtitlerProject` is
+ * nullability-wide (tolerates legacy rows) and lacks `upload_id`; the local
+ * `Project` is the tighter shape the app reads off — the `as unknown as`
+ * casts are the documented FE-boundary assertion (the contract already
+ * validated the wire shape at runtime).
  */
 
 import { getGlobalApiClient } from '../api/client.js';
+import { getContractsClient } from '../api/contractsClient.js';
 
-import type { Project, ProjectsApiResponse, SaveProjectData, UpdateProjectData } from './types.js';
+import type { Project, SaveProjectData, UpdateProjectData } from './types.js';
 
 const PROJECTS_ENDPOINT = '/subtitler/projects';
+
+function errorFrom(body: unknown, fallback: string): string {
+  const b = body as { error?: string } | null;
+  return b?.error || fallback;
+}
 
 /**
  * Fetch all projects for the current user
  */
 export async function fetchProjects(): Promise<Project[]> {
-  const client = getGlobalApiClient();
-  const response = await client.get<ProjectsApiResponse>(PROJECTS_ENDPOINT);
-
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Projekte konnten nicht geladen werden');
+  const res = await getContractsClient().subtitler.listProjects();
+  if (res.status !== 200) {
+    throw new Error(errorFrom(res.body, 'Projekte konnten nicht geladen werden'));
   }
-
-  return response.data.projects || [];
+  return res.body.projects as unknown as Project[];
 }
 
 /**
  * Get a single project by ID
  */
 export async function getProject(projectId: string): Promise<Project> {
-  const client = getGlobalApiClient();
-  const response = await client.get<ProjectsApiResponse>(`${PROJECTS_ENDPOINT}/${projectId}`);
-
-  if (!response.data.success || !response.data.project) {
-    throw new Error(response.data.error || 'Projekt konnte nicht geladen werden');
+  const res = await getContractsClient().subtitler.getProject({ params: { projectId } });
+  if (res.status !== 200) {
+    throw new Error(errorFrom(res.body, 'Projekt konnte nicht geladen werden'));
   }
-
-  return response.data.project;
+  return res.body.project as unknown as Project;
 }
 
 /**
@@ -43,16 +50,19 @@ export async function getProject(projectId: string): Promise<Project> {
 export async function saveProject(
   projectData: SaveProjectData
 ): Promise<{ project: Project; isNew: boolean }> {
-  const client = getGlobalApiClient();
-  const response = await client.post<ProjectsApiResponse>(PROJECTS_ENDPOINT, projectData);
-
-  if (!response.data.success || !response.data.project) {
-    throw new Error(response.data.error || 'Projekt konnte nicht gespeichert werden');
+  const res = await getContractsClient().subtitler.createProject({
+    body: {
+      ...projectData,
+      subtitles: projectData.subtitles ?? [],
+      videoMetadata: projectData.videoMetadata as Record<string, unknown> | undefined,
+    },
+  });
+  if (res.status !== 200 && res.status !== 201) {
+    throw new Error(errorFrom(res.body, 'Projekt konnte nicht gespeichert werden'));
   }
-
   return {
-    project: response.data.project,
-    isNew: response.data.isNew ?? true,
+    project: res.body.project as unknown as Project,
+    isNew: res.body.isNew ?? true,
   };
 }
 
@@ -63,33 +73,28 @@ export async function updateProject(
   projectId: string,
   updates: UpdateProjectData
 ): Promise<Project> {
-  const client = getGlobalApiClient();
-  const response = await client.put<ProjectsApiResponse>(
-    `${PROJECTS_ENDPOINT}/${projectId}`,
-    updates
-  );
-
-  if (!response.data.success || !response.data.project) {
-    throw new Error(response.data.error || 'Projekt konnte nicht aktualisiert werden');
+  const res = await getContractsClient().subtitler.updateProject({
+    params: { projectId },
+    body: updates,
+  });
+  if (res.status !== 200) {
+    throw new Error(errorFrom(res.body, 'Projekt konnte nicht aktualisiert werden'));
   }
-
-  return response.data.project;
+  return res.body.project as unknown as Project;
 }
 
 /**
  * Delete a project
  */
 export async function deleteProject(projectId: string): Promise<void> {
-  const client = getGlobalApiClient();
-  const response = await client.delete<ProjectsApiResponse>(`${PROJECTS_ENDPOINT}/${projectId}`);
-
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Projekt konnte nicht gelöscht werden');
+  const res = await getContractsClient().subtitler.deleteProject({ params: { projectId } });
+  if (res.status !== 200) {
+    throw new Error(errorFrom(res.body, 'Projekt konnte nicht gelöscht werden'));
   }
 }
 
 /**
- * Get the video streaming URL for a project
+ * Get the video streaming URL for a project (binary route — stays raw).
  * Note: This returns a relative URL path - the base URL should be added by the platform
  */
 export function getVideoPath(projectId: string): string {
@@ -97,7 +102,7 @@ export function getVideoPath(projectId: string): string {
 }
 
 /**
- * Get the thumbnail URL for a project
+ * Get the thumbnail URL for a project (binary route — stays raw).
  * Note: This returns a relative URL path - the base URL should be added by the platform
  */
 export function getThumbnailPath(projectId: string): string {

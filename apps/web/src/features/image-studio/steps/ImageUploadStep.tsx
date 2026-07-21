@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { HiArrowLeft, HiArrowRight, HiX, HiPhotograph, HiSearch } from 'react-icons/hi';
 
+import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
 import Button from '../../../components/common/SubmitButton';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import useDebounce from '../../../components/hooks/useDebounce';
@@ -496,9 +497,6 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
                     <AnimatePresence mode="popLayout">
                       {mediathekImages.map((share, index) => {
                         const isSelected = selectedMediathekImage?.shareToken === share.shareToken;
-                        const thumbnailUrl =
-                          share.thumbnailUrl ||
-                          `${apiClient.defaults.baseURL}/share/${share.shareToken}/thumbnail`;
                         const isOriginal = share.imageMetadata?.hasOriginalImage === true;
 
                         return (
@@ -514,10 +512,12 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
                             whileTap={{ scale: 0.98 }}
                             style={{ cursor: isLoadingMediathekImage ? 'wait' : 'pointer' }}
                           >
-                            <img
-                              src={thumbnailUrl}
+                            <SharedMediaImage
+                              shareToken={share.shareToken}
                               alt={share.title || 'Mediathek Bild'}
-                              loading="lazy"
+                              blurhash={share.imageMetadata?.blurhash}
+                              priority={index < 5}
+                              sizes="(max-width: 768px) 33vw, 160px"
                               className="stock-images-grid__image"
                             />
 

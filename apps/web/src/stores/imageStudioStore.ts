@@ -1,12 +1,15 @@
+import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
 import { DEFAULT_COLORS } from '../components/utils/constants';
+import { useAutoSaveStore } from '../features/image-studio/hooks/useAutoSaveStore';
 import {
   parseSharepicForEditing,
   loadGalleryEditData as loadGalleryEditDataService,
   loadEditSessionData as loadEditSessionDataService,
   parseAIGeneratedData,
+  clearGalleryEditSession,
 } from '../features/image-studio/services/editingSessionService';
 import {
   FONT_SIZES,
@@ -25,6 +28,8 @@ import {
   KI_SUBCATEGORIES,
   FORM_STEPS,
   getTypeConfig,
+  isImageStudioType,
+  type ImageStudioType,
 } from '../features/image-studio/utils/typeConfig';
 
 import type {
@@ -73,6 +78,7 @@ const initialState = {
   sunflowerOffset: [0, 0],
   credit: '',
   searchTerms: [],
+  deckPages: null,
 
   // Veranstaltung per-field font sizes (in pixels)
   veranstaltungFieldFontSizes: {
@@ -182,10 +188,26 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
     },
 
     setType: (type: string | null) => {
-      const config = getTypeConfig(type || '');
+      // Validate at the boundary: an unknown string never becomes state.type.
+      // Callers pass raw strings (URL segments, selector ids); anything not in
+      // IMAGE_STUDIO_TYPES is rejected to null (→ TYPE_SELECT) rather than
+      // silently flowing through to the canvas mint.
+      const validType: ImageStudioType | null = isImageStudioType(type) ? type : null;
+      if (type && !validType) {
+        console.warn('[imageStudioStore] Ignoring unknown image-studio type:', type);
+      }
+      const config = getTypeConfig(validType || '');
       const firstStep = config?.steps?.[0] || FORM_STEPS.INPUT;
+      // Selecting a type starts a NEW creation: drop the previous session's
+      // autosave token and persisted edit session, otherwise the next autosave
+      // updates (= overwrites) the previous sharepic's gallery entry. Gallery
+      // edits and reload-restores seed state via set(formData), not setType,
+      // so they are unaffected; the reload-restore path additionally stashes
+      // its session before any effect can clear the storage.
+      useAutoSaveStore.getState().clearAutoSaveState();
+      clearGalleryEditSession();
       set({
-        type,
+        type: validType,
         currentStep: firstStep,
         error: null,
         precisionMode: config?.alwaysPrecision || false,
@@ -193,11 +215,11 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
       });
 
       // Track usage for "last used" feature (fire-and-forget)
-      if (type) {
+      if (validType) {
         apiClient
           .post('/recent-values', {
             fieldType: 'image_studio_type',
-            fieldValue: type,
+            fieldValue: validType,
             formName: 'image-studio',
           })
           .catch(() => {});
@@ -392,13 +414,19 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
     },
 
     resetToCategorySelect: () => {
+      useAutoSaveStore.getState().clearAutoSaveState();
+      clearGalleryEditSession();
       set({
         ...(initialState as unknown as Partial<ImageStudioStore>),
         currentStep: FORM_STEPS.CATEGORY_SELECT,
       });
     },
 
-    resetStore: () => set(initialState as unknown as Partial<ImageStudioStore>),
+    resetStore: () => {
+      useAutoSaveStore.getState().clearAutoSaveState();
+      clearGalleryEditSession();
+      set(initialState as unknown as Partial<ImageStudioStore>);
+    },
 
     // Advanced editing controls
     updateBalkenGruppenOffset: (newOffset: number[]) =>
@@ -480,7 +508,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
 
     // Load data from AI-generated prompt (from ImageStudio chat input)
     loadFromAIGeneration: (
-      sharepicType: string,
+      sharepicType: CanvasTemplateType,
       generatedData: Record<string, string>,
       selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null
     ) => {

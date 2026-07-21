@@ -11,6 +11,7 @@ import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { StockImageAttribution } from '../sidebar/types';
 import type { BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
+import type { ChartInstance } from '../utils/chartUtils';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
@@ -69,6 +70,9 @@ export interface DreizeilenFullState {
   // === Illustrations ===
   illustrationInstances: IllustrationInstance[];
   selectedIllustrationId: string | null;
+
+  // === Charts ===
+  chartInstances: ChartInstance[];
 
   // === Additional Texts ===
   additionalTexts: AdditionalText[];

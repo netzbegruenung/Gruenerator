@@ -3,7 +3,7 @@ import { PiPlusBold, PiTextAa, PiTextHBold } from 'react-icons/pi';
 
 import { SidebarHint } from '../components/SidebarHint';
 import { TextField } from '../components/TextFieldPrimitives';
-import { SIDEBAR_SECTION } from '../primitives';
+import { SIDEBAR_SECTION } from '../sidebarStyles';
 
 import type { AdditionalText } from '../../configs/types';
 import type { TextFieldConfig } from '../../configs/unifiedTabs';

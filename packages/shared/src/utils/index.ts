@@ -36,9 +36,30 @@ export {
   generateSlugSuffix,
   buildNotebookSlug,
   buildGroupSlug,
+  buildChatThreadSlug,
   extractSlugSuffix,
 } from './slug.js';
 
 // Usage-based ranking (favourites-first ordering for notebooks & agents)
 export { compareUsageStats, sortByUsage } from './usageRanking.js';
 export type { UsageStat, UsageMap } from './usageRanking.js';
+
+// MCP connector brand colours (shared by settings + chat mention picker)
+export { mcpBrandColor } from './mcpBrand.js';
+
+// Time-of-day + locale-aware greeting (web Workplace + mobile Chat home)
+export { getGreeting, isPrideMonth } from './greeting.js';
+
+// Natural-language notebook/research query parser (region/date/topic)
+export { parseNotebookQuery } from './notebookQuery.js';
+export type { NotebookQueryFilters } from './notebookQuery.js';
+
+// Durable mention tokens (@[Label](type:id)) — shared FE/BE spec
+export {
+  buildMentionToken,
+  parseMentionTokens,
+  sanitizeMentionTokens,
+  hasMentionTokens,
+  mentionTokenRegex,
+} from './mentionTokens.js';
+export type { MentionToken, MentionTokenType } from './mentionTokens.js';

@@ -1,13 +1,12 @@
 import { z } from 'zod';
 
-import { callGrueneratorApi } from '../api-client.ts';
+import { callGrueneratorApi, notebooksApiError } from '../api-client.ts';
 
 export const notebooksSearchTool = {
   name: 'notebooks_search',
   description: `Liefert die rohen, am besten passenden Dokument-Chunks zu einer Anfrage — ohne LLM-Synthese.
 
-Nutze dies, wenn du selbst zusammenfassen oder ein eigenes UI bauen willst.
-Für eine fertige Antwort mit Quellen verwende stattdessen \`notebooks_ask\`.
+Nutze die Treffer, um deine Antwort selbst zu formulieren und auf die Quellen zu verweisen.
 
 Erfordert einen Bearer API-Key, dessen Scope den angefragten \`landesverband\` abdeckt.`,
 
@@ -32,7 +31,7 @@ Erfordert einen Bearer API-Key, dessen Scope den angefragten \`landesverband\` a
       body: { query, landesverband },
     });
     if (!result.ok) {
-      return { error: true, status: result.status, message: result.message };
+      return notebooksApiError(result.status, result.message);
     }
     return result.data;
   },

@@ -1,15 +1,17 @@
+import { isCanvasTemplateType } from '@gruenerator/contracts';
 import {
-  CreateDocumentFAB,
   DocsProvider,
   useDocsAdapter,
   useDocuments,
   useCreateDocument,
   useDeleteDocument,
   useUpdateDocument,
+  useGenerateDocument,
   templates,
   type TemplateType,
 } from '@gruenerator/docs';
 import { instantiateUserTemplate, type UserTemplateSummary } from '@gruenerator/shared';
+import { getContractsClient, isUnauthorizedError } from '@gruenerator/shared/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,103 +24,58 @@ import {
   Button,
   CardGrid,
   DismissableBanner,
-  DropdownMenuItem,
-  ResponsiveMenu,
-  ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import {
-  lazy,
-  memo,
-  Suspense,
-  useCallback,
-  useDeferredValue,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import {
-  FiChevronDown,
-  FiChevronUp,
-  FiCloud,
-  FiFile,
-  FiPlus,
-  FiSearch,
-  FiUpload,
-  FiUsers,
-  FiX,
-} from 'react-icons/fi';
+import { lazy, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { FiChevronDown, FiChevronUp, FiFile, FiPlus, FiUsers } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
-import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
+import { OFFICE_SUITE_TOOLS } from '../../config/workplaceToolsConfig';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
-import { getBoardTemplate } from '../boards/boardTemplates';
+import { useFirstName } from '../../hooks/useFirstName';
+import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
+import { useAuthStore } from '../../stores/authStore';
+import useImageStudioStore from '../../stores/imageStudioStore';
+import { boardTemplates, getBoardTemplate } from '../boards/boardTemplates';
+import { useFeatureIndex } from '../global-search/useFeatureIndex';
+import { IMAGE_STUDIO_CATEGORIES, getTypesForCategory } from '../image-studio/utils/typeConfig';
+import {
+  getPresentationTemplate,
+  presentationTemplates,
+} from '../presentations/presentationTemplates';
+import { getSheetTemplate, sheetTemplates } from '../sheets/sheetTemplates';
+import {
+  OFFICE_SCROLL_ITEM,
+  OFFICE_SCROLL_ROW,
+  OfficeActionTile,
+  officeStripStyle,
+} from '../workplace/components/ToolsSection';
+import { WorkplaceHero } from '../workplace/components/WorkplaceHero';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
+import {
+  DocsComposer,
+  type ComposerItem,
+  type ComposerTemplate,
+  type ImportKind,
+} from './DocsComposer';
+import { subtypeToKind, type DocKind } from './docTypeMeta';
 import { DocumentCard } from './DocumentCard';
-import { TemplateCarousel } from './TemplateCarousel';
 
 import type { Board } from '../boards/types';
 
 const LazyShareModal = lazy(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ShareModal }))
 );
-const LazyTemplatePicker = lazy(() =>
-  import('@gruenerator/docs').then((m) => ({ default: m.TemplatePicker }))
+const LazyShareBoardDialog = lazy(() =>
+  import('../boards/components/ShareBoardDialog').then((m) => ({ default: m.ShareBoardDialog }))
 );
+const LazyTemplateGalleryModal = lazy(() => import('./TemplateGalleryModal'));
 const LazyFileImportDialog = lazy(() => import('./FileImportDialog'));
+const LazySheetImportDialog = lazy(() => import('../sheets/SheetImportDialog'));
 const LazyWolkeImportModal = lazy(() => import('./WolkeImportModal'));
-
-const ImportMenu = memo(function ImportMenu({
-  onShowImportDialog,
-  onShowWolkeImport,
-}: {
-  onShowImportDialog: () => void;
-  onShowWolkeImport: () => void;
-}) {
-  const desktopContent = (
-    <>
-      <DropdownMenuItem onClick={onShowImportDialog}>
-        <FiUpload size={16} />
-        Datei importieren…
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onShowWolkeImport}>
-        <FiCloud size={16} />
-        Aus Wolke importieren…
-      </DropdownMenuItem>
-    </>
-  );
-
-  const mobileContent = (
-    <>
-      <ResponsiveMenuItem icon={<FiUpload size={16} />} onClick={onShowImportDialog}>
-        Datei importieren…
-      </ResponsiveMenuItem>
-      <ResponsiveMenuItem icon={<FiCloud size={16} />} onClick={onShowWolkeImport}>
-        Aus Wolke importieren…
-      </ResponsiveMenuItem>
-    </>
-  );
-
-  return (
-    <ResponsiveMenu
-      trigger={
-        <Button variant="outline" className="max-sm:h-9 max-sm:w-9 max-sm:p-0 max-sm:rounded-full">
-          <FiUpload size={16} />
-          <span className="max-sm:hidden">Importieren</span>
-        </Button>
-      }
-      dropdownSide="bottom"
-      dropdownAlign="end"
-      sheetTitle="Importieren"
-      desktopContent={desktopContent}
-      mobileContent={mobileContent}
-    />
-  );
-});
 
 type UnifiedItem =
   | {
@@ -137,7 +94,19 @@ type UnifiedItem =
     }
   | { kind: 'board'; data: Board; sortKey: number };
 
-// Personal documents collapse to this many rows; "Mehr anzeigen" reveals the rest
+// A single office content type. Retained for the scoped-filter machinery below;
+// current callers (Arbeiten DocsHome + the /office hub) are all unscoped.
+type OfficeScope = Exclude<DocKind, 'sharepic'>;
+
+// Per-scope hero heading (used only when a scope is passed).
+const SCOPE_META: Record<OfficeScope, { heading: string }> = {
+  doc: { heading: 'Deine Dokumente' },
+  board: { heading: 'Deine Boards' },
+  sheet: { heading: 'Deine Tabellen' },
+  pres: { heading: 'Deine Präsentationen' },
+};
+
+// Personal documents collapse to this many rows; "Alle anzeigen" reveals the rest
 // so the group sections below stay reachable without scrolling past a long grid.
 const COLLAPSED_ROWS = 2;
 
@@ -165,14 +134,38 @@ function useGridColumns(ref: React.RefObject<HTMLDivElement | null>) {
   return columns;
 }
 
-function DocumentsContent() {
+export function DocumentsContent({
+  showRecents = true,
+  scope,
+  officeToolStrip = false,
+  heroTitle,
+}: {
+  showRecents?: boolean;
+  scope?: OfficeScope;
+  /** Render the office action strip (Vorlagen + Leeres Dokument/Board/Tabelle/
+   * Slides) between the composer hero and the recents feed — used by the /office
+   * hub. Each tile opens the gallery or creates an empty resource via the handlers
+   * below. */
+  officeToolStrip?: boolean;
+  /** Overrides the hero heading (the firstName is appended when present). Used by
+   * the /office hub so it doesn't show the generic workplace welcome. */
+  heroTitle?: string;
+}) {
   const adapter = useDocsAdapter();
   const navigate = useNavigate();
+  const firstName = useFirstName();
+  const locale = useAuthStore((s) => s.locale);
+  const featureIndex = useFeatureIndex();
+  const loadFromAIGeneration = useImageStudioStore((s) => s.loadFromAIGeneration);
+  // Sharepic creation routes into the canvas editor — a research preview
+  // (SHOW_SHAREPIC_STUDIO); AT users create via the external bildgenerator.
+  const sharepicEnabled = SHOW_SHAREPIC_STUDIO && locale !== 'de-AT';
 
   const { data: documents = [], isLoading: docsLoading, error: docsError } = useDocuments();
   const createDocumentMutation = useCreateDocument();
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
+  const generateDocumentMutation = useGenerateDocument();
 
   const {
     boards,
@@ -180,14 +173,17 @@ function DocumentsContent() {
     createBoard,
     deleteBoard,
     updateBoard,
+    generateBoard,
   } = useBoardsTyped();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearch = useDeferredValue(searchQuery);
   const [showGallery, setShowGallery] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showSheetImport, setShowSheetImport] = useState(false);
   const [showWolkeImport, setShowWolkeImport] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [shareDoc, setShareDoc] = useState<{ id: string; title: string } | null>(null);
+  const [shareBoard, setShareBoard] = useState<{ id: string; title: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     kind: 'document' | 'board';
@@ -196,14 +192,12 @@ function DocumentsContent() {
   const isLoading = docsLoading || boardsLoading;
 
   const { personalItems, groupDocsByGroup, hasAnyItems } = useMemo(() => {
-    const query = deferredSearch.trim().toLowerCase();
-    const matchesSearch = (title: string) => !query || title.toLowerCase().includes(query);
-
     const personal: UnifiedItem[] = [];
     const groupMap = new Map<string, { groupName: string; docs: UnifiedItem[] }>();
 
     for (const doc of documents) {
-      if (!matchesSearch(doc.title)) continue;
+      // Scoped pages (e.g. /sheets) only surface their own document subtype.
+      if (scope && subtypeToKind(doc.document_subtype) !== scope) continue;
 
       const item: UnifiedItem = {
         kind: 'document',
@@ -227,13 +221,16 @@ function DocumentsContent() {
       }
     }
 
-    for (const board of boards) {
-      if (!matchesSearch(board.title)) continue;
-      personal.push({
-        kind: 'board',
-        data: board,
-        sortKey: new Date(board.updated_at).getTime(),
-      });
+    // Boards are their own resource; only the boards scope (or the unscoped
+    // Arbeiten tab) lists them.
+    if (!scope || scope === 'board') {
+      for (const board of boards) {
+        personal.push({
+          kind: 'board',
+          data: board,
+          sortKey: new Date(board.updated_at).getTime(),
+        });
+      }
     }
 
     personal.sort((a, b) => b.sortKey - a.sortKey);
@@ -248,11 +245,9 @@ function DocumentsContent() {
     return {
       personalItems: personal,
       groupDocsByGroup: sortedGroups,
-      hasAnyItems: documents.length > 0 || boards.length > 0,
+      hasAnyItems: personal.length > 0 || sortedGroups.length > 0,
     };
-  }, [documents, boards, deferredSearch]);
-
-  const hasFilteredResults = personalItems.length > 0 || groupDocsByGroup.length > 0;
+  }, [documents, boards, scope]);
 
   const personalGridRef = useRef<HTMLDivElement>(null);
   const personalColumns = useGridColumns(personalGridRef);
@@ -337,14 +332,88 @@ function DocumentsContent() {
   }, [deleteTarget, deleteDocumentMutation, deleteBoard]);
 
   const handleRenameBoard = useCallback(
-    (board: { id: string; title: string }, e: React.MouseEvent) => {
+    async (board: { id: string; title: string }, e: React.MouseEvent) => {
       e.stopPropagation();
       const newTitle = window.prompt('Neuer Titel:', board.title);
       if (newTitle?.trim() && newTitle.trim() !== board.title) {
-        updateBoard.mutate({ id: board.id, title: newTitle.trim() });
+        try {
+          await updateBoard.mutateAsync({ id: board.id, title: newTitle.trim() });
+        } catch (err) {
+          console.error('Failed to rename board:', err);
+        }
       }
     },
     [updateBoard]
+  );
+
+  const handleShareBoard = useCallback(
+    (board: { id: string; title: string }, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setShareBoard(board);
+    },
+    []
+  );
+
+  const handleCreateSheet = useCallback(async () => {
+    try {
+      const newDoc = await createDocumentMutation.mutateAsync({
+        title: 'Neue Tabelle',
+        documentSubtype: 'sheets',
+      });
+      adapter.navigateToDocument(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create sheet:', err);
+    }
+  }, [createDocumentMutation, adapter]);
+
+  const handleCreateSheetFromTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getSheetTemplate(templateId);
+      if (!template) return;
+      try {
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title: template.defaultTitle,
+          documentSubtype: 'sheets',
+        });
+        // SPA navigation (not adapter.navigateToDocument, which reloads and
+        // drops nav-state): the seed workbook rides `location.state` into the
+        // Univer editor, which applies it on first open.
+        void navigate(`/office/${newDoc.id}`, { state: { sheetTemplate: template.workbook } });
+      } catch (err) {
+        console.error('Failed to create sheet from template:', err);
+      }
+    },
+    [createDocumentMutation, navigate]
+  );
+
+  const handleCreatePresentation = useCallback(async () => {
+    try {
+      const newDoc = await createDocumentMutation.mutateAsync({
+        title: 'Neue Präsentation',
+        documentSubtype: 'presentations',
+      });
+      adapter.navigateToDocument(newDoc.id);
+    } catch (err) {
+      console.error('Failed to create presentation:', err);
+    }
+  }, [createDocumentMutation, adapter]);
+
+  const handleCreatePresentationFromTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getPresentationTemplate(templateId);
+      if (!template) return;
+      try {
+        const newDoc = await createDocumentMutation.mutateAsync({
+          title: template.defaultTitle,
+          documentSubtype: 'presentations',
+        });
+        // SPA navigation carries the seed slides via nav-state into the editor.
+        void navigate(`/office/${newDoc.id}`, { state: { presentationTemplate: template.slides } });
+      } catch (err) {
+        console.error('Failed to create presentation from template:', err);
+      }
+    },
+    [createDocumentMutation, navigate]
   );
 
   const handleCreateBoard = useCallback(
@@ -394,56 +463,264 @@ function DocumentsContent() {
     [adapter, navigate]
   );
 
+  // Composer → AI-generate the detected kind. Docs/boards have dedicated
+  // one-shot generators (useGenerateDocument / boards.generate); sheets and
+  // presentations use the direct /api/{sheets,presentations}/generate endpoints
+  // (Y.Doc seeded server-side, so the editor opens fully populated).
+  const handleComposerCreate = useCallback(
+    async (kind: DocKind, prompt: string) => {
+      const description = prompt.trim();
+      // Ref, not the `creating` state: Enter and the send button can both fire
+      // before React re-renders, and a stale closure would let both through.
+      if (!description || creatingRef.current) return;
+      creatingRef.current = true;
+      setCreating(true);
+      try {
+        if (kind === 'sharepic') {
+          // Same flow as the /studio landing prompt: classify the prompt into a
+          // sharepic template (or KI image), pre-fill the canvas store, and open
+          // the matching creation flow.
+          const result = await generateSharepicFromPrompt(description);
+          if (!result.success) {
+            console.error('[DocsPage] sharepic generation failed:', result.error);
+            return;
+          }
+          if (result.isKiType) {
+            void navigate('/bild-editor');
+            return;
+          }
+          if (!isCanvasTemplateType(result.type)) {
+            console.warn('[DocsPage] non-canonical sharepic type:', result.type);
+            return;
+          }
+          loadFromAIGeneration(
+            result.type,
+            result.data as unknown as Record<string, string>,
+            result.selectedImage
+          );
+          void navigate(`/studio/templates/${result.type}`);
+        } else if (kind === 'doc') {
+          const doc = await generateDocumentMutation.mutateAsync(description);
+          void navigate(`/office/${doc.id}`);
+        } else if (kind === 'board') {
+          const data = await generateBoard.mutateAsync(description);
+          void navigate(
+            `/boards/${data.board.id}`,
+            data.generatedStructure
+              ? { state: { generatedStructure: data.generatedStructure } }
+              : {}
+          );
+        } else if (kind === 'sheet') {
+          const res = await getContractsClient().sheets.generate({ body: { description } });
+          if (res.status !== 201) throw new Error(`Sheet generation failed (${res.status})`);
+          void navigate(`/office/${res.body.id}`);
+        } else {
+          const res = await getContractsClient().presentations.generate({ body: { description } });
+          if (res.status !== 201) throw new Error(`Presentation generation failed (${res.status})`);
+          void navigate(`/office/${res.body.id}`);
+        }
+      } catch (err) {
+        console.error('Composer create failed:', err);
+      } finally {
+        // Always release: on success we navigate away, but if the route resolves
+        // back to /docs the composer would otherwise stay disabled forever.
+        creatingRef.current = false;
+        setCreating(false);
+      }
+    },
+    [generateDocumentMutation, generateBoard, loadFromAIGeneration, navigate]
+  );
+
+  const handleComposerTemplate = useCallback(
+    (kind: DocKind, id: string) => {
+      if (kind === 'doc') void handleTemplateSelect(id as TemplateType);
+      else if (kind === 'board') handleCreateBoardFromTemplate(id);
+      else if (kind === 'sheet') void handleCreateSheetFromTemplate(id);
+      else if (kind === 'sharepic') void navigate(`/studio/templates/${id}`);
+      else void handleCreatePresentationFromTemplate(id);
+    },
+    [
+      handleTemplateSelect,
+      handleCreateBoardFromTemplate,
+      handleCreateSheetFromTemplate,
+      handleCreatePresentationFromTemplate,
+      navigate,
+    ]
+  );
+
+  const handleComposerImport = useCallback((kind: ImportKind) => {
+    if (kind === 'file') setShowImportDialog(true);
+    else if (kind === 'sheet') setShowSheetImport(true);
+    else setShowWolkeImport(true);
+  }, []);
+
+  const composerItems: ComposerItem[] = useMemo(() => {
+    const docItems = documents.map((d) => ({
+      id: d.id,
+      title: d.title,
+      kind: subtypeToKind(d.document_subtype),
+      openPath: `/office/${d.id}`,
+      sortKey: new Date(d.updated_at).getTime(),
+    }));
+    const boardItems = boards.map((b) => ({
+      id: b.id,
+      title: b.title,
+      kind: 'board' as const,
+      openPath: `/boards/${b.id}`,
+      sortKey: new Date(b.updated_at).getTime(),
+    }));
+    return [...docItems, ...boardItems]
+      .filter((item) => !scope || item.kind === scope)
+      .sort((a, b) => b.sortKey - a.sortKey)
+      .map(({ sortKey: _sortKey, ...rest }) => rest);
+  }, [documents, boards, scope]);
+
+  const composerTemplates: ComposerTemplate[] = useMemo(() => {
+    const all: ComposerTemplate[] = [
+      ...templates
+        .filter((t) => t.id !== 'blank')
+        .map((t) => ({
+          key: `doc-${t.id}`,
+          kind: 'doc' as const,
+          id: t.id,
+          title: t.name,
+          description: t.description,
+        })),
+      ...boardTemplates.map((t) => ({
+        key: `board-${t.id}`,
+        kind: 'board' as const,
+        id: t.id,
+        title: t.name,
+        description: t.description,
+      })),
+      ...sheetTemplates.map((t) => ({
+        key: `sheet-${t.id}`,
+        kind: 'sheet' as const,
+        id: t.id,
+        title: t.name,
+        description: t.description,
+      })),
+      ...presentationTemplates.map((t) => ({
+        key: `pres-${t.id}`,
+        kind: 'pres' as const,
+        id: t.id,
+        title: t.name,
+        description: t.description,
+      })),
+      ...(sharepicEnabled
+        ? getTypesForCategory(IMAGE_STUDIO_CATEGORIES.TEMPLATES).map((t) => ({
+            key: `sharepic-${t.id}`,
+            kind: 'sharepic' as const,
+            id: t.id,
+            title: t.label,
+            description: t.description ?? 'Sharepic-Vorlage',
+          }))
+        : []),
+    ];
+    return scope ? all.filter((t) => t.kind === scope) : all;
+  }, [sharepicEnabled, scope]);
+
   return (
     <>
-      <div className="mb-md mt-md flex items-center gap-sm">
-        <h1 className="m-0 shrink-0 text-2xl font-semibold text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif]">
-          Dokumente
-        </h1>
-        <div className="relative min-w-0 flex-1 max-w-[500px] mx-auto">
-          <FiSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-grey-400" />
-          <input
-            type="text"
-            placeholder="Durchsuchen…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-full border border-grey-200 bg-grey-50 py-2 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-grey-400 focus:border-secondary-600 focus:ring-1 focus:ring-secondary-600/30 dark:border-grey-700 dark:bg-grey-800 dark:focus:border-secondary-600"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              aria-label="Suche zurücksetzen"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-grey-400 hover:bg-grey-100 hover:text-grey-600 dark:hover:bg-grey-800"
-            >
-              <FiX size={14} />
-            </button>
-          )}
-        </div>
-        <ImportMenu
-          onShowImportDialog={() => setShowImportDialog(true)}
-          onShowWolkeImport={() => setShowWolkeImport(true)}
+      <WorkplaceHero
+        title={
+          heroTitle
+            ? firstName
+              ? `${heroTitle}, ${firstName}`
+              : heroTitle
+            : scope
+              ? firstName
+                ? `${SCOPE_META[scope].heading}, ${firstName}`
+                : SCOPE_META[scope].heading
+              : firstName
+                ? `Willkommen im Grünerator Workplace, ${firstName}`
+                : 'Willkommen im Grünerator Workplace'
+        }
+      >
+        <DocsComposer
+          items={composerItems}
+          templates={composerTemplates}
+          featureIndex={featureIndex}
+          isGenerating={creating}
+          sharepicEnabled={sharepicEnabled}
+          forcedKind={scope}
+          onGenerate={handleComposerCreate}
+          onSelectTemplate={handleComposerTemplate}
+          onImport={handleComposerImport}
         />
-      </div>
+      </WorkplaceHero>
+
+      {officeToolStrip && (
+        <section className="mb-xl mt-xl">
+          <div
+            className={OFFICE_SCROLL_ROW}
+            style={officeStripStyle(OFFICE_SUITE_TOOLS.length, { maxTilePx: 200 })}
+          >
+            {OFFICE_SUITE_TOOLS.map((tool) => (
+              <div key={tool.id} className={OFFICE_SCROLL_ITEM}>
+                <OfficeActionTile
+                  styleKey="office"
+                  icon={tool.icon}
+                  title={tool.title}
+                  description={tool.description}
+                  onClick={() => {
+                    if (tool.create === 'gallery') setShowGallery(true);
+                    else if (tool.create === 'board') handleCreateBoard('kanban');
+                    else if (tool.create === 'sheet') void handleCreateSheet();
+                    else if (tool.create === 'pres') void handleCreatePresentation();
+                    else void handleTemplateSelect('blank');
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <DismissableBanner
         storageKey="gruenerator_docs_experimental_warning_dismissed"
         variant="warning"
-        className="mb-md"
+        className="mb-md mt-lg"
       >
         <strong>Experimentelles Feature</strong> — Diese Funktion befindet sich noch in der
         Entwicklung. Bitte behalte eine lokale Sicherungskopie deiner Dateien.
       </DismissableBanner>
 
-      <main>
-        <TemplateCarousel
-          onTemplateSelect={handleTemplateSelect}
-          onShowGallery={() => setShowGallery(true)}
-          onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
-          onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
-          onUserTemplateSelect={handleUserTemplateSelect}
-        />
-
-        {isLoading ? (
+      <section>
+        {!showRecents ? (
+          // Embedded in the Arbeiten tab, where the workplace "Zuletzt" feed is
+          // THE recents section — only the group shares (not covered there)
+          // keep rendering.
+          groupDocsByGroup.length > 0 && (
+            <>
+              {groupDocsByGroup.map(([groupId, { groupName, docs }]) => (
+                <div key={groupId} className="mt-xl">
+                  <h2 className="mb-sm flex items-center gap-xs text-sm font-medium text-grey-500 dark:text-grey-400">
+                    <FiUsers size={14} />
+                    {groupName}
+                  </h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
+                    {docs.map((item) => {
+                      if (item.kind !== 'document') return null;
+                      return (
+                        <DocumentCard
+                          key={`doc-${item.data.id}-${groupId}`}
+                          doc={item.data}
+                          adapter={adapter}
+                          onDelete={handleDeleteDoc}
+                          onRename={handleRenameDoc}
+                          onShare={setShareDoc}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>
+          )
+        ) : isLoading || isUnauthorizedError(docsError) ? (
+          // On a 401 the session teardown+redirect is already in flight — show
+          // the skeleton, never a partial/stale grid or an error flash.
           <CardGrid columns="auto" gap="md">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
@@ -458,19 +735,31 @@ function DocumentsContent() {
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-grey-500 dark:text-grey-400">
             <FiFile size={40} className="text-grey-300 dark:text-grey-600" />
             <p className="text-[0.9375rem]">Noch keine Inhalte vorhanden.</p>
-            <Button onClick={() => handleTemplateSelect('blank')}>
+            <Button
+              onClick={() => {
+                if (scope === 'board') handleCreateBoard('kanban');
+                else if (scope === 'sheet') void handleCreateSheet();
+                else if (scope === 'pres') void handleCreatePresentation();
+                else void handleTemplateSelect('blank');
+              }}
+            >
               <FiPlus size={16} />
-              Erstes Dokument erstellen
+              {scope === 'board'
+                ? 'Erstes Board erstellen'
+                : scope === 'sheet'
+                  ? 'Erste Tabelle erstellen'
+                  : scope === 'pres'
+                    ? 'Erste Präsentation erstellen'
+                    : 'Erstes Dokument erstellen'}
             </Button>
           </div>
-        ) : !hasFilteredResults ? (
-          <p className="py-12 text-center text-grey-500 dark:text-grey-400">
-            Keine Ergebnisse gefunden.
-          </p>
         ) : (
           <>
             {personalItems.length > 0 && (
               <>
+                <div className="mb-sm mt-xl flex items-baseline gap-3">
+                  <h2 className="text-base font-extrabold text-foreground">Zuletzt bearbeitet</h2>
+                </div>
                 <div
                   ref={personalGridRef}
                   className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-md max-md:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]"
@@ -493,6 +782,7 @@ function DocumentsContent() {
                         board={item.data}
                         onDelete={handleDeleteBoard}
                         onRename={handleRenameBoard}
+                        onShare={handleShareBoard}
                       />
                     );
                   })}
@@ -508,7 +798,7 @@ function DocumentsContent() {
                       ) : (
                         <>
                           <FiChevronDown size={16} />
-                          Mehr anzeigen ({hiddenPersonalCount})
+                          Alle anzeigen ({hiddenPersonalCount})
                         </>
                       )}
                     </Button>
@@ -542,18 +832,27 @@ function DocumentsContent() {
             ))}
           </>
         )}
-      </main>
-
-      <CreateDocumentFAB
-        onCreateBlank={() => handleTemplateSelect('blank')}
-        onShowGallery={() => setShowGallery(true)}
-      />
+      </section>
 
       {showGallery && (
         <Suspense fallback={null}>
-          <LazyTemplatePicker
-            onSelect={handleTemplateSelect}
+          <LazyTemplateGalleryModal
+            scope={scope}
             onClose={() => setShowGallery(false)}
+            onCreateBlank={(kind) => {
+              if (kind === 'doc') void handleTemplateSelect('blank');
+              else if (kind === 'board') handleCreateBoard('kanban');
+              else if (kind === 'sheet') void handleCreateSheet();
+              else if (kind === 'sharepic') void navigate('/studio/templates');
+              else void handleCreatePresentation();
+            }}
+            onSelectDocTemplate={(id) => void handleTemplateSelect(id)}
+            onSelectBoardTemplate={handleCreateBoardFromTemplate}
+            onSelectSheetTemplate={(id) => void handleCreateSheetFromTemplate(id)}
+            onSelectPresentationTemplate={(id) => void handleCreatePresentationFromTemplate(id)}
+            onSelectUserTemplate={handleUserTemplateSelect}
+            sharepicEnabled={sharepicEnabled}
+            onSelectSharepicTemplate={(id) => void navigate(`/studio/templates/${id}`)}
           />
         </Suspense>
       )}
@@ -568,9 +867,27 @@ function DocumentsContent() {
         </Suspense>
       )}
 
+      {shareBoard && (
+        <Suspense fallback={null}>
+          <LazyShareBoardDialog
+            boardId={shareBoard.id}
+            open
+            onOpenChange={(open) => {
+              if (!open) setShareBoard(null);
+            }}
+          />
+        </Suspense>
+      )}
+
       {showImportDialog && (
         <Suspense fallback={null}>
           <LazyFileImportDialog open={showImportDialog} onOpenChange={setShowImportDialog} />
+        </Suspense>
+      )}
+
+      {showSheetImport && (
+        <Suspense fallback={null}>
+          <LazySheetImportDialog open={showSheetImport} onOpenChange={setShowSheetImport} />
         </Suspense>
       )}
 
@@ -606,27 +923,13 @@ function DocumentsContent() {
   );
 }
 
-const DocsPage = () => (
+/** Office start page without route chrome — embedded by the workplace
+ * "Arbeiten" tab (/workplace/arbeiten), which provides PageContainer + auth
+ * and renders the workplace "Zuletzt" feed as THE recents section. */
+export const DocsHome = () => (
   <ErrorBoundary>
-    <PageContainer maxWidth="lg" noPadTop className="max-md:pt-lg">
-      <DocsProvider adapter={webAppDocsAdapter}>
-        <DocumentsContent />
-      </DocsProvider>
-    </PageContainer>
+    <DocsProvider adapter={webAppDocsAdapter}>
+      <DocumentsContent showRecents={false} />
+    </DocsProvider>
   </ErrorBoundary>
 );
-
-const DocsPageFallback = () => (
-  <PageContainer maxWidth="lg" noPadTop>
-    <div className="mb-md">
-      <h1 className="m-0 text-2xl font-semibold text-foreground-heading font-[Raleway,PT_Sans,Arial,sans-serif]">
-        Dokumente
-      </h1>
-    </div>
-  </PageContainer>
-);
-
-export default withAuthRequired(DocsPage, {
-  title: 'Dokumente',
-  fallback: <DocsPageFallback />,
-});

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FaQuestionCircle, FaTimes } from 'react-icons/fa';
 
-import { SIDEBAR_HINT } from '../primitives';
+import { SIDEBAR_HINT } from '../sidebarStyles';
 
 import { cn } from '../../utils/cn';
 

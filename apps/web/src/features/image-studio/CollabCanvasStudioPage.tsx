@@ -1,10 +1,16 @@
-import { useCanvasCollaboration, MasterCanvasEditor } from '@gruenerator/canvas-editor';
+import {
+  useCanvasCollaboration,
+  MasterCanvasEditor,
+  parseInitialPages,
+  type InitialPageDef,
+} from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { PiArrowLeft } from 'react-icons/pi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -13,8 +19,11 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
+import { useTourAutostart } from '../tours/useTourAutostart';
 
+import { CanvasChatDocContext } from './CanvasChatDocContext';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 function CollabCanvasStudioContent() {
@@ -37,6 +46,11 @@ function CollabCanvasStudioContent() {
     },
     enabled: !!id,
   });
+
+  const initialPages = useMemo(
+    (): InitialPageDef[] | undefined => parseInitialPages(canvas?.initial_state.pages),
+    [canvas]
+  );
 
   const canEdit = useMemo(() => {
     if (!canvas || !user) return false;
@@ -95,24 +109,39 @@ function CollabCanvasStudioContent() {
     // No-op in collab mode — Hocuspocus persists state.
   }, []);
 
+  // Fresh gallery thumbnail from every full-res render: downloads and the
+  // editor's debounced collab snapshots (without the latter, recents kept
+  // showing the pre-edit state). Only the list key is invalidated — the open
+  // document's ['canvas', id] query must not refetch (it would race the
+  // optimistic title rename).
+  const refreshThumbnail = useCallback(
+    (base64: string) => {
+      if (!id || !canEdit) return;
+      updateCanvasThumbnail(id, base64)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['canvas', 'list'] }))
+        .catch((err) => console.warn('[CollabCanvasStudioPage] thumbnail refresh failed:', err));
+    },
+    [id, canEdit, queryClient]
+  );
+
   const handleCancel = useCallback(() => {
-    void navigate('/studio');
+    void navigate('/workplace/arbeiten');
   }, [navigate]);
 
   const collaborators = useCollaborators(collab.provider);
 
+  const chatDoc = useMemo(
+    () => (id ? { documentId: id, title: canvas?.title ?? null } : null),
+    [id, canvas?.title]
+  );
+
   const isLive = collab.isSynced && collab.isConnected;
   const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
 
-  console.log('[CanvasCollab][CollabCanvasStudioPage] render', {
-    docId: id,
-    isLoading,
-    hasCanvas: !!canvas,
-    canvasType: canvas?.template_type,
-    hasYdoc: !!collab.ydoc,
-    isSynced: collab.isSynced,
-    isConnected: collab.isConnected,
-    isLive,
+  // No isSynced gate: runTour polls for visible anchors anyway, and the tour
+  // should also appear when collab sync is slow.
+  useTourAutostart('canvas', !isLoading && !!canvas && canEdit, () => {
+    void import('../tours/canvasTour').then((m) => m.startCanvasTour());
   });
 
   const chromeCenter = canvas ? (
@@ -122,14 +151,14 @@ function CollabCanvasStudioContent() {
         title={canvas.title}
         editable={canEdit}
         onTitleChange={handleTitleChange}
-        className="text-sm font-medium text-foreground-heading truncate"
-        editableClassName="cursor-pointer rounded px-1 -mx-1 hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-        inputClassName="text-sm font-medium text-foreground-heading bg-transparent border border-secondary-400 dark:border-secondary-600 rounded px-1 -mx-1 outline-none w-64 max-w-full"
+        className="text-[14.5px] font-bold text-white truncate"
+        editableClassName="cursor-pointer rounded px-1.5 -mx-1.5 hover:bg-white/15 transition-colors"
+        inputClassName="text-[14.5px] font-bold text-white bg-white/15 border border-white/40 rounded px-1.5 -mx-1.5 outline-none w-64 max-w-full placeholder:text-white/60"
         ariaLabel="Canvas-Titel bearbeiten"
       />
       {!isLive && (
         <span
-          className="size-2 rounded-full bg-red-500 shrink-0"
+          className="size-2 rounded-full bg-amber-300 shrink-0"
           title={offlineReason}
           aria-label={offlineReason}
           role="status"
@@ -139,6 +168,20 @@ function CollabCanvasStudioContent() {
   ) : null;
 
   const chromeRight = <PresenceAvatars collaborators={collaborators} compact />;
+
+  // Immersive layout hides the global app sidebar, so this back button is the
+  // way out of the editor — mirrors the docs EditorTopBar back button.
+  const chromeLeft = (
+    <button
+      type="button"
+      onClick={handleCancel}
+      aria-label="Zurück zum Studio"
+      title="Zurück zum Studio"
+      className="flex items-center justify-center size-[34px] max-canvas-mobile:size-8 rounded-[10px] border-none bg-transparent cursor-pointer text-white/90 transition-[background-color,color] duration-200 hover:bg-white/15 hover:text-white"
+    >
+      <PiArrowLeft size={20} />
+    </button>
+  );
 
   if (isLoading || !canvas) {
     return (
@@ -154,25 +197,38 @@ function CollabCanvasStudioContent() {
 
   return (
     <WebCanvasEditorProvider>
-      <div className="relative flex flex-col h-dvh bg-background">
-        <div className="flex-1 min-h-0">
-          <MasterCanvasEditor
-            type={canvas.template_type}
+      <CanvasChatDocContext.Provider value={chatDoc}>
+        <div className="relative flex flex-col h-dvh bg-[var(--editor-bg)]">
+          <div className="flex-1 min-h-0">
+            <MasterCanvasEditor
+              type={canvas.template_type}
+              initialState={canvas.initial_state}
+              initialPages={initialPages}
+              onExport={handleExport}
+              onDownload={refreshThumbnail}
+              onCollabSnapshot={refreshThumbnail}
+              onCancel={handleCancel}
+              collaborative={
+                collab.ydoc
+                  ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
+                  : undefined
+              }
+              chromeLeft={chromeLeft}
+              chromeCenter={chromeCenter}
+              chromeRight={chromeRight}
+              onInvitePeople={() => setShareOpen(true)}
+            />
+          </div>
+          <ShareCanvasDialog
+            canvasId={canvas.id}
+            canvasType={canvas.template_type}
             initialState={canvas.initial_state}
-            onExport={handleExport}
-            onCancel={handleCancel}
-            collaborative={
-              collab.ydoc
-                ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
-                : undefined
-            }
-            chromeCenter={chromeCenter}
-            chromeRight={chromeRight}
-            onInvitePeople={() => setShareOpen(true)}
+            defaultTitle={canvas.title}
+            open={shareOpen}
+            onOpenChange={setShareOpen}
           />
         </div>
-        <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
-      </div>
+      </CanvasChatDocContext.Provider>
     </WebCanvasEditorProvider>
   );
 }

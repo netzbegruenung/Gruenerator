@@ -1,3 +1,4 @@
+import { GRUENERATOR_TEMPLATE_TYPE } from '@gruenerator/contracts';
 import { Button, Popover, PopoverContent, PopoverTrigger, Switch } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
@@ -8,6 +9,7 @@ import { toast } from 'sonner';
 
 import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
 import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
+import { useGrueneratorVorlage } from '../../../features/vorlagen/hooks/useGrueneratorVorlage';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 import TemplatePreviewModal from '../TemplatePreviewModal';
@@ -130,11 +132,18 @@ const fetchVorlagen = async ({
   return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
 };
 
+/** Pretty labels for known template_type categories; server sends raw ids. */
+const CATEGORY_LABELS: Record<string, string> = {
+  canva: 'Canva',
+  [GRUENERATOR_TEMPLATE_TYPE]: 'Grünerator',
+};
+
 const fetchCategories = async (): Promise<CategoryItem[]> => {
   const response = await apiClient.get<CategoriesResponse>('/auth/vorlagen-categories');
   const data = response.data;
   const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
-  return [{ id: 'all', label: 'Alle Typen' }, ...categories];
+  const labeled = categories.map((c) => ({ ...c, label: CATEGORY_LABELS[c.id] ?? c.label }));
+  return [{ id: 'all', label: 'Alle Typen' }, ...labeled];
 };
 
 const VorlagenGallery = memo((): JSX.Element => {
@@ -190,6 +199,8 @@ const VorlagenGallery = memo((): JSX.Element => {
     isToggling: isFavoriteToggling,
     canFavorite,
   } = useEntityFavorites('template');
+
+  const { openVorlage, usingId } = useGrueneratorVorlage();
 
   const previewId = previewTemplate ? String(previewTemplate.id) : '';
 
@@ -419,6 +430,16 @@ const VorlagenGallery = memo((): JSX.Element => {
           onToggleFavorite={() => toggleFavorite(previewId)}
           favoriteToggling={isFavoriteToggling(previewId)}
           canFavorite={canFavorite}
+          onUseTemplate={
+            previewTemplate.template_type === GRUENERATOR_TEMPLATE_TYPE
+              ? () =>
+                  void openVorlage({
+                    id: String(previewTemplate.id),
+                    content_data: previewTemplate.content_data,
+                  })
+              : undefined
+          }
+          isUsing={usingId === String(previewTemplate.id)}
         />
       )}
     </div>
