@@ -72,6 +72,11 @@ const envSchema = z.object({
   // ── Better Auth ────────────────────────────────────────────────────────
   BETTER_AUTH_URL: z.string().optional(),
 
+  // ── MCP server (authenticated, OAuth) ──────────────────────────────────
+  MCP_SERVER_ENABLED: boolFlag(false),
+  MCP_SERVER_PUBLIC_URL: z.string().optional(),
+  MCP_SERVER_RATE_LIMIT: numStr(60),
+
   // ── Keycloak ───────────────────────────────────────────────────────────
   KEYCLOAK_BASE_URL: z.string().default('https://user.netzbegruenung.de'),
   KEYCLOAK_REALM: z.string().default('gruenerator'),
