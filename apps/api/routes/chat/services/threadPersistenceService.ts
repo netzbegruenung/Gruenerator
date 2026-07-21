@@ -11,7 +11,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 
 import { type PersistedStep } from './agenticLoop/types.js';
 
-import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
 import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
@@ -220,6 +220,67 @@ export async function setThreadLastMcpServer(threadId: string, serverId: string)
     serverId,
     threadId,
   ]);
+}
+
+/**
+ * Generalised tool memory (see ThreadToolContext): which tool family the last
+ * substantive turn used. Only written when a turn actually used one — plain
+ * chat turns keep the previous context, mirroring the MCP sticky semantics.
+ */
+export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
+  const postgres = getPostgresInstance();
+  const result = await postgres.query(`SELECT last_tool_context FROM chat_threads WHERE id = $1`, [
+    threadId,
+  ]);
+  const raw = result[0]?.last_tool_context;
+  if (!raw) return null;
+  try {
+    const parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as ThreadToolContext;
+    return parsed?.kind ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setThreadToolContext(
+  threadId: string,
+  context: ThreadToolContext
+): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(`UPDATE chat_threads SET last_tool_context = $1 WHERE id = $2`, [
+    JSON.stringify(context),
+    threadId,
+  ]);
+}
+
+/**
+ * URL of the most recent generated image in the thread (assistant message
+ * metadata `generatedImage.url`). Lets a vague follow-up ("mach es blauer")
+ * rehydrate the previous result as the image_edit input instead of erroring
+ * with "Bitte hänge ein Bild an".
+ */
+export async function getLastGeneratedImageUrl(threadId: string): Promise<string | null> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 10`,
+    [threadId]
+  )) as Array<{ tool_results?: unknown }>;
+  for (const row of rows) {
+    const raw = row.tool_results;
+    if (!raw) continue;
+    try {
+      const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+        generatedImage?: { url?: string };
+      };
+      const url = meta.generatedImage?.url;
+      if (typeof url === 'string' && url) return url;
+    } catch {
+      // malformed row — keep scanning older messages
+    }
+  }
+  return null;
 }
 
 /**

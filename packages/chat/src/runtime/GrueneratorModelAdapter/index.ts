@@ -413,7 +413,11 @@ export function createGrueneratorModelAdapter(
             wolkeFiles = parsed.wolkeFiles;
             connectFiles = parsed.connectFiles;
             hasDocumentChat = parsed.hasDocumentChat;
-            textPart.text = parsed.cleanText;
+            // Durable mention tokens instead of stripping: the sent/persisted
+            // message keeps @[Label](type:id), so history, retries and the
+            // backend can re-derive the mention. Legacy fields above are still
+            // sent for compat (old backend / old mobile apps).
+            textPart.text = parsed.tokenText;
 
             if (parsed.unresolvedMentions.length > 0) {
               const names = parsed.unresolvedMentions.map((m) => `@${m}`).join(', ');

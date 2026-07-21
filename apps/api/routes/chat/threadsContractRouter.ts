@@ -9,6 +9,7 @@
  */
 
 import { threadsContract } from '@gruenerator/contracts';
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -442,7 +443,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       // it covers every flow, not just this client-driven endpoint.)
       generateThreadTitle(
         threadId,
-        String(userMsg.content),
+        sanitizeMentionTokens(String(userMsg.content), 'label'),
         String(assistantMsg.content),
         aiWorkerPool
       ).catch((err) => {

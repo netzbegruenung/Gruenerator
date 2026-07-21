@@ -44,7 +44,6 @@ export interface AIWorkerRequest {
   options?: {
     max_tokens?: number;
     temperature?: number;
-    useBedrock?: boolean;
     anthropic_version?: string;
     tools?: Array<{
       name: string;

@@ -121,6 +121,31 @@ export interface CreatedDocument {
 }
 
 /**
+ * Thread-level memory of the tool family the last substantive turn used.
+ * @mentions are stripped from the message text on send and every forcing field
+ * is per-request, so a vague follow-up carries no textual trace of the tool —
+ * this is the generic carrier (generalising the sticky last_mcp_server_id).
+ * Written by postResponseService, injected into the classifier's LLM context.
+ */
+export interface ThreadToolContext {
+  kind:
+    | 'mcp'
+    | 'image'
+    | 'sharepic'
+    | 'bundestag'
+    | 'abgeordnetenwatch'
+    | 'notebook'
+    | 'presentation'
+    | 'sheet'
+    | 'document'
+    | 'board';
+  /** Kind-specific reference (mcp: serverId, created docs: documentId). */
+  ref?: string | null;
+  /** Human-readable label for prompt injection (e.g. the MCP server name). */
+  label?: string | null;
+}
+
+/**
  * Source prefixes used in SearchResult.source to identify result provenance.
  * Use these instead of raw strings to avoid silent mismatches across the pipeline.
  */
@@ -417,6 +442,12 @@ export interface ChatGraphState {
   userLocale: UserLocale;
   /** Client shell ('web'/'app') — distinct from `platform`, the social-post target. */
   clientPlatform: ClientPlatform;
+  /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
+  lastToolContext?: ThreadToolContext | null;
+  /** Last user text with mention tokens fully REMOVED — for regex heuristics
+   *  that would false-positive on labels ("Bild generieren"). The messages on
+   *  state carry the label form ("@Label") instead. */
+  lastUserTextNoMentions?: string;
 
   // Optional progress sink. Set by the controller for tools that produce
   // multi-phase progress (deep research). Pure callback — graph stays

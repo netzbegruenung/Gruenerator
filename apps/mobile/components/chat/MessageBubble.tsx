@@ -6,8 +6,18 @@ import {
   useAuiState,
 } from '@assistant-ui/react-native';
 import { parseGenericFallback, resolveToolEntry, useFetchFullText } from '@gruenerator/chat';
+import { parseMentionTokens } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -50,14 +60,32 @@ import { ToolCallProgress } from './ToolCallProgress';
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata, Citation } from '@gruenerator/chat';
 
+/** Durable mention tokens (@[Label](type:id)) render as chips; plain text passes through. */
+function UserBubbleText({ text }: { text: string }) {
+  const tokens = parseMentionTokens(text);
+  if (tokens.length === 0) return <Text style={styles.userText}>{text}</Text>;
+  const runs: ReactNode[] = [];
+  let cursor = 0;
+  for (const token of tokens) {
+    const start = token.index;
+    if (start > cursor) runs.push(text.slice(cursor, start));
+    runs.push(
+      <Text key={`${start}-${token.id}`} style={styles.mentionChip}>
+        {`@${token.label}`}
+      </Text>
+    );
+    cursor = start + token.raw.length;
+  }
+  if (cursor < text.length) runs.push(text.slice(cursor));
+  return <Text style={styles.userText}>{runs}</Text>;
+}
+
 export const UserMessageComponent = memo(function UserMessageComponent() {
   return (
     <MessagePrimitive.Root style={[styles.messageRow, styles.userRow]}>
       <View style={[styles.bubble, styles.userBubbleWidth, styles.userBubble]}>
         <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentUI }} />
-        <MessagePrimitive.Content
-          renderText={({ part }) => <Text style={styles.userText}>{part.text}</Text>}
-        />
+        <MessagePrimitive.Content renderText={({ part }) => <UserBubbleText text={part.text} />} />
       </View>
     </MessagePrimitive.Root>
   );
@@ -503,6 +531,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     lineHeight: 24,
+  },
+  mentionChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderRadius: 4,
+    fontWeight: '600',
   },
   actionBar: {
     flexDirection: 'row',
