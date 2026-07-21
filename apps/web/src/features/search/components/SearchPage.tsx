@@ -85,7 +85,7 @@ function SwitchToThread({ onSwitch }: { onSwitch: () => void }) {
   return null;
 }
 
-/** Composer layout overrides — same pattern as ChatOverview */
+/** Composer layout overrides — same pattern as the /chat empty-state hero */
 const COMPOSER_ROOT_CLASS = cn(
   'w-full max-w-3xl shrink-0',
   '[&>div]:px-0',
