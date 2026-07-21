@@ -24,7 +24,7 @@ Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black
 
 ## Datenschutz
 
-Alle standardmäßig verfügbaren Modelle erfüllen höchste Datenschutzstandards:
+Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:
 
 - **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – entweder bei Mistral AI (Frankreich) oder auf selbst gehosteten Servern.
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet.
