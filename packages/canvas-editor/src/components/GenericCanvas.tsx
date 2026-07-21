@@ -42,6 +42,7 @@ import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
 import { buildCanvasItems, buildSortedRenderList } from '../utils/canvasLayerManager';
 import { captureStageImage } from '../utils/captureStage';
+import { ensureFontsReady } from '../utils/ensureFontsReady';
 import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
@@ -564,7 +565,10 @@ function GenericCanvasWithRef<
       },
       // Transformer hiding replaces the old deselect + 50ms-rerender hack:
       // the user's selection survives a capture.
-      captureCanvas: async () => captureStageImage(stageRef.current),
+      captureCanvas: async () => {
+        await ensureFontsReady();
+        return captureStageImage(stageRef.current);
+      },
       captureCanvasForAi: async () =>
         captureStageImage(stageRef.current, { format: 'jpeg', pixelRatio: 1, quality: 0.85 }),
       undo,
