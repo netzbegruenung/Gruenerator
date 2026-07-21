@@ -86,7 +86,7 @@ export class ToolHandler {
 
     const targetProvider = provider.toLowerCase() as AIProvider;
     // All current providers use OpenAI-compatible tool format
-    const isOpenAIProvider: boolean = ['litellm', 'ionos', 'mistral'].includes(targetProvider);
+    const isOpenAIProvider: boolean = ['litellm', 'mistral'].includes(targetProvider);
 
     return tools.map((tool) => {
       const isOpenAIFormat = 'type' in tool && tool.type === 'function' && 'function' in tool;

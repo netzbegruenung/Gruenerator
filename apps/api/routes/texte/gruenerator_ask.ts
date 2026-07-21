@@ -161,8 +161,6 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
       systemPrompt: systemPrompt,
       options: {
         max_tokens: 2000,
-        useBedrock: true,
-        anthropic_version: 'bedrock-2023-05-31',
         tools: [SEARCH_DOCUMENTS_TOOL],
       },
     });
