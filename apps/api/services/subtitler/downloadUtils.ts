@@ -268,14 +268,8 @@ async function processVideoWithSubtitles(
   await new Promise<void>((resolve, reject) => {
     const command = ffmpeg(inputPath).setDuration(parseFloat(String(metadata.duration)) || 0);
 
-    const {
-      crf,
-      preset,
-      tune,
-      audioCodec,
-      audioBitrate,
-      videoCodec,
-    } = calculateQualitySettings(metadata);
+    const { crf, preset, tune, audioCodec, audioBitrate, videoCodec } =
+      calculateQualitySettings(metadata);
 
     const isVertical = metadata.width < metadata.height;
     const referenceDimension = isVertical ? metadata.width : metadata.height;

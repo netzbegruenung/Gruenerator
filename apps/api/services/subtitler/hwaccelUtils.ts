@@ -29,15 +29,35 @@ export function getQualitySettings(
     };
   }
   if (referenceDimension >= 2160) {
-    return { crf: QUALITY_CONFIG.CRF['4K'], preset: QUALITY_CONFIG.PRESET.STANDARD, audioBitrate: QUALITY_CONFIG.AUDIO['4K'] };
+    return {
+      crf: QUALITY_CONFIG.CRF['4K'],
+      preset: QUALITY_CONFIG.PRESET.STANDARD,
+      audioBitrate: QUALITY_CONFIG.AUDIO['4K'],
+    };
   } else if (referenceDimension >= 1440) {
-    return { crf: QUALITY_CONFIG.CRF['1440p'], preset: QUALITY_CONFIG.PRESET.STANDARD, audioBitrate: QUALITY_CONFIG.AUDIO['1440p'] };
+    return {
+      crf: QUALITY_CONFIG.CRF['1440p'],
+      preset: QUALITY_CONFIG.PRESET.STANDARD,
+      audioBitrate: QUALITY_CONFIG.AUDIO['1440p'],
+    };
   } else if (referenceDimension >= 1080) {
-    return { crf: QUALITY_CONFIG.CRF['1080p'], preset: QUALITY_CONFIG.PRESET.STANDARD, audioBitrate: QUALITY_CONFIG.AUDIO['1080p'] };
+    return {
+      crf: QUALITY_CONFIG.CRF['1080p'],
+      preset: QUALITY_CONFIG.PRESET.STANDARD,
+      audioBitrate: QUALITY_CONFIG.AUDIO['1080p'],
+    };
   } else if (referenceDimension >= 720) {
-    return { crf: QUALITY_CONFIG.CRF['720p'], preset: QUALITY_CONFIG.PRESET.STANDARD, audioBitrate: QUALITY_CONFIG.AUDIO['720p'] };
+    return {
+      crf: QUALITY_CONFIG.CRF['720p'],
+      preset: QUALITY_CONFIG.PRESET.STANDARD,
+      audioBitrate: QUALITY_CONFIG.AUDIO['720p'],
+    };
   }
-  return { crf: QUALITY_CONFIG.CRF.SD, preset: QUALITY_CONFIG.PRESET.STANDARD, audioBitrate: QUALITY_CONFIG.AUDIO.SD };
+  return {
+    crf: QUALITY_CONFIG.CRF.SD,
+    preset: QUALITY_CONFIG.PRESET.STANDARD,
+    audioBitrate: QUALITY_CONFIG.AUDIO.SD,
+  };
 }
 
 export function getX264QualityParams(): string[] {
