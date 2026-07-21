@@ -16,7 +16,6 @@ interface AntragRequestBody {
   requestType?: AntragRequestType;
   gliederung?: string;
   useWebSearchTool?: boolean;
-  usePrivacyMode?: boolean;
   selectedDocumentIds?: string[];
   selectedTextIds?: string[];
   attachments?: unknown[];
@@ -33,7 +32,6 @@ function buildInputFromRequest(req: Request): AntragAgentInput {
     gliederung: body.gliederung || '',
     features: {
       useWebSearchTool: body.useWebSearchTool || false,
-      usePrivacyMode: body.usePrivacyMode || false,
     },
     selectedDocumentIds: body.selectedDocumentIds || [],
     selectedTextIds: body.selectedTextIds || [],

@@ -10,7 +10,6 @@ import { streamText } from 'ai';
 
 import { createSSEStream } from '../../routes/chat/services/sseHelpers.js';
 import { getModel, type ProviderName } from '../../services/ai/providers.js';
-import { PrivacyCounter } from '../../services/counters/index.js';
 import {
   localizePromptObject,
   extractLocaleFromRequest,
@@ -90,7 +89,6 @@ export async function processGraphRequestStreaming(
     const requestData = req.body as {
       platforms?: string[];
       customPrompt?: { instructions?: string; knowledgeContent?: string } | string;
-      usePrivacyMode?: boolean;
       provider?: string;
       model?: string;
       knowledgeContent?: string;
@@ -107,7 +105,6 @@ export async function processGraphRequestStreaming(
     };
     const {
       customPrompt,
-      usePrivacyMode,
       provider,
       knowledgeContent,
       selectedDocumentIds,
@@ -180,7 +177,6 @@ export async function processGraphRequestStreaming(
         enableUrls: config.features?.urlCrawl !== false,
         enableWebSearch: !!webSearchQuery,
         enableDocQnA: config.features?.docQnA !== false,
-        usePrivacyMode: usePrivacyMode || false,
         webSearchQuery,
         systemRole,
         constraints,
@@ -247,21 +243,6 @@ export async function processGraphRequestStreaming(
 
     let effectiveProvider = selection.provider;
     let effectiveModel = selection.model;
-
-    // Privacy mode rotation
-    if (usePrivacyMode) {
-      try {
-        const { redisClient } = await import('../../utils/redis/index.js');
-        const privacyCounter = new PrivacyCounter(redisClient);
-        const userId = authReq.user?.id;
-        if (userId) {
-          const privacyProvider = await privacyCounter.getProviderForUser(userId);
-          effectiveProvider = privacyProvider as ProviderName;
-        }
-      } catch (privacyError) {
-        log.warn('[streaming] Privacy mode error, using default provider:', privacyError);
-      }
-    }
 
     // Explicit provider + model override (from request data, e.g. playground)
     if (requestData.provider) {

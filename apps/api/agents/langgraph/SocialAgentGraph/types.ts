@@ -8,7 +8,6 @@ export interface SocialAgentInput {
   zitatgeber: string | null;
   features: {
     useWebSearchTool: boolean;
-    usePrivacyMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];
@@ -24,7 +23,6 @@ export interface SocialAgentState {
   zitatgeber: string | null;
   features: {
     useWebSearchTool: boolean;
-    usePrivacyMode: boolean;
   };
   selectedDocumentIds: string[];
   selectedTextIds: string[];

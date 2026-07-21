@@ -16,7 +16,6 @@ interface SocialRequestBody {
   platforms?: string[];
   zitatgeber?: string | null;
   useWebSearchTool?: boolean;
-  usePrivacyMode?: boolean;
   selectedDocumentIds?: string[];
   selectedTextIds?: string[];
   attachments?: unknown[];
@@ -33,7 +32,6 @@ function buildInputFromRequest(req: Request): SocialAgentInput {
     zitatgeber: body.zitatgeber || null,
     features: {
       useWebSearchTool: body.useWebSearchTool || false,
-      usePrivacyMode: body.usePrivacyMode || false,
     },
     selectedDocumentIds: body.selectedDocumentIds || [],
     selectedTextIds: body.selectedTextIds || [],

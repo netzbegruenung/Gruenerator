@@ -21,7 +21,5 @@ export interface ResponseMetadata {
 
 export interface RequestMetadata {
   platforms?: string[] | undefined;
-  privacyMode?: boolean | undefined;
-  requiresPrivacy?: boolean | undefined;
   [key: string]: unknown;
 }

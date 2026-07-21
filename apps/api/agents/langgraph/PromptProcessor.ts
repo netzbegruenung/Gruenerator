@@ -67,7 +67,6 @@ interface PromptRequestBody {
   requestType?: string | undefined;
   platforms?: string[] | undefined;
   useWebSearchTool?: boolean | undefined;
-  usePrivacyMode?: boolean | undefined;
   provider?: string | undefined;
   customPrompt?:
     | string
@@ -598,11 +597,6 @@ export function getAIOptions(
 
   const baseOptions: AIOptions = (typeConfig?.options as AIOptions) || config.options || {};
 
-  // Add privacy mode provider if specified
-  if (requestData.usePrivacyMode && requestData.provider) {
-    baseOptions.provider = requestData.provider;
-  }
-
   return baseOptions;
 }
 
@@ -622,7 +616,6 @@ export async function processGraphRequest(
     const requestData = ppReq.body as PromptRequestBody;
     const {
       customPrompt,
-      usePrivacyMode,
       provider,
       knowledgeContent,
       selectedDocumentIds,
@@ -650,7 +643,6 @@ export async function processGraphRequest(
 
     console.log(`[promptProcessor] Processing ${routeType} request`);
     console.log(`[promptProcessor] Request data:`, {
-      usePrivacyMode: requestData.usePrivacyMode,
       provider: requestData.provider,
       hasCustomPrompt: !!customPrompt,
       hasKnowledgeContent: !!extractedKnowledgeContent,
@@ -724,7 +716,6 @@ export async function processGraphRequest(
         enableUrls: config.features?.urlCrawl !== false,
         enableWebSearch: !!webSearchQuery,
         enableDocQnA: config.features?.docQnA !== false,
-        usePrivacyMode: usePrivacyMode || false,
         webSearchQuery,
         systemRole,
         constraints,
@@ -790,7 +781,6 @@ export async function processGraphRequest(
     const result: AIWorkerResult = await aiWorkerPool.processRequest(
       {
         type: routeType,
-        usePrivacyMode: usePrivacyMode || false,
         ...payload,
       },
       ppReq
@@ -886,23 +876,15 @@ export async function processGraphRequest(
     };
 
     // Send standardized success response
-    sendSuccessResponseWithAttachments(
-      res,
-      result,
-      `/${routeType}`,
-      requestData,
-      {
-        hasAttachments: enrichedState.documents.length > 0,
-        summary: {
-          count: enrichedState.documents.length,
-          totalSizeMB: 0,
-          types: [],
-          files: [],
-        },
-        enrichmentSummary,
+    sendSuccessResponseWithAttachments(res, result, `/${routeType}`, requestData, {
+      hasAttachments: enrichedState.documents.length > 0,
+      summary: {
+        count: enrichedState.documents.length,
+        totalSizeMB: 0,
+        types: [],
+        files: [],
       },
-      usePrivacyMode || false,
-      provider || null
-    );
+      enrichmentSummary,
+    });
   }, `/${routeType}`)(req, res, () => {});
 }

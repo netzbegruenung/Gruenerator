@@ -223,7 +223,7 @@ const datenschutz = [
   { li: 'Redis (Session-Speicher, max. 24h Speicherdauer)', level: 1 },
   { li: 'Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)', level: 1 },
   { li: 'Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)', level: 1 },
-  { li: 'KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)', level: 1 },
+  { li: 'KI-Modelle der netzbegrünung (selbst gehostete Open-Source-Modelle)', level: 1 },
   { li: 'Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle Datennutzung' },
 
   { p: '**5. SearXNG (selbstgehostet)**' },

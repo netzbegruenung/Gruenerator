@@ -11,7 +11,6 @@ export interface PRAgentRequest {
   searchQuery?: string | undefined;
   attachments?: unknown[] | undefined;
   useWebSearchTool?: boolean | undefined;
-  usePrivacyMode?: boolean | undefined;
   [key: string]: unknown;
 }
 
