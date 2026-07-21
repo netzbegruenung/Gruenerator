@@ -16,7 +16,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { FiServer, FiSearch, FiCheck } from 'react-icons/fi';
+import { FiServer, FiSearch, FiCheck, FiRefreshCw } from 'react-icons/fi';
 import {
   SiNotion,
   SiCoda,
@@ -47,6 +47,7 @@ import {
 import {
   createMcpServer,
   deleteMcpServer,
+  fetchMcpServers,
   startMcpOAuth,
   testMcpServer,
   McpOAuthStartError,
@@ -89,7 +90,11 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<RunOAut
       return { status: 'no_auth_required' };
     }
     popup.location.href = start.authorizationUrl;
-    return await waitForOAuthPopup(popup);
+    return await waitForOAuthPopup(popup, async () => {
+      const servers = await fetchMcpServers();
+      const s = servers.find((x) => x.id === serverId);
+      return !!s && (s.authType !== 'oauth' || s.hasToken);
+    });
   } catch (e) {
     popup.close();
     // waitForOAuthPopup never rejects, so everything caught here failed before
@@ -691,7 +696,7 @@ function orderCategories(present: Iterable<string>): string[] {
 }
 
 const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
-  const { data: servers = [], isLoading } = useMcpServers();
+  const { data: servers = [], isLoading, isFetching } = useMcpServers();
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('Alle');
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -851,6 +856,15 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
             Experimentell
           </span>
         </div>
+        <button
+          type="button"
+          onClick={refreshMcp}
+          disabled={isFetching}
+          className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-grey-500 hover:text-foreground transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+        >
+          <FiRefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin')} />
+          Aktualisieren
+        </button>
       </div>
       <p className="mt-sm max-w-xl text-sm text-grey-500 leading-relaxed">
         Verbinde externe Dienste und nutze sie direkt im Chat – jeder verbundene Server ist per
