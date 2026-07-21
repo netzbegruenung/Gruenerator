@@ -76,7 +76,7 @@
     "@tus/server": "^2.4.1",
     "@types/archiver": "^8.0.0",
     "@types/ws": "^8.18.1",
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.0",
     "ai": "^6.0.224",
     "apify-client": "^2.23.4",
     "archiver": "^8.0.0",
