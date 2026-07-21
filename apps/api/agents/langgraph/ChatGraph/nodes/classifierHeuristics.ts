@@ -7,8 +7,14 @@
 
 import { findBestMatch } from '@gruenerator/shared/utils';
 
+import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { isMetaQuestionAbout, negatedOrMeta, stripQuotedSpans } from './fastPathGuards.js';
+
+// Generation intents reachable via the fuzzy keyword fallback (only `image`,
+// via 'grafik'/'illustration'); negated/meta artifact words must not match them.
+const GENERATION_FUZZY_INTENTS = new Set<SearchIntent>(['image']);
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
 
 import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
@@ -216,6 +222,9 @@ const IMAGE_EDIT_VERB_PATTERN =
 
 const IMAGE_NOUN_PATTERN =
   /(?:^|\W)(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)(?:$|\W)/i;
+
+// Bare image-generation nouns, for the negation/meta guard on the image fast path.
+const IMAGE_GEN_NOUN_PATTERN = /\b(bild|grafik|illustration|foto|image|poster)\b/i;
 
 /**
  * True when the user's text contains an image-edit verb (e.g. "bearbeite",
@@ -432,6 +441,17 @@ export interface HeuristicResult extends ClassificationResult {
  */
 export const HEURISTIC_CONFIDENCE_THRESHOLD = 0.85;
 
+// Leading greeting/thanks token(s) — strippable prefix. The trailing separator
+// class eats punctuation/whitespace/commas so "Hallo! ", "Danke dir, " are
+// consumed. `+` allows stacked greetings ("Hi, guten Morgen!").
+const GREETING_PREFIX_PATTERN =
+  /^\s*(?:(?:hallo|hi|hey|servus|moin|guten(?:\s+(?:morgen|tag|abend))?|danke(?:\s+(?:dir|euch|sch(?:ö|oe)n|sehr))?|vielen\s+dank)\b[\s,.!:;–—-]*)+/i;
+
+// Remainders after a greeting that are still pure small-talk (assistant-directed,
+// no real task) — these keep the direct@0.95 greeting fast path.
+const SMALLTALK_REMAINDER_PATTERN =
+  /^(wie geht(?:'?s|\s+es)?(?:\s+(?:dir|euch|ihnen))?\s*\??|wer bist du\s*\??|was kannst du(?:\s+alles)?\s*\??|kannst du (?:mir\s+)?(?:bitte\s+)?helfen\s*\??|alles (?:klar|gut)\s*[!?.]*|(?:das\s+)?passt(?:\s+so)?\s*[!.]*|(?:sehr\s+)?(?:gut|super|toll|perfekt|klasse)(?:\s+gemacht)?\s*[!.]*)$/i;
+
 const CONTENT_TYPE_PATTERNS: Array<{ pattern: RegExp; type: string }> = [
   { pattern: /\b(pressemitteilung|pressemeldung|pm)\b/i, type: 'pressemitteilung' },
   { pattern: /\b(artikel|beitrag|blogpost)\b/i, type: 'artikel' },
@@ -503,15 +523,36 @@ export function heuristicClassify(
   // text is compute's primary use case.
   const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
 
-  // High confidence (0.95): Greetings and thanks at start of message.
-  // \b is required: without it "Hier unser Protokoll …" matches ^hi.
-  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)\b/i.test(q.trim())) {
-    return {
-      intent: 'direct',
-      searchQuery: null,
-      reasoning: 'Greeting detected',
-      confidence: 0.95,
-    };
+  // Quote-stripped view for noun-triggered fast paths: text inside quotes is
+  // reported speech ("mein Kollege meinte: ‚Erstell ein Sharepic'"), not the
+  // user's own ask. Negation/meta guards also run against this view.
+  const qc = stripQuotedSpans(q);
+
+  // High confidence (0.95): a message that is ONLY a greeting/thanks (or trivial
+  // small-talk after it). A greeting PREFIX must not swallow a real ask that
+  // follows it ("Hallo! Wie hat die CDU abgestimmt?") — strip the prefix and
+  // re-classify the remainder instead.
+  const trimmed = q.trim();
+  const greet = GREETING_PREFIX_PATTERN.exec(trimmed);
+  if (greet) {
+    const rest = trimmed.slice(greet[0].length).trim();
+    const restWords = rest ? rest.split(/\s+/).filter(Boolean).length : 0;
+    if (
+      rest.length === 0 ||
+      SMALLTALK_REMAINDER_PATTERN.test(rest) ||
+      (restWords <= 3 && !rest.includes('?'))
+    ) {
+      return {
+        intent: 'direct',
+        searchQuery: null,
+        reasoning: 'Greeting detected',
+        confidence: 0.95,
+      };
+    }
+    // Substantive remainder: classify it instead of the greeting. Prefix length
+    // is case-stable, so the same offset applies to the original-cased text. The
+    // `+` in the prefix consumes all leading greetings, so this terminates.
+    return heuristicClassify(userContent.trim().slice(greet[0].length).trim(), opts);
   }
 
   // High confidence (0.92): Aggregation/calculation question about an attached
@@ -542,8 +583,13 @@ export function heuristicClassify(
   // ("… hilft beim Erstellen … Alt-Texte für Sharepics"). The LLM prompt
   // knows the sharepic intent, so genuine long sharepic asks still route.
   const sharepicIsInclusion =
-    SHAREPIC_INCLUSION_PATTERN.test(q) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(q);
-  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion && !isLongPaste) {
+    SHAREPIC_INCLUSION_PATTERN.test(qc) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(qc);
+  if (
+    SHAREPIC_NOUN_PATTERN.test(qc) &&
+    !sharepicIsInclusion &&
+    !isLongPaste &&
+    !negatedOrMeta(qc, SHAREPIC_NOUN_PATTERN)
+  ) {
     return {
       intent: 'sharepic',
       searchQuery: null,
@@ -552,12 +598,18 @@ export function heuristicClassify(
     };
   }
 
-  // High confidence (0.92): Image generation requests - very explicit patterns
+  // High confidence (0.92): Image generation requests - very explicit patterns.
+  // The `.{0,20}` window between verb and noun can swallow a negation ("erstell
+  // daraus bitte KEINE Grafik"), so the negation guard runs on the whole message.
   const imageKeywords =
     /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster)\b/i;
   const imageKeywordsAlt =
     /\b(bild|grafik|illustration|foto|poster).{0,20}(erstell|generier|erzeug|mach)\b/i;
-  if (!isLongPaste && (imageKeywords.test(q) || imageKeywordsAlt.test(q))) {
+  if (
+    !isLongPaste &&
+    (imageKeywords.test(qc) || imageKeywordsAlt.test(qc)) &&
+    !negatedOrMeta(qc, IMAGE_GEN_NOUN_PATTERN)
+  ) {
     return {
       intent: 'image',
       searchQuery: null,
@@ -576,12 +628,14 @@ export function heuristicClassify(
     /\b(dokument|protokoll|notiz|checkliste)\s+(erstellen|speichern|anlegen|abspeichern|exportieren)\b/i;
   const machDarausPattern =
     /\bmach[etn]*\b.{0,15}\b(dokument|protokoll|notiz|checkliste)\s+daraus\b/i;
+  const DOC_ARTIFACT_NOUN_PATTERN = /\b(dokument|protokoll|notiz|checkliste)\b/i;
 
   if (
     !isLongPaste &&
-    ((saveAsBarePattern.test(q) && saveImperative.test(q)) ||
-      docWithVerbPattern.test(q) ||
-      machDarausPattern.test(q))
+    ((saveAsBarePattern.test(qc) && saveImperative.test(qc)) ||
+      docWithVerbPattern.test(qc) ||
+      machDarausPattern.test(qc)) &&
+    !negatedOrMeta(qc, DOC_ARTIFACT_NOUN_PATTERN)
   ) {
     return {
       intent: 'save_as_doc',
@@ -596,9 +650,14 @@ export function heuristicClassify(
   // on this newer intent — so an explicit "erstelle eine Präsentation über X"
   // was falling back to a prose slide outline instead of building a deck.
   // Fast-path the unambiguous phrasing (creation verb + deck noun).
+  const PRESENTATION_NOUN_PATTERN = /\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
   const presentationCreatePattern =
     /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
-  if (!isLongPaste && presentationCreatePattern.test(q)) {
+  if (
+    !isLongPaste &&
+    presentationCreatePattern.test(qc) &&
+    !negatedOrMeta(qc, PRESENTATION_NOUN_PATTERN)
+  ) {
     return {
       intent: 'create_presentation',
       searchQuery: null,
@@ -622,10 +681,14 @@ export function heuristicClassify(
     };
   }
 
-  // High confidence (0.85): Summary requests — unambiguous patterns
+  // High confidence (0.85): Summary requests. The `fass … zusammen` alternative
+  // allows a bounded object between the separable verb and its particle ("fass
+  // die wichtigsten Argumente aus der Debatte zusammen") — without it the
+  // deterministic path missed the phrasing and handed a flaky decision to the
+  // temp-0.1 LLM. `fass[e]?` keeps excluding third-person "fasst".
   const summaryKeywords =
-    /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
-  if (!isLongPaste && summaryKeywords.test(q)) {
+    /\b(fass[e]?\s+(?:\S[^.!?\n]{0,60}?\s+)?zusammen\b|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
+  if (!isLongPaste && summaryKeywords.test(qc) && !negatedOrMeta(qc, summaryKeywords)) {
     return {
       intent: 'summary',
       searchQuery: null,
@@ -645,13 +708,33 @@ export function heuristicClassify(
 
   if (
     !isLongPaste &&
-    ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q))
+    ((chartTypeNoun.test(qc) && chartCreateImperative.test(qc)) || dataVisualizePattern.test(qc)) &&
+    !negatedOrMeta(qc, chartTypeNoun)
   ) {
     return {
       intent: 'chart',
       searchQuery: userContent,
       reasoning: 'Chart/visualization request detected',
       confidence: 0.88,
+    };
+  }
+
+  // High confidence (0.90): Standalone spreadsheet creation. Mirrors
+  // create_presentation — create_sheet lives only in the LLM prompt and the
+  // intermediate model is unreliable on it, so "Erstell mir eine Tabelle mit X"
+  // fell to `direct`. Placed AFTER chart ("erstell ein Diagramm aus der Tabelle"
+  // stays chart) and BEFORE compute ("berechne die Tabelle" stays compute — none
+  // of these creation verbs is a compute verb). The tabular-attachment compute
+  // gate above (0.92) still outranks this for attached-sheet questions.
+  const SHEET_NOUN_PATTERN = /\b(tabelle|spreadsheet|sheets?|kalkulation(?:stabelle)?)\b/i;
+  const sheetCreatePattern =
+    /\b(erstell|mach|generier|bau|entwirf|erzeug|leg)[a-zäöü]*\b.{0,40}\b(tabelle|spreadsheet|sheets?|kalkulation(?:stabelle)?)\b/i;
+  if (!isLongPaste && sheetCreatePattern.test(qc) && !negatedOrMeta(qc, SHEET_NOUN_PATTERN)) {
+    return {
+      intent: 'create_sheet',
+      searchQuery: null,
+      reasoning: 'Spreadsheet creation request detected',
+      confidence: 0.9,
     };
   }
 
@@ -662,7 +745,12 @@ export function heuristicClassify(
     /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
   const artifactCreateImperative =
     /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
-  if (!isLongPaste && artifactNoun.test(q) && artifactCreateImperative.test(q)) {
+  if (
+    !isLongPaste &&
+    artifactNoun.test(qc) &&
+    artifactCreateImperative.test(qc) &&
+    !negatedOrMeta(qc, artifactNoun)
+  ) {
     return {
       intent: 'artifact',
       searchQuery: userContent,
@@ -699,7 +787,7 @@ export function heuristicClassify(
   // High confidence (0.90): Explicit web search request
   const explicitWebSearch =
     /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
-  if (!isLongPaste && explicitWebSearch.test(q)) {
+  if (!isLongPaste && explicitWebSearch.test(qc) && !isMetaQuestionAbout(qc, explicitWebSearch)) {
     return {
       intent: 'web',
       searchQuery: userContent,
@@ -709,7 +797,8 @@ export function heuristicClassify(
   }
 
   // High confidence (0.88): Explicit research request
-  if (!isLongPaste && /\b(recherchiere|recherche|recherchier)\b/.test(q)) {
+  const researchNoun = /\b(recherchiere|recherche|recherchier)\b/i;
+  if (!isLongPaste && researchNoun.test(qc) && !isMetaQuestionAbout(qc, researchNoun)) {
     return {
       intent: 'research',
       searchQuery: userContent,
@@ -760,10 +849,12 @@ export function heuristicClassify(
   // Instagram]" is not a post ask.
   if (
     !isLongPaste &&
-    nounNearCreateVerb(q, SOCIAL_TRIGGER_NOUN_PATTERN) &&
-    !/\b(beispiel|vorlage)\b/i.test(q) &&
-    !SOCIAL_META_QUESTION_PATTERN.test(q)
+    nounNearCreateVerb(qc, SOCIAL_TRIGGER_NOUN_PATTERN) &&
+    !/\b(beispiel|vorlage)\b/i.test(qc) &&
+    !negatedOrMeta(qc, SOCIAL_TRIGGER_NOUN_PATTERN)
   ) {
+    // Escape hatches ("ohne Sharepic", "nur Text") run on the raw text so the
+    // negated-artifact word stays visible to resolveSocialPostEscape.
     const escape = resolveSocialPostEscape(q);
     return {
       intent: escape ?? 'social_post',
@@ -833,11 +924,21 @@ export function heuristicClassify(
     };
   }
 
-  // Low confidence (0.65): Fuzzy matching for typos - inherently uncertain
+  // Low confidence (0.65): Fuzzy matching for typos - inherently uncertain.
+  // A negated / meta-question artifact word ("keine Grafik", "was ist eine
+  // Grafik?") must not fuzzy-match its generation intent.
   const words = q.split(/\s+/).filter((w) => w.length >= 4);
   for (const word of words) {
     const fuzzyIntent = fuzzyMatchIntent(word);
     if (fuzzyIntent) {
+      if (GENERATION_FUZZY_INTENTS.has(fuzzyIntent)) {
+        // fuzzyMatchIntent only returns INTENT_KEYWORDS keys.
+        const kw = INTENT_KEYWORDS[fuzzyIntent as keyof typeof INTENT_KEYWORDS] ?? [];
+        if (kw.length > 0) {
+          const nounRe = new RegExp(`\\b(?:${kw.map(escapeRegExp).join('|')})`, 'i');
+          if (negatedOrMeta(qc, nounRe)) continue;
+        }
+      }
       return {
         intent: fuzzyIntent,
         searchQuery: fuzzyIntent === 'image' ? null : userContent,

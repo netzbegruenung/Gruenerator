@@ -62,6 +62,7 @@ import {
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
+import { isNegatedArtifactRequest, stripQuotedSpans } from './fastPathGuards.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -825,13 +826,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Text" the examples flow — both via resolveSocialPostEscape. PM prompts
     // keep their own routes (handled above for agents, LLM tier otherwise).
     const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
+    // Quoted spans are reported speech; a negated noun ("mach keinen Post daraus")
+    // must not create. Escape-hatch resolution below still runs on the raw text.
+    const ucStripped = stripQuotedSpans(userContent);
     const looksLikeSocialCreation =
-      SOCIAL_NOUN_PATTERN.test(userContent) &&
-      !PM_NOUN_PATTERN.test(userContent) &&
-      !SOCIAL_META_QUESTION_PATTERN.test(userContent) &&
+      SOCIAL_NOUN_PATTERN.test(ucStripped) &&
+      !PM_NOUN_PATTERN.test(ucStripped) &&
+      !SOCIAL_META_QUESTION_PATTERN.test(ucStripped) &&
       !looksLikeMetaQuestion &&
-      (SOCIAL_BARE_NOUN_PATTERN.test(userContent) ||
-        (!isLongPaste && nounNearCreateVerb(userContent, SOCIAL_NOUN_PATTERN)));
+      !isNegatedArtifactRequest(ucStripped, SOCIAL_NOUN_PATTERN) &&
+      (SOCIAL_BARE_NOUN_PATTERN.test(ucStripped) ||
+        (!isLongPaste && nounNearCreateVerb(ucStripped, SOCIAL_NOUN_PATTERN)));
     if (looksLikeSocialCreation && userContent.length >= 10) {
       if (
         SHAREPIC_NOUN_PATTERN.test(userContent) &&
