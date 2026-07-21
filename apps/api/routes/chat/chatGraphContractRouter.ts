@@ -15,6 +15,9 @@
  * - `resume` delegates wholesale to ./services/resumePipeline.
  */
 
+import { promises as fsPromises } from 'node:fs';
+import nodePath from 'node:path';
+
 import { chatGraphContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -109,7 +112,11 @@ import {
   sseInternalError,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
-import { createMessage, touchThread } from './services/threadPersistenceService.js';
+import {
+  createMessage,
+  getLastGeneratedImageUrl,
+  touchThread,
+} from './services/threadPersistenceService.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -354,6 +361,36 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
+      }
+
+      // image_edit without an attachment: rehydrate the thread's last generated
+      // image as the edit input ("mach es blauer" after a generation turn) —
+      // without this the edit node errors with "Bitte hänge ein Bild an".
+      // Only local flux results are eligible (strict path shape, no traversal).
+      if (
+        classifiedState.intent === 'image_edit' &&
+        imageAttachments.length === 0 &&
+        actualThreadId
+      ) {
+        const lastUrl = await getLastGeneratedImageUrl(actualThreadId).catch(() => null);
+        const m = lastUrl?.match(/^\/uploads\/(flux\/results\/[\w.-]+\/[\w.-]+)$/);
+        if (m?.[1]) {
+          try {
+            const filePath = nodePath.join(process.cwd(), 'uploads', m[1]);
+            const data = await fsPromises.readFile(filePath);
+            imageAttachments.push({
+              name: nodePath.basename(filePath),
+              type: 'image/jpeg',
+              data: data.toString('base64'),
+            });
+            classifiedState.imageAttachments = imageAttachments;
+            log.info('[ChatGraph] Rehydrated previous generated image for image_edit');
+          } catch (err) {
+            log.warn(
+              `[ChatGraph] Could not rehydrate previous image (${err instanceof Error ? err.message : err})`
+            );
+          }
+        }
       }
 
       // === Reel upload: composer-attached video → auto-transcription ===
