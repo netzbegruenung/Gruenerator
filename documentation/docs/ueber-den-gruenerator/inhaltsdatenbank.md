@@ -6,19 +6,18 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **21.07.2026, 17:57**
+> Zuletzt aktualisiert: **21.07.2026, 19:09**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **82.146 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **61.233 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung               |   Vektoren |
 | ---------------------- | ---------: |
 | Landesverbände         |     38.075 |
-| Abgeordnetenwatch      |     20.913 |
 | KommunalWiki           |      7.467 |
 | Bundestag              |      4.788 |
 | Böll-Stiftung          |      3.658 |
@@ -29,19 +28,16 @@ Insgesamt sind **82.146 Vektoren** in der Datenbank gespeichert.
 | Grüne Österreich       |        776 |
 | Satzungen              |        712 |
 | Grünblog               |        532 |
-| **Gesamt**             | **82.146** |
+| **Gesamt**             | **61.233** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **38.075 Vektoren** aus 16 Quellen.
+Die Landesverbände-Sammlung enthält **28.781 Vektoren** aus 12 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
 | Thüringen Fraktion              | TH-F   |      6.015 |
 | Hamburg                         | HH     |      4.779 |
-| Hessen Fraktion                 | HE-F   |      3.187 |
-| Bayern Fraktion                 | BY-F   |      2.880 |
-| Saarland                        | SL     |      2.869 |
 | Thüringen                       | TH     |      2.800 |
 | Mecklenburg-Vorpommern Fraktion | MV-F   |      2.581 |
 | Brandenburg                     | BB     |      2.290 |
@@ -52,8 +48,7 @@ Die Landesverbände-Sammlung enthält **38.075 Vektoren** aus 16 Quellen.
 | Sachsen-Anhalt                  | LSA    |      1.085 |
 | Bayern                          | BY     |        959 |
 | Schleswig-Holstein              | SH     |        459 |
-| Hessen                          | HE     |        358 |
-| **Gesamt**                      |        | **38.075** |
+| **Gesamt**                      |        | **28.781** |
 
 ## Aktualisierung
 
