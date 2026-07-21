@@ -9,9 +9,10 @@
  * failures are surfaced as structured results so a flaky user server degrades
  * gracefully instead of killing the turn.
  *
- * v1 auth: `none` (no header) and `bearer`/`oauth` (a static access token in the
- * Authorization header). The interactive OAuth (PKCE/DCR) flow is out of scope;
- * `oauth` here just means "an access token was already stored".
+ * Auth: `none` (no header) and `bearer`/`oauth` (an access token in the
+ * Authorization header). The interactive OAuth (PKCE/DCR) flow lives in
+ * McpOAuthService; by the time this client connects, `oauth` means "a valid
+ * access token was resolved" (lazy-refreshed via getValidAccessToken).
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
