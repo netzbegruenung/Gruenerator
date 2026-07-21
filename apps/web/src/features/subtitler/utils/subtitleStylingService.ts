@@ -44,7 +44,7 @@ export class SubtitleStylingService {
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2); // +20% for manual mode
     }
-    // AT styles now use Gotham Narrow Medium (narrower/lighter than the previous
+    // AT styles now use Gotham Narrow Ultra (heavier but narrower than the previous
     // Montserrat-Bold), so no size reduction is applied. Matches backend.
 
     return Math.max(24, Math.min(300, fontSize));
