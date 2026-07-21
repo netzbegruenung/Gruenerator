@@ -56,7 +56,10 @@ export const coreRoutes = {
 
       const groupIds = memberships.map((m) => m.group_id);
       const groupsData = (await postgres.query(
-        'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links, slug_suffix FROM groups WHERE id = ANY($1)',
+        `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
+                g.avatar_url, g.links, g.slug_suffix, g.group_type,
+                (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
+           FROM groups g WHERE g.id = ANY($1)`,
         [groupIds],
         { table: 'groups' }
       )) as Array<{
@@ -70,6 +73,8 @@ export const coreRoutes = {
         avatar_url: string | null;
         links: StoredGroupLink[] | null;
         slug_suffix: string | null;
+        group_type: 'standard' | 'personal' | null;
+        member_count: number;
       }>;
 
       const byId = new Map(memberships.map((m) => [m.group_id, m]));
@@ -89,6 +94,8 @@ export const coreRoutes = {
           role,
           joined_at: toIsoOrNull(m?.joined_at),
           isAdmin: group.created_by === userId || role === 'admin',
+          group_type: group.group_type ?? 'standard',
+          member_count: group.member_count,
           slug_suffix: group.slug_suffix ?? null,
         };
       });
