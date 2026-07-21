@@ -473,6 +473,10 @@ async function exportWithEnhancements(
   const fontFilename = path.basename(sourceFontPath);
   const tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
 
+  log.info(
+    `[auto-export] locale=${locale} style=${stylePreference} → effectiveStyle=${effectiveStyle} font=${fontFilename}`
+  );
+
   try {
     await fs.copyFile(sourceFontPath, tempFontPath);
   } catch (fontCopyError: unknown) {
