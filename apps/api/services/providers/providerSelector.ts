@@ -1,6 +1,6 @@
 /**
  * Centralized provider selection and model override logic
- * Handles routing between Mistral, IONOS, LiteLLM, and other providers
+ * Handles routing between Mistral, LiteLLM, and other providers
  */
 
 import { INTERMEDIATE_MODEL } from '../ai/providers.js';
@@ -69,9 +69,9 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   if (name.includes('mistral') || name.includes('mixtral')) {
     return 'litellm';
   }
-  // Llama models via IONOS
+  // Llama models via Regolo (hosts Llama-3.3-70B-Instruct)
   if (name.includes('llama') || name.includes('meta-llama')) {
-    return 'ionos';
+    return 'regolo';
   }
   // Regolo-prefixed models
   if (name.startsWith('regolo/') || name.includes('regolo')) {
@@ -101,10 +101,10 @@ export function selectProviderAndModel({
   let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
   let model: ModelName = options.model || 'verdigado-pro';
 
-  // Ultra mode (useUltraMode flag) - routes to IONOS with high-quality model
+  // Ultra mode (useUltraMode flag) - routes to LiteLLM with high-quality model
   if (options.useUltraMode === true) {
-    provider = 'ionos';
-    model = 'openai/gpt-oss-120b';
+    provider = 'litellm';
+    model = 'verdigado-pro';
   }
   // Pro mode (useProMode flag) - routes to high-quality reasoning model
   else if (options.useProMode === true) {

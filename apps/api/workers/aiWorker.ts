@@ -121,13 +121,12 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     }
 
     if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
-      // Ultra Mode now uses IONOS with high-quality model
       console.log(
-        `[AI Worker ${requestId}] Using Ultra Mode (IONOS) with temperature: ${effectiveOptions.temperature ?? 'default'}`
+        `[AI Worker ${requestId}] Using Ultra Mode (LiteLLM) with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
-      effectiveOptions.model = 'openai/gpt-oss-120b';
-      result = await providers.executeProvider('ionos', requestId, {
+      effectiveOptions.model = 'verdigado-pro';
+      result = await providers.executeProvider('litellm', requestId, {
         ...data,
         options: effectiveOptions,
       });
@@ -137,15 +136,6 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       );
       sendProgress(requestId, 15);
       result = await providers.executeProvider('mistral', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && selection.provider === 'ionos' && !explicitProvider) {
-      console.log(
-        `[AI Worker ${requestId}] Using IONOS provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
-      );
-      sendProgress(requestId, 15);
-      result = await providers.executeProvider('ionos', requestId, {
         ...data,
         options: effectiveOptions,
       });

@@ -15,7 +15,7 @@ export class PrivacyCounter {
 
   /**
    * Get the appropriate provider for privacy mode
-   * Always returns 'litellm' - ionos fallback is handled by aiWorker on failure
+   * Always returns 'litellm' - provider fallback is handled by aiWorker on failure
    */
   async getProviderForUser(userId: string): Promise<string> {
     if (!userId) {
@@ -34,7 +34,7 @@ export class PrivacyCounter {
         await this.redis.expire(redisKey, this.TTL_HOURS * 3600);
       }
 
-      // Always use litellm for privacy mode - ionos is fallback on error only
+      // Always use litellm for privacy mode - fallback chain kicks in on error only
       const provider = 'litellm';
 
       console.log(
@@ -44,7 +44,7 @@ export class PrivacyCounter {
       return provider;
     } catch (error) {
       console.error('[PrivacyCounter] Redis error:', error);
-      // Fallback to litellm on any error - ionos fallback happens in aiWorker on failure
+      // Fallback to litellm on any error - provider fallback happens in aiWorker on failure
       return 'litellm';
     }
   }
