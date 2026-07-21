@@ -10,15 +10,15 @@ import { findBestMatch } from '@gruenerator/shared/utils';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
 import { isMetaQuestionAbout, negatedOrMeta, stripQuotedSpans } from './fastPathGuards.js';
+
+import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
+import type { ModelMessage } from 'ai';
 
 // Generation intents reachable via the fuzzy keyword fallback (only `image`,
 // via 'grafik'/'illustration'); negated/meta artifact words must not match them.
 const GENERATION_FUZZY_INTENTS = new Set<SearchIntent>(['image']);
-import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
-
-import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
-import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph:Classifier');
 
