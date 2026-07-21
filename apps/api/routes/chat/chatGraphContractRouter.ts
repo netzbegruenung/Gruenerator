@@ -239,6 +239,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...initialState,
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
+      classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
 
       let forcedTool: boolean = false;
       log.info(
@@ -255,8 +256,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
 
         if (!classifiedState.searchQuery) {
-          const userText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-          classifiedState.searchQuery = extractCompoundTopic(userText, notebookIds);
+          // Remove-form: "@Label" fragments are self-referential query noise.
+          classifiedState.searchQuery = extractCompoundTopic(lastUserTextNoMentions, notebookIds);
           log.info(`[ChatGraph] Compound topic extracted: "${classifiedState.searchQuery}"`);
         }
 
@@ -295,7 +296,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
           lastUserMessage
         ) {
-          const userText = extractTextContent(lastUserMessage.content).trim();
+          const userText = lastUserTextNoMentions.trim();
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
@@ -311,7 +312,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
           lastUserMessage
         ) {
-          const userText = extractTextContent(lastUserMessage.content).trim();
+          const userText = lastUserTextNoMentions.trim();
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
@@ -381,7 +382,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
             lastUserMessage
           ) {
-            const userText = extractTextContent(lastUserMessage.content).trim();
+            const userText = lastUserTextNoMentions.trim();
             if (userText) {
               classifiedState.searchQuery = userText;
               log.info(
@@ -1261,7 +1262,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Unlike the generic clarification above this fires even for forced @sharepic,
       // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
       if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
-        const sharepicText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const sharepicText = lastUserTextNoMentions;
         if (isSharepicTopicMissing(sharepicText as string)) {
           log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
 
