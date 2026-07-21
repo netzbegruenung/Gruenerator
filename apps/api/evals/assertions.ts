@@ -158,6 +158,14 @@ export function runAssertions(
     );
   }
 
+  for (const group of expect.toolsAnyOf ?? []) {
+    results.push(
+      group.some((tool) => toolNames.includes(tool))
+        ? ok(`toolAnyOf:${group.join('|')}`)
+        : fail(`toolAnyOf:${group.join('|')}`, `none called; called: [${toolNames.join(', ')}]`)
+    );
+  }
+
   for (const tool of expect.toolsMustNotInclude ?? []) {
     results.push(
       !toolNames.includes(tool)

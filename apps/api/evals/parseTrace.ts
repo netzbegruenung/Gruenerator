@@ -69,6 +69,7 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
     warnings: [],
     editorOps: false,
     sharepicUpdated: false,
+    sharepicVariants: [],
   };
 
   const stepsById = new Map<string, TracedToolCall>();
@@ -137,6 +138,11 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
         if (!data.error && Array.isArray(data.variants) && data.variants.length > 0) {
           trace.sharepicGenerated = true;
           collectIds(data, trace.artifactIds);
+          for (const v of data.variants) {
+            if (v && typeof v === 'object') {
+              trace.sharepicVariants.push(v as Record<string, unknown>);
+            }
+          }
         }
         break;
       }
