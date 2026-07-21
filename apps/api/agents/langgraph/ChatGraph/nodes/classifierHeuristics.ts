@@ -226,6 +226,26 @@ const IMAGE_NOUN_PATTERN =
 // Bare image-generation nouns, for the negation/meta guard on the image fast path.
 const IMAGE_GEN_NOUN_PATTERN = /\b(bild|grafik|illustration|foto|image|poster)\b/i;
 
+// Regenerate-the-last-image phrasings that carry no edit verb/noun ("nochmal,
+// aber abends", "neue Version", "mach es wärmer"). Used ONLY with an image
+// lastToolContext so it can't hijack unrelated turns.
+const IMAGE_REGEN_PATTERN =
+  /(?:^|\W)(nochmal[s]?|noch ?(?:ein(?:e?s)?|mal)\b|neue[srn]?\s+(?:version|variante)|neu\s+(?:generier|erstell)\w*|anders(?![a-zäöüß])|stattdessen|andere[srn]?\s+(?:stil|farbe|version|variante|hintergrund)|mach\s+(?:es|das|ihn|sie)\s+\w+er\b|(?:lieber|besser)\s+(?:mit|ohne|als)\b)/i;
+
+// "nochmal" can also mean repeat-the-ANSWER — explain/repeat verbs keep the
+// prose path. Question-initial messages ("Was war nochmal der Prompt?") too.
+const ANSWER_REPEAT_PATTERN =
+  /(?:^|\W)(erkl(?:ä|ae)r|erz(?:ä|ae)hl|beschreib|wiederhol|begr(?:ü|ue)nd|zusammenfass|fass\b|antwort|sag\s+(?:mir|es|das)|warum|wieso|weshalb)/i;
+
+/**
+ * True when a follow-up asks to regenerate the last image (not edit it, not
+ * repeat the answer). Caller must gate on an image lastToolContext.
+ */
+export function isImageRegenRequest(text: string): boolean {
+  if (/^\s*(was|wie|wer|warum|wieso|welche|wann|wo)\b/i.test(text)) return false;
+  return IMAGE_REGEN_PATTERN.test(text) && !ANSWER_REPEAT_PATTERN.test(text);
+}
+
 /**
  * True when the user's text contains an image-edit verb (e.g. "bearbeite",
  * "ändere", "mach mehr Bäume rein").

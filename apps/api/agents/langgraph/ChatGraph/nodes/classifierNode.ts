@@ -41,6 +41,7 @@ import {
   extractUrls,
   formatConversationHistory,
   hasImageEditVerb,
+  isImageRegenRequest,
   mentionsImageNoun,
   looksMultiTopic,
   DOC_MODIFY_PATTERN,
@@ -869,6 +870,62 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
+    // ── TIER 2.7: Follow-up on the thread's last artifact ──────────────────
+    // chat_threads.last_tool_context is the only carrier a vague follow-up has
+    // (mentions are stripped on send). Placed AFTER every explicit-anchor branch
+    // (open editor surfaces, @-mentions, attachments) so it can never preempt
+    // them; the deterministic tiers otherwise ignore lastToolContext and only the
+    // Tier-4 LLM prose hint uses it. Belt-and-braces conditions below too.
+    const tc = state.lastToolContext;
+    if (tc && userContent.length > 0) {
+      // "Kürze die Begründung auf die Hälfte" after a chat-created doc: the
+      // modify verbs match, but every doc branch above was gated on an anchor a
+      // chat-created doc doesn't have.
+      if (
+        tc.kind === 'document' &&
+        tc.ref &&
+        !hasCurrentDocument &&
+        !hasDocMentions &&
+        !hasAnyDocuments &&
+        !hasBoards &&
+        docModifyPattern.test(userContent)
+      ) {
+        log.info('[Classifier] Follow-up doc edit via lastToolContext → modify_doc', {
+          ref: tc.ref,
+        });
+        return {
+          intent: 'modify_doc',
+          docMentionIds: [tc.ref],
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'lastToolContext(document) + modification keywords → modify_doc on last doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+      // "Nochmal, aber abends mit warmem Licht" after image generation — unlocks
+      // the router's last-image rehydration (gated on intent === 'image_edit').
+      if (
+        tc.kind === 'image' &&
+        !hasImageAttachments &&
+        (hasImageEditVerb(userContent) || isImageRegenRequest(userContent))
+      ) {
+        log.info('[Classifier] Follow-up image edit via lastToolContext → image_edit');
+        return {
+          intent: 'image_edit',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'lastToolContext(image) + edit/regenerate phrasing → image_edit',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
@@ -1137,7 +1194,8 @@ const TOOL_CONTEXT_HINTS: Record<NonNullable<ChatGraphState['lastToolContext']>[
   notebook: 'einer Notebook-Recherche',
   presentation: 'der Präsentations-Erstellung',
   sheet: 'der Tabellen-Erstellung',
-  document: 'der Dokument-Erstellung',
+  document:
+    'der Dokument-Erstellung — Folgeaufträge wie "kürze den zweiten Absatz" / "ändere die Begründung" sind Intent "modify_doc"',
   board: 'der Board-Erstellung',
 };
 
