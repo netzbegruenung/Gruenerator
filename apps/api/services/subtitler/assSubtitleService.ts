@@ -81,10 +81,10 @@ class AssSubtitleService {
       __dirname,
       '../../public/fonts/GrueneTypeNeue-Regular.ttf'
     );
-    // Austria (de-AT) uses Gotham Narrow (brand font) for at_* styles.
+    // Austria (de-AT) uses Gotham Narrow Ultra (brand font) for at_* styles.
     this.gothamNarrowFontPath = path.resolve(
       __dirname,
-      '../../public/fonts/GothamNarrow-Medium.otf'
+      '../../public/fonts/GothamNarrow-Ultra.otf'
     );
 
     this.localeStyleMapping = {
@@ -344,7 +344,7 @@ class AssSubtitleService {
       fontSize = Math.floor(fontSize * 1.2);
     }
 
-    // AT styles now use Gotham Narrow Medium, which is narrower and lighter than
+    // AT styles now use Gotham Narrow Ultra, which is heavier but narrower than
     // the previous Montserrat-Bold, so no size reduction is applied.
 
     return Math.max(24, Math.min(300, fontSize));

@@ -46,13 +46,13 @@ const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
 
   const getStyleForPreference = useMemo((): React.CSSProperties => {
     const baseStyles: React.CSSProperties = {
-      // AT preview references the Gotham Narrow brand font without shipping a
+      // AT preview references the Gotham Narrow Ultra brand font without shipping a
       // (licensed) web font: it renders where the font is installed locally and
       // falls back to a narrow sans otherwise. Final video is burned in server-side.
       fontFamily: isAustrian
-        ? "'Gotham Narrow', 'Arial Narrow', Arial, sans-serif"
+        ? "'Gotham Narrow Ultra', 'Gotham Narrow', 'Arial Narrow', Arial, sans-serif"
         : "'GrueneType', Arial, sans-serif",
-      fontWeight: 'bold',
+      fontWeight: isAustrian ? 900 : 'bold',
       color: '#ffffff',
       textAlign: 'center',
       lineHeight: '1.2',
