@@ -491,3 +491,77 @@ describe('Summary intent interactions', () => {
     expect(result.intent).toBe('summary');
   });
 });
+
+describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)', () => {
+  it('document context + "Kürze die Begründung" → modify_doc targeting the ref', async () => {
+    const state = buildState({
+      userMessage: 'Kürze die Begründung auf die Hälfte',
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+    expect(result.docMentionIds).toContain('doc-created-1');
+  });
+
+  it('document context + a plain question → NOT modify_doc (meta/question guard)', async () => {
+    const state = buildState({
+      userMessage: 'Worum ging es in dem Dokument nochmal?',
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('modify_doc');
+  });
+
+  it('an OPEN document wins over lastToolContext (edit_current_doc)', async () => {
+    const state = buildState({
+      userMessage: 'kürze die Begründung',
+      currentDocument: STUB_CURRENT_DOC,
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('an explicit @-mention wins over lastToolContext', async () => {
+    const state = buildState({
+      userMessage: 'kürze den Text',
+      docMentionIds: ['doc-mentioned-9'],
+      lastToolContext: { kind: 'document', ref: 'doc-created-1' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+  });
+
+  it('image context + "Nochmal, aber abends mit warmem Licht" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'Nochmal, aber abends mit warmem Licht',
+      lastToolContext: { kind: 'image' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image context + "mach es blauer" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'mach es blauer',
+      lastToolContext: { kind: 'image' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image context + "Erklär nochmal, warum du diese Farben gewählt hast" → NOT image_edit', async () => {
+    const state = buildState({
+      userMessage: 'Erklär nochmal, warum du diese Farben gewählt hast',
+      lastToolContext: { kind: 'image' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
+  });
+
+  it('no lastToolContext + "Nochmal, aber abends" → NOT image_edit (gate needs context)', async () => {
+    const state = buildState({ userMessage: 'Nochmal, aber abends mit warmem Licht' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
+  });
+});
