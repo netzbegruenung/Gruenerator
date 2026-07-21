@@ -237,7 +237,7 @@ NUTZE WENN:
     // connected-servers DB read would run twice per turn.
     if (
       state.enabledTools?.['product_knowledge'] !== false &&
-      !isProductMetaQuestion(lastUserText(state))
+      !isProductMetaQuestion(state.lastUserTextNoMentions ?? lastUserText(state))
     ) {
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
@@ -315,7 +315,8 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (
       !editorSurface &&
       (state.intent === 'image' ||
-        (state.intent === 'agentic' && IMAGE_REQUEST_PATTERN.test(lastUserText(state)))) &&
+        (state.intent === 'agentic' &&
+          IMAGE_REQUEST_PATTERN.test(state.lastUserTextNoMentions ?? lastUserText(state)))) &&
       state.enabledTools?.['image'] !== false
     ) {
       tools.generate_image = makeImageTool({ sse, state });
