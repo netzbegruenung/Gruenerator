@@ -21,7 +21,7 @@ export class SubtitleStylingService {
     videoMetadata: VideoMetadata,
     baseFontSize = 20,
     subtitlePreference: SubtitlePreference = 'manual',
-    stylePreference: StylePreference = 'standard'
+    _stylePreference: StylePreference = 'standard'
   ): number {
     const { width, height } = videoMetadata;
     const referenceDimension = Math.min(width, height);
@@ -44,9 +44,8 @@ export class SubtitleStylingService {
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2); // +20% for manual mode
     }
-    if (stylePreference?.startsWith('at_')) {
-      fontSize = Math.floor(fontSize * 0.85); // -15% for AT styles
-    }
+    // AT styles now use Gotham Narrow Ultra (heavier but narrower than the previous
+    // Montserrat-Bold), so no size reduction is applied. Matches backend.
 
     return Math.max(24, Math.min(300, fontSize));
   }
