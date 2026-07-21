@@ -73,11 +73,18 @@ export const mcpServerTestResponseSchema = z.object({
 
 export const mcpServerErrorResponseSchema = z.object({
   error: z.string(),
+  // Machine-readable OAuth failure class so the UI can react (e.g. open the
+  // manual-registration form on dcr_rejected) instead of string-matching.
+  code: z.enum(['dcr_rejected', 'no_oauth_support']).optional(),
 });
 
-export const mcpOauthStartResponseSchema = z.object({
-  authorizationUrl: z.string(),
-});
+export const mcpOauthStartResponseSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('authorize'), authorizationUrl: z.string() }),
+  // Discovery found no OAuth but the server accepts unauthenticated connects —
+  // the backend flipped it to authType 'none'; nothing left to authorize.
+  z.object({ status: z.literal('no_auth_required') }),
+]);
+export type McpOauthStartResult = z.infer<typeof mcpOauthStartResponseSchema>;
 
 // ── Registry discovery ──────────────────────────────────────────────────────
 
