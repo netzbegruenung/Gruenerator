@@ -4,6 +4,7 @@ import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
@@ -26,7 +27,23 @@ const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configur
 
 const log = createLogger('BetterAuth');
 
-function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT' = 'de-DE') {
+/**
+ * IdP → audience locale. The Keycloak realm a user signs in through is the
+ * authoritative country signal (AT users come through the gruene-at IdP). This
+ * map is the SINGLE source of truth for locale: it seeds the value at account
+ * creation (`mapProfileToUser`) and re-asserts it on every login
+ * (`databaseHooks.account` → `syncLocaleFromProvider`). Unknown providers fall
+ * back to 'de-DE'.
+ */
+const PROVIDER_LOCALE: Record<string, 'de-DE' | 'de-AT'> = {
+  'keycloak-gruene-at': 'de-AT',
+  'keycloak-netzbegruenung': 'de-DE',
+  'keycloak-gruenes-netz': 'de-DE',
+  'keycloak-gruenerator': 'de-DE',
+};
+
+function keycloakProvider(id: string, idpHint: string) {
+  const locale = PROVIDER_LOCALE[id] ?? 'de-DE';
   return {
     providerId: id,
     clientId: KC_CLIENT_ID,
@@ -42,6 +59,34 @@ function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT'
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 const db = drizzle(pool, { schema });
+
+/**
+ * Re-assert the IdP's locale on the user's profile on login. `mapProfileToUser`
+ * only sets locale when the account is first CREATED, so an existing user who
+ * later signs in through the AT IdP would otherwise keep a stale `de-DE`. Runs
+ * from the account create/update hooks (fire on every login). Writes only on an
+ * actual change — via Drizzle, bypassing Better Auth's cookie cache; the fresh
+ * login session (and the next `getSession` refresh) pick up the new value.
+ */
+async function syncLocaleFromProvider(userId: string, providerId: string): Promise<void> {
+  const locale = PROVIDER_LOCALE[providerId];
+  if (!locale) return;
+  try {
+    const rows = await db
+      .select({ locale: schema.profiles.locale })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, userId))
+      .limit(1);
+    const current = rows[0]?.locale ?? null;
+    if (current === locale) return;
+    await db.update(schema.profiles).set({ locale }).where(eq(schema.profiles.id, userId));
+    log.info(
+      `[Auth] locale-synced user=${userId} provider=${providerId} ${current ?? 'none'} → ${locale}`
+    );
+  } catch (err) {
+    log.warn(`[Auth] locale sync failed user=${userId}: ${(err as Error).message}`);
+  }
+}
 
 // One-shot config snapshot at module load — answers "what URL did the
 // container actually pick up?" without requiring a request to fire.
@@ -394,6 +439,7 @@ export const auth = betterAuth({
           log.info(
             `[Auth] account-linked id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
+          await syncLocaleFromProvider(account.userId, account.providerId);
         },
       },
       update: {
@@ -401,6 +447,7 @@ export const auth = betterAuth({
           log.info(
             `[Auth] account-updated id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
+          await syncLocaleFromProvider(account.userId, account.providerId);
         },
       },
     },
@@ -468,7 +515,7 @@ export const auth = betterAuth({
       config: [
         keycloakProvider('keycloak-netzbegruenung', 'netzbegruenung'),
         keycloakProvider('keycloak-gruenes-netz', 'gruenes-netz'),
-        keycloakProvider('keycloak-gruene-at', 'gruene-at-login', 'de-AT'),
+        keycloakProvider('keycloak-gruene-at', 'gruene-at-login'),
         keycloakProvider('keycloak-gruenerator', 'gruenerator-user'),
       ],
     }),
