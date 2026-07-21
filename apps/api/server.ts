@@ -198,7 +198,19 @@ async function startWorker(): Promise<void> {
   // CORS configuration
   const allowedOrigins = getCorsOrigins(isDevelopment);
   const corsOptions = createCorsOptions(allowedOrigins);
-  app.use(cors(corsOptions));
+  const strictCors = cors(corsOptions);
+  // The Bearer-authenticated MCP endpoint is origin-agnostic: browser-based MCP
+  // clients (Inspector, embedded clients) send Origins outside the app
+  // allowlist and must still reach the 401/WWW-Authenticate challenge instead
+  // of dying in the strict validator.
+  const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate', 'Mcp-Session-Id'] });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api/mcp-server')) {
+      mcpCors(req, res, next);
+      return;
+    }
+    strictCors(req, res, next);
+  });
 
   // Body parsing with TUS skip logic
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -421,12 +433,66 @@ async function startWorker(): Promise<void> {
           message: { error: 'Too many authentication requests, please try again later.' },
         });
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
+
+  // MCP OAuth: force the consent step. The `mcp` plugin skips the consent page
+  // unless the query is EXACTLY `prompt=consent` — MCP clients (claude.ai)
+  // don't send it, and a malicious DCR client could send `prompt=none` to mint
+  // a token silently. Rewrite (not append — appending loops on duplicated or
+  // empty prompt params) every other prompt value. Registered BEFORE the
+  // catch-all Better Auth handler.
+  app.get('/api/auth/v2/mcp/authorize', (req, res, next) => {
+    if (req.query.prompt === 'consent') {
+      next();
+      return;
+    }
+    const url = new URL(req.originalUrl, 'http://placeholder');
+    url.searchParams.delete('prompt');
+    url.searchParams.append('prompt', 'consent');
+    res.redirect(302, `${url.pathname}${url.search}`);
+  });
+
   app.all('/api/auth/v2/*splat', betterAuthIpLimiter, (req, res, next) => {
     if (!req.headers['x-forwarded-for'] && !req.headers['x-real-ip']) {
       req.headers['x-forwarded-for'] = req.socket.remoteAddress || '0.0.0.0';
     }
     Promise.resolve(betterAuthHandler(req, res)).catch(next);
   });
+
+  // OAuth discovery at the ORIGIN ROOT (RFC 8414/9728) — Better Auth serves
+  // these only under its basePath, but clients resolve them at the root (with
+  // optional path-insertion suffix). nginx proxies the same paths on both
+  // gruenerator.eu (AS metadata) and mcp.gruenerator.eu (resource metadata).
+  {
+    const { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } =
+      await import('better-auth/plugins');
+    const { fromNodeHeaders } = await import('better-auth/node');
+    const { auth } = await import('./config/betterAuth.js');
+    const serveWellKnown =
+      (handler: (request: globalThis.Request) => Promise<globalThis.Response>) =>
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const base = env.BETTER_AUTH_URL ?? `http://${req.headers.host ?? 'localhost'}`;
+          const webReq = new globalThis.Request(`${base}${req.originalUrl}`, {
+            method: 'GET',
+            headers: fromNodeHeaders(req.headers),
+          });
+          const webRes = await handler(webReq);
+          res.status(webRes.status);
+          webRes.headers.forEach((value, key) => res.setHeader(key, value));
+          res.send(await webRes.text());
+        } catch (err) {
+          next(err);
+        }
+      };
+    app.get(
+      ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*splat'],
+      serveWellKnown(oAuthDiscoveryMetadata(auth))
+    );
+    app.get(
+      ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*splat'],
+      serveWellKnown(oAuthProtectedResourceMetadata(auth))
+    );
+  }
 
   // Logging middleware (only for errors)
   app.use(

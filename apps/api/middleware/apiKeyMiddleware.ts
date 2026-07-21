@@ -30,12 +30,57 @@ export function hashApiKey(plaintext: string): string {
   return createHash('sha256').update(plaintext).digest('hex');
 }
 
-function extractBearer(req: Request): string | null {
+export function extractBearer(req: Request): string | null {
   const auth = req.headers.authorization;
   if (typeof auth !== 'string') return null;
   const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
   return match ? match[1].trim() : null;
 }
+
+export type VerifyApiKeyResult =
+  | { ok: true; ctx: ApiKeyContext }
+  | { ok: false; reason: 'invalid' | 'revoked' | 'expired' };
+
+/**
+ * Verify a plaintext API key against the `api_keys` table.
+ * Throws on DB failure. Shared by `requireApiKey` and the MCP server's
+ * bearer fallback (routes/mcp-server).
+ */
+export async function verifyApiKey(plaintext: string): Promise<VerifyApiKeyResult> {
+  const hash = hashApiKey(plaintext);
+  const db = getDrizzleInstance();
+
+  const rows = await db.select().from(api_keys).where(eq(api_keys.key_hash, hash)).limit(1);
+  const row = rows[0];
+
+  if (!row) return { ok: false, reason: 'invalid' };
+  if (row.revoked_at) return { ok: false, reason: 'revoked' };
+  if (row.expires_at && new Date(row.expires_at) < new Date()) {
+    return { ok: false, reason: 'expired' };
+  }
+
+  // Fire-and-forget last_used_at touch — never block the request.
+  db.update(api_keys)
+    .set({ last_used_at: new Date() })
+    .where(eq(api_keys.id, row.id))
+    .catch((err) => log.warn('[apiKey] last_used_at update failed:', err));
+
+  return {
+    ok: true,
+    ctx: {
+      id: row.id,
+      userId: row.user_id,
+      scopes: row.scopes ?? {},
+      rateLimitPerMinute: row.rate_limit_per_minute,
+    },
+  };
+}
+
+const REJECTION_MESSAGES: Record<'invalid' | 'revoked' | 'expired', string> = {
+  invalid: 'Invalid API key',
+  revoked: 'API key revoked',
+  expired: 'API key expired',
+};
 
 export async function requireApiKey(
   req: Request,
@@ -48,45 +93,21 @@ export async function requireApiKey(
     return;
   }
 
-  const hash = hashApiKey(plaintext);
-  const db = getDrizzleInstance();
-
-  let row;
+  let result: VerifyApiKeyResult;
   try {
-    const rows = await db.select().from(api_keys).where(eq(api_keys.key_hash, hash)).limit(1);
-    row = rows[0];
+    result = await verifyApiKey(plaintext);
   } catch (err) {
     log.error('[apiKey] DB lookup failed:', err);
     res.status(500).json({ error: 'Internal server error' });
     return;
   }
 
-  if (!row) {
-    res.status(401).json({ error: 'Invalid API key' });
-    return;
-  }
-  if (row.revoked_at) {
-    res.status(401).json({ error: 'API key revoked' });
-    return;
-  }
-  if (row.expires_at && new Date(row.expires_at) < new Date()) {
-    res.status(401).json({ error: 'API key expired' });
+  if (!result.ok) {
+    res.status(401).json({ error: REJECTION_MESSAGES[result.reason] });
     return;
   }
 
-  req.apiKey = {
-    id: row.id,
-    userId: row.user_id,
-    scopes: row.scopes ?? {},
-    rateLimitPerMinute: row.rate_limit_per_minute,
-  };
-
-  // Fire-and-forget last_used_at touch — never block the request.
-  db.update(api_keys)
-    .set({ last_used_at: new Date() })
-    .where(eq(api_keys.id, row.id))
-    .catch((err) => log.warn('[apiKey] last_used_at update failed:', err));
-
+  req.apiKey = result.ctx;
   next();
 }
 
