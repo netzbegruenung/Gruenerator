@@ -11,77 +11,88 @@ Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du
 Den Chat erreichst du über den Menüpunkt **Chat** in der Seitenleiste oder direkt unter `/chat`. Dort siehst du:
 
 - **Eingabefeld** unten zum Schreiben deiner Nachricht
-- **Seitenleiste** links mit deinem Gesprächsverlauf
-- **Modell-Auswahl** oben links zum Wechseln des Assistenten
+- **Seitenleiste** links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in **Ordnern** organisieren
+- **„+"-Menü** links im Eingabefeld für Modus, Werkzeuge, Quellen und Dateien
+- **Modell-Auswahl** rechts unten im Eingabefeld
 
-Jedes Gespräch wird als eigener **Thread** gespeichert. Du kannst jederzeit über das **+**-Symbol ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren.
+Jedes Gespräch wird als eigener **Thread** mit eigener Adresse (`/chat/…`) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren.
 
-## Assistenten auswählen
+## Skills auswählen
 
-Assistenten sind spezialisierte KI-Persönlichkeiten, die auf bestimmte Textarten und Aufgaben optimiert sind. Der Standard-Assistent ist ein Allrounder — aber für spezifische Aufgaben lohnt sich ein Wechsel.
+Skills sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform.
 
-**So wählst du einen Assistenten:**
+**So wählst du einen Skill:**
 
 - Tippe `/` im Eingabefeld und wähle aus der Liste, **oder**
-- Klicke auf die Modell-Auswahl oben links
+- öffne das **„+"-Menü** im Eingabefeld
 
-| Befehl           | Assistent                | Beschreibung                                |
-| ---------------- | ------------------------ | ------------------------------------------- |
-| `/antrag`        | 📝 Antrag                | Anträge & Anfragen für kommunale Parlamente |
-| `/presse`        | 📰 Pressemitteilung      | Pressemitteilungen verfassen                |
-| `/instagram`     | 📸 Instagram             | Instagram-Posts & Captions                  |
-| `/facebook`      | 👍 Facebook              | Facebook-Posts & Beiträge                   |
-| `/twitter`       | 🐦 Twitter / X           | Tweets & Threads                            |
-| `/linkedin`      | 💼 LinkedIn              | LinkedIn-Posts & Artikel                    |
-| `/reel`          | 🎬 Reel / TikTok         | Reel- & TikTok-Skripte                      |
-| `/aktion`        | 💡 Aktionsideen          | Kreative Aktionsideen entwickeln            |
-| `/rede`          | 🎙️ Rede                  | Politische Reden schreiben                  |
-| `/wahlprogramm`  | 📋 Wahlprogramm          | Programmkapitel erstellen                   |
-| `/bürgerservice` | 💬 Bürger\*innenanfragen | Bürger\*innenanfragen beantworten           |
-| `/jugend`        | ✊ Grüne Jugend          | Aktivistischer Content                      |
+| Befehl       | Skill               | Beschreibung                     |
+| ------------ | ------------------- | -------------------------------- |
+| `/presse`    | 📰 Pressemitteilung | Pressemitteilungen verfassen     |
+| `/instagram` | 📸 Instagram        | Instagram-Posts & Captions       |
+| `/facebook`  | 👍 Facebook         | Facebook-Posts & Beiträge        |
+| `/twitter`   | 🐦 Twitter / X      | Tweets & Threads                 |
+| `/linkedin`  | 💼 LinkedIn         | LinkedIn-Posts & Artikel         |
+| `/reel`      | 🎬 Reel / TikTok    | Reel- & TikTok-Skripte           |
+| `/aktion`    | 💡 Aktionsideen     | Kreative Aktionsideen entwickeln |
 
-:::tip Assistenten kombinieren
-Du kannst einen Assistenten mit Quellen und Werkzeugen kombinieren. Zum Beispiel: `/antrag @grundsatz Klimaschutz in Kommunen fördern` erstellt einen Antrag auf Basis des Grundsatzprogramms.
+Für Anträge, Reden, Wahlprogramme und Bürger\*innenanfragen gibt es eigene **Grüneratoren** — du findest sie unter dem Menüpunkt **Grüneratoren** in der Seitenleiste und kannst sie direkt im Chat öffnen.
+
+:::tip Skills kombinieren
+Du kannst einen Skill mit Quellen und Werkzeugen kombinieren. Zum Beispiel: `/presse @grundsatz Klimaschutz in Kommunen` schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms.
 :::
 
 ## Quellen durchsuchen
 
 Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe `@` im Eingabefeld, um eine Quelle auszuwählen.
 
-| Kürzel          | Quelle                      | Inhalt                                       |
-| --------------- | --------------------------- | -------------------------------------------- |
-| `@alle`         | 🔍 Alle Quellen             | Durchsucht mehrere Quellen parallel          |
-| `@grundsatz`    | 📗 Grundsatzprogramm        | Grundsatzprogramme von Bündnis 90/Die Grünen |
-| `@bundestag`    | 🏛️ Bundestagsfraktion       | Inhalte von gruene-bundestag.de              |
-| `@hamburg`      | ⚓ Grüne Hamburg            | Beschlüsse und Presse der Grünen Hamburg     |
-| `@sh`           | 🌊 Grüne Schleswig-Holstein | Wahlprogramm Schleswig-Holstein              |
-| `@thüringen`    | 🏔️ Grüne Thüringen          | Beschlüsse und Wahlprogramme Thüringen       |
-| `@bayern`       | 🦁 Grüne Bayern             | Regierungsprogramm Bayern                    |
-| `@berlin`       | 🐻 Grüne Berlin             | Pressemitteilungen und Beschlüsse Berlin     |
-| `@at`           | 🇦🇹 Grüne Österreich         | Programme von Die Grünen Österreich          |
-| `@kommunalwiki` | 📚 KommunalWiki             | Fachwissen zur Kommunalpolitik               |
-| `@böll`         | 📖 Heinrich-Böll-Stiftung   | Analysen und Dossiers der Böll-Stiftung      |
+| Kürzel            | Quelle                    | Inhalt                                            |
+| ----------------- | ------------------------- | ------------------------------------------------- |
+| `@alle`           | 🔍 Alle Quellen           | Durchsucht mehrere Quellen parallel               |
+| `@grundsatz`      | 📗 Grundsatzprogramm      | Grundsatzprogramme von Bündnis 90/Die Grünen      |
+| `@bundestag`      | 🏛️ Bundestagsfraktion     | Inhalte von gruene-bundestag.de                   |
+| `@thüringen`      | 🏔️ Grüne Thüringen        | Beschlüsse und Wahlprogramme Thüringen            |
+| `@bayern`         | 🦁 Grüne Bayern           | Regierungsprogramm Bayern                         |
+| `@berlin`         | 🐻 Grüne Berlin           | Pressemitteilungen und Beschlüsse Berlin          |
+| `@mv`             | 🌊 Grüne MV               | Mecklenburg-Vorpommern                            |
+| `@brandenburg`    | 🌲 Grüne Brandenburg      | Brandenburg                                       |
+| `@sachsen-anhalt` | 🏰 Grüne Sachsen-Anhalt   | Sachsen-Anhalt                                    |
+| `@hessen`         | 🦌 Grüne Hessen           | Hessen                                            |
+| `@saar`           | 🌿 Grüne Saarland         | Saarland                                          |
+| `@at`             | 🇦🇹 Grüne Österreich       | Programme von Die Grünen Österreich               |
+| `@kommunalwiki`   | 📚 KommunalWiki           | Fachwissen zur Kommunalpolitik                    |
+| `@böll`           | 📖 Heinrich-Böll-Stiftung | Analysen und Dossiers der Böll-Stiftung           |
+| `@gruenblog`      | ✍️ Grünblog               | Beiträge aus dem Grünblog                         |
+| `@transparenz`    | 🗳️ Abgeordnetenwatch      | Abstimmungen, Fragen & Antworten von Abgeordneten |
 
 :::info Landesverbände
 Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein [Grünerator Notebook](../ueber-den-gruenerator/notebook) erworben hat, erscheinen eure Daten automatisch als Quelle.
+:::
+
+:::tip Mentions bleiben sichtbar
+Deine `@`-Mentions erscheinen als **Chips** in der gesendeten Nachricht und der Chat merkt sie sich: Folgefragen wie _„fasse das kürzer"_ bleiben automatisch bei der gewählten Quelle bzw. dem gewählten Werkzeug.
 :::
 
 ## Werkzeuge nutzen
 
 Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per `@`-Mention im Eingabefeld aktivieren.
 
-| Kürzel             | Werkzeug           | Beschreibung                             |
-| ------------------ | ------------------ | ---------------------------------------- |
-| `@websearch`       | 🌐 Websuche        | Aktuelle Infos aus dem Internet          |
-| `@recherche`       | 🔬 Recherche       | Tiefgehende Multi-Quellen-Recherche      |
-| `@dokumente`       | 📄 Dokumente       | Parteiprogramme & Beschlüsse durchsuchen |
-| `@dokumentchat`    | 💬 Dokument-Chat   | Mit ausgewählten Dokumenten chatten      |
-| `@zusammenfassung` | 📝 Zusammenfassung | Dokument(e) zusammenfassen               |
-| `@bildgenerieren`  | 🎨 Bildgenerierung | Bild mit KI generieren                   |
-| `@stadtbegruenen`  | 🌳 Stadt begrünen  | Stadtbild mit Grün transformieren        |
+| Kürzel               | Werkzeug             | Beschreibung                                                               |
+| -------------------- | -------------------- | -------------------------------------------------------------------------- |
+| `@recherche`         | 🔬 Recherche         | Web- und Multi-Quellen-Recherche — die Suchtiefe passt sich automatisch an |
+| `@dokumente`         | 📄 Dokumente         | Parteiprogramme & Beschlüsse durchsuchen                                   |
+| `@docs`              | 💬 Dokument einfügen | Eigene Dokumente als Kontext einbinden                                     |
+| `@zusammenfassung`   | 📝 Zusammenfassung   | Dokument(e) zusammenfassen                                                 |
+| `@bildgenerieren`    | 🎨 Bildgenerierung   | Bild mit KI generieren                                                     |
+| `@bildbearbeiten`    | 🖌️ Bildbearbeitung   | Ein generiertes oder hochgeladenes Bild verändern                          |
+| `@sharepic`          | 🖼️ Sharepic          | Sharepic im Grünen Design erstellen (experimentell)                        |
+| `@stadtbegruenen`    | 🌳 Stadt begrünen    | Stadtbild mit Grün transformieren                                          |
+| `@umfragen`          | 📊 Umfragen          | Aktuelle Wahlumfragen abfragen                                             |
+| `@bundestag`         | 🏛️ Bundestag         | Drucksachen und Reden aus dem Bundestag                                    |
+| `@abgeordnetenwatch` | 🗳️ Abgeordnetenwatch | Abstimmungen und Profile von Abgeordneten                                  |
 
 :::tip Werkzeuge dauerhaft ein-/ausschalten
-Klicke auf das **Schraubenschlüssel-Symbol** neben dem Eingabefeld, um Werkzeuge dauerhaft zu aktivieren oder zu deaktivieren. So musst du sie nicht bei jeder Nachricht erneut erwähnen. Dort findest du vier Hauptwerkzeuge: Recherche, Dokumente, Web und Beispiele.
+Öffne das **„+"-Menü** links im Eingabefeld, um Werkzeuge dauerhaft zu aktivieren oder zu deaktivieren. So musst du sie nicht bei jeder Nachricht erneut erwähnen. Dort findest du vier Hauptwerkzeuge: **Recherche, Dokumentensuche, Beispiele und Pressemitteilungen**.
 :::
 
 ### Externe Dienste (Konnektoren)
@@ -90,7 +101,7 @@ Du kannst auch **externe Dienste** wie Notion, Tally oder Todoist per `@`-Mentio
 
 ## Dateien im Chat
 
-Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Klicke auf das **📎-Symbol** im Eingabefeld und wähle deine Dateien aus.
+Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das **„+"-Menü** im Eingabefeld und wähle **Dateien**.
 
 Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter [Dateien hinzufügen](./dateien-hinzufuegen).
 
@@ -108,8 +119,7 @@ Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und z
 
 ## Tipps für die Nutzung
 
-- **Kombiniere Assistent + Quelle + Thema** für die besten Ergebnisse, z.B. `/presse @bundestag Kindergrundsicherung`
-- **Nutze `@recherche`** für eine tiefgehende Analyse, die mehrere Quellen gleichzeitig durchsucht und vergleicht
-- **Nutze `@websearch`** für aktuelle Nachrichten und Entwicklungen, die noch nicht in den Parteiprogrammen stehen
+- **Kombiniere Skill + Quelle + Thema** für die besten Ergebnisse, z.B. `/presse @bundestag Kindergrundsicherung`
+- **Nutze `@recherche`** für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch
 - **Starte ein neues Gespräch** für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser
 - **Lade relevante Dokumente hoch**, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest
