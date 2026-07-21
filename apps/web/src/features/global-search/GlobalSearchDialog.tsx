@@ -9,6 +9,7 @@
  * against the raw input and drop anything matched on content rather than
  * title — matching is decided by matchFeatures and the backend.
  */
+import { useAgentStore } from '@gruenerator/chat';
 import { type GlobalSearchItem } from '@gruenerator/contracts';
 import {
   Command,
@@ -125,7 +126,16 @@ export default function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchD
           <CommandInput placeholder="Suchen …" value={input} onValueChange={setInput} autoFocus />
           <CommandList className="max-h-[min(70vh,32rem)] scroll-py-2 p-2">
             <CommandGroup>
-              <CommandItem value="__new-chat" onSelect={() => go('/chat')} className={ROW}>
+              <CommandItem
+                value="__new-chat"
+                onSelect={() => {
+                  // Without the flip, /chat would resume the last thread
+                  // instead of showing the new-chat hero (same as Sidebar).
+                  useAgentStore.getState().setChatViewMode('overview');
+                  go('/chat');
+                }}
+                className={ROW}
+              >
                 <span className={ICON_CHIP}>
                   {NewChatIcon && <NewChatIcon aria-hidden="true" className="size-[18px]" />}
                 </span>

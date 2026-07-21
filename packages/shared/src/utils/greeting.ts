@@ -1,7 +1,7 @@
 /**
- * Time-of-day + locale-aware greeting shared by the web Workplace home and the
- * mobile Chat home, so both surfaces speak with one voice. Ported from
- * apps/web/src/features/workplace/WorkplacePage.tsx — keep the two in sync.
+ * Time-of-day + locale-aware greeting shared by the web Workplace/Chat heroes
+ * (WorkplaceGreeting) and the mobile Chat home, so all surfaces speak with one
+ * voice.
  *
  * The template is stable for a whole day (seeded by the day number) so it does not
  * reshuffle on every render, and switches to a rainbow Pride greeting in June.

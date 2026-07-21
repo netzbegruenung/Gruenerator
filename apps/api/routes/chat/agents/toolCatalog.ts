@@ -33,6 +33,11 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import {
+  buildProductKnowledgeBlock,
+  isProductMetaQuestion,
+} from '../../../services/chat/productKnowledge.js';
 import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
@@ -234,6 +239,36 @@ NUTZE WENN:
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
+    // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
+    // injects when the meta regex matches — the loop inherits that system
+    // prompt, so the tool is only mounted for turns the regex MISSED (the
+    // model decides); otherwise the block would land in context twice and the
+    // connected-servers DB read would run twice per turn.
+    if (
+      state.enabledTools?.['product_knowledge'] !== false &&
+      !isProductMetaQuestion(lastUserText(state))
+    ) {
+      tools.product_knowledge = tool({
+        description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
+
+NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche.`,
+        inputSchema: z.object({
+          topic: z
+            .string()
+            .describe('Fokus der Frage, z.B. "mcp", "sharepic"; leer für den Überblick')
+            .default(''),
+        }),
+        execute: async ({ topic }) => {
+          const knowledge = await buildProductKnowledgeBlock({
+            locale: state.userLocale,
+            userId: state.agentConfig?.userId ?? null,
+            question: `${topic} ${lastUserText(state)}`.trim(),
+          });
+          return { knowledge };
+        },
+      });
+    }
     // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
     // — they must never spawn a NEW artifact (image OR create fat tool). Gated
     // server-side (the frontend not setting the tools:false is not enough).

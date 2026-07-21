@@ -1,8 +1,6 @@
 import {
   ArtifactPanel,
-  ChatOverview,
   ChatThreadRouting,
-  type NotebookLink,
   GrueneratorThread,
   ReelArtifactPanel,
   SharepicArtifactPanel,
@@ -10,7 +8,6 @@ import {
   useAgentStore,
   useChatRuntimeReady,
   useUserAgentsRegistry,
-  type UserRole,
 } from '@gruenerator/chat';
 import {
   getLandesverbandHubBySlug,
@@ -24,8 +21,8 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { useUserAgents } from '@/features/agents/api';
+import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
-import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -37,12 +34,6 @@ import { useAuthStore } from '@/stores/authStore';
  * (no auto-switch when the agent has no preference).
  */
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
-
-const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
-  id: nb.id,
-  path: nb.path,
-  title: nb.title.replace(/^Frag\s+/i, ''),
-}));
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -94,10 +85,11 @@ function ChatPage() {
   const modeParam = searchParams.get('mode');
 
   // When the URL carries an agent/mode param or a thread deep link, jump
-  // straight into the thread — otherwise users land on the overview/role-picker
+  // straight into the thread — otherwise users land on the new-chat hero
   // first and have no idea their click on a sidebar agent entry "did anything".
-  // For deep links this also keeps ChatOverview (which resets chat context and
-  // switches to a new thread on mount) from racing the thread resolution.
+  // For deep links this also keeps the hero's ChatInner (which resets chat
+  // context and switches to a new thread on mount) from racing the thread
+  // resolution.
   const effectiveViewMode =
     agentParam ||
     threadSlug ||
@@ -176,25 +168,10 @@ function ChatPage() {
     [navigate, isAgentsPath]
   );
   const handleThreadGone = useCallback(() => {
+    // Land on the new-chat hero, not on whatever thread is still current.
+    useAgentStore.getState().setChatViewMode('overview');
     void navigate('/chat', { replace: true });
   }, [navigate]);
-
-  const handleSelectNotebook = useCallback((notebookId: string) => {
-    const store = useAgentStore.getState();
-    store.setThreadMode('notebook');
-    store.setSelectedNotebook(notebookId);
-    store.setChatViewMode('thread');
-  }, []);
-
-  const handleSelectRole = useCallback((role: UserRole) => {
-    const store = useAgentStore.getState();
-    if (role.systemPrompt) {
-      store.setCustomSystemPrompt(role.systemPrompt);
-    }
-    store.setCustomRoleName(role.rolle);
-    store.setThreadMode('eigener');
-    store.setChatViewMode('thread');
-  }, []);
 
   // Don't mount runtime-dependent content until the assistant-ui runtime is
   // actually present. On a cold direct load the Suspense fallback renders this
@@ -218,14 +195,11 @@ function ChatPage() {
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
-          <ChatOverview
-            firstName={firstName}
-            notebooks={notebookLinks}
-            onNavigate={handleNavigate}
-            onSelectNotebook={handleSelectNotebook}
-            onSelectRole={handleSelectRole}
-            requireProfileHydration
-          />
+          // New-chat empty state in the Workplace chat-tab design: sunrise
+          // background, vertically centered greeting + pill composer.
+          <div className="workplace-chat-sunrise flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]">
+            <ChatHero />
+          </div>
         ) : (
           <GrueneratorThread
             onNavigate={handleNavigate}
