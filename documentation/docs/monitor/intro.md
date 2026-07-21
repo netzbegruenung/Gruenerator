@@ -4,7 +4,7 @@ sidebar_position: 0
 
 # Themen-Monitor
 
-Der Themen-Monitor zeigt dir auf einen Blick, worüber deutsche und österreichische Medien gerade berichten — und wie die Stimmung dabei ist. Er sammelt automatisch Nachrichtenartikel, analysiert sie nach Themen und Emotionen und liefert dir handlungsrelevante Einschätzungen für deine Kommunikationsarbeit.
+Der Themen-Monitor zeigt dir auf einen Blick, worüber deutsche und österreichische Medien gerade berichten. Er sammelt automatisch Nachrichtenartikel, analysiert sie nach Themen und liefert dir handlungsrelevante Einschätzungen für deine Kommunikationsarbeit.
 
 ## Für wen ist der Monitor?
 
@@ -14,23 +14,22 @@ Der Themen-Monitor zeigt dir auf einen Blick, worüber deutsche und österreichi
 
 ## Datenquellen
 
-Der Monitor wertet automatisch über **20 Nachrichtenquellen** aus Deutschland und Österreich aus — darunter Tagesschau, Spiegel, ZEIT, FAZ, Süddeutsche, ORF, Der Standard und viele mehr. Zusätzlich fließen Daten aus Social Media (Bluesky, Instagram) und Wahlumfragen ein. Die Daten werden stündlich aktualisiert.
+Der Monitor wertet automatisch über **60 Nachrichtenquellen** aus Deutschland und Österreich aus — darunter Tagesschau, Spiegel, ZEIT, FAZ, Süddeutsche, ORF, Der Standard und viele mehr. Zusätzlich fließen Daten aus Social Media (Bluesky, Instagram) und Wahlumfragen ein. Die Daten werden stündlich aktualisiert.
 
-## Die 7 Tabs im Überblick
+## Die vier Bereiche im Überblick
 
-| Tab           | Was du siehst                                                                        |
-| ------------- | ------------------------------------------------------------------------------------ |
-| **Themen**    | Welche politischen Themen gerade die Nachrichten dominieren (13 Kategorien)          |
-| **Keywords**  | Die meistgenannten Begriffe und KI-generierte Einordnung mit Parteipositionen        |
-| **X/Twitter** | Aktuelle Trends auf X/Twitter in Deutschland                                         |
-| **Stimmung**  | Emotionale Analyse der Berichterstattung (7 Emotionen mit Handlungsempfehlungen)     |
-| **Umfragen**  | Sonntagsfrage — aktuelle Wahlumfragen aller großen Institute                         |
-| **Watcher**   | Medienbeobachtung speziell zu den Grünen mit KI-Zusammenfassung und Strategieanalyse |
-| **Details**   | Detailansicht aller Themen mit Top-Artikeln und Quellenübersicht                     |
+Der Monitor besteht aus vier Seiten, die du oben über die Navigation wechselst:
+
+| Bereich      | Was du siehst                                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| **Themen**   | Welche politischen Themen die Nachrichten dominieren (13 Kategorien), plus Keywords, X/Twitter-Trends und KI-Einordnung |
+| **Umfragen** | Sonntagsfrage mit Trend-Verlauf und einer Karte der Grünen-Werte in den Bundesländern und Europa                        |
+| **Watcher**  | Medienbeobachtung speziell zu den Grünen mit Grünerator-Zusammenfassung und Risiko-Monitor                              |
+| **Feed**     | „Was passiert" — neue Inhalte aus grünen Quellen und Landesverbänden, tagesweise gruppiert mit KI-Tagesdigest           |
 
 ## Deutschland / Österreich wechseln
 
-Oben auf der Monitor-Seite findest du einen Umschalter zwischen **Deutschland** und **Österreich**. Die Zahl in Klammern zeigt, wie viele Artikel aus dem jeweiligen Land vorliegen. Beim Wechsel aktualisieren sich alle Tabs — Themenranking, Stimmung, Watcher und Keywords passen sich automatisch an die Nachrichtenlage des gewählten Landes an.
+Auf den Seiten **Watcher** und **Feed** findest du oben einen Umschalter zwischen **Deutschland** und **Österreich** — die Zahl in Klammern zeigt, wie viele Artikel aus dem jeweiligen Land vorliegen. Die **Umfragen**-Seite richtet sich automatisch nach dem Land in deinem Profil.
 
 :::info Quellen
 Die deutschen Quellen umfassen überregionale Tageszeitungen, Nachrichtenmagazine und öffentlich-rechtliche Medien. Die österreichischen Quellen beinhalten ORF, Der Standard, Die Presse, Kleine Zeitung, Kurier und weitere.

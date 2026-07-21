@@ -15,7 +15,11 @@
  * - `resume` delegates wholesale to ./services/resumePipeline.
  */
 
+import { promises as fsPromises } from 'node:fs';
+import nodePath from 'node:path';
+
 import { chatGraphContract } from '@gruenerator/contracts';
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
@@ -110,7 +114,11 @@ import {
   sseInternalError,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
-import { createMessage, touchThread } from './services/threadPersistenceService.js';
+import {
+  createMessage,
+  getLastGeneratedImageUrl,
+  touchThread,
+} from './services/threadPersistenceService.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -195,11 +203,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         memoryEnabled,
         contextWindowTokens,
+        mentionTokenFields,
+        lastUserTextRaw,
       } = ctxResult.ctx;
 
       const {
         agentId,
-        forcedTools,
+        forcedTools: bodyForcedTools,
         enabledTools,
         modelId,
         documentIds: rawDocumentIds,
@@ -214,11 +224,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         reelUpload: rawReelUpload,
       } = args.body;
 
+      // Durable mention tokens (parsed in streamContext) are the source of
+      // truth; legacy body forcedTools (older clients) union in. Regex edit
+      // heuristics below need the text with tokens fully removed — labels like
+      // "Bild generieren" would false-positive their noun patterns.
+      const mergedForcedTools = [
+        ...new Set([...(bodyForcedTools ?? []), ...mentionTokenFields.forcedTools]),
+      ];
+      const forcedTools = mergedForcedTools.length > 0 ? mergedForcedTools : undefined;
+      const lastUserTextNoMentions = sanitizeMentionTokens(lastUserTextRaw, 'remove');
+
       // === Stage 1: Classify ===
       const classifiedState = {
         ...initialState,
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
+      classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
 
       let forcedTool: boolean = false;
       log.info(
@@ -235,8 +256,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
 
         if (!classifiedState.searchQuery) {
-          const userText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-          classifiedState.searchQuery = extractCompoundTopic(userText, notebookIds);
+          // Remove-form: "@Label" fragments are self-referential query noise.
+          classifiedState.searchQuery = extractCompoundTopic(lastUserTextNoMentions, notebookIds);
           log.info(`[ChatGraph] Compound topic extracted: "${classifiedState.searchQuery}"`);
         }
 
@@ -275,7 +296,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
           lastUserMessage
         ) {
-          const userText = extractTextContent(lastUserMessage.content).trim();
+          const userText = lastUserTextNoMentions.trim();
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "abgeordnetenwatch" via @abgeordnetenwatch mention');
@@ -291,7 +312,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
           lastUserMessage
         ) {
-          const userText = extractTextContent(lastUserMessage.content).trim();
+          const userText = lastUserTextNoMentions.trim();
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
@@ -361,7 +382,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
             lastUserMessage
           ) {
-            const userText = extractTextContent(lastUserMessage.content).trim();
+            const userText = lastUserTextNoMentions.trim();
             if (userText) {
               classifiedState.searchQuery = userText;
               log.info(
@@ -383,6 +404,36 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
+      }
+
+      // image_edit without an attachment: rehydrate the thread's last generated
+      // image as the edit input ("mach es blauer" after a generation turn) —
+      // without this the edit node errors with "Bitte hänge ein Bild an".
+      // Only local flux results are eligible (strict path shape, no traversal).
+      if (
+        classifiedState.intent === 'image_edit' &&
+        imageAttachments.length === 0 &&
+        actualThreadId
+      ) {
+        const lastUrl = await getLastGeneratedImageUrl(actualThreadId).catch(() => null);
+        const m = lastUrl?.match(/^\/uploads\/(flux\/results\/[\w.-]+\/[\w.-]+)$/);
+        if (m?.[1]) {
+          try {
+            const filePath = nodePath.join(process.cwd(), 'uploads', m[1]);
+            const data = await fsPromises.readFile(filePath);
+            imageAttachments.push({
+              name: nodePath.basename(filePath),
+              type: 'image/jpeg',
+              data: data.toString('base64'),
+            });
+            classifiedState.imageAttachments = imageAttachments;
+            log.info('[ChatGraph] Rehydrated previous generated image for image_edit');
+          } catch (err) {
+            log.warn(
+              `[ChatGraph] Could not rehydrate previous image (${err instanceof Error ? err.message : err})`
+            );
+          }
+        }
       }
 
       // === Reel upload: composer-attached video → auto-transcription ===
@@ -427,7 +478,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const reelText = (extractTextContent(lastUserMessage.content) || '').trim();
+        const reelText = lastUserTextNoMentions.trim();
         const reelModeRelaxed = rawCurrentReel != null && !!reelText && hasReelEditVerb(reelText);
         if (reelText && (isReelEditInstruction(reelText) || reelModeRelaxed)) {
           const handled = await handleReelEdit({
@@ -543,7 +594,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !universalEditForced &&
         (rawCurrentSocialPost != null || rawCurrentSharepic == null)
       ) {
-        const editText = ((extractTextContent(lastUserMessage.content) as string) || '').trim();
+        const editText = lastUserTextNoMentions.trim();
         if (editText && isSocialTextEditInstruction(editText)) {
           const handled = await handleSocialPostTextEdit({
             sse,
@@ -578,9 +629,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const editText = ((extractTextContent(lastUserMessage.content) as string) || '')
-          .replace(/@sharepic\b/gi, ' ')
-          .trim();
+        const editText = lastUserTextNoMentions.replace(/@sharepic\b/gi, ' ').trim();
         // With an explicitly activated sharepic (Sharepic-Modus) AND the tool
         // loop on, an edit verb alone is enough — the loop can answer with
         // plain text when the message turns out not to be sharepic-related,
@@ -637,7 +686,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.intent !== 'image_edit' &&
         !universalEditForced
       ) {
-        const followText = (extractTextContent(lastUserMessage.content) as string) || '';
+        const followText = lastUserTextNoMentions;
         if (isSharepicRefinement(followText)) {
           const prior = await getLastSharepicVariant(actualThreadId);
           if (prior) {
@@ -766,6 +815,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (
         classifiedState.intent === 'modify_board' &&
         (!rawBoardIds || rawBoardIds.length === 0) &&
+        mentionTokenFields.boardIds.length === 0 &&
         !rawCurrentBoard &&
         !forcedTool
       ) {
@@ -1212,7 +1262,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Unlike the generic clarification above this fires even for forced @sharepic,
       // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
       if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
-        const sharepicText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const sharepicText = lastUserTextNoMentions;
         if (isSharepicTopicMissing(sharepicText as string)) {
           log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
 

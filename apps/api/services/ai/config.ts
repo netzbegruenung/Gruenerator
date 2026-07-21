@@ -20,7 +20,6 @@ export interface GenerationOptions {
   temperature?: number | undefined;
   maxTokens?: number | undefined;
   topP?: number | undefined;
-  useProMode?: boolean | undefined;
 }
 
 /**
@@ -238,22 +237,4 @@ export function getGenerationConfig(options: GenerationOptions): GenerationConfi
     maxTokens: determineMaxTokens(options),
     topP: determineTopP(options),
   };
-}
-
-/**
- * Apply Pro Mode adjustments to generation config
- * Pro Mode uses reasoning-enabled models with higher token limits
- */
-export function applyProModeConfig(
-  config: GenerationConfig,
-  model: string
-): GenerationConfig & { promptMode?: string } {
-  if (model.includes('gpt-oss')) {
-    return {
-      ...config,
-      maxTokens: Math.max(config.maxTokens, 6000),
-      promptMode: 'reasoning',
-    };
-  }
-  return config;
 }

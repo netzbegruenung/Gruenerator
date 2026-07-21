@@ -114,7 +114,6 @@ export interface AIRequestData {
   fileMetadata?: FileMetadata | undefined;
   instructions?: string | undefined;
   provider?: ProviderName | string | undefined;
-  usePrivacyMode?: boolean | undefined;
   platforms?: string[] | undefined;
   documents?: DocumentReference[] | undefined;
   tools?: Tool[] | undefined;
