@@ -18,6 +18,10 @@ Im Modus **Automatisch** wählt der Grünerator das passende Modell für deine j
 
 **🌳 GPT-OSS** – Das schnellste Modell. Vollständig quelloffen und selbst gehostet auf europäischen Servern – ideal, wenn du Wert auf maximale Datensouveränität legst.
 
+:::info Bildmodelle
+Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern.
+:::
+
 ## Datenschutz
 
 Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:

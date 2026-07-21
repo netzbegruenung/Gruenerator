@@ -6,7 +6,7 @@ sidebar_position: 1
 
 Die Agentura ist der Marktplatz für alle Assistent\*innen und Skills im Grünerator. Hier findest du an einem Ort alle verfügbaren Agent\*innen — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen.
 
-Du erreichst die Agentura über den Menüpunkt **Agentura** in der Seitenleiste oder direkt unter `/agentura`. Die alten Adressen `/agents` und `/skills` leiten automatisch dorthin weiter.
+Du erreichst die Agentura über den Menüpunkt **Grüneratoren** in der Seitenleiste oder direkt unter `/agentura`. Die alten Adressen `/agents` und `/skills` leiten automatisch dorthin weiter.
 
 ## Agent\*innen und Skills
 
@@ -24,15 +24,14 @@ Eine Faustregel: Ein\*e **Agent\*in** ist eine eigenständige Gesprächspartner\
 Die Startseite der Agentura ist wie ein Marktladen aufgebaut:
 
 - **Empfohlen** — ein hervorgehobenes Regal mit ausgewählten Agent\*innen und Skills zum Einstieg.
-- **Gänge (Regal-Navigation)** — die Inhalte sind in thematische Abschnitte sortiert, jeweils mit Anzahl. Am Desktop bleibt die Gang-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons.
+- **Gänge (Regal-Navigation)** — die Inhalte sind in thematische Abschnitte sortiert, jeweils mit Anzahl (u. a. **Meine Grüneratoren** und **Wiederkehrende Aufgaben**). Am Desktop bleibt die Gang-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons.
 - **Suche** — über das Suchfeld findest du Agent\*innen und Skills nach Name oder Beschreibung.
-- **Sortieren** — Empfohlen, A–Z oder Favoriten zuerst.
-- **Filtern** — Alle, nur Agent\*innen oder nur Skills.
+- **Sortieren** — Empfohlen oder A–Z.
 
 Auf den Karten der Agent\*innen siehst du außerdem **Fähigkeits-Hinweise**: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind.
 
 :::tip Teilbare Ansichten
-Suche, Sortierung und Filter werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen.
+Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen.
 :::
 
 ## Detailseiten
