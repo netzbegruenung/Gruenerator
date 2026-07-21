@@ -262,7 +262,15 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   // ── Processing: auto pipeline ─────────────────────────────────────────────
 
   postProcessAuto: async (args) => {
-    const { uploadId, locale = 'de-DE', maxResolution = null, userId = null } = args.body;
+    const { uploadId, maxResolution = null, userId = null } = args.body;
+    // The authenticated user's saved locale is the source of truth. The client
+    // body historically hardcoded 'de-DE', which forced AT users onto the German
+    // subtitle style; resolve server-side (user profile → header → default).
+    const bodyLocale = args.body.locale;
+    const locale = extractLocaleFromRequest(args.req);
+    log.info(
+      `[process-auto] uploadId=${uploadId} bodyLocale=${bodyLocale ?? 'none'} resolvedLocale=${locale} userId=${userId ?? 'none'}`
+    );
     try {
       const videoPath = getFilePathFromUploadId(uploadId);
       if (!(await checkFileExists(videoPath))) {
