@@ -38,11 +38,12 @@ Für diese Landesverbände gibt es eigene Skill-Abkürzungen für **Pressemittei
 | Landesverband          | Pressemitteilung      | Instagram            |
 | ---------------------- | --------------------- | -------------------- |
 | Berlin                 | `/presse-berlin`      | `/insta-berlin`      |
-| Hamburg                | `/presse-hamburg`     | `/insta-hamburg`     |
 | Mecklenburg-Vorpommern | `/presse-mv`          | `/insta-mv`          |
 | Thüringen              | `/presse-thueringen`  | `/insta-thueringen`  |
 | Brandenburg            | `/presse-brandenburg` | `/insta-brandenburg` |
 | Bayern                 | `/presse-bayern`      | `/insta-bayern`      |
+
+Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Skill-Abkürzungen — ihre Agents erreichst du über die jeweilige Landesverband-Seite.
 
 :::tip Allgemeine Skills für alle Kanäle
 Unabhängig vom Landesverband gibt es allgemeine Skills für jede Plattform: `/presse`, `/instagram`, `/facebook`, `/twitter`, `/linkedin` und `/reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Skills oben sind die Spezialversion mit eingebautem Regional-Stil.
@@ -52,7 +53,7 @@ Unabhängig vom Landesverband gibt es allgemeine Skills für jede Plattform: `/p
 
 Die Bürger\*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger\*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine **versandfertige Antwort-E-Mail** nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links.
 
-Du erreichst sie über die Landesverband-Seite (z. B. `/agents/gruene-berlin`) — dort wählst du den **Bürger\*innenservice** statt der Öffentlichkeitsarbeit. Für eine allgemeine, nicht LV-gebundene Variante gibt es außerdem die Skill `/bürgerservice`.
+Du erreichst sie über die Landesverband-Seite (z. B. `/agents/gruene-berlin`) — dort wählst du den **Bürger\*innenservice** statt der Öffentlichkeitsarbeit.
 
 ## Die Wissensdatenbank dahinter
 
@@ -61,6 +62,6 @@ Jeder Landesverband hat ein **Notebook** — eine durchsuchbare Sammlung seiner 
 Du kannst dasselbe Notebook auch direkt nutzen:
 
 - **Aufrufen & durchstöbern:** über seine Adresse, z. B. `/notebooks/berlin`.
-- **Im Chat als Quelle einbinden:** tippe die `@`-Erwähnung, z. B. `@berlin`, `@hamburg`, `@mv`, `@thüringen`, `@brandenburg` oder `@bayern`. Der Chat zieht dann seine Antworten aus diesem Notebook.
+- **Im Chat als Quelle einbinden:** tippe die `@`-Erwähnung, z. B. `@berlin`, `@mv`, `@thüringen`, `@brandenburg`, `@bayern`, `@sachsen-anhalt`, `@hessen` oder `@saar`. Der Chat zieht dann seine Antworten aus diesem Notebook.
 
 Mehr zu Notebooks allgemein findest du unter [Notebooks](/docs/notebooks/eigenes-notebook-erstellen).
