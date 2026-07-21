@@ -103,25 +103,25 @@ describe('AIService', () => {
   });
 
   it('uses explicit provider when specified', async () => {
-    const data = makeRequest({ provider: 'ionos' });
+    const data = makeRequest({ provider: 'regolo' });
     await service.processRequest(data);
 
     expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'ionos',
+      'regolo',
       expect.stringMatching(/^req_/),
-      expect.objectContaining({ provider: 'ionos' })
+      expect.objectContaining({ provider: 'regolo' })
     );
   });
 
-  it('routes ultra mode to IONOS', async () => {
+  it('routes ultra mode to LiteLLM', async () => {
     const data = makeRequest({ options: { useUltraMode: true } });
     await service.processRequest(data);
 
     expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'ionos',
+      'litellm',
       expect.any(String),
       expect.objectContaining({
-        options: expect.objectContaining({ model: 'openai/gpt-oss-120b' }),
+        options: expect.objectContaining({ model: 'verdigado-pro' }),
       })
     );
   });

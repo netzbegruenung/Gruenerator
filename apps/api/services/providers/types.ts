@@ -1,6 +1,6 @@
 // Shared types for provider system
 
-export type ProviderName = 'ionos' | 'litellm' | 'mistral' | 'regolo';
+export type ProviderName = 'litellm' | 'mistral' | 'regolo';
 
 export type ModelName = string;
 

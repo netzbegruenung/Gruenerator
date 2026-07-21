@@ -18,8 +18,6 @@ import type {
  */
 export function isProviderAvailable(provider: ProviderName): boolean {
   switch (provider) {
-    case 'ionos':
-      return !!env.IONOS_API_TOKEN;
     case 'litellm':
       return !!env.LITELLM_API_KEY;
     case 'mistral':
@@ -36,8 +34,6 @@ export function isProviderAvailable(provider: ProviderName): boolean {
  */
 export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
   switch (provider) {
-    case 'ionos':
-      return 'openai/gpt-oss-120b';
     case 'litellm':
       return 'verdigado-pro';
     case 'mistral':
@@ -56,8 +52,6 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
   switch (provider) {
     case 'mistral':
       return 'mistral-medium-2604';
-    case 'ionos':
-      return 'openai/gpt-oss-120b';
     case 'litellm':
       return 'verdigado-pro';
     case 'regolo':
@@ -68,9 +62,9 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
 }
 
 /**
- * Sharepic-specific fallback chain: Mistral (Magistral) → IONOS → LiteLLM
+ * Sharepic-specific fallback chain: Mistral (Magistral) → LiteLLM → Regolo
  */
-export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'ionos', 'litellm'];
+export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'litellm', 'regolo'];
 
 /**
  * Try privacy-friendly providers in order, using a caller-supplied executor.
@@ -79,7 +73,7 @@ export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'ionos', 'lit
  * @param execForProvider - Async function that executes the request for a given provider
  * @param requestId - Request ID for logging
  * @param data - Request data to be passed to executor
- * @param chain - Provider chain to try in order (default: LiteLLM → Mistral → IONOS)
+ * @param chain - Provider chain to try in order (default: LiteLLM → Regolo → Mistral)
  * @throws {Error} When no providers are configured or all providers fail
  * @returns The successful response from the first working provider
  */
@@ -87,7 +81,7 @@ export async function tryPrivacyModeProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
   data: PrivacyProviderData,
-  chain: ProviderName[] = ['litellm', 'regolo', 'mistral', 'ionos']
+  chain: ProviderName[] = ['litellm', 'regolo', 'mistral']
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
   const attemptedProviders: ProviderName[] = [];
@@ -132,7 +126,7 @@ export async function tryPrivacyModeProviders(
 
   if (attemptedProviders.length === 0) {
     throw new Error(
-      'No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or IONOS_API_TOKEN'
+      'No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or REGOLO_API_KEY'
     );
   }
 
@@ -144,7 +138,7 @@ export async function tryPrivacyModeProviders(
 
 /**
  * Sharepic-specific fallback with higher quality models.
- * Uses Magistral → IONOS → LiteLLM chain.
+ * Uses Magistral → LiteLLM → Regolo chain.
  */
 export async function trySharepicFallbackProviders(
   execForProvider: ProviderExecutor,

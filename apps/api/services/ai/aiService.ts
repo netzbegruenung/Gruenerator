@@ -118,8 +118,8 @@ class AIService implements AIWorkerPool {
       }
 
       if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
-        effectiveOptions.model = 'openai/gpt-oss-120b';
-        result = await providers.executeProvider('ionos', requestId, {
+        effectiveOptions.model = 'verdigado-pro';
+        result = await providers.executeProvider('litellm', requestId, {
           ...data,
           options: effectiveOptions,
         });
@@ -128,11 +128,6 @@ class AIService implements AIWorkerPool {
         // configurable via env). Falls back to mistral if selector didn't pick one.
         const proProvider = selection.provider || 'mistral';
         result = await providers.executeProvider(proProvider, requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && selection.provider === 'ionos' && !explicitProvider) {
-        result = await providers.executeProvider('ionos', requestId, {
           ...data,
           options: effectiveOptions,
         });
