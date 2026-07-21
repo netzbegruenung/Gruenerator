@@ -36,7 +36,7 @@ Nachdem der Link erstellt wurde, stelle sicher, dass unter „Link teilen" die B
 
 ### Schritt 4: Link kopieren und verwenden
 
-Der öffentliche Link wurde erstellt! Kopiere den Link und füge ihn im Grünerator unter Profil → Wolke ein. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj
+Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter **Profil → Wolke** ein **Einrichtungs-Assistent** Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj
 
 ## Wichtige Hinweise
 

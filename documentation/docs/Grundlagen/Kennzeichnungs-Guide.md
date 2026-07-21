@@ -29,7 +29,7 @@ Da wir dies beim Grünerator ohnehin **immer tun**, empfehle ich, zumindest bei 
 ### Bilder und Videos immer kennzeichnen
 
 KI-generierte oder mit KI bearbeitete Bilder und Videos müssen **immer gekennzeichnet** werden.
-Bei Bildern fügt der Grünerator diese Kennzeichnung automatisch hinzu.
+Bei Bildern fügt der Grünerator die Kennzeichnung **standardmäßig** hinzu („KI-Generiert mit dem Grünerator" oder kurz „KI-Generiert"). Du kannst sie im Bild-Editor zwar abwählen — dann bist du aber **selbst** dafür verantwortlich, das Bild bei der Veröffentlichung als KI-generiert zu kennzeichnen.
 
 ## Präzise Kennzeichnung
 
