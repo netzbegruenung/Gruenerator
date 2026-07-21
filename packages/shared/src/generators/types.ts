@@ -40,10 +40,6 @@ export type TextImproverAction =
 // Feature toggles shared across all generators
 export interface GeneratorFeatures {
   useWebSearchTool?: boolean;
-  usePrivacyMode?: boolean;
-  useProMode?: boolean;
-  useUltraMode?: boolean;
-  useBedrock?: boolean;
 }
 
 // File attachment
@@ -135,7 +131,6 @@ export interface ValidationResult {
 export interface AltTextRequest {
   imageBase64: string;
   imageDescription?: string;
-  usePrivacyMode?: boolean;
 }
 
 // Alt-Text generator response

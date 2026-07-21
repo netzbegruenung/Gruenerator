@@ -5,11 +5,7 @@
 
 import { generateText, type ModelMessage } from 'ai';
 
-import {
-  getGenerationConfig,
-  applyProModeConfig,
-  type GenerationOptions,
-} from '../../services/ai/config.js';
+import { getGenerationConfig, type GenerationOptions } from '../../services/ai/config.js';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
@@ -236,15 +232,9 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     temperature: options.temperature,
     maxTokens: options.max_tokens,
     topP: options.top_p,
-    useProMode: options.useProMode,
   };
 
   let config = getGenerationConfig(generationOptions);
-
-  // Apply Pro Mode adjustments for reasoning models
-  if (options.useProMode) {
-    config = applyProModeConfig(config, model);
-  }
 
   // Mistral requires top_p=1 when temperature=0 (greedy sampling)
   if (config.temperature === 0 && config.topP !== 1) {

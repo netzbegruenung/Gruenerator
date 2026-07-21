@@ -62,7 +62,6 @@ export async function generatePlatformContent(
     const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
       {
         type: 'social',
-        usePrivacyMode: request.usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {
