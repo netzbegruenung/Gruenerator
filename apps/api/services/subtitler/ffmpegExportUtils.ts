@@ -25,7 +25,6 @@ interface AudioCodecSettings {
 interface FFmpegOutputParams {
   metadata: VideoMetadata;
   fileStats: FileStats;
-  useHwAccel: boolean;
   includeTune?: boolean;
 }
 
@@ -40,7 +39,6 @@ interface VideoFilterParams {
   assFilePath: string | null;
   tempFontPath: string | null;
   scaleFilter: string | null;
-  useHwAccel: boolean;
 }
 
 function calculateScaleFilter(
@@ -89,7 +87,7 @@ function getAudioCodecSettings(
 }
 
 function buildFFmpegOutputOptions(params: FFmpegOutputParams): FFmpegOutputResult {
-  const { metadata, fileStats, useHwAccel, includeTune = true } = params;
+  const { metadata, fileStats, includeTune = true } = params;
 
   const isVertical = metadata.width < metadata.height;
   const referenceDimension = isVertical ? metadata.width : metadata.height;
@@ -103,84 +101,57 @@ function buildFFmpegOutputOptions(params: FFmpegOutputParams): FFmpegOutputResul
   const is4K = referenceDimension >= 2160;
   const isHevcSource = metadata.originalFormat?.codec === 'hevc';
 
-  let videoCodec: string;
-  let outputOptions: string[];
-  let inputOptions: string[] = [];
+  const videoCodec = isLarge ? 'libx264' : is4K && isHevcSource ? 'libx265' : 'libx264';
 
-  if (useHwAccel) {
-    videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-    const qp = hwaccel.crfToQp(crf);
-    inputOptions = hwaccel.getVaapiInputOptions();
+  const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
+  let bitrateOptions: string[] = [];
 
-    outputOptions = [
-      '-y',
-      ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-      '-c:a',
-      audioCodec,
-      ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-      '-movflags',
-      '+faststart',
-      '-avoid_negative_ts',
-      'make_zero',
+  if (originalVideoBitrate && originalVideoBitrate > 0) {
+    const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
+    const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
+    const bufSize = Math.ceil(originalVideoBitrate * 2);
+    bitrateOptions = [
+      '-b:v',
+      targetBitrate.toString(),
+      '-maxrate',
+      maxBitrate.toString(),
+      '-bufsize',
+      bufSize.toString(),
     ];
   } else {
-    videoCodec = isLarge ? 'libx264' : is4K && isHevcSource ? 'libx265' : 'libx264';
-
-    const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
-    let bitrateOptions: string[] = [];
-
-    if (originalVideoBitrate && originalVideoBitrate > 0) {
-      const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
-      const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
-      const bufSize = Math.ceil(originalVideoBitrate * 2);
-      bitrateOptions = [
-        '-b:v',
-        targetBitrate.toString(),
-        '-maxrate',
-        maxBitrate.toString(),
-        '-bufsize',
-        bufSize.toString(),
-      ];
-    } else {
-      bitrateOptions = ['-crf', crf.toString()];
-    }
-
-    outputOptions = [
-      '-y',
-      '-c:v',
-      videoCodec,
-      '-preset',
-      preset,
-      ...bitrateOptions,
-      ...(includeTune && videoCodec === 'libx264' ? ['-tune', 'film'] : []),
-      '-profile:v',
-      isLarge ? 'main' : videoCodec === 'libx264' ? 'high' : 'main',
-      '-level',
-      videoCodec === 'libx264' ? '4.1' : '4.0',
-      '-c:a',
-      audioCodec,
-      ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-      '-movflags',
-      '+faststart',
-      '-avoid_negative_ts',
-      'make_zero',
-    ];
-
-    if (videoCodec === 'libx264') {
-      outputOptions.push(...hwaccel.getX264QualityParams());
-    }
+    bitrateOptions = ['-crf', crf.toString()];
   }
 
-  return { outputOptions, videoCodec, inputOptions, qualitySettings };
+  const outputOptions = [
+    '-y',
+    '-c:v',
+    videoCodec,
+    '-preset',
+    preset,
+    ...bitrateOptions,
+    ...(includeTune && videoCodec === 'libx264' ? ['-tune', 'film'] : []),
+    '-profile:v',
+    isLarge ? 'main' : videoCodec === 'libx264' ? 'high' : 'main',
+    '-level',
+    videoCodec === 'libx264' ? '4.1' : '4.0',
+    '-c:a',
+    audioCodec,
+    ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+    '-movflags',
+    '+faststart',
+    '-avoid_negative_ts',
+    'make_zero',
+  ];
+
+  if (videoCodec === 'libx264') {
+    outputOptions.push(...hwaccel.getX264QualityParams());
+  }
+
+  return { outputOptions, videoCodec, inputOptions: [], qualitySettings };
 }
 
 function buildVideoFilters(params: VideoFilterParams): string[] {
-  const { assFilePath, tempFontPath, scaleFilter, useHwAccel } = params;
-
-  if (useHwAccel) {
-    const fontDir = assFilePath ? path.dirname(tempFontPath || assFilePath) : null;
-    return [hwaccel.getSubtitleFilterChain(assFilePath, fontDir, scaleFilter)];
-  }
+  const { assFilePath, tempFontPath, scaleFilter } = params;
 
   const videoFilters: string[] = [];
 

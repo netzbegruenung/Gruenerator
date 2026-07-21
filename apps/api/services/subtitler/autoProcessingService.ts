@@ -25,7 +25,6 @@ import {
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
-import * as hwaccel from './hwaccelUtils.js';
 import { autoSaveProject } from './projectSavingService.js';
 import { transcribeVideo } from './transcriptionService.js';
 
@@ -482,7 +481,6 @@ async function exportWithEnhancements(
     );
   }
 
-  const useHwAccel = await hwaccel.detectVaapi();
   const hasAudio = metadata.originalFormat?.audioCodec != null;
   const originalFormatObj = metadata.originalFormat
     ? {
@@ -514,7 +512,6 @@ async function exportWithEnhancements(
   const { outputOptions: baseOutputOptions, inputOptions } = buildFFmpegOutputOptions({
     metadata: compatibleMetadata,
     fileStats,
-    useHwAccel,
     includeTune: false,
   });
 
@@ -522,7 +519,6 @@ async function exportWithEnhancements(
     assFilePath,
     tempFontPath,
     scaleFilter,
-    useHwAccel,
   });
 
   await ffmpegPool.run(async () => {
