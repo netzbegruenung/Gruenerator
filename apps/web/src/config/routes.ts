@@ -133,6 +133,7 @@ const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
+const OAuthConsentPage = lazy(() => import('../features/auth/pages/OAuthConsentPage'));
 const SettingsRedirect = lazy(() => import('../features/settings/SettingsRedirect'));
 const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
 
@@ -549,6 +550,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/ki-transparenz', component: KITransparenz, public: true },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage, public: true },
+  // OAuth consent for the MCP authorization server (authorize guarantees a session)
+  { path: '/oauth/consent', component: OAuthConsentPage, layoutMode: 'noChrome' },
   { path: '/register', component: RegistrationPage, public: true },
   // Settings live in a global dialog; these routes only open it (deep links).
   // /profile/* are legacy aliases — old links keep resolving via the same stub.
@@ -570,11 +573,7 @@ const standardRoutes: RouteConfig[] = [
     path: '/chat/settings',
     component: lazy(() => Promise.resolve({ default: createRedirect('/settings') })),
   },
-  // Bare /chat now lives in the Workplace chat tab; keep the path as a redirect.
-  {
-    path: '/chat',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
-  },
+  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
   // Thread deep links (Notion-style slug, suffix is the stable key). React
   // Router ranks the static /chat/settings above this dynamic segment.
   { path: '/chat/:threadSlug', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },

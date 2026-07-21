@@ -24,7 +24,14 @@ export function openOAuthPopup(): Window | null {
   return window.open('about:blank', 'gruenerator-mcp-oauth', 'width=600,height=760');
 }
 
-export function waitForOAuthPopup(popup: Window): Promise<McpOAuthResult> {
+export function waitForOAuthPopup(
+  popup: Window,
+  // Backend truth probe ("is the server authorized by now?"). Providers whose
+  // login pages send Cross-Origin-Opener-Policy sever window.opener — the
+  // callback page then can't postMessage us, so without this fallback a
+  // completed authorization would look stale/dismissed.
+  isAuthorized?: () => Promise<boolean>
+): Promise<McpOAuthResult> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (result: McpOAuthResult) => {
@@ -32,6 +39,7 @@ export function waitForOAuthPopup(popup: Window): Promise<McpOAuthResult> {
       settled = true;
       window.removeEventListener('message', onMessage);
       clearInterval(poll);
+      if (authPoll !== null) clearInterval(authPoll);
       resolve(result);
     };
 
@@ -47,10 +55,35 @@ export function waitForOAuthPopup(popup: Window): Promise<McpOAuthResult> {
     };
     window.addEventListener('message', onMessage);
 
+    const authPoll = isAuthorized
+      ? window.setInterval(() => {
+          isAuthorized()
+            .then((ok) => {
+              if (!ok || settled) return;
+              try {
+                popup.close();
+              } catch {
+                // COOP-swapped popups may refuse close(); harmless.
+              }
+              finish({ status: 'success' });
+            })
+            .catch(() => {});
+        }, 2500)
+      : null;
+
     // Cross-origin-navigated popups often can't be `.close()`d by us; poll for
-    // the user dismissing it so we don't hang forever.
+    // the user dismissing it so we don't hang forever. Before reporting
+    // "dismissed", check the backend once — the auth may have completed without
+    // the postMessage ever reaching us.
     const poll = window.setInterval(() => {
-      if (popup.closed) finish({ status: 'dismissed' });
+      if (!popup.closed) return;
+      if (!isAuthorized) {
+        finish({ status: 'dismissed' });
+        return;
+      }
+      isAuthorized()
+        .then((ok) => finish(ok ? { status: 'success' } : { status: 'dismissed' }))
+        .catch(() => finish({ status: 'dismissed' }));
     }, 800);
   });
 }

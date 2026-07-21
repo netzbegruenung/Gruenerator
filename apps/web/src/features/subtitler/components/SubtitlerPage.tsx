@@ -132,7 +132,7 @@ const SubtitlerPage = (): React.ReactElement => {
 
   const { status: exportStatus, exportToken, resetExport } = useSubtitlerExportStore();
 
-  const { user } = useAuthStore();
+  const { user, locale } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // User-initiated step transitions push a new history entry. The
@@ -421,7 +421,7 @@ const SubtitlerPage = (): React.ReactElement => {
     async (uploadId: string): Promise<void> => {
       try {
         const res = await getContractsClient().subtitler.postProcessAuto({
-          body: { uploadId, locale: 'de-DE', userId: user?.id || null },
+          body: { uploadId, locale, userId: user?.id || null },
         });
         if (res.status === 202) {
           console.log('[SubtitlerPage] Auto processing started for:', uploadId);
@@ -441,7 +441,7 @@ const SubtitlerPage = (): React.ReactElement => {
         goToStep('upload');
       }
     },
-    [user?.id, goToStep]
+    [user?.id, locale, goToStep]
   );
 
   // Handler for automatic processing completion

@@ -10,6 +10,11 @@
 import { SKILLS } from '@gruenerator/shared/agents';
 
 import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
+import {
+  buildCompactProductIdentity,
+  buildProductKnowledgeBlock,
+  isProductMetaQuestion,
+} from '../../../../services/chat/productKnowledge.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -19,6 +24,7 @@ import { isSourceAvailabilityError } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
+import { lastUserText } from './classifierHeuristics.js';
 
 import type {
   ChatGraphState,
@@ -1041,6 +1047,26 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     ? `\n\n## PERSÖNLICHE ANWEISUNGEN\n\nDer*die Nutzer*in hat folgendes Profil hinterlegt:\n\n${state.userInstructions}\n\nBefolge diese Anweisungen bei allen Antworten.`
     : `\n\n## NUTZERKONTEXT\n\nDer*die Nutzer*in hat keine Rolle oder Funktion angegeben. Unterstelle, erfinde oder nenne KEINE konkrete Rolle, Funktion, Gliederung oder Region (z.B. „Landesgeschäftsstelle", „MdL-Büro", Bundesländer). Stelle dich neutral vor und biete allgemeine Unterstützung an oder frage nach, was gebraucht wird.`;
 
+  // Product self-knowledge: compact identity always on the neutral-free agent
+  // path, detailed block only on product meta questions ("was kannst du",
+  // "welche MCP-Server kennst du"). Both single-pass paths that CHITCHAT_RE
+  // keeps out of the loop and loop turns (which inherit systemMessage) get it.
+  // Excluded from the customSystemPrompt branch below — that prompt replaces
+  // the ENTIRE persona, and forcing the Grünerator identity into it would
+  // override user-defined neutral/off-brand personas.
+  const isNeutralTurn = intent === 'summary';
+  const userQuestion = lastUserText(state);
+  const productIdentity = isNeutralTurn ? '' : buildCompactProductIdentity(state.userLocale);
+  let productKnowledge = '';
+  if (!isNeutralTurn && isProductMetaQuestion(userQuestion)) {
+    productKnowledge = await buildProductKnowledgeBlock({
+      locale: state.userLocale,
+      userId: state.agentConfig?.userId ?? null,
+      question: userQuestion,
+    });
+    log.debug('[Respond] product-knowledge block attached');
+  }
+
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
@@ -1052,7 +1078,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
     'Du bist ein hilfreicher Assistent, der Dokumente objektiv und neutral zusammenfasst. ' +
     'Deine Zusammenfassungen sind sachlich, unparteiisch und geben den Inhalt des Dokuments ' +
     'korrekt wieder — unabhängig vom politischen Kontext.';
-  const rawSystemRole = intent === 'summary' ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
+  const rawSystemRole = isNeutralTurn ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   // Active-skill prompt fragment: appended only when the user's chat composer
@@ -1072,11 +1098,12 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
   // fresh real examples) auto-refreshed from the agent's own corpus. No-op for
   // non-PR agents, for `summary` (neutral role), or when the kill-switch is set.
   // See services/agents/prAgentInsightService.ts.
-  const insightsFragment =
-    intent === 'summary' ? '' : await getPrAgentInsightFragment(agentConfig.identifier);
+  const insightsFragment = isNeutralTurn
+    ? ''
+    : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
