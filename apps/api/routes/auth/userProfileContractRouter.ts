@@ -17,6 +17,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 
 import { auth } from '../../config/betterAuth.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
+import { setUserLocale } from '../../services/localization/localeCache.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -319,6 +320,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const { locale } = args.body;
 
       await profileService.updateProfile(user.id, { locale });
+
+      // Write through the DB-backed locale cache the auth middleware reads from,
+      // so the change is visible on the very next request across all workers.
+      await setUserLocale(user.id, locale);
 
       // Keep the in-memory user for the rest of this request consistent...
       const sessionUser = args.req.user as UserProfile | undefined;
