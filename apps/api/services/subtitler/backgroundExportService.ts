@@ -18,7 +18,6 @@ import {
 } from './ffmpegExportUtils.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg } from './ffmpegWrapper.js';
-import * as hwaccel from './hwaccelUtils.js';
 import { saveToExistingProject, autoSaveProject } from './projectSavingService.js';
 
 const fsPromises = fs.promises;
@@ -181,13 +180,11 @@ export async function processVideoExportInBackground(
       log.debug('Using pre-generated ASS file from export endpoint');
     }
 
-    const useHwAccel = await hwaccel.detectVaapi();
     const scaleFilter = calculateScaleFilter(metadata, maxResolution);
 
     const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
       metadata,
       fileStats,
-      useHwAccel,
       includeTune: true,
     });
 
@@ -195,7 +192,6 @@ export async function processVideoExportInBackground(
       assFilePath,
       tempFontPath,
       scaleFilter,
-      useHwAccel,
     });
 
     await ffmpegPool.run(async () => {
