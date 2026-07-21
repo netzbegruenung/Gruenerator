@@ -1,6 +1,66 @@
 import { describe, it, expect } from 'vitest';
 
-import { AVAILABLE_MODELS, getContextWindow, getModelConfig } from './providers.js';
+import {
+  AVAILABLE_MODELS,
+  getContextWindow,
+  loopSynthChoice,
+  getModelConfig,
+  loopPlannerModelName,
+  prefersUnifiedLoop,
+} from './providers.js';
+
+const WRITER_MODELS = new Set(['gemma4-31b', 'verdigado-pro']);
+
+describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
+  it('Mistral (fast native tool-caller) runs the unified single-model loop', () => {
+    expect(prefersUnifiedLoop('mistral', 'mistral-medium-2604')).toBe(true);
+  });
+  it('every other provider runs the split (planner does tools, selection writes)', () => {
+    expect(prefersUnifiedLoop('litellm', 'verdigado-think')).toBe(false);
+    expect(prefersUnifiedLoop('litellm', 'verdigado-pro')).toBe(false);
+    expect(prefersUnifiedLoop('regolo', 'gemma4-31b')).toBe(false);
+    expect(prefersUnifiedLoop('regolo', 'gpt-oss-120b')).toBe(false);
+    expect(prefersUnifiedLoop('regolo', 'qwen3.5-122b')).toBe(false);
+  });
+});
+
+describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
+  it('planner is a verified NON-Chinese tool-caller', () => {
+    // Native Mistral Small (fast tool-caller) when configured, else
+    // litellm/verdigado-pro. Never qwen (Chinese), gpt-oss (tool-call fail) or a
+    // think model.
+    const planner = loopPlannerModelName();
+    expect(['verdigado-pro', 'mistral-small-latest', 'mistral-medium-2604']).toContain(planner);
+  });
+
+  it('auto selection writes with the best writer, NEVER a think model', () => {
+    const choice = loopSynthChoice('verdigado-think', true);
+    expect(choice.provider).not.toBeNull();
+    expect(WRITER_MODELS.has(choice.model)).toBe(true);
+    expect(choice.model).not.toBe('verdigado-think');
+  });
+
+  it('a think-lane selection is ALSO rewritten to a fast writer (latency fix)', () => {
+    // The user picking the gemma-4 lane resolves to verdigado-think as primary;
+    // synthesis must not run on the reasoning model even though it isn't "auto".
+    const choice = loopSynthChoice('verdigado-think', false);
+    expect(choice.provider).not.toBeNull();
+    expect(choice.model).not.toBe('verdigado-think');
+    expect(WRITER_MODELS.has(choice.model)).toBe(true);
+  });
+
+  it('an explicit fast model selection is honored verbatim (no swap)', () => {
+    const choice = loopSynthChoice('verdigado-pro', false);
+    expect(choice.provider).toBeNull();
+    expect(choice.model).toBe('verdigado-pro');
+  });
+
+  it('never routes a Chinese model into the synth slot', () => {
+    for (const isAuto of [true, false]) {
+      expect(loopSynthChoice('qwen3.5-122b', isAuto).model).not.toMatch(/qwen/);
+    }
+  });
+});
 
 describe('AVAILABLE_MODELS', () => {
   it('all entries have contextWindow field', () => {

@@ -11,10 +11,116 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
 
-import type { SearchIntent, ClassificationResult } from '../types.js';
+import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('ChatGraph:Classifier');
+
+// ── Combined social post (EXPERIMENTAL) ─────────────────────────────────────
+// Shared by the heuristic fast-path and the classifier's dedicated branches so
+// escape hatches and platform detection can't drift between tiers.
+
+/**
+ * "nur den Text" / "ohne Sharepic" / "nur der Wortlaut" — user wants the caption
+ * only. Compound "-text" nouns ("Posttext", "Beitragstext", "Social-Media-Text")
+ * and `wortlaut`/`bildunterschrift` are unambiguously text-only, so they escape
+ * even without a "nur"; a bare "Text" stays combined (it often means the post's
+ * text, not text-instead-of-graphic) and needs a "nur"/"reine" qualifier.
+ */
+export const SOCIAL_TEXT_ONLY_PATTERN =
+  /\b(nur|bloß|bloss|lediglich|reine[rn]?)\s+(den\s+|einen\s+|die\s+)?(post-?|caption-?)?(text|wortlaut|caption)\b|\b(post|beitrag|social[-\s]?media|caption)s{0,2}[-\s]?text\b|\b(wortlaut|bildunterschrift)\b|\bohne\s+(sharepic|grafik|bild)\b/i;
+
+/** "nur ein Sharepic" / "ohne Text" — user wants the graphic only. */
+export const SHAREPIC_ONLY_PATTERN =
+  /\bnur\s+(ein\s+)?(sharepic|spruchbild|zitatbild|grafik)\b|\bohne\s+(post-?|caption-?)?text\b/i;
+
+/** Explicit sharepic wording keeps routing to the shipped sharepic-only flow. */
+export const SHAREPIC_NOUN_PATTERN =
+  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
+
+/**
+ * "Post MIT Sharepic" / "inkl. Sharepic" is the explicit combined ask — the
+ * sharepic noun here is inclusion, not exclusion, so it must NOT act as a
+ * sharepic-only escape.
+ */
+export const SHAREPIC_INCLUSION_PATTERN =
+  /\b(mit|inkl\w*\.?|und|plus|samt)\s+(dazu\s+)?(ein(em)?\s+)?(passende[mn]?\s+)?(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|grafik)\b/i;
+
+const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
+const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
+// Mastodon/Bluesky share Twitter's 280-char budget (see prompts/social.json).
+const TWITTER_PLATFORM_PATTERN = /\b(twitter|tweets?|tweete\w*|x-?post|bluesky|mastodon)\b/i;
+const LINKEDIN_PLATFORM_PATTERN = /\blinked-?in\b/i;
+
+/**
+ * Platform hint from the user prompt. Null = no platform named (generic).
+ * Instagram/Facebook win over Twitter/LinkedIn to preserve the pre-existing
+ * two-platform detection order.
+ */
+export function detectSocialPlatform(text: string): SocialTextPlatform | null {
+  if (INSTAGRAM_PLATFORM_PATTERN.test(text)) return 'instagram';
+  if (FACEBOOK_PLATFORM_PATTERN.test(text)) return 'facebook';
+  if (TWITTER_PLATFORM_PATTERN.test(text)) return 'twitter';
+  if (LINKEDIN_PLATFORM_PATTERN.test(text)) return 'linkedin';
+  return null;
+}
+
+/** Creation verb: user wants a post WRITTEN, not examples shown. */
+export const SOCIAL_CREATE_VERB_PATTERN =
+  /\b(erstell|schreib|mach|generier|verfass|formulier|entwirf|entwerf|bastel|produzier|dichte|tweete)\w*/i;
+
+/** Bare noun-phrase prompts ("Instagram-Post zu Tempo 30") carry no verb. */
+export const SOCIAL_BARE_NOUN_PATTERN =
+  /^\s*(bitte\s+)?(ein(en)?\s+)?((insta(gram)?|facebook|fb|linkedin|twitter|x|tiktok)[-\s]?)?(post(ing)?|beitrag|tweet|reels?|caption|social[-\s]?media[-\s]?post)\b/i;
+
+/** Question-shaped messages must not trigger post creation. */
+export const SOCIAL_META_QUESTION_PATTERN = /^\s*(wie|was|wer|warum|wieso|welche|wann|wo)\b/i;
+
+/**
+ * Above this length the message likely carries pasted reference material
+ * (Beschluss, Doku-Seite). Nouns inside a paste ("Sharepics", "Instagram")
+ * describe content, they are not the user's ask — noun-triggered fast paths
+ * stand down so the LLM tier can separate instruction from material.
+ */
+export const NOUN_TRIGGER_MAX_LENGTH = 500;
+
+// Hoisted 'g' copy for matchAll (which clones internally, so sharing is safe).
+const SOCIAL_CREATE_VERB_PATTERN_G = new RegExp(SOCIAL_CREATE_VERB_PATTERN.source, 'gi');
+
+/**
+ * True when `nounPattern` matches within `window` chars of a creation verb.
+ * Guards verb+noun rules against pairing the instruction's verb ("schreibe …")
+ * with a noun hundreds of chars away inside pasted material.
+ */
+export function nounNearCreateVerb(text: string, nounPattern: RegExp, window = 120): boolean {
+  // Nouns are the rare token — bail before the verb scan for the common case.
+  if (!nounPattern.test(text)) return false;
+  const verbIndices = [...text.matchAll(SOCIAL_CREATE_VERB_PATTERN_G)].map((m) => m.index ?? 0);
+  if (verbIndices.length === 0) return false;
+  for (const noun of text.matchAll(new RegExp(nounPattern.source, 'gi'))) {
+    const nounIndex = noun.index ?? 0;
+    if (verbIndices.some((v) => Math.abs(nounIndex - v) <= window)) return true;
+  }
+  return false;
+}
+
+/** Trigger nouns for the heuristic social rules below (narrower than the classifier's SOCIAL_NOUN_PATTERN). */
+const SOCIAL_TRIGGER_NOUN_PATTERN = /\b(social\s*media|post|tweet|instagram)\b/i;
+
+/**
+ * Escape hatches for a message that would otherwise route to `social_post`:
+ * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
+ * exclusionary sharepic wording keeps the shipped sharepic-only flow.
+ * Inclusion phrasing ("Post mit Sharepic") stays combined — it is the most
+ * explicit combined ask there is.
+ */
+export function resolveSocialPostEscape(text: string): 'examples' | 'sharepic' | null {
+  if (SOCIAL_TEXT_ONLY_PATTERN.test(text)) return 'examples';
+  if (SHAREPIC_ONLY_PATTERN.test(text)) return 'sharepic';
+  if (SHAREPIC_INCLUSION_PATTERN.test(text)) return null;
+  if (SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
+  return null;
+}
 
 /**
  * Keywords for fuzzy matching in heuristic fallback.
@@ -27,6 +133,10 @@ export const INTENT_KEYWORDS: Record<
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
+    | 'create_sheet'
+    | 'create_presentation'
+    // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
+    | 'create_recurring_task'
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
@@ -35,6 +145,28 @@ export const INTENT_KEYWORDS: Record<
     | 'pressemitteilung_examples'
     // scrape_url is detected by URL presence in the message (extractUrls), not keywords.
     | 'scrape_url'
+    // artifact is detected by a dedicated pattern (noun + create imperative), not keywords.
+    | 'artifact'
+    // compute is detected by dedicated count/math/unit/date patterns, not keywords.
+    | 'compute'
+    // agentic is a router disposition (loop demotion), never keyword-matched.
+    | 'agentic'
+    // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
+    | 'social_post'
+    // chat_history is detected by the dedicated past-conversation regex, not keywords.
+    | 'chat_history'
+    // mcp (EXPERIMENTAL) is gated via the @mcp mention + conservative LLM prose,
+    // never keyword-classified (would misfire on generic "tool"/"server" words).
+    | 'mcp'
+    // System MCP intents (EXPERIMENTAL) are LLM-classified only — bare keywords
+    // like "bahn"/"wetter"/"news" would hijack policy queries (Bahnreform,
+    // Klimapolitik, Nachrichten über X).
+    | 'bahn'
+    | 'reise'
+    | 'hotel'
+    | 'wetter'
+    | 'news'
+    | 'umfragen'
   >,
   string[]
 > = {
@@ -46,6 +178,25 @@ export const INTENT_KEYWORDS: Record<
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
   search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],
   examples: ['beispiel', 'vorlage', 'tweet', 'instagram', 'social'],
+  abgeordnetenwatch: [
+    'abstimmungsverhalten',
+    'nebentätigkeit',
+    'nebentätigkeiten',
+    'nebeneinkünfte',
+    'namentliche abstimmung',
+  ],
+  bundestag: [
+    'drucksache',
+    'bt-drs',
+    'plenarprotokoll',
+    'plenardebatte',
+    'bundestagsdebatte',
+    'bundestagsrede',
+    'gesetzentwurf',
+    'kleine anfrage',
+    'große anfrage',
+    'gesetzgebungsverfahren',
+  ],
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
 };
@@ -99,7 +250,7 @@ export function mentionsImageNoun(text: string): boolean {
 // the LLM's job. Only add stems for verbs frequent enough to justify
 // bypassing the LLM call.
 export const DOC_MODIFY_PATTERN =
-  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
+  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|schlagkr(?:ä|ae)ftiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
 
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.
@@ -231,6 +382,29 @@ export function looksMultiTopic(query: string): boolean {
   return leftWords.length >= 2 && rightWords.length >= 2;
 }
 
+// Unit conversion needs a TARGET unit after the preposition — a bare
+// "in"/"als" matches everyday German ("Tempo 30 in der Innenstadt",
+// "35 °C in Berlin") and hijacked post creation into compute. "in" is also
+// not a source unit (inches are never written "30 in" in German). The unit
+// boundary is `(?![a-zäöüß0-9])`, not `\b` — JS \b is ASCII-only, so `fuß\b`
+// before a space can never match. Module scope: new RegExp compiles per
+// call, unlike regex literals.
+const UNIT_ALTERNATION =
+  '(?:mm|cm|m|km|zoll|inch(?:es)?|ft|feet|fu(?:ß|ss)|yd|mi|miles?|meilen?|meter|kilometer|mg|g|kg|t|gramm|kilogramm|lbs?|pfund|oz|s|min|h|std|sekunden?|minuten?|stunden?|tage?|kb|mb|gb|tb|°?[cf]|grad|celsius|fahrenheit|kelvin)';
+const UNIT_CONVERT_PATTERN = new RegExp(
+  `\\b\\d+(?:[.,]\\d+)?\\s*(${UNIT_ALTERNATION})(?![a-zäöüß0-9])[\\s\\S]*?\\b(?:in|to|nach|als)\\s+(${UNIT_ALTERNATION})(?![a-zäöüß0-9])`,
+  'i'
+);
+
+/**
+ * "2 Grad Erwärmung, gemessen in Grad Celsius" repeats one unit — that is
+ * prose, not a conversion ask. A real conversion names two different units.
+ */
+export function isUnitConversion(text: string): boolean {
+  const m = UNIT_CONVERT_PATTERN.exec(text);
+  return !!m && m[1].toLowerCase() !== m[2].toLowerCase();
+}
+
 /**
  * Heuristic result with confidence score.
  * Used to decide whether to skip LLM classification.
@@ -269,16 +443,75 @@ export function detectContentType(query: string): string | null {
  * Medium confidence (0.7-0.9): Keyword matches with some ambiguity
  * Low confidence (<0.7): Fuzzy matches or unclear patterns
  */
-export function heuristicClassify(userContent: string): HeuristicResult {
+/**
+ * Aggregation/calculation question over tabular data (Summe, Durchschnitt,
+ * "pro X", Anteile …). Shared by the classifier fast path AND the contract
+ * router's run_python gate: multi-turn confidence penalties (vague follow-up)
+ * can push the heuristic below threshold, so the router re-checks the raw
+ * question text — otherwise follow-ups like "durchschnittlicher umsatz pro
+ * region?" silently fall back to the legacy prompt-guidance path.
+ */
+export function isTabularComputeQuestion(text: string): boolean {
+  // Text-metric questions (Zeichen/Wörter zählen) belong to the plain-JS
+  // computeNode even with a spreadsheet attached — counting characters of a
+  // pasted text has nothing to do with `df` (beta regression: the run_python
+  // gate hijacked "wie viele zeichen sind das hier").
+  if (
+    /(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|abs(?:ä|ae)tze)/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  // Chart/visualization/sharepic requests keep their own intents even when
+  // they mention aggregations ("balkendiagramm der umsätze pro monat").
+  if (/(diagramm|\bchart|\bgraph|visualisier|sharepic|spruchbild|zitatbild)/i.test(text)) {
+    return false;
+  }
+  // Verbs/measure words are bound to a word START — JS \b is ASCII-only and
+  // 'zähl' must not fire inside 'erzähl'. Noun stems may sit inside German
+  // compounds (jahresumsatz, gesamtgewinn), so they match anywhere.
+  const wordStart =
+    /(?:^|[^a-zäöüß])(summ|zähl|anzahl|anteil|filter|sortier|median|mittelwert|durchschnitt|prozent|maxim|minim|meist|häufigst|beste[rns]?\b|top ?\d|ausreißer|quartil|pivot|prognos|wie ?viel|pro\s+\w+)/i;
+  const nounStem = /(umsatz|gewinn|erlös|gesamtsumme|gesamtwert|höchst|niedrigst)/i;
+  return wordStart.test(text) || nounStem.test(text);
+}
+
+export function heuristicClassify(
+  userContent: string,
+  opts?: { hasTabularAttachment?: boolean }
+): HeuristicResult {
   const q = userContent.toLowerCase();
 
-  // High confidence (0.95): Greetings and thanks at start of message
-  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)/i.test(q.trim())) {
+  // Long messages likely embed pasted reference material — keyword-triggered
+  // fast paths below defer to the LLM instead of firing on words inside the
+  // paste ("Das Diagramm zeigt…", "Protokoll erstellen", "Sharepics", …).
+  // Deliberately NOT applied to compute: counting words/chars of a pasted
+  // text is compute's primary use case.
+  const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
+
+  // High confidence (0.95): Greetings and thanks at start of message.
+  // \b is required: without it "Hier unser Protokoll …" matches ^hi.
+  if (/^(hallo|hi|hey|guten|servus|moin|danke|vielen dank)\b/i.test(q.trim())) {
     return {
       intent: 'direct',
       searchQuery: null,
       reasoning: 'Greeting detected',
       confidence: 0.95,
+    };
+  }
+
+  // High confidence (0.92): Aggregation/calculation question about an attached
+  // spreadsheet. Routes to `compute` so the pipeline generates pandas code and
+  // executes it client-side (run_python interrupt) instead of the model
+  // answering from prose. Gated on hasTabularAttachment so plain-text chats
+  // never match.
+  if (opts?.hasTabularAttachment && isTabularComputeQuestion(q)) {
+    return {
+      intent: 'compute',
+      searchQuery: userContent,
+      reasoning: 'Tabular aggregation question with attached spreadsheet',
+      confidence: 0.92,
     };
   }
 
@@ -289,8 +522,15 @@ export function heuristicClassify(userContent: string): HeuristicResult {
   // spelling variants ("spruchbild", "zitatbild"). The specific variant
   // (zitat/dreizeilen/info) is resolved later in the execution path from the same
   // text — here we only need to route to the sharepic intent.
-  const sharepicKeywords = /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
-  if (sharepicKeywords.test(q)) {
+  // "Post MIT Sharepic" is a combined ask — let the social_post rule below
+  // take it instead of the sharepic-only fast path. Long-paste messages fall
+  // through entirely: "Sharepics" inside pasted material (a docs page, a
+  // Beschluss) describes content, and even verb proximity is no signal there
+  // ("… hilft beim Erstellen … Alt-Texte für Sharepics"). The LLM prompt
+  // knows the sharepic intent, so genuine long sharepic asks still route.
+  const sharepicIsInclusion =
+    SHAREPIC_INCLUSION_PATTERN.test(q) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(q);
+  if (SHAREPIC_NOUN_PATTERN.test(q) && !sharepicIsInclusion && !isLongPaste) {
     return {
       intent: 'sharepic',
       searchQuery: null,
@@ -304,7 +544,7 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster)\b/i;
   const imageKeywordsAlt =
     /\b(bild|grafik|illustration|foto|poster).{0,20}(erstell|generier|erzeug|mach)\b/i;
-  if (imageKeywords.test(q) || imageKeywordsAlt.test(q)) {
+  if (!isLongPaste && (imageKeywords.test(q) || imageKeywordsAlt.test(q))) {
     return {
       intent: 'image',
       searchQuery: null,
@@ -325,9 +565,10 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     /\bmach[etn]*\b.{0,15}\b(dokument|protokoll|notiz|checkliste)\s+daraus\b/i;
 
   if (
-    (saveAsBarePattern.test(q) && saveImperative.test(q)) ||
-    docWithVerbPattern.test(q) ||
-    machDarausPattern.test(q)
+    !isLongPaste &&
+    ((saveAsBarePattern.test(q) && saveImperative.test(q)) ||
+      docWithVerbPattern.test(q) ||
+      machDarausPattern.test(q))
   ) {
     return {
       intent: 'save_as_doc',
@@ -337,8 +578,25 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
+  // High confidence (0.9): Presentation-deck creation. create_presentation lives
+  // only in the LLM prompt, and the intermediate classifier model is unreliable
+  // on this newer intent — so an explicit "erstelle eine Präsentation über X"
+  // was falling back to a prose slide outline instead of building a deck.
+  // Fast-path the unambiguous phrasing (creation verb + deck noun).
+  const presentationCreatePattern =
+    /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
+  if (!isLongPaste && presentationCreatePattern.test(q)) {
+    return {
+      intent: 'create_presentation',
+      searchQuery: null,
+      reasoning: 'Presentation creation request detected',
+      confidence: 0.9,
+    };
+  }
+
   // High confidence (0.88): Share document with group
   if (
+    !isLongPaste &&
     /\b(teil[e]?\s+(das\s+)?(mit|an)\s+|share\s+mit|freigeben\s+für|send[e]?\s+an\s+(gruppe|ag\s|kv\s|ov\s))/i.test(
       q
     )
@@ -354,7 +612,7 @@ export function heuristicClassify(userContent: string): HeuristicResult {
   // High confidence (0.85): Summary requests — unambiguous patterns
   const summaryKeywords =
     /\b(fass[e]?\s+(das\s+|die\s+|den\s+)?zusammen|zusammenfass|zusammenfassung|kurzfassung|überblick\s+erstell)/i;
-  if (summaryKeywords.test(q)) {
+  if (!isLongPaste && summaryKeywords.test(q)) {
     return {
       intent: 'summary',
       searchQuery: null,
@@ -372,7 +630,10 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
   const dataVisualizePattern = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
 
-  if ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q)) {
+  if (
+    !isLongPaste &&
+    ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q))
+  ) {
     return {
       intent: 'chart',
       searchQuery: userContent,
@@ -381,10 +642,51 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
+  // High confidence (0.85): Generic HTML/SVG artifact requests. Must pair an
+  // artifact noun with a creation imperative so prose ("erklär mir HTML")
+  // doesn't trigger. Placed after chart so diagram requests stay charts.
+  const artifactNoun =
+    /\b(html|svg|webseite|website|landingpage|landing-page|mockup|prototyp|vektorgrafik)\b/i;
+  const artifactCreateImperative =
+    /\b(erstell|generier|mach|bau|baue|erzeug|schreib|gestalt|entwirf|entwickl)[etn]*\b/i;
+  if (!isLongPaste && artifactNoun.test(q) && artifactCreateImperative.test(q)) {
+    return {
+      intent: 'artifact',
+      searchQuery: userContent,
+      reasoning: 'Generic HTML/SVG artifact request detected',
+      confidence: 0.85,
+    };
+  }
+
+  // High confidence (0.90): Deterministic calculation / counting. Narrow on
+  // purpose — each sub-pattern names a concrete compute operation so ordinary
+  // prose ("erklär mir Prozentrechnung") and factual questions don't misfire.
+  // Placed after chart/artifact so "Diagramm mit Zahlen" stays a chart.
+  const countPattern =
+    /\b(z(?:ä|ae)hl\w*|anzahl|wie\s+viele?|wie\s+lang)\b[\s\S]*\b(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|absätze|abs(?:ä|ae)tze)\b/i;
+  const pureExpr = /^(?=[\s\S]*[+\-*/%^×÷])[\s\d().,+\-*/%^×÷]+[=?]?$/;
+  const mathPattern =
+    /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne|wie\s?viel\s+(ist|sind|macht)|was\s+(ist|sind|ergibt)\s+\d)/i;
+  const dateMath = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
+  if (
+    countPattern.test(userContent) ||
+    pureExpr.test(userContent.trim()) ||
+    mathPattern.test(q) ||
+    isUnitConversion(q) ||
+    dateMath.test(q)
+  ) {
+    return {
+      intent: 'compute',
+      searchQuery: userContent,
+      reasoning: 'Deterministic computation/counting request detected',
+      confidence: 0.9,
+    };
+  }
+
   // High confidence (0.90): Explicit web search request
   const explicitWebSearch =
     /\b(such|suche|durchsuche|finde?)\s*(im|das|den|die|in)?\s*(netz|internet|web|online)\b/i;
-  if (explicitWebSearch.test(q)) {
+  if (!isLongPaste && explicitWebSearch.test(q)) {
     return {
       intent: 'web',
       searchQuery: userContent,
@@ -394,7 +696,7 @@ export function heuristicClassify(userContent: string): HeuristicResult {
   }
 
   // High confidence (0.88): Explicit research request
-  if (/\b(recherchiere|recherche|recherchier)\b/.test(q)) {
+  if (!isLongPaste && /\b(recherchiere|recherche|recherchier)\b/.test(q)) {
     return {
       intent: 'research',
       searchQuery: userContent,
@@ -437,9 +739,33 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
+  // Medium confidence (0.80): social media requests. Creation verbs route to
+  // the EXPERIMENTAL combined post (text + sharepic) unless an escape hatch
+  // ("nur Text", "nur Sharepic") applies; browse verbs ("zeig mir Beispiele")
+  // keep the examples flow. Meta-questions never create. Verb and noun must
+  // sit close together — "schreibe eine Produktvorstellung … [Paste erwähnt
+  // Instagram]" is not a post ask.
+  if (
+    !isLongPaste &&
+    nounNearCreateVerb(q, SOCIAL_TRIGGER_NOUN_PATTERN) &&
+    !/\b(beispiel|vorlage)\b/i.test(q) &&
+    !SOCIAL_META_QUESTION_PATTERN.test(q)
+  ) {
+    const escape = resolveSocialPostEscape(q);
+    return {
+      intent: escape ?? 'social_post',
+      searchQuery: userContent,
+      reasoning: escape
+        ? `Social media creation with "${escape}" escape hatch`
+        : 'Social media post creation (combined text + sharepic)',
+      confidence: 0.8,
+    };
+  }
+
   // Medium confidence (0.80): Examples/social media — platform keyword + any action verb
   if (
-    /\b(beispiel|vorlage|social\s*media|post|tweet|instagram)\b/i.test(q) &&
+    !isLongPaste &&
+    (/\b(beispiel|vorlage)\b/i.test(q) || SOCIAL_TRIGGER_NOUN_PATTERN.test(q)) &&
     /\b(zeig|such|find|erstell|schreib|mach|generier)[etn]*/i.test(q)
   ) {
     return {
@@ -456,7 +782,7 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     /\b(schreib|erstell|formulier|verfass)[etn]*/i.test(q) &&
     !/\b(recherch|such|find|info)\b/i.test(q);
 
-  if (isCreativeTask && userContent.length > 500) {
+  if (isCreativeTask && isLongPaste) {
     return {
       intent: 'direct',
       searchQuery: null,

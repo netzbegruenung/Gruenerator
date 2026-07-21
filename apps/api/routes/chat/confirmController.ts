@@ -34,7 +34,7 @@ router.use(express.json());
  * Check if a user has write access to a collaborative_documents row.
  * Checks: owner → direct permission (owner/editor) → group share (write: true).
  */
-async function hasWriteAccess(documentId: string, userId: string): Promise<boolean> {
+export async function hasWriteAccess(documentId: string, userId: string): Promise<boolean> {
   const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
   const pg = getPostgresInstance();
 
@@ -177,7 +177,7 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
             type: 'group_content_shared',
             title: 'Dokument geteilt',
             body: `Ein Dokument „${docTitle}" wurde mit der Gruppe geteilt`,
-            actionUrl: `/docs/${docId}`,
+            actionUrl: `/office/${docId}`,
             metadata: { documentId: docId, groupId },
           })
         )
@@ -186,6 +186,40 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       return {
         message: `Dokument **„${docTitle}"** wurde mit **${groupName}** geteilt (${permissionLevel === 'editor' ? 'Bearbeiten' : 'Nur lesen'}).`,
         url: `/document/${docId}`,
+      };
+    }
+
+    case 'create_group': {
+      const { createGroupForUser } = await import('../../services/groups/groupMutations.js');
+      const { buildGroupSlug } = await import('@gruenerator/shared/utils');
+
+      const group = await createGroupForUser(action.userId, action.payload);
+      const slug = group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id;
+      return {
+        message: `Gruppe **„${group.name}"** wurde erstellt.`,
+        url: `/gruppen/${slug}`,
+      };
+    }
+
+    case 'join_group': {
+      const { joinGroupByToken } = await import('../../services/groups/groupMutations.js');
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+
+      const pg = getPostgresInstance();
+      const rows = (await pg.query('SELECT display_name FROM profiles WHERE id = $1', [
+        action.userId,
+      ])) as { display_name: string | null }[];
+      const joinerName = rows[0]?.display_name || 'Jemand';
+
+      const outcome = await joinGroupByToken(action.userId, action.payload.joinToken, joinerName);
+      if (!outcome) {
+        throw new Error('Ungültiger oder abgelaufener Einladungslink.');
+      }
+      return {
+        message: outcome.alreadyMember
+          ? `Du bist bereits Mitglied von **„${outcome.group.name}"**.`
+          : `Du bist der Gruppe **„${outcome.group.name}"** beigetreten.`,
+        url: `/gruppen/${outcome.group.id}`,
       };
     }
 

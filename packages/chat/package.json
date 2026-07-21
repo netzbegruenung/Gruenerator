@@ -31,7 +31,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:pyodide": "PYODIDE_TESTS=1 vitest run src/pyodide/runCore.integration.vitest.ts"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "0.14.2",
@@ -40,25 +41,27 @@
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
-    "@hocuspocus/provider": "^4.1.2",
-    "katex": "^0.16.22",
-    "lucide-react": "^1.17.0",
-    "mermaid": "^11.4.1",
-    "radix-ui": "^1.5.0",
-    "react-icons": "^5.6.0",
+    "@hocuspocus/provider": "^4.3.0",
+    "beautiful-mermaid": "^1.1.3",
+    "katex": "^0.16.47",
+    "lucide-react": "^1.24.0",
+    "radix-ui": "^1.6.2",
+    "react-icons": "^5.7.0",
     "react-markdown": "^10.1.0",
+    "recharts": "3.8.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "shiki": "^4.3.0",
+    "shiki": "^4.3.1",
     "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@types/katex": "^0.16.8",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
+    "pyodide": "^0.29.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.16",

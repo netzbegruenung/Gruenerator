@@ -130,6 +130,10 @@ export default defineConfig(({ command }) => ({
         __dirname,
         '../../packages/contracts/src/richtext/index.ts'
       ),
+      '@gruenerator/contracts/presentations-richtext': path.resolve(
+        __dirname,
+        '../../packages/contracts/src/richtext/slideBody.ts'
+      ),
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
       // @gruenerator/core is imported transitively from the @gruenerator/shared
       // alias (shared/avatar + shared/models re-export from @gruenerator/core).
@@ -137,6 +141,13 @@ export default defineConfig(({ command }) => ({
       //   "Rolldown failed to resolve import '@gruenerator/core/models'
       //    from packages/shared/src/models/index.ts".
       '@gruenerator/core': path.resolve(__dirname, '../../packages/core/src'),
+      // @gruenerator/query is imported transitively from the @gruenerator/shared
+      // alias (shared/utils/textNormalization + shared/search/{filters,vector}
+      // re-export from @gruenerator/query/*). Same cascade rule as core above —
+      // alias it to src or Rolldown fails:
+      //   "Rolldown failed to resolve import '@gruenerator/query/text'
+      //    from packages/shared/src/utils/textNormalization.ts".
+      '@gruenerator/query': path.resolve(__dirname, '../../packages/query/src'),
     },
     // React MUST be deduped to a single physical copy. pnpm installs several
     // react versions (root 19.2.6, plus 19.2.3/19.2.4 nested under deps like
@@ -331,7 +342,9 @@ export default defineConfig(({ command }) => ({
     },
   },
   server: {
-    port: 3000,
+    // VITE_DEV_PORT lets a second checkout/worktree run its dev server next to
+    // the default one on 3000 (HMR must follow, see below).
+    port: Number(process.env.VITE_DEV_PORT ?? 3000),
     strictPort: true, // Native apps expect exact port - fail if unavailable
     open: command === 'serve' && !isNativeBuild, // Don't auto-open browser for native app dev
     watch: {
@@ -352,18 +365,23 @@ export default defineConfig(({ command }) => ({
     },
     hmr: {
       host: 'localhost',
-      port: 3000,
+      port: Number(process.env.VITE_DEV_PORT ?? 3000),
       overlay: false,
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.VITE_DEV_API || 'http://localhost:3001',
         changeOrigin: true,
         ws: true,
         ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
               proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
+              // On a non-default VITE_DEV_PORT the backend's CORS allowlist
+              // doesn't know this origin — present as the canonical dev origin.
+              if (process.env.VITE_DEV_PORT) {
+                proxyReq.setHeader('origin', 'http://localhost:3000');
+              }
             });
           },
         }),
@@ -382,6 +400,18 @@ export default defineConfig(({ command }) => ({
         target: process.env.VITE_PREVIEW_API || 'http://localhost:3001',
         changeOrigin: true,
         ws: true,
+        // Mirror the dev-server bypass so a local preview (bundle smoke test /
+        // prod-build debugging) can authenticate against the local backend.
+        // The origin rewrite keeps the backend's CORS allowlist happy when the
+        // preview runs on a non-3000 port (only localhost:3000 is allowlisted).
+        ...(process.env.VITE_E2E_AUTH_BYPASS === 'true' && {
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.setHeader('x-dev-auth-bypass', process.env.VITE_DEV_AUTH_BYPASS_TOKEN || '');
+              proxyReq.setHeader('origin', 'http://localhost:3000');
+            });
+          },
+        }),
       },
     },
   },

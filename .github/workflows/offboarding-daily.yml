@@ -25,25 +25,37 @@ jobs:
     env:
       API_URL: ${{ vars.OFFBOARDING_API_URL || 'https://gruenerator.eu' }}
     steps:
-      - name: Check offboarding config
+      - name: Check offboarding config & connectivity
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           echo "Checking offboarding service at $API_URL..."
-          STATUS=$(curl -sf "$API_URL/api/internal/offboarding/status" \
-            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" || echo '{"status":"unreachable"}')
-          echo "$STATUS" | jq .
+          # Capture body AND status even on HTTP error (no -f) so a config/connectivity
+          # failure surfaces the upstream reason instead of a bare curl exit code. The
+          # /status endpoint now live-probes the Grüne API, so a rejected credential or
+          # unreachable upstream is caught here in preflight.
+          RESPONSE=$(curl -s -w $'\n%{http_code}' \
+            -H "x-admin-token: $ADMIN_TOKEN" \
+            "$API_URL/api/internal/offboarding/status")
+          HTTP=$(printf '%s' "$RESPONSE" | tail -n1)
+          BODY=$(printf '%s' "$RESPONSE" | sed '$d')
+          echo "$BODY" | jq . || echo "$BODY"
 
-          if echo "$STATUS" | jq -e '.status == "error"' > /dev/null 2>&1; then
-            echo "::error::Offboarding service configuration error"
+          if [ -z "$HTTP" ] || [ "$HTTP" = "000" ]; then
+            echo "::error::Offboarding service unreachable at $API_URL (no HTTP response)"
             exit 1
           fi
-          if echo "$STATUS" | jq -e '.status == "unreachable"' > /dev/null 2>&1; then
-            echo "::error::Offboarding service unreachable at $API_URL"
+          if [ "$HTTP" -ge 400 ]; then
+            MSG=$(echo "$BODY" | jq -r '.message // "unknown error"')
+            echo "::error::Offboarding preflight failed (HTTP $HTTP): $MSG"
             exit 1
           fi
 
       - name: Run offboarding
         id: offboard
         continue-on-error: true
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           # Scheduled runs are dry-run "for now": report how many users would be
           # processed without deleting/anonymizing anything. A real run requires a
@@ -61,13 +73,30 @@ jobs:
             echo "Running LIVE offboarding (will delete/anonymize users)..."
           fi
 
-          RESULT=$(curl -sf -X POST "$API_URL/api/internal/offboarding/run-sync" \
-            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+          # Capture body AND status (no -f) so a 500 surfaces the service's
+          # { error } message instead of a bare curl exit 22.
+          RESPONSE=$(curl -s -w $'\n%{http_code}' -X POST "$API_URL/api/internal/offboarding/run-sync" \
+            -H "x-admin-token: $ADMIN_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"dryRun\": $DRY}" \
             --max-time 1800)
+          HTTP=$(printf '%s' "$RESPONSE" | tail -n1)
+          RESULT=$(printf '%s' "$RESPONSE" | sed '$d')
 
-          echo "$RESULT" | jq .
+          echo "$RESULT" | jq . || echo "$RESULT"
+
+          if [ -z "$HTTP" ] || [ "$HTTP" = "000" ] || [ "$HTTP" -ge 400 ]; then
+            ERR=$(echo "$RESULT" | jq -r '.error // .message // empty')
+            [ -z "$ERR" ] && ERR="no error body"
+            echo "::error::Offboarding run failed (HTTP ${HTTP:-none}): $ERR"
+            {
+              echo "error<<EOF"
+              echo "HTTP ${HTTP:-none}: $ERR"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
           echo "result<<EOF" >> "$GITHUB_OUTPUT"
           echo "$RESULT" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -76,13 +105,24 @@ jobs:
         if: always()
         run: |
           RESULT='${{ steps.offboard.outputs.result }}'
+          ERROR='${{ steps.offboard.outputs.error }}'
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
             {
-              echo "## :x: Offboarding — No Result"
+              echo "## :x: Offboarding — Failed"
               echo ""
-              echo "The offboarding service did not return a result. Check the [workflow logs]($RUN_URL)."
+              if [ -n "$ERROR" ]; then
+                echo "The offboarding service returned an error:"
+                echo ""
+                echo '```'
+                echo "$ERROR"
+                echo '```'
+              else
+                echo "The offboarding service did not return a result."
+              fi
+              echo ""
+              echo "Check the [workflow logs]($RUN_URL)."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

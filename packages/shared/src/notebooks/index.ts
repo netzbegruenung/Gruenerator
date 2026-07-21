@@ -40,9 +40,11 @@ export type NotebookId =
   | 'bayern-notebook'
   | 'sachsen-anhalt-notebook'
   | 'hessen-notebook'
+  | 'saarland-notebook'
   | 'oesterreich-notebook'
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
+  | 'abgeordnetenwatch-notebook'
   | 'boell-stiftung-notebook';
 
 export interface NotebookDefinition {
@@ -339,6 +341,25 @@ export const NOTEBOOK_REGISTRY = [
     },
   },
   {
+    id: 'saarland-notebook',
+    title: 'Saarland',
+    description:
+      'Durchsuchbar sind Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland.',
+    meta: 'Archiv',
+    tags: ['Saarland', 'Presse', 'Artikel', 'Beschlüsse'],
+    order: 13,
+    category: 'landesebene',
+    audience: 'de-DE',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-saarland',
+    mention: {
+      alias: 'saar',
+      title: 'Grüne Saarland',
+      description: 'Presse, Artikel und Parteitagsbeschlüsse Saarland',
+      avatar: '🏭',
+      backgroundColor: '#316049',
+    },
+  },
+  {
     id: 'kommunalwiki-notebook',
     title: 'KommunalWiki',
     description:
@@ -371,6 +392,24 @@ export const NOTEBOOK_REGISTRY = [
       description: 'Onlinemagazin der Grünen',
       avatar: '📰',
       backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'abgeordnetenwatch-notebook',
+    title: 'Abgeordnetenwatch',
+    description:
+      'Durchsuchbar sind namentliche Abstimmungen (mit dem Votum der Grünen-Fraktion) und Nebentätigkeiten von Abgeordneten – auf Basis der offenen Daten von Abgeordnetenwatch.',
+    meta: 'Transparenz',
+    tags: ['Abstimmungen', 'Nebentätigkeiten', 'Transparenz', 'Bundestag'],
+    order: 7,
+    category: 'weitere',
+    audience: 'de-DE',
+    mention: {
+      alias: 'transparenz',
+      title: 'Abgeordnetenwatch',
+      description: 'Abstimmungen & Nebentätigkeiten von Abgeordneten',
+      avatar: '🗳️',
+      backgroundColor: '#4B5563',
     },
   },
   {

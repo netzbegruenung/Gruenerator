@@ -21,11 +21,13 @@ import {
 import { useQueries } from '@tanstack/react-query';
 import { ChevronLeft, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FiGrid, FiMonitor } from 'react-icons/fi';
 import { HiDocumentText, HiLink } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
 
 import { ICONS } from '../../../config/icons';
 import { profileApiService } from '../../auth/services/profileApiService';
+import { subtypeToKind } from '../../docs/docTypeMeta';
 import { SYSTEM_NOTEBOOKS } from '../../notebook/config/notebooksConfig';
 import {
   LINK_ICONS,
@@ -45,7 +47,13 @@ interface ContentItem {
   name?: string;
   description?: string;
   filename?: string;
+  document_subtype?: string;
 }
+
+// Office collaborative_documents share one 'collaborative_documents' content_type
+// and the same listDocuments query, but read as distinct picker categories
+// (matching the workplace "Zuletzt" vocabulary). `subtypeToKind` is the single
+// source for that subtype→category mapping (incl. legacy 'tabelle' → sheet).
 
 interface ContentCategory {
   id: CategoryId;
@@ -54,13 +62,21 @@ interface ContentCategory {
   contentType: string;
 }
 
-type CategoryId = 'collabDocs' | 'boards' | 'documents' | 'texts' | 'notebooks' | 'links';
+type CategoryId =
+  | 'collabDocs'
+  | 'sheets'
+  | 'presentations'
+  | 'boards'
+  | 'documents'
+  | 'notebooks'
+  | 'links';
 
 interface ContentState {
   collabDocs: ContentItem[];
+  sheets: ContentItem[];
+  presentations: ContentItem[];
   boards: ContentItem[];
   documents: ContentItem[];
-  texts: ContentItem[];
   notebooks: ContentItem[];
 }
 
@@ -99,13 +115,24 @@ interface AddContentToGroupModalProps {
 const CONTENT_CATEGORIES: ContentCategory[] = [
   { id: 'collabDocs', label: 'Docs', icon: HiDocumentText, contentType: 'collaborative_documents' },
   {
+    id: 'sheets',
+    label: 'Sheets',
+    icon: FiGrid as IconType,
+    contentType: 'collaborative_documents',
+  },
+  {
+    id: 'presentations',
+    label: 'Präsentationen',
+    icon: FiMonitor as IconType,
+    contentType: 'collaborative_documents',
+  },
+  {
     id: 'boards',
     label: 'Boards',
     icon: PiSquaresFour as IconType,
     contentType: 'collaborative_documents',
   },
   { id: 'documents', label: 'Dokumente', icon: HiDocumentText, contentType: 'documents' },
-  { id: 'texts', label: 'Texte', icon: HiDocumentText, contentType: 'user_documents' },
   {
     id: 'notebooks',
     label: 'Notebooks',
@@ -182,11 +209,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         enabled: isOpen,
       },
       {
-        queryKey: ['add-to-group', 'texts'],
-        queryFn: () => profileApiService.getUserTexts(),
-        enabled: isOpen,
-      },
-      {
         queryKey: ['add-to-group', 'notebooks'],
         queryFn: () => profileApiService.getNotebookCollections(),
         enabled: isOpen,
@@ -197,18 +219,22 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const isLoading = contentQueries.some((q) => q.isLoading);
 
   const content = useMemo<ContentState>(() => {
-    const [collabDocs, boards, docs, texts, notebooks] = contentQueries.map(
+    const [allCollabDocs, boards, docs, notebooks] = contentQueries.map(
       (q) => (q.data as ContentItem[] | undefined) ?? []
     );
     const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({
       id: `system:${nb.id}`,
       title: nb.title,
     }));
+    // One listDocuments query backs three doc categories; split by subtype so
+    // office items read as Sheets/Präsentationen instead of being lumped into Docs.
+    const kindOf = (item: ContentItem) => subtypeToKind(item.document_subtype);
     return {
-      collabDocs,
+      collabDocs: allCollabDocs.filter((d) => kindOf(d) === 'doc'),
+      sheets: allCollabDocs.filter((d) => kindOf(d) === 'sheet'),
+      presentations: allCollabDocs.filter((d) => kindOf(d) === 'pres'),
       boards,
       documents: docs,
-      texts,
       notebooks: [...notebooks, ...systemNotebookItems],
     };
   }, [contentQueries]);
@@ -504,7 +530,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                       setLinkTitle(e.target.value);
                       setLinkTitleManual(true);
                     }}
-                    placeholder="z.B. Signal-Gruppe"
+                    placeholder="z.B. Signal-Space"
                     maxLength={100}
                   />
                 </div>

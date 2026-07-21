@@ -184,3 +184,26 @@ export function truncateField(value: string, maxLength: number): string {
 
   return truncated.trim();
 }
+
+/**
+ * Truncate a string at a sentence boundary so it never ends mid-sentence.
+ * Prefers the last sentence-ending punctuation (`.`/`!`/`?`) within `maxLength`;
+ * falls back to word-boundary {@link truncateField} when no sentence break fits.
+ */
+export function truncateAtSentence(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+
+  const window = value.substring(0, maxLength);
+  const lastSentenceEnd = Math.max(
+    window.lastIndexOf('.'),
+    window.lastIndexOf('!'),
+    window.lastIndexOf('?')
+  );
+
+  // Only accept a sentence break that keeps a reasonable amount of text.
+  if (lastSentenceEnd > maxLength * 0.5) {
+    return window.substring(0, lastSentenceEnd + 1).trim();
+  }
+
+  return truncateField(value, maxLength);
+}

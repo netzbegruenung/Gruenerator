@@ -31,6 +31,7 @@ import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { ChartInstance } from '../../utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
@@ -87,6 +88,7 @@ export interface ImageTwoTextStateBase {
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+  chartInstances: ChartInstance[];
 }
 
 /**
@@ -310,7 +312,11 @@ export function createImageTwoTextCanvas<
     getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
-      selectedElement?.startsWith('frame-') ? 'frame-settings' : null,
+      selectedElement?.startsWith('chart-')
+        ? 'chart-settings'
+        : selectedElement?.startsWith('frame-')
+          ? 'frame-settings'
+          : null,
 
     sections: {
       image: section({
@@ -410,6 +416,7 @@ export function createImageTwoTextCanvas<
         circleBadgeInstances: [],
         balkenInstances: [],
         frameInstances: [],
+        chartInstances: [],
         userImageInstances: [],
       }) as State,
 

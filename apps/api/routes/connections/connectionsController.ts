@@ -165,4 +165,30 @@ router.get(
   }
 );
 
+// Health check: proves the connection works by fetching a live (Nango-refreshed)
+// access token, and reports the capabilities we can use for this provider.
+router.post(
+  '/:providerKey/test',
+  async (req: AuthRequest<{ providerKey: string }>, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
+
+      const providerKey = getParam(req.params, 'providerKey');
+      if (!isValidProvider(providerKey)) {
+        return res.status(400).json({ error: `Unbekannter Provider: ${providerKey}` });
+      }
+
+      await ConnectionService.getConnection(userId, providerKey);
+      return res.json({ ok: true, tools: NANGO_PROVIDERS[providerKey].services, error: null });
+    } catch (error: unknown) {
+      return res.json({
+        ok: false,
+        tools: [],
+        error: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen',
+      });
+    }
+  }
+);
+
 export default router;

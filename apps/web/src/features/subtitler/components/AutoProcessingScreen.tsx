@@ -1,28 +1,9 @@
 import { type SubtitleSegment } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { ProcessingState } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MdCheck, MdError } from 'react-icons/md';
-
-import apiClient from '../../../components/utils/apiClient';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface ProgressResponse {
-  status: 'processing' | 'complete' | 'error';
-  stage?: number;
-  overallProgress?: number;
-  outputPath?: string;
-  duration?: number;
-  projectId?: string | null;
-  // Canonical segment array emitted by the backend auto-processing
-  // pipeline (2026-04-13). Consume this for write paths (project
-  // create/update). The `subtitles` string is kept for display-layer
-  // code that wants the raw SRT blob.
-  segments?: SubtitleSegment[] | null;
-  subtitles?: string | null;
-  error?: string;
-}
 
 const POLL_INTERVAL = 2000;
 const POLL_INTERVAL_EXTENDED = 5000;
@@ -65,10 +46,15 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     if (!uploadId) return;
 
     try {
-      const response = await apiClient.get<ProgressResponse>(
-        `/subtitler/auto-progress/${uploadId}`
-      );
-      const data = response.data;
+      const res = await getContractsClient().subtitler.getAutoProgress({ params: { uploadId } });
+      if (res.status !== 200) {
+        // 404 = auto job not yet in Redis; keep polling quietly.
+        if (res.status !== 404) {
+          console.error('[AutoProcessingScreen] Poll error status:', res.status);
+        }
+        return;
+      }
+      const data = res.body;
 
       if (data.status === 'complete') {
         setStatus('complete');
@@ -107,7 +93,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
       }
 
       if (data.stage) setActiveStepIndex(mapBackendStage(data.stage));
-      if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
+      if (data.overallProgress != null) setOverallProgress(data.overallProgress);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number } };
       if (axiosErr?.response?.status !== 404) {

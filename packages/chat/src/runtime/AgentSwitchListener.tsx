@@ -17,6 +17,13 @@ export function AgentSwitchListener() {
     if (prevRef.current === selectedAgentId) return;
     prevRef.current = selectedAgentId;
 
+    // Agent restored from a thread deep link (ChatThreadRouting) — not a
+    // user-initiated switch. Consume the flag and keep the loaded thread.
+    if (useAgentStore.getState().suppressAgentSwitchReset) {
+      useAgentStore.setState({ suppressAgentSwitchReset: false });
+      return;
+    }
+
     // A deselect-to-null while in thread view is the side effect of opening an
     // existing thread (ChatPage clears the agent on /chat without an agent
     // param) — not a user-initiated agent switch. Resetting here would stomp

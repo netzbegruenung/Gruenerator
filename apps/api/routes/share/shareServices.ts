@@ -81,7 +81,8 @@ export interface SharedMediaService {
   getUserShares(
     userId: string,
     type: string | null,
-    status?: string | null
+    status?: string | readonly string[] | null,
+    limit?: number
   ): Promise<SharedMediaRow[]>;
   getUserShareCount(userId: string): Promise<number>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
@@ -93,6 +94,7 @@ export interface SharedMediaService {
     shareId?: string
   ): Promise<void>;
   deleteShare(userId: string, shareToken: string): Promise<void>;
+  renameShare(userId: string, shareToken: string, title: string): Promise<boolean>;
   finalizeVideoShare(shareToken: string, videoPath: string): Promise<void>;
   markShareFailed(shareToken: string): Promise<void>;
   updateImageShare(

@@ -17,12 +17,49 @@ export interface FilterFieldConfig {
 
 export type ActiveFilters = Record<string, string[] | { date_from?: string; date_to?: string }>;
 
+/**
+ * Merge parser-derived filters into an existing set: keyword facets union
+ * (a parsed topic adds to, never replaces, the user's manual selections); a
+ * date range replaces. Pure so the immediate search and the state update can
+ * merge identically.
+ */
+export function mergeParsedFilters(prev: ActiveFilters, next: ActiveFilters): ActiveFilters {
+  const out: ActiveFilters = { ...prev };
+  for (const [field, value] of Object.entries(next)) {
+    if (Array.isArray(value)) {
+      const existing = Array.isArray(out[field]) ? (out[field] as string[]) : [];
+      out[field] = Array.from(new Set([...existing, ...value]));
+    } else {
+      out[field] = value;
+    }
+  }
+  return out;
+}
+
+/**
+ * Flatten `ActiveFilters` to the research-search request shape: keyword facets
+ * stay keyed arrays; date ranges collapse to top-level `date_from`/`date_to`.
+ * Pure (no hook state) so callers can build a request from a merged filter set.
+ */
+export function activeFiltersToApi(filters: ActiveFilters): Record<string, unknown> | undefined {
+  const result: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(filters)) {
+    if (Array.isArray(value)) {
+      if (value.length > 0) result[field] = value;
+    } else {
+      if (value.date_from) result.date_from = value.date_from;
+      if (value.date_to) result.date_to = value.date_to;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+// Only fields with a manual UI and reliable population. Dropped 2026-07:
+// `region` is never written to any Qdrant payload (dead facet); `content_type`
+// /`primary_category`/`subcategories` have no manual UI and no NL-parser path,
+// so surfacing them here only fed phantom filters.
 const ALLOWED_FILTER_FIELDS = new Set([
   'published_at',
-  'content_type',
-  'primary_category',
-  'subcategories',
-  'region',
   // NLP-enriched per-document facets
   'themes',
   'persons',
@@ -144,6 +181,22 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     setActiveFilters({});
   }, []);
 
+  /**
+   * Union a batch of parsed filters (from the NL query parser) into the active
+   * set — keyword facets add to the user's selections, date ranges replace.
+   * Idempotent: re-applying identical filters returns the same reference so the
+   * debounced re-search effect in the consumer doesn't loop.
+   */
+  const applyParsedFilters = useCallback((next: ActiveFilters, nextSortBy?: SortOption) => {
+    if (Object.keys(next).length > 0) {
+      setActiveFilters((prev) => {
+        const merged = mergeParsedFilters(prev, next);
+        return JSON.stringify(merged) === JSON.stringify(prev) ? prev : merged;
+      });
+    }
+    if (nextSortBy) setSortBy(nextSortBy);
+  }, []);
+
   const removeFilterValue = useCallback((field: string, value: string) => {
     setActiveFilters((prev) => {
       const current = prev[field];
@@ -162,18 +215,7 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
 
   const buildApiFilters = useCallback((): Record<string, unknown> | undefined => {
     if (activeFilterCount === 0) return undefined;
-
-    const result: Record<string, unknown> = {};
-    for (const [field, value] of Object.entries(activeFilters)) {
-      if (Array.isArray(value) && value.length > 0) {
-        result[field] = value;
-      } else if (!Array.isArray(value)) {
-        // Date range — flatten to top-level date_from/date_to
-        if (value.date_from) result.date_from = value.date_from;
-        if (value.date_to) result.date_to = value.date_to;
-      }
-    }
-    return Object.keys(result).length > 0 ? result : undefined;
+    return activeFiltersToApi(activeFilters);
   }, [activeFilters, activeFilterCount]);
 
   return {
@@ -192,6 +234,7 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     setDateFilter,
     clearFilter,
     clearAllFilters,
+    applyParsedFilters,
     removeFilterValue,
     searchMode,
     setSearchMode,

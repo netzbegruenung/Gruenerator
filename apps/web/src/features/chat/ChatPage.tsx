@@ -1,5 +1,7 @@
 import {
+  ArtifactPanel,
   ChatOverview,
+  ChatThreadRouting,
   type NotebookLink,
   GrueneratorThread,
   ReelArtifactPanel,
@@ -17,7 +19,7 @@ import {
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
 import { useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
@@ -44,8 +46,10 @@ const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
-  const { slug } = useParams<{ slug?: string }>();
+  // `slug` comes from /agents/:slug, `threadSlug` from /chat/:threadSlug.
+  const { slug, threadSlug } = useParams<{ slug?: string; threadSlug?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
   // content below on it keeps useAssistantRuntime()/useComposerRuntime() from
@@ -89,11 +93,14 @@ function ChatPage() {
     : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null) ?? resolvedFromSkill);
   const modeParam = searchParams.get('mode');
 
-  // When the URL carries an agent or mode param, jump straight into the thread —
-  // otherwise users land on the overview/role-picker first and have no idea
-  // their click on a sidebar agent entry "did anything".
+  // When the URL carries an agent/mode param or a thread deep link, jump
+  // straight into the thread — otherwise users land on the overview/role-picker
+  // first and have no idea their click on a sidebar agent entry "did anything".
+  // For deep links this also keeps ChatOverview (which resets chat context and
+  // switches to a new thread on mount) from racing the thread resolution.
   const effectiveViewMode =
     agentParam ||
+    threadSlug ||
     (modeParam && (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener'))
       ? 'thread'
       : chatViewMode;
@@ -138,7 +145,10 @@ function ChatPage() {
         }
         // else: user agent whose data hasn't loaded yet — wait for the next run.
       }
-    } else {
+    } else if (!threadSlug) {
+      // Not on a thread deep link: /chat without agent context is a blank
+      // slate. With a threadSlug the agent is restored from the thread row
+      // (ChatThreadRouting) and must not be wiped by a late userAgents re-run.
       notebookAppliedForRef.current = null;
       if (store.selectedAgentId !== null) {
         store.resetChatContext();
@@ -152,9 +162,22 @@ function ChatPage() {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
-  }, [agentParam, modeParam, userLocale, userAgents]);
+  }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
+
+  const isAgentsPath = location.pathname.startsWith('/agents/');
+  const handleNavigateToThread = useCallback(
+    (slugPath: string, opts: { replace: boolean }) => {
+      // Canonicalizing /agents/:slug → /chat/<slug> replaces so Back leaves
+      // the agent page instead of bouncing between the two URLs.
+      void navigate(`/chat/${slugPath}`, { replace: opts.replace || isAgentsPath });
+    },
+    [navigate, isAgentsPath]
+  );
+  const handleThreadGone = useCallback(() => {
+    void navigate('/chat', { replace: true });
+  }, [navigate]);
 
   const handleSelectNotebook = useCallback((notebookId: string) => {
     const store = useAgentStore.getState();
@@ -183,6 +206,14 @@ function ChatPage() {
 
   return (
     <div className="flex min-h-0 h-full bg-background">
+      {!hub && (
+        <ChatThreadRouting
+          threadSlug={threadSlug ?? null}
+          onNavigateToThread={handleNavigateToThread}
+          onThreadGone={handleThreadGone}
+          onOpenNotebookThread={handleNavigate}
+        />
+      )}
       <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
@@ -215,6 +246,12 @@ function ChatPage() {
         // the user edits subtitle text via chat. Renders null unless a reel
         // is active, so it coexists with the sharepic panel.
         <ReelArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+      )}
+      {!hub && effectiveViewMode === 'thread' && (
+        // Artefakt-Modus: pins a generated HTML/SVG artifact (sandboxed iframe)
+        // while the user iterates via chat. Renders null unless an artifact is
+        // active; opening one closes the sharepic/reel panel (single docked rail).
+        <ArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
       )}
     </div>
   );

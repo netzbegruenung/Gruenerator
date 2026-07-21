@@ -1,12 +1,21 @@
-import type { ConfirmActionType, DocumentCreatedEvent } from '@gruenerator/contracts';
+import type {
+  ConfirmActionType,
+  DocumentCreatedEvent,
+  SocialPostPayload,
+  BundestagPayload,
+  BahnPayload,
+} from '@gruenerator/contracts';
 import type {
   ChatProgress,
   Citation,
   GeneratedImage,
   SharepicData,
+  ChartData,
+  ComputeData,
   SearchResult,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
+import type { ActiveArtifact } from '../stores/artifactLiveStore';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
 import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
 
@@ -57,6 +66,13 @@ export type ChatMessageMetadata = {
   searchResults?: SearchResult[];
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
+  /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */
+  socialPostData?: SocialPostPayload;
+  chartData?: ChartData;
+  artifactData?: ActiveArtifact;
+  computeData?: ComputeData;
+  bundestagData?: BundestagPayload;
+  bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];

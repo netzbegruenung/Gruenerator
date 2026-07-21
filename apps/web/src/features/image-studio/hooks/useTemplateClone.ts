@@ -1,7 +1,6 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import apiClient from '../../../components/utils/apiClient';
 
 // ── API response shapes ────────────────────────────────────────────────
 
@@ -16,20 +15,18 @@ interface Template {
   image_metadata?: TemplateMetadata;
 }
 
-interface TemplateGetResponse {
-  template?: Template;
-}
-
-interface ShareCloneResponse {
-  share?: {
-    shareToken?: string;
-  };
-}
-
 interface TemplateCloneResult {
   cloneTemplate: (shareToken: string) => Promise<void>;
   isCloning: boolean;
   error: string | null;
+}
+
+/** Map a non-200 template response status to the user-facing German message. */
+function templateErrorMessage(status: number): string {
+  if (status === 404) return 'Vorlage nicht gefunden';
+  if (status === 403) return 'Kein Zugriff auf diese Vorlage';
+  if (status === 401) return 'Bitte melde dich an, um diese Vorlage zu verwenden';
+  return 'Vorlage konnte nicht geladen werden.';
 }
 
 export function useTemplateClone(): TemplateCloneResult {
@@ -49,15 +46,23 @@ export function useTemplateClone(): TemplateCloneResult {
       setError(null);
 
       try {
-        const templateResponse = await apiClient.get<TemplateGetResponse>(
-          `/share/templates/${shareToken}`
-        );
-        const template = templateResponse.data.template ?? {};
+        const client = getContractsClient();
+        const templateResponse = await client.sharesRead.getTemplate({ params: { shareToken } });
+        if (templateResponse.status !== 200) {
+          throw new Error(templateErrorMessage(templateResponse.status));
+        }
+        // Contract types `template` as unknown (templates are heterogeneous);
+        // narrow to the fields this clone flow reads.
+        const template = (templateResponse.body.template ?? {}) as Template;
 
-        const cloneResponse = await apiClient.post<ShareCloneResponse>(
-          `/share/templates/${shareToken}/clone`
-        );
-        const share = cloneResponse.data.share ?? {};
+        const cloneResponse = await client.sharesRead.cloneTemplate({
+          params: { shareToken },
+          body: {},
+        });
+        if (cloneResponse.status !== 200) {
+          throw new Error(templateErrorMessage(cloneResponse.status));
+        }
+        const share = cloneResponse.body.share;
 
         const imageType = template.image_type ?? '';
         const normalizedType = imageType.toLowerCase().replace(/_/g, '-');
@@ -72,10 +77,6 @@ export function useTemplateClone(): TemplateCloneResult {
           simple: '/studio/templates/simple',
           slider: '/studio/templates/slider',
           freeform: '/studio/templates/freeform',
-          'pres-title': '/studio/templates/pres-title',
-          'pres-image': '/studio/templates/pres-image',
-          'pres-content': '/studio/templates/pres-content',
-          presentation: '/studio/templates/pres-title',
         };
 
         const route = routeMap[normalizedType] ?? '/studio/templates';
@@ -98,25 +99,11 @@ export function useTemplateClone(): TemplateCloneResult {
           },
         });
       } catch (err: unknown) {
-        let errorMessage = 'Unbekannter Fehler';
-        if (err && typeof err === 'object') {
-          const axiosErr = err as {
-            response?: { status?: number; data?: { error?: string } };
-            message?: string;
-          };
-          if (axiosErr.response?.status === 404) {
-            errorMessage = 'Vorlage nicht gefunden';
-          } else if (axiosErr.response?.status === 403) {
-            errorMessage = 'Kein Zugriff auf diese Vorlage';
-          } else if (axiosErr.response?.status === 401) {
-            errorMessage = 'Bitte melde dich an, um diese Vorlage zu verwenden';
-          } else if (axiosErr.response?.data?.error) {
-            errorMessage = axiosErr.response.data.error;
-          } else if (axiosErr.message) {
-            errorMessage = axiosErr.message;
-          }
-        }
-        setError(errorMessage);
+        // Non-200 responses throw a status-mapped message above; genuine
+        // network errors surface their own message. (ts-rest resolves 4xx/5xx
+        // to { status, body } rather than throwing an axios error, so there is
+        // no `err.response.status` to branch on here anymore.)
+        setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
         cloneInProgressRef.current = null;
       } finally {
         setIsCloning(false);

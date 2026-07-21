@@ -37,12 +37,18 @@ import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
-import { processAttachments } from './attachmentProcessingService.js';
+import { isTabularAttachment, processAttachments } from './attachmentProcessingService.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
 import { canAccessThread } from './threadAccessService.js';
-import { getUser, createThread, createMessage } from './threadPersistenceService.js';
+import {
+  getUser,
+  createThread,
+  createMessage,
+  deleteMessagesFrom,
+  deleteTrailingAssistant,
+} from './threadPersistenceService.js';
 
 import type {
   ChatGraphInput,
@@ -59,6 +65,14 @@ const log = createLogger('chatGraphContractRouter');
 // hanging service must not stall the chat. On timeout the turn proceeds
 // without that context.
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
+
+// chat_threads.id is a uuid column. A client may send a local-only sentinel id
+// (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
+// deck editor sidebars) for a thread it has not persisted yet — that is not a
+// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
+// yet" and mint a fresh one.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
@@ -106,6 +120,7 @@ export async function buildStreamContext({
     notebookIds: rawNotebookIds,
     documentChatMode,
     attachmentContext: rawClientAttachmentContext,
+    computedResult: rawComputedResult,
     defaultNotebookId: rawDefaultNotebookId,
     docMentionIds: rawDocMentionIds,
     wolkeFiles: rawWolkeFiles,
@@ -122,13 +137,19 @@ export async function buildStreamContext({
     textIds: rawTextIds,
     documentChatIds: rawDocumentChatIds,
     boardIds: rawBoardIds,
+    sheetIds: rawSheetIds,
     threadId,
+    clientTools,
+    regenerate: rawRegenerate,
+    replaceFromMessageId: rawReplaceFromMessageId,
+    webpageUrls: rawWebpageUrls,
+    platform: rawPlatform,
   } = body;
 
   // === Validate ===
   const user = getUser(req);
   if (!user?.id) {
-    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
+    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized, code: 'unauthorized' });
     sse.end();
     return { done: true };
   }
@@ -137,13 +158,17 @@ export async function buildStreamContext({
   const aiWorkerPool = getAIWorkerPool(req);
 
   if (!aiWorkerPool) {
-    sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.aiUnavailable,
+      code: 'provider_unavailable',
+      retryable: true,
+    });
     sse.end();
     return { done: true };
   }
 
   if ((clientMessages as unknown[]).length === 0) {
-    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
+    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
@@ -245,13 +270,13 @@ export async function buildStreamContext({
     )) as ModelMessage[] as ChatGraphInput['messages'];
   } catch (convertError) {
     log.error('[ChatGraph] Error converting messages:', convertError);
-    sse.send('error', { error: 'Failed to process messages' });
+    sse.send('error', { error: PROGRESS_MESSAGES.invalidRequest, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
 
   if (!modelMessages || !Array.isArray(modelMessages)) {
-    sse.send('error', { error: 'Failed to process messages' });
+    sse.send('error', { error: PROGRESS_MESSAGES.invalidRequest, code: 'invalid_request' });
     sse.end();
     return { done: true };
   }
@@ -269,6 +294,16 @@ export async function buildStreamContext({
   // Normalize null → undefined: contract schema uses .nullish() to accept
   // both, but downstream code is typed for string | undefined.
   let actualThreadId: string | undefined = threadId ?? undefined;
+  // A non-UUID id (local sentinel for an unsaved thread) can't be looked up or
+  // stored — drop it so the create-thread branch below mints a real one and
+  // reports it back via `thread_created`. Logged: a client that persistently
+  // sends sentinels (e.g. an aui-internal "__LOCALID_..." leaking through the
+  // adapter) creates a new thread on EVERY message, which looks like lost chat
+  // history — this line is the observable trace of that failure mode.
+  if (actualThreadId && !UUID_RE.test(actualThreadId)) {
+    log.warn(`[StreamContext] Dropping non-UUID threadId "${actualThreadId}" — minting new thread`);
+    actualThreadId = undefined;
+  }
   let isNewThread = false;
 
   if (!actualThreadId && lastUserMessage) {
@@ -329,14 +364,32 @@ export async function buildStreamContext({
       );
     }
 
-    const userText = extractTextContent(lastUserMessage.content);
-    await createMessage(
-      actualThreadId,
-      'user',
-      userText,
-      rawRoleName ? { roleName: rawRoleName } : undefined,
-      userId
-    );
+    // Regenerate / edit-resubmit: replace the last turn instead of appending,
+    // so chat_messages stays linear (no duplicate user rows / orphaned replies).
+    // Never truncates a brand-new thread (nothing to replace there).
+    if (!isNewThread) {
+      if (rawReplaceFromMessageId) {
+        const removed = await deleteMessagesFrom(actualThreadId, rawReplaceFromMessageId);
+        // In-session messages carry an AUI id that isn't a persisted row → the
+        // delete matches nothing; fall back to dropping the trailing reply.
+        if (removed === 0) await deleteTrailingAssistant(actualThreadId);
+      } else if (rawRegenerate) {
+        await deleteTrailingAssistant(actualThreadId);
+      }
+    }
+
+    // Regenerate keeps the existing (unchanged) user message; re-persisting it
+    // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
+    if (!rawRegenerate) {
+      const userText = extractTextContent(lastUserMessage.content);
+      await createMessage(
+        actualThreadId,
+        'user',
+        userText,
+        rawRoleName ? { roleName: rawRoleName } : undefined,
+        userId
+      );
+    }
   }
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
@@ -370,6 +423,24 @@ export async function buildStreamContext({
     (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
 
   const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
+
+  // Tabular files (this turn or earlier) are bridged into the in-browser pandas
+  // interpreter by the composer — flag it so respondNode steers the model to
+  // compute over `df` instead of doing unreliable mental math.
+  const hasTabularAttachment =
+    docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
+    previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
+
+  // Large prose attachments from earlier turns were embedded into Qdrant — route
+  // their document ids through the existing document-chat retrieval fan-out so
+  // follow-up questions pull the relevant chunks per query (RAG), instead of the
+  // now-skipped full-text injection.
+  const embeddedAttachmentDocIds = previousAttachments
+    .filter((a) => a.documentId)
+    .map((a) => a.documentId as string);
+  const mergedDocumentChatIds = [
+    ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
+  ];
 
   // === Memory retrieval (mem0) ===
   // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
@@ -447,20 +518,25 @@ export async function buildStreamContext({
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
+    hasTabularAttachment,
+    clientCanRunPython: clientTools?.includes('run_python') ?? false,
+    computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
     notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
     defaultNotebookId,
     defaultNotebookDocumentIds:
       defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
     documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
-    documentChatIds: rawDocumentChatIds?.length
-      ? rawDocumentChatIds
+    documentChatIds: mergedDocumentChatIds.length
+      ? mergedDocumentChatIds
       : docAttachments.length > 0 || documentChatMode
         ? []
         : undefined,
     boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+    sheetIds: rawSheetIds?.length ? rawSheetIds : undefined,
     wolkeFiles,
     connectFiles,
+    attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
@@ -479,6 +555,7 @@ export async function buildStreamContext({
         }
       : undefined,
     userLocale: user.locale ?? 'de-DE',
+    clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt: rawCustomSystemPrompt ?? undefined,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
@@ -508,6 +585,7 @@ export async function buildStreamContext({
     ...(rawDocumentIds != null && { rawDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
     ...(rawBoardIds != null && { rawBoardIds }),
+    ...(rawSheetIds != null && { rawSheetIds }),
     ...(rawDocMentionIds != null && { rawDocMentionIds }),
     docAttachments,
     processedMeta,

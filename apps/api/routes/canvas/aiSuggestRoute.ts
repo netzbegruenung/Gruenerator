@@ -25,12 +25,15 @@ const s = initServer();
 export const canvasAiContractRouter = s.router(canvasAiContract, {
   suggest: async (args) => {
     const { req } = args;
-    const { prompt, snapshot, capabilities } = args.body;
+    const { prompt, snapshot, capabilities, referenceContent } = args.body;
 
     const result = await runCanvasSuggest({
       prompt,
       snapshot,
       capabilities,
+      // Ground the suggestion in the chat loop's gathered research (compound
+      // "recherchiere X und bau es ins Sharepic ein" turns).
+      ...(referenceContent ? { contextHints: { prose: referenceContent } } : {}),
       aiWorkerPool: getAIWorkerPool(req),
       req,
     });

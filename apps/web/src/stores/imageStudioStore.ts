@@ -1,12 +1,15 @@
+import { type CanvasTemplateType } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
 import { DEFAULT_COLORS } from '../components/utils/constants';
+import { useAutoSaveStore } from '../features/image-studio/hooks/useAutoSaveStore';
 import {
   parseSharepicForEditing,
   loadGalleryEditData as loadGalleryEditDataService,
   loadEditSessionData as loadEditSessionDataService,
   parseAIGeneratedData,
+  clearGalleryEditSession,
 } from '../features/image-studio/services/editingSessionService';
 import {
   FONT_SIZES,
@@ -75,6 +78,7 @@ const initialState = {
   sunflowerOffset: [0, 0],
   credit: '',
   searchTerms: [],
+  deckPages: null,
 
   // Veranstaltung per-field font sizes (in pixels)
   veranstaltungFieldFontSizes: {
@@ -194,6 +198,14 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
       }
       const config = getTypeConfig(validType || '');
       const firstStep = config?.steps?.[0] || FORM_STEPS.INPUT;
+      // Selecting a type starts a NEW creation: drop the previous session's
+      // autosave token and persisted edit session, otherwise the next autosave
+      // updates (= overwrites) the previous sharepic's gallery entry. Gallery
+      // edits and reload-restores seed state via set(formData), not setType,
+      // so they are unaffected; the reload-restore path additionally stashes
+      // its session before any effect can clear the storage.
+      useAutoSaveStore.getState().clearAutoSaveState();
+      clearGalleryEditSession();
       set({
         type: validType,
         currentStep: firstStep,
@@ -402,13 +414,19 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
     },
 
     resetToCategorySelect: () => {
+      useAutoSaveStore.getState().clearAutoSaveState();
+      clearGalleryEditSession();
       set({
         ...(initialState as unknown as Partial<ImageStudioStore>),
         currentStep: FORM_STEPS.CATEGORY_SELECT,
       });
     },
 
-    resetStore: () => set(initialState as unknown as Partial<ImageStudioStore>),
+    resetStore: () => {
+      useAutoSaveStore.getState().clearAutoSaveState();
+      clearGalleryEditSession();
+      set(initialState as unknown as Partial<ImageStudioStore>);
+    },
 
     // Advanced editing controls
     updateBalkenGruppenOffset: (newOffset: number[]) =>
@@ -490,7 +508,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
 
     // Load data from AI-generated prompt (from ImageStudio chat input)
     loadFromAIGeneration: (
-      sharepicType: string,
+      sharepicType: CanvasTemplateType,
       generatedData: Record<string, string>,
       selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null
     ) => {

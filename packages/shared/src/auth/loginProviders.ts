@@ -53,7 +53,9 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     className: 'netzbegruenung',
     logoPath: '/images/nb_icon.png',
     logoAlt: 'Netzbegrünung',
-    enabledByDefault: true,
+    // Only reachable via the special link (?provider=netzbegruenung); hidden
+    // from the default provider set on both the start page and /login.
+    enabledByDefault: false,
   },
   {
     id: 'gruenerator',
@@ -67,6 +69,41 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     enabledByDefault: false,
   },
 ];
+
+/** localStorage key for the provider a user last logged in with. */
+export const REMEMBERED_PROVIDER_KEY = 'gruenerator.loginProvider';
+
+/** The two country providers the start page auto-detects between. */
+export type CountryProviderId = 'gruenes-netz' | 'gruene-oesterreich';
+
+export function getProviderById(id: LoginProviderId): LoginProvider | undefined {
+  return LOGIN_PROVIDERS.find((p) => p.id === id);
+}
+
+/** Read the remembered provider id from localStorage (null if none/invalid/unavailable). */
+export function getRememberedProvider(): LoginProviderId | null {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_PROVIDER_KEY);
+    return LOGIN_PROVIDERS.some((p) => p.id === raw) ? (raw as LoginProviderId) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the provider a user chose so we can pre-select it on return. */
+export function rememberProvider(id: LoginProviderId): void {
+  try {
+    localStorage.setItem(REMEMBERED_PROVIDER_KEY, id);
+  } catch {
+    // storage unavailable (private mode / disabled) — non-fatal
+  }
+}
+
+/** Guess the member's country provider from the browser language (AT → Österreich, else Deutschland). */
+export function detectCountryProviderId(): CountryProviderId {
+  const lang = (typeof navigator !== 'undefined' ? navigator.language : 'de-DE') || 'de-DE';
+  return lang.toLowerCase().includes('at') ? 'gruene-oesterreich' : 'gruenes-netz';
+}
 
 /** @deprecated Use signInWithProvider() for Better Auth flow */
 export function buildProviderAuthUrl(

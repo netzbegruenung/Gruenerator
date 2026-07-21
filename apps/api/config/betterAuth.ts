@@ -97,6 +97,17 @@ export const auth = betterAuth({
         );
         return;
       }
+      // Known Better Auth secondary-storage corruption: a partial/corrupt
+      // `ba:<token>` Redis value makes deleteSession early-return WITHOUT
+      // deleting the DB row or firing hooks — leaving a revoked session's row
+      // alive (a silent half-logged-in source). Not benign; alert on it.
+      if (
+        level === 'error' &&
+        typeof message === 'string' &&
+        /not found in secondary storage/i.test(message)
+      ) {
+        captureAuthIssue({ stage: 'better-auth', cause: new Error(message), extras: { args } });
+      }
       const sink =
         level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
       sink(`[BA:${level}]`, message, ...args);
@@ -152,7 +163,6 @@ export const auth = betterAuth({
       boards: { type: 'boolean', required: false, defaultValue: false },
       bundestag_api_enabled: { type: 'boolean', required: false, defaultValue: false },
       memory_enabled: { type: 'boolean', required: false, defaultValue: false },
-      wordpress_enabled: { type: 'boolean', required: false, defaultValue: false },
     },
   },
 
@@ -171,6 +181,15 @@ export const auth = betterAuth({
     storeSessionInDatabase: true,
     cookieCache: {
       enabled: true,
+      // 300s = Better Auth's default. This is the IDLE-TOLERANCE window: while
+      // the signed `ba.session_data` snapshot is valid, getSession answers from
+      // it without a store lookup, so an idle user isn't logged out for up to
+      // 5 min. A previous change to 60s cut that to ~1 min and logged idle users
+      // out far too aggressively. The prolonged "half logged in" state is
+      // prevented by the unified 401 teardown (getSession stays authoritative
+      // on real 401s via disableCookieCache) — NOT by shrinking this window, so
+      // 300s is the right value. Do NOT disable: that puts Redis/PG on every
+      // request's hot path.
       maxAge: 300,
     },
     additionalFields: {
@@ -336,13 +355,36 @@ export const auth = betterAuth({
       create: {
         after: async (session) => {
           log.info(
-            `[Auth] session-created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'}`
+            `[Session] created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
           );
           // Deliver one-off product announcements (e.g. new Pride avatars) on
           // login — once per user, idempotent, best-effort.
           const { deliverLoginAnnouncements } =
             await import('../services/notifications/loginAnnouncements.js');
           await deliverLoginAnnouncements(session.userId);
+        },
+      },
+      // Rolling refresh (updateAge: 24h) touches the session at most once per
+      // user per day — so this line is low-volume and makes rotation visible.
+      // A user rotating more than once a day is anomalous (rotation-loop bug).
+      update: {
+        after: async (session) => {
+          log.info(
+            `[Session] rotated id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
+          );
+        },
+      },
+      // First-time visibility into revocation AND expiry-purge-on-read. `reason`
+      // is inferred from expiry: a row whose expiresAt is already past was
+      // purged when getSession read it; otherwise it's an explicit sign-out.
+      delete: {
+        after: async (session) => {
+          const expiresAt =
+            session.expiresAt instanceof Date ? session.expiresAt : new Date(session.expiresAt);
+          const expired = expiresAt.getTime() < Date.now();
+          log.info(
+            `[Session] deleted id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expired=${expired} reason=${expired ? 'expired-on-read' : 'revoked'}`
+          );
         },
       },
     },

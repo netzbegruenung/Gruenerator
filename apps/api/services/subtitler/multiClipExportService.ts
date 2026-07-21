@@ -252,7 +252,6 @@ export async function exportMultiClipWithSegments(
 
     const isVertical = firstClipMetadata.width < firstClipMetadata.height;
     const referenceDimension = isVertical ? firstClipMetadata.width : firstClipMetadata.height;
-    const useHwAccel = await hwaccel.detectVaapi();
 
     const hasAudio = clips.some(
       (clip) => clipMetadataMap[clip.clipId]?.originalFormat?.audioCodec != null
@@ -275,67 +274,39 @@ export async function exportMultiClipWithSegments(
           ? buildMultiClipFilterComplex(clips, validSegments)
           : buildMultiClipVideoOnlyFilterComplex(clips, validSegments);
 
-        let outputOptions: string[];
+        const is4K = referenceDimension >= 2160;
+        const isHevcSource = firstClipMetadata.originalFormat?.codec === 'hevc';
+        const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
-        if (useHwAccel) {
-          const is4K = referenceDimension >= 2160;
-          const isHevcSource = firstClipMetadata.originalFormat?.codec === 'hevc';
-          const videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-          const qp = hwaccel.crfToQp(crf);
+        const outputOptions = [
+          '-y',
+          '-filter_complex',
+          filterComplex,
+          '-map',
+          outputStreams[0],
+          ...(hasAudio && outputStreams[1] ? ['-map', outputStreams[1]] : []),
+          '-c:v',
+          videoCodec,
+          '-preset',
+          preset,
+          '-crf',
+          crf.toString(),
+          '-profile:v',
+          videoCodec === 'libx264' ? 'high' : 'main',
+          '-level',
+          videoCodec === 'libx264' ? '4.1' : '4.0',
+          ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
+          '-movflags',
+          '+faststart',
+          '-avoid_negative_ts',
+          'make_zero',
+        ];
 
-          command.inputOptions(hwaccel.getVaapiInputOptions());
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            filterComplex,
-            '-map',
-            outputStreams[0],
-            ...(hasAudio && outputStreams[1] ? ['-map', outputStreams[1]] : []),
-            ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          log.debug(`Multi-clip export using VAAPI: ${clips.length} clips, encoder: ${videoCodec}`);
-        } else {
-          const is4K = referenceDimension >= 2160;
-          const isHevcSource = firstClipMetadata.originalFormat?.codec === 'hevc';
-          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            filterComplex,
-            '-map',
-            outputStreams[0],
-            ...(hasAudio && outputStreams[1] ? ['-map', outputStreams[1]] : []),
-            '-c:v',
-            videoCodec,
-            '-preset',
-            preset,
-            '-crf',
-            crf.toString(),
-            '-profile:v',
-            videoCodec === 'libx264' ? 'high' : 'main',
-            '-level',
-            videoCodec === 'libx264' ? '4.1' : '4.0',
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          if (videoCodec === 'libx264') {
-            outputOptions.push(...hwaccel.getX264QualityParams());
-          }
-
-          log.debug(`Multi-clip export using CPU: ${clips.length} clips, CRF: ${crf}`);
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
         }
+
+        log.debug(`Multi-clip export using CPU: ${clips.length} clips, CRF: ${crf}`);
 
         command.outputOptions(outputOptions);
 
@@ -528,7 +499,6 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
 
     const referenceDimension = isVertical ? firstClipMetadata.width : firstClipMetadata.height;
     const fileSizeMB = fileStats.size / 1024 / 1024;
-    const useHwAccel = await hwaccel.detectVaapi();
     const hasAudio = clips.some(
       (clip) => clipMetadataMap[clip.clipId]?.originalFormat?.audioCodec != null
     );
@@ -559,58 +529,34 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
 
         const combinedFilter = `${segmentFilter};[outv]${subtitleFilter}[finalv]`;
 
-        let outputOptions: string[];
+        const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
 
-        if (useHwAccel) {
-          const videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-          const qp = hwaccel.crfToQp(crf);
+        const outputOptions = [
+          '-y',
+          '-filter_complex',
+          combinedFilter,
+          '-map',
+          '[finalv]',
+          ...(hasAudio ? ['-map', '[outa]'] : []),
+          '-c:v',
+          videoCodec,
+          '-preset',
+          preset,
+          '-crf',
+          crf.toString(),
+          '-profile:v',
+          videoCodec === 'libx264' ? 'high' : 'main',
+          '-level',
+          videoCodec === 'libx264' ? '4.1' : '4.0',
+          ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
+          '-movflags',
+          '+faststart',
+          '-avoid_negative_ts',
+          'make_zero',
+        ];
 
-          command.inputOptions(hwaccel.getVaapiInputOptions());
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            combinedFilter,
-            '-map',
-            '[finalv]',
-            ...(hasAudio ? ['-map', '[outa]'] : []),
-            ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-        } else {
-          const videoCodec = is4K && isHevcSource ? 'libx265' : 'libx264';
-
-          outputOptions = [
-            '-y',
-            '-filter_complex',
-            combinedFilter,
-            '-map',
-            '[finalv]',
-            ...(hasAudio ? ['-map', '[outa]'] : []),
-            '-c:v',
-            videoCodec,
-            '-preset',
-            preset,
-            '-crf',
-            crf.toString(),
-            '-profile:v',
-            videoCodec === 'libx264' ? 'high' : 'main',
-            '-level',
-            videoCodec === 'libx264' ? '4.1' : '4.0',
-            ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
-            '-movflags',
-            '+faststart',
-            '-avoid_negative_ts',
-            'make_zero',
-          ];
-
-          if (videoCodec === 'libx264') {
-            outputOptions.push(...hwaccel.getX264QualityParams());
-          }
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
         }
 
         command.outputOptions(outputOptions);

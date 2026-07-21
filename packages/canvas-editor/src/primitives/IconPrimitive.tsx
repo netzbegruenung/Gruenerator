@@ -111,6 +111,7 @@ function IconPrimitiveInner({
 
         {selected && (
           <Rect
+            name="selection-chrome"
             x={-BASE_SIZE / 2}
             y={-BASE_SIZE / 2}
             width={BASE_SIZE}

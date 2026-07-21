@@ -1,0 +1,63 @@
+/* Sunrise treatment for the login card (standalone /login + the mode='required'
+   modal, incl. the desktop app). Shares the warm-radial language and floating
+   pill surfaces of the public start page (startpage-hero.css) so the login reads
+   as the same design. Scoped to .lp-sunrise-card so nothing else is affected. */
+
+.lp-sunrise-card {
+  /* Warm sunrise glow rising from the top edge, over the base background. */
+  background-color: #fefcf5;
+  background-image: radial-gradient(
+    120% 78% at 50% 0%,
+    rgb(233 214 150 / 0.5) 0%,
+    rgb(233 214 150 / 0.18) 40%,
+    rgb(255 255 255 / 0) 74%
+  );
+}
+[data-theme='dark'] .lp-sunrise-card {
+  background-color: var(--background-color);
+  background-image: radial-gradient(
+    120% 78% at 50% 0%,
+    rgb(233 214 150 / 0.1) 0%,
+    rgb(233 214 150 / 0.035) 42%,
+    rgb(0 0 0 / 0) 74%
+  );
+}
+
+/* Inner columns default to transparent so the glow shows through the whole
+   card; LoginPage otherwise paints them opaque (lg:bg-background) on wide
+   screens — which is exactly the desktop-app window. */
+.lp-sunrise-card .lp-col {
+  background: transparent;
+}
+
+/* Provider buttons become floating rounded surfaces (echo of .sp-provider). */
+.lp-sunrise-card .login-option {
+  border: none;
+  border-radius: 18px;
+  background: var(--background-color);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease;
+}
+.lp-sunrise-card .login-option:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--background-color);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+.lp-sunrise-card .login-option:active:not(:disabled) {
+  transform: translateY(0);
+}
+[data-theme='dark'] .lp-sunrise-card .login-option {
+  background: var(--background-color-alt);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-sunrise-card .login-option {
+    transition: box-shadow 0.2s ease;
+  }
+  .lp-sunrise-card .login-option:hover:not(:disabled) {
+    transform: none;
+  }
+}

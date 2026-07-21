@@ -8,7 +8,7 @@
 import { type AgentTask } from '../../../database/schema/agentTasks.js';
 import { createLogger } from '../../../utils/logger.js';
 import { createNotification } from '../../notifications/NotificationService.js';
-import { completeAgentTask } from '../agentTaskService.js';
+import { completeAgentTask, parkTaskForReview } from '../agentTaskService.js';
 
 import { deriveTitle, generateFromState, prepareAgentState } from './generate.js';
 import { executeOutputs } from './outputs/index.js';
@@ -49,6 +49,31 @@ export async function runFlow(task: AgentTask): Promise<void> {
     cardContext: flow.cardContext,
   });
 
+  // Review-enabled runs (Phase 2) park for a human Accept/Redo instead of
+  // completing silently; the result comment/document is already posted either way.
+  const boardCardUrl = `/boards/${task.board_id}?card=${task.card_id}`;
+  if (task.require_review) {
+    await parkTaskForReview(task.id, documentId);
+    await createNotification({
+      userId: task.requested_by,
+      type: 'agent_task_awaiting_review',
+      title: `Geplanter Lauf wartet auf Prüfung: ${title}`,
+      body: 'Ein geplanter Grünerator-Lauf ist fertig und wartet auf deine Freigabe.',
+      actionUrl: boardCardUrl,
+      metadata: {
+        boardId: task.board_id,
+        cardId: task.card_id,
+        taskId: task.id,
+        ...(documentId != null && { documentId }),
+      },
+      groupKey: `agent-task-${task.id}`,
+    });
+    log.info(
+      `Board flow task ${task.id} awaiting review${documentId ? ` → document ${documentId}` : ''}`
+    );
+    return;
+  }
+
   await completeAgentTask(task.id, documentId);
 
   await createNotification({
@@ -60,7 +85,7 @@ export async function runFlow(task: AgentTask): Promise<void> {
       : content.length > 140
         ? content.slice(0, 139) + '…'
         : content,
-    actionUrl: documentId ? `/docs/${documentId}` : `/boards/${task.board_id}?card=${task.card_id}`,
+    actionUrl: documentId ? `/office/${documentId}` : boardCardUrl,
     metadata: {
       boardId: task.board_id,
       cardId: task.card_id,

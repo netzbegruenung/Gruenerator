@@ -238,6 +238,16 @@ export class OffboardingService {
   }
 
   /**
+   * Lightweight liveness probe: a single authenticated fetch against the Grüne API.
+   * Throws if the API is unreachable or rejects our credentials, so /status can
+   * report real connectivity instead of mere env-var presence — a stale/rejected
+   * credential must not surface only later as a run-time 500.
+   */
+  async probeConnectivity(): Promise<void> {
+    await this.apiClient.findUsersToOffboard(1, null);
+  }
+
+  /**
    * Validate configuration
    * @throws Error if configuration is invalid
    */

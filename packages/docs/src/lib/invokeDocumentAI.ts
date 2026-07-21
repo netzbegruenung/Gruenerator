@@ -1,4 +1,6 @@
 import { getDocAIExtension } from './aiExtension';
+import { isSuggestionModeEnabled } from './suggestionMode';
+import { useEditorStore } from '../stores/editorStore';
 
 // In-flight invocation registry. The fork store flips `isForked` at fork time —
 // before the LLM streams — and with the AI menu closed the extension's own
@@ -48,6 +50,21 @@ export async function invokeDocumentAI(opts: {
 }): Promise<boolean> {
   const ext = getDocAIExtension(opts.documentId);
   if (!ext) return false;
+
+  // Track changes and AI editing share the same suggestion marks; running AI
+  // while the mode is on would let its accept-all swallow human suggestions.
+  // This is one half of a two-way lock: the other half (useSuggestionMode.toggle)
+  // refuses to enable the mode while an AI review is forked. The mode flag lives
+  // in the ydoc, so a null ydoc here means the mode cannot be on — safe to skip.
+  const ydoc = useEditorStore.getState().getDocContext(opts.documentId)?.ydoc;
+  if (ydoc && isSuggestionModeEnabled(ydoc)) {
+    void import('sonner').then(({ toast }) =>
+      toast.error(
+        'KI-Bearbeitung ist im Änderungsmodus nicht verfügbar. Änderungsmodus zuerst beenden.'
+      )
+    );
+    return false;
+  }
 
   // NOTE: we deliberately do NOT call `openAIMenuAtBlock`. On mobile the web AI
   // popover (which hosts the Accept/Reject buttons) is suppressed entirely; the

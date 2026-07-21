@@ -20,6 +20,8 @@ import { useMobileBridge } from '../hooks/useMobileBridge';
 
 import type { ToolbarStateReport } from './GenericCanvas';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
+import type { ShadowPatch } from '../hooks/useFloatingModuleHandlers';
+import type { GradientFill } from '../utils/gradientFill';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';
@@ -32,6 +34,10 @@ export interface ToolbarBridgeState {
   handleMoveLayer: (direction: 'up' | 'down') => void;
   handleColorSelect: (color: string) => void;
   handleOpacityChange: (id: string, opacity: number, type: string) => void;
+  handleShadowChange: (id: string, patch: ShadowPatch, type: string) => void;
+  handleOutlineChange: (id: string, patch: { stroke?: string; strokeWidth?: number }) => void;
+  handleBlurChange: (id: string, blur: number) => void;
+  handleGradientSelect: (gradient: GradientFill | null) => void;
 }
 
 interface ToolbarStateBridgeProps<
@@ -130,6 +136,10 @@ export function ToolbarStateBridge<
       handleMoveLayer: layerControls.handleMoveLayer,
       handleColorSelect: floatingHandlers.handleColorSelect,
       handleOpacityChange: floatingHandlers.handleOpacityChange,
+      handleShadowChange: floatingHandlers.handleShadowChange,
+      handleOutlineChange: floatingHandlers.handleOutlineChange,
+      handleBlurChange: floatingHandlers.handleBlurChange,
+      handleGradientSelect: floatingHandlers.handleGradientSelect,
     };
   });
 
