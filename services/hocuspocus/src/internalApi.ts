@@ -555,11 +555,9 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     const body = (req.body ?? {}) as { rows?: unknown; userId?: unknown };
     const userId = typeof body.userId === 'string' ? body.userId : '';
     if (!Array.isArray(body.rows) || body.rows.length === 0 || !body.rows.every(isNewBoardRow)) {
-      res
-        .status(400)
-        .json({
-          error: 'rows must be a non-empty array of {title, status?, description?, dueDate?}',
-        });
+      res.status(400).json({
+        error: 'rows must be a non-empty array of {title, status?, description?, dueDate?}',
+      });
       return;
     }
     if (body.rows.length > MAX_ROWS_PER_CALL) {
