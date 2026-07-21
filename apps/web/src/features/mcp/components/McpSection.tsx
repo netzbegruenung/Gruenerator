@@ -49,31 +49,57 @@ import {
   deleteMcpServer,
   startMcpOAuth,
   testMcpServer,
+  McpOAuthStartError,
   type McpAuthType,
+  type McpOAuthErrorCode,
   type McpRegistryEntry,
   type McpServerSummary,
 } from '../lib/mcpApi';
-import { openOAuthPopup, waitForOAuthPopup, type McpOAuthResult } from '../lib/mcpOAuthPopup';
+import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
 
 import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
+interface RunOAuthResult {
+  status: 'success' | 'error' | 'dismissed' | 'no_auth_required';
+  serverId?: string;
+  error?: string;
+  code?: McpOAuthErrorCode;
+  /** True when oauthStart itself failed (before any provider login) — the
+   * caller may roll back a server it just created for this attempt. */
+  startFailed?: boolean;
+}
+
 /**
  * Drive the OAuth popup. The popup MUST be opened synchronously (first line,
  * before any await) or the browser blocks it; `resolveServerId` then creates or
- * looks up the server before we navigate the popup to the provider.
+ * looks up the server before we navigate the popup to the provider. Servers
+ * that turn out to need no auth at all resolve as `no_auth_required` (the
+ * backend already flipped them to authType 'none').
  */
-async function runOAuth(resolveServerId: () => Promise<string>): Promise<McpOAuthResult> {
+async function runOAuth(resolveServerId: () => Promise<string>): Promise<RunOAuthResult> {
   const popup = openOAuthPopup();
   if (!popup) return { status: 'error', error: 'Popup wurde blockiert' };
   try {
     const serverId = await resolveServerId();
-    popup.location.href = await startMcpOAuth(serverId);
+    const start = await startMcpOAuth(serverId);
+    if (start.status === 'no_auth_required') {
+      popup.close();
+      return { status: 'no_auth_required' };
+    }
+    popup.location.href = start.authorizationUrl;
     return await waitForOAuthPopup(popup);
   } catch (e) {
     popup.close();
-    return { status: 'error', error: e instanceof Error ? e.message : 'Fehler' };
+    // waitForOAuthPopup never rejects, so everything caught here failed before
+    // the provider login (create/start phase).
+    return {
+      status: 'error',
+      error: e instanceof Error ? e.message : 'Fehler',
+      startFailed: true,
+      ...(e instanceof McpOAuthStartError && e.code ? { code: e.code } : {}),
+    };
   }
 }
 
@@ -319,6 +345,8 @@ const McpServerRow = memo(
       void runOAuth(async () => server.id).then((result) => {
         void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
         if (result.status === 'success') onSuccess(`${server.name} verbunden`);
+        else if (result.status === 'no_auth_required')
+          onSuccess(`${server.name} verbunden — der Server benötigt keine Anmeldung`);
         else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
       });
     };
@@ -718,7 +746,11 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
     [registry, connectedUrls]
   );
-  const activeCount = servers.filter((s) => s.enabled).length;
+  // OAuth servers without a token aren't usable yet — listing them under
+  // "Verbunden" would suggest they work. They get their own action section.
+  const authPending = servers.filter((s) => s.authType === 'oauth' && !s.hasToken);
+  const connected = servers.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
+  const activeCount = connected.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
     if (entry.authHint === 'oauth') {
@@ -739,18 +771,43 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       }
       // Popup opens synchronously inside runOAuth; create the server, then auth.
       setConnecting(entry.url);
+      let createdId: string | null = null;
       void runOAuth(async () => {
         const server = await createMcpServer({
           name: entry.title,
           url: entry.url,
           authType: 'oauth',
         });
+        createdId = server.id;
         return server.id;
-      }).then((result) => {
+      }).then(async (result) => {
         setConnecting(null);
+        if (result.status === 'error' && result.startFailed && createdId) {
+          // OAuth never even started — roll the just-created server back so no
+          // zombie "Nicht autorisiert" row remains and the card stays available.
+          await deleteMcpServer(createdId).catch(() => {});
+        }
         refreshMcp();
         if (result.status === 'success') onSuccess(`${entry.title} verbunden`);
-        else if (result.status === 'error') onError(result.error || 'OAuth fehlgeschlagen');
+        else if (result.status === 'no_auth_required')
+          onSuccess(`${entry.title} verbunden — der Server benötigt keine Anmeldung`);
+        else if (result.status === 'error') {
+          if (result.code === 'dcr_rejected') {
+            // Provider refuses automatic registration → guide the user into the
+            // manual app-registration form instead of leaving them at a banner.
+            setPrefill({
+              name: entry.title,
+              url: entry.url,
+              authType: 'oauth',
+              manual: true,
+              setupUrl: entry.setupUrl,
+            });
+            requestAnimationFrame(() =>
+              addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            );
+          }
+          onError(result.error || 'OAuth fehlgeschlagen');
+        }
       });
       return;
     }
@@ -776,7 +833,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     );
   };
 
-  const hasConnected = servers.length > 0;
+  const hasConnected = connected.length > 0;
 
   return (
     <div className="mt-xl">
@@ -805,6 +862,29 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
       {isLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
 
+      {/* OAuth servers still waiting for their authorization — kept out of
+          "Verbunden" so a pending server never looks usable. */}
+      {authPending.length > 0 && (
+        <div className="mt-xl">
+          <div className="flex items-baseline gap-sm mb-sm">
+            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-amber-600 dark:text-amber-400">
+              Autorisierung erforderlich
+            </h3>
+            <span className="text-xs text-grey-400">noch nicht nutzbar</span>
+          </div>
+          <div className="flex flex-col gap-sm">
+            {authPending.map((server) => (
+              <McpServerRow
+                key={server.id}
+                server={server}
+                onSuccess={onSuccess}
+                onError={onError}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Connected — only shown once at least one server is connected; an empty
           state here would just be noise. */}
       {hasConnected && (
@@ -816,7 +896,7 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
             <span className="text-xs text-grey-400">{activeCount} aktiv</span>
           </div>
           <div className="flex flex-col gap-sm">
-            {servers.map((server) => (
+            {connected.map((server) => (
               <McpServerRow
                 key={server.id}
                 server={server}

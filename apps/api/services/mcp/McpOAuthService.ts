@@ -14,6 +14,7 @@
  * expiry can't race to invalidate a single-use refresh token.
  */
 
+import { type McpOauthStartResult } from '@gruenerator/contracts';
 import {
   discoverOAuthServerInfo,
   discoverAuthorizationServerMetadata,
@@ -37,6 +38,8 @@ import { decryptCredential, encryptCredential } from '../../utils/validation/enc
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 import { consumeOAuthState, generateState, saveOAuthState } from './mcpOAuthState.js';
+import { McpServerRegistry } from './McpServerRegistry.js';
+import { UserMCPClient } from './UserMCPClient.js';
 
 const log = createLogger('mcp-oauth');
 
@@ -48,6 +51,34 @@ interface AsMetadata {
   token_endpoint?: string;
   registration_endpoint?: string;
   scopes_supported?: string[];
+}
+
+type McpOAuthErrorCode = 'dcr_rejected' | 'no_oauth_support';
+
+function oauthError(message: string, statusCode: number, code?: McpOAuthErrorCode): Error {
+  return Object.assign(new Error(message), { statusCode, ...(code && { code }) });
+}
+
+/**
+ * Pull the human-readable detail out of an SDK registration/authorization error.
+ * Providers with non-RFC error bodies (e.g. Typeform's `{code, description}`)
+ * make the SDK throw "Invalid OAuth error response: <zod>. Raw body: {...}" —
+ * parse that raw body instead of surfacing the Zod dump.
+ */
+function providerErrorDetail(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const marker = 'Raw body: ';
+  const idx = msg.indexOf(marker);
+  if (idx !== -1) {
+    try {
+      const body = JSON.parse(msg.slice(idx + marker.length)) as Record<string, unknown>;
+      const detail = body.error_description ?? body.description ?? body.error ?? body.code;
+      if (typeof detail === 'string' && detail) return detail;
+    } catch {
+      // not JSON — fall through to the raw message
+    }
+  }
+  return msg;
 }
 
 function getRedirectUri(): string {
@@ -83,8 +114,13 @@ export class McpOAuthService {
    * Begin authorization: discover, register (DCR) or reuse the client, persist
    * the OIDC config, and return the provider authorize URL. The PKCE verifier is
    * parked in Redis keyed by an opaque state for the callback.
+   *
+   * Servers without OAuth discovery aren't necessarily broken — some (trivago)
+   * simply need no auth. In that case we probe an unauthenticated connect and,
+   * if it works, flip the server to authType 'none' and report
+   * `no_auth_required` instead of failing.
    */
-  static async startAuthorization(userId: string, serverId: string): Promise<string> {
+  static async startAuthorization(userId: string, serverId: string): Promise<McpOauthStartResult> {
     const server = await getServer(userId, serverId);
     if (!server) throw Object.assign(new Error('Server nicht gefunden'), { statusCode: 404 });
 
@@ -96,14 +132,18 @@ export class McpOAuthService {
       });
     }
 
-    const info = await discoverOAuthServerInfo(server.url);
-    const authorizationServerUrl = info.authorizationServerUrl;
-    const metadata = info.authorizationServerMetadata as AsMetadata | undefined;
-    if (!metadata) {
-      throw Object.assign(new Error('OAuth-Discovery fehlgeschlagen (keine Metadaten)'), {
-        statusCode: 502,
+    let info: Awaited<ReturnType<typeof discoverOAuthServerInfo>> | null = null;
+    try {
+      info = await discoverOAuthServerInfo(server.url);
+    } catch (err) {
+      log.info('MCP OAuth discovery failed; probing unauthenticated access', {
+        serverId,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
+    const metadata = info?.authorizationServerMetadata as AsMetadata | undefined;
+    if (!info || !metadata) return this.fallbackWithoutOAuth(userId, server);
+    const authorizationServerUrl = info.authorizationServerUrl;
 
     const redirectUri = getRedirectUri();
     const existing = server.oauth_meta ?? null;
@@ -117,25 +157,37 @@ export class McpOAuthService {
 
     if (!clientId) {
       if (!metadata.registration_endpoint) {
-        throw Object.assign(
-          new Error(
-            'Server unterstützt keine dynamische Registrierung — bitte eine OAuth Client-ID hinterlegen.'
-          ),
-          { statusCode: 400 }
+        throw oauthError(
+          `Der Anbieter unterstützt keine automatische Client-Registrierung. Registriere dort eine App mit der Redirect-URI ${redirectUri} und trage Client-ID und Client-Secret ein.`,
+          400,
+          'dcr_rejected'
         );
       }
-      const reg = await registerClient(authorizationServerUrl, {
-        metadata: metadata as never,
-        clientMetadata: {
-          client_name: 'Grünerator',
-          redirect_uris: [redirectUri],
-          grant_types: ['authorization_code', 'refresh_token'],
-          response_types: ['code'],
-          token_endpoint_auth_method: 'client_secret_post',
+      let reg;
+      try {
+        reg = await registerClient(authorizationServerUrl, {
+          metadata: metadata as never,
+          clientMetadata: {
+            client_name: 'Grünerator',
+            redirect_uris: [redirectUri],
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'client_secret_post',
+            ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
+          },
           ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
-        },
-        ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
-      });
+        });
+      } catch (err) {
+        // Typical case: the provider allowlists redirect domains (Typeform,
+        // IFTTT) and rejects ours — automatic registration can never work.
+        const detail = providerErrorDetail(err);
+        log.warn('MCP dynamic client registration rejected', { serverId, error: detail });
+        throw oauthError(
+          `Der Anbieter lehnt die automatische Client-Registrierung ab (${detail}). Registriere dort eine App mit der Redirect-URI ${redirectUri} und trage Client-ID und Client-Secret ein.`,
+          400,
+          'dcr_rejected'
+        );
+      }
       clientId = reg.client_id;
       clientSecret = reg.client_secret ?? undefined;
       scheme = 'dcr';
@@ -183,7 +235,48 @@ export class McpOAuthService {
     });
     await saveOAuthState(state, { userId, serverId, codeVerifier, authorizationServerUrl });
 
-    return authorizationUrl.toString();
+    return { status: 'authorize', authorizationUrl: authorizationUrl.toString() };
+  }
+
+  /**
+   * No OAuth discovery on the server: probe an unauthenticated connect. If the
+   * server is simply open (trivago-style), flip it to authType 'none', persist
+   * the tool snapshot and report success; otherwise fail with a clear hint.
+   */
+  private static async fallbackWithoutOAuth(
+    userId: string,
+    server: McpServer
+  ): Promise<McpOauthStartResult> {
+    const client = new UserMCPClient({
+      id: server.id,
+      name: server.name,
+      url: server.url,
+      authType: 'none',
+    });
+    try {
+      await client.connect();
+      const tools = await client.listTools();
+      const db = getDrizzleInstance();
+      await db
+        .update(mcp_servers)
+        .set({ auth_type: 'none', updated_at: new Date() })
+        .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, server.id)));
+      await McpServerRegistry.saveToolsSnapshot(userId, server.id, tools);
+      log.info('MCP server needs no auth; switched to none', {
+        userId,
+        serverId: server.id,
+        toolCount: tools.length,
+      });
+      return { status: 'no_auth_required' };
+    } catch {
+      throw oauthError(
+        'Der Server unterstützt kein automatisches OAuth. Falls er ein Token erfordert, hinterlege ein Bearer-Token — ohne Token ist er nicht erreichbar.',
+        400,
+        'no_oauth_support'
+      );
+    } finally {
+      await client.close().catch(() => {});
+    }
   }
 
   /** Exchange the authorization code and persist encrypted tokens. */
