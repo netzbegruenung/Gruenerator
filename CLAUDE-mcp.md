@@ -4,7 +4,13 @@
 
 - **Public URL**: `https://mcp.gruenerator.eu`
 - **Transport**: Streamable HTTP (`POST /mcp`) — requires `Accept: application/json, text/event-stream` header
-- **Collections**: `oesterreich`, `deutschland`, `bundestagsfraktion`, `gruene-de`, `gruene-at`, `kommunalwiki`, `boell-stiftung`, `examples`
+- **Deploy**: via Salt (`states/gruenerator-docker`), NOT Coolify. Image `ghcr.io/netzbegruenung/gruenerator-mcp`.
+
+### Collections (single source of truth + runtime catalog)
+
+Collections are defined **once** in `apps/api/config/systemCollectionsConfig.ts` (`SYSTEM_COLLECTIONS`, keyed by `-system` id, carrying `key`/`qdrantCollection`/`mcpExposed`/`agentOnly` + per-field `mcpHidden`). `COLLECTION_MAP` and the MCP catalog derive from it — do **not** hand-maintain a parallel list. Adding a collection = one edit here.
+
+The MCP no longer bundles the list: `services/mcp/src/catalog.ts` fetches the `mcpExposed` subset from `GET /api/v1/collections` at boot + on a 10-min TTL, with a static fallback. **Requires `GRUENERATOR_API_URL`** (set in the Salt compose to `http://api:3001`) — without it the MCP silently serves only the stale fallback and `notebooks_*` break. The `collection` tool params are `z.string()` (validated at runtime), so new collections work without an MCP rebuild.
 
 ## Endpoints
 
@@ -22,7 +28,6 @@
 | Tool                          | Description                                                    |
 | ----------------------------- | -------------------------------------------------------------- |
 | `gruenerator_search`          | Hybrid/vector/text search across party program collections     |
-| `gruenerator_person_search`   | Look up Green politicians with enriched Bundestag DIP API data |
 | `gruenerator_examples_search` | Find social media examples (Instagram/Facebook)                |
 | `gruenerator_get_filters`     | Get available filter values for a collection before filtering  |
 | `gruenerator_cache_stats`     | View embedding and search cache statistics                     |

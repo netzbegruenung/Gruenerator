@@ -8,6 +8,10 @@ export const CARD_GRID =
 
 export const CARD_GRID_SINGLE_COL = 'grid grid-cols-1 gap-2 w-full';
 
+/** Horizontal scroll container without a visible scrollbar */
+export const HIDDEN_SCROLLBAR =
+  '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]';
+
 export const SELECTABLE_CARD =
   'aspect-square p-1.5 rounded-lg bg-transparent border border-transparent cursor-pointer transition-[background,border-color] duration-150 flex items-center justify-center hover:bg-hover-alt';
 

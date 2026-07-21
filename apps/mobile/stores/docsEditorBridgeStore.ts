@@ -31,6 +31,17 @@ export interface ActiveFormattingState {
   blockProps: Record<string, unknown>;
 }
 
+// Mirror of @gruenerator/docs' SuggestionKind/DocSuggestion (serialized shape),
+// redeclared so the native bundle stays free of the web docs package.
+export type SuggestionKind = 'insertion' | 'deletion' | 'modification';
+
+export interface DocSuggestionItem {
+  id: number;
+  kinds: SuggestionKind[];
+  excerpt: string;
+  meta: { userId: string; name: string; color: string; createdAt: number } | null;
+}
+
 export type DocEditorAction =
   | { type: 'send-chat'; text: string }
   | { type: 'openShare' }
@@ -46,7 +57,14 @@ export type DocEditorAction =
   | { type: 'undo' }
   | { type: 'redo' }
   // Native slash menu picked a block type — clears the typed "/" and converts.
-  | { type: 'slash-select'; blockType: string; props?: Record<string, unknown> };
+  | { type: 'slash-select'; blockType: string; props?: Record<string, unknown> }
+  // Track-changes (Änderungsmodus): flip the doc-wide mode + review actions.
+  | { type: 'set-suggestion-mode'; enabled: boolean }
+  | { type: 'accept-suggestion'; id: number }
+  | { type: 'reject-suggestion'; id: number }
+  | { type: 'accept-all-suggestions' }
+  | { type: 'reject-all-suggestions' }
+  | { type: 'select-suggestion'; id: number };
 
 // 'connecting' = initial, before the first successful connect (neutral — no red dot).
 // 'syncing' = connected, awaiting the Yjs initial sync. 'disconnected' = a real drop AFTER
@@ -77,6 +95,12 @@ interface DocsEditorBridgeState {
 
   // DOM → Native AI review state (true while an AI suggestion awaits accept/reject)
   aiReviewPending: boolean;
+
+  // DOM → Native track-changes state: the doc-wide mode flag + the open-suggestion
+  // list. Native-only `suggestionsSheetOpen` drives the review bottom sheet.
+  suggestionMode: boolean;
+  suggestions: DocSuggestionItem[];
+  suggestionsSheetOpen: boolean;
 
   // DOM → Native undo/redo availability (BlockNote's per-user collab undo stack),
   // driving the enabled state of the native undo/redo buttons.
@@ -122,6 +146,9 @@ interface DocsEditorBridgeState {
   setDocSnapshot: (markdown: string, selectionText: string | null) => void;
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
   setAiReviewPending: (v: boolean) => void;
+  setSuggestionMode: (v: boolean) => void;
+  setSuggestions: (list: DocSuggestionItem[]) => void;
+  setSuggestionsSheetOpen: (v: boolean) => void;
   setUndoRedoState: (canUndo: boolean, canRedo: boolean) => void;
   toggleSidebar: () => void;
   toggleFullscreen: () => void;
@@ -151,6 +178,9 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   docSelectionText: null,
   activeFormatting: { hasSelection: false, blockType: 'paragraph', blockProps: {} },
   aiReviewPending: false,
+  suggestionMode: false,
+  suggestions: [],
+  suggestionsSheetOpen: false,
   canUndo: false,
   canRedo: false,
   sidebarOpen: false,
@@ -207,6 +237,20 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
       return { activeFormatting: formatting };
     }),
   setAiReviewPending: (v) => set((s) => (s.aiReviewPending === v ? s : { aiReviewPending: v })),
+  setSuggestionMode: (v) => set((s) => (s.suggestionMode === v ? s : { suggestionMode: v })),
+  setSuggestions: (list) =>
+    set((s) => {
+      // Change check keyed on id + author name so late-arriving attribution
+      // (mark first, author resolves after) still refreshes the sheet.
+      const same =
+        s.suggestions.length === list.length &&
+        s.suggestions.every(
+          (x, i) => x.id === list[i].id && (x.meta?.name ?? null) === (list[i].meta?.name ?? null)
+        );
+      return same ? s : { suggestions: list };
+    }),
+  setSuggestionsSheetOpen: (v) =>
+    set((s) => (s.suggestionsSheetOpen === v ? s : { suggestionsSheetOpen: v })),
   setUndoRedoState: (canUndo, canRedo) =>
     set((s) => (s.canUndo === canUndo && s.canRedo === canRedo ? s : { canUndo, canRedo })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),

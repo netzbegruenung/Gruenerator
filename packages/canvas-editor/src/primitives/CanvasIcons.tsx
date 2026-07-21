@@ -1,5 +1,5 @@
 /**
- * CanvasIcons - Renders selected Phosphor icons on the Konva canvas
+ * CanvasIcons - Renders selected Tabler icons on the Konva canvas
  */
 import { useEffect, useState, useCallback } from 'react';
 import useImage from 'use-image';

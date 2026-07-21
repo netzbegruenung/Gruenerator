@@ -38,9 +38,13 @@ export function buildInstruction(task: BoardFlowTask, ctx: BoardFlowCardContext)
 }
 
 /**
- * Long-form generation (document mode) when the flow produces a document or email
- * deliverable; otherwise concise comment mode.
+ * Long-form generation (document mode) when the flow produces a document, sheet,
+ * presentation or email deliverable; otherwise concise comment mode. Sheet/
+ * presentation need researched prose to structure from, like a document.
  */
 export function wantsLongForm(outputs: ReadonlyArray<{ type: string }>): boolean {
-  return outputs.some((o) => o.type === 'document' || o.type === 'email');
+  return outputs.some(
+    (o) =>
+      o.type === 'document' || o.type === 'sheet' || o.type === 'presentation' || o.type === 'email'
+  );
 }

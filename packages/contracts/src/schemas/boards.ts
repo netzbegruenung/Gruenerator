@@ -31,13 +31,23 @@ export const boardErrorResponseSchema = z.object({
   details: z.string().optional(),
 });
 
+// Card-preview snapshot written by the Hocuspocus server on every store:
+// kanban column names + card counts, whiteboard note texts.
+export const boardPreviewSchema = z.object({
+  columns: z.array(z.object({ name: z.string(), count: z.number() })).optional(),
+  notes: z.array(z.string()).optional(),
+});
+
 export const boardContentSchema = z.union([
   z.string(),
   z.object({
     is_archived: z.boolean().optional(),
     board_type: z.enum(['kanban', 'whiteboard']).optional(),
+    preview: boardPreviewSchema.optional(),
   }),
 ]);
+
+export type BoardPreview = z.infer<typeof boardPreviewSchema>;
 
 export const boardPermissionLevelSchema = z.enum(['owner', 'editor', 'viewer']);
 

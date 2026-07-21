@@ -10,6 +10,8 @@
 import { OCRService } from '../../../services/OcrService/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { describeWorkbookSheets } from './xlsxSheetNames.js';
+
 import type {
   ProcessedAttachment,
   ImageAttachment,
@@ -104,6 +106,17 @@ export async function processAttachments(
         rawBytes <= MAX_TABULAR_BYTES_PERSISTED
           ? attachment.data
           : undefined;
+      // Multi-sheet workbooks: the sheet map is read straight from the xlsx
+      // zip (deterministic — OCR text extraction gives no guarantee the sheet
+      // names survive) and prepended to the extracted text, so the pandas
+      // codegen knows what `sheets['Name']` can address on every turn.
+      const isXlsxAttachment =
+        attachment.name.toLowerCase().endsWith('.xlsx') ||
+        attachment.type.includes('spreadsheetml.sheet');
+      const sheetNote = isXlsxAttachment
+        ? describeWorkbookSheets(Buffer.from(attachment.data, 'base64'))
+        : null;
+
       try {
         const result = await ocrService.extractTextFromBase64(
           attachment.data,
@@ -112,13 +125,14 @@ export async function processAttachments(
         );
 
         if (result.text && result.text.length > 0) {
-          documentTexts.push(`### ${attachment.name}\n\n${result.text}`);
+          const text = sheetNote ? `${sheetNote}\n${result.text}` : result.text;
+          documentTexts.push(`### ${attachment.name}\n\n${text}`);
           processedMeta.push({
             name: attachment.name,
             mimeType: attachment.type,
             sizeBytes: attachment.size,
             isImage: false,
-            extractedText: result.text,
+            extractedText: text,
             ...(tabularData != null && { fileData: tabularData }),
           });
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);

@@ -8,11 +8,16 @@ import type { ReactNode } from 'react';
 interface StatisticsSectionProps {
   collectionIds: string[];
   title?: string;
+  /** Embedded in the Manuelle-Recherche sub-tab: drop the standalone heading. */
+  embedded?: boolean;
 }
 
+// 2a content card: white, soft green-tinted border, 14px radius.
 const cardClass = cn(
-  'flex flex-col gap-xs bg-background border border-grey-200 dark:border-grey-700',
-  'rounded-md px-md py-md'
+  'flex flex-col gap-xs rounded-[14px] px-5 py-[18px]',
+  'bg-white dark:bg-[#1B2C24]',
+  'border border-[rgba(82,144,122,0.18)] dark:border-[#2C4A3B]',
+  'shadow-[0_4px_14px_rgba(31,63,51,0.05)]'
 );
 
 const TOP_TERMS = 8;
@@ -36,8 +41,10 @@ const MONTH_LABELS = [
 function StatCard({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className={cardClass}>
-      <span className="text-xs text-grey-500 dark:text-grey-400">{label}</span>
-      <span className="text-2xl font-semibold text-foreground-heading">{value}</span>
+      <span className="text-xs text-[#8B978F] dark:text-[#8FA79A]">{label}</span>
+      <span className="text-2xl font-extrabold tracking-[-0.01em] text-[#22382E] dark:text-[#E4EDE8]">
+        {value}
+      </span>
     </div>
   );
 }
@@ -141,6 +148,7 @@ function Loading() {
 export function StatisticsSection({
   collectionIds,
   title = 'Statistiken',
+  embedded = false,
 }: StatisticsSectionProps) {
   const { data: stats, isLoading } = useNotebookStats({ collectionIds });
 
@@ -157,7 +165,9 @@ export function StatisticsSection({
 
   return (
     <section className="w-full">
-      <h2 className="mt-xl mb-md text-xl font-semibold text-foreground-heading">{title}</h2>
+      {!embedded && (
+        <h2 className="mt-xl mb-md text-xl font-semibold text-foreground-heading">{title}</h2>
+      )}
 
       {isLoading || !stats ? (
         <Loading />

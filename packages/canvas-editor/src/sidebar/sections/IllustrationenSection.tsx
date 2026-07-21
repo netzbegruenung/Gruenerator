@@ -43,6 +43,7 @@ import type {
 } from '../../utils/illustrations/types';
 
 import { cn } from '../../utils/cn';
+import { IllustrationThumb } from './IllustrationThumb';
 
 const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
   planet: Planet,
@@ -157,18 +158,7 @@ export function IllustrationenSection({
               title={`${illDef.name} hinzufügen`}
             >
               <div className="flex items-center justify-center w-full h-full aspect-square [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain">
-                <img
-                  src={getIllustrationThumbPath(svgDef, assetBaseUrl)}
-                  alt={illDef.name}
-                  loading="lazy"
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    if (!img.dataset.fallback) {
-                      img.dataset.fallback = '1';
-                      img.src = getIllustrationPath(svgDef, assetBaseUrl);
-                    }
-                  }}
-                />
+                <IllustrationThumb def={svgDef} alt={illDef.name} />
               </div>
             </button>
           );

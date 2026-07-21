@@ -58,7 +58,7 @@ export const useTemplateActions = ({ onEdit }: UseTemplateActionsArgs) => {
           void navigate(
             result.subtype === 'boards'
               ? `/boards/${result.documentId}`
-              : `/docs/${result.documentId}`
+              : `/office/${result.documentId}`
           );
         } catch (e) {
           toast.error('Vorlage konnte nicht geöffnet werden: ' + errText(e));

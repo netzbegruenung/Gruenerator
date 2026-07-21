@@ -281,10 +281,14 @@ Maxi Mustermensch<br>
 `,
   },
   {
+    // Simple in-document table — distinct from the 'sheets' subtype, which is
+    // a full Univer spreadsheet. The id must stay 'tabelle' (existing rows).
     id: 'tabelle',
-    name: 'Tabelle',
-    description: 'Tabelle mit Zeilen und Spalten',
-    icon: '📊',
+    name: 'Tabelle (im Dokument)',
+    description: 'Einfache Tabelle in einem Textdokument',
+    // 📄 (document), not 📊 — the spreadsheet glyph read as a real Univer sheet
+    // and got clicked by mistake. This is a table inside a text document.
+    icon: '📄',
     defaultTitle: 'Neue Tabelle',
     content: `
 <h1>Neue Tabelle</h1>

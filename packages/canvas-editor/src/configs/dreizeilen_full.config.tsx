@@ -28,6 +28,7 @@ import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
 import {
   createAssetActions,
   createIconActions,
+  createChartActions,
   createShapeActions,
   createIllustrationActions,
   createPillBadgeActions,
@@ -276,6 +277,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement?.includes('balken')) return 'settings';
+    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
@@ -524,6 +526,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
     circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
 
     // Layer Ordering
@@ -574,6 +577,15 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       '#005538'
     );
 
+    const chartActions = createChartActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
     const illustrationActions = createIllustrationActions(
       getState,
       setState,
@@ -618,6 +630,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ...assetActions,
       ...iconActions,
       ...shapeActions,
+      ...chartActions,
       ...illustrationActions,
       ...pillBadgeActions,
       ...circleBadgeActions,

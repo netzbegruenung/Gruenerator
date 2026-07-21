@@ -28,6 +28,34 @@ export interface BoardActivityState {
 const THROTTLE_MS = 50;
 const STALE_MS = 5000;
 
+function cursorsEqual(a: RemoteCursor[], b: RemoteCursor[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.clientId !== y.clientId || x.x !== y.x || x.y !== y.y) return false;
+  }
+  return true;
+}
+
+function activitiesEqual(a: RemoteActivity[], b: RemoteActivity[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (
+      x.clientId !== y.clientId ||
+      x.selectedCardId !== y.selectedCardId ||
+      x.draggedCardId !== y.draggedCardId ||
+      x.dragTargetColumnId !== y.dragTargetColumnId ||
+      x.activeColumnId !== y.activeColumnId
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function useBoardAwareness(provider: HocuspocusProvider | null) {
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
   const [remoteActivities, setRemoteActivities] = useState<RemoteActivity[]>([]);
@@ -73,8 +101,11 @@ export function useBoardAwareness(provider: HocuspocusProvider | null) {
           }
         });
 
-        setRemoteCursors(cursors);
-        setRemoteActivities(activities);
+        // The stale-sweep timer runs this every second; bail out when nothing
+        // changed so an idle/solo board doesn't re-render the whole tree once a
+        // second (the empty→empty case is the common one).
+        setRemoteCursors((prev) => (cursorsEqual(prev, cursors) ? prev : cursors));
+        setRemoteActivities((prev) => (activitiesEqual(prev, activities) ? prev : activities));
         pendingRef.current = null;
       }, 0);
     };

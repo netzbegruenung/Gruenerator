@@ -3,13 +3,13 @@
  * Uses Vercel AI SDK for text generation via OpenAI-compatible API (api.regolo.ai)
  */
 
-import { generateText, type ModelMessage, type Tool } from 'ai';
+import { generateText, type ModelMessage } from 'ai';
 
 import { env } from '../../config/env.js';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
-import { mergeMetadata } from './adapterUtils.js';
+import { buildAiSdkTools, mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
@@ -123,28 +123,6 @@ function convertMessages(
   };
 }
 
-function convertTools(
-  toolsPayload: ReturnType<typeof ToolHandler.prepareToolsPayload>
-): Record<string, Tool> | undefined {
-  if (!toolsPayload.tools || toolsPayload.tools.length === 0) {
-    return undefined;
-  }
-
-  const tools: Record<string, Tool> = {};
-  for (const t of toolsPayload.tools as Array<{
-    name: string;
-    description: string;
-    parameters?: unknown;
-    input_schema?: unknown;
-  }>) {
-    tools[t.name] = {
-      description: t.description,
-      inputSchema: (t.parameters || t.input_schema) as Tool['inputSchema'],
-    };
-  }
-  return tools;
-}
-
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
 
@@ -167,7 +145,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     requestId,
     type
   );
-  const tools = convertTools(toolsPayload);
+  const tools = buildAiSdkTools(toolsPayload);
 
   let toolChoice: 'auto' | 'none' | 'required' | undefined;
   if (tools) {

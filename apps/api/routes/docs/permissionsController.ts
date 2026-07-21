@@ -240,7 +240,7 @@ router.post(
               title: `${senderName} hat ein Dokument mit dir geteilt`,
               body: docTitle,
               metadata: { documentId: id, senderName, permissionLevel: permission_level },
-              actionUrl: `/docs/${id}`,
+              actionUrl: `/office/${id}`,
               groupKey: `doc:${id}:shared`,
             })
           )
@@ -360,7 +360,7 @@ router.put(
             type: 'document_permission_changed',
             title: 'Berechtigung geändert',
             body: `Deine Berechtigung für „${docTitle}" ist jetzt ${permissionLabel}`,
-            actionUrl: `/docs/${id}`,
+            actionUrl: `/office/${id}`,
             metadata: {
               documentId: id,
               permissionLevel: permission_level,

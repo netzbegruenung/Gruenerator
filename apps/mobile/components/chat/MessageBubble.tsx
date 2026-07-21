@@ -5,11 +5,10 @@ import {
   BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
-import { resolveToolEntry, useFetchFullText } from '@gruenerator/chat';
+import { parseGenericFallback, resolveToolEntry, useFetchFullText } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import Markdown from 'react-native-markdown-display';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -25,13 +24,16 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
+import { ChatChartCard } from './ChatChartCard';
 import { ChatProgressIndicator } from './ChatProgressIndicator';
 import { CitationDetailSheet } from './CitationDetailSheet';
 import { CitationsFooter } from './CitationsFooter';
+import { ComputeCard } from './ComputeCard';
 import { ConfirmActionCard } from './ConfirmActionCard';
 import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
+import { MathText } from './math/MathText';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
 import { makeCitationMarkdownRules } from './tool-ui/citationMarkdownRules';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
@@ -40,6 +42,7 @@ import { KeyValueCard } from './tool-ui/KeyValueCard';
 import { PersonResultCard } from './tool-ui/PersonResultCard';
 import { PressemitteilungExamplesCard } from './tool-ui/PressemitteilungExamplesCard';
 import { ResearchArtifactCard } from './tool-ui/ResearchArtifactCard';
+import { RunPythonCard } from './tool-ui/RunPythonCard';
 import { ScrapeUrlCard } from './tool-ui/ScrapeUrlCard';
 import { ToolResultCard } from './tool-ui/ToolResultCard';
 import { ToolCallProgress } from './ToolCallProgress';
@@ -250,9 +253,12 @@ function AssistantTextPart(props: { text: string }) {
     [citationCtx]
   );
   return (
-    <Markdown style={markdownStyles} rules={rules}>
-      {props.text}
-    </Markdown>
+    <MathText
+      text={props.text}
+      markdownStyles={markdownStyles}
+      rules={rules ?? null}
+      theme={theme}
+    />
   );
 }
 
@@ -274,6 +280,11 @@ function AssistantToolCallPart(props: {
   // Research has its own rich card that handles both loading and result states.
   if (toolName === 'research') {
     return <ResearchArtifactCard part={props} theme={theme} />;
+  }
+  // run_python owns running/failed/done itself (registry maps it to the
+  // 'interactive' kind, which would wrongly render AskHumanCard here).
+  if (toolName === 'run_python') {
+    return <RunPythonCard args={args} result={result} theme={theme} />;
   }
   // Still running: a compact progress pill.
   if (result === undefined) {
@@ -304,6 +315,22 @@ function AssistantToolCallPart(props: {
       return <ResearchArtifactCard part={props} theme={theme} />;
     case 'interactive':
       return <AskHumanCard args={args} result={result} addResult={addResult} theme={theme} />;
+    default: {
+      // Future view kinds must never vanish silently — degrade to the generic
+      // fallback parse the registry uses for unknown tools.
+      const fallback = parseGenericFallback(args, result);
+      if (fallback.kind === 'key-value') {
+        return <KeyValueCard part={props} vm={fallback} theme={theme} />;
+      }
+      return (
+        <ToolResultCard
+          part={props}
+          citations={[]}
+          note={fallback.kind === 'text-note' ? fallback.text : null}
+          theme={theme}
+        />
+      );
+    }
   }
 }
 
@@ -321,6 +348,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const generatedImage = metadata.generatedImage;
   const confirmAction = metadata.confirmAction;
   const createdDocument = metadata.createdDocument;
+  const computeData = metadata.computeData;
+  const chartData = metadata.chartData;
 
   // While this (last) message is still streaming, surface the cycling stage word
   // + spinning cog the same way web does — the label rides on metadata.progress,
@@ -371,6 +400,11 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
         <MessageCitationsContext.Provider value={citationCtx}>
           <MessagePrimitive.Parts components={partsComponents} />
         </MessageCitationsContext.Provider>
+        {/* Mirrors web's AssistantMessage: compute/chart cards appear once the
+            stream is done — during streaming the progress affordance owns the
+            space and the metadata may still be partial. */}
+        {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
+        {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
         {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
         {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
         {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}

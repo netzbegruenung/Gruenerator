@@ -4,13 +4,13 @@ import {
   useThreadRuntime,
   useVoiceState,
 } from '@assistant-ui/react';
-import { GrueneratorComposer, useAgentStore } from '@gruenerator/chat';
+import { GrueneratorComposer, useAgentStore, useChatRuntimeReady } from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useFirstName } from '../../../hooks/useFirstName';
 
-import SkillPresetRow from './SkillPresetRow';
+import { WORKPLACE_PRESETS } from './workplacePresets';
 
 import { cn } from '@/utils/cn';
 
@@ -50,7 +50,7 @@ function NavigateToChatOnSend() {
   return null;
 }
 
-const ChatInner: React.FC = memo(() => {
+const ChatInnerReady: React.FC = () => {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const threadRuntime = useThreadRuntime({ optional: true });
@@ -78,24 +78,35 @@ const ChatInner: React.FC = memo(() => {
   return (
     <ThreadPrimitive.Root
       className={cn(
-        'w-full shrink-0 mx-auto max-w-[680px]',
+        'w-full shrink-0 mx-auto max-w-[720px]',
         '[&>div]:px-0',
-        '[&>div>p.text-center]:hidden',
-        // Match the narrower/taller resting composer used in Bilder & Boards
-        // (AIPromptInput: max-w-[680px] + rows={2}). Scoped here so the full
-        // /chat composer keeps its wider, single-row default.
-        '[&_textarea]:min-h-[3rem]'
+        // The hero shows the mode-toggle link instead of the disclaimer.
+        '[&>div>p.text-center]:hidden'
       )}
     >
       <NavigateToChatOnSend />
       <GrueneratorComposer
+        variant="pill"
         onNavigate={handleNavigate}
         firstName={firstName}
-        toolbarExtra={<SkillPresetRow />}
+        presets={WORKPLACE_PRESETS}
         requireProfileHydration
       />
     </ThreadPrimitive.Root>
   );
+};
+
+// While the lazy assistant-ui runtime chunk loads, GrueneratorChatProvider's
+// Suspense fallback renders the page WITHOUT AssistantRuntimeProvider — calling
+// useAssistantRuntime()/useVoiceState() there crashes with "requires an
+// AuiProvider". Gate on runtime readiness (same guard as ChatPage/SearchPage)
+// and reserve the composer's footprint so the hero doesn't jump.
+const ChatInner: React.FC = memo(() => {
+  const runtimeReady = useChatRuntimeReady();
+  if (!runtimeReady) {
+    return <div className="w-full shrink-0 mx-auto max-w-[720px] min-h-24" aria-hidden />;
+  }
+  return <ChatInnerReady />;
 });
 
 ChatInner.displayName = 'ChatInner';

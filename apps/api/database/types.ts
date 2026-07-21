@@ -57,8 +57,6 @@ export interface ProfileRow {
   prompts: boolean;
   interactive_antrag_enabled: boolean;
   nextcloud_share_links: Record<string, unknown>[];
-  wordpress_sites: Record<string, unknown>[];
-  wordpress_enabled: boolean;
   document_mode: string;
   user_defaults: Record<string, unknown>;
   docs: boolean;
@@ -587,6 +585,7 @@ export interface ChatThreadRow {
   custom_enabled_tools: Record<string, unknown> | null;
   notebook_collection_id: string | null;
   notebook_collection_ids: Record<string, unknown> | null;
+  last_mcp_server_id: string | null;
 }
 
 export interface ChatMessageRow {
@@ -628,41 +627,6 @@ export interface Mem0MemoryHistoryRow {
   created_at: Date;
   thread_id: string | null;
   message_id: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// SECTION: BRIEFING AGENTS
-// ---------------------------------------------------------------------------
-
-export interface BriefingAgentRow {
-  id: string;
-  user_id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  config: Record<string, unknown>;
-  schedule_type: string;
-  schedule_hour: number;
-  schedule_timezone: string;
-  delivery_email: string | null;
-  created_at: Date;
-  updated_at: Date;
-  last_executed_at: Date | null;
-  execution_count: number;
-  consecutive_empty_count: number;
-}
-
-export interface BriefingExecutionRow {
-  id: string;
-  agent_id: string;
-  status: string;
-  results_count: number;
-  results_summary: string | null;
-  results_raw: Record<string, unknown> | null;
-  started_at: Date;
-  completed_at: Date | null;
-  duration_ms: number | null;
-  error_message: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -709,36 +673,6 @@ export interface MonitorArticleRow {
   topic_scores: Record<string, unknown>;
   first_seen_at: Date;
   last_seen_at: Date;
-}
-
-// ---------------------------------------------------------------------------
-// SECTION: PRESENTATIONS
-// ---------------------------------------------------------------------------
-
-export interface CollaborativePresentationRow {
-  id: string;
-  title: string;
-  user_id: string;
-  language: string;
-  theme: Record<string, unknown>;
-  template: string;
-  permissions: Record<string, unknown>;
-  is_public: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface PresentationSlideRow {
-  id: string;
-  presentation_id: string;
-  index: number;
-  layout_group: string;
-  layout: string;
-  content: Record<string, unknown>;
-  speaker_note: string | null;
-  properties: Record<string, unknown>;
-  created_at: Date;
-  updated_at: Date;
 }
 
 // ---------------------------------------------------------------------------
@@ -818,13 +752,9 @@ export interface Database {
   chat_messages: ChatMessageRow;
   chat_thread_attachments: ChatThreadAttachmentRow;
   mem0_memory_history: Mem0MemoryHistoryRow;
-  briefing_agents: BriefingAgentRow;
-  briefing_executions: BriefingExecutionRow;
   notifications: NotificationRow;
   monitor_snapshots: MonitorSnapshotRow;
   monitor_articles: MonitorArticleRow;
-  collaborative_presentations: CollaborativePresentationRow;
-  presentation_slides: PresentationSlideRow;
   board_comments: BoardCommentRow;
   board_comment_reactions: BoardCommentReactionRow;
 }

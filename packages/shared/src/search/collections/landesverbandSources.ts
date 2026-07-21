@@ -34,6 +34,7 @@ export const LANDESVERBAND_SOURCE_IDS = [
   'sachsen-anhalt-fraktion',
   'hessen-lv',
   'hessen-fraktion',
+  'saarland-lv',
 ] as const satisfies readonly string[];
 
 export type LandesverbandSourceId = (typeof LANDESVERBAND_SOURCE_IDS)[number];

@@ -6,15 +6,21 @@ export function Carousel() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>Erste von fünf Aktuelles-Karten</div>
+        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>
+          Erste von fünf Aktuelles-Karten
+        </div>
         <DotIndicators count={5} activeIdx={0} onSelect={() => {}} />
       </div>
       <div>
-        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>Dritte von fünf Aktuelles-Karten</div>
+        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>
+          Dritte von fünf Aktuelles-Karten
+        </div>
         <DotIndicators count={5} activeIdx={2} onSelect={() => {}} />
       </div>
       <div>
-        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>Letzte von fünf Aktuelles-Karten</div>
+        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>
+          Letzte von fünf Aktuelles-Karten
+        </div>
         <DotIndicators count={5} activeIdx={4} onSelect={() => {}} />
       </div>
     </div>

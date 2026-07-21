@@ -23,16 +23,8 @@ import {
 } from '@gruenerator/ui';
 import { useState } from 'react';
 
+import { TIMEZONES, WEEKDAYS } from '../../recurring-tasks/scheduleState';
 import { useScheduledAgentRuns } from '../hooks/useScheduledAgentRuns';
-
-// Weekday labels indexed 0 = Monday … 6 = Sunday (matches the schema numbering).
-const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
-
-// A short, curated timezone list — AT + DE are the first-class audiences.
-const TIMEZONES = [
-  { value: 'Europe/Berlin', label: 'Deutschland (Europe/Berlin)' },
-  { value: 'Europe/Vienna', label: 'Österreich (Europe/Vienna)' },
-] as const;
 
 interface ScheduleDialogProps {
   open: boolean;

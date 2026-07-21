@@ -59,6 +59,14 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
     return null;
   }, [collections, mode, params.id]);
 
+  const shareUrl = useMemo(() => {
+    if (!editingCollection) return '';
+    const slug = editingCollection.slug_suffix
+      ? buildNotebookSlug(editingCollection.name, editingCollection.slug_suffix)
+      : editingCollection.id;
+    return `${window.location.origin}/notebooks/${slug}`;
+  }, [editingCollection]);
+
   const goBack = useCallback(() => {
     void navigate('/notebooks');
   }, [navigate]);
@@ -192,6 +200,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
           {mode === 'edit' && editingCollection ? (
             <NotebookShareModal
               notebookId={editingCollection.id}
+              shareUrl={shareUrl}
               open={shareOpen}
               onOpenChange={setShareOpen}
             />

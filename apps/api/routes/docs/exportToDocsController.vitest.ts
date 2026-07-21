@@ -136,16 +136,33 @@ describe('exportToDocsController – POST /from-export', () => {
       });
     });
 
-    it('inserts with document_subtype "blank" (not "docs")', async () => {
+    it('inserts with document_subtype "blank" by default (parameterized, not "docs")', async () => {
       const req = createMockReq({ content: '<p>Test</p>' }, 'user-123');
       const { res } = createMockRes();
 
       await handler(req, res);
 
       expect(mockQuery).toHaveBeenCalledOnce();
-      const sql = mockQuery.mock.calls[0][0] as string;
-      expect(sql).toContain("'blank'");
-      expect(sql).not.toContain("'docs'");
+      // The subtype is a bind param now ($4), not inlined SQL.
+      const params = mockQuery.mock.calls[0][1];
+      expect(params[3]).toBe('blank');
+    });
+
+    it('preserves a resolvable documentType as subtype, coerces unknown ones to "blank"', async () => {
+      const known = createMockReq({ content: '<p>x</p>', documentType: 'antrag' }, 'user-123');
+      const { res } = createMockRes();
+      await handler(known, res);
+      expect(mockQuery.mock.calls[0][1][3]).toBe('antrag');
+
+      mockQuery.mockClear();
+      // An unknown subtype would 404 on resolve — must be coerced.
+      const unknown = createMockReq(
+        { content: '<p>x</p>', documentType: 'totally-made-up' },
+        'user-123'
+      );
+      const { res: res2 } = createMockRes();
+      await handler(unknown, res2);
+      expect(mockQuery.mock.calls[0][1][3]).toBe('blank');
     });
 
     it('uses provided title directly', async () => {
@@ -187,7 +204,7 @@ describe('exportToDocsController – POST /from-export', () => {
       await handler(req, res);
 
       const params = mockQuery.mock.calls[0][1];
-      const permissions = JSON.parse(params[3]);
+      const permissions = JSON.parse(params[4]);
       expect(permissions['user-789'].level).toBe('owner');
       expect(permissions['user-789'].granted_at).toBeDefined();
     });

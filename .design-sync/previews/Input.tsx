@@ -4,7 +4,12 @@ import { Input, Label } from '@gruenerator/ui';
 // type, defaultValue, aria-invalid) pass straight through.
 
 const field: React.CSSProperties = { display: 'grid', gap: 6, maxWidth: 320 };
-const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 320 };
+const col: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16,
+  maxWidth: 320,
+};
 
 // Composed with a Label — the canonical form-field pattern (Label htmlFor + Input id).
 export function WithLabel() {

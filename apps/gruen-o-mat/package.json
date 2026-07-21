@@ -12,23 +12,23 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@assistant-ui/react": "^0.14.16",
+    "@assistant-ui/react": "^0.14.26",
     "@gruenerator/chat": "workspace:*",
-    "lucide-react": "^1.17.0",
+    "lucide-react": "^1.24.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "react-router-dom": "^7.17.0",
+    "react-router-dom": "^7.18.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tailwindcss/vite": "^4.3.0",
+    "@tailwindcss/vite": "^4.3.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "eslint": "^9.39.4",
-    "tailwindcss": "^4.3.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^9.39.5",
+    "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.1.4"
   }
 }

@@ -188,7 +188,7 @@ export function ShareModal({
           </View>
         );
 
-      case 'success':
+      case 'success': {
         if (!currentShare?.shareToken) return null;
 
         const shareUrl = getShareUrl(currentShare.shareToken);
@@ -213,6 +213,7 @@ export function ShareModal({
             </Button>
           </View>
         );
+      }
 
       case 'error':
         return (

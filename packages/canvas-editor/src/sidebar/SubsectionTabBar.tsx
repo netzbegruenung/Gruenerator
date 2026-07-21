@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react';
 import type { IconType } from 'react-icons';
 
 import { useMobileSubsectionBridge } from './MobileSubsectionBridgeContext';
+import { HIDDEN_SCROLLBAR } from './sidebarStyles';
 import { cn } from '../utils/cn';
 
 export interface Subsection {
@@ -86,7 +87,12 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
   // Fallback mobile rendering (shouldn't normally be reached when bridge is active)
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch] border-b border-b-grey-200 dark:border-b-grey-700">
+      <div
+        className={cn(
+          'flex items-center gap-1.5 px-3 py-2 overflow-x-auto border-b border-b-grey-200 dark:border-b-grey-700',
+          HIDDEN_SCROLLBAR
+        )}
+      >
         {subsections.map((sub) => {
           const isActive = localActiveSubsection === sub.id;
           return (

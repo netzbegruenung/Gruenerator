@@ -9,6 +9,7 @@
  * - Save conversation to mem0 memory
  */
 
+import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
@@ -27,15 +28,22 @@ import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
+import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   ChatGraphState,
+  CreatedDocument,
   GeneratedImageResult,
   ResearchToolResult,
   SearchResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  SocialPostPayload,
+  SocialPostToolResult,
+  BundestagPayload,
+} from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
@@ -49,7 +57,12 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   image: 'image_generate',
   image_edit: 'image_edit',
   sharepic: 'sharepic',
+  // EXPERIMENTAL combined post: persisted as TWO tool calls (sharepic +
+  // social_post) — see buildToolCalls.
+  social_post: 'social_post',
   scrape_url: 'scrape_url',
+  bundestag: 'bundestag',
+  chat_history: 'search_chat_history',
 };
 
 /**
@@ -85,7 +98,9 @@ type ToolCallResult =
   | ResearchToolResult
   | ImageToolCallResult
   | SharepicToolCallResult
-  | ScrapeToolCallResult;
+  | ScrapeToolCallResult
+  | SocialPostToolResult
+  | BundestagPayload;
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -123,6 +138,9 @@ function buildToolCallResult(
   if (toolName === 'sharepic') {
     return { variants: sharepicVariants };
   }
+  if (toolName === 'bundestag' && finalState.bundestagResult) {
+    return finalState.bundestagResult;
+  }
   const base: SearchToolCallResult = {
     results: finalState.searchResults?.slice(0, 10) || [],
   };
@@ -144,10 +162,49 @@ function buildToolCalls(
   classifiedState: ChatGraphState,
   finalState: ChatGraphState,
   generatedImage: GeneratedImageResult | null,
-  sharepicVariants: SharepicVariant[]
+  sharepicVariants: SharepicVariant[],
+  socialPost: SocialPostPayload | null = null
 ): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
+
+  // Combined post (EXPERIMENTAL): TWO tool calls. The plain `sharepic` call
+  // keeps threadMessageConversion rehydration and sharepicEditService target
+  // resolution working unchanged; the `social_post` call carries the text
+  // head + version history for the SocialPostCard.
+  if (toolName === 'social_post') {
+    const calls: PersistedToolCall[] = [];
+    const query = classifiedState.searchQuery || '';
+    if (sharepicVariants.length > 0) {
+      calls.push({
+        toolCallId: `tc_${Date.now()}_sharepic`,
+        toolName: 'sharepic',
+        args: { query },
+        result: { variants: sharepicVariants },
+      });
+    }
+    if (socialPost) {
+      calls.push({
+        toolCallId: `tc_${Date.now()}_social_post`,
+        toolName: 'social_post',
+        args: { query },
+        result: {
+          ...socialPost,
+          versions: [
+            {
+              text: socialPost.text,
+              hashtags: socialPost.hashtags,
+              charCount: socialPost.charCount,
+              version: socialPost.version,
+              summary: 'Erstellt',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      });
+    }
+    return calls.length > 0 ? calls : undefined;
+  }
 
   // scrape_url renders a link-preview card per crawled page. The frontend parser
   // reads `args.url` + `result.content`, so emit one tool call per result rather
@@ -205,6 +262,11 @@ export interface PersistParams {
   classifiedState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
+  /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
+  socialPost?: SocialPostPayload | null;
+  /** Presentation/sheet created by a compound loop turn — persisted as message
+   *  metadata so the document card rehydrates on reload. */
+  createdDocument?: CreatedDocument | null;
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
@@ -216,6 +278,10 @@ export interface PersistParams {
    *  avatar/badge rehydrates on thread reload. Null/omitted for the default
    *  universal chat (no badge). */
   agentId?: string | null;
+  /** Real tool steps from the agentic loop. When present they are persisted
+   *  as-is (they already carry the per-tool result shapes the UI cards read),
+   *  replacing the intent-fabricated tool calls. */
+  agenticSteps?: PersistedStep[];
 }
 
 /**
@@ -230,6 +296,8 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     classifiedState,
     generatedImage,
     sharepicVariants,
+    socialPost,
+    createdDocument,
     isNewThread,
     lastUserMessage,
     processedMeta,
@@ -237,12 +305,29 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     requestId,
     memoryEnabled,
     agentId,
+    agenticSteps,
   } = params;
 
-  if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
+  if (
+    !threadId ||
+    (!fullText && !generatedImage && sharepicVariants.length === 0 && !createdDocument)
+  )
+    return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState, generatedImage, sharepicVariants);
+    // Agentic loop: persist the real executed steps (already in the
+    // {toolCallId, toolName, args, result} shape the cards rehydrate from)
+    // instead of fabricating tool calls from the intent.
+    const toolCalls =
+      agenticSteps && agenticSteps.length > 0
+        ? agenticSteps
+        : buildToolCalls(
+            classifiedState,
+            finalState,
+            generatedImage,
+            sharepicVariants,
+            socialPost ?? null
+          );
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
@@ -260,6 +345,16 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             generationTimeMs: generatedImage.generationTimeMs,
           }
         : undefined,
+      // Presentation/sheet from a compound loop turn — same metadata shape the
+      // single-pass handlers persist, so the document card rehydrates on reload.
+      ...(createdDocument && { createdDocument }),
+      // Deterministic calculation (computeNode / run_python) incl. base64
+      // figures/files (capped) so the Berechnung card survives reloads. Gated
+      // on computedResultFresh: clients forward the LAST result with every
+      // follow-up request, and without the gate every later message in the
+      // thread would persist a stale copy of the card.
+      ...(finalState.computedResult != null &&
+        finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
     });
 
@@ -283,15 +378,20 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
+      const titlePromise = generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
         imageGenerated: !!generatedImage,
       }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
       // Auto-tag from the same first exchange. Triggered here (not only via the
       // client generate-title endpoint) so every flow — web, mobile, resumed —
       // gets tags; saveTagsIfEmpty keeps it idempotent and non-clobbering.
-      generateThreadTags(threadId, userText, fullText).catch((err) =>
+      const tagsPromise = generateThreadTags(threadId, userText, fullText).catch((err) =>
         log.warn('[ChatGraph] Thread tag generation failed:', err)
       );
+      // Embed the thread for semantic recall AFTER title + tags land, so the
+      // recall point carries them. Fire-and-forget: recall is best-effort.
+      Promise.allSettled([titlePromise, tagsPromise])
+        .then(() => upsertThreadRecallPoint(threadId))
+        .catch((err) => log.warn('[ChatGraph] Thread recall embedding failed:', err));
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {
@@ -413,19 +513,34 @@ export async function persistResumedResponse(params: {
   classifiedState: ChatGraphState;
   userId?: string;
   processedMeta?: ProcessedAttachmentMeta[];
+  /** Sharepic variants generated on the resumed turn (sharepic/social_post). */
+  sharepicVariants?: SharepicVariant[];
+  /** Text half of a resumed social_post turn. */
+  socialPost?: SocialPostPayload | null;
 }): Promise<void> {
   const { threadId, fullText, finalState, classifiedState, userId, processedMeta } = params;
 
   if (!threadId || !fullText) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState, null, []);
+    const toolCalls = buildToolCalls(
+      classifiedState,
+      finalState,
+      null,
+      params.sharepicVariants ?? [],
+      params.socialPost ?? null
+    );
     await createMessage(threadId, 'assistant', fullText, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       resumed: true,
+      // run_python result incl. figures/files — persists the Berechnung card
+      // across reloads. Fresh-gated: a forwarded last-turn result must not
+      // stamp a stale card onto an unrelated resumed message.
+      ...(finalState.computedResult != null &&
+        finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
     });
     await touchThread(threadId);

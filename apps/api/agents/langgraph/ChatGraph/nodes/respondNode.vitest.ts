@@ -57,6 +57,10 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchSources: ['web'],
     complexity: 'simple',
     aiWorkerPool: null,
+    // Default to a run_python-capable client (web) so the pandas-guidance
+    // assertions below exercise the historical behavior; capability-less
+    // clients (mobile/voice) are covered explicitly.
+    clientCanRunPython: true,
     ...overrides,
   } as unknown as ChatGraphState;
 }
@@ -122,6 +126,26 @@ describe('getModeGuidance for compute intent', () => {
   });
 });
 
+describe('getModeGuidance for chart intent', () => {
+  it('grounds the chart on the computed values when a fresh result exists', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'chart',
+        computedResult: makeComputeResult(),
+        computedResultFresh: true,
+      })
+    );
+    expect(out).toContain('AUSSCHLIESSLICH');
+    expect(out).not.toContain('plausible Daten');
+  });
+
+  it('falls back to the plausible-data guidance without a fresh result', () => {
+    const out = getModeGuidance(makeState({ intent: 'chart', computedResult: null }));
+    expect(out).toContain('plausible Daten');
+    expect(out).not.toContain('AUSSCHLIESSLICH');
+  });
+});
+
 describe('formatTabularComputeGuidance', () => {
   it('returns nothing without a tabular attachment', () => {
     const out = formatTabularComputeGuidance(makeState({ hasTabularAttachment: false }));
@@ -156,6 +180,35 @@ describe('formatTabularComputeGuidance', () => {
       makeState({ hasTabularAttachment: true, computedResult: makeComputeResult() })
     );
     expect(out).toContain('```python');
+  });
+
+  it('never promises code execution to clients without the run_python capability', () => {
+    // Mobile/voice: a python block would render but never run — the model must
+    // derive the answer from the document context instead.
+    const out = formatTabularComputeGuidance(
+      makeState({ hasTabularAttachment: true, computedResult: null, clientCanRunPython: false })
+    );
+    expect(out).toContain('KEIN Python-Interpreter');
+    expect(out).not.toContain('```python');
+    // The pandas guidance PROMISES execution ("wird **automatisch ausgeführt**");
+    // the no-capability variant only forbids claiming it.
+    expect(out).not.toContain('**automatisch ausgeführt**');
+    expect(out).toContain('NIEMALS, dass Code automatisch ausgeführt wird');
+  });
+
+  it('still suppresses recomputation for a fresh result on capability-less clients', () => {
+    // The server-side compute intent also sets computedResultFresh — that
+    // branch is correct for every client and must win over the capability fork.
+    const out = formatTabularComputeGuidance(
+      makeState({
+        hasTabularAttachment: true,
+        computedResult: makeComputeResult(),
+        computedResultFresh: true,
+        clientCanRunPython: false,
+      })
+    );
+    expect(out).toContain('ERGEBNIS LIEGT BEREITS VOR');
+    expect(out).not.toContain('```python');
   });
 });
 

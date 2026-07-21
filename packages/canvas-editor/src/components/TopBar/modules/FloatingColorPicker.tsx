@@ -10,6 +10,8 @@ interface FloatingColorPickerProps {
   isExpanded?: boolean;
   onExpandChange?: (expanded: boolean) => void;
   colors?: typeof BRAND_COLORS;
+  /** 'font' renders an "A" glyph with a colored underline (text elements); 'swatch' a filled chip. */
+  variant?: 'font' | 'swatch';
 }
 
 const colorBtn =
@@ -21,6 +23,7 @@ export function FloatingColorPicker({
   isExpanded: externalExpanded,
   onExpandChange,
   colors,
+  variant = 'swatch',
 }: FloatingColorPickerProps) {
   const colorOptions = colors ?? BRAND_COLORS;
   const [internalExpanded, setInternalExpanded] = React.useState(false);
@@ -53,25 +56,39 @@ export function FloatingColorPicker({
 
   if (!isExpanded) {
     return (
-      <div
-        className="flex items-center gap-2 px-1 max-canvas-mobile:gap-1 max-canvas-mobile:px-0.5"
-        ref={containerRef}
-      >
-        <button
-          className={cn(
-            colorBtn,
-            'border-2 border-grey-200 dark:border-grey-700 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
-          )}
-          style={{ backgroundColor: currentColor }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(true);
-          }}
-          title="Farbe ändern"
-          type="button"
-          aria-expanded="false"
-          aria-label="Farbpalette öffnen"
-        />
+      <div className="flex items-center shrink-0" ref={containerRef}>
+        {variant === 'font' ? (
+          <button
+            className="inline-flex flex-col items-center justify-center size-8 shrink-0 rounded-md border-none bg-transparent cursor-pointer text-[var(--editor-text)] transition-colors duration-150 hover:bg-[var(--editor-surface-hover)]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(true);
+            }}
+            title="Textfarbe ändern"
+            type="button"
+            aria-expanded="false"
+            aria-label="Farbpalette öffnen"
+          >
+            <span className="text-[15px] font-bold leading-none">A</span>
+            <span
+              className="mt-[2px] h-[3px] w-[15px] rounded-[1px]"
+              style={{ backgroundColor: currentColor }}
+            />
+          </button>
+        ) : (
+          <button
+            className="size-8 max-canvas-mobile:size-[26px] shrink-0 rounded-md border border-[var(--editor-border-strong)] cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-0.5 active:scale-90"
+            style={{ backgroundColor: currentColor }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(true);
+            }}
+            title="Farbe ändern"
+            type="button"
+            aria-expanded="false"
+            aria-label="Farbpalette öffnen"
+          />
+        )}
       </div>
     );
   }

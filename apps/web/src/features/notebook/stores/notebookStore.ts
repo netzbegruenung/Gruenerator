@@ -19,10 +19,6 @@ interface CollectionsResponse extends ApiBase {
   collections?: NotebookCollection[];
 }
 
-interface CollectionResponse extends ApiBase {
-  collection?: NotebookCollection;
-}
-
 export type { NotebookCollection };
 
 /**
@@ -170,7 +166,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         name: string;
         description?: string;
         custom_prompt?: string;
-        selection_mode: string;
+        selection_mode: 'documents' | 'wolke';
         document_ids?: string[];
         wolke_share_link_ids?: string[];
         labels?: string[];
@@ -178,7 +174,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         name: collectionData.name,
         description: collectionData.description,
         custom_prompt: collectionData.custom_prompt,
-        selection_mode: collectionData.selectionMode || 'documents',
+        selection_mode: collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents',
       };
 
       // Add selection-specific data
@@ -192,22 +188,22 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.labels = collectionData.labels;
       }
 
-      const response = await apiClient.post<CollectionResponse>(
-        '/auth/notebook-collections',
-        requestData
-      );
+      const response = await getContractsClient().notebookCollections.createCollection({
+        body: requestData,
+      });
 
-      const data = response.data;
-
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to create Notebook collection');
+      if (response.status !== 201) {
+        throw new Error('Failed to create Notebook collection');
       }
 
       // Refresh collections
       await get().fetchQACollections();
       set({ loading: false });
 
-      return data.collection as NotebookCollection;
+      // The contract's create-response collection and the app's richer
+      // NotebookCollection domain type describe the same row but aren't
+      // mutually assignable; boundary cast at the store edge.
+      return response.body.collection as unknown as NotebookCollection;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error creating Notebook collection:', error);
@@ -224,7 +220,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         name: string;
         description?: string;
         custom_prompt?: string;
-        selection_mode: string;
+        selection_mode: 'documents' | 'wolke';
         document_ids?: string[];
         wolke_share_link_ids?: string[];
         labels?: string[];
@@ -232,7 +228,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         name: collectionData.name,
         description: collectionData.description,
         custom_prompt: collectionData.custom_prompt,
-        selection_mode: collectionData.selectionMode || 'documents',
+        selection_mode: collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents',
       };
 
       // Add selection-specific data
@@ -246,15 +242,13 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.labels = collectionData.labels;
       }
 
-      const response = await apiClient.put<ApiBase>(
-        `/auth/notebook-collections/${collectionId}`,
-        requestData
-      );
+      const response = await getContractsClient().notebookCollections.updateCollection({
+        params: { id: collectionId },
+        body: requestData,
+      });
 
-      const data = response.data;
-
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to update Notebook collection');
+      if (response.status !== 200) {
+        throw new Error('Failed to update Notebook collection');
       }
 
       // Refresh collections
@@ -272,14 +266,12 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   deleteQACollection: async (collectionId) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.delete<ApiBase>(
-        `/auth/notebook-collections/${collectionId}`
-      );
+      const response = await getContractsClient().notebookCollections.deleteCollection({
+        params: { id: collectionId },
+      });
 
-      const data = response.data;
-
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to delete Notebook collection');
+      if (response.status !== 200) {
+        throw new Error('Failed to delete Notebook collection');
       }
 
       // Update local state
@@ -422,12 +414,11 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
   removeDocumentFromCollection: async (collectionId, documentId) => {
     try {
-      const response = await apiClient.delete<ApiBase>(
-        `/auth/notebook-collections/${collectionId}/documents/${documentId}`
-      );
-      const data = response.data;
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to remove document');
+      const response = await getContractsClient().notebookCollections.removeDocument({
+        params: { id: collectionId, documentId },
+      });
+      if (response.status !== 200) {
+        throw new Error('Failed to remove document');
       }
 
       set((state) => ({

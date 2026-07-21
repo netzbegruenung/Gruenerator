@@ -1,4 +1,3 @@
-import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -26,8 +25,35 @@ const log = createLogger('info_canvas');
 const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const INFO_BG_PATH = path.resolve(__dirname, '../../../public/Info_bg_tanne.png');
+const SUNFLOWER_PATH = path.resolve(__dirname, '../../../public/sonnenblume_gruen.png');
 const ARROW_PATH = path.resolve(__dirname, '../../../public/arrow_right.svg');
+
+// Canvas + layout geometry. Kept in sync with the Studio renderer
+// (packages/canvas-editor/src/utils/infoLayout.ts) so both paths draw an identical
+// Info sharepic: a solid-colour background plus ONE sunflower overlay bottom-right.
+// The background PNGs used to bake the flower in, which caused a duplicate once the
+// Studio overlay layer was added — the flower now lives only in the overlay.
+const CANVAS_WIDTH = 1080;
+const CANVAS_HEIGHT = 1350;
+const DEFAULT_BG_COLOR = '#005538'; // COLORS.TANNE
+
+const MARGIN = 50;
+const ARROW_SIZE = 60;
+const HEADER_START_Y = 190;
+const HEADER_TEXT_WIDTH = CANVAS_WIDTH - MARGIN * 2; // 980
+const BODY_TEXT_MARGIN = MARGIN + ARROW_SIZE + 15; // 125
+const BODY_TEXT_WIDTH = CANVAS_WIDTH - BODY_TEXT_MARGIN - MARGIN; // 905
+const HEADER_LINE_HEIGHT_RATIO = 1.2;
+const BODY_LINE_HEIGHT_RATIO = 1.4;
+const HEADER_BOTTOM_SPACING = 40;
+
+// Single sunflower overlay, bottom-right — only its top-left quadrant is visible,
+// reproducing the look the baked-in flower used to have on the tanne background.
+const SUNFLOWER_SIZE = 820;
+const SUNFLOWER_X = CANVAS_WIDTH - 520; // 560
+const SUNFLOWER_Y = CANVAS_HEIGHT - 440; // 910
+// Text must stay above the flower so it is never clipped or overlapped.
+const CONTENT_BOTTOM = SUNFLOWER_Y - 30; // ~880
 
 interface ParsedBody {
   firstSentence: string;
@@ -41,9 +67,19 @@ interface InfoTextData {
 }
 
 interface InfoParams {
+  bgColor: string;
   headerColor: string;
   bodyColor: string;
   headerFontSize: number;
+  bodyFontSize: number;
+}
+
+interface InfoLayout {
+  headerLines: string[];
+  headerFontSize: number;
+  arrowY: number;
+  bodyStartY: number;
+  bodyLines: WordWithFont[][];
   bodyFontSize: number;
 }
 
@@ -57,6 +93,7 @@ interface InfoRequestBody {
   body?: string;
   bodyFirstSentence?: string;
   bodyRemaining?: string;
+  bgColor?: string;
   headerColor?: string;
   bodyColor?: string;
   headerFontSize?: string;
@@ -138,6 +175,140 @@ function renderWordsWithFonts(
   });
 }
 
+function buildWordsWithFont(
+  bodyFirstSentence: string,
+  bodyRemaining: string,
+  bodyFontSize: number
+): WordWithFont[] {
+  const fullBodyText = `${bodyFirstSentence} ${bodyRemaining}`.trim();
+  const allWords = fullBodyText.split(' ').filter(Boolean);
+  const firstSentenceWordCount = bodyFirstSentence
+    ? bodyFirstSentence.split(' ').filter(Boolean).length
+    : 0;
+
+  return allWords.map((word, index) => ({
+    text: word,
+    font:
+      index < firstSentenceWordCount
+        ? `${bodyFontSize}px PTSans-Bold`
+        : `${bodyFontSize}px PTSans-Regular`,
+  }));
+}
+
+function wrapWordsWithFont(
+  ctx: CanvasRenderingContext2D,
+  wordsWithFont: WordWithFont[],
+  maxWidth: number
+): WordWithFont[][] {
+  const lines: WordWithFont[][] = [];
+  let currentLine: WordWithFont[] = [];
+
+  for (const wordObj of wordsWithFont) {
+    const testLine = [...currentLine, wordObj];
+    let testLineWidth = 0;
+    testLine.forEach((w, idx) => {
+      ctx.font = w.font;
+      testLineWidth += ctx.measureText(w.text).width;
+      if (idx < testLine.length - 1) {
+        testLineWidth += ctx.measureText(' ').width;
+      }
+    });
+
+    if (testLineWidth > maxWidth && currentLine.length > 0) {
+      lines.push(currentLine);
+      currentLine = [wordObj];
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+  return lines;
+}
+
+function computeInfoLayout(
+  ctx: CanvasRenderingContext2D,
+  processedText: InfoTextData,
+  headerFontSize: number,
+  bodyFontSize: number
+): InfoLayout & { bodyBottom: number } {
+  let currentY = HEADER_START_Y;
+  let headerLines: string[] = [];
+
+  if (processedText.header) {
+    ctx.font = `${headerFontSize}px GrueneTypeNeue`;
+    headerLines = wrapText(ctx, processedText.header, HEADER_TEXT_WIDTH);
+    currentY +=
+      headerLines.length * headerFontSize * HEADER_LINE_HEIGHT_RATIO + HEADER_BOTTOM_SPACING;
+  }
+
+  const arrowY = currentY;
+  const bodyStartY = currentY;
+
+  const words = buildWordsWithFont(
+    processedText.bodyFirstSentence || '',
+    processedText.bodyRemaining || '',
+    bodyFontSize
+  );
+  const bodyLines = wrapWordsWithFont(ctx, words, BODY_TEXT_WIDTH);
+  const bodyBottom = bodyStartY + bodyLines.length * bodyFontSize * BODY_LINE_HEIGHT_RATIO;
+
+  return { headerLines, headerFontSize, arrowY, bodyStartY, bodyLines, bodyFontSize, bodyBottom };
+}
+
+/**
+ * Shrink header/body font sizes until the text fits above the sunflower, so it is never
+ * clipped or drawn under the flower. As a last resort (pathological input that will not fit
+ * even at the minimum font size) trailing body lines are dropped with an ellipsis.
+ */
+function fitInfoLayout(
+  ctx: CanvasRenderingContext2D,
+  processedText: InfoTextData,
+  params: InfoParams
+): InfoLayout {
+  let headerFontSize = params.headerFontSize;
+  let bodyFontSize = params.bodyFontSize;
+  let layout = computeInfoLayout(ctx, processedText, headerFontSize, bodyFontSize);
+
+  // Shrink the body first (2px steps), then the header (4px steps).
+  while (layout.bodyBottom > CONTENT_BOTTOM && bodyFontSize > 30) {
+    bodyFontSize = Math.max(30, bodyFontSize - 2);
+    layout = computeInfoLayout(ctx, processedText, headerFontSize, bodyFontSize);
+  }
+  while (layout.bodyBottom > CONTENT_BOTTOM && headerFontSize > 50) {
+    headerFontSize = Math.max(50, headerFontSize - 4);
+    layout = computeInfoLayout(ctx, processedText, headerFontSize, bodyFontSize);
+  }
+
+  // Safety net: still overflowing at minimum sizes → drop trailing lines + ellipsis.
+  if (layout.bodyBottom > CONTENT_BOTTOM && layout.bodyLines.length > 0) {
+    const maxLines = Math.max(
+      1,
+      Math.floor((CONTENT_BOTTOM - layout.bodyStartY) / (bodyFontSize * BODY_LINE_HEIGHT_RATIO))
+    );
+    if (layout.bodyLines.length > maxLines) {
+      const trimmed = layout.bodyLines.slice(0, maxLines);
+      const lastLine = trimmed[trimmed.length - 1];
+      const lastWord = lastLine[lastLine.length - 1];
+      lastLine[lastLine.length - 1] = {
+        ...lastWord,
+        text: `${lastWord.text.replace(/[.,;:!?]+$/, '')}…`,
+      };
+      layout = { ...layout, bodyLines: trimmed };
+    }
+  }
+
+  return {
+    headerLines: layout.headerLines,
+    headerFontSize,
+    arrowY: layout.arrowY,
+    bodyStartY: layout.bodyStartY,
+    bodyLines: layout.bodyLines,
+    bodyFontSize,
+  };
+}
+
 async function createInfoImage(
   processedText: InfoTextData,
   validatedParams: InfoParams
@@ -146,107 +317,53 @@ async function createInfoImage(
     await checkFiles();
     registerFonts();
 
-    try {
-      await fs.access(INFO_BG_PATH);
-    } catch {
-      throw new Error(`Info background image not found: ${INFO_BG_PATH}`);
-    }
+    const { bgColor, headerColor, bodyColor } = validatedParams;
 
-    const backgroundImage = await loadImage(INFO_BG_PATH);
-
-    const canvas: Canvas = createCanvas(backgroundImage.width, backgroundImage.height);
+    const canvas: Canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
     const ctx: CanvasRenderingContext2D = canvas.getContext('2d');
 
-    ctx.drawImage(backgroundImage, 0, 0);
+    // Solid background — the flower is no longer baked in.
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    const { headerColor, bodyColor, headerFontSize, bodyFontSize } = validatedParams;
+    // Single sunflower overlay, drawn behind the text.
+    try {
+      const sunflowerImage = await loadImage(SUNFLOWER_PATH);
+      ctx.drawImage(sunflowerImage, SUNFLOWER_X, SUNFLOWER_Y, SUNFLOWER_SIZE, SUNFLOWER_SIZE);
+    } catch (error) {
+      log.warn('Could not load sunflower icon:', (error as Error).message);
+    }
 
-    const canvasWidth = canvas.width;
-    const margin = 50;
-    const textWidth = canvasWidth - margin * 2;
+    const layout = fitInfoLayout(ctx, processedText, validatedParams);
 
-    let currentY = 190;
-
+    // Header
     if (processedText.header) {
-      ctx.font = `${headerFontSize}px GrueneTypeNeue`;
+      ctx.font = `${layout.headerFontSize}px GrueneTypeNeue`;
       ctx.fillStyle = headerColor;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-
-      const headerLines = wrapText(ctx, processedText.header, textWidth);
-      headerLines.forEach((line, index) => {
-        const textY = currentY + index * (headerFontSize * 1.2);
-        ctx.fillText(line, margin, textY);
+      layout.headerLines.forEach((line, index) => {
+        const textY = HEADER_START_Y + index * layout.headerFontSize * HEADER_LINE_HEIGHT_RATIO;
+        ctx.fillText(line, MARGIN, textY);
       });
-
-      currentY += headerLines.length * headerFontSize * 1.2 + 40;
     }
 
-    const arrowSize = 60;
-    const arrowX = margin;
-    const arrowY = currentY;
-
+    // Arrow separator
     try {
       const arrowImage = await loadImage(ARROW_PATH);
-      ctx.drawImage(arrowImage, arrowX, arrowY, arrowSize, arrowSize);
+      ctx.drawImage(arrowImage, MARGIN, layout.arrowY, ARROW_SIZE, ARROW_SIZE);
     } catch (error) {
       log.warn('Could not load arrow icon:', (error as Error).message);
     }
 
-    const bodyTextMargin = margin + arrowSize + 15;
-    const bodyTextWidth = canvasWidth - bodyTextMargin - margin;
-
-    if (processedText.bodyFirstSentence || processedText.bodyRemaining) {
-      const fullBodyText = (
-        processedText.bodyFirstSentence +
-        ' ' +
-        processedText.bodyRemaining
-      ).trim();
-      const allWords = fullBodyText.split(' ');
-      const firstSentenceWordCount = processedText.bodyFirstSentence
-        ? processedText.bodyFirstSentence.split(' ').length
-        : 0;
-
-      const wordsWithFont: WordWithFont[] = allWords.map((word, index) => ({
-        text: word,
-        font:
-          index < firstSentenceWordCount
-            ? `${bodyFontSize}px PTSans-Bold`
-            : `${bodyFontSize}px PTSans-Regular`,
-      }));
-
-      ctx.fillStyle = bodyColor;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-
-      let bodyY = currentY;
-      let currentLine: WordWithFont[] = [];
-
-      for (let i = 0; i < wordsWithFont.length; i++) {
-        const wordObj = wordsWithFont[i];
-        const testLine = [...currentLine, wordObj];
-
-        let testLineWidth = 0;
-        testLine.forEach((w, idx) => {
-          ctx.font = w.font;
-          testLineWidth += ctx.measureText(w.text).width;
-          if (idx < testLine.length - 1) {
-            testLineWidth += ctx.measureText(' ').width;
-          }
-        });
-
-        if (testLineWidth > bodyTextWidth && currentLine.length > 0) {
-          renderWordsWithFonts(ctx, currentLine, bodyTextMargin, bodyY, bodyColor);
-          currentLine = [wordObj];
-          bodyY += bodyFontSize * 1.4;
-        } else {
-          currentLine = testLine;
-        }
-      }
-
-      if (currentLine.length > 0) {
-        renderWordsWithFonts(ctx, currentLine, bodyTextMargin, bodyY, bodyColor);
-      }
+    // Body
+    ctx.fillStyle = bodyColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let bodyY = layout.bodyStartY;
+    for (const line of layout.bodyLines) {
+      renderWordsWithFonts(ctx, line, BODY_TEXT_MARGIN, bodyY, bodyColor);
+      bodyY += layout.bodyFontSize * BODY_LINE_HEIGHT_RATIO;
     }
 
     const rawBuffer = canvas.toBuffer('image/png');
@@ -264,6 +381,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       body,
       bodyFirstSentence,
       bodyRemaining,
+      bgColor,
       headerColor,
       bodyColor,
       headerFontSize,
@@ -271,6 +389,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     } = req.body as InfoRequestBody;
 
     const modParams: InfoParams = {
+      bgColor: isValidHexColor(bgColor) ? bgColor! : DEFAULT_BG_COLOR,
       headerColor: isValidHexColor(headerColor) ? headerColor! : '#FFFFFF',
       bodyColor: isValidHexColor(bodyColor) ? bodyColor! : '#FFFFFF',
       headerFontSize: parseInt(headerFontSize || '89', 10) || 89,

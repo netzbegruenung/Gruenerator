@@ -25,10 +25,16 @@ describe('isXlsx', () => {
 });
 
 describe('buildFileSetup', () => {
-  it('reads .xlsx via read_excel', () => {
-    expect(buildFileSetup('umsatz.xlsx', XLSX_MIME)).toBe(
-      'import pandas as pd\ndf = pd.read_excel("umsatz.xlsx")'
-    );
+  it('reads .xlsx with ALL sheets, cleaned, df = first sheet', () => {
+    const setup = buildFileSetup('umsatz.xlsx', XLSX_MIME);
+    expect(setup).toContain('pd.read_excel("umsatz.xlsx", sheet_name=None)');
+    // Every sheet runs through the aggregate-row guard.
+    expect(setup).toContain('def _gruen_clean(');
+    expect(setup).toContain('sheets[_gruen_n] = _gruen_clean(');
+    // Backward compatible: df stays the first (workbook-order) sheet.
+    expect(setup).toContain('df = sheets[next(iter(sheets))]');
+    // Multi-sheet workbooks announce their sheet map into stdout → card.
+    expect(setup).toContain('Arbeitsmappe mit');
   });
 
   it('reads CSV with separator sniffing, encoding fallback and German-number normalization', () => {
@@ -39,15 +45,28 @@ describe('buildFileSetup', () => {
     expect(setup).toContain("'utf-8-sig', 'cp1252'");
     // Decimal-comma columns ("1.234,56") get converted to floats.
     expect(setup).toContain('pd.to_numeric');
-    expect(setup).toContain('_gruen_load_csv("data.csv")');
+    // Loaded df goes through the trailing-aggregate-row guard (GESAMT rows).
+    expect(setup).toContain('_gruen_clean(_gruen_load_csv("data.csv"))');
     // The exact runtime behavior is covered by the Pyodide integration suite
     // (runCore.integration.vitest.ts) against real pandas.
   });
 
-  it('reads legacy .xls via read_excel (xlrd engine)', () => {
-    expect(buildFileSetup('alt.xls', XLS_MIME)).toBe(
-      'import pandas as pd\ndf = pd.read_excel("alt.xls")'
+  it('reads legacy .xls via the same multi-sheet path', () => {
+    const setup = buildFileSetup('alt.xls', XLS_MIME);
+    expect(setup).toContain('pd.read_excel("alt.xls", sheet_name=None)');
+    expect(setup).toContain('df = sheets[next(iter(sheets))]');
+  });
+
+  it('keeps the guard snippet free of typographic characters (sanitizer gotcha)', () => {
+    // NBSP / smart quotes in the embedded Python would be a SyntaxError at
+    // runtime. Built from code points because literal typographic characters
+    // get silently normalized by editors/models - the exact failure mode
+    // this test guards against.
+    const typographic = new RegExp(
+      `[${String.fromCharCode(0x00a0, 0x202f, 0x200b, 0x201c, 0x201d, 0x201e, 0x2018, 0x2019)}]`
     );
+    const setup = buildFileSetup('umsatz.xlsx', XLSX_MIME);
+    expect(setup).not.toMatch(typographic);
   });
 
   it('escapes odd file names safely into the Python literal', () => {

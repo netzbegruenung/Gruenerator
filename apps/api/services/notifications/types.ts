@@ -37,6 +37,14 @@ export interface CreateNotificationParams {
   metadata?: Record<string, unknown> | undefined;
   actionUrl?: string | undefined;
   groupKey?: string | undefined;
+  /**
+   * Per-call channel override. A provided channel replaces the user's stored
+   * preference for THIS notification; omitted channels fall back to
+   * `shouldDeliver`. Callers typically use it to SUPPRESS a channel (e.g. a
+   * recurring task with its email toggle off passes `{ email: false }`); it can
+   * also force a channel on, so pass it deliberately.
+   */
+  channelOverride?: Partial<ChannelPreferences> | undefined;
 }
 
 export interface NotificationListOptions {

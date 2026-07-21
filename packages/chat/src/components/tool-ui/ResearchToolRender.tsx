@@ -38,17 +38,21 @@ interface ResearchLoadingCardProps {
 
 function ResearchLoadingCard({ query }: ResearchLoadingCardProps) {
   return (
-    <div className="border-section-border bg-primary/5 my-2 rounded-lg border p-3">
-      <div className="flex items-center gap-2">
-        <BookOpen className="text-secondary-700 h-4 w-4 shrink-0" />
-        <span className="text-foreground text-sm font-medium">Deep Research</span>
-        <Loader2 className="text-primary h-3.5 w-3.5 animate-spin" />
+    <div className="border-section-border bg-primary/5 my-2 rounded-xl border px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className="bg-primary/10 text-primary inline-flex size-8 shrink-0 items-center justify-center rounded-lg">
+          <BookOpen className="h-4 w-4" />
+        </span>
+        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="text-foreground shrink-0 text-sm font-bold">Deep Research</span>
+          {query && (
+            <span className="text-foreground-muted truncate text-[13px]">
+              &bdquo;{query.length > 80 ? query.slice(0, 80) + '…' : query}&ldquo;
+            </span>
+          )}
+        </span>
+        <Loader2 className="text-primary h-4 w-4 shrink-0 animate-spin" />
       </div>
-      {query && (
-        <div className="text-foreground-muted mt-1 text-xs">
-          &bdquo;{query.length > 80 ? query.slice(0, 80) + '…' : query}&ldquo;
-        </div>
-      )}
       <div className="text-foreground-muted mt-2 text-[11px]">
         Plant Sub-Fragen, sucht parallel in Web &amp; Dokumenten, vertieft bei Lücken, synthetisiert
         Bericht. Dauert ca. 15&ndash;30s.

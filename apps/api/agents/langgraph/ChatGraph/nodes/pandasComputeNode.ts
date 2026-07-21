@@ -36,12 +36,19 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt dieser Form:
 
 Regeln für den Code:
 - Verwende die ECHTEN Spaltennamen aus dem Tabellen-Kontext (exakte Schreibweise).
+- Arbeitsmappen mit mehreren Blättern: \`df\` ist das ERSTE Blatt; ALLE Blätter sind als \`sheets["Blattname"]\` verfügbar (Namen stehen im Tabellen-Kontext). Wähle das Blatt, dessen Spalten zur Frage passen.
 - Gib jedes Ergebnis mit \`print("Label:", wert)\` aus — ein klares deutsches Label pro Zeile (z.B. \`print("Gesamtgewinn:", round(gewinn, 2))\`).
 - Halte den Code kurz und robust; keine Datei-/Netzwerkzugriffe, keine Plots.
+- Rechne mit fehlenden Werten: nutze dropna() vor idxmax()/idxmin() und prüfe, dass Gruppierungs-Ergebnisse nicht NaN als Schlüssel liefern.
+- Enthält die Tabelle bereits eine Spalte für die gefragte Größe (z.B. "Umsatz"), verwende NUR diese Spalte — leite sie NICHT zusätzlich aus anderen Spalten her (z.B. Menge*Einzelpreis) und addiere niemals beides.
+- Enthält die Tabelle Gesamt- oder Zwischensummenzeilen (z.B. "Gesamt"/"Summe"-Label oder leere Schlüsselspalten am Tabellenende), schließe sie bei Aggregationen UND Gruppierungen aus — sonst verdoppeln sich Summen.
+- Anteile, Margen und Quoten aggregiert berechnen (Summe Zähler / Summe Nenner), NICHT als Mittelwert von Zeilen-Quoten.
+- Wünscht der*die Nutzer*in eine Datei/einen Export, schreibe sie ins Arbeitsverzeichnis (z.B. df.to_csv("export.csv", index=False)) und printe danach "Datei erstellt: export.csv" — die Datei wird automatisch zum Download angeboten.
 - Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
 - Wenn die Frage NICHTS mit den Tabellendaten zu tun hat (z.B. Allgemeinwissen, Textaufgaben ohne Bezug zu \`df\`), antworte mit {"related": false, "code": ""}`;
 
-const MAX_TABLE_CONTEXT_CHARS = 6000;
+const MAX_TABLE_CONTEXT_CHARS = 8000;
+const TABLE_TAIL_CHARS = 2000;
 const MAX_CODE_CHARS = 2000;
 
 /** Strip accidental markdown fences — the prompt forbids them, but models slip. */
@@ -73,6 +80,22 @@ export function parseCodegenResponse(raw: string): { related: boolean; code: str
 }
 
 /**
+ * Head+tail truncation for oversized table text: the END of a spreadsheet is
+ * load-bearing (GESAMT/Summen rows, latest months, data extent) — a head-only
+ * slice hid a real user's total row from the codegen, which then summed it as
+ * data. Cut on line boundaries so no half rows confuse the model.
+ */
+export function truncateTableContext(text: string): string {
+  if (text.length <= MAX_TABLE_CONTEXT_CHARS) return text;
+  const headBudget = MAX_TABLE_CONTEXT_CHARS - TABLE_TAIL_CHARS;
+  const headCut = text.lastIndexOf('\n', headBudget);
+  const head = text.slice(0, headCut > 0 ? headCut : headBudget);
+  const tailCut = text.indexOf('\n', text.length - TABLE_TAIL_CHARS);
+  const tail = text.slice(tailCut > 0 ? tailCut + 1 : text.length - TABLE_TAIL_CHARS);
+  return `${head}\n... [Tabelle gekürzt] ...\n${tail}`;
+}
+
+/**
  * Collect column names + sample rows for the codegen prompt: extracted text of
  * tabular thread attachments first (survives across turns), then the current
  * turn's attachment context as fallback.
@@ -85,13 +108,14 @@ function buildTableContext(state: ChatGraphState): string {
   const combined = tabularTexts.length
     ? tabularTexts.join('\n\n')
     : (state.attachmentContext ?? '');
-  return combined.slice(0, MAX_TABLE_CONTEXT_CHARS);
+  return truncateTableContext(combined);
 }
 
 /** The user's RAW last message. Preferred over searchQuery: when the router's
  *  regex gate fires on a search-classified follow-up, searchQuery holds the
- *  retrieval-optimized rewrite — codegen must answer the actual question. */
-function lastUserText(state: ChatGraphState): string {
+ *  retrieval-optimized rewrite (or null for direct/summary/chart intents) —
+ *  codegen AND the verifier must judge against the actual question. */
+export function lastUserText(state: ChatGraphState): string {
   const msg = [...state.messages].reverse().find((m) => m.role === 'user');
   return msg ? extractMessageText(msg.content) : '';
 }

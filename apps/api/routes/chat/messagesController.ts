@@ -107,6 +107,7 @@ router.get('/', async (req, res) => {
             roleName?: string;
             generatedImage?: Record<string, unknown>;
             createdDocument?: Record<string, unknown>;
+            computeData?: Record<string, unknown>;
             agentId?: string;
           }
         | undefined;
@@ -140,6 +141,9 @@ router.get('/', async (req, res) => {
               : {}),
             ...(meta.createdDocument && typeof meta.createdDocument === 'object'
               ? { createdDocument: meta.createdDocument as Record<string, unknown> }
+              : {}),
+            ...(meta.computeData && typeof meta.computeData === 'object'
+              ? { computeData: meta.computeData as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
           };

@@ -20,7 +20,12 @@ export function Umfragewerte() {
   return (
     <div style={{ width: 520, height: 300 }}>
       <ChartContainer config={config} style={{ width: '100%', height: '100%' }}>
-        <BarChart width={520} height={300} data={umfrage} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+        <BarChart
+          width={520}
+          height={300}
+          data={umfrage}
+          margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+        >
           <CartesianGrid vertical={false} />
           <XAxis dataKey="monat" tickLine={false} axisLine={false} tickMargin={8} />
           <YAxis tickLine={false} axisLine={false} width={32} domain={[0, 30]} />
