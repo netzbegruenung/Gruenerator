@@ -73,7 +73,7 @@ interface LocaleStyleMapping {
 
 class AssSubtitleService {
   private grueneTypeFontPath: string;
-  private montserratFontPath: string;
+  private gothamNarrowFontPath: string;
   private localeStyleMapping: LocaleStyleMapping;
 
   constructor() {
@@ -81,7 +81,11 @@ class AssSubtitleService {
       __dirname,
       '../../public/fonts/GrueneTypeNeue-Regular.ttf'
     );
-    this.montserratFontPath = path.resolve(__dirname, '../../public/fonts/Montserrat-Bold.ttf');
+    // Austria (de-AT) uses Gotham Narrow Ultra (brand font) for at_* styles.
+    this.gothamNarrowFontPath = path.resolve(
+      __dirname,
+      '../../public/fonts/GothamNarrow-Ultra.otf'
+    );
 
     this.localeStyleMapping = {
       'de-AT': {
@@ -95,7 +99,7 @@ class AssSubtitleService {
 
   getFontPathForStyle(stylePreference: string): string {
     if (stylePreference?.startsWith('at_')) {
-      return this.montserratFontPath;
+      return this.gothamNarrowFontPath;
     }
     return this.grueneTypeFontPath;
   }
@@ -204,7 +208,7 @@ class AssSubtitleService {
       case 'at_standard':
         return {
           ...baseStyle,
-          fontName: 'Montserrat',
+          fontName: 'Gotham Narrow',
           backColor: '&HCC000000',
           borderStyle: 3,
           outline: 1,
@@ -218,7 +222,7 @@ class AssSubtitleService {
       case 'at_clean':
         return {
           ...baseStyle,
-          fontName: 'Montserrat',
+          fontName: 'Gotham Narrow',
           backColor: '&H00000000',
           borderStyle: 0,
           outline: 0,
@@ -231,7 +235,7 @@ class AssSubtitleService {
       case 'at_shadow':
         return {
           ...baseStyle,
-          fontName: 'Montserrat',
+          fontName: 'Gotham Narrow',
           backColor: '&H00000000',
           borderStyle: 0,
           outline: 0,
@@ -246,7 +250,7 @@ class AssSubtitleService {
         const atGruenOutline = this.convertRgbToAssBgr('#4d7f1b', 0x00);
         return {
           ...baseStyle,
-          fontName: 'Montserrat',
+          fontName: 'Gotham Narrow',
           backColor: atGruenColor,
           borderStyle: 3,
           outline: 1,
@@ -318,7 +322,7 @@ class AssSubtitleService {
     metadata: VideoMetadata,
     baseFontSize: number,
     subtitlePreference: string = 'manual',
-    stylePreference: string = 'standard'
+    _stylePreference: string = 'standard'
   ): number {
     const { width, height } = metadata;
     const referenceDimension = Math.min(width, height);
@@ -340,10 +344,8 @@ class AssSubtitleService {
       fontSize = Math.floor(fontSize * 1.2);
     }
 
-    const isAtStyle = stylePreference?.startsWith('at_');
-    if (isAtStyle) {
-      fontSize = Math.floor(fontSize * 0.85);
-    }
+    // AT styles now use Gotham Narrow Ultra, which is heavier but narrower than
+    // the previous Montserrat-Bold, so no size reduction is applied.
 
     return Math.max(24, Math.min(300, fontSize));
   }
