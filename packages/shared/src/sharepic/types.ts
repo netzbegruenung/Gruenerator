@@ -36,7 +36,6 @@ export interface SharepicRequest {
   /** Enable privacy mode */
   usePrivacyMode?: boolean;
   /** Enable Bedrock/Pro mode */
-  useBedrock?: boolean;
 }
 
 /** Options for the useSharepicGeneration hook */
@@ -54,7 +53,6 @@ export interface SharepicGenerationOptions {
   /** Enable privacy mode */
   usePrivacyMode?: boolean;
   /** Enable Pro mode */
-  useProMode?: boolean;
 }
 
 /** Single sharepic result from generation */

@@ -45,8 +45,6 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
           attachments: state.attachments,
           useWebSearchTool: state.features.useWebSearchTool,
           usePrivacyMode: state.features.usePrivacyMode,
-          useProMode: state.features.useProMode,
-          useUltraMode: state.features.useUltraMode,
           selectedDocumentIds: state.selectedDocumentIds,
           selectedTextIds: state.selectedTextIds,
           searchQuery: state.searchQuery,

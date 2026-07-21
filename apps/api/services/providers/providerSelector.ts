@@ -101,17 +101,6 @@ export function selectProviderAndModel({
   let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
   let model: ModelName = options.model || 'verdigado-pro';
 
-  // Ultra mode (useUltraMode flag) - routes to LiteLLM with high-quality model
-  if (options.useUltraMode === true) {
-    provider = 'litellm';
-    model = 'verdigado-pro';
-  }
-  // Pro mode (useProMode flag) - routes to high-quality reasoning model
-  else if (options.useProMode === true) {
-    provider = 'litellm';
-    model = options.model || 'verdigado-pro';
-  }
-
   // Type-based defaults
   // Notebook enrichment - fast model
   if (type === 'notebook_enrich') {

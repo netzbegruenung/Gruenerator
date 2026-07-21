@@ -113,36 +113,6 @@ describe('AIService', () => {
     );
   });
 
-  it('routes ultra mode to LiteLLM', async () => {
-    const data = makeRequest({ options: { useUltraMode: true } });
-    await service.processRequest(data);
-
-    expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'litellm',
-      expect.any(String),
-      expect.objectContaining({
-        options: expect.objectContaining({ model: 'verdigado-pro' }),
-      })
-    );
-  });
-
-  it('routes pro mode to LiteLLM', async () => {
-    mockSelectProviderAndModel.mockReturnValue({
-      provider: 'litellm',
-      model: 'verdigado-pro',
-    });
-    const data = makeRequest({ options: { useProMode: true } });
-    await service.processRequest(data);
-
-    expect(mockExecuteProvider).toHaveBeenCalledWith(
-      'litellm',
-      expect.any(String),
-      expect.objectContaining({
-        options: expect.objectContaining({ useProMode: true }),
-      })
-    );
-  });
-
   it('resolves privacy provider when usePrivacyMode + userId', async () => {
     mockGetProviderForUser.mockResolvedValue('regolo');
     const mockRedisClient = {} as any;

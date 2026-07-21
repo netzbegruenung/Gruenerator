@@ -44,13 +44,12 @@ interface DocumentExtractionInfo {
 }
 
 // Default modes type
-type DefaultMode = 'privacy' | 'pro' | 'balanced';
+type DefaultMode = 'privacy' | 'balanced';
 
 // Feature state for backend
 interface FeatureState {
   useWebSearchTool: boolean;
   usePrivacyMode: boolean;
-  useProMode: boolean;
   useAgentMode: boolean;
 }
 
@@ -76,7 +75,6 @@ interface GeneratorSelectionState {
   defaultModes: Record<string, DefaultMode>;
   useWebSearch: boolean;
   usePrivacyMode: boolean;
-  useProMode: boolean;
   useAgentMode: boolean;
 }
 
@@ -103,7 +101,6 @@ interface GeneratorSelectionActions {
   setActiveComponent: (componentName: string | null, defaultMode?: DefaultMode | null) => void;
   setWebSearch: (enabled: boolean) => void;
   setPrivacyMode: (enabled: boolean) => void;
-  setProMode: (enabled: boolean) => void;
   setAgentMode: (enabled: boolean) => void;
   toggleAgentMode: () => void;
   getFeatureState: () => FeatureState;
@@ -133,7 +130,6 @@ const initialState: GeneratorSelectionState = {
   defaultModes: {},
   useWebSearch: false,
   usePrivacyMode: false,
-  useProMode: false,
   useAgentMode: false,
 };
 
@@ -297,13 +293,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
             (componentName && state.defaultModes[componentName]) || defaultMode || 'privacy';
 
           state.useWebSearch = false;
-          state.usePrivacyMode = false;
-          state.useProMode = false;
-          if (modeToApply === 'pro') {
-            state.useProMode = true;
-          } else if (modeToApply === 'privacy') {
-            state.usePrivacyMode = true;
-          }
+          state.usePrivacyMode = modeToApply === 'privacy';
         });
       }
     },
@@ -316,17 +306,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
     setPrivacyMode: (enabled) =>
       set((state) => {
         state.usePrivacyMode = enabled;
-        if (enabled) {
-          state.useProMode = false;
-        }
-      }),
-
-    setProMode: (enabled) =>
-      set((state) => {
-        state.useProMode = enabled;
-        if (enabled) {
-          state.usePrivacyMode = false;
-        }
       }),
 
     setAgentMode: (enabled) =>
@@ -344,7 +323,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       return {
         useWebSearchTool: state.useWebSearch,
         usePrivacyMode: state.usePrivacyMode,
-        useProMode: state.useProMode,
         useAgentMode: state.useAgentMode,
       };
     },
@@ -353,7 +331,6 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       set((state) => {
         state.useWebSearch = false;
         state.usePrivacyMode = false;
-        state.useProMode = false;
         state.useAgentMode = false;
       }),
 

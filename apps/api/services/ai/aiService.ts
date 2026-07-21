@@ -93,15 +93,11 @@ class AIService implements AIWorkerPool {
       ...options,
       provider: selection.provider,
       model: selection.model,
-      useProMode: !!options.useProMode,
-      useUltraMode: !!options.useUltraMode,
     };
 
     console.log(`[AIService ${requestId}] Provider selection:`, {
       selectedProvider: selection.provider,
       selectedModel: selection.model,
-      useProMode: !!effectiveOptions.useProMode,
-      useUltraMode: !!effectiveOptions.useUltraMode,
       temperature: effectiveOptions.temperature ?? 'default',
       explicitProvider: data.provider || 'none',
     });
@@ -117,21 +113,7 @@ class AIService implements AIWorkerPool {
         });
       }
 
-      if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
-        effectiveOptions.model = 'verdigado-pro';
-        result = await providers.executeProvider('litellm', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
-        // Pro mode routes via provider selection (typically litellm → gpt-oss:120b,
-        // configurable via env). Falls back to mistral if selector didn't pick one.
-        const proProvider = selection.provider || 'mistral';
-        result = await providers.executeProvider(proProvider, requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
+      if (!result && selection.provider === 'litellm' && !explicitProvider) {
         result = await providers.executeProvider('litellm', requestId, {
           ...data,
           options: effectiveOptions,

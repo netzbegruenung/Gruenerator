@@ -82,7 +82,7 @@ Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
 
 ### AI Providers
 
-Mistral AI (primary, EU), Anthropic Claude via Bedrock (Ultra, EU), GPT-OSS via Together AI (fine-tuned, see `CLAUDE-finetuning.md`), Flux/BFL (images), AssemblyAI/Gladia (transcription).
+Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seeweb/Regolo AI (EU), Flux/BFL (images), AssemblyAI/Gladia (transcription). Together AI is NOT used in production (historical fine-tuning experiment only, see `CLAUDE-finetuning.md`). No ultra/pro mode flags — model routing is type-based in `providerSelector.ts`; explicit model choice exists only in Playground, mobile chat, and agent configs.
 
 ## Development Conventions
 

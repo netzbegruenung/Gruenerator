@@ -41,9 +41,6 @@ export type TextImproverAction =
 export interface GeneratorFeatures {
   useWebSearchTool?: boolean;
   usePrivacyMode?: boolean;
-  useProMode?: boolean;
-  useUltraMode?: boolean;
-  useBedrock?: boolean;
 }
 
 // File attachment

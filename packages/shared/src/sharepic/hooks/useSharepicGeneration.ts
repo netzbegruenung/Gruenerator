@@ -136,10 +136,6 @@ export function useSharepicGeneration(
         requestData.usePrivacyMode = true;
       }
 
-      if (options.useProMode) {
-        requestData.useBedrock = true;
-      }
-
       // Add image data if provided (for dreizeilen, quote types)
       if (options.imageData && (options.type === 'dreizeilen' || options.type === 'quote')) {
         // Extract MIME type from data URL

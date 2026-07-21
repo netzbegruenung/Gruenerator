@@ -88,15 +88,11 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     ...options,
     provider: selection.provider,
     model: selection.model,
-    useProMode: !!options.useProMode,
-    useUltraMode: !!options.useUltraMode,
   };
 
   console.log(`[AI Worker ${requestId}] Provider selection:`, {
     selectedProvider: selection.provider,
     selectedModel: selection.model,
-    useProMode: !!effectiveOptions.useProMode,
-    useUltraMode: !!effectiveOptions.useUltraMode,
     temperature: effectiveOptions.temperature ?? 'default',
     explicitProvider: data.provider || 'none',
   });
@@ -120,26 +116,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       });
     }
 
-    if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
-      console.log(
-        `[AI Worker ${requestId}] Using Ultra Mode (LiteLLM) with temperature: ${effectiveOptions.temperature ?? 'default'}`
-      );
-      sendProgress(requestId, 15);
-      effectiveOptions.model = 'verdigado-pro';
-      result = await providers.executeProvider('litellm', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
-      console.log(
-        `[AI Worker ${requestId}] Using Pro Mode (Magistral) provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
-      );
-      sendProgress(requestId, 15);
-      result = await providers.executeProvider('mistral', requestId, {
-        ...data,
-        options: effectiveOptions,
-      });
-    } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
+    if (!result && selection.provider === 'litellm' && !explicitProvider) {
       console.log(
         `[AI Worker ${requestId}] Using LiteLLM provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );

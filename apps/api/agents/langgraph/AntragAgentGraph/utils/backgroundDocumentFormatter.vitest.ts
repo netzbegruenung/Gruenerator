@@ -41,8 +41,6 @@ function makeState(overrides: Partial<AntragAgentState> = {}): AntragAgentState 
     features: {
       useWebSearchTool: false,
       usePrivacyMode: false,
-      useProMode: false,
-      useUltraMode: false,
     },
     selectedDocumentIds: [],
     selectedTextIds: [],

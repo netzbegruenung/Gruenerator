@@ -7,8 +7,6 @@ export type ModelName = string;
 export interface ProviderOptions {
   provider?: ProviderName | undefined;
   model?: ModelName | undefined;
-  useUltraMode?: boolean | undefined;
-  useProMode?: boolean | undefined;
   privacyMode?: boolean | undefined;
   disableExternalProviders?: boolean | undefined;
   explicitProvider?: ProviderName | undefined;

@@ -19,7 +19,6 @@ const websiteSchema = z.object({
   description: z.string().min(1, 'Bitte gib eine Beschreibung an'),
   email: z.string().optional(),
   usePrivacyMode: z.boolean().optional(),
-  useProMode: z.boolean().optional(),
 });
 type WebsiteBody = z.infer<typeof websiteSchema>;
 

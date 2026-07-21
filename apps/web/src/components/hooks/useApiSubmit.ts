@@ -46,18 +46,11 @@ const useApiSubmit = (endpoint: string) => {
     setRetryCount(0);
 
     try {
-      // Derive mode flags
-      const privacyMode = !!formData.usePrivacyMode;
-      const proMode = !!formData.useProMode;
-      const useBedrock = !!formData.useBedrock;
-
       // Pass only intent flags; provider/model selection remains on the backend.
       const requestData: Record<string, unknown> = {
         ...formData,
         ...options,
-        usePrivacyMode: privacyMode,
-        useProMode: proMode,
-        useBedrock: useBedrock,
+        usePrivacyMode: !!formData.usePrivacyMode,
         onRetry: (attempt: number, delay: number) => {
           setRetryCount(attempt);
           setError(
