@@ -7,19 +7,22 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import ToolGrid from '../../../components/common/ToolGrid';
 import { getToolGradient } from '../../../config/toolTheme';
 import { useFirstName } from '../../../hooks/useFirstName';
-import { OfficeActionTile } from '../../workplace/components/ToolsSection';
+import {
+  OFFICE_SCROLL_ITEM,
+  OFFICE_SCROLL_ROW,
+  OfficeActionTile,
+  officeStripStyle,
+} from '../../workplace/components/ToolsSection';
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
 import PublicGroupsSection from '../components/PublicGroupsSection';
 import { SpacesComposer } from '../components/SpacesComposer';
+import { SpaceTile } from '../components/SpaceTile';
 import { useGroupResolver } from '../hooks/useGroupResolver';
 import { useGroups, type GroupSummary } from '../hooks/useGroups';
-
-import type { ToolEntry } from '../../../components/common/ToolGrid';
 
 type SpaceType = 'personal' | 'standard';
 
@@ -147,21 +150,25 @@ const GruppenPage = () => {
       </WorkplaceHero>
 
       <section className="mb-xl mt-md">
-        <div className="mx-auto grid max-w-[560px] grid-cols-2 gap-3 sm:gap-4">
-          <OfficeActionTile
-            styleKey="spaces"
-            icon={HiUser}
-            title="Single Space erstellen"
-            description="Nur für dich — organisiere deine Chats & Inhalte."
-            onClick={() => openCreate('personal')}
-          />
-          <OfficeActionTile
-            styleKey="spaces"
-            icon={HiUserGroup}
-            title="Gruppenspace erstellen"
-            description="Mit Team — Mitglieder, geteilte Inhalte & Beitritt."
-            onClick={() => openCreate('standard')}
-          />
+        <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(2, { maxTilePx: 200 })}>
+          <div className={OFFICE_SCROLL_ITEM}>
+            <OfficeActionTile
+              styleKey="spaces"
+              icon={HiUser}
+              title="Single Space erstellen"
+              description="Nur für dich — organisiere deine Chats & Inhalte."
+              onClick={() => openCreate('personal')}
+            />
+          </div>
+          <div className={OFFICE_SCROLL_ITEM}>
+            <OfficeActionTile
+              styleKey="spaces"
+              icon={HiUserGroup}
+              title="Gruppenspace erstellen"
+              description="Mit Team — Mitglieder, geteilte Inhalte & Beitritt."
+              onClick={() => openCreate('standard')}
+            />
+          </div>
         </div>
       </section>
 
@@ -171,18 +178,11 @@ const GruppenPage = () => {
           Noch keine Spaces vorhanden. Erstelle deinen ersten Space über das Feld oben.
         </p>
       ) : (
-        <ToolGrid
-          tools={(userGroups || []).map(
-            (g): ToolEntry => ({
-              id: g.id,
-              title: g.name,
-              description: 'Space',
-              path: buildGroupPath(g),
-              icon: HiUserGroup,
-            })
-          )}
-          columns={2}
-        />
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
+          {(userGroups || []).map((g) => (
+            <SpaceTile key={g.id} space={g} />
+          ))}
+        </div>
       )}
       <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
 
