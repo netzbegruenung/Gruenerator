@@ -12,7 +12,7 @@ const sleep = promisify(setTimeout);
 
 type AxiosConfigWithFamily = AxiosRequestConfig & { family?: 4 | 6 };
 
-export type FluxBackend = 'hosted' | 'regolo' | 'ionos';
+export type FluxBackend = 'hosted' | 'regolo';
 
 type FluxApiError = Error & {
   code?: string;
@@ -145,10 +145,10 @@ class FluxImageService {
       return new mod.RegoloImageService() as unknown as FluxImageService;
     }
 
-    if (useBackend === 'ionos') {
-      console.log('[FluxImageService] Using IONOS FLUX.1-schnell backend');
-      const mod = await import('./IonosImageService.js');
-      return new mod.IonosImageService() as unknown as FluxImageService;
+    if (useBackend !== 'hosted') {
+      console.warn(
+        `[FluxImageService] Unknown FLUX_BACKEND "${useBackend}" (retired?), falling back to hosted BFL API`
+      );
     }
 
     console.log(

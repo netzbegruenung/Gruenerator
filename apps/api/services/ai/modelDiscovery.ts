@@ -3,8 +3,6 @@ import { createLogger } from '../../utils/logger.js';
 
 import {
   type ProviderName,
-  IONOS_INCOMPATIBLE_PATTERNS,
-  IONOS_BASE_URL,
   LITELLM_DEFAULT_BASE_URL,
   MISTRAL_API_URL,
   REGOLO_BASE_URL,
@@ -80,11 +78,10 @@ const EXCLUDE_PATTERNS = [
 const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
   litellm: 'LiteLLM',
-  ionos: 'IONOS',
   regolo: 'Regolo',
 };
 
-const CAT_ORDER: Record<string, number> = { Mistral: 0, Regolo: 1, LiteLLM: 2, IONOS: 3 };
+const CAT_ORDER: Record<string, number> = { Mistral: 0, Regolo: 1, LiteLLM: 2 };
 
 let cachedModels: PlaygroundModel[] | null = null;
 let cacheTimestamp = 0;
@@ -152,7 +149,6 @@ async function fetchProviderModels(
     const models = data.data
       .map((m) => m.id)
       .filter((id) => !isExcludedModel(id))
-      .filter((id) => provider !== 'ionos' || !IONOS_INCOMPATIBLE_PATTERNS.some((p) => p.test(id)))
       .map((id) => enrichModel(id, provider));
 
     log.info(`[${provider}] Discovered ${models.length} models`);
@@ -179,10 +175,6 @@ const PROVIDER_ENDPOINTS: Record<
     },
     getApiKey: () => env.LITELLM_API_KEY ?? null,
   },
-  ionos: {
-    url: () => `${IONOS_BASE_URL}/models`,
-    getApiKey: () => env.IONOS_API_TOKEN ?? null,
-  },
   regolo: {
     url: () => `${REGOLO_BASE_URL}/models`,
     getApiKey: () => env.REGOLO_API_KEY ?? null,
@@ -204,12 +196,11 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
       'gpt-oss-120b',
       'mistral-small3.2',
     ].map((id) => enrichModel(id, 'regolo')),
-    [enrichModel('verdigado-pro', 'litellm')],
-    [enrichModel('openai/gpt-oss-120b', 'ionos')]
+    [enrichModel('verdigado-pro', 'litellm')]
   );
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
-  const providers: ProviderName[] = ['mistral', 'litellm', 'ionos', 'regolo'];
+  const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))
   );
