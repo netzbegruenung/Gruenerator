@@ -11,6 +11,7 @@ import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
+import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
 
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 
@@ -33,6 +34,12 @@ export interface CanvasTextProps {
   scaleY?: number;
   stroke?: string;
   strokeWidth?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  shadowOpacity?: number;
+  fillGradient?: GradientFill | null;
   align?: 'left' | 'center' | 'right';
   verticalAlign?: 'top' | 'middle' | 'bottom';
   lineHeight?: number;
@@ -75,6 +82,12 @@ function CanvasTextInner({
   scaleY,
   stroke,
   strokeWidth,
+  shadowColor,
+  shadowBlur,
+  shadowOffsetX,
+  shadowOffsetY,
+  shadowOpacity,
+  fillGradient,
   align = 'left',
   verticalAlign = 'top',
   lineHeight = 1.2,
@@ -102,6 +115,26 @@ function CanvasTextInner({
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [isEditing, setIsEditing] = useState(false);
+  // Konva paints gradients in the node's local box; measure the rendered text
+  // box (auto-width/height depend on wrapping) so non-vertical gradient angles
+  // don't collapse to a single stop.
+  const [measuredRect, setMeasuredRect] = useState<{ width: number; height: number } | null>(null);
+  useEffect(() => {
+    if (fillGradient && textRef.current) {
+      const rect = textRef.current.getSelfRect();
+      setMeasuredRect({ width: rect.width, height: rect.height });
+    }
+  }, [fillGradient, text, fontSize, fontFamily, fontStyle, width, lineHeight]);
+
+  const gradientProps =
+    fillGradient && measuredRect && measuredRect.height > 0
+      ? gradientToKonvaProps(fillGradient, {
+          x: 0,
+          y: 0,
+          width: measuredRect.width,
+          height: measuredRect.height,
+        })
+      : null;
   const snap = useSnapScheduler({
     onSnapChange: onSnapChange ?? (() => {}),
     onSnapLinesChange: onSnapLinesChange ?? (() => {}),
@@ -297,12 +330,22 @@ function CanvasTextInner({
         fontFamily={fontFamily}
         fontStyle={fontStyle}
         fill={fill}
+        {...(gradientProps
+          ? { ...gradientProps, fillPriority: 'linear-gradient' as const }
+          : { fillPriority: 'color' as const })}
         rotation={rotation}
         scaleX={scaleX}
         scaleY={scaleY}
         opacity={opacity}
         stroke={stroke}
         strokeWidth={strokeWidth}
+        fillAfterStrokeEnabled={!!stroke && (strokeWidth ?? 0) > 0}
+        lineJoin="round"
+        shadowColor={shadowColor}
+        shadowBlur={shadowBlur}
+        shadowOffsetX={shadowOffsetX}
+        shadowOffsetY={shadowOffsetY}
+        shadowOpacity={shadowOpacity}
         align={align}
         verticalAlign={verticalAlign}
         lineHeight={lineHeight}
@@ -324,6 +367,8 @@ function CanvasTextInner({
         <Transformer
           ref={trRef}
           rotateEnabled={transformConfig?.rotateEnabled ?? false}
+          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+          rotationSnapTolerance={7}
           flipEnabled={transformConfig?.flipEnabled ?? false}
           keepRatio={transformConfig?.keepRatio ?? true}
           enabledAnchors={enabledAnchors}
@@ -356,6 +401,12 @@ export const CanvasText = memo(CanvasTextInner, (prevProps, nextProps) => {
     'fill',
     'stroke',
     'strokeWidth',
+    'shadowColor',
+    'shadowBlur',
+    'shadowOffsetX',
+    'shadowOffsetY',
+    'shadowOpacity',
+    'fillGradient',
     'align',
     'verticalAlign',
     'lineHeight',

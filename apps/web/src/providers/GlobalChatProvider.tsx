@@ -9,16 +9,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
-import { uploadBlobToMediaLibrary } from '../features/image-studio/services/mediaUploadService';
+import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { sessionDebug } from '../lib/sessionDebug';
+import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
-import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 import { getDesktopToken } from '../utils/desktopAuth';
 import { isDesktopApp, resolveApiAssetUrl } from '../utils/platform';
 
@@ -42,6 +43,10 @@ const chatFetch = async (url: string, options?: RequestInit): Promise<Response> 
   }
   return fetch(url, { ...options, credentials: 'include' });
 };
+
+// Variant ids with an in-flight mint-on-open, to drop concurrent double-clicks
+// (see onEditSharepic). Module scope: the provider is a singleton.
+const mintingVariantIds = new Set<string>();
 
 // DOM id of the sidebar slot the global thread list renders into. The slot
 // element lives in the layout Sidebar; the chat runtime renders the thread list
@@ -139,44 +144,77 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       // (absolute API origin + bearer); on web it's the same relative+cookie
       // behaviour as the store default.
       fetch: chatFetch,
-      onUnauthorized: () => {
-        if (!isPublicPage() && window.location.pathname !== '/login') {
-          const currentPath = window.location.pathname + window.location.search;
-          window.location.href = buildLoginUrl(currentPath);
-        }
+      onUnauthorized: async () => {
+        sessionDebug('http.401', { stack: 'chat' });
+        // Route through the shared authority: probe → 'retry' replays the
+        // request once (transient cookie rotation), 'logout' fires the single
+        // atomic teardown, 'stay' leaves the user put (infra blip / logging out).
+        return (await handleUnauthorized('chat')) === 'retry';
       },
-      wolkeConnectUrl: '/profile/wolke',
+      wolkeConnectUrl: '/settings/wolke',
       renderSharepic: renderSharepicToImage,
-      onEditSharepic: (variant: SharepicVariant) => {
-        // Minted variants live in a real canvas document — open it directly
-        // (fully bidirectional with chat edits). Unminted ones use the legacy
-        // localStorage handoff into the template flow.
+      runPython,
+      onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
+        // Already a real canvas document → open it directly.
         if (variant.canvasId) {
           window.open(`/studio/canvas/${variant.canvasId}`, '_blank', 'noopener,noreferrer');
           return;
         }
-        const handoffId =
-          typeof crypto !== 'undefined' && 'randomUUID' in crypto
-            ? crypto.randomUUID()
-            : `handoff-${Date.now()}`;
-        const payload = {
-          canvasType: variant.canvasType,
-          initialProps: variant.initialProps,
-          ts: Date.now(),
-        };
-        try {
-          localStorage.setItem(
-            `gruenerator:sharepic-handoff:${handoffId}`,
-            JSON.stringify(payload)
+        // Unminted: mint server-side (authoritative, lossless Yjs seed), then
+        // open the real /studio/canvas/:id. The tab MUST open synchronously in
+        // the click handler (popup blockers reject a post-await window.open);
+        // it's redirected once the mint responds. threadId binds the canvas to
+        // the variant so a later chat edit reuses the same document.
+        const threadId = opts?.threadId;
+        if (!threadId) {
+          console.error('[Sharepic] Cannot open in studio: no active threadId');
+          void import('sonner').then(({ toast }) =>
+            toast.error('Sharepic konnte nicht geöffnet werden — bitte Chat neu laden.')
           );
-        } catch (err) {
-          console.error('[GlobalChatProvider] Failed to persist sharepic handoff:', err);
+          return;
         }
-        window.open(
-          `/studio/vorlagen/${variant.canvasType}?handoff=${handoffId}`,
-          '_blank',
-          'noopener,noreferrer'
-        );
+        // Guard a rapid double-click on the same variant: two concurrent mints
+        // would race (both pass the binding lookup → two canvas docs, one
+        // orphaned). Ignore the second click while the first is in flight.
+        if (mintingVariantIds.has(variant.id)) return;
+        mintingVariantIds.add(variant.id);
+        const tab = window.open('about:blank', '_blank');
+        void (async () => {
+          try {
+            const res = await getContractsClient().canvas.fromVariant({
+              body: {
+                canvasType: variant.canvasType,
+                initialProps: variant.initialProps,
+                threadId,
+                variantId: variant.id,
+              },
+            });
+            if (res.status !== 201) throw new Error(`mint failed (HTTP ${res.status})`);
+            const { canvasId } = res.body;
+            const studioUrl = `/studio/canvas/${canvasId}`;
+            // No store stamp needed: the mint is idempotent on the (thread,
+            // variant) binding, so a re-click returns the same canvasId, and a
+            // thread reload resolves it from the binding table.
+            if (tab) {
+              tab.location.href = studioUrl;
+            } else {
+              // Popup was blocked: the canvas is saved; give the user a way in.
+              void import('sonner').then(({ toast }) =>
+                toast.info('Sharepic gespeichert.', {
+                  action: { label: 'Im Studio öffnen', onClick: () => window.open(studioUrl) },
+                })
+              );
+            }
+          } catch (err) {
+            console.error('[Sharepic] mint-on-open failed:', err);
+            tab?.close();
+            void import('sonner').then(({ toast }) =>
+              toast.error('Sharepic konnte nicht geöffnet werden — bitte erneut versuchen.')
+            );
+          } finally {
+            mintingVariantIds.delete(variant.id);
+          }
+        })();
       },
       fetchSharepicState: async (canvasId: string) => {
         const result = await getContractsClient().canvas.getState({ params: { id: canvasId } });
@@ -216,18 +254,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (result.status !== 200) return null;
         return result.body.state;
       },
-      updateSharepicThumbnail: async (canvasId: string, imageDataUrl: string) => {
-        const blob = await (await fetch(imageDataUrl)).blob();
-        const thumbnailUrl = await uploadBlobToMediaLibrary(blob, {
-          filename: `sharepic-thumbnail-${canvasId}.png`,
-          uploadSource: 'chat-sharepic-thumbnail',
-        });
-        if (!thumbnailUrl) return;
-        await getContractsClient().canvas.update({
-          params: { id: canvasId },
-          body: { thumbnail_url: thumbnailUrl },
-        });
-      },
+      updateSharepicThumbnail: (canvasId: string, imageDataUrl: string) =>
+        updateCanvasThumbnail(canvasId, imageDataUrl, 'chat-sharepic-thumbnail'),
       restoreSharepicVersion: async (canvasId: string, version: number) => {
         const result = await getContractsClient().canvas.restoreVersion({
           params: { id: canvasId, version },
@@ -286,7 +314,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
-          window.open(`/docs/${existingDocId}`, '_blank', 'noopener,noreferrer');
+          window.open(`/office/${existingDocId}`, '_blank', 'noopener,noreferrer');
           return existingDocId;
         }
 
@@ -299,7 +327,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         if (!response.ok) throw new Error('Document creation failed');
         const data = (await response.json()) as { documentId?: string; title?: string };
         if (data.documentId) {
-          window.open(`/docs/${data.documentId}`, '_blank', 'noopener,noreferrer');
+          window.open(`/office/${data.documentId}`, '_blank', 'noopener,noreferrer');
           return data.documentId;
         }
       },

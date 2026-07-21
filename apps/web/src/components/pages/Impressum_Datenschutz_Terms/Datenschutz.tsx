@@ -119,11 +119,11 @@ const Datenschutz = () => {
       <p>
         Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland,
         info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
-        Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als
-        Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert{' '}
-        <strong>Regolo AI</strong> als Auftragsverarbeiter für die Audiotranskription mit Zero Data
-        Retention (EU-Datenverarbeitung). Als Fallback wird <strong>Mistral AI Voxtral</strong> für
-        die Transkription eingesetzt.
+        Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als
+        Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim
+        Reel-Grünerator fungiert <strong>Regolo AI</strong> als Auftragsverarbeiter für die
+        Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird{' '}
+        <strong>Mistral AI Voxtral</strong> für die Transkription eingesetzt.
       </p>
 
       <p>
@@ -174,36 +174,21 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>2. IONOS SE</strong> (Elgendorfer Str. 57, 56410 Montabaur, Deutschland)
+        <strong>2. Black Forest Labs</strong> (FLUX-Bildgenerierung)
       </p>
       <ul>
+        <li>Zweck: Bildbearbeitung und -generierung (FLUX-Modell im Grünerator Imagine)</li>
         <li>
-          Zweck: Ergänzende KI-Textgenerierung für bestimmte Generator-/Overflow-Funktionen (nicht
-          im Chat wählbar)
+          Server: Ausschließlich EU – über die EU-API von Black Forest Labs (api.eu.bfl.ai) bzw.
+          alternativ über bei Seeweb/Regolo AI (Italien) betriebene FLUX-Modelle
         </li>
-        <li>Server: Deutschland</li>
-        <li>
-          Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung, keine Nutzung zu
-          Trainingszwecken
-        </li>
-        <li>
-          Details:{' '}
-          <a href="https://www.ionos.de/terms-gtc/datenschutzerklaerung/">Datenschutzerklärung</a>
-        </li>
-      </ul>
-
-      <p>
-        <strong>3. Black Forest Labs Inc.</strong>
-      </p>
-      <ul>
-        <li>Zweck: Bildbearbeitung (FLUX-Modell im Grünerator Imagine)</li>
-        <li>Server: Ausschließlich EU</li>
         <li>Besonderheit: Keine Speicherung auf unseren Servern, direkte Weiterleitung</li>
         <li>Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten</li>
+        <li>Kontakt: support@blackforestlabs.ai</li>
       </ul>
 
       <p>
-        <strong>4. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
+        <strong>3. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
       </p>
       <ul>
         <li>
@@ -226,7 +211,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>5. netzbegrünung e.V.</strong> (Deutschland)
+        <strong>4. netzbegrünung e.V.</strong> (Deutschland)
       </p>
       <ul>
         <li>Zweck: Kerninfrastruktur des GRUENERATOR</li>
@@ -239,9 +224,7 @@ const Datenschutz = () => {
             <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
             <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
             <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
-            <li>
-              KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)
-            </li>
+            <li>KI-Modelle der netzbegrünung (selbst gehostete Open-Source-Modelle)</li>
           </ul>
         </li>
         <li>
@@ -251,7 +234,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>6. SearXNG (selbstgehostet)</strong>
+        <strong>5. SearXNG (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)</li>
@@ -260,7 +243,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
+        <strong>6. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
         94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
       </p>
       <ul>
@@ -278,7 +261,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>8. GlitchTip (selbstgehostet)</strong>
+        <strong>7. GlitchTip (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>

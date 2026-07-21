@@ -5,6 +5,9 @@
  * Used by chat controllers to provide real-time feedback during AI processing.
  */
 
+import { AiProviderError } from '../../../services/providers/providerErrors.js';
+import { captureSseError } from '../../../utils/observability/captureSseError.js';
+
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   SearchIntent,
@@ -13,6 +16,8 @@ import type {
   GeneratedImageResult,
   ConfirmActionType,
   ChartData,
+  ArtifactData,
+  ComputeData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type {
   CanvasAiSuggestion,
@@ -21,8 +26,13 @@ import type {
   TriggerBoardAction,
   ConfirmActionEvent,
   DocumentCreatedEvent,
+  EditorOperationsEvent,
   SearchResultPayload,
   ThinkingStepPayload,
+  SocialPostPayload,
+  BundestagPayload,
+  BahnPayload,
+  ChatErrorCode,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -47,6 +57,9 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
+  | 'social_post_complete'
+  | 'social_post_updated'
+  | 'social_post_edit_error'
   | 'reel_processing'
   | 'reel_picker'
   | 'reel_updated'
@@ -64,8 +77,13 @@ export type SSEEventType =
   | 'document_created'
   | 'trigger_doc_edit'
   | 'trigger_board_action'
+  | 'editor_operations'
   | 'confirm_action'
   | 'chart_data'
+  | 'artifact'
+  | 'compute'
+  | 'bundestag'
+  | 'bahn'
   | 'memory_context'
   | 'completion'
   | 'canvas_operations_start'
@@ -115,6 +133,9 @@ export interface SSEEventPayloads {
     subQueries?: string[] | null;
     searchSources?: SearchSource[] | null;
     compound?: boolean;
+    /** Agentic respond path drives the tool loop — real tool_step_* cards
+     *  follow, so the client skips the intent-fabricated tool card. */
+    agentic?: boolean;
   };
   search_start: { message: string; subQueries?: string[] };
   search_complete: {
@@ -161,6 +182,20 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
+  // Combined social post (EXPERIMENTAL): text half. Sharepic variants keep
+  // travelling via sharepic_complete so the whole variant machinery
+  // (mint/edit/live store) stays untouched.
+  social_post_complete: {
+    message: string;
+    post?: SocialPostPayload;
+    error?: string;
+  };
+  social_post_updated: {
+    postId: string;
+    post: SocialPostPayload;
+    summary: string;
+  };
+  social_post_edit_error: { postId?: string; error: string };
   // Reel branch (chat subtitle editing of subtitler projects). The frontend
   // polls GET /subtitler/auto-progress/:uploadId after reel_processing; full
   // segments travel via reel_updated only (compact tool results in the DB).
@@ -174,11 +209,25 @@ export interface SSEEventPayloads {
     changedIndices: number[];
   };
   reel_edit_error: { projectId?: string; error: string };
-  // Agentic tool loop (CHAT_TOOL_LOOP): one start/result pair per tool step.
-  // Args/summaries are compact display data — full state still travels via
-  // sharepic_updated only.
-  tool_step_start: { stepId: string; toolName: string; args?: Record<string, unknown> };
-  tool_step_result: { stepId: string; toolName: string; ok: boolean; summary?: string };
+  // Agentic tool loop: one start/result pair per tool step. Args/summaries are
+  // compact display data. `title`/`serverName` label the card (MCP/connector
+  // tools); `result` carries the rich per-tool payload the UI cards read
+  // (results/examples/researchMeta) so they render mid-stream without waiting
+  // for the persistence reload.
+  tool_step_start: {
+    stepId: string;
+    toolName: string;
+    args?: Record<string, unknown>;
+    title?: string;
+    serverName?: string;
+  };
+  tool_step_result: {
+    stepId: string;
+    toolName: string;
+    ok: boolean;
+    summary?: string;
+    result?: Record<string, unknown>;
+  };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   progress_step: ProgressStepPayload;
@@ -193,10 +242,17 @@ export interface SSEEventPayloads {
   document_created: DocumentCreatedEvent;
   trigger_doc_edit: TriggerDocEdit;
   trigger_board_action: TriggerBoardAction;
+  editor_operations: EditorOperationsEvent;
   interrupt: {
-    interruptType: 'clarification';
-    question: string;
+    // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
+    // client-executed tool (e.g. run_python) whose result the browser produces
+    // automatically and posts back to resume the same turn.
+    interruptType: 'clarification' | 'client_tool';
+    question?: string;
     options?: string[];
+    // client_tool only: which tool the client must run + its arguments.
+    toolName?: string;
+    args?: Record<string, unknown>;
     threadId?: string;
   };
   confirm_action: ConfirmActionEvent;
@@ -207,6 +263,18 @@ export interface SSEEventPayloads {
   };
   chart_data: {
     chart: ChartData;
+  };
+  artifact: {
+    artifact: ArtifactData;
+  };
+  compute: {
+    compute: ComputeData;
+  };
+  bundestag: {
+    bundestag: BundestagPayload;
+  };
+  bahn: {
+    bahn: BahnPayload;
   };
   completion: {
     type?: 'completion';
@@ -241,7 +309,14 @@ export interface SSEEventPayloads {
     };
   };
   warning: { code: string; message: string };
-  error: { error: string };
+  error: {
+    /** Human-readable German message — the only field pre-taxonomy clients read. */
+    error: string;
+    code?: ChatErrorCode;
+    /** Whether resending the same request has a realistic chance of succeeding. */
+    retryable?: boolean;
+    retryAfterMs?: number;
+  };
 }
 
 /**
@@ -267,18 +342,43 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   scrape_url: ['Lese Webseite...', 'Öffne den Link...', 'Rufe die Seite ab...'],
   examples: ['Krame...', 'Hole Beispiele...', 'Suche Inspiration...'],
   pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
+  abgeordnetenwatch: ['Prüfe Abgeordnetenwatch...', 'Rufe Mandatsdaten ab...', 'Zähle Stimmen...'],
+  bundestag: ['Durchsuche das DIP...', 'Blättere Drucksachen...', 'Höre Reden nach...'],
+  bahn: ['Suche Zugverbindungen...', 'Frage den Fahrplan ab...', 'Prüfe Abfahrtszeiten...'],
+  reise: ['Plane die Reise...', 'Suche Zug und Unterkunft...', 'Stelle Reiseoptionen zusammen...'],
+  hotel: ['Suche Unterkünfte...', 'Vergleiche Hotels...', 'Prüfe Verfügbarkeiten...'],
+  umfragen: ['Frage Umfragewerte ab...', 'Lese die Sonntagsfrage...', 'Hole PolitPro-Daten...'],
+  wetter: ['Rufe Wettervorhersage ab...', 'Schaue in die Wolken...', 'Frage den DWD...'],
+  news: ['Durchsuche Nachrichten...', 'Lese tagesschau...', 'Hole Schlagzeilen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
+  social_post: ['Texte und gestalte...', 'Baue deinen Post...', 'Schreibe und gestalte...'],
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
+  artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],
+  compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
+  create_sheet: ['Erstelle Tabelle...', 'Baue Spreadsheet...', 'Fülle Zellen...'],
+  create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
+  create_recurring_task: [
+    'Richte wiederkehrende Aufgabe ein...',
+    'Plane den Rhythmus...',
+    'Speichere den Zeitplan...',
+  ],
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
   modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
   edit_current_board: ['Passe Board an...', 'Aktualisiere...', 'Pflege...'],
   share_doc: ['Teile...', 'Sende...', 'Reiche weiter...'],
+  chat_history: [
+    'Blättere in alten Gesprächen...',
+    'Krame in Erinnerungen...',
+    'Suche vergangene Chats...',
+  ],
+  mcp: ['Verbinde Tools...', 'Rufe externes Tool auf...', 'Frage verbundenen Dienst...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
+  agentic: ['Schaue selbst nach...', 'Lege los...', 'Greife zu den Tools...'],
 };
 
 /**
@@ -305,11 +405,16 @@ export const PROGRESS_MESSAGES = {
   imageEditComplete: 'Bild erfolgreich bearbeitet',
   imageEditNoAttachment: 'Bitte hänge ein Bild an, das bearbeitet werden soll.',
   responseStart: 'Erstelle Antwort...',
-  streamInterrupted: 'Stream interrupted',
-  unauthorized: 'Unauthorized',
-  aiUnavailable: 'AI service unavailable',
-  messagesRequired: 'Messages array is required',
-  internalError: 'Internal server error',
+  searchDegraded: 'Quellen derzeit nicht erreichbar',
+  rateLimited: 'Anfragelimit erreicht. Bitte warte einen Moment und versuche es dann erneut.',
+  invalidRequest: 'Deine Anfrage konnte nicht verarbeitet werden.',
+  streamInterrupted:
+    'Die Verbindung zum KI-Dienst wurde unterbrochen — die Antwort ist möglicherweise unvollständig.',
+  unauthorized: 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.',
+  aiUnavailable:
+    'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es in einem Moment erneut.',
+  messagesRequired: 'Die Anfrage enthielt keine Nachrichten.',
+  internalError: 'Es ist ein interner Fehler aufgetreten. Bitte versuche es erneut.',
 };
 
 /**
@@ -339,6 +444,17 @@ export class SSEWriter {
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
     if (this.ended || this.res.writableEnded || this.res.destroyed) return;
+    // Mirror every in-band `error` event to Sentry/GlitchTip. These are written
+    // onto an already-200 stream, so they never throw and are otherwise
+    // invisible to monitoring. Capture only on actual emit (past the writable
+    // guard) so client disconnects don't generate noise.
+    if (event === 'error') {
+      const payload = data as SSEEventPayloads['error'];
+      captureSseError({
+        message: payload.error,
+        ...(payload.code && { code: payload.code }),
+      });
+    }
     this.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     (this.res as unknown as { flush?: () => void }).flush?.();
   }
@@ -398,8 +514,64 @@ export function createSSEStream(res: Response): SSEWriter {
  * `sse.send('error', …); sse.end(); return { status: 200, body: undefined }`
  * pattern repeated across the chat-graph contract handlers.
  */
-export function sseFail(sse: SSEWriter, error: string): { status: 200; body: undefined } {
-  sse.send('error', { error });
+export function sseFail(
+  sse: SSEWriter,
+  error: string,
+  meta?: { code?: ChatErrorCode; retryable?: boolean; retryAfterMs?: number }
+): { status: 200; body: undefined } {
+  sse.send('error', { error, ...meta });
   sse.end();
   return { status: 200 as const, body: undefined };
+}
+
+/**
+ * Non-fatal degradation warning when one or more search backends were
+ * unreachable — shared by the primary and resume search pipelines so the
+ * copy can't drift.
+ */
+export function sendSearchDegradedWarning(sse: SSEWriter, resultCount: number): void {
+  sse.send('warning', {
+    code: 'search_degraded',
+    message:
+      resultCount === 0
+        ? 'Die Quellensuche ist momentan gestört — es konnten keine Quellen abgerufen werden.'
+        : 'Einige Quellen waren nicht erreichbar — die Antwort stützt sich auf unvollständige Suchergebnisse.',
+  });
+}
+
+/**
+ * Catch-all error emit shared by the stream handlers' outer catches. Worker
+ * failures cross the thread boundary as AiProviderError and keep their
+ * classification here (rate limit vs provider down vs bad request); anything
+ * else reports as 'internal'. No-op when the stream already ended.
+ */
+export function sseInternalError(sse: SSEWriter, error: unknown): void {
+  if (sse.isEnded()) return;
+  sse.send('error', chatErrorPayloadFromException(error));
+  sse.end();
+}
+
+function chatErrorPayloadFromException(error: unknown): SSEEventPayloads['error'] {
+  if (error instanceof AiProviderError) {
+    switch (error.code) {
+      case 'rate_limited':
+        return { error: PROGRESS_MESSAGES.rateLimited, code: 'rate_limited', retryable: true };
+      case 'provider_unavailable':
+      case 'timeout':
+        return {
+          error: PROGRESS_MESSAGES.aiUnavailable,
+          code: 'provider_unavailable',
+          retryable: true,
+        };
+      case 'invalid_request':
+        return {
+          error: PROGRESS_MESSAGES.invalidRequest,
+          code: 'invalid_request',
+          retryable: false,
+        };
+      case 'unknown':
+        break;
+    }
+  }
+  return { error: PROGRESS_MESSAGES.internalError, code: 'internal', retryable: true };
 }

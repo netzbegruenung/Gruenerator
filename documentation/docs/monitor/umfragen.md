@@ -4,38 +4,32 @@ sidebar_position: 3
 
 # Umfragen
 
-Der Tab **Umfragen** zeigt die aktuelle **Sonntagsfrage** — die bekannteste regelmäßige Wahlumfrage in Deutschland. Sie fragt: _„Wenn am nächsten Sonntag Bundestagswahl wäre, wen würden Sie wählen?"_
+Die Seite **Umfragen** zeigt die aktuelle **Sonntagsfrage** — die bekannteste regelmäßige Wahlumfrage. Sie fragt: _„Wenn am nächsten Sonntag Bundestagswahl wäre, wen würden Sie wählen?"_ Das Land richtet sich automatisch nach deinem Profil (Deutschland oder Österreich).
 
-## Übersicht
+## Grünen-Wert auf einen Blick
 
-Die Hauptansicht zeigt für jede Partei:
+Ganz oben siehst du den aktuellen **Grünen-Wert groß hervorgehoben** — mit einer **Verlaufskurve der letzten 12 Wochen**, damit du den Trend sofort erkennst.
 
-- **Farbiger Balken** — Die aktuelle durchschnittliche Zustimmung (je länger der Balken, desto höher der Wert)
-- **Prozentwert** — Der exakte Durchschnitt aller Institute
-- **Trend-Badge** — Vergleich zum Ergebnis der letzten Bundestagswahl (BTW 2025):
-  - ↑ Grün = Partei liegt über ihrem Wahlergebnis
-  - ↓ Rot = Partei liegt unter ihrem Wahlergebnis
-  - − Grau = Kaum Veränderung
+## Sonntagsfrage
+
+Darunter zeigt die Übersicht für jede Partei:
+
+- **Farbiger Balken** — die aktuelle durchschnittliche Zustimmung (je länger der Balken, desto höher der Wert)
+- **Prozentwert** — der Durchschnitt aller Institute
+- **Veränderung** — farbiges Delta im Vergleich zur letzten Bundestagswahl (grün = darüber, rot = darunter)
 
 Die Grünen-Zeile ist farblich hervorgehoben, damit du den eigenen Wert sofort findest.
 
-## Angezeigte Parteien
+**Angezeigte Parteien:** CDU/CSU, AfD, SPD, GRÜNE, DIE LINKE, BSW, FDP und Sonstige.
 
-CDU/CSU, AfD, SPD, GRÜNE, DIE LINKE, BSW, FDP und Sonstige.
+## Grüne in den Ländern und in Europa
 
-## Detailansicht
-
-Klappe den Bereich **Alle Institute** auf, um die Einzelergebnisse zu sehen. Die Tabelle zeigt:
-
-- **Zeilen** — Jedes Institut (z.B. Infratest dimap, Forschungsgruppe Wahlen, INSA, etc.) mit Erhebungsdatum
-- **Spalten** — Alle Parteien
-- **Durchschnitt** — Fett hervorgehobene Zeile mit dem Mittelwert aller Institute
-- **BTW 2025** — Letzte Bundestagswahl als Referenzwert
+Eine **Landkarte** zeigt die Grünen-Werte im Vergleich: umschaltbar zwischen den **Bundesländern** (aktuelle Landtags-Umfragen) und **Europa** (grüne Parteien in anderen Ländern). Je dunkler das Grün, desto stärker stehen die Grünen dort.
 
 :::info Quelle
 Die Daten stammen von **PolitPro** (politpro.eu), Europas führender Plattform für Wahltrends und politische Daten. Sonntagsfragen aller großen Institute werden dort zu wöchentlichen Durchschnittswerten aggregiert; die Werte werden alle 12 Stunden aktualisiert.
 :::
 
 :::tip Für die Pressearbeit
-Nutze die Trend-Badges, um schnell einzuordnen, ob aktuelle Umfragewerte für die Grünen eine positive oder negative Entwicklung zeigen. Der Vergleich mit dem BTW 2025-Ergebnis gibt Kontext für Presseanfragen.
+Nutze die Verlaufskurve und das Delta zur letzten Wahl, um schnell einzuordnen, ob aktuelle Umfragewerte für die Grünen eine positive oder negative Entwicklung zeigen — das gibt Kontext für Presseanfragen.
 :::

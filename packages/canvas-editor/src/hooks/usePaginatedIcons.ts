@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
 import { type IconDef } from '../utils/canvasIcons';
-import useDebounce from './useDebounce';
-import { useIconCatalog } from './useIconCatalog';
+import { useDebounce } from './useDebounce';
+import { useAllIconsCatalog } from './useIconCatalog';
 import { useIconSearch } from './useIconSearch';
 
 const PAGE_SIZE = 32;
@@ -23,17 +23,19 @@ export function usePaginatedIcons(
 ): UsePaginatedIconsReturn {
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE);
 
-  const catalog = useIconCatalog();
-  const allIcons = catalog.data ?? [];
-
   const debouncedQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
   const hasSearch = debouncedQuery.trim().length > 0;
+
+  // Browsing shows all sets merged; both browse and search span every set, so
+  // load the combined catalog once the section is expanded or a query is typed.
+  const catalog = useAllIconsCatalog(isExpanded || hasSearch);
+  const allIcons = catalog.data ?? [];
+
   const search = useIconSearch(debouncedQuery);
 
   useEffect(() => {
-    if (!isExpanded) {
-      setLoadedCount(PAGE_SIZE);
-    }
+    // Reset paging when the section collapses/expands.
+    setLoadedCount(PAGE_SIZE);
   }, [isExpanded]);
 
   const visibleIcons = useMemo(() => {

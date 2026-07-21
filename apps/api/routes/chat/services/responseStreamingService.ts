@@ -11,8 +11,8 @@ import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import {
-  isRegoloReasoningModel,
-  streamRegoloWithReasoning,
+  isReasoningStreamModel,
+  streamWithReasoning,
 } from '../../../services/ai/regoloReasoningStream.js';
 import { createLogger } from '../../../utils/logger.js';
 import {
@@ -38,14 +38,19 @@ const FIRST_TOKEN_DEADLINE_MS = 20_000;
 /** LiteLLM overflow lane can queue behind its single Verdigado slot. */
 const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
 /**
- * Regolo reasoning models hold back answer text until thinking completes —
- * reasoning deltas don't satisfy the deadline (see the reasoning streamer),
- * so the wait for the first TEXT token is legitimately much longer.
+ * Reasoning models (Regolo vLLM, Verdigado/LiteLLM Gemma) hold back answer text
+ * until thinking completes — reasoning deltas don't satisfy the deadline (see
+ * the reasoning streamer), so the wait for the first TEXT token is legitimately
+ * longer. But 45s was far too long: when verdigado-think HANGS (observed live
+ * — first_token_timeout, then an 86s turn), the user waited the full 45s before
+ * the sibling fallback (gemma) even started. 20s still covers a genuine thinking
+ * phase (reasoning deltas stream meanwhile) while recovering from a hang ~2x
+ * faster; the fallback answer is fine, so an occasional early cutover is cheap.
  */
-const REASONING_FIRST_TOKEN_DEADLINE_MS = 45_000;
+const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
 
 export function getFirstTokenDeadlineMs(provider: string, modelName: string): number {
-  if (isRegoloReasoningModel(provider, modelName)) return REASONING_FIRST_TOKEN_DEADLINE_MS;
+  if (isReasoningStreamModel(provider, modelName)) return REASONING_FIRST_TOKEN_DEADLINE_MS;
   if (provider === 'litellm') return LITELLM_FIRST_TOKEN_DEADLINE_MS;
   return FIRST_TOKEN_DEADLINE_MS;
 }
@@ -400,7 +405,11 @@ async function streamAndAccumulateOrThrow(params: {
       `${logPrefix} Stream error after first token (${fullText.length} chars):`,
       errorMessage
     );
-    sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.streamInterrupted,
+      code: 'stream_interrupted',
+      retryable: true,
+    });
     sse.end();
     return null;
   }
@@ -413,6 +422,7 @@ async function streamAndAccumulateOrThrow(params: {
  * reasoning-aware path. Throws StreamFailure on first-token failure.
  */
 async function streamAndAccumulateWithReasoningOrThrow(params: {
+  provider: string;
   modelName: string;
   messages: Array<{ role: string; content: string | unknown[] }>;
   maxTokens: number;
@@ -423,6 +433,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   firstTokenDeadlineMs?: number;
 }): Promise<string | null> {
   const {
+    provider,
     modelName,
     messages,
     maxTokens,
@@ -440,7 +451,8 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
   const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
 
-  const streamParams: Parameters<typeof streamRegoloWithReasoning>[0] = {
+  const streamParams: Parameters<typeof streamWithReasoning>[0] = {
+    provider,
     model: modelName,
     messages: messages as ModelMessage[],
     maxTokens,
@@ -448,7 +460,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     signal: composed,
   };
 
-  const iterator = streamRegoloWithReasoning(streamParams)[Symbol.asyncIterator]();
+  const iterator = streamWithReasoning(streamParams)[Symbol.asyncIterator]();
   let fullText = '';
   const stopHeartbeat = startResponseHeartbeat(sse);
 
@@ -490,7 +502,11 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   } catch (streamError: unknown) {
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(`${logPrefix} Reasoning stream error after first token:`, errorMessage);
-    sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
+    sse.send('error', {
+      error: PROGRESS_MESSAGES.streamInterrupted,
+      code: 'stream_interrupted',
+      retryable: true,
+    });
     sse.end();
     return null;
   }
@@ -501,8 +517,12 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
 const GENERIC_GENERATION_ERROR =
   'Antwort konnte nicht generiert werden. Bitte später erneut versuchen.';
 
-function failStream(sse: SSEWriter): null {
-  sse.send('error', { error: GENERIC_GENERATION_ERROR });
+function failStream(sse: SSEWriter, kind?: StreamFailure['kind']): null {
+  sse.send('error', {
+    error: GENERIC_GENERATION_ERROR,
+    code: kind === 'first_token_timeout' ? 'first_token_timeout' : 'provider_unavailable',
+    retryable: true,
+  });
   sse.end();
   return null;
 }
@@ -517,7 +537,7 @@ function wrapWithCompatCatch<P extends { sse: SSEWriter; logPrefix?: string }>(
     } catch (err) {
       if (isStreamFailure(err)) {
         log.warn(`${params.logPrefix ?? '[ChatGraph]'} ${label}: ${err.kind} — ${err.message}`);
-        return failStream(params.sse);
+        return failStream(params.sse, err.kind);
       }
       throw err;
     }
@@ -557,7 +577,7 @@ export async function streamWithFallback(params: {
     const sibling = primary.sibling;
     if (!sibling) {
       log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
-      return failStream(sse);
+      return failStream(sse, err.kind);
     }
 
     log.warn(
@@ -584,7 +604,7 @@ export async function streamWithFallback(params: {
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);
-        return failStream(sse);
+        return failStream(sse, fallbackErr.kind);
       }
       throw fallbackErr;
     }
@@ -609,8 +629,9 @@ export async function streamForResolution(params: {
 
   const firstTokenDeadlineMs = getFirstTokenDeadlineMs(resolution.provider, resolution.modelName);
 
-  if (isRegoloReasoningModel(resolution.provider, resolution.modelName)) {
+  if (isReasoningStreamModel(resolution.provider, resolution.modelName)) {
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
+      provider: resolution.provider,
       modelName: resolution.modelName,
       messages,
       maxTokens,

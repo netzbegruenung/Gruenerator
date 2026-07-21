@@ -44,10 +44,9 @@ export const fileIconVariants: Variants = {
 
 interface AnimatedUploadIconProps {
   isDragOver: boolean;
-  hasFile: boolean;
 }
 
-export const AnimatedUploadIcon = ({ isDragOver, hasFile }: AnimatedUploadIconProps) => {
+export const AnimatedUploadIcon = ({ isDragOver }: AnimatedUploadIconProps) => {
   return (
     <motion.div
       className="flex items-center justify-center"

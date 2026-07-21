@@ -2,7 +2,7 @@ import { FaCheck, FaChevronLeft, FaChevronRight, FaTrash, FaCopy } from 'react-i
 import { HiColorSwatch, HiAdjustments, HiArrowsExpand } from 'react-icons/hi';
 
 import { SidebarSlider } from '../components/SidebarSlider';
-import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../primitives';
+import { ACTION_BTN, ACTION_BTN_DANGER, SECTION_HEADER, SECTION_TITLE } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 
 import type { BalkenInstance } from '../../primitives/BalkenGroup';

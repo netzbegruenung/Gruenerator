@@ -177,7 +177,7 @@ const datenschutz = [
 
   { h: 4, text: 'c. Gibt es neben dem Verantwortlichen weitere Empfänger der personenbezogenen Daten?' },
   {
-    p: 'Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert **Regolo AI** als Auftragsverarbeiter für die Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird **Mistral AI Voxtral** für die Transkription eingesetzt.',
+    p: 'Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim Reel-Grünerator fungiert **Regolo AI** als Auftragsverarbeiter für die Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird **Mistral AI Voxtral** für die Transkription eingesetzt.',
   },
   {
     p: 'Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren. Für die Anwendungsüberwachung nutzen wir die selbst gehostete Open-Source-Software **GlitchTip** auf eigenen Servern in der EU; eine Weitergabe an Dritte findet dabei nicht statt.',
@@ -199,19 +199,14 @@ const datenschutz = [
   { li: 'Besonderheit: Subunternehmer möglich (mit EU-Standardvertragsklauseln)' },
   { li: 'Details: [[Datenschutzerklärung|https://mistral.ai/privacy-policy/]] und [[Nutzungsbedingungen|https://mistral.ai/terms/]]' },
 
-  { p: '**2. IONOS SE** (Elgendorfer Str. 57, 56410 Montabaur, Deutschland)' },
-  { li: 'Zweck: Ergänzende KI-Textgenerierung für bestimmte Generator-/Overflow-Funktionen (nicht im Chat wählbar)' },
-  { li: 'Server: Deutschland' },
-  { li: 'Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung, keine Nutzung zu Trainingszwecken' },
-  { li: 'Details: [[Datenschutzerklärung|https://www.ionos.de/terms-gtc/datenschutzerklaerung/]]' },
-
-  { p: '**3. Black Forest Labs Inc.**' },
-  { li: 'Zweck: Bildbearbeitung (FLUX-Modell im Grünerator Imagine)' },
-  { li: 'Server: Ausschließlich EU' },
+  { p: '**2. Black Forest Labs** (FLUX-Bildgenerierung)' },
+  { li: 'Zweck: Bildbearbeitung und -generierung (FLUX-Modell im Grünerator Imagine)' },
+  { li: 'Server: Ausschließlich EU – über die EU-API von Black Forest Labs (api.eu.bfl.ai) bzw. alternativ über bei Seeweb/Regolo AI (Italien) betriebene FLUX-Modelle' },
   { li: 'Besonderheit: Keine Speicherung auf unseren Servern, direkte Weiterleitung' },
   { li: 'Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten' },
+  { li: 'Kontakt: support@blackforestlabs.ai' },
 
-  { p: '**4. Seeweb S.r.l. / Regolo AI** (C.so Lazio 9/a, 03100 Frosinone, Italien)' },
+  { p: '**3. Seeweb S.r.l. / Regolo AI** (C.so Lazio 9/a, 03100 Frosinone, Italien)' },
   { li: 'Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme) sowie KI-Textmodelle und semantische Aufbereitung (Reranking)' },
   { li: 'Server: EU (Italien)' },
   { li: 'Transkriptionsmodell: faster-whisper-large-v3' },
@@ -219,7 +214,7 @@ const datenschutz = [
   { li: 'DSGVO-konform: Italienisches Unternehmen mit ausschließlicher EU-Datenverarbeitung' },
   { li: 'Details: [[Datenschutzerklärung|https://regolo.ai/docs/compliance-and-privacy/privacy-policy/]]' },
 
-  { p: '**5. netzbegrünung e.V.** (Deutschland)' },
+  { p: '**4. netzbegrünung e.V.** (Deutschland)' },
   { li: 'Zweck: Kerninfrastruktur des GRUENERATOR' },
   { li: 'Server: Eigene Server in Finnland (EU)' },
   { li: 'Bereitgestellte Dienste:' },
@@ -228,22 +223,22 @@ const datenschutz = [
   { li: 'Redis (Session-Speicher, max. 24h Speicherdauer)', level: 1 },
   { li: 'Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)', level: 1 },
   { li: 'Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)', level: 1 },
-  { li: 'KI-Modelle der netzbegrünung (KI-Verarbeitung bei aktivierter Datenschutz-Option)', level: 1 },
+  { li: 'KI-Modelle der netzbegrünung (selbst gehostete Open-Source-Modelle)', level: 1 },
   { li: 'Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle Datennutzung' },
 
-  { p: '**6. SearXNG (selbstgehostet)**' },
+  { p: '**5. SearXNG (selbstgehostet)**' },
   { li: 'Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)' },
   { li: 'Server: Eigene Server (Deutschland)' },
   { li: 'Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle' },
 
-  { p: '**7. Linkup Technologies** (Linkup Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)' },
+  { p: '**6. Linkup Technologies** (Linkup Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)' },
   { li: 'Zweck: Agentische Web-Recherche mit Quellenangaben (Suche-Modus, Tiefenrecherche)' },
   { li: 'Server: EU (Frankreich)' },
   { li: 'Verarbeitete Daten: Suchanfrage' },
   { li: 'Besonderheit: Französischer Anbieter mit ausschließlicher EU-Datenverarbeitung — keine Drittlandübermittlung; ausdrückliche DSGVO-Compliance laut Anbieter' },
   { li: 'Details: [[Datenschutzerklärung|https://www.linkup.so/privacy-policy]] und [[Nutzungsbedingungen|https://www.linkup.so/terms-of-use]]' },
 
-  { p: '**8. GlitchTip (selbstgehostet)**' },
+  { p: '**7. GlitchTip (selbstgehostet)**' },
   { li: 'Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)' },
   { li: 'Server: Eigene bzw. von der netzbegrünung betriebene Server in der EU' },
   { li: 'Verarbeitete Daten: Fehlerberichte, Stack-Traces, Browserinformationen, IP-Adressen' },

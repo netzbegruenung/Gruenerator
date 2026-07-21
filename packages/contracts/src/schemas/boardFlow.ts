@@ -83,6 +83,8 @@ export type BoardFlowTaskType = BoardFlowTask['type'];
 export const boardFlowOutputSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('comment') }),
   z.object({ type: z.literal('document') }),
+  z.object({ type: z.literal('sheet') }),
+  z.object({ type: z.literal('presentation') }),
   z.object({ type: z.literal('email') }),
 ]);
 export type BoardFlowOutput = z.infer<typeof boardFlowOutputSchema>;

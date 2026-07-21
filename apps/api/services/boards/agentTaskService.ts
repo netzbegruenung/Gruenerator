@@ -5,7 +5,7 @@
  * and drained by boardAgentWorker. Claiming uses `FOR UPDATE SKIP LOCKED` so the
  * poller is safe to run in every cluster worker without double-processing.
  */
-import { type BoardFlowConfig, type CommentBlock } from '@gruenerator/contracts';
+import { type BoardAiTask, type BoardFlowConfig, type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -35,12 +35,25 @@ export interface EnqueueAgentTaskParams {
    * Null/undefined → the default universal agent. A TEXT slug, never a UUID.
    */
   agentId?: string | null;
+  /** Set when spawned by a board_scheduled_runs schedule; null for manual runs. */
+  scheduleId?: string | null;
+  /** Park the finished run in 'awaiting_review' instead of completing silently. */
+  requireReview?: boolean;
+}
+
+/**
+ * The one-line task label for a KI-Spalte flow: a custom prompt uses its own text,
+ * a preset uses a stable label. Shared by the manual agent-run endpoint and the
+ * scheduler so both produce identically-shaped tasks.
+ */
+export function flowTaskText(flow: BoardAiTask): string {
+  return flow.task.type === 'custom' ? flow.task.prompt : `KI-Aufgabe: ${flow.task.preset}`;
 }
 
 export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<AgentTask> {
   const rows = await db.query<AgentTask>(
-    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config, agent_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config, agent_id, schedule_id, require_review)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       params.boardId,
@@ -51,6 +64,8 @@ export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<
       params.locale,
       params.flowConfig ? JSON.stringify(params.flowConfig) : null,
       params.agentId ?? null,
+      params.scheduleId ?? null,
+      params.requireReview ?? false,
     ]
   );
   log.info(`Enqueued agent task ${rows[0].id} for board ${params.boardId} card ${params.cardId}`);
@@ -94,6 +109,34 @@ export async function completeAgentTask(taskId: string, documentId: string | nul
       WHERE id = $1`,
     [taskId, documentId]
   );
+}
+
+/**
+ * Park a finished run for human review (Phase 2). The work is done and the result
+ * (comment/document) is already posted by the output nodes; this only flips the
+ * status so the card UI can surface Accept / Redo. `completed_at` is stamped so run
+ * history shows when the work landed.
+ */
+export async function parkTaskForReview(taskId: string, documentId: string | null): Promise<void> {
+  await db.query(
+    `UPDATE agent_tasks
+        SET status = 'awaiting_review', result_document_id = $2, error = NULL,
+            completed_at = now(), updated_at = now()
+      WHERE id = $1`,
+    [taskId, documentId]
+  );
+}
+
+/** Accept a run that was awaiting review → mark it completed. */
+export async function acceptReviewTask(taskId: string): Promise<boolean> {
+  const rows = await db.query<{ id: string }>(
+    `UPDATE agent_tasks
+        SET status = 'completed', updated_at = now()
+      WHERE id = $1 AND status = 'awaiting_review'
+      RETURNING id`,
+    [taskId]
+  );
+  return rows.length > 0;
 }
 
 /**

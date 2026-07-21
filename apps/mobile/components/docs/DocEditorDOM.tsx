@@ -12,13 +12,30 @@ import {
   BlockNoteEditor,
   useDocumentChat,
   useDocsAdapter,
+  useDocSuggestions,
   invokeDocumentAI,
   acceptDocumentAI,
   rejectDocumentAI,
+  getDocUndoFlags,
+  isSuggestionModeEnabled,
+  setSuggestionMode,
+  observeSuggestionMode,
+  acceptSuggestionById,
+  rejectSuggestionById,
+  acceptAllSuggestions,
+  rejectAllSuggestions,
+  jumpToSuggestion,
   type DocsAdapter,
+  type UndoableEditor,
 } from '@gruenerator/docs/mobile';
 import { type DOMProps } from 'expo/dom';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+
+import type { BlockNoteEditor as BlockNoteEditorCore } from '@blocknote/core';
+import type { EditorView } from 'prosemirror-view';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyEditor = BlockNoteEditorCore<any, any, any>;
 
 // --- Base64 <-> ArrayBuffer helpers for the WebSocket bridge ---
 
@@ -246,8 +263,13 @@ interface DocEditorDOMProps {
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
+  onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
   onAiReviewPendingChange?: (pending: boolean) => void;
   onAiAcceptFailed?: () => void;
+  // Track-changes (Änderungsmodus): mode flag + open-suggestion list, bridged to
+  // native so the 3-dot menu reflects the mode and the review sheet lists changes.
+  onSuggestionModeChange?: (enabled: boolean) => void;
+  onSuggestionsChange?: (json: string) => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
   wsSend?: (b64: string) => Promise<void>;
@@ -256,6 +278,36 @@ interface DocEditorDOMProps {
   pendingAction: { type: string; [key: string]: unknown } | null;
   actionCounter: number;
   dom?: DOMProps;
+}
+
+/**
+ * Subscribe `fn` to editor content changes (and, if `selection`, selection
+ * moves) with a trailing debounce, priming once immediately. Returns a cleanup
+ * that clears the timer and unsubscribes. Shared by the doc-snapshot and
+ * undo/redo effects so the debounce/subscribe boilerplate lives in one place.
+ */
+function subscribeDebouncedEditorChange(
+  editor: {
+    onChange?: (cb: () => void) => (() => void) | void;
+    onSelectionChange?: (cb: () => void) => () => void;
+  },
+  fn: () => void,
+  delayMs: number,
+  options?: { selection?: boolean }
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const emit = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(fn, delayMs);
+  };
+  const unsubChange = editor.onChange?.(emit);
+  const unsubSelection = options?.selection ? editor.onSelectionChange?.(emit) : undefined;
+  emit();
+  return () => {
+    if (timer) clearTimeout(timer);
+    if (typeof unsubChange === 'function') unsubChange();
+    if (unsubSelection) unsubSelection();
+  };
 }
 
 function EditorContent({
@@ -273,6 +325,9 @@ function EditorContent({
   onActiveStylesChange,
   onDocSnapshotChange,
   onSlashChange,
+  onUndoRedoStateChange,
+  onSuggestionModeChange,
+  onSuggestionsChange,
 }: {
   documentId: string;
   userId: string;
@@ -288,6 +343,9 @@ function EditorContent({
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
+  onUndoRedoStateChange?: (canUndo: boolean, canRedo: boolean) => void;
+  onSuggestionModeChange?: (enabled: boolean) => void;
+  onSuggestionsChange?: (json: string) => void;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -320,10 +378,29 @@ function EditorContent({
 
   // Editor instance ref for formatting operations
   const editorRef = useRef<unknown>(null);
+  // Editor as state too, so the track-changes suggestions hook re-subscribes once
+  // the editor is ready (a ref alone wouldn't trigger the hook's effect).
+  const [editorInstance, setEditorInstance] = useState<AnyEditor | null>(null);
 
   const handleEditorReady = useCallback((editor: unknown) => {
     editorRef.current = editor;
+    setEditorInstance(editor as AnyEditor);
   }, []);
+
+  // Track-changes attribution: like the docs assistant chat, prefer the reliable
+  // auth identity over Yjs awareness (which can be empty at edit time).
+  const localUser = useMemo(() => ({ id: userId, name: userName }), [userId, userName]);
+
+  // Doc-wide Änderungsmodus flag, synced via the Y.Doc `meta` map.
+  const suggestionModeEnabled = useSyncExternalStore(
+    useCallback((cb: () => void) => (ydoc ? observeSuggestionMode(ydoc, cb) : () => {}), [ydoc]),
+    () => (ydoc ? isSuggestionModeEnabled(ydoc) : false),
+    () => false
+  );
+
+  // Only scan the doc for suggestions while the mode is on (the O(doc) scan is
+  // wasted otherwise); passing null clears the list.
+  const { suggestions } = useDocSuggestions(suggestionModeEnabled ? editorInstance : null, ydoc);
 
   // Stable refs for callbacks — prevents re-firing effects when callback identity changes
   const onChatMessagesChangeRef = useRef(onChatMessagesChange);
@@ -344,6 +421,70 @@ function EditorContent({
   onDocSnapshotChangeRef.current = onDocSnapshotChange;
   const onSlashChangeRef = useRef(onSlashChange);
   onSlashChangeRef.current = onSlashChange;
+  const onUndoRedoStateChangeRef = useRef(onUndoRedoStateChange);
+  onUndoRedoStateChangeRef.current = onUndoRedoStateChange;
+  const onSuggestionModeChangeRef = useRef(onSuggestionModeChange);
+  onSuggestionModeChangeRef.current = onSuggestionModeChange;
+  const onSuggestionsChangeRef = useRef(onSuggestionsChange);
+  onSuggestionsChangeRef.current = onSuggestionsChange;
+
+  // Bridge the track-changes mode flag to native (drives the 3-dot menu state).
+  useEffect(() => {
+    onSuggestionModeChangeRef.current?.(suggestionModeEnabled);
+  }, [suggestionModeEnabled]);
+
+  // Bridge the open-suggestion list to native (drives the review sheet).
+  useEffect(() => {
+    onSuggestionsChangeRef.current?.(JSON.stringify(suggestions));
+  }, [suggestions]);
+
+  // Handle track-changes actions dispatched from native (mode toggle + accept/
+  // reject) against the live editor view + Y.Doc.
+  useEffect(() => {
+    const withView = (fn: (view: EditorView) => void) => {
+      const view = (editorRef.current as { prosemirrorView?: EditorView } | null)?.prosemirrorView;
+      if (view) fn(view);
+    };
+
+    const handleMode = (e: Event) => {
+      if (!ydoc) return;
+      const enabled = (e as CustomEvent<{ enabled: boolean }>).detail?.enabled;
+      if (typeof enabled === 'boolean') setSuggestionMode(ydoc, enabled);
+    };
+    const handleAccept = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (ydoc && typeof id === 'number') withView((v) => acceptSuggestionById(v, ydoc, id));
+    };
+    const handleReject = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (ydoc && typeof id === 'number') withView((v) => rejectSuggestionById(v, ydoc, id));
+    };
+    const handleAcceptAll = () => {
+      if (ydoc) withView((v) => acceptAllSuggestions(v, ydoc));
+    };
+    const handleRejectAll = () => {
+      if (ydoc) withView((v) => rejectAllSuggestions(v, ydoc));
+    };
+    const handleSelect = (e: Event) => {
+      const id = (e as CustomEvent<{ id: number }>).detail?.id;
+      if (typeof id === 'number') withView((v) => jumpToSuggestion(v, id));
+    };
+
+    window.addEventListener('suggestion-mode', handleMode);
+    window.addEventListener('suggestion-accept', handleAccept);
+    window.addEventListener('suggestion-reject', handleReject);
+    window.addEventListener('suggestion-accept-all', handleAcceptAll);
+    window.addEventListener('suggestion-reject-all', handleRejectAll);
+    window.addEventListener('suggestion-select', handleSelect);
+    return () => {
+      window.removeEventListener('suggestion-mode', handleMode);
+      window.removeEventListener('suggestion-accept', handleAccept);
+      window.removeEventListener('suggestion-reject', handleReject);
+      window.removeEventListener('suggestion-accept-all', handleAcceptAll);
+      window.removeEventListener('suggestion-reject-all', handleRejectAll);
+      window.removeEventListener('suggestion-select', handleSelect);
+    };
+  }, [ydoc]);
 
   // Subscribe to editor selection changes → send active styles to native
   useEffect(() => {
@@ -403,16 +544,12 @@ function EditorContent({
     const editor = editorRef.current as {
       onChange?: (cb: () => void) => (() => void) | void;
       onSelectionChange?: (cb: () => void) => () => void;
-      document: unknown;
-      blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
-      getSelectedText?: () => string;
     } | null;
     if (!editor || !onDocSnapshotChangeRef.current) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const emit = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+    return subscribeDebouncedEditorChange(
+      editor,
+      () => {
         const ed = editorRef.current as {
           document: unknown;
           blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
@@ -429,18 +566,29 @@ function EditorContent({
           .catch(() => {
             // editor not ready
           });
-      }, 600);
-    };
+      },
+      600,
+      { selection: true }
+    );
+  }, [isSynced]);
 
-    const unsubChange = editor.onChange?.(emit);
-    const unsubSelection = editor.onSelectionChange?.(emit);
-    emit();
+  // Push undo/redo availability (BlockNote's per-user collab stack) to native so
+  // the toolbar buttons enable/disable. Debounced lightly to limit bridge chatter
+  // during fast typing; the native store dedupes redundant updates anyway.
+  useEffect(() => {
+    const editor = editorRef.current as {
+      onChange?: (cb: () => void) => (() => void) | void;
+    } | null;
+    if (!editor || !onUndoRedoStateChangeRef.current) return;
 
-    return () => {
-      if (timer) clearTimeout(timer);
-      if (typeof unsubChange === 'function') unsubChange();
-      if (unsubSelection) unsubSelection();
-    };
+    return subscribeDebouncedEditorChange(
+      editor,
+      () => {
+        const { canUndo, canRedo } = getDocUndoFlags(editorRef.current as UndoableEditor | null);
+        onUndoRedoStateChangeRef.current?.(canUndo, canRedo);
+      },
+      200
+    );
   }, [isSynced]);
 
   // Listen for formatting actions from native
@@ -519,19 +667,33 @@ function EditorContent({
       }
     };
 
+    const handleUndoRedo = (e: Event) => {
+      const direction = (e as CustomEvent<{ direction: 'undo' | 'redo' }>).detail?.direction;
+      const ed = editorRef.current as { undo: () => void; redo: () => void } | null;
+      if (!ed) return;
+      try {
+        if (direction === 'undo') ed.undo();
+        else if (direction === 'redo') ed.redo();
+      } catch {
+        // editor not ready
+      }
+    };
+
     window.addEventListener('send-chat', handleSendChat);
     window.addEventListener('set-typing', handleSetTyping);
     window.addEventListener('format-action', handleFormatAction);
     window.addEventListener('insert-text', handleInsertText);
     window.addEventListener('slash-select', handleSlashSelect);
+    window.addEventListener('undo-redo-action', handleUndoRedo);
     return () => {
       window.removeEventListener('send-chat', handleSendChat);
       window.removeEventListener('set-typing', handleSetTyping);
       window.removeEventListener('format-action', handleFormatAction);
       window.removeEventListener('insert-text', handleInsertText);
       window.removeEventListener('slash-select', handleSlashSelect);
+      window.removeEventListener('undo-redo-action', handleUndoRedo);
     };
-  }, [sendMessage, setTyping]);
+  }, [sendMessage, setTyping, userId, userName]);
 
   // Bridge chat messages to native — only re-fire when messages change, not callback identity
   useEffect(() => {
@@ -613,6 +775,7 @@ function EditorContent({
             useStaticFormattingToolbar={false}
             hideFormattingToolbar={true}
             showDictationButton={false}
+            localUser={localUser}
             onEditorReady={handleEditorReady}
           />
         ) : (
@@ -745,6 +908,10 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     } else if (props.pendingAction.type === 'reject-ai') {
       rejectDocumentAI(props.documentId);
       onAiReviewPendingChangeRef.current?.(false);
+    } else if (props.pendingAction.type === 'undo') {
+      window.dispatchEvent(new CustomEvent('undo-redo-action', { detail: { direction: 'undo' } }));
+    } else if (props.pendingAction.type === 'redo') {
+      window.dispatchEvent(new CustomEvent('undo-redo-action', { detail: { direction: 'redo' } }));
     } else if (props.pendingAction.type === 'slash-select') {
       const { blockType, props: blockProps } = props.pendingAction as {
         type: string;
@@ -754,57 +921,108 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
       window.dispatchEvent(
         new CustomEvent('slash-select', { detail: { blockType, props: blockProps } })
       );
+    } else if (props.pendingAction.type === 'set-suggestion-mode') {
+      const enabled = (props.pendingAction as { type: string; enabled: boolean }).enabled;
+      window.dispatchEvent(new CustomEvent('suggestion-mode', { detail: { enabled } }));
+    } else if (props.pendingAction.type === 'accept-suggestion') {
+      const id = (props.pendingAction as { type: string; id: number }).id;
+      window.dispatchEvent(new CustomEvent('suggestion-accept', { detail: { id } }));
+    } else if (props.pendingAction.type === 'reject-suggestion') {
+      const id = (props.pendingAction as { type: string; id: number }).id;
+      window.dispatchEvent(new CustomEvent('suggestion-reject', { detail: { id } }));
+    } else if (props.pendingAction.type === 'accept-all-suggestions') {
+      window.dispatchEvent(new CustomEvent('suggestion-accept-all'));
+    } else if (props.pendingAction.type === 'reject-all-suggestions') {
+      window.dispatchEvent(new CustomEvent('suggestion-reject-all'));
+    } else if (props.pendingAction.type === 'select-suggestion') {
+      const id = (props.pendingAction as { type: string; id: number }).id;
+      window.dispatchEvent(new CustomEvent('suggestion-select', { detail: { id } }));
     }
-  }, [props.pendingAction, props.actionCounter]);
+  }, [props.pendingAction, props.actionCounter, props.documentId]);
+
+  const {
+    onConnectionStatusChange,
+    onAuthError,
+    onChatMessagesChange,
+    onLocalUserIdChange,
+    onTypingUsersChange,
+    onCollaboratorsChange,
+    onActiveStylesChange,
+    onDocSnapshotChange,
+    onUndoRedoStateChange,
+    onSuggestionModeChange,
+    onSuggestionsChange,
+  } = props;
 
   const handleConnectionStatusChange = useCallback(
-    (status: string) => props.onConnectionStatusChange(status),
-    [props.onConnectionStatusChange]
+    (status: string) => onConnectionStatusChange(status),
+    [onConnectionStatusChange]
   );
 
   const handleAuthError = useCallback(
-    (reason: string) => props.onAuthError?.(reason) ?? Promise.resolve(),
-    [props.onAuthError]
+    (reason: string) => onAuthError?.(reason) ?? Promise.resolve(),
+    [onAuthError]
   );
 
   const handleChatMessagesChange = useCallback(
-    (messagesJson: string) => props.onChatMessagesChange(messagesJson),
-    [props.onChatMessagesChange]
+    (messagesJson: string) => onChatMessagesChange(messagesJson),
+    [onChatMessagesChange]
   );
 
   const handleLocalUserIdChange = useCallback(
-    (userId: string) => props.onLocalUserIdChange(userId),
-    [props.onLocalUserIdChange]
+    (userId: string) => onLocalUserIdChange(userId),
+    [onLocalUserIdChange]
   );
 
   const handleTypingUsersChange = useCallback(
-    (usersJson: string) => props.onTypingUsersChange(usersJson),
-    [props.onTypingUsersChange]
+    (usersJson: string) => onTypingUsersChange(usersJson),
+    [onTypingUsersChange]
   );
 
   const handleCollaboratorsChange = useCallback(
     async (collaboratorsJson: string) => {
-      if (props.onCollaboratorsChange) {
-        await props.onCollaboratorsChange(collaboratorsJson);
+      if (onCollaboratorsChange) {
+        await onCollaboratorsChange(collaboratorsJson);
       }
     },
-    [props.onCollaboratorsChange]
+    [onCollaboratorsChange]
   );
 
   const handleActiveStylesChange = useCallback(
     async (stylesJson: string) => {
-      if (props.onActiveStylesChange) {
-        await props.onActiveStylesChange(stylesJson);
+      if (onActiveStylesChange) {
+        await onActiveStylesChange(stylesJson);
       }
     },
-    [props.onActiveStylesChange]
+    [onActiveStylesChange]
   );
 
   const handleDocSnapshotChange = useCallback(
     (markdown: string, selectionText: string) => {
-      props.onDocSnapshotChange?.(markdown, selectionText);
+      onDocSnapshotChange?.(markdown, selectionText);
     },
-    [props.onDocSnapshotChange]
+    [onDocSnapshotChange]
+  );
+
+  const handleUndoRedoStateChange = useCallback(
+    (canUndo: boolean, canRedo: boolean) => {
+      onUndoRedoStateChange?.(canUndo, canRedo);
+    },
+    [onUndoRedoStateChange]
+  );
+
+  const handleSuggestionModeChange = useCallback(
+    (enabled: boolean) => {
+      onSuggestionModeChange?.(enabled);
+    },
+    [onSuggestionModeChange]
+  );
+
+  const handleSuggestionsChange = useCallback(
+    (json: string) => {
+      onSuggestionsChange?.(json);
+    },
+    [onSuggestionsChange]
   );
 
   return (
@@ -824,6 +1042,9 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onActiveStylesChange={handleActiveStylesChange}
         onDocSnapshotChange={handleDocSnapshotChange}
         onSlashChange={props.onSlashChange}
+        onUndoRedoStateChange={handleUndoRedoStateChange}
+        onSuggestionModeChange={handleSuggestionModeChange}
+        onSuggestionsChange={handleSuggestionsChange}
       />
     </DocsProvider>
   );

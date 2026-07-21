@@ -57,6 +57,7 @@ import {
   PiArrowRight,
   PiBrain,
   PiTextAlignLeftFill,
+  PiTextAa,
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
@@ -64,6 +65,9 @@ import {
   PiChatCircle,
   PiDesktop,
   PiChartBar,
+  PiReceipt,
+  PiTable,
+  PiPresentation,
 } from 'react-icons/pi';
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
@@ -138,15 +142,19 @@ export type NavigationIconName =
   | 'eigene'
   | 'home'
   | 'scanner'
+  | 'reisekosten'
   | 'messenger'
   | 'docs'
   | 'boards'
+  | 'sheets'
+  | 'presentations'
   | 'gruppen'
   | 'notebooks'
   | 'research'
   | 'desk'
   | 'transkription'
-  | 'monitor';
+  | 'monitor'
+  | 'zeichenzaehler';
 
 /**
  * Action icon names
@@ -254,15 +262,19 @@ export const ICONS: IconRegistry = {
     eigene: PiWrench,
     home: GrueneratorHomeIcon,
     scanner: PiScan,
+    reisekosten: PiReceipt,
     messenger: PiChatCircle,
     docs: HiOutlineDocumentText,
     boards: PiSquaresFour,
+    sheets: PiTable,
+    presentations: PiPresentation,
     gruppen: HiUserGroup,
     notebooks: FaBook,
     research: PiBrain,
     desk: PiDesktop,
     transkription: HiMicrophone,
     monitor: PiChartBar,
+    zeichenzaehler: PiTextAa,
   },
 
   actions: {

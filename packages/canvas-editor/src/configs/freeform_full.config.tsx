@@ -22,7 +22,7 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/commonActions';
+import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -217,6 +217,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
@@ -351,6 +352,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     circleBadgeInstances: [],
     balkenInstances: [],
     frameInstances: [],
+    chartInstances: [],
     userImageInstances: [],
 
     // Layer ordering

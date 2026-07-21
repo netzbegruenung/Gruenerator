@@ -4,8 +4,9 @@
  * Owns the migrated routes: getDocumentById, listDocuments, createDocument,
  * generateDocument, getChatThread, listPermissions, getShareSettings,
  * enableSharing, disableSharing, setSharePermission, setShareMode,
- * addGroupShare, updateGroupShare. Replaces the legacy share controller
- * entirely; documentController.ts retains only PUT/DELETE/duplicate.
+ * addGroupShare, updateGroupShare, updateDocument, deleteDocument. Replaces the
+ * legacy share controller entirely; documentController.ts retains only
+ * duplicate + save-as-template.
  *
  * Mount BEFORE the legacy docsRouter in routes.ts so ts-rest matches its own
  * routes first; unmatched paths fall through to the legacy router.
@@ -22,17 +23,28 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
+  softDeleteCollaborativeDocument,
+  updateCollaborativeDocument,
+  type QueryRunner,
+} from '../../services/docs/CollaborativeDocumentService.js';
+import {
   DOCUMENT_GENERATION_PROMPT,
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
 import { getDocPreview } from '../../services/docs/docPreview.js';
+import { shareToPermissionLevel } from '../../services/groups/groupSharePermissions.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
-import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
+import {
+  DOCS_ONLY_SUBTYPES,
+  DOCS_SUBTYPES,
+  GRANTED_BY_SHARE_LINK,
+  docsAccessWhere,
+} from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
 
 import type { CollaborativeDocument } from './types.js';
@@ -41,6 +53,11 @@ import type { Application, Request } from 'express';
 
 const log = createLogger('docsContractRouter');
 const db = getPostgresInstance();
+
+// Adapter so CollaborativeDocumentService can run against the live pool while
+// staying unit-testable with a mocked runner.
+const runQuery: QueryRunner = <T>(sql: string, params?: unknown[]) =>
+  db.query(sql, params) as Promise<T[]>;
 
 /**
  * Extract the authenticated user id.
@@ -104,6 +121,176 @@ export const docsContractRouter = s.router(docsContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to fetch document', details: message },
+      };
+    }
+  },
+
+  updateDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+      const { title, folder_id, content, wolke_live_sync } = args.body;
+      const result = await updateCollaborativeDocument(runQuery, id, userId, DOCS_ONLY_SUBTYPES, {
+        title,
+        folder_id,
+        content,
+        wolke_live_sync,
+      });
+      if (result.status === 'not_found') {
+        return { status: 404 as const, body: { error: 'Document not found' } };
+      }
+      if (result.status === 'forbidden') {
+        return {
+          status: 403 as const,
+          body: { error: 'Insufficient permissions to edit document' },
+        };
+      }
+      return { status: 200 as const, body: result.document as CollaborativeDocument };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.updateDocument] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to update document', details: message },
+      };
+    }
+  },
+
+  deleteDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+      const result = await softDeleteCollaborativeDocument(
+        runQuery,
+        id,
+        userId,
+        DOCS_ONLY_SUBTYPES
+      );
+      if (result.status === 'not_found') {
+        return { status: 404 as const, body: { error: 'Document not found' } };
+      }
+      if (result.status === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Only owners can delete documents' } };
+      }
+      return { status: 200 as const, body: { message: 'Document deleted successfully' } };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.deleteDocument] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to delete document', details: message },
+      };
+    }
+  },
+
+  listMyGroups: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const groups = (await db.query(
+        `SELECT g.id, g.name, gm.role
+         FROM groups g
+         INNER JOIN group_memberships gm ON gm.group_id = g.id
+         WHERE gm.user_id = $1
+         ORDER BY g.name ASC`,
+        [userId]
+      )) as { id: string; name: string; role: string }[];
+      return { status: 200 as const, body: groups };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.listMyGroups] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to fetch user groups', details: message },
+      };
+    }
+  },
+
+  listDocumentGroupShares: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+
+      const doc = (await db.query(
+        'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+        [id]
+      )) as { created_by: string }[];
+      if (doc.length === 0) return { status: 404 as const, body: { error: 'Document not found' } };
+      if (doc[0].created_by !== userId) {
+        return {
+          status: 403 as const,
+          body: { error: 'Only document owner can manage group sharing' },
+        };
+      }
+
+      const shares = (await db.query(
+        `SELECT gcs.group_id, g.name as group_name, gcs.permissions, gcs.shared_at
+         FROM group_content_shares gcs
+         INNER JOIN groups g ON g.id = gcs.group_id
+         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $1
+         ORDER BY gcs.shared_at DESC`,
+        [id]
+      )) as {
+        group_id: string;
+        group_name: string;
+        permissions: { write?: boolean } | null;
+        shared_at: string;
+      }[];
+
+      return {
+        status: 200 as const,
+        body: shares.map((s) => ({
+          group_id: s.group_id,
+          group_name: s.group_name,
+          permission_level: shareToPermissionLevel(s.permissions),
+          shared_at: s.shared_at,
+        })),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.listDocumentGroupShares] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to fetch group shares', details: message },
+      };
+    }
+  },
+
+  removeGroupShare: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id, groupId } = args.params;
+
+      const doc = (await db.query(
+        'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+        [id]
+      )) as { created_by: string }[];
+      if (doc.length === 0) return { status: 404 as const, body: { error: 'Document not found' } };
+      if (doc[0].created_by !== userId) {
+        return {
+          status: 403 as const,
+          body: { error: 'Only document owner can unshare from groups' },
+        };
+      }
+
+      const result = (await db.query(
+        `DELETE FROM group_content_shares
+         WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2
+         RETURNING id`,
+        [id, groupId]
+      )) as unknown[];
+      if (result.length === 0)
+        return { status: 404 as const, body: { error: 'Group share not found' } };
+
+      return {
+        status: 200 as const,
+        body: { message: 'Document unshared from group successfully' },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.removeGroupShare] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to unshare document from group', details: message },
       };
     }
   },
@@ -219,8 +406,8 @@ export const docsContractRouter = s.router(docsContract, {
         created_by: string;
         permissions: Record<string, { level?: string }> | null;
         is_public: boolean;
-        share_permission?: string | null;
-        share_mode?: string | null;
+        share_permission?: 'editor' | 'viewer' | null;
+        share_mode?: 'private' | 'authenticated' | 'public' | null;
       }
 
       const result = (await db.query(
@@ -340,7 +527,7 @@ export const docsContractRouter = s.router(docsContract, {
             type: 'group_content_shared',
             title: 'Dokument geteilt',
             body: `${sharerName} hat „${docTitle}" geteilt`,
-            actionUrl: `/docs/${id}`,
+            actionUrl: `/office/${id}`,
             metadata: {
               documentId: id,
               groupId: group_id,
@@ -562,20 +749,7 @@ export const docsContractRouter = s.router(docsContract, {
          FROM collaborative_documents cd
          LEFT JOIN profiles p ON cd.created_by = p.id
          LEFT JOIN profiles le ON cd.last_edited_by = le.id
-         WHERE
-          cd.document_subtype = ANY($3::text[])
-          AND cd.is_deleted = false
-          AND (
-            cd.created_by = $1
-            OR cd.permissions ? $1::text
-            OR cd.id IN (
-              SELECT gcs.content_id::uuid
-              FROM group_content_shares gcs
-              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-              WHERE gcs.content_type = 'collaborative_documents'
-                AND (gcs.permissions->>'read')::boolean IS NOT FALSE
-            )
-          )
+         WHERE ${docsAccessWhere('$3', '$1')}
          ORDER BY cd.updated_at DESC
          ${limitClause}`,
         params
@@ -722,8 +896,8 @@ interface OwnedShareRow {
   created_by: string;
   permissions: Record<string, { level?: string }> | null;
   is_public: boolean;
-  share_permission?: string | null;
-  share_mode?: string | null;
+  share_permission?: 'editor' | 'viewer' | null;
+  share_mode?: 'private' | 'authenticated' | 'public' | null;
 }
 
 type ShareLookupResult =

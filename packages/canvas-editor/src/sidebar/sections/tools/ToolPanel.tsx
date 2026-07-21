@@ -3,7 +3,7 @@ import { HiCheckCircle, HiXCircle } from 'react-icons/hi2';
 
 import { Lightbox } from '../../../common/Lightbox';
 import { cn } from '../../../utils/cn';
-import { SIDEBAR_SECTION } from '../../primitives';
+import { SIDEBAR_SECTION } from '../../sidebarStyles';
 
 import type { ComponentType, ReactNode } from 'react';
 import type { IconType } from 'react-icons';
@@ -12,6 +12,8 @@ export interface ToolPanelSuccess {
   thumbnailUrl: string;
   itemName: string;
   onJumpToUploads?: () => void;
+  /** True when the result was placed straight onto the canvas (not just saved). */
+  placedOnCanvas?: boolean;
 }
 
 export interface ToolPanelProps {
@@ -88,7 +90,10 @@ export function ToolPanel({
           </button>
           <div className="flex items-center gap-2 text-xs text-foreground-muted">
             <HiCheckCircle size={12} className="shrink-0 text-green-700 dark:text-green-400" />
-            <span className="flex-1 truncate">In Uploads gespeichert · {success.itemName}</span>
+            <span className="flex-1 truncate">
+              {success.placedOnCanvas ? 'Auf Canvas platziert' : 'In Uploads gespeichert'} ·{' '}
+              {success.itemName}
+            </span>
             {success.onJumpToUploads ? (
               <button
                 type="button"

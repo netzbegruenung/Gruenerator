@@ -3,12 +3,13 @@
  * Searches for social media examples (Instagram, Facebook) from Green Party
  */
 
-import { getQdrantCollectionName } from '@gruenerator/shared/search/collections';
-import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
+import { buildQdrantFilter } from '@gruenerator/query/filters';
 import { z } from 'zod';
 
+import { getQdrantCollectionName } from '../catalog.ts';
 import { generateEmbedding } from '../embeddings.ts';
 import { getQdrantClient } from '../qdrant/client.ts';
+import { classifyError, connectionErrorResponse } from '../utils/errors.ts';
 
 const COLLECTION_NAME = getQdrantCollectionName('examples') || 'social_media_examples';
 const DEFAULT_THRESHOLD = 0.15;
@@ -47,7 +48,11 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
 - "Wie posten Grüne über Bildung?" → gruenerator_examples_search({ query: "Bildung", limit: 10 })`,
 
   inputSchema: {
-    query: z.string().describe('Thema für Beispielsuche (z.B. "Klimaschutz", "Bildungspolitik")'),
+    query: z
+      .string()
+      .min(1)
+      .max(2000)
+      .describe('Thema für Beispielsuche (z.B. "Klimaschutz", "Bildungspolitik")'),
     platform: z.enum(['instagram', 'facebook', 'all']).default('all').describe('Plattform filtern'),
     country: z.enum(['DE', 'AT', 'all']).default('all').describe('Land filtern'),
     limit: z.number().min(1).max(20).default(5).describe('Anzahl der Ergebnisse'),
@@ -120,6 +125,24 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         })
         .slice(0, limit);
 
+      if (dedupedExamples.length === 0) {
+        const activeFilters = [
+          platform !== 'all' ? `platform="${platform}"` : null,
+          country !== 'all' ? `country="${country}"` : null,
+        ].filter(Boolean);
+        return {
+          query,
+          platform,
+          country,
+          resultsCount: 0,
+          examples: [],
+          message: 'Keine passenden Social-Media-Beispiele gefunden',
+          hint: activeFilters.length
+            ? `Filter (${activeFilters.join(', ')}) entfernen oder breiteren Suchbegriff wählen. Die Beispiel-Sammlung ist thematisch dünner besetzt als die Programm-Sammlungen.`
+            : 'Breiteren/anderen Suchbegriff wählen. Die Beispiel-Sammlung ist thematisch dünner besetzt als die Programm-Sammlungen.',
+        };
+      }
+
       return {
         query,
         platform,
@@ -128,9 +151,18 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         examples: dedupedExamples,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[ExamplesSearch] Error:', message);
+      const { detail, isConnection } = classifyError(err);
+      console.error(`[ExamplesSearch] Error: ${detail}`);
 
+      if (isConnection) {
+        return connectionErrorResponse(
+          detail,
+          { query, platform, country, resultsCount: 0, examples: [] },
+          'Die Beispiel-Datenbank'
+        );
+      }
+
+      const message = err instanceof Error ? err.message : String(err);
       // Check if collection doesn't exist
       if (message.includes('Not found') || message.includes('not found')) {
         return {

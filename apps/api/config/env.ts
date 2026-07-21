@@ -46,6 +46,9 @@ const envSchema = z.object({
   WEB_BASE_URL: z.string().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
 
+  // External: Abgeordnetenwatch API (public, no key). Override only for testing.
+  ABGEORDNETENWATCH_BASE_URL: z.string().default('https://www.abgeordnetenwatch.de/api/v2'),
+
   // ── Database (Postgres) ────────────────────────────────────────────────
   DATABASE_URL: z.string().optional(),
   POSTGRES_HOST: z.string().optional(),
@@ -69,6 +72,11 @@ const envSchema = z.object({
   // ── Better Auth ────────────────────────────────────────────────────────
   BETTER_AUTH_URL: z.string().optional(),
 
+  // ── MCP server (authenticated, OAuth) ──────────────────────────────────
+  MCP_SERVER_ENABLED: boolFlag(false),
+  MCP_SERVER_PUBLIC_URL: z.string().optional(),
+  MCP_SERVER_RATE_LIMIT: numStr(60),
+
   // ── Keycloak ───────────────────────────────────────────────────────────
   KEYCLOAK_BASE_URL: z.string().default('https://user.netzbegruenung.de'),
   KEYCLOAK_REALM: z.string().default('gruenerator'),
@@ -85,7 +93,6 @@ const envSchema = z.object({
   MISTRAL_API_KEY: z.string().optional(),
   LITELLM_API_KEY: z.string().optional(),
   LITELLM_BASE_URL: z.string().optional(),
-  IONOS_API_TOKEN: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
   REGOLO_DEFAULT_MODEL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),

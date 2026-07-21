@@ -1,0 +1,298 @@
+import { describe, it, expect } from 'vitest';
+import {
+  convertToThreadMessageLike,
+  PASSTHROUGH_METADATA_FIELDS,
+  type LoadedMessage,
+} from './threadMessageConversion';
+
+// Regression guard for the live⇄reload contract: rich content that renders live
+// (via SSE, onto `custom.*`) must be reconstructable from persisted metadata so a
+// reloaded thread renders the same as the live session. This test would have
+// caught the charts / createdDocument / agentId reload regressions.
+
+/** Extract the reconstructed `custom` render metadata from a single persisted message. */
+function customOf(metadata: LoadedMessage['metadata']): Record<string, unknown> {
+  const [msg] = convertToThreadMessageLike([
+    { id: 'm1', role: 'assistant', content: 'hello', ...(metadata ? { metadata } : {}) },
+  ]);
+  return (msg?.metadata?.custom ?? {}) as Record<string, unknown>;
+}
+
+// A representative persisted value for every 1:1 passthrough field. Keyed by the
+// field name so the `it.each` below cannot pass unless each key is handled.
+const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], unknown> = {
+  citations: [{ id: 'c1', title: 'Quelle' }],
+  generatedImage: { url: 'https://example.test/i.png', filename: 'i.png' },
+  createdDocument: {
+    documentId: 'doc_1',
+    title: 'Antrag',
+    subtype: 'antrag',
+    url: '/docs/doc_1',
+  },
+  computeData: {
+    operation: 'Tabellen-Berechnung',
+    entries: [{ label: 'Gesamtgewinn', value: '60.0' }],
+    summary: 'Gesamtgewinn: 60.0',
+    figures: ['aGVsbG8='],
+  },
+  agentId: 'gruenerator-pressemitteilung',
+  roleName: 'Sprecher:in',
+};
+
+describe('convertToThreadMessageLike — reload reconstruction', () => {
+  it.each(PASSTHROUGH_METADATA_FIELDS)(
+    'rehydrates the "%s" passthrough field onto custom',
+    (field) => {
+      const custom = customOf({ [field]: PASSTHROUGH_SAMPLES[field] });
+      expect(custom[field]).toEqual(PASSTHROUGH_SAMPLES[field]);
+    }
+  );
+
+  it('has a sample for every passthrough field (guards against silent list drift)', () => {
+    for (const field of PASSTHROUGH_METADATA_FIELDS) {
+      expect(PASSTHROUGH_SAMPLES[field]).toBeDefined();
+    }
+  });
+
+  it('rehydrates the sharepic variant stack from the persisted tool call', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'sharepic',
+          args: {},
+          result: { variants: [{ id: 'v1', canvasType: 'dreizeilen', initialProps: {} }] },
+        },
+      ],
+    });
+    expect(custom.sharepicData).toEqual({
+      variants: [{ id: 'v1', canvasType: 'dreizeilen', initialProps: {} }],
+    });
+  });
+
+  it('drops sharepic variants with a non-canonical canvasType', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'sharepic',
+          args: {},
+          result: { variants: [{ id: 'v1', canvasType: 'not-a-real-template', initialProps: {} }] },
+        },
+      ],
+    });
+    expect(custom.sharepicData).toBeUndefined();
+  });
+
+  it('rehydrates the social post text from the persisted social_post tool call', () => {
+    const persisted = {
+      postId: 'p1',
+      platform: 'instagram',
+      text: 'Mein Post #Klimaschutz',
+      hashtags: ['#Klimaschutz'],
+      charCount: 22,
+      version: 2,
+      versions: [
+        {
+          text: 'Alter Text',
+          hashtags: [],
+          charCount: 10,
+          version: 1,
+          summary: 'Erstellt',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+    const custom = customOf({
+      toolCalls: [{ toolCallId: 'tc1', toolName: 'social_post', args: {}, result: persisted }],
+    });
+    // Head fields survive; the schema strips the `versions` history.
+    expect(custom.socialPostData).toEqual({
+      postId: 'p1',
+      platform: 'instagram',
+      text: 'Mein Post #Klimaschutz',
+      hashtags: ['#Klimaschutz'],
+      charCount: 22,
+      version: 2,
+    });
+  });
+
+  it('drops a malformed social_post tool result', () => {
+    const custom = customOf({
+      toolCalls: [
+        { toolCallId: 'tc1', toolName: 'social_post', args: {}, result: { postId: 'p1' } },
+      ],
+    });
+    expect(custom.socialPostData).toBeUndefined();
+  });
+
+  it('rehydrates a persisted bundestag tool result onto custom.bundestagData', () => {
+    const persisted = {
+      kind: 'document',
+      document: {
+        drucksache: {
+          id: 'd1',
+          titel: 'Entwurf eines Gesetzes',
+          dokumentnummer: '21/50',
+          drucksachetyp: 'Gesetzentwurf',
+          wahlperiode: 21,
+          datum: '2025-06-01',
+          urheber: ['Bundesregierung'],
+          pdfUrl: 'https://dserver.bundestag.de/btd/21/000/2100050.pdf',
+        },
+        siblings: [],
+        vorgang: null,
+      },
+      notes: [],
+      metadata: {
+        query: 'Drucksache 21/50',
+        extractedName: null,
+        matchedDokumentnummer: '21/50',
+        fetchTimeMs: 120,
+      },
+    };
+    const custom = customOf({
+      toolCalls: [{ toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: persisted }],
+    });
+    expect((custom.bundestagData as { kind?: string })?.kind).toBe('document');
+    expect(
+      (custom.bundestagData as { document?: { drucksache?: { dokumentnummer?: string } } })
+        ?.document?.drucksache?.dokumentnummer
+    ).toBe('21/50');
+  });
+
+  it('rehydrates the LAST persisted bahn__* step onto custom.bahnData', () => {
+    const board = (station: string) => ({
+      kind: 'timetable',
+      station,
+      date: '2026-07-17',
+      hour: '09',
+      entries: [
+        {
+          id: 'e1',
+          category: 'ICE',
+          number: '204',
+          line: null,
+          departureTime: '09:11',
+          departurePlatform: '5',
+          arrivalTime: '09:05',
+          arrivalPlatform: '5',
+          destination: 'Hamburg-Altona',
+          via: ['Düsseldorf Hbf'],
+        },
+      ],
+    });
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'bahn__get_planned_timetable',
+          args: {},
+          result: { content: JSON.stringify(board('Köln Hbf')) },
+        },
+        {
+          toolCallId: 'tc2',
+          toolName: 'bahn__get_planned_timetable',
+          args: {},
+          result: { content: JSON.stringify(board('Bonn Hbf')) },
+        },
+      ],
+    });
+    expect((custom.bahnData as { station?: string })?.station).toBe('Bonn Hbf');
+  });
+
+  it('keeps the board when a raw bahn step follows the condensed one', () => {
+    const board = {
+      kind: 'timetable',
+      station: 'Köln Hbf',
+      date: '2026-07-17',
+      hour: '09',
+      entries: [
+        {
+          id: 'e1',
+          category: 'ICE',
+          number: '204',
+          line: null,
+          departureTime: '09:11',
+          departurePlatform: '5',
+          arrivalTime: null,
+          arrivalPlatform: null,
+          destination: 'Hamburg-Altona',
+          via: [],
+        },
+      ],
+    };
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'bahn__get_planned_timetable',
+          args: {},
+          result: { content: JSON.stringify(board) },
+        },
+        // promptHint step 3: raw changes lookup AFTER the condensed board.
+        {
+          toolCallId: 'tc2',
+          toolName: 'bahn__get_full_timetable_changes',
+          args: {},
+          result: { content: '{"@station":"Köln Hbf","s":[{"raw":true}]}' },
+        },
+      ],
+    });
+    expect((custom.bahnData as { station?: string })?.station).toBe('Köln Hbf');
+  });
+
+  it('ignores a raw (non-condensed) bahn tool result', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'bahn__get_station_by_name',
+          args: {},
+          result: { content: '{"number":3320,"name":"Köln Hbf"}' },
+        },
+      ],
+    });
+    expect(custom.bahnData).toBeUndefined();
+  });
+
+  it('drops a malformed bundestag tool result', () => {
+    const custom = customOf({
+      toolCalls: [
+        { toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: { kind: 'weird' } },
+      ],
+    });
+    expect(custom.bundestagData).toBeUndefined();
+  });
+
+  it('rehydrates reel_processing and reel_picker cards from persisted tool calls', () => {
+    const custom = customOf({
+      toolCalls: [
+        {
+          toolCallId: 'tc1',
+          toolName: 'reel_processing',
+          args: {},
+          result: { uploadId: 'u1', filename: 'clip.mp4' },
+        },
+        {
+          toolCallId: 'tc2',
+          toolName: 'reel_picker',
+          args: {},
+          result: { projects: [{ projectId: 'p1', title: 'Reel' }] },
+        },
+      ],
+    });
+    expect(custom.reelProcessing).toEqual({ uploadId: 'u1', filename: 'clip.mp4' });
+    expect(custom.reelPicker).toEqual({ projects: [{ projectId: 'p1', title: 'Reel' }] });
+  });
+
+  it('derives streamMetadata from intent so message actions rehydrate', () => {
+    const custom = customOf({ intent: 'research', searchCount: 3 });
+    expect(custom.streamMetadata).toEqual({ intent: 'research', searchCount: 3 });
+  });
+
+  it('emits no custom metadata for a bare message (nothing to rehydrate)', () => {
+    const [msg] = convertToThreadMessageLike([{ id: 'm1', role: 'assistant', content: 'hi' }]);
+    expect(msg?.metadata).toBeUndefined();
+  });
+});

@@ -23,7 +23,7 @@ import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/p
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
-import { createBaseActions } from './factory/commonActions';
+import { createBaseActions } from './factory/actionFactories';
 import { makeSectionDefiner } from './factory/defineSection';
 import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
@@ -490,6 +490,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
@@ -618,6 +619,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       circleBadgeInstances: [],
       balkenInstances: [],
       frameInstances: [],
+      chartInstances: [],
       userImageInstances: [],
 
       // Base state

@@ -3,12 +3,18 @@
  * Platform-agnostic type definitions for image-studio feature
  */
 
+import { type CanvasTemplateType } from '@gruenerator/contracts';
+
 // ============================================================================
 // CORE ENUMS
 // ============================================================================
 
 /**
- * Template types supported by image-studio (canvas-based rendering)
+ * Template types supported by image-studio (canvas-based rendering).
+ *
+ * A subset of the canonical `CanvasTemplateType` set in @gruenerator/contracts
+ * (the single source of truth); the assertion below keeps it from drifting to a
+ * value the canvas pipeline can't mint.
  */
 export type ImageStudioTemplateType =
   | 'dreizeilen'
@@ -18,6 +24,11 @@ export type ImageStudioTemplateType =
   | 'veranstaltung'
   | 'profilbild'
   | 'simple';
+
+// Compile-time guard: every template type here must be a canonical canvas type.
+type _AssertTemplateSubset = ImageStudioTemplateType extends CanvasTemplateType ? true : never;
+const _assertTemplateSubset: _AssertTemplateSubset = true;
+void _assertTemplateSubset;
 
 /**
  * KI types supported by image-studio (FLUX API-based)

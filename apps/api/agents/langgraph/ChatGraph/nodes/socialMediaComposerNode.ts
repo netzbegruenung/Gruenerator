@@ -14,7 +14,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 
-import type { ChatGraphState, SocialExampleItem } from '../types.js';
+import type { ChatGraphState, SocialExampleItem, SocialTextPlatform } from '../types.js';
 
 const log = createLogger('SocialMediaComposer');
 
@@ -44,6 +44,35 @@ Ein wirkungsvoller Facebook-Post ist kürzer und konversationeller als Instagram
 **Tonalität**: dialogisch, einladend zur Diskussion. Du-Form. Genderstern (\`*in\` / \`*innen\`). Stärker faktenorientiert als Instagram.
 **Länge**: 400–800 Zeichen.`;
 
+// Twitter/LinkedIn tone and budgets follow the platform block in
+// apps/api/prompts/social.json (the standalone /api/texte/social generator);
+// the examples collection has no posts for these platforms, so the rubric
+// carries the full craft guidance.
+const TWITTER_RUBRIC = `## X/TWITTER-HANDWERK
+
+Ein starker Post für X/Twitter (gilt auch für Mastodon und Bluesky) ist pointiert und auf den Punkt:
+
+1. **Eine Kernaussage** — keine Threads, keine Aufzählungen: die eine Position oder Forderung, zugespitzt formuliert.
+2. **Zuspitzung** — überraschende Zahl, klare Haltung oder prägnanter Kontrast im ersten Halbsatz.
+3. **Hashtags** — maximal 1–2, nur wenn strategisch sinnvoll (laufende Debatte, Kampagne).
+4. **Emojis** — 0–1, nur als Akzent.
+
+**Tonalität**: pointiert, selbstbewusst, diskursfähig. Du-Form. Genderstern (\`*in\` / \`*innen\`).
+**Länge**: MAXIMAL 280 Zeichen — das ist ein hartes Limit, zähle mit.`;
+
+const LINKEDIN_RUBRIC = `## LINKEDIN-HANDWERK
+
+Ein wirkungsvoller LinkedIn-Post ist professionell und argumentativ:
+
+1. **Hook in Zeile 1** — eine These oder Beobachtung, die zum Weiterlesen bewegt (Vorschau bricht früh ab).
+2. **Argumentation** — 2–4 kurze Absätze mit fachlichem Fokus: Zahlen, Zusammenhänge, konkrete politische Einordnung.
+3. **Call-to-Action** — Einladung zur Diskussion oder Verweis auf Quelle/Termin.
+4. **Hashtags** — 2–4 thematische am Ende.
+5. **Emojis** — sparsam, 0–2, eher als Gliederung.
+
+**Tonalität**: professionell, faktenorientiert, trotzdem klare grüne Haltung. Genderstern (\`*in\` / \`*innen\`).
+**Länge**: 600–1200 Zeichen.`;
+
 const GENERIC_RUBRIC = `## SOCIAL-MEDIA-HANDWERK
 
 Ein guter Social-Media-Post folgt einer klaren Struktur:
@@ -59,11 +88,21 @@ Ein guter Social-Media-Post folgt einer klaren Struktur:
 
 Falls die Plattform nicht explizit benannt ist, schreibe als Default für **Instagram** (längere Caption mit mehr Hashtags).`;
 
-function rubricForPlatform(platform: 'instagram' | 'facebook' | null): string {
+/** Exported for the social_post generation + text-edit services. */
+export function rubricForPlatform(platform: SocialTextPlatform | null): string {
   if (platform === 'instagram') return INSTAGRAM_RUBRIC;
   if (platform === 'facebook') return FACEBOOK_RUBRIC;
+  if (platform === 'twitter') return TWITTER_RUBRIC;
+  if (platform === 'linkedin') return LINKEDIN_RUBRIC;
   return GENERIC_RUBRIC;
 }
+
+const PLATFORM_LABELS: Record<SocialTextPlatform, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  twitter: 'X/Twitter',
+  linkedin: 'LinkedIn',
+};
 
 function formatExample(ex: SocialExampleItem, idx: number): string {
   const meta = [ex.platform, ex.author, ex.date].filter(Boolean).join(' · ');
@@ -85,7 +124,7 @@ export function buildSocialMediaSystemPrompt(state: ChatGraphState): string {
   const today = formatGermanDate();
 
   const platformNote = platform
-    ? `\n\nDie*der Nutzer*in hat **${platform === 'instagram' ? 'Instagram' : 'Facebook'}** angefragt. Halte dich an das ${platform === 'instagram' ? 'Instagram' : 'Facebook'}-Handwerk unten.`
+    ? `\n\nDie*der Nutzer*in hat **${PLATFORM_LABELS[platform]}** angefragt. Halte dich an das ${PLATFORM_LABELS[platform]}-Handwerk unten.`
     : '';
 
   const examplesBlock =

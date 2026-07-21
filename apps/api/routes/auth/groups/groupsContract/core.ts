@@ -9,10 +9,13 @@ import fs from 'fs';
 import path from 'path';
 
 import { groupsContract } from '@gruenerator/contracts';
-import { extractSlugSuffix, generateSlugSuffix } from '@gruenerator/shared/utils';
-import { v4 as uuidv4 } from 'uuid';
+import { extractSlugSuffix } from '@gruenerator/shared/utils';
 
 import { getPostgresInstance } from '../../../../database/services/PostgresService.js';
+import {
+  createGroupForUser,
+  joinGroupByToken,
+} from '../../../../services/groups/groupMutations.js';
 import {
   createNotification,
   notifyGroupMembers,
@@ -53,7 +56,10 @@ export const coreRoutes = {
 
       const groupIds = memberships.map((m) => m.group_id);
       const groupsData = (await postgres.query(
-        'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links, slug_suffix FROM groups WHERE id = ANY($1)',
+        `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
+                g.avatar_url, g.links, g.slug_suffix, g.group_type,
+                (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
+           FROM groups g WHERE g.id = ANY($1)`,
         [groupIds],
         { table: 'groups' }
       )) as Array<{
@@ -67,6 +73,8 @@ export const coreRoutes = {
         avatar_url: string | null;
         links: StoredGroupLink[] | null;
         slug_suffix: string | null;
+        group_type: 'standard' | 'personal' | null;
+        member_count: number;
       }>;
 
       const byId = new Map(memberships.map((m) => [m.group_id, m]));
@@ -86,6 +94,8 @@ export const coreRoutes = {
           role,
           joined_at: toIsoOrNull(m?.joined_at),
           isAdmin: group.created_by === userId || role === 'admin',
+          group_type: group.group_type ?? 'standard',
+          member_count: group.member_count,
           slug_suffix: group.slug_suffix ?? null,
         };
       });
@@ -144,40 +154,7 @@ export const coreRoutes = {
   createGroup: s.route(groupsContract.createGroup, async (args) => {
     try {
       const userId = getUserId(args.req);
-      const name = args.body.name.trim();
-      const joinToken = crypto.randomBytes(16).toString('hex');
-      const groupId = uuidv4();
-      const slugSuffix = generateSlugSuffix();
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const newGroup = await postgres.transaction(async (client) => {
-        const group = (await postgres.transactionQueryOne(
-          client,
-          `INSERT INTO groups (id, name, created_by, join_token, description, slug_suffix)
-             VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, name, description, created_at, created_by, join_token, slug_suffix`,
-          [groupId, name, userId, joinToken, null, slugSuffix]
-        )) as {
-          id: string;
-          name: string;
-          description: string | null;
-          created_at: string | Date | null;
-          created_by: string | null;
-          join_token: string | null;
-          slug_suffix: string | null;
-        } | null;
-
-        if (!group) throw new Error('Failed to create group');
-
-        await postgres.transactionExec(
-          client,
-          'INSERT INTO group_memberships (group_id, user_id, role) VALUES ($1, $2, $3)',
-          [group.id, userId, 'admin']
-        );
-
-        return group;
-      });
+      const newGroup = await createGroupForUser(userId, args.body);
 
       return {
         status: 200 as const,
@@ -302,7 +279,8 @@ export const coreRoutes = {
       const row = (await postgres.queryOne(
         `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
-                g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix
+                g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix,
+                g.group_type
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2`,
@@ -324,6 +302,7 @@ export const coreRoutes = {
         is_public: boolean | null;
         audience: 'de-DE' | 'de-AT' | 'all' | null;
         slug_suffix: string | null;
+        group_type: 'standard' | 'personal' | null;
       } | null;
 
       if (!row) {
@@ -351,6 +330,7 @@ export const coreRoutes = {
             links: row.links ?? [],
             is_public: row.is_public ?? false,
             audience: row.audience ?? 'all',
+            group_type: row.group_type ?? 'standard',
             slug_suffix: row.slug_suffix ?? null,
           },
           membership: {
@@ -536,16 +516,11 @@ export const coreRoutes = {
     try {
       const userId = getUserId(args.req);
       const { joinToken } = args.body;
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
+      const joinerName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
 
-      const group = (await postgres.queryOne(
-        'SELECT id, name FROM groups WHERE join_token = $1',
-        [joinToken.trim()],
-        { table: 'groups' }
-      )) as { id: string; name: string } | null;
+      const outcome = await joinGroupByToken(userId, joinToken, joinerName);
 
-      if (!group) {
+      if (!outcome) {
         return {
           status: 404 as const,
           body: {
@@ -555,45 +530,15 @@ export const coreRoutes = {
         };
       }
 
-      const existingMembership = await postgres.queryOne(
-        'SELECT group_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-        [group.id, userId],
-        { table: 'group_memberships' }
-      );
-
-      if (existingMembership) {
-        return {
-          status: 200 as const,
-          body: {
-            success: true as const,
-            group,
-            alreadyMember: true,
-            message: 'Du bist bereits Mitglied dieser Gruppe.',
-          },
-        };
-      }
-
-      await postgres.exec(
-        'INSERT INTO group_memberships (group_id, user_id, role) VALUES ($1, $2, $3)',
-        [group.id, userId, 'member']
-      );
-
-      const joinerName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
-      void notifyGroupMembers({
-        groupId: group.id,
-        excludeUserId: userId,
-        type: 'group_member_joined',
-        title: 'Neues Mitglied',
-        body: `${joinerName} ist „${group.name}" beigetreten`,
-        actionUrl: `/gruppen/${group.id}`,
-      }).catch(() => {});
-
       return {
         status: 200 as const,
         body: {
           success: true as const,
-          group,
-          message: `Erfolgreich der Gruppe "${group.name}" beigetreten.`,
+          group: outcome.group,
+          alreadyMember: outcome.alreadyMember,
+          message: outcome.alreadyMember
+            ? 'Du bist bereits Mitglied dieser Gruppe.'
+            : `Erfolgreich der Gruppe "${outcome.group.name}" beigetreten.`,
         },
       };
     } catch (error) {

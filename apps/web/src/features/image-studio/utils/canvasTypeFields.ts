@@ -16,7 +16,9 @@
  * this map (e.g. `presentation`, which is a multi-slide `pres-*` config) are not
  * single-document mintable and are intentionally left out.
  */
-import { IMAGE_STUDIO_TYPES, type ImageStudioType } from './typeConfig';
+import { type CanvasTemplateType } from '@gruenerator/contracts';
+
+import { IMAGE_STUDIO_TYPES } from './typeConfig';
 
 /** Store fields that can seed a canvas `initial_state`. */
 export type CanvasFormField =
@@ -28,6 +30,7 @@ export type CanvasFormField =
   | 'header'
   | 'body'
   | 'headline'
+  | 'accent'
   | 'subtext'
   | 'label'
   | 'eventTitle'
@@ -71,10 +74,6 @@ export const CANVAS_TYPE_FIELDS = {
     fields: ['eventTitle', 'beschreibung', 'weekday', 'date', 'time', 'locationName', 'address'],
     image: { key: 'imageSrc', source: 'upload', required: true },
   },
-  [IMAGE_STUDIO_TYPES.VERANSTALTUNG_PLAKAT]: {
-    fields: ['eventTitle', 'beschreibung', 'weekday', 'date', 'time', 'locationName', 'address'],
-    image: { key: 'imageSrc', source: 'upload', required: true },
-  },
   [IMAGE_STUDIO_TYPES.SIMPLE]: {
     fields: ['headline', 'subtext'],
     image: { key: 'imageSrc', source: 'upload', required: true },
@@ -89,10 +88,36 @@ export const CANVAS_TYPE_FIELDS = {
   [IMAGE_STUDIO_TYPES.FREEFORM]: {
     fields: [],
   },
-} satisfies Partial<Record<ImageStudioType, CanvasTypeFields>>;
+  // Österreich (de-AT) variants
+  [IMAGE_STUDIO_TYPES.INFO_AT]: {
+    fields: ['headline', 'accent', 'body'],
+  },
+  [IMAGE_STUDIO_TYPES.ZITAT_AT]: {
+    fields: ['quote', 'name'],
+    image: { key: 'imageSrc', source: 'upload', required: true },
+  },
+  [IMAGE_STUDIO_TYPES.ZITAT_PURE_AT]: {
+    fields: ['quote', 'name'],
+  },
+  [IMAGE_STUDIO_TYPES.DREIZEILEN_AT]: {
+    fields: ['line1', 'accent', 'line3'],
+  },
+  [IMAGE_STUDIO_TYPES.FREEFORM_AT]: {
+    fields: [],
+  },
+  // `Record<CanvasTemplateType, …>` (NOT Partial) ties these keys to the
+  // canonical enum: adding a mintable type without adding it to
+  // CANVAS_TEMPLATE_TYPES — or vice versa — is a compile error. This keeps
+  // `isMintableCanvasType`'s `type is CanvasTemplateType` narrowing sound.
+} satisfies Record<CanvasTemplateType, CanvasTypeFields>;
 
-/** Studio types that can be minted into a single collaborative canvas document. */
-export function isMintableCanvasType(type: string): boolean {
+/**
+ * Studio types that can be minted into a single collaborative canvas document.
+ * Type guard: narrows to `CanvasTemplateType` (the mintable set equals the
+ * canonical canvas-template enum), so `mintCanvasFromStudioStore` passes a
+ * validated `template_type` by construction.
+ */
+export function isMintableCanvasType(type: string): type is CanvasTemplateType {
   return Object.prototype.hasOwnProperty.call(CANVAS_TYPE_FIELDS, type);
 }
 

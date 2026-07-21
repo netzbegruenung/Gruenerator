@@ -19,13 +19,29 @@ VERFÜGBARE TOOLS:
 - research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
-- examples: Social-Media-Beispiele, Vorlagen, Posts zum Thema
+- examples: Social-Media-Vorlagen/Beispiele ANSEHEN ("zeig mir Beispiele") — ODER nur den reinen POST-TEXT ohne Grafik ("nur Text", "ohne Sharepic", "nur der Wortlaut", "als Bildunterschrift"). KEINE Sharepic-Grafik.
+- social_post: Social-Media-Post ERSTELLEN (Text + passende Sharepic-Grafik in einem) - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Ein Post ist KEINE direct-Aufgabe.
+- abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
+- bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
+- bahn: Konkrete BAHNAUSKUNFT der Deutschen Bahn - Zugverbindungen, Abfahrts-/Ankunftszeiten, Fahrpläne, Verspätungen, Gleise, Bahnhofsausstattung ("welche Zugverbindung von X nach Y", "wann fährt der nächste Zug nach", "Abfahrten in Köln", "hat mein Zug Verspätung", "gibt es Parkplätze am Hbf"). NUR für reine Zug-/Bahnhofsauskünfte, NICHT für Bahnpolitik/Bahnreform/Grüne Verkehrspositionen (→ search) und NICHT für Nachrichten über die Bahn (→ news/web).
+- reise: Kombinierte REISEPLANUNG - mehrere Reiseaspekte in EINER Anfrage (Zug + Hotel + Wetter): "plane meine Reise nach Berlin", "Zug und Unterkunft für den Parteitag", "Dienstreise nach X organisieren". Reine Zugauskunft → bahn; NUR Hotel → hotel; reine Wetterfrage → wetter; Tourismuspolitik → search.
+- hotel: Hotel-/Unterkunftssuche OHNE weitere Reiseplanung - "Hotel in Berlin für 2 Nächte", "Unterkunft in Nürnberg", "wo kann ich in X übernachten". Mit Zug/Anreise kombiniert → reise.
+- umfragen: WAHLUMFRAGEN und Meinungsbilder - Sonntagsfrage/Umfragewerte bundesweit oder pro Bundesland ("wie stehen die Grünen aktuell in Umfragen", "Sonntagsfrage Bayern", "aktuelle Umfragewerte der AfD") sowie Zustimmung zu Themen ("wie denken die Leute über Tempolimit"). NUR Umfragedaten, NICHT Parteipositionen (→ search), NICHT Wahlergebnisse oder namentliche Abstimmungen (→ abgeordnetenwatch/web).
+- wetter: Konkrete WETTERAUSKUNFT - Vorhersage, aktuelles Wetter, Temperatur, Regen, Luftqualität für einen Ort/Zeitraum ("wie wird das Wetter morgen in X", "regnet es am Samstag", "wie warm wird es", "Pollenbelastung in Y"). NUR für konkrete Wetterdaten, NICHT für Klimapolitik/Klimawandel-Fragen (→ search/web).
+- news: Aktuelle NACHRICHTENLAGE via tagesschau - Schlagzeilen, Meldungen zu einem Thema, Ressort- oder Regional-Nachrichten ("was gibt es Neues zu X", "aktuelle Nachrichten aus Bayern", "was meldet die tagesschau", "Nachrichtenlage zu Y"). Für die aktuelle Berichterstattung; bei allgemeiner Web-Recherche ohne News-Charakter → web.
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
+- compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ direct/search).
+- artifact: Darstellbares HTML/SVG-Artefakt - "baue eine HTML-Tabelle", "erstelle eine SVG-Grafik", "mach ein HTML-Mockup", "eine Landingpage als HTML" (NICHT für Diagramme aus Daten → das ist chart)
 - save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
+- create_sheet: Eigenständige, rechnende Tabelle (Spreadsheet) erstellen - "erstelle eine Tabelle", "mach ein Spreadsheet", "Budgetplan als Tabelle", "Kalkulation", "Datenliste mit Formeln". ABGRENZUNG: Eine einfache Tabelle IN einem Textdokument ("füge eine Tabelle ins Dokument ein", "als Dokument mit Tabelle") → save_as_doc mit documentSubtype "tabelle". Eine eigenständige Tabelle mit Daten/Formeln/Berechnungen → create_sheet. Eine HTML-Tabelle zum Anschauen → artifact.
+- create_presentation: Präsentation / Foliensatz / Slides / Pitch-Deck erstellen - "erstelle eine Präsentation", "mach Folien", "ein Foliensatz über X", "Präsentation für den Vortrag", "Slides zu Y". ABGRENZUNG: Eine Rede oder ein Vortrag ALS FLIESSTEXT ("schreibe eine Rede", "einen Vortrag als Text") → save_as_doc. Ein strukturierter Foliensatz zum Präsentieren → create_presentation.
+- create_recurring_task: WIEDERKEHRENDE Aufgabe einrichten, die REGELMÄSSIG automatisch läuft - "jeden Montag um 9 Uhr...", "täglich eine Zusammenfassung", "erinnere mich wöchentlich", "richte eine wiederkehrende Aufgabe ein", "jeden Tag automatisch". MUSS einen Wiederholungs-Rhythmus (täglich/wöchentlich/monatlich + Uhrzeit) enthalten. ABGRENZUNG: Eine EINMALIGE Aufgabe jetzt ("fasse X zusammen", "erstelle jetzt ein Dokument") → das passende Sofort-Intent (save_as_doc / summary / …), NICHT create_recurring_task.
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
+- chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
+- mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ direct).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
@@ -47,11 +63,12 @@ SCHRITT 2 - INHALTSTYP ANALYSIEREN:
 WICHTIG: "direct" ist der STANDARD-Intent. Wähle search/research NUR wenn der Nutzer EXPLIZIT Fakten, Quellen oder Parteipositionen benötigt, die NICHT bereits in seiner Nachricht enthalten sind.
 
 KREATIVE AUFGABE (→ direct):
-- "Erstelle/Schreib/Formulier eine Pressemitteilung/Rede/Artikel/Post" = IMMER direct (kreative Aufgabe)
+- "Erstelle/Schreib/Formulier eine Pressemitteilung/Rede/Artikel" = IMMER direct (kreative Aufgabe)
 - Wenn der Nutzer alle Inhalte bereits mitliefert (z.B. kopierter Text, Bio-Daten) = IMMER direct
-- Tweet/Post, Slogan, Motto, Claim = direct
+- Slogan, Motto, Claim, Einzeiler = direct
 - Gedicht, Witz, Nachrichten, Geburtstagskarte = direct
 - Umformulierungen, Kürzungen, Verbesserungen = direct
+- AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE direct-Aufgabe. Post erstellen → social_post (Standard); nur der Text ohne Grafik → examples; nur die Grafik → sharepic. Siehe Schritt 3, Regel 6.
 
 RECHERCHE NUR WENN:
 - Nutzer EXPLIZIT nach Fakten/Quellen fragt: "recherchiere", "finde Fakten zu", "belege für"
@@ -64,16 +81,30 @@ SCHRITT 3 - TOOL WÄHLEN:
 1b. Bildbearbeitung (Bearbeitungsverb + Bild/Foto-Bezug oder Bild-Anhang)? → image_edit
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
 3. Zusammenfassung eines angehängten/referenzierten Dokuments? → summary
+3b. Zeichen/Wörter zählen, rechnen, Einheiten umrechnen oder Datumsmathematik? → compute
 4. Als Dokument speichern? → save_as_doc
+4b. Eigenständige rechnende Tabelle/Spreadsheet erstellen? → create_sheet
+4c. Präsentation / Foliensatz / Slides erstellen? → create_presentation
+4d. Wiederkehrende, regelmäßig automatisch laufende Aufgabe (mit Rhythmus + Uhrzeit)? → create_recurring_task
 5. Dokument mit Gruppe teilen? → share_doc
-6. Social-Media-Vorlage/Beispiel suchen? → examples
+5b. Bezug auf ein FRÜHERES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu")? → chat_history
+6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
+6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
+6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
+6c. Bundestagsdokumente, Plenardebatten, Reden oder Gesetzgebungsverfahren (Drucksachen, Protokolle)? → bundestag
+6d. Kombinierte Reiseplanung (Zug + Hotel/Wetter)? → reise; NUR Hotel/Unterkunft? → hotel
+6e. REINE Zugverbindung/Abfahrtszeit/Fahrplan/Bahnhofsauskunft? → bahn (Bahnpolitik → search)
+6f. Konkrete Wettervorhersage/aktuelles Wetter für einen Ort? → wetter (Klimapolitik → search)
+6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
+6h. Wahlumfragen/Sonntagsfrage/Umfragewerte (bundesweit oder Bundesland)? → umfragen
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
 10. Alles andere (kreativ, Textbearbeitung, Erstelle/Schreib X) → direct
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
-Wenn intent search/research/web/examples ist, erstelle eine optimierte Suchquery:
+Wenn intent search/research/web/examples/social_post/chat_history ist, erstelle eine optimierte Suchquery:
+- Bei chat_history: extrahiere das THEMA des gesuchten Gesprächs oder Dokuments (z.B. "unser Chat über den Newsletter" → "Newsletter", "meine Präsentation zur Klimapolitik" → "Klimapolitik"). Zeitangaben ("letzte Woche", "gestern") gehören in date_from/date_to (Schritt 7), nicht in die Query.
 - Entferne Aufgabenanweisungen (schreib, erstelle, formuliere, verfasse...)
 - Behalte NUR das faktische Thema für die Suche
 - Beispiel: "Schreib eine Pressemitteilung über die Klimapolitik der Grünen" → "Klimapolitik der Grünen"
@@ -155,7 +186,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -200,10 +231,24 @@ export const NON_SEARCH_INTENTS = new Set([
   'image',
   'image_edit',
   'chart',
+  'artifact',
+  'compute',
   'save_as_doc',
+  'create_sheet',
+  'create_presentation',
+  'create_recurring_task',
   'modify_doc',
   'modify_board',
   'share_doc',
+  'mcp',
+  // System MCP sources: the loop's tools take the model's own arguments — no
+  // Qdrant search-query optimization involved.
+  'bahn',
+  'reise',
+  'hotel',
+  'umfragen',
+  'wetter',
+  'news',
 ]);
 
 export const CLASSIFIER_CONTEXT_MESSAGES = 5;

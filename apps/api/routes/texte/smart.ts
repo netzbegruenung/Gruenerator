@@ -38,7 +38,6 @@ const smartSchema = z
     inhalt: z.string().optional(),
     prompt: z.string().optional(),
     useWebSearchTool: z.boolean().optional(),
-    usePrivacyMode: z.boolean().optional(),
     provider: z.string().optional(),
   })
   .passthrough()
@@ -51,7 +50,7 @@ smartRouter.post(
   '/',
   validateBody(smartSchema),
   withErrorHandler(async (req: TypedRequest<SmartBody>, res: Response): Promise<void> => {
-    const { inhalt, prompt, useWebSearchTool, usePrivacyMode, provider, ...restBody } = req.body;
+    const { inhalt, prompt, useWebSearchTool, provider, ...restBody } = req.body;
 
     // Support both 'inhalt' and 'prompt' as the main text input
     const userPrompt = (inhalt || prompt)!;
@@ -85,7 +84,6 @@ smartRouter.post(
         ...restBody,
         inhalt: userPrompt,
         useWebSearchTool,
-        usePrivacyMode,
         provider,
         ...fieldOverrides,
         ...detection.params,

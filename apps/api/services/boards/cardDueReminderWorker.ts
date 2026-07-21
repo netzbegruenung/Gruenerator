@@ -7,6 +7,7 @@
  * board owner, then stamp reminded_at so it fires once.
  */
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createIntervalWorker } from '../../utils/intervalWorker.js';
 import { createLogger } from '../../utils/logger.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
@@ -18,8 +19,12 @@ const db = getPostgresInstance();
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // hourly
 
-let intervalId: ReturnType<typeof setInterval> | null = null;
-let initialized = false;
+const worker = createIntervalWorker({
+  name: 'CardDueReminder',
+  intervalMs: CHECK_INTERVAL_MS,
+  initialDelayMs: 90_000,
+  tick: runReminderScan,
+});
 
 interface DueRow {
   board_id: string;
@@ -84,17 +89,9 @@ async function runReminderScan(): Promise<void> {
 }
 
 export function startCardDueReminderWorker(): void {
-  if (initialized) return;
-  setTimeout(() => void runReminderScan().catch(() => {}), 90_000);
-  intervalId = setInterval(() => void runReminderScan().catch(() => {}), CHECK_INTERVAL_MS);
-  initialized = true;
-  log.info('Card due-date reminder worker started (interval: 1h)');
+  worker.start();
 }
 
 export function stopCardDueReminderWorker(): void {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-    initialized = false;
-  }
+  worker.stop();
 }

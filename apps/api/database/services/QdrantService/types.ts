@@ -54,6 +54,7 @@ export interface CollectionNames {
   gruene_de_documents: string;
   gruene_at_documents: string;
   landesverbaende_documents: string;
+  abgeordnetenwatch_documents: string;
 }
 
 /**

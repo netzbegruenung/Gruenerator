@@ -24,10 +24,6 @@ export interface AuthRequest<P = ParamsDictionary> extends Request<P> {
 // Route Body Types
 // ============================================================================
 
-export interface LocaleUpdateBody {
-  locale: 'de-DE' | 'de-AT';
-}
-
 export interface ProfileUpdateBody {
   display_name?: string | undefined;
   username?: string | undefined;

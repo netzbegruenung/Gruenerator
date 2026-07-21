@@ -166,6 +166,13 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
       log.info(`Hocuspocus server listening on ${host}:${port}`);
       log.info('WebSocket endpoint: ws://' + host + ':' + port);
 
+      // Sheets/presentations/boards created before the preview pipeline have an
+      // empty `content` column until their next store — fill those on every boot
+      // (idempotent, matches nothing once previews exist).
+      persistence.backfillMissingTypedPreviews().catch((err) => {
+        log.error(`[Backfill] Error during typed-preview backfill: ${err}`);
+      });
+
       // Full preview backfill loads every document from Postgres — opt-in only,
       // for one-off repairs. Previews stay fresh via updateContentPreview on store.
       if (process.env.HOCUSPOCUS_BACKFILL_PREVIEWS === 'true') {

@@ -50,7 +50,6 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     boards: row.boards,
     bundestag_api_enabled: row.bundestag_api_enabled,
     memory_enabled: row.memory_enabled,
-    wordpress_enabled: row.wordpress_enabled,
 
     // Timestamps
     created_at: row.created_at ?? new Date(),

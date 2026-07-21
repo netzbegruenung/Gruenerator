@@ -13,3 +13,22 @@ export { BlockNoteEditor, type BlockNoteEditorProps } from './components/editor/
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { invokeDocumentAI } from './lib/invokeDocumentAI';
 export { acceptDocumentAI, rejectDocumentAI } from './lib/reviewDocumentAI';
+// Pure undo/redo flag reader (no react-icons) — used by the DOM bridge to push
+// undo/redo availability to the native toolbar.
+export { getDocUndoFlags, type UndoableEditor } from './hooks/useDocUndoState';
+// Track-changes (Änderungsmodus): the DOM bridge reads the mode flag + suggestion
+// list out of the Y.Doc and drives accept/reject over the native action bridge.
+// Pure logic only (no react-icons), so it stays out of the native-bundle weight.
+export { useDocSuggestions } from './hooks/useDocSuggestions';
+export {
+  isSuggestionModeEnabled,
+  setSuggestionMode,
+  observeSuggestionMode,
+  acceptSuggestionById,
+  rejectSuggestionById,
+  acceptAllSuggestions,
+  rejectAllSuggestions,
+  jumpToSuggestion,
+  type DocSuggestion,
+  type SuggestionKind,
+} from './lib/suggestionMode';

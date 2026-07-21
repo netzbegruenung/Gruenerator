@@ -31,9 +31,11 @@ import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { createAIService, type AIService } from './services/ai/aiService.js';
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
+import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
+import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
@@ -196,7 +198,18 @@ async function startWorker(): Promise<void> {
   // CORS configuration
   const allowedOrigins = getCorsOrigins(isDevelopment);
   const corsOptions = createCorsOptions(allowedOrigins);
-  app.use(cors(corsOptions));
+  const strictCors = cors(corsOptions);
+  // The Bearer-authenticated MCP endpoint is origin-agnostic: browser MCP
+  // clients send Origins outside the allowlist and must still reach the
+  // 401/WWW-Authenticate challenge instead of dying in the strict validator.
+  const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate', 'Mcp-Session-Id'] });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api/mcp-server')) {
+      mcpCors(req, res, next);
+      return;
+    }
+    strictCors(req, res, next);
+  });
 
   // Body parsing with TUS skip logic
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -278,6 +291,14 @@ async function startWorker(): Promise<void> {
 
   // Reminds card watchers about cards due today/tomorrow (idempotent via reminded_at).
   startCardDueReminderWorker();
+
+  // Fires due board schedules (recurring KI-Spalte runs) → enqueues agent tasks.
+  // Cluster-safe: the claim advances next_run_at under FOR UPDATE SKIP LOCKED.
+  startBoardScheduleWorker();
+
+  // EXPERIMENTAL: fires due standalone recurring tasks (recurring_tasks) → runs the
+  // agent + delivers inline. Same cluster-safe claim pattern.
+  startRecurringTaskWorker();
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression
@@ -411,12 +432,62 @@ async function startWorker(): Promise<void> {
           message: { error: 'Too many authentication requests, please try again later.' },
         });
   const { betterAuthHandler } = await import('./routes/auth/betterAuthHandler.js');
+
+  // MCP OAuth: the `mcp` plugin skips the consent page unless the query is
+  // EXACTLY `prompt=consent` — a malicious DCR client could send `prompt=none`
+  // to mint a token silently. Rewrite every other value (append would loop on
+  // duplicated/empty prompt params). Must run before the catch-all handler.
+  app.get('/api/auth/v2/mcp/authorize', (req, res, next) => {
+    if (req.query.prompt === 'consent') {
+      next();
+      return;
+    }
+    const url = new URL(req.originalUrl, 'http://placeholder');
+    url.searchParams.delete('prompt');
+    url.searchParams.append('prompt', 'consent');
+    res.redirect(302, `${url.pathname}${url.search}`);
+  });
+
   app.all('/api/auth/v2/*splat', betterAuthIpLimiter, (req, res, next) => {
     if (!req.headers['x-forwarded-for'] && !req.headers['x-real-ip']) {
       req.headers['x-forwarded-for'] = req.socket.remoteAddress || '0.0.0.0';
     }
     Promise.resolve(betterAuthHandler(req, res)).catch(next);
   });
+
+  // OAuth discovery at the ORIGIN ROOT (RFC 8414/9728) — Better Auth serves
+  // these only under its basePath, but clients resolve them at the root.
+  {
+    const { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } =
+      await import('better-auth/plugins');
+    const { fromNodeHeaders } = await import('better-auth/node');
+    const { auth } = await import('./config/betterAuth.js');
+    const serveWellKnown =
+      (handler: (request: globalThis.Request) => Promise<globalThis.Response>) =>
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const base = env.BETTER_AUTH_URL ?? `http://${req.headers.host ?? 'localhost'}`;
+          const webReq = new globalThis.Request(`${base}${req.originalUrl}`, {
+            method: 'GET',
+            headers: fromNodeHeaders(req.headers),
+          });
+          const webRes = await handler(webReq);
+          res.status(webRes.status);
+          webRes.headers.forEach((value, key) => res.setHeader(key, value));
+          res.send(await webRes.text());
+        } catch (err) {
+          next(err);
+        }
+      };
+    app.get(
+      ['/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/*splat'],
+      serveWellKnown(oAuthDiscoveryMetadata(auth))
+    );
+    app.get(
+      ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/*splat'],
+      serveWellKnown(oAuthProtectedResourceMetadata(auth))
+    );
+  }
 
   // Logging middleware (only for errors)
   app.use(
@@ -596,13 +667,21 @@ async function startWorker(): Promise<void> {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = isHttpError(err) ? err.status : 500;
 
-    log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
-      path: req.path,
-      method: req.method,
-      statusCode,
-      errorCode: (err as NodeJS.ErrnoException).code,
-      stack: err.stack,
-    });
+    // 4xx are client errors (malformed JSON body, bad params, …) — noise at ERROR
+    // level. Log them compactly at warn without a stack; reserve ERROR + stack for 5xx.
+    if (statusCode >= 400 && statusCode < 500) {
+      log.warn(
+        `[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path} (${statusCode})`
+      );
+    } else {
+      log.error(`[GlobalErrorHandler] ${err.name}: ${err.message} | ${req.method} ${req.path}`, {
+        path: req.path,
+        method: req.method,
+        statusCode,
+        errorCode: (err as NodeJS.ErrnoException).code,
+        stack: err.stack,
+      });
+    }
 
     if (req.path.startsWith('/api/auth/v2/')) {
       log.error(`[BetterAuth] Error on ${req.path}: ${err.message}`, {

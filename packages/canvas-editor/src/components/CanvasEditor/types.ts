@@ -10,6 +10,13 @@ export interface CanvasEditorProps {
   initialProps: Record<string, unknown>;
   onExport: (base64: string) => void;
   onCancel: () => void;
+  /**
+   * Fired with the rendered image whenever the user downloads the current
+   * page. Unlike onExport (a flow-level "done" callback with host side
+   * effects), this is a pure observation hook — e.g. collab hosts reuse the
+   * download image as a fresh document thumbnail.
+   */
+  onDownload?: (base64: string) => void;
   callbacks?: Record<string, (val: unknown) => void>;
   maxPages?: number;
   /** Pre-populated pages — overrides single-page initialization when provided */
@@ -42,11 +49,24 @@ export interface CanvasEditorProps {
    */
   onInvitePeople?: () => void;
   /**
+   * Collab mode only: fired with a fresh stage render after local edits
+   * settle (debounced) and when the tab is hidden. Hosts use it to keep the
+   * document thumbnail current — without it the gallery/recents preview only
+   * refreshes on download.
+   */
+  onCollabSnapshot?: (base64: string) => void;
+  /**
    * Seeds the per-instance AutoSaveStore with a known share token, e.g. when
    * the editor is opened against an existing share via URL. Without this seed,
    * the first save after a page reload creates a new draft instead of updating.
    */
   initialShareToken?: string | null;
+  /**
+   * Called when the auto-save creates or adopts a share token. Hosts use this
+   * to remember the token across editor remounts (and to keep their own save
+   * paths updating the same share instead of creating duplicate drafts).
+   */
+  onAutoSaveShareToken?: (token: string) => void;
 }
 
 export interface PageWrapperProps {
@@ -61,6 +81,8 @@ export interface PageWrapperProps {
   onDelete: (id: string) => void;
   onMovePage: (id: string, direction: 'up' | 'down') => void;
   onDuplicatePage: (id: string) => void;
+  /** Opens the template picker in replace mode for this page ("Vorlage ändern"). */
+  onChangeTemplate?: (id: string) => void;
   onExport: (base64: string) => void;
   onCancel: () => void;
   callbacks: Record<string, (val: unknown) => void>;
@@ -78,11 +100,18 @@ export interface PageWrapperProps {
   ) => void;
   mobileBridge?: MobileBridgeProps;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
+  /** See CanvasEditorProps.onAutoSaveShareToken. */
+  onAutoSaveShareToken?: (token: string) => void;
   /**
-   * Per-page collaborative binding. The page Y.Map under which `layers` and
-   * `config` are stored. Set on every page in collab mode (one Y.Map per page).
+   * Per-page (single-page) gallery autosave. Explicit because the page always
+   * has a Y.Map binding now — presence of the binding no longer implies collab.
    */
-  pageCollaborative?: {
+  autoSave?: boolean;
+  /**
+   * Per-page Y.Map binding for layers/config/state. Set on every page in both
+   * modes; `provider` is only present in collab mode.
+   */
+  pageBinding?: {
     pageYMap: import('yjs').Map<unknown>;
     isSynced: boolean;
     /** Hocuspocus provider — enables awareness features (remote selections). */

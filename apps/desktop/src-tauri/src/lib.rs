@@ -105,6 +105,7 @@ fn toggle_window_visibility(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -431,11 +432,12 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
+        .run(|_app_handle, _event| {
             // Reopen the window when the Dock icon is clicked (macOS) after it was
-            // hidden via close-to-tray.
-            if let tauri::RunEvent::Reopen { .. } = event {
-                show_main_window(app_handle);
+            // hidden via close-to-tray. `RunEvent::Reopen` is macOS-only.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                show_main_window(_app_handle);
             }
         });
 }

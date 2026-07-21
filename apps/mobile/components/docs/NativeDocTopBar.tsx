@@ -41,6 +41,20 @@ export function NativeDocTopBar() {
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
   const toggleFullscreen = useDocsEditorBridgeStore((s) => s.toggleFullscreen);
   const setVersionsOpen = useDocsEditorBridgeStore((s) => s.setVersionsOpen);
+  const canUndo = useDocsEditorBridgeStore((s) => s.canUndo);
+  const canRedo = useDocsEditorBridgeStore((s) => s.canRedo);
+  const suggestionMode = useDocsEditorBridgeStore((s) => s.suggestionMode);
+  const suggestionCount = useDocsEditorBridgeStore((s) => s.suggestions.length);
+  const setSuggestionsSheetOpen = useDocsEditorBridgeStore((s) => s.setSuggestionsSheetOpen);
+
+  // Änderungsmodus is doc-wide (Word semantics): flipping it syncs to all editors.
+  // The review sheet opens only via "Änderungen prüfen"; disabling still closes it
+  // so a stale open flag doesn't resurface the sheet on the next enable.
+  const toggleSuggestionMode = () => {
+    const next = !suggestionMode;
+    dispatchAction({ type: 'set-suggestion-mode', enabled: next });
+    if (!next) setSuggestionsSheetOpen(false);
+  };
 
   // Native dictation: the OS recognizer (final transcript) feeds the editor via
   // the insert-text bridge — the in-editor web mic can't run in the WebView.
@@ -124,6 +138,35 @@ export function NativeDocTopBar() {
       )}
 
       {canEdit && (
+        <>
+          <TouchableOpacity
+            onPress={() => dispatchAction({ type: 'undo' })}
+            disabled={!canUndo}
+            style={styles.iconButton}
+            accessibilityLabel="Rückgängig"
+          >
+            <Ionicons
+              name="arrow-undo-outline"
+              size={22}
+              color={canUndo ? theme.text : theme.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => dispatchAction({ type: 'redo' })}
+            disabled={!canRedo}
+            style={styles.iconButton}
+            accessibilityLabel="Wiederholen"
+          >
+            <Ionicons
+              name="arrow-redo-outline"
+              size={22}
+              color={canRedo ? theme.text : theme.textSecondary}
+            />
+          </TouchableOpacity>
+        </>
+      )}
+
+      {canEdit && (
         <TouchableOpacity
           onPress={handleDictate}
           style={styles.iconButton}
@@ -167,7 +210,7 @@ export function NativeDocTopBar() {
                 onPress={() => {
                   setMenuOpen(false);
                   if (router.canGoBack()) router.back();
-                  else router.replace('/(tabs)/(docs)');
+                  else router.replace('/(tabs)/(office)');
                 }}
               >
                 <Ionicons name="arrow-back" size={20} color={theme.text} />
@@ -184,6 +227,51 @@ export function NativeDocTopBar() {
               <Ionicons name="share-social-outline" size={20} color={theme.text} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
             </TouchableOpacity>
+            {canEdit && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  toggleSuggestionMode();
+                }}
+              >
+                <Ionicons
+                  name={suggestionMode ? 'git-compare' : 'git-compare-outline'}
+                  size={20}
+                  color={suggestionMode ? colors.primary[600] : theme.text}
+                />
+                <Text
+                  style={[
+                    styles.menuItemText,
+                    { color: suggestionMode ? colors.primary[600] : theme.text },
+                  ]}
+                >
+                  Änderungen nachverfolgen (Experimentell)
+                </Text>
+                {suggestionMode && (
+                  <Ionicons
+                    name="checkmark"
+                    size={18}
+                    color={colors.primary[600]}
+                    style={styles.menuItemTrailing}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+            {canEdit && suggestionMode && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  setSuggestionsSheetOpen(true);
+                }}
+              >
+                <Ionicons name="list-outline" size={20} color={theme.text} />
+                <Text style={[styles.menuItemText, { color: theme.text }]}>
+                  Änderungen prüfen{suggestionCount > 0 ? ` (${suggestionCount})` : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -269,6 +357,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 8,
     minWidth: 180,
+    maxWidth: 300,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 6,
@@ -288,5 +377,9 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 15,
     fontWeight: '500',
+    flexShrink: 1,
+  },
+  menuItemTrailing: {
+    marginLeft: 'auto',
   },
 });

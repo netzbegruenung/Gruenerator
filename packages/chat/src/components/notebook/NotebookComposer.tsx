@@ -1,7 +1,8 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/store';
-import { BookOpen, Settings, Zap } from 'lucide-react';
+import { BookOpen, Zap } from 'lucide-react';
+import { LuSettings2 } from 'react-icons/lu';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -103,7 +104,7 @@ function NotebookSettingsDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className={composerToolbarButtonClass()}>
-          <Settings className="h-4 w-4" />
+          <LuSettings2 className="h-4 w-4" />
           {hasActiveBadge && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
               {categoryActiveCount + sourceActiveCount}
@@ -268,20 +269,23 @@ export function NotebookComposer({
   return (
     <GrueneratorComposer
       isRunning={isRunning}
+      variant="pill"
       placeholder={placeholder}
       disclaimer="Antworten können ungenau sein. Wichtige Infos bitte prüfen."
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
       modelPickerThreadModeOverride="notebook"
-      toolbarExtra={
-        <NotebookSettingsDropdown
-          mode={mode}
-          onModeChange={onModeChange}
-          sourceFilters={sourceFilters}
-          categoryFilters={categoryFilters}
-        />
-      }
+      slots={{
+        leading: (
+          <NotebookSettingsDropdown
+            mode={mode}
+            onModeChange={onModeChange}
+            sourceFilters={sourceFilters}
+            categoryFilters={categoryFilters}
+          />
+        ),
+      }}
     />
   );
 }

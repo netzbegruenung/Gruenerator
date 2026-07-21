@@ -11,7 +11,9 @@ import {
   fileToBase64,
   getAcceptedFileTypes,
 } from '../lib/fileUtils';
+import { isTabularFile } from '../lib/spreadsheetSetup';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { usePythonFileStore } from '../stores/pythonFileStore';
 
 // Synthetic content types used by @docs / @datei mention chips. These never
 // correspond to real File uploads — they flow through AUI's CreateAttachment
@@ -24,6 +26,7 @@ const SYNTHETIC_MENTION_TYPES = [
   'application/x-gruenerator-datei-text',
   'application/x-gruenerator-wolke',
   'application/x-gruenerator-connect',
+  'application/x-gruenerator-webpage',
 ];
 
 /** Name of the data content part carrying a chat video's TUS upload result. */
@@ -116,6 +119,18 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
       } finally {
         this.reelUploads.delete(attachment.id);
       }
+    }
+
+    // Bridge tabular files into the in-browser interpreter: keep the raw bytes
+    // in a session store so the Python Run button can pass them to the Pyodide
+    // worker (the base64 part below still goes to the model, so it knows the
+    // file name/columns). Zero-cost for non-tabular attachments.
+    if (isTabularFile(attachment.name, mimeType)) {
+      usePythonFileStore.getState().setFile({
+        name: attachment.name,
+        mimeType,
+        bytes: await attachment.file.arrayBuffer(),
+      });
     }
 
     const base64 = await fileToBase64(attachment.file);

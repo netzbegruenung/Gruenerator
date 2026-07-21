@@ -15,6 +15,8 @@
  */
 import { z } from 'zod';
 
+import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
+
 // ── Shared shapes ──────────────────────────────────────────────────────────
 
 /** Mirrors `PermissionEntry` in apps/api/routes/docs/types.ts. */
@@ -48,6 +50,15 @@ export const canvasDocumentSchema = z.object({
 
 export type CanvasDocument = z.infer<typeof canvasDocumentSchema>;
 
+/**
+ * List rows omit `initial_state`: the full canvas JSONB (all pages/elements)
+ * would make GET /api/canvas scale with total canvas count while list
+ * consumers only render metadata cards.
+ */
+export const canvasListItemSchema = canvasDocumentSchema.omit({ initial_state: true });
+
+export type CanvasListItem = z.infer<typeof canvasListItemSchema>;
+
 // ── Request bodies ─────────────────────────────────────────────────────────
 
 export const createCanvasBodySchema = z.object({
@@ -60,6 +71,26 @@ export const createCanvasBodySchema = z.object({
 });
 
 export type CreateCanvasBody = z.infer<typeof createCanvasBodySchema>;
+
+/**
+ * POST /api/canvas/from-variant — server-authoritative mint of an unminted chat
+ * sharepic variant. The server seeds the Yjs formState from the FULL
+ * `initial_props` (lossless, unlike the old client mint), binds it to the
+ * thread/variant (idempotent — a re-open or a later chat edit reuse the same
+ * canvas), and returns the canvasId to open at `/studio/canvas/:id`.
+ */
+export const canvasFromVariantBodySchema = z.object({
+  canvasType: canvasTemplateTypeSchema,
+  initialProps: z.record(z.string(), z.unknown()),
+  threadId: z.string(),
+  variantId: z.string(),
+});
+
+export type CanvasFromVariantBody = z.infer<typeof canvasFromVariantBodySchema>;
+
+export const canvasFromVariantResponseSchema = z.object({
+  canvasId: z.string(),
+});
 
 export const updateCanvasBodySchema = z.object({
   title: z.string().optional(),
@@ -79,7 +110,7 @@ export type ResizeCanvasBody = z.infer<typeof resizeCanvasBodySchema>;
 
 // ── Response wrappers ──────────────────────────────────────────────────────
 
-export const canvasListResponseSchema = z.array(canvasDocumentSchema);
+export const canvasListResponseSchema = z.array(canvasListItemSchema);
 
 export const canvasMessageResponseSchema = z.object({
   message: z.string(),

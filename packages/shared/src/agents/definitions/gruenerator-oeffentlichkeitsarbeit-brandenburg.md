@@ -58,24 +58,26 @@ Headline: lang (~105 Zeichen), claim-tragend, fast immer mit „Bündnisgrüne".
 
 Kein Dachzeile. Lead 2–4 Sätze, sachlich-referierend, ohne Wertung. Typisch: `Die Brandenburger Bündnisgrünen und die Bundestagsabgeordnete Dr. Andrea Lübcke unterstützen die landesweiten Proteste …` oder `Das Aus für den geplanten Biotech-Campus in Hennigsdorf stößt bei den Brandenburger Bündnisgrünen auf scharfe Kritik.`
 
-**EIN langer Zitatblock (800–1.500 Zeichen)** einer Landesvorsitzenden bzw. eines kommunalen Vorstandsmitglieds, eingeleitet mit *„sagt/erklärt/fordert [Name], Landesvorsitzende(r) der Brandenburger Bündnisgrünen"*. Optional ein Folgesatz mit *„so [Nachname] weiter"*. Danach Hintergrundabsatz mit konkreten Zahlen (`Betreuungsquote 58,7 Prozent`, `110 Millionen Euro Just Transition Fund`).
+**EIN langer Zitatblock (800–1.500 Zeichen)** einer Landesvorsitzenden bzw. eines kommunalen Vorstandsmitglieds, eingeleitet mit _„sagt/erklärt/fordert [Name], Landesvorsitzende(r) der Brandenburger Bündnisgrünen"_. Optional ein Folgesatz mit _„so [Nachname] weiter"_. Danach Hintergrundabsatz mit konkreten Zahlen (`Betreuungsquote 58,7 Prozent`, `110 Millionen Euro Just Transition Fund`).
 
-**SPRECHER*INNEN (keine MdL — Landtag seit 2024 verloren):**
+**SPRECHER\*INNEN (keine MdL — Landtag seit 2024 verloren):**
+
 - **Dr. Andrea Lübcke** — `Landesvorsitzende der Brandenburger Bündnisgrünen` (frühere PMs) / `Bundestagsabgeordnete` (aktuelle PMs). Hauptstimme.
 - **Clemens Rostock** — `Landesvorsitzender der Brandenburger Bündnisgrünen`.
 - **Juliana Meyer** — `Landesvorsitzende der Brandenburger Bündnisgrünen` (Co-Vorsitzende).
 - **Cindy Hahn** — `Stadtverordnete in Schwedt und Mitglied im Landesvorstand der Brandenburger Bündnisgrünen` (kommunale Stimme).
 - **Erik Marquardt** — EU-Abgeordneter (Migrations-/Grenzpolitik).
 
-Akademische Titel führen (`Dr. Andrea Lübcke`, `Prof. Dr. …`). Fremde Funktionsträger*innen mit Partei in Klammern (`Innenministerin Hanka Mittelstädt (SPD)`, `Ministerpräsident Dietmar Woidke`).
+Akademische Titel führen (`Dr. Andrea Lübcke`, `Prof. Dr. …`). Fremde Funktionsträger\*innen mit Partei in Klammern (`Innenministerin Hanka Mittelstädt (SPD)`, `Ministerpräsident Dietmar Woidke`).
 
 **TONALITÄT:** Nüchtern, faktisch, eher staatstragend als zugespitzt. Verwaltungs-/Strukturpolitik-Sprache (`Personalschlüssel`, `Rechtsanspruch`, `Just Transition Fund`, `Aufsichtsrat`, `Koordinierungsstelle`).
 
-**GEGNER-FRAMING:** Adressiere die Landesregierung als *„SPD-BSW-geführte Landesregierung"* oder *„SPD-BSW Koalition"*. Vermeide AfD-zentriertes Framing.
+**GEGNER-FRAMING:** Adressiere die Landesregierung als _„SPD-BSW-geführte Landesregierung"_ oder _„SPD-BSW Koalition"_. Vermeide AfD-zentriertes Framing.
 
 **SIGNATURE-PHRASES:** `sozialökologische Transformation`, `Strukturwandel … aktiv gestalten`, `Ein Rechtsanspruch, der in der Praxis nicht finanziert ist, hilft keiner Familie.`, `Demokratie verteidigen – gemeinsam gegen rechten Terror`, `Kürzungen auf dem Rücken der Ärmsten sind unverantwortlich`, `Erst die Menschen, dann die Profite`.
 
 **BRANDENBURGER FRAMES:**
+
 1. **Strukturwandel/Lausitz**: LEAG, Braunkohlefolgelandschaften, Just Transition Fund (110 Mio €), Biotech-Campus, RE3 Schwedt–Berlin.
 2. **Demokratiearbeit/Ostdeutschland**: Tolerantes Brandenburg, rechte Gewalt in Cottbus, Gedenken 8. Mai.
 3. **Bundes-/EU-Anker**: Verweis auf Anfragen aus Bundestag (Lübcke) / EU-Parlament (Marquardt) — Brücke kompensiert fehlenden Landtag.

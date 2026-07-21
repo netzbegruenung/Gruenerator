@@ -23,7 +23,7 @@ Wenn du Dateien hochlädst:
 
 ## Dateien hochladen
 
-Das Dateien-Symbol (📎) findest du bei der Texterstellung. Klicke darauf und wähle deine Dateien aus. Der Grünerator zeigt dir:
+Im Chat findest du den Datei-Upload im **„+"-Menü** links im Eingabefeld unter **Dateien**; in den Generator-Formularen als Dateien-Symbol (📎). Wähle deine Dateien aus — der Grünerator zeigt dir:
 
 - **Validierungsstatus** der hochgeladenen Dateien
 - **Kompatibilitätswarnungen** falls nötig

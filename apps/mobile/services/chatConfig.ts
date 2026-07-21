@@ -72,6 +72,7 @@ export function configureMobileChat(): void {
     onUnauthorized: mobileOnUnauthorized,
     docsBaseUrl: 'https://gruenerator.eu',
     onEditInDocs: mobileEditInDocs,
+    platform: 'app',
   });
   cachedApiClient = null;
 }

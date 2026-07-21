@@ -1,15 +1,17 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
-import { type UserProfile } from '@gruenerator/contracts';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
+import { mcp } from 'better-auth/plugins';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
 import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
+import { setUserLocale } from '../services/localization/localeCache.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
@@ -17,6 +19,14 @@ import { redisClient } from '../utils/redis/client.js';
 import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
+import {
+  MCP_CONSENT_PAGE,
+  MCP_DEFAULT_SCOPE,
+  MCP_LOGIN_PAGE,
+  MCP_OAUTH_SCOPES_SUPPORTED,
+  MCP_RESOURCE_URL,
+  MCP_SCOPES,
+} from './mcpServer.js';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
@@ -26,7 +36,23 @@ const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configur
 
 const log = createLogger('BetterAuth');
 
-function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT' = 'de-DE') {
+/**
+ * IdP → audience locale. The Keycloak realm a user signs in through is the
+ * authoritative country signal (AT users come through the gruene-at IdP). This
+ * map is the SINGLE source of truth for locale: it seeds the value at account
+ * creation (`mapProfileToUser`) and re-asserts it on every login
+ * (`databaseHooks.account` → `syncLocaleFromProvider`). Unknown providers fall
+ * back to 'de-DE'.
+ */
+const PROVIDER_LOCALE: Record<string, 'de-DE' | 'de-AT'> = {
+  'keycloak-gruene-at': 'de-AT',
+  'keycloak-netzbegruenung': 'de-DE',
+  'keycloak-gruenes-netz': 'de-DE',
+  'keycloak-gruenerator': 'de-DE',
+};
+
+function keycloakProvider(id: string, idpHint: string) {
+  const locale = PROVIDER_LOCALE[id] ?? 'de-DE';
   return {
     providerId: id,
     clientId: KC_CLIENT_ID,
@@ -42,6 +68,35 @@ function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT'
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 const db = drizzle(pool, { schema });
+
+/**
+ * Re-assert the IdP's locale on the user's profile on login. `mapProfileToUser`
+ * only sets locale when the account is first CREATED, so an existing user who
+ * later signs in through the AT IdP would otherwise keep a stale `de-DE`. Runs
+ * from the account create/update hooks (fire on every login). Writes only on an
+ * actual change — via Drizzle, bypassing Better Auth's cookie cache; the fresh
+ * login session (and the next `getSession` refresh) pick up the new value.
+ */
+async function syncLocaleFromProvider(userId: string, providerId: string): Promise<void> {
+  const locale = PROVIDER_LOCALE[providerId];
+  if (!locale) return;
+  try {
+    const rows = await db
+      .select({ locale: schema.profiles.locale })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, userId))
+      .limit(1);
+    const current = rows[0]?.locale ?? null;
+    if (current === locale) return;
+    await db.update(schema.profiles).set({ locale }).where(eq(schema.profiles.id, userId));
+    await setUserLocale(userId, locale);
+    log.info(
+      `[Auth] locale-synced user=${userId} provider=${providerId} ${current ?? 'none'} → ${locale}`
+    );
+  } catch (err) {
+    log.warn(`[Auth] locale sync failed user=${userId}: ${(err as Error).message}`);
+  }
+}
 
 // One-shot config snapshot at module load — answers "what URL did the
 // container actually pick up?" without requiring a request to fire.
@@ -96,6 +151,17 @@ export const auth = betterAuth({
           `[BA:warn] oauth state replay code=${err?.code ?? 'unknown'} (benign: expired or already-consumed callback)`
         );
         return;
+      }
+      // Known Better Auth secondary-storage corruption: a partial/corrupt
+      // `ba:<token>` Redis value makes deleteSession early-return WITHOUT
+      // deleting the DB row or firing hooks — leaving a revoked session's row
+      // alive (a silent half-logged-in source). Not benign; alert on it.
+      if (
+        level === 'error' &&
+        typeof message === 'string' &&
+        /not found in secondary storage/i.test(message)
+      ) {
+        captureAuthIssue({ stage: 'better-auth', cause: new Error(message), extras: { args } });
       }
       const sink =
         level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
@@ -152,7 +218,6 @@ export const auth = betterAuth({
       boards: { type: 'boolean', required: false, defaultValue: false },
       bundestag_api_enabled: { type: 'boolean', required: false, defaultValue: false },
       memory_enabled: { type: 'boolean', required: false, defaultValue: false },
-      wordpress_enabled: { type: 'boolean', required: false, defaultValue: false },
     },
   },
 
@@ -171,6 +236,15 @@ export const auth = betterAuth({
     storeSessionInDatabase: true,
     cookieCache: {
       enabled: true,
+      // 300s = Better Auth's default. This is the IDLE-TOLERANCE window: while
+      // the signed `ba.session_data` snapshot is valid, getSession answers from
+      // it without a store lookup, so an idle user isn't logged out for up to
+      // 5 min. A previous change to 60s cut that to ~1 min and logged idle users
+      // out far too aggressively. The prolonged "half logged in" state is
+      // prevented by the unified 401 teardown (getSession stays authoritative
+      // on real 401s via disableCookieCache) — NOT by shrinking this window, so
+      // 300s is the right value. Do NOT disable: that puts Redis/PG on every
+      // request's hot path.
       maxAge: 300,
     },
     additionalFields: {
@@ -336,13 +410,36 @@ export const auth = betterAuth({
       create: {
         after: async (session) => {
           log.info(
-            `[Auth] session-created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'}`
+            `[Session] created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
           );
           // Deliver one-off product announcements (e.g. new Pride avatars) on
           // login — once per user, idempotent, best-effort.
           const { deliverLoginAnnouncements } =
             await import('../services/notifications/loginAnnouncements.js');
           await deliverLoginAnnouncements(session.userId);
+        },
+      },
+      // Rolling refresh (updateAge: 24h) touches the session at most once per
+      // user per day — so this line is low-volume and makes rotation visible.
+      // A user rotating more than once a day is anomalous (rotation-loop bug).
+      update: {
+        after: async (session) => {
+          log.info(
+            `[Session] rotated id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expires=${session.expiresAt instanceof Date ? session.expiresAt.toISOString() : String(session.expiresAt)}`
+          );
+        },
+      },
+      // First-time visibility into revocation AND expiry-purge-on-read. `reason`
+      // is inferred from expiry: a row whose expiresAt is already past was
+      // purged when getSession read it; otherwise it's an explicit sign-out.
+      delete: {
+        after: async (session) => {
+          const expiresAt =
+            session.expiresAt instanceof Date ? session.expiresAt : new Date(session.expiresAt);
+          const expired = expiresAt.getTime() < Date.now();
+          log.info(
+            `[Session] deleted id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'} expired=${expired} reason=${expired ? 'expired-on-read' : 'revoked'}`
+          );
         },
       },
     },
@@ -352,6 +449,7 @@ export const auth = betterAuth({
           log.info(
             `[Auth] account-linked id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
+          await syncLocaleFromProvider(account.userId, account.providerId);
         },
       },
       update: {
@@ -359,6 +457,7 @@ export const auth = betterAuth({
           log.info(
             `[Auth] account-updated id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
+          await syncLocaleFromProvider(account.userId, account.providerId);
         },
       },
     },
@@ -426,12 +525,37 @@ export const auth = betterAuth({
       config: [
         keycloakProvider('keycloak-netzbegruenung', 'netzbegruenung'),
         keycloakProvider('keycloak-gruenes-netz', 'gruenes-netz'),
-        keycloakProvider('keycloak-gruene-at', 'gruene-at-login', 'de-AT'),
+        keycloakProvider('keycloak-gruene-at', 'gruene-at-login'),
         keycloakProvider('keycloak-gruenerator', 'gruenerator-user'),
       ],
     }),
     bearer(),
     mobileTokenExchange(),
+    // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
+    // stays the only IdP: /mcp/authorize rides the existing session, the
+    // after-hook resumes the flow post-login. The plugin skips consent unless
+    // `prompt=consent` — the shim in server.ts forces it.
+    mcp({
+      loginPage: MCP_LOGIN_PAGE,
+      resource: MCP_RESOURCE_URL,
+      oidcConfig: {
+        // required by OIDCOptions' type; the plugin overrides it anyway
+        loginPage: MCP_LOGIN_PAGE,
+        requirePKCE: true,
+        scopes: [...MCP_SCOPES],
+        defaultScope: MCP_DEFAULT_SCOPE,
+        accessTokenExpiresIn: 3600,
+        refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+        consentPage: MCP_CONSENT_PAGE,
+        metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED },
+      },
+      // Read by getMCPProviderMetadata (AS metadata merge) but missing from
+      // MCPOptions in better-auth 1.6.23 — spread-cast around the type lag.
+      ...({ metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED } } as unknown as Record<
+        string,
+        never
+      >),
+    }),
   ],
 });
 

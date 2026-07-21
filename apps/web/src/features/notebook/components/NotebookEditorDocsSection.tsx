@@ -223,7 +223,7 @@ const NotebookEditorDocsSection = ({
             Erstelle ein Doc und du kannst es hier als Quelle hinzufügen.
           </p>
           <Button asChild type="button" size="sm" className="mt-xs">
-            <Link to="/docs">Zu meinen Docs →</Link>
+            <Link to="/office">Zum Office →</Link>
           </Button>
         </div>
       ) : (

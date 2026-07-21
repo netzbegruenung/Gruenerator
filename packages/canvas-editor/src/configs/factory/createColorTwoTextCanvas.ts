@@ -24,7 +24,7 @@ import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
-import { createBaseActions } from './commonActions';
+import { createBaseActions } from './actionFactories';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
@@ -32,6 +32,7 @@ import type { BackgroundColorOption } from '../../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import type { ChartInstance } from '../../utils/chartUtils';
 import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
 import type { IllustrationInstance } from '../../utils/illustrations/types';
 import type { PillBadgeInstance } from '../../utils/pillBadgeUtils';
@@ -77,6 +78,7 @@ export interface ColorTwoTextStateBase {
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+  chartInstances: ChartInstance[];
 }
 
 /**
@@ -311,6 +313,7 @@ export function createColorTwoTextCanvas<
 
     getAutoSwitchTab: (selectedElement) => {
       if (selectedElement === 'background') return 'background';
+      if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
       return null;
     },
@@ -410,6 +413,7 @@ export function createColorTwoTextCanvas<
         circleBadgeInstances: [],
         balkenInstances: [],
         frameInstances: [],
+        chartInstances: [],
         userImageInstances: [],
 
         ...Object.fromEntries(
