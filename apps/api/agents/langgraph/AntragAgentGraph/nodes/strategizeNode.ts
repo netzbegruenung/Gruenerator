@@ -78,7 +78,6 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
     const aiResult = await getAIWorkerPool(state.req).processRequest(
       {
         type: 'antrag',
-        usePrivacyMode: request.usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {

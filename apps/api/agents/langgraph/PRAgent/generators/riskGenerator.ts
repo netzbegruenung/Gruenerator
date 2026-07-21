@@ -19,8 +19,6 @@ export async function generateRiskAnalysis(
 ): Promise<string> {
   console.log('[PR Agent] Generating risk analysis');
 
-  const request = enrichedState.request as { usePrivacyMode?: boolean };
-
   const systemRole = `Du bist ein kritischer Analyst für politische Kommunikation von {{partyName}}.
 
 Deine Aufgabe: Identifiziere potenzielle Angriffspunkte in der Kommunikation und bereite Counter-Speech vor.
@@ -56,7 +54,6 @@ Analysiere diese Kommunikation auf Risiken und bereite Counter-Speech vor.`;
   const aiResult: AIWorkerResult = await getAIWorkerPool(req).processRequest(
     {
       type: 'social',
-      usePrivacyMode: request.usePrivacyMode || false,
       systemPrompt: promptResult.system,
       messages: promptResult.messages,
       options: {
