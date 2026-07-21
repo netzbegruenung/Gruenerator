@@ -1,6 +1,5 @@
 import * as providers from '../../workers/providers/index.js';
 import config from '../../workers/worker.config.js';
-import { PrivacyCounter } from '../counters/index.js';
 import * as providerFallback from '../providers/providerFallback.js';
 import * as providerSelector from '../providers/providerSelector.js';
 
@@ -11,7 +10,7 @@ import type {
   AIRequestOptions,
   AIWorkerPool,
 } from '../../workers/types.js';
-import type { ProviderName, PrivacyProviderData } from '../providers/types.js';
+import type { ProviderName, FallbackProviderData } from '../providers/types.js';
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -23,37 +22,12 @@ const SHAREPIC_TYPES = [
 ];
 
 class AIService implements AIWorkerPool {
-  private privacyCounter: PrivacyCounter | null;
-
-  constructor(redisClient: RedisClient | null = null) {
-    this.privacyCounter = redisClient ? new PrivacyCounter(redisClient) : null;
-  }
-
   async processRequest(
     data: AIRequestData,
-    req?: { user?: { id?: string } }
+    _req?: { user?: { id?: string } }
   ): Promise<AIWorkerResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-    const processedData = { ...data };
-
-    if (data.usePrivacyMode && this.privacyCounter && req) {
-      try {
-        const userId = req.user?.id;
-        if (userId) {
-          const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
-          processedData.provider = privacyProvider;
-        } else {
-          console.warn(
-            '[AIService] Privacy mode enabled but no user ID found, using default provider'
-          );
-        }
-      } catch (error) {
-        console.error('[AIService] Privacy mode error:', error);
-      }
-    }
-
-    return this.executeWithTimeout(requestId, processedData);
+    return this.executeWithTimeout(requestId, { ...data });
   }
 
   private async executeWithTimeout(
@@ -93,15 +67,11 @@ class AIService implements AIWorkerPool {
       ...options,
       provider: selection.provider,
       model: selection.model,
-      useProMode: !!options.useProMode,
-      useUltraMode: !!options.useUltraMode,
     };
 
     console.log(`[AIService ${requestId}] Provider selection:`, {
       selectedProvider: selection.provider,
       selectedModel: selection.model,
-      useProMode: !!effectiveOptions.useProMode,
-      useUltraMode: !!effectiveOptions.useUltraMode,
       temperature: effectiveOptions.temperature ?? 'default',
       explicitProvider: data.provider || 'none',
     });
@@ -117,26 +87,7 @@ class AIService implements AIWorkerPool {
         });
       }
 
-      if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
-        effectiveOptions.model = 'openai/gpt-oss-120b';
-        result = await providers.executeProvider('ionos', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
-        // Pro mode routes via provider selection (typically litellm → gpt-oss:120b,
-        // configurable via env). Falls back to mistral if selector didn't pick one.
-        const proProvider = selection.provider || 'mistral';
-        result = await providers.executeProvider(proProvider, requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && selection.provider === 'ionos' && !explicitProvider) {
-        result = await providers.executeProvider('ionos', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
+      if (!result && selection.provider === 'litellm' && !explicitProvider) {
         result = await providers.executeProvider('litellm', requestId, {
           ...data,
           options: effectiveOptions,
@@ -204,21 +155,21 @@ class AIService implements AIWorkerPool {
     const isSharepicType = SHAREPIC_TYPES.includes(type);
     const fallbackFn = isSharepicType
       ? providerFallback.trySharepicFallbackProviders
-      : providerFallback.tryPrivacyModeProviders;
+      : providerFallback.tryFallbackProviders;
 
     console.log(
-      `[AIService ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`
+      `[AIService ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'default'} providers`
     );
 
     const fallbackResult = await fallbackFn(
-      async (providerName: ProviderName, privacyData) => {
-        return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
+      async (providerName: ProviderName, fallbackData) => {
+        return providers.executeProvider(providerName, requestId, fallbackData as AIRequestData);
       },
       requestId,
       {
         ...data,
         options: data.options || {},
-      } as PrivacyProviderData
+      } as FallbackProviderData
     );
 
     return { ...fallbackResult, success: true } as AIWorkerResult;
@@ -231,8 +182,8 @@ class AIService implements AIWorkerPool {
 
 let instance: AIService | null = null;
 
-function createAIService(redisClient: RedisClient | null = null): AIService {
-  instance = new AIService(redisClient);
+function createAIService(_redisClient: RedisClient | null = null): AIService {
+  instance = new AIService();
   return instance;
 }
 
