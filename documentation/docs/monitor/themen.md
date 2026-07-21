@@ -4,9 +4,13 @@ sidebar_position: 1
 
 # Themen & Keywords
 
+## Hot Topic
+
+Ganz oben auf der Themen-Seite siehst du das aktuell **dominierende Thema** als große Karte — mit einer **KI-Einordnung**, die die Schlagzeilen mit Positionen aus grünen Parteiprogrammen und Beschlüssen verbindet. So siehst du auf einen Blick, wo Anknüpfungspunkte für grüne Kommunikation liegen.
+
 ## Themen-Ranking
 
-Der Tab **Themen** zeigt dir als Balkendiagramm, welche politischen Themen gerade die Nachrichten dominieren. Je länger der Balken, desto mehr Artikel beschäftigen sich mit diesem Thema. Die Zahl am Ende zeigt die Anzahl der Artikel.
+Darunter zeigt ein **Kachel-Raster**, welche politischen Themen gerade die Nachrichten dominieren. Jede Kachel zeigt die Artikelzahl, einen Mini-Balken für die Proportion und die wichtigsten Keywords des Themas. Über **„Alle Themen anzeigen"** klappst du das vollständige Ranking auf.
 
 **Klicke auf ein Thema**, um die zugehörigen Artikel zu sehen. Du siehst dann Titel, Quelle, Datum und einen Textauszug für jeden Artikel.
 
@@ -30,26 +34,17 @@ Der Tab **Themen** zeigt dir als Balkendiagramm, welche politischen Themen gerad
 
 Jeder Artikel kann mehreren Themen zugeordnet werden, wird aber dem stärksten Thema als **Hauptthema** zugewiesen. Die vollständige Liste aller Erkennungsbegriffe pro Kategorie findest du im [Lexikon](./lexikon).
 
-## Keywords
+## Keywords und X/Twitter-Trends
 
-Der Tab **Keywords** zeigt die meistgenannten Begriffe aus allen aktuellen Artikeln als Wortwolke:
+Weiter unten auf der Seite findest du zwei Wortwolken:
 
-- **Schriftgröße** = Häufigkeit (große Wörter kommen öfter vor)
-- **Farbe** = Themenzuordnung (z.B. grün für Klima-Keywords, blau für Wirtschaft)
-- **Grau** = keinem Thema zugeordnet
+- **Keywords** — die meistgenannten Begriffe aus allen aktuellen Artikeln
+- **X/Twitter Trends** — was gerade auf X/Twitter in Deutschland trendet
 
-### KI-Einordnung
-
-Oberhalb der Wortwolke findest du eine KI-generierte Einordnung der wichtigsten Keywords. Diese verbindet die aktuellen Schlagwörter mit Positionen aus grünen Parteiprogrammen und Beschlüssen. So siehst du auf einen Blick, wo Anknüpfungspunkte für grüne Kommunikation liegen.
+In beiden gilt: **Schriftgröße und Farbe** zeigen die Häufigkeit — große, grün hervorgehobene Wörter dominieren die Debatte, graue kommen seltener vor.
 
 :::tip Täglicher Schnellcheck
-Wirf morgens einen Blick auf die Keywords und die KI-Einordnung. So weißt du sofort, welche Begriffe gerade die Debatte bestimmen und wie du sie grün einordnen kannst.
+Wirf morgens einen Blick auf das Hot Topic mit seiner KI-Einordnung und die Keywords. So weißt du sofort, welche Begriffe gerade die Debatte bestimmen und wie du sie grün einordnen kannst.
 :::
 
-## Details-Tab
-
-Der Tab **Details** bietet eine erweiterte Ansicht:
-
-- **Themen-Balken** oben zeigt die Verteilung aller Themen als farbigen Stapelbalken — so siehst du die Proportionen auf einen Blick
-- **Themenkarten** darunter zeigen für jedes Thema die Top-3-Artikel mit Titel und Textauszug
-- **Metadaten** unten: Gesamtzahl der Artikel, Anzahl der Quellen, letztes Update
+Im Kopf der Seite siehst du außerdem die **Metadaten**: Gesamtzahl der ausgewerteten Artikel und Anzahl der Quellen.
