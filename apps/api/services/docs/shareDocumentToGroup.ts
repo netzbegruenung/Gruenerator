@@ -4,9 +4,8 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('ShareDocumentToGroup');
 
 /**
- * Share a collaborative document with a group (owner-only). Shared by the chat
- * confirm flow (`share_doc` pending action) and the MCP server's documents tool.
- * Throws user-facing German errors on permission/duplicate failures.
+ * Owner-only. Used by the chat confirm flow (`share_doc`) and the MCP
+ * documents tool; throws user-facing German errors.
  */
 export async function shareDocumentToGroup(opts: {
   userId: string;

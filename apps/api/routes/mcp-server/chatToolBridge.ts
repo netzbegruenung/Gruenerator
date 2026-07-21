@@ -1,16 +1,13 @@
 /**
- * Bridge between the chat agentic-loop tools (ai-SDK `tool()` factories in
- * routes/chat/agents/) and the MCP server: reuses the existing tool
- * implementations verbatim with a neutral context (no SSE, no thread, no
- * source registry) and republishes them as MCP tools.
- *
- * The chat factories fail safe in this context by design: SSE-confirm branches
- * are threadId-gated and return a clean error when threadId is null — those
- * actions get MCP-native `overrides` instead (mcpMutations.ts).
+ * Republishes the chat agentic-loop tools (ai-SDK `tool()` factories) as MCP
+ * tools with a neutral context. The chat factories fail safe here by design:
+ * their SSE-confirm branches are threadId-gated and return a clean error when
+ * threadId is null — those actions get MCP-native `overrides` (mcpMutations.ts).
  */
 import { z } from 'zod';
 
 import { APP_BASE_URL } from '../../config/mcpServer.js';
+import { Sentry } from '../../lib/sentry.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { PersonalToolCtx } from '../chat/agents/personalDataTools.js';
@@ -29,8 +26,8 @@ const noopRegistry: SourceRegistry = {
   size: 0,
 };
 
-// Structural stand-in for the SSEWriter class — no personal-data tool reaches
-// an sse call without a threadId, this only satisfies the ctx shape.
+// No personal-data tool reaches an sse call without a threadId; this only
+// satisfies the ctx shape.
 const noopSse = {
   send: () => {},
   sendRaw: () => {},
@@ -39,9 +36,8 @@ const noopSse = {
 } as unknown as SSEWriter;
 
 /**
- * Minimal PersonalToolCtx for MCP calls. The factories read only
- * `state.agentConfig.userId` on the paths reachable without a threadId, so a
- * skeleton state is a true boundary cast, not a type hole.
+ * The factories read only `state.agentConfig.userId` on paths reachable
+ * without a threadId, so the skeleton state is a true boundary cast.
  */
 export function makeMcpPersonalCtx(userId: string): PersonalToolCtx {
   return {
@@ -97,9 +93,9 @@ function absolutizeDeep(value: unknown): unknown {
 }
 
 /**
- * Render a chat-tool return value as MCP text content. The chat tools return a
- * small set of shapes (`{error}`, `{needsConfirmation,note}`, `{ok,note}`,
- * `{results:[…]}`); everything else falls back to pretty JSON.
+ * Render a chat-tool return value as MCP text content. Known shapes
+ * (`{error}`, `{needsConfirmation,note}`, `{ok,note}`, `{results:[…]}`) get
+ * markdown; everything else falls back to pretty JSON.
  */
 export function formatToolResult(result: unknown): { text: string; isError: boolean } {
   if (result == null) return { text: 'Kein Ergebnis.', isError: true };
@@ -107,8 +103,7 @@ export function formatToolResult(result: unknown): { text: string; isError: bool
 
   const r = result as Record<string, unknown>;
   if (typeof r.error === 'string') return { text: r.error, isError: true };
-  // Search executors (DirectSearchResult/DirectExamplesResult) signal failure
-  // with `error: true` + `message` instead of an error string.
+  // Search executors signal failure with `error: true` + `message`.
   if (r.error === true) {
     return {
       text: typeof r.message === 'string' ? r.message : 'Anfrage fehlgeschlagen.',
@@ -140,11 +135,6 @@ export interface RegisterAiToolOptions {
   readOnly?: boolean;
 }
 
-/**
- * Publish an ai-SDK chat tool on an MCP server. Shares the zod schema object
- * (both stacks use the same zod major), narrows the action enum to the granted
- * scopes, and routes override actions to MCP-native handlers.
- */
 export function registerAiTool(
   server: McpServer,
   name: string,
@@ -154,10 +144,8 @@ export function registerAiTool(
   const schema = aiTool.inputSchema as z.ZodObject<z.ZodRawShape>;
   const shape: z.ZodRawShape = { ...schema.shape, ...(opts.extraShape ?? {}) };
   if (opts.actions) {
-    // The action lists are plain strings with no compile-time link to the chat
-    // tool's enum — catch drift (renamed/removed actions) at registration
-    // instead of as runtime "unknown action" failures. Extra actions are legal
-    // only when an override implements them.
+    // Action lists have no compile-time link to the chat tool's enum — catch
+    // drift at registration. Extra actions need an override implementing them.
     const original = schema.shape.action;
     if (original instanceof z.ZodEnum) {
       const known = new Set<string>(original.options as string[]);
@@ -194,6 +182,7 @@ export function registerAiTool(
         // Never leak raw driver/service errors (e.g. Postgres uuid-cast noise
         // from hallucinated ids) to external MCP clients.
         log.error(`tool ${name} failed:`, err);
+        Sentry.captureException(err, { tags: { mcp_tool: name } });
         raw = { error: 'Aktion fehlgeschlagen — prüfe die übergebenen IDs.' };
       }
       const { text, isError } = formatToolResult(raw);

@@ -550,8 +550,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/ki-transparenz', component: KITransparenz, public: true },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage, public: true },
-  // OAuth consent for the MCP authorization server (auth-required: the
-  // authorize flow guarantees a session before redirecting here).
+  // OAuth consent for the MCP authorization server (authorize guarantees a session)
   { path: '/oauth/consent', component: OAuthConsentPage, layoutMode: 'noChrome' },
   { path: '/register', component: RegistrationPage, public: true },
   // Settings live in a global dialog; these routes only open it (deep links).
