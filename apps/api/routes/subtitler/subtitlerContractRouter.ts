@@ -44,7 +44,6 @@ import {
   getOriginalFilename,
   scheduleImmediateCleanup,
 } from '../../services/subtitler/tusService.js';
-import { getProfileService } from '../../services/user/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -265,24 +264,14 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   postProcessAuto: async (args) => {
     const { uploadId, maxResolution = null } = args.body;
     const userId = getUserId(args.req) ?? args.body.userId ?? null;
-    // Resolve locale from the persisted profile (DB) — the source of truth — not
-    // from req.user, which Better Auth serves from a 300s session-cookie cache
-    // that lags the DB after a locale change (and an SSO re-login may not rotate
-    // it at all). That stale cache served AT users the German subtitle style.
-    // Auto-processing is heavy + infrequent, so one profile read is negligible.
-    const bodyLocale = args.body.locale;
-    const sessionLocale = extractLocaleFromRequest(args.req);
-    let locale: string = sessionLocale;
-    let source = 'session';
-    if (userId) {
-      const profile = await getProfileService().getProfileById(userId);
-      if (profile?.locale === 'de-AT' || profile?.locale === 'de-DE') {
-        locale = profile.locale;
-        source = 'db';
-      }
-    }
+    // The auth middleware overlays req.user.locale with the fresh, Redis-cached
+    // DB locale (see services/localization/localeCache), so this already reflects
+    // the persisted profile — no separate profile read needed. It replaces the
+    // stale 300s Better-Auth session-cookie cache that served AT users the
+    // German subtitle style.
+    const locale = extractLocaleFromRequest(args.req);
     log.info(
-      `[process-auto] uploadId=${uploadId} bodyLocale=${bodyLocale ?? 'none'} sessionLocale=${sessionLocale} → resolved=${locale} (${source}) userId=${userId ?? 'none'}`
+      `[process-auto] uploadId=${uploadId} bodyLocale=${args.body.locale ?? 'none'} → resolved=${locale} userId=${userId ?? 'none'}`
     );
     try {
       const videoPath = getFilePathFromUploadId(uploadId);
