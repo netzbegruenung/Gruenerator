@@ -174,13 +174,13 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
   // in the router) may run the write-capable tool loop. An unscoped prose `mcp`
   // would risk acting on the wrong server, so downgrade it to direct — UNLESS
-  // this thread's last substantive turn already worked with an MCP server
-  // (ThreadToolContext): then the follow-up re-scopes to that same server (via
-  // the ref here or the sticky last_mcp_server_id in the loop), which the user
-  // already engaged — no wrong-server risk.
+  // this thread's last substantive turn worked with a CONCRETE MCP server
+  // (ThreadToolContext.ref set): then the loop re-scopes to that same server
+  // via the sticky last_mcp_server_id. Deliberately do NOT write the ref into
+  // mcpServerScope — that field means "user-explicit this turn" downstream
+  // (stale-server honesty notice + retry-unscoped guard key off it).
   if (intent === 'mcp' && !result.mcpServerScope) {
-    if (state.lastToolContext?.kind === 'mcp') {
-      if (state.lastToolContext.ref) result.mcpServerScope = state.lastToolContext.ref;
+    if (state.lastToolContext?.kind === 'mcp' && state.lastToolContext.ref) {
       log.info('[Classifier] Unscoped mcp intent kept — thread recently used an MCP server');
     } else {
       log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');

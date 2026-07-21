@@ -5,6 +5,8 @@
  * Used both by the search node (for agent context) and the REST API (for frontend search).
  */
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { likeContainsPattern } from '../../../utils/sqlLike.js';
@@ -198,7 +200,11 @@ export async function searchChatHistory(
         threadTitle: row.thread_title,
         threadSlugSuffix: row.thread_slug_suffix,
         agentId: row.agent_id,
-        snippet: extractSnippet(row.message_content || row.thread_title || '', query),
+        // Persisted content carries durable mention tokens — show the label form.
+        snippet: extractSnippet(
+          sanitizeMentionTokens(row.message_content || row.thread_title || '', 'label'),
+          query
+        ),
         messageRole: row.message_role as 'user' | 'assistant',
         matchedAt: toIsoString(row.matched_at),
         threadUpdatedAt: toIsoString(row.thread_updated_at),

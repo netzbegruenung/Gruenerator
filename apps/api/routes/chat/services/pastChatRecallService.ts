@@ -16,6 +16,8 @@
  * references with titles and dates the model can reference naturally.
  */
 
+import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
@@ -443,7 +445,11 @@ async function hydrateThreadsAsResults(
         threadTitle: r.thread_title,
         threadSlugSuffix: r.thread_slug_suffix,
         agentId: r.agent_id,
-        snippet: (r.snippet_content || r.compaction_summary || r.thread_title || '').slice(0, 200),
+        // Stored content may carry durable mention tokens — show the label form.
+        snippet: sanitizeMentionTokens(
+          r.snippet_content || r.compaction_summary || r.thread_title || '',
+          'label'
+        ).slice(0, 200),
         messageRole: 'assistant' as const,
         matchedAt: toIsoString(r.thread_updated_at),
         threadUpdatedAt: toIsoString(r.thread_updated_at),

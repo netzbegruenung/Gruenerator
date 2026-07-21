@@ -13,6 +13,11 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
+import {
+  hasMentionTokens,
+  parseMentionTokens,
+  sanitizeMentionTokens,
+} from '@gruenerator/shared/utils';
 import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
@@ -100,6 +105,12 @@ export interface StreamContext {
   memoryRetrieveTimeMs: number;
   memoryEnabled: boolean;
   contextWindowTokens: number;
+  /** Routing fields derived from durable mention tokens in the last user
+   *  message ("@[Label](type:id)") — merged with the legacy body fields. */
+  mentionTokenFields: MentionTokenFields;
+  /** Last user message text WITH tokens (pre-sanitization) — for regex
+   *  heuristics that need the remove-form. */
+  lastUserTextRaw: string;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -147,6 +158,15 @@ export async function buildStreamContext({
     platform: rawPlatform,
   } = body;
 
+  // Durable mention tokens in the last user message are the routing source of
+  // truth; legacy per-request fields (older clients) merge in by union. Ids in
+  // tokens are user-typed text — every consumer below keeps its access checks.
+  const mentionTokenFields = deriveMentionTokenFields(clientMessages);
+  const mergedNotebookIds = unionIds(rawNotebookIds, mentionTokenFields.notebookIds);
+  const mergedBoardIds = unionIds(rawBoardIds, mentionTokenFields.boardIds);
+  const mergedSheetIds = unionIds(rawSheetIds, mentionTokenFields.sheetIds);
+  const mergedDocMentionIds = unionIds(rawDocMentionIds, mentionTokenFields.docMentionIds);
+
   // === Validate ===
   const user = getUser(req);
   if (!user?.id) {
@@ -174,8 +194,8 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const systemNotebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
-  const userNotebookUuids = rawNotebookIds?.filter(isUserNotebookId) ?? [];
+  const systemNotebookIds = mergedNotebookIds.filter(isKnownNotebook);
+  const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
@@ -282,14 +302,14 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const validMessages = filterEmptyAssistantMessages(
+  let validMessages = filterEmptyAssistantMessages(
     modelMessages as ModelMessage[]
   ) as ChatGraphInput['messages'];
   log.info(
     `[ChatGraph] Converted ${(clientMessages as unknown[]).length} → ${validMessages.length} valid messages`
   );
 
-  const lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+  let lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
   // === Create thread if needed ===
   // Normalize null → undefined: contract schema uses .nullish() to accept
@@ -308,7 +328,8 @@ export async function buildStreamContext({
   let isNewThread = false;
 
   if (!actualThreadId && lastUserMessage) {
-    const userText = extractTextContent(lastUserMessage.content);
+    // Titles are user-visible — never show raw mention tokens.
+    const userText = sanitizeMentionTokens(extractTextContent(lastUserMessage.content), 'label');
     const thread = await createThread(
       userId,
       agentId ?? 'gruenerator-universal',
@@ -337,7 +358,10 @@ export async function buildStreamContext({
           level: 'warning',
           extras: { staleThreadId: actualThreadId, userId, agentId },
         });
-        const userText = extractTextContent(lastUserMessage.content);
+        const userText = sanitizeMentionTokens(
+          extractTextContent(lastUserMessage.content),
+          'label'
+        );
         const thread = await createThread(
           userId,
           agentId ?? 'gruenerator-universal',
@@ -392,6 +416,13 @@ export async function buildStreamContext({
       );
     }
   }
+
+  // Raw (token-bearing) text is persisted above; everything downstream —
+  // classifier, heuristics, memory query, LLM prompts — sees the readable
+  // "@Label" form. Tokens never reach a prompt.
+  const lastUserTextRaw = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+  validMessages = validMessages.map(sanitizeMessageMentions);
+  lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
 
   // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
   // instead of looking frozen during attachment processing + memory fetch
@@ -466,7 +497,7 @@ export async function buildStreamContext({
         memoriesUsed = [{ content: '[Persona]', category: null }];
         log.info(`[${requestId}] Using cached persona for memory context`);
       } else {
-        const userQuery = extractTextContent(lastUserMessage.content);
+        const userQuery = sanitizeMentionTokens(lastUserTextRaw, 'remove');
         const memories = await withTimeout(
           mem0.searchMemories(userQuery, userId, 5),
           EXTERNAL_CONTEXT_TIMEOUT_MS,
@@ -533,8 +564,8 @@ export async function buildStreamContext({
       : docAttachments.length > 0 || documentChatMode
         ? []
         : undefined,
-    boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
-    sheetIds: rawSheetIds?.length ? rawSheetIds : undefined,
+    boardIds: mergedBoardIds.length ? mergedBoardIds : undefined,
+    sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
     connectFiles,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
@@ -542,8 +573,8 @@ export async function buildStreamContext({
     // doc-mention so the existing modify_doc / summary intent paths activate
     // (they key off `hasDocMentions`). Explicit @doc mentions always take
     // precedence — we only fall back to currentDocument.id otherwise.
-    docMentionIds: rawDocMentionIds?.length
-      ? rawDocMentionIds
+    docMentionIds: mergedDocMentionIds.length
+      ? mergedDocMentionIds
       : rawCurrentDocument?.id
         ? [rawCurrentDocument.id]
         : undefined,
@@ -591,9 +622,9 @@ export async function buildStreamContext({
     userId,
     ...(rawDocumentIds != null && { rawDocumentIds }),
     ...(rawTextIds != null && { rawTextIds }),
-    ...(rawBoardIds != null && { rawBoardIds }),
-    ...(rawSheetIds != null && { rawSheetIds }),
-    ...(rawDocMentionIds != null && { rawDocMentionIds }),
+    ...(mergedBoardIds.length > 0 && { rawBoardIds: mergedBoardIds }),
+    ...(mergedSheetIds.length > 0 && { rawSheetIds: mergedSheetIds }),
+    ...(mergedDocMentionIds.length > 0 && { rawDocMentionIds: mergedDocMentionIds }),
     docAttachments,
     processedMeta,
     contextWindowTokens,
@@ -619,6 +650,117 @@ export async function buildStreamContext({
       memoryRetrieveTimeMs,
       memoryEnabled,
       contextWindowTokens,
+      mentionTokenFields,
+      lastUserTextRaw,
     },
   };
+}
+
+// ── Durable mention tokens ───────────────────────────────────────────────────
+
+export interface MentionTokenFields {
+  forcedTools: string[];
+  notebookIds: string[];
+  boardIds: string[];
+  sheetIds: string[];
+  docMentionIds: string[];
+}
+
+function unionIds(a: string[] | null | undefined, b: string[]): string[] {
+  return [...new Set([...(a ?? []), ...b])];
+}
+
+function lastUserTextFromClient(clientMessages: unknown): string {
+  if (!Array.isArray(clientMessages)) return '';
+  for (let i = clientMessages.length - 1; i >= 0; i--) {
+    const m = clientMessages[i] as {
+      role?: string;
+      parts?: Array<{ type?: string; text?: string }>;
+      content?: unknown;
+    };
+    if (m?.role !== 'user') continue;
+    if (Array.isArray(m.parts)) {
+      return m.parts
+        .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+        .map((part) => part.text)
+        .join(' ');
+    }
+    return typeof m.content === 'string' ? m.content : '';
+  }
+  return '';
+}
+
+/**
+ * Inverse of the client-side token mapping (mentionParser.mentionTokenFor):
+ * derive the routing fields from durable tokens in the last user message.
+ * `agent` tokens are skipped — the effective agent still travels via the body
+ * (store-selected agent must win, and agent resolution is validated elsewhere).
+ */
+function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
+  const fields: MentionTokenFields = {
+    forcedTools: [],
+    notebookIds: [],
+    boardIds: [],
+    sheetIds: [],
+    docMentionIds: [],
+  };
+  for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
+    switch (token.type) {
+      case 'tool':
+        fields.forcedTools.push(token.id);
+        break;
+      case 'mcp':
+        fields.forcedTools.push(`mcp:${token.id}`);
+        break;
+      case 'notebook':
+        fields.notebookIds.push(token.id);
+        break;
+      case 'board':
+        fields.boardIds.push(token.id);
+        break;
+      case 'sheet':
+        fields.sheetIds.push(token.id);
+        break;
+      case 'doc':
+        fields.docMentionIds.push(token.id);
+        break;
+      case 'agent':
+        // Deliberately not derived — the body agentId stays authoritative.
+        break;
+      default: {
+        const unhandled: never = token.type;
+        void unhandled;
+      }
+    }
+  }
+  return fields;
+}
+
+/** Token → "@Label" on every text part; non-text parts stay untouched. */
+function sanitizeMessageMentions<T extends { role: string; content: unknown }>(message: T): T {
+  const { content } = message;
+  // Token-free messages (the overwhelming majority) pass through by reference —
+  // no per-request reallocation of the whole history.
+  if (typeof content === 'string') {
+    return hasMentionTokens(content)
+      ? { ...message, content: sanitizeMentionTokens(content, 'label') }
+      : message;
+  }
+  if (Array.isArray(content)) {
+    const parts = content as Array<Record<string, unknown>>;
+    const needsSanitize = parts.some(
+      (part) =>
+        part && part.type === 'text' && typeof part.text === 'string' && hasMentionTokens(part.text)
+    );
+    if (!needsSanitize) return message;
+    return {
+      ...message,
+      content: parts.map((part) =>
+        part && part.type === 'text' && typeof part.text === 'string'
+          ? { ...part, text: sanitizeMentionTokens(part.text, 'label') }
+          : part
+      ),
+    };
+  }
+  return message;
 }
