@@ -67,6 +67,10 @@ export interface EvalExpect {
   toolsMustInclude?: string[];
   /** Each inner group: at least one of these tools must have been called. */
   toolsAnyOf?: string[][];
+  /** At least one called tool's name matches this regex (source string). Use
+   *  for MCP, whose tool names are namespaced `m<serverKey>__<tool>` and thus
+   *  not known ahead of time — e.g. `"^m[0-9a-f]+__"` = "an MCP tool ran". */
+  toolNameMatches?: string;
   toolsMustNotInclude?: string[];
   maxToolCalls?: number;
   generatesSharepic?: boolean;
@@ -121,6 +125,9 @@ export interface EvalScenario {
   knownFailure?: boolean;
   /** Long/expensive scenario — skipped unless EVAL_SLOW=1. */
   slow?: boolean;
+  /** Needs connected MCP servers (evals/tools/setupMcpServers.ts) — skipped
+   *  unless EVAL_MCP=1 so it doesn't pollute the default run's baseline. */
+  mcpLane?: boolean;
 }
 
 /** Legacy single-turn corpus line (still accepted; normalized to EvalScenario). */

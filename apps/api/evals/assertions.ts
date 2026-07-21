@@ -166,6 +166,18 @@ export function runAssertions(
     );
   }
 
+  if (expect.toolNameMatches != null) {
+    const re = new RegExp(expect.toolNameMatches);
+    results.push(
+      toolNames.some((t) => re.test(t))
+        ? ok('toolNameMatches')
+        : fail(
+            'toolNameMatches',
+            `no tool matched /${expect.toolNameMatches}/; called: [${toolNames.join(', ')}]`
+          )
+    );
+  }
+
   for (const tool of expect.toolsMustNotInclude ?? []) {
     results.push(
       !toolNames.includes(tool)
