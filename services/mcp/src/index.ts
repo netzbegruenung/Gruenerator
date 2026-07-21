@@ -559,6 +559,14 @@ app.get('/metrics', (req, res) => {
   });
 });
 
+// Served identically from /info and /.well-known/mcp.json — keep in one place.
+const DEPRECATION = {
+  deprecated: true,
+  successor: 'https://mcp.gruenerator.eu/v2',
+  note: 'Nachfolger mit OAuth-Login und persönlichen Tools (Dokumente, Boards, Notizbücher, Gruppen, Medien). Die anonyme Programm-Suche bleibt hier vorerst verfügbar.',
+  sunset: null,
+} as const;
+
 // Auto-Discovery Endpoint
 app.get('/.well-known/mcp.json', (req, res) => {
   const baseUrl = getBaseUrl(req);
@@ -569,6 +577,7 @@ app.get('/.well-known/mcp.json', (req, res) => {
     homepage: 'https://github.com/Movm/Gruenerator-MCP',
     mcp_endpoint: `${baseUrl}/mcp`,
     transport: 'streamable-http',
+    deprecation: DEPRECATION,
     tools: [
       {
         name: 'gruenerator_search',
@@ -653,6 +662,7 @@ app.get('/info', (req, res) => {
       description: 'MCP Server für Grüne Parteiprogramme (Deutschland & Österreich)',
       uptime: serverStats.uptime,
     },
+    deprecation: DEPRECATION,
     endpoints: {
       mcp: `${baseUrl}/mcp`,
       health: `${baseUrl}/health`,

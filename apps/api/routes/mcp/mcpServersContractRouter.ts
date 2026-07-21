@@ -170,15 +170,17 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
   oauthStart: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const authorizationUrl = await McpOAuthService.startAuthorization(userId, args.params.id);
-      return { status: 200 as const, body: { authorizationUrl } };
+      const result = await McpOAuthService.startAuthorization(userId, args.params.id);
+      return { status: 200 as const, body: result };
     } catch (error) {
       const statusCode = (error as { statusCode?: number }).statusCode;
+      const code = (error as { code?: 'dcr_rejected' | 'no_oauth_support' }).code;
       const message = (error as Error).message || 'Fehler';
-      if (statusCode === 404) return { status: 404 as const, body: { error: message } };
-      if (statusCode === 400) return { status: 400 as const, body: { error: message } };
+      const body = { error: message, ...(code && { code }) };
+      if (statusCode === 404) return { status: 404 as const, body };
+      if (statusCode === 400) return { status: 400 as const, body };
       log.error('oauthStart failed', error);
-      return { status: 500 as const, body: { error: message } };
+      return { status: 500 as const, body };
     }
   },
 });

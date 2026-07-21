@@ -1,6 +1,7 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
+import { mcp } from 'better-auth/plugins';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { eq } from 'drizzle-orm';
@@ -18,6 +19,14 @@ import { redisClient } from '../utils/redis/client.js';
 import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
+import {
+  MCP_CONSENT_PAGE,
+  MCP_DEFAULT_SCOPE,
+  MCP_LOGIN_PAGE,
+  MCP_OAUTH_SCOPES_SUPPORTED,
+  MCP_RESOURCE_URL,
+  MCP_SCOPES,
+} from './mcpServer.js';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
 const KC_REALM = env.KEYCLOAK_REALM;
@@ -522,6 +531,31 @@ export const auth = betterAuth({
     }),
     bearer(),
     mobileTokenExchange(),
+    // OAuth 2.1 AS (DCR + PKCE) for the authenticated MCP endpoint. Keycloak
+    // stays the only IdP: /mcp/authorize rides the existing session, the
+    // after-hook resumes the flow post-login. The plugin skips consent unless
+    // `prompt=consent` — the shim in server.ts forces it.
+    mcp({
+      loginPage: MCP_LOGIN_PAGE,
+      resource: MCP_RESOURCE_URL,
+      oidcConfig: {
+        // required by OIDCOptions' type; the plugin overrides it anyway
+        loginPage: MCP_LOGIN_PAGE,
+        requirePKCE: true,
+        scopes: [...MCP_SCOPES],
+        defaultScope: MCP_DEFAULT_SCOPE,
+        accessTokenExpiresIn: 3600,
+        refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+        consentPage: MCP_CONSENT_PAGE,
+        metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED },
+      },
+      // Read by getMCPProviderMetadata (AS metadata merge) but missing from
+      // MCPOptions in better-auth 1.6.23 — spread-cast around the type lag.
+      ...({ metadata: { scopes_supported: MCP_OAUTH_SCOPES_SUPPORTED } } as unknown as Record<
+        string,
+        never
+      >),
+    }),
   ],
 });
 
