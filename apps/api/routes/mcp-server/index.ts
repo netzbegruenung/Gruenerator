@@ -1,16 +1,11 @@
 /**
  * Authenticated MCP endpoint (POST /api/mcp-server; public URL
- * mcp.gruenerator.eu/v2 via nginx).
+ * mcp.gruenerator.eu/v2 via nginx). NOT routes/mcp/ — that is the user-managed
+ * OUTBOUND client registry; here Grünerator is the MCP SERVER for external
+ * clients, authenticated via OAuth (Better Auth `mcp` plugin) or API key.
  *
- * NOT to be confused with routes/mcp/ — that is the user-managed OUTBOUND MCP
- * client registry (Grünerator connecting to external servers). This directory
- * is Grünerator acting as an MCP SERVER for external clients (claude.ai,
- * Claude Code, Cursor …), authenticated via OAuth (Better Auth `mcp` plugin)
- * or an admin-minted API key.
- *
- * Stateless streamable HTTP JSON: a fresh McpServer per POST (same
- * claude.ai/ChatGPT-compat pattern as services/mcp) — required so session-less
- * tool discovery works and per-user/per-scope tool registration stays trivial.
+ * Stateless streamable HTTP JSON, fresh McpServer per POST — claude.ai/ChatGPT
+ * don't carry an mcp-session-id, and per-user/per-scope registration needs it.
  */
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { type Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
@@ -19,6 +14,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { env } from '../../config/env.js';
 import { MCP_RESOURCE_URL } from '../../config/mcpServer.js';
+import { Sentry } from '../../lib/sentry.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { resolveMcpAuth } from './mcpAuth.js';
@@ -73,9 +69,8 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  // aiWorkerPool's privacy counter reads only req.user.id — a minimal user
-  // stub is the boundary here, not a full profile load per tool call (the
-  // global Express augmentation types req.user as the full UserProfile).
+  // aiWorkerPool's privacy counter reads only req.user.id — no need for a
+  // full profile load per call (the augmentation types req.user as UserProfile).
   const reqWithUser = req as unknown as { user?: { id: string } };
   reqWithUser.user ??= { id: authCtx.userId };
 
@@ -98,6 +93,7 @@ router.post('/', async (req, res) => {
     await transport.handleRequest(req, res, req.body);
   } catch (err) {
     log.error('handleRequest failed:', err);
+    Sentry.captureException(err, { tags: { mcp_endpoint: 'POST /api/mcp-server' } });
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',

@@ -1,15 +1,13 @@
 /**
- * Per-request MCP server assembly for the authenticated MCP endpoint.
- *
- * A fresh McpServer is built for every POST (stateless streamable HTTP), which
- * lets registration be keyed on the caller: tools — and the actions inside a
- * tool — are only registered for granted OAuth scopes, so the model never sees
- * an action it cannot take.
+ * Per-request MCP server assembly: a fresh McpServer per POST lets tools — and
+ * the actions inside a tool — be registered only for granted OAuth scopes, so
+ * the model never sees an action it cannot take.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
 import { notebookQAService } from '../../services/notebook/NotebookQAService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
@@ -54,7 +52,6 @@ const SEARCH_COLLECTIONS = ALL_COLLECTIONS.filter((c) => c !== 'examples') as un
   ...string[],
 ];
 
-/** Lazy process-wide helper (mirrors the singleton in personalDataTools.ts). */
 let notebookHelperSingleton: NotebookQdrantHelper | null = null;
 function notebookHelper(): NotebookQdrantHelper {
   notebookHelperSingleton ??= new NotebookQdrantHelper();
@@ -85,6 +82,7 @@ function guarded<A>(name: string, fn: (args: A) => Promise<ToolResponse>) {
       return await fn(args);
     } catch (err) {
       log.error(`tool ${name} failed:`, err);
+      Sentry.captureException(err, { tags: { mcp_tool: name } });
       return text('Aktion fehlgeschlagen — prüfe die übergebenen Parameter.', true);
     }
   };
@@ -186,8 +184,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             country,
             ...(platform ? { platform } : {}),
           });
-          // executeDirectExamplesSearch has no limit param — enforce the
-          // advertised contract here.
+          // executeDirectExamplesSearch has no limit param
           const examples = result.examples.slice(0, limit);
           const { text: body, isError } = formatToolResult({
             ...result,

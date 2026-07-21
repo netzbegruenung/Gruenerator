@@ -4,16 +4,12 @@ import { boolean, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-c
 import { profiles } from './core.js';
 
 /**
- * Better Auth `mcp` plugin tables (OAuth 2.1 authorization server for the
- * authenticated MCP endpoint at /api/mcp-server).
+ * Better Auth `mcp` plugin tables (OAuth 2.1 AS for the MCP endpoint).
  *
- * Export keys MUST match the plugin's hardcoded model names
- * (`oauthApplication`, `oauthAccessToken`, `oauthConsent`) so the drizzle
- * adapter resolves them; property keys stay camelCase to match the plugin's
- * field names, SQL identifiers follow the `ba_` snake_case convention.
- *
- * IDs are TEXT with a DB default — `advanced.database.generateId: false`
- * delegates ID generation to Postgres (see fix_better_auth_id_defaults.sql).
+ * Export keys MUST match the plugin's hardcoded model names and property keys
+ * its camelCase field names; SQL identifiers follow the `ba_` convention.
+ * IDs are TEXT with a DB default — `generateId: false` delegates to Postgres
+ * (see fix_better_auth_id_defaults.sql).
  *
  * Source-of-truth migration: `database/postgres/migrations/mcp_oauth_provider_tables.sql`
  */

@@ -1,9 +1,8 @@
 /**
- * MCP-native handlers for the four personal-data actions that use the chat
- * SSE-confirm flow (`emitToolConfirmAction` → confirmController). MCP has no
- * confirm cards; irreversible/socially-visible mutations use the in-band
- * two-step `confirm=true` protocol instead, the rest execute directly against
- * the same service layer the confirm executor calls.
+ * MCP-native handlers for the personal-data actions that use the chat
+ * SSE-confirm flow. MCP has no confirm cards: socially-visible mutations use
+ * the in-band two-step `confirm=true` protocol, the rest execute directly
+ * against the same service layer the confirm executor calls.
  */
 import { buildGroupSlug } from '@gruenerator/shared/utils';
 
@@ -20,7 +19,6 @@ import { hasWriteAccess } from '../chat/confirmController.js';
 
 import { absolutizeUrl } from './chatToolBridge.js';
 
-/** Point lookup for a live collaborative_documents row (board, doc, sheet …). */
 async function findLiveDocument(id: string): Promise<{ title: string; created_by: string } | null> {
   const rows = (await getPostgresInstance().query(
     'SELECT title, created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
@@ -42,8 +40,7 @@ export async function addCardDirect(
   const title = typeof args.title === 'string' ? args.title.trim() : '';
   if (!boardId || !title) return { error: 'add_card braucht boardId und title.' };
 
-  // Point lookup — addRowsToBoard loads/decodes the Yjs doc itself, a full
-  // loadBoardState here would decode the board twice.
+  // No loadBoardState here — addRowsToBoard decodes the Yjs doc itself.
   const board = await findLiveDocument(boardId);
   if (!board) return { error: 'Board nicht gefunden oder kein Zugriff.' };
   if (!(await hasWriteAccess(boardId, userId))) {
@@ -86,9 +83,8 @@ export async function joinGroupDirect(
   const token = typeof args.joinToken === 'string' ? args.joinToken.trim() : '';
   if (!token) return { error: 'join braucht einen joinToken.' };
 
-  // Joining is socially visible (members get notified with the user's name) —
-  // two-step confirm like delete/share. The preview resolves the group name;
-  // the confirmed call skips the pre-check (joinGroupByToken re-resolves).
+  // Joining notifies members with the user's name → two-step confirm. The
+  // confirmed call skips the pre-check (joinGroupByToken re-resolves).
   if (args.confirm !== true) {
     const group = await getGroupByToken(token);
     if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
