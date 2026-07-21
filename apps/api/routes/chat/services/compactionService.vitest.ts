@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   getKeepRecent,
@@ -94,5 +94,68 @@ describe('needsCompaction with contextWindowTokens', () => {
   it('backward compatible: 128K model uses existing thresholds', () => {
     expect(needsCompaction(50, null, undefined, 128000)).toBe(true);
     expect(needsCompaction(49, null, undefined, 128000)).toBe(false);
+  });
+});
+
+describe('formatMessagesForSummary', () => {
+  it('excludes tool rows and labels roles correctly', async () => {
+    const { formatMessagesForSummary } = await import('./compactionService.js');
+    const out = formatMessagesForSummary([
+      { id: '1', role: 'user', content: 'Erstell mir ein Formular', created_at: new Date(0) },
+      {
+        id: '2',
+        role: 'tool',
+        content: '{"toolName":"tally","result":{"ok":true}}',
+        created_at: new Date(0),
+      },
+      {
+        id: '3',
+        role: 'assistant',
+        content: 'Das Formular ist erstellt.',
+        created_at: new Date(0),
+      },
+      { id: '4', role: 'system', content: 'system prompt', created_at: new Date(0) },
+    ]);
+    expect(out).toContain('Benutzer: Erstell mir ein Formular');
+    expect(out).toContain('Assistent: Das Formular ist erstellt.');
+    expect(out).not.toContain('toolName');
+    expect(out).not.toContain('system prompt');
+  });
+});
+
+describe('env-overridable thresholds (long-thread eval harness)', () => {
+  it('explicit CHAT_COMPACTION_* overrides win over defaults and model tiers', async () => {
+    vi.resetModules();
+    process.env.CHAT_COMPACTION_THRESHOLD = '8';
+    process.env.CHAT_COMPACTION_KEEP_RECENT = '4';
+    process.env.CHAT_COMPACTION_COOLDOWN_MS = '0';
+    try {
+      const mod = await import('./compactionConfig.js');
+      expect(mod.COMPACTION_THRESHOLD).toBe(8);
+      expect(mod.KEEP_RECENT).toBe(4);
+      // Override beats the model-aware tier (small window would return 15/6).
+      expect(mod.getCompactionThreshold(12000)).toBe(8);
+      expect(mod.getKeepRecent(12000)).toBe(4);
+      expect(mod.needsCompaction(8, null)).toBe(true);
+      expect(mod.needsCompaction(7, null)).toBe(false);
+    } finally {
+      delete process.env.CHAT_COMPACTION_THRESHOLD;
+      delete process.env.CHAT_COMPACTION_KEEP_RECENT;
+      delete process.env.CHAT_COMPACTION_COOLDOWN_MS;
+      vi.resetModules();
+    }
+  });
+
+  it('ignores invalid override values', async () => {
+    vi.resetModules();
+    process.env.CHAT_COMPACTION_THRESHOLD = 'not-a-number';
+    try {
+      const mod = await import('./compactionConfig.js');
+      expect(mod.COMPACTION_THRESHOLD).toBe(50);
+      expect(mod.getCompactionThreshold(12000)).toBe(15);
+    } finally {
+      delete process.env.CHAT_COMPACTION_THRESHOLD;
+      vi.resetModules();
+    }
   });
 });
