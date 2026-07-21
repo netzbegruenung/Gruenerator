@@ -13,7 +13,11 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
-import { parseMentionTokens, sanitizeMentionTokens } from '@gruenerator/shared/utils';
+import {
+  hasMentionTokens,
+  parseMentionTokens,
+  sanitizeMentionTokens,
+} from '@gruenerator/shared/utils';
 import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
@@ -324,7 +328,8 @@ export async function buildStreamContext({
   let isNewThread = false;
 
   if (!actualThreadId && lastUserMessage) {
-    const userText = extractTextContent(lastUserMessage.content);
+    // Titles are user-visible — never show raw mention tokens.
+    const userText = sanitizeMentionTokens(extractTextContent(lastUserMessage.content), 'label');
     const thread = await createThread(
       userId,
       agentId ?? 'gruenerator-universal',
@@ -353,7 +358,10 @@ export async function buildStreamContext({
           level: 'warning',
           extras: { staleThreadId: actualThreadId, userId, agentId },
         });
-        const userText = extractTextContent(lastUserMessage.content);
+        const userText = sanitizeMentionTokens(
+          extractTextContent(lastUserMessage.content),
+          'label'
+        );
         const thread = await createThread(
           userId,
           agentId ?? 'gruenerator-universal',
@@ -489,7 +497,7 @@ export async function buildStreamContext({
         memoriesUsed = [{ content: '[Persona]', category: null }];
         log.info(`[${requestId}] Using cached persona for memory context`);
       } else {
-        const userQuery = extractTextContent(lastUserMessage.content);
+        const userQuery = sanitizeMentionTokens(lastUserTextRaw, 'remove');
         const memories = await withTimeout(
           mem0.searchMemories(userQuery, userId, 5),
           EXTERNAL_CONTEXT_TIMEOUT_MS,
@@ -697,12 +705,33 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
     docMentionIds: [],
   };
   for (const token of parseMentionTokens(lastUserTextFromClient(clientMessages))) {
-    if (token.type === 'tool') fields.forcedTools.push(token.id);
-    else if (token.type === 'mcp') fields.forcedTools.push(`mcp:${token.id}`);
-    else if (token.type === 'notebook') fields.notebookIds.push(token.id);
-    else if (token.type === 'board') fields.boardIds.push(token.id);
-    else if (token.type === 'sheet') fields.sheetIds.push(token.id);
-    else if (token.type === 'doc') fields.docMentionIds.push(token.id);
+    switch (token.type) {
+      case 'tool':
+        fields.forcedTools.push(token.id);
+        break;
+      case 'mcp':
+        fields.forcedTools.push(`mcp:${token.id}`);
+        break;
+      case 'notebook':
+        fields.notebookIds.push(token.id);
+        break;
+      case 'board':
+        fields.boardIds.push(token.id);
+        break;
+      case 'sheet':
+        fields.sheetIds.push(token.id);
+        break;
+      case 'doc':
+        fields.docMentionIds.push(token.id);
+        break;
+      case 'agent':
+        // Deliberately not derived — the body agentId stays authoritative.
+        break;
+      default: {
+        const unhandled: never = token.type;
+        void unhandled;
+      }
+    }
   }
   return fields;
 }
@@ -710,11 +739,20 @@ function deriveMentionTokenFields(clientMessages: unknown): MentionTokenFields {
 /** Token → "@Label" on every text part; non-text parts stay untouched. */
 function sanitizeMessageMentions<T extends { role: string; content: unknown }>(message: T): T {
   const { content } = message;
+  // Token-free messages (the overwhelming majority) pass through by reference —
+  // no per-request reallocation of the whole history.
   if (typeof content === 'string') {
-    return { ...message, content: sanitizeMentionTokens(content, 'label') };
+    return hasMentionTokens(content)
+      ? { ...message, content: sanitizeMentionTokens(content, 'label') }
+      : message;
   }
   if (Array.isArray(content)) {
     const parts = content as Array<Record<string, unknown>>;
+    const needsSanitize = parts.some(
+      (part) =>
+        part && part.type === 'text' && typeof part.text === 'string' && hasMentionTokens(part.text)
+    );
+    if (!needsSanitize) return message;
     return {
       ...message,
       content: parts.map((part) =>
