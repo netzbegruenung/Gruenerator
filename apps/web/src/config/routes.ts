@@ -570,7 +570,11 @@ const standardRoutes: RouteConfig[] = [
     path: '/chat/settings',
     component: lazy(() => Promise.resolve({ default: createRedirect('/settings') })),
   },
-  { path: '/chat', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },
+  // Bare /chat now lives in the Workplace chat tab; keep the path as a redirect.
+  {
+    path: '/chat',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
+  },
   // Thread deep links (Notion-style slug, suffix is the stable key). React
   // Router ranks the static /chat/settings above this dynamic segment.
   { path: '/chat/:threadSlug', component: GrueneratorenBundle.Chat, layoutMode: 'sidebarOnly' },

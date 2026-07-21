@@ -322,7 +322,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       },
     ],
     startPageTitle: 'Was möchtest du über Die Grünen Österreich wissen?',
-    placeholder: 'Stell deine Frage zu den Programmen der Grünen Österreich...',
+    placeholder: 'Stell deine Frage zu den Grünen Österreich...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
@@ -352,7 +352,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       },
     ],
     startPageTitle: 'Was möchtest du über die Grünen Hamburg wissen?',
-    placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Hamburg...',
+    placeholder: 'Stell deine Frage zu den Grünen Hamburg...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Hamburg zum Klimaschutz?' },
@@ -386,7 +386,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
       },
     ],
     startPageTitle: 'Was möchtest du über die Grünen Schleswig-Holstein wissen?',
-    placeholder: 'Stell deine Frage zum Wahlprogramm der Grünen Schleswig-Holstein...',
+    placeholder: 'Stell deine Frage zu den Grünen Schleswig-Holstein...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌊', tag: 'Küstenschutz', text: 'Was sagen die Grünen SH zum Küstenschutz?' },
@@ -408,7 +408,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'bayern-system', name: 'Grüne Bayern' }],
     startPageTitle: 'Was möchtest du über die Grünen Bayern wissen?',
-    placeholder: 'Stell deine Frage zum Regierungsprogramm der Grünen Bayern...',
+    placeholder: 'Stell deine Frage zu den Grünen Bayern...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🏔️', tag: 'Naturschutz', text: 'Was sagen die Grünen Bayern zum Naturschutz?' },
@@ -429,7 +429,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'thueringen-system', name: 'Grüne Thüringen' }],
     startPageTitle: 'Was möchtest du über die Grünen Thüringen wissen?',
-    placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Thüringen...',
+    placeholder: 'Stell deine Frage zu den Grünen Thüringen...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌳', tag: 'Waldschutz', text: 'Was sagen die Grünen Thüringen zum Waldschutz?' },
@@ -455,7 +455,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'berlin-system', name: 'Grüne Berlin' }],
     startPageTitle: 'Was möchtest du über die Grünen Berlin wissen?',
-    placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Berlin...',
+    placeholder: 'Stell deine Frage zu den Grünen Berlin...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Berlin zum Klimaschutz?' },
@@ -485,8 +485,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'mecklenburg-vorpommern-system', name: 'Grüne Mecklenburg-Vorpommern' }],
     startPageTitle: 'Was möchtest du über die Grünen Mecklenburg-Vorpommern wissen?',
-    placeholder:
-      'Stell deine Frage zu Beschlüssen und Positionen der Grünen Mecklenburg-Vorpommern...',
+    placeholder: 'Stell deine Frage zu den Grünen Mecklenburg-Vorpommern...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌊', tag: 'Küstenschutz', text: 'Was sagen die Grünen MV zum Küstenschutz?' },
@@ -515,7 +514,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'brandenburg-system', name: 'Grüne Brandenburg' }],
     startPageTitle: 'Was möchtest du über die Grünen Brandenburg wissen?',
-    placeholder: 'Stell deine Frage zu Beschlüssen und Positionen der Grünen Brandenburg...',
+    placeholder: 'Stell deine Frage zu den Grünen Brandenburg...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Brandenburg zum Klimaschutz?' },
@@ -545,8 +544,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'sachsen-anhalt-system', name: 'Grüne Sachsen-Anhalt' }],
     startPageTitle: 'Was möchtest du über die Grünen Sachsen-Anhalt wissen?',
-    placeholder:
-      'Stell deine Frage zum Wahlprogramm und zu Positionen der Grünen Sachsen-Anhalt...',
+    placeholder: 'Stell deine Frage zu den Grünen Sachsen-Anhalt...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       {
@@ -575,7 +573,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'hessen-system', name: 'Grüne Hessen' }],
     startPageTitle: 'Was möchtest du über die Grünen Hessen wissen?',
-    placeholder: 'Stell deine Frage zu Positionen und Beschlüssen der Grünen Hessen...',
+    placeholder: 'Stell deine Frage zu den Grünen Hessen...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Hessen zum Klimaschutz?' },
@@ -608,7 +606,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
     collectionType: 'single',
     collections: [{ id: 'saarland-system', name: 'Grüne Saarland' }],
     startPageTitle: 'Was möchtest du über die Grünen Saarland wissen?',
-    placeholder: 'Stell deine Frage zu Positionen, Presse und Beschlüssen der Grünen Saarland...',
+    placeholder: 'Stell deine Frage zu den Grünen Saarland...',
     headerIcon: HiInformationCircle,
     exampleQuestions: [
       { icon: '🌍', tag: 'Klimaschutz', text: 'Was sagen die Grünen Saarland zum Klimaschutz?' },

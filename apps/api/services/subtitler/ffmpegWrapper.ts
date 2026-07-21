@@ -6,10 +6,17 @@
 
 import { spawn } from 'child_process';
 
+import ffprobeInstaller from '@ffprobe-installer/ffprobe';
+import ffmpegStatic from 'ffmpeg-static';
+
 import { createLogger } from '../../utils/logger.js';
 
-export const ffmpegPath = '/usr/bin/ffmpeg';
-export const ffprobePath = '/usr/bin/ffprobe';
+// ffmpeg-static ships a CJS `module.exports = path` but declares an ESM `export default`;
+// under NodeNext the default import types as the module namespace, so bridge at the boundary.
+const ffmpegStaticPath = ffmpegStatic as unknown as string | null;
+
+export const ffmpegPath: string = ffmpegStaticPath ?? '/usr/bin/ffmpeg';
+export const ffprobePath: string = ffprobeInstaller.path ?? '/usr/bin/ffprobe';
 
 const log = createLogger('ffmpeg-wrapper');
 
