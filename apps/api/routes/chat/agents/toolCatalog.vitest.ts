@@ -123,12 +123,16 @@ describe('toolCatalog source harvesting (excerpt/snippet → content)', () => {
 });
 
 describe('toolCatalog domain tool mounting', () => {
-  function catalogFor(intent: string) {
+  function catalogFor(intent: string, userText?: string) {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
       Parameters<typeof buildChatToolCatalog>[0]['loop']
     >['sse'];
-    const state = { intent, enabledTools: {} } as unknown as ChatGraphState;
+    const state = {
+      intent,
+      enabledTools: {},
+      ...(userText ? { messages: [{ role: 'user', content: userText }] } : {}),
+    } as unknown as ChatGraphState;
     return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } });
   }
 
@@ -141,11 +145,19 @@ describe('toolCatalog domain tool mounting', () => {
     );
   });
 
-  it('mounts generate_image only for image + demoted agentic turns (expensive + rate-limited)', () => {
+  it('mounts generate_image only for image + explicitly image-phrased agentic turns', () => {
     expect(catalogFor('search').toolNames).not.toContain('generate_image');
     expect(catalogFor('image').toolNames).toContain('generate_image');
-    // Demoted turns can be image asks the confident heuristic missed.
-    expect(catalogFor('agentic').toolNames).toContain('generate_image');
+    // Demoted turns can be image asks the confident heuristic missed …
+    expect(catalogFor('agentic', 'erstelle ein Bild von einem Igel').toolNames).toContain(
+      'generate_image'
+    );
+    // … but a demoted non-image creation must NOT get funneled into an image
+    // (seen live: a Tally form request rendered as a FLUX image).
+    expect(catalogFor('agentic', 'erstelle ein Anmeldeformular').toolNames).not.toContain(
+      'generate_image'
+    );
+    expect(catalogFor('agentic').toolNames).not.toContain('generate_image');
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
@@ -164,6 +176,7 @@ describe('toolCatalog domain tool mounting', () => {
     kind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
     req?: boolean;
     enabledTools?: Record<string, boolean>;
+    userText?: string;
   }) {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
@@ -174,6 +187,7 @@ describe('toolCatalog domain tool mounting', () => {
       enabledTools: opts.enabledTools ?? {},
       compoundGeneration: opts.kind != null,
       compoundGenerationKind: opts.kind ?? null,
+      ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
     } as unknown as ChatGraphState;
     return buildChatToolCatalog({
       agentConfig,
@@ -247,13 +261,23 @@ describe('toolCatalog domain tool mounting', () => {
           TOOL_FOR[kind]
         );
       }
-      // generate_image is also a NEW artifact — gated off in an editor surface.
+      // generate_image is also a NEW artifact — gated off in an editor surface
+      // even when the phrasing explicitly asks for an image.
       expect(
-        genCatalog({ intent: 'agentic', kind: null, enabledTools: { [editKey]: true } }).toolNames
+        genCatalog({
+          intent: 'agentic',
+          kind: null,
+          enabledTools: { [editKey]: true },
+          userText: 'erstelle ein Bild von einem Igel',
+        }).toolNames
       ).not.toContain('generate_image');
     }
-    // Control: outside an editor surface, generate_image still mounts on agentic.
-    expect(genCatalog({ intent: 'agentic', kind: null }).toolNames).toContain('generate_image');
+    // Control: outside an editor surface, generate_image still mounts on an
+    // explicitly image-phrased agentic turn.
+    expect(
+      genCatalog({ intent: 'agentic', kind: null, userText: 'erstelle ein Bild von einem Igel' })
+        .toolNames
+    ).toContain('generate_image');
   });
 });
 

@@ -153,6 +153,8 @@ export const groupSummarySchema = z.object({
   role: z.string(),
   joined_at: z.string().nullish(),
   isAdmin: z.boolean(),
+  // 'personal' = solo Space (lean UI, hidden from discovery); else team Space.
+  group_type: z.enum(['standard', 'personal']).nullish(),
   member_count: z.number().nullish(),
   content_count: z.number().nullish(),
   // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.

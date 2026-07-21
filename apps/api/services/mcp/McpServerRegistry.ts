@@ -6,9 +6,9 @@
  * The chat `mcp`-intent tool-loop reads {@link getConnectionConfigs} to connect
  * to a user's enabled servers; the settings UI drives the CRUD methods.
  *
- * v1 auth: `none` and `bearer` are wired end-to-end. `oauth` columns exist but
- * the interactive PKCE/DCR flow is out of scope — a stored token, if present,
- * is used as a bearer token.
+ * Auth: `none`, `bearer` and `oauth` are wired end-to-end; the interactive
+ * OAuth (PKCE/DCR) flow lives in McpOAuthService, whose tokens this registry
+ * lazy-refreshes in getConnectionConfigs.
  */
 
 import { type McpServerSummary } from '@gruenerator/contracts';

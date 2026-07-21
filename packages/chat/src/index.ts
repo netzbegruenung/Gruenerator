@@ -221,7 +221,6 @@ export { CitationSidePanel } from './components/message-parts/CitationSidePanel'
 
 // Layout & UI Components
 export { ChatLayout } from './components/ChatLayout';
-export { ChatOverview, SwitchToThreadOnSend, type NotebookLink } from './components/ChatOverview';
 export { ChatSidebar } from './components/ChatSidebar';
 export { ChatThreadList } from './components/ChatThreadList';
 export { ChatThreadRouting, type ChatThreadRoutingProps } from './components/ChatThreadRouting';
