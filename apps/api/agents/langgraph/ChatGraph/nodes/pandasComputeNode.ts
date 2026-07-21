@@ -14,7 +14,7 @@
 import { isTabularAttachment } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import { extractMessageText } from './classifierHeuristics.js';
+import { lastUserText } from './classifierHeuristics.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -111,14 +111,7 @@ function buildTableContext(state: ChatGraphState): string {
   return truncateTableContext(combined);
 }
 
-/** The user's RAW last message. Preferred over searchQuery: when the router's
- *  regex gate fires on a search-classified follow-up, searchQuery holds the
- *  retrieval-optimized rewrite (or null for direct/summary/chart intents) —
- *  codegen AND the verifier must judge against the actual question. */
-export function lastUserText(state: ChatGraphState): string {
-  const msg = [...state.messages].reverse().find((m) => m.role === 'user');
-  return msg ? extractMessageText(msg.content) : '';
-}
+export { lastUserText } from './classifierHeuristics.js';
 
 export async function pandasComputeNode(
   state: ChatGraphState,
