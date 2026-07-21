@@ -157,6 +157,18 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
         if (typeof data.text === 'string') trace.fullText += data.text;
         break;
       }
+      case 'completion': {
+        // The canonical, citation-corrected final answer (notebook + agentic
+        // citation-clamp path). Replaces the streamed deltas — same as the
+        // frontend — so assertions see the corrected text, not the raw stream.
+        const corrected = typeof data.text === 'string' ? data.text : data.answer;
+        if (typeof corrected === 'string') trace.fullText = corrected;
+        if (Array.isArray(data.citations)) {
+          trace.citations = data.citations;
+          trace.sources = data.citations.length;
+        }
+        break;
+      }
       case 'done': {
         sawDone = true;
         if (Array.isArray(data.citations)) {

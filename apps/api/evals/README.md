@@ -53,18 +53,20 @@ deployed test env (matrix over both lanes, judge blocking, per-lane baselines).
 
 ## Env
 
-| var                         | default                 | purpose                                  |
-| --------------------------- | ----------------------- | ---------------------------------------- |
-| `EVAL_BASE_URL`             | `http://localhost:3001` | backend base                             |
-| `EVAL_BYPASS_TOKEN`         | —                       | `x-dev-auth-bypass` header               |
-| `EVAL_MODEL_ID`             | auto                    | force a model lane for every case        |
-| `EVAL_FILTER`               | —                       | run only ids/categories containing this  |
-| `EVAL_SLOW=1`               | —                       | include `"slow"` (golden long) scenarios |
-| `EVAL_BASELINE`             | `./baseline.json`       | regression baseline (per-lane in CI)     |
-| `EVAL_UPDATE_BASELINE=1`    | —                       | overwrite the baseline with this run     |
-| `EVAL_RECORD_DIR`           | —                       | record raw SSE per turn (E2E fixtures)   |
-| `LITELLM_BASE_URL/_API_KEY` | —                       | judge only (verdigado proxy)             |
-| `EVAL_JUDGE_BLOCKING=1`     | —                       | judge failures set exit code             |
+| var                         | default                 | purpose                                     |
+| --------------------------- | ----------------------- | ------------------------------------------- |
+| `EVAL_BASE_URL`             | `http://localhost:3001` | backend base                                |
+| `EVAL_BYPASS_TOKEN`         | —                       | `x-dev-auth-bypass` header                  |
+| `EVAL_MODEL_ID`             | auto                    | force a model lane for every case           |
+| `EVAL_FILTER`               | —                       | run only ids/categories containing this     |
+| `EVAL_SLOW=1`               | —                       | include `"slow"` (golden long) scenarios    |
+| `EVAL_MCP=1`                | —                       | include `"mcpLane"` scenarios (needs setup) |
+| `EVAL_CONCURRENCY`          | 1                       | scenarios in parallel (turns stay serial)   |
+| `EVAL_BASELINE`             | `./baseline.json`       | regression baseline (per-lane in CI)        |
+| `EVAL_UPDATE_BASELINE=1`    | —                       | overwrite the baseline with this run        |
+| `EVAL_RECORD_DIR`           | —                       | record raw SSE per turn (E2E fixtures)      |
+| `LITELLM_BASE_URL/_API_KEY` | —                       | judge only (verdigado proxy)                |
+| `EVAL_JUDGE_BLOCKING=1`     | —                       | judge failures set exit code                |
 
 ## Corpus
 
