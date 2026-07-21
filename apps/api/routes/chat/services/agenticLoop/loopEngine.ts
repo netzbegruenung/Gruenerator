@@ -140,7 +140,13 @@ export async function runAgenticLoop(
   deps: LoopDeps = defaultDeps
 ): Promise<{ text: string }> {
   if (p.mode === 'unified') {
-    return streamWithTools(p, p.synthModel, deps);
+    const result = await streamWithTools(p, p.synthModel, deps);
+    // Unified mode has no separate synth phase, so the artifact/edit guarantees
+    // run AFTER the stream (idempotent — the hooks no-op when the model already
+    // created/edited). Without this, a Mistral turn that only searched left the
+    // compound sharepic/doc uncreated.
+    if (p.afterGather) await p.afterGather();
+    return result;
   }
   await gather(p, deps);
   if (p.afterGather) await p.afterGather();

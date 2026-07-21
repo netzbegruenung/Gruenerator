@@ -78,4 +78,18 @@ describe('buildToolObservationReplay', () => {
     expect(out.length).toBeLessThan(600);
     expect(out.endsWith('…')).toBe(true);
   });
+
+  it('strips embedded [N] citation markers so the current turn owns the namespace', () => {
+    // A replayed search result carries its own numbered source block.
+    const step = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { sources: '[1] Wahlprogramm — SPD stimmte zu [2] Rede von X' },
+    });
+    const msgs = buildToolObservationReplay([step], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out).not.toMatch(/\[\d+\]/);
+    // the surrounding text survives, only the markers are gone
+    expect(out).toContain('Wahlprogramm');
+  });
 });
