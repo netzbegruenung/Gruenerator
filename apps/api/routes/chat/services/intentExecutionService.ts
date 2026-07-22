@@ -36,6 +36,7 @@ import {
   getSpaceRecallScope,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
+import { resolveReferentialTopic } from './referentialTopic.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -88,12 +89,15 @@ export async function handleBoardCreation(opts: {
     } = await import('../../../services/boards/BoardService.js');
 
     const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+    // A referential follow-up ("mach ein Board davon") inherits the prior turn's
+    // subject instead of generating a board about the bare instruction.
+    const boardTopic = resolveReferentialTopic(lastUserText, classifiedState.messages ?? []).text;
 
     const boardGenResult = await aiWorkerPool.processRequest(
       {
         type: 'board_generation',
         systemPrompt: BOARD_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: lastUserText }],
+        messages: [{ role: 'user', content: boardTopic }],
         options: { temperature: 0.7, max_tokens: 2000 },
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
@@ -979,6 +983,14 @@ export async function runSharepicGeneration(opts: {
     const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
     const refinement = opts.sharepicRefinement;
     const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
+    // A referential follow-up ("visualisiere in einem sharepic") names no subject
+    // — inherit it from the prior turn so the sharepic is ABOUT the previous topic
+    // (the confirmed context-loss bug), not the literal instruction. Variant
+    // preference is still read from the CURRENT message above.
+    const resolvedTopic = refinement
+      ? { text: messageText, inherited: false }
+      : resolveReferentialTopic(messageText, state.messages ?? []);
+    const topicText = resolvedTopic.text;
 
     // Quote sharepics are attributed to the person creating them — default the
     // author to the user's profile display name. Empty when no profile name
@@ -986,7 +998,7 @@ export async function runSharepicGeneration(opts: {
     const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
 
     log.info(
-      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", ` +
+      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}"${resolvedTopic.inherited ? ' (topic inherited from prior turn)' : ''}, ` +
         `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
         `author: ${authorName || '(none)'}`
     );
@@ -1001,7 +1013,7 @@ export async function runSharepicGeneration(opts: {
       variants = [
         await generateSliderDeckVariant({
           req: opts.req,
-          text: messageText,
+          text: topicText,
           threadId: opts.threadId ?? null,
           userId,
         }),
@@ -1009,7 +1021,7 @@ export async function runSharepicGeneration(opts: {
     } else {
       variants = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
-        text: messageText,
+        text: topicText,
         ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),
