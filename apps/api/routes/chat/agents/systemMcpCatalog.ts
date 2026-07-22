@@ -26,7 +26,13 @@ import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
-import { createSerializer, sanitizeToolName, type McpCatalog } from './mcpCatalog.js';
+import {
+  createSerializer,
+  requiredParams,
+  requiredParamsAnnotation,
+  sanitizeToolName,
+  type McpCatalog,
+} from './mcpCatalog.js';
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
 const log = createLogger('systemMcpCatalog');
@@ -172,6 +178,7 @@ export function extractNewsResults(text: string): SearchResult[] {
 const EMPTY: McpCatalog = {
   tools: {},
   labels: new Map(),
+  catalogSummary: '',
   scopedServerMissing: false,
   close: async () => {},
 };
@@ -194,6 +201,8 @@ export async function loadSystemMcpCatalog(params: {
   const tools: ToolSet = {};
   const labels = new Map<string, { serverName: string; toolName: string }>();
   const mountedKeys = new Set<string>();
+  // Keyed by source.key for stable ordering (Promise.all resolves out of order).
+  const catalogByServer = new Map<string, string>();
 
   await Promise.all(
     sources.map(async (source) => {
@@ -208,13 +217,19 @@ export async function loadSystemMcpCatalog(params: {
           : listed;
         const callSerialized = createSerializer();
 
+        const toolEntries: string[] = [];
         for (const t of allowed) {
           const providerName = `${source.key}__${sanitizeToolName(t.name)}`.slice(0, 64);
           if (tools[providerName]) continue;
           labels.set(providerName, { serverName: source.name, toolName: t.name });
+          const sanitized = sanitizeMcpSchema(t.inputSchema);
+          const required = requiredParams(sanitized);
+          toolEntries.push(`${t.name} ${requiredParamsAnnotation(required)}`);
+          const requiredSuffix =
+            required.length > 0 ? ` — Pflichtfelder: ${required.join(', ')}` : '';
           tools[providerName] = dynamicTool({
-            description: `[${source.name}] ${t.description ?? ''}`.slice(0, 1024),
-            inputSchema: jsonSchema(sanitizeMcpSchema(t.inputSchema)),
+            description: `[${source.name}] ${t.description ?? ''}${requiredSuffix}`.slice(0, 1024),
+            inputSchema: jsonSchema(sanitized),
             execute: async (input) => {
               const result = await callSerialized(() =>
                 client.callTool(t.name, (input ?? {}) as Record<string, unknown>, {
@@ -232,6 +247,9 @@ export async function loadSystemMcpCatalog(params: {
             },
           });
         }
+        if (toolEntries.length > 0) {
+          catalogByServer.set(source.key, `${source.name} · ${toolEntries.join(' · ')}`);
+        }
       } catch (err) {
         log.warn(
           `[systemMcpCatalog] source "${source.key}" unreachable: ${err instanceof Error ? err.message : err}`
@@ -241,9 +259,15 @@ export async function loadSystemMcpCatalog(params: {
     })
   );
 
+  const catalogSummary = sources
+    .map((s) => catalogByServer.get(s.key))
+    .filter((line): line is string => line != null)
+    .join('\n');
+
   return {
     tools,
     labels,
+    catalogSummary,
     scopedServerMissing: false,
     systemSourceKeys: mountedKeys,
     close: async () => {

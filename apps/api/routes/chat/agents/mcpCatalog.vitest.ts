@@ -130,6 +130,54 @@ describe('loadMcpCatalog', () => {
     expect(err.error).toBe('MCP-Client nicht verbunden.');
   });
 
+  it('builds a per-server catalogSummary annotating each tool with its required params', async () => {
+    getConnectionConfigs.mockResolvedValue([
+      { id: 'a', name: 'Sally', url: 'https://x', authType: 'none', token: null },
+    ]);
+    listTools.mockResolvedValue([
+      { name: 'get_recordings', description: 'list recordings', inputSchema: { type: 'object' } },
+      { name: 'get_summary', description: 'summary', inputSchema: { type: 'object' } },
+      {
+        name: 'search_appointments',
+        description: 'search',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            subject: { type: 'string' },
+            participant: { type: 'string' },
+            startDate: { type: 'string' },
+            endDate: { type: 'string' },
+          },
+          required: ['subject', 'participant', 'startDate', 'endDate'],
+        },
+      },
+    ]);
+    const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+    expect(cat.catalogSummary).toBe(
+      'Sally · get_recordings (keine Pflichtfelder) · get_summary (keine Pflichtfelder) · search_appointments (benötigt: subject|participant|startDate|endDate)'
+    );
+  });
+
+  it('appends a required-params suffix to a tool description', async () => {
+    getConnectionConfigs.mockResolvedValue([
+      { id: 'a', name: 'Sally', url: 'https://x', authType: 'none', token: null },
+    ]);
+    listTools.mockResolvedValue([
+      {
+        name: 'search',
+        description: 'find things',
+        inputSchema: {
+          type: 'object',
+          properties: { q: { type: 'string' }, since: { type: 'string' } },
+          required: ['q', 'since'],
+        },
+      },
+    ]);
+    const cat = await loadMcpCatalog({ userId: 'u1', scope: 'a' });
+    const desc = (cat.tools['ma__search'] as { description: string }).description;
+    expect(desc).toBe('[Sally] find things — Pflichtfelder: q, since');
+  });
+
   it('skips a dead server without failing the others, and closes it', async () => {
     getConnectionConfigs.mockResolvedValue([
       { id: 'a', name: 'Dead', url: 'https://x', authType: 'none', token: null },
