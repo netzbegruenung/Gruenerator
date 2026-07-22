@@ -7,6 +7,7 @@
 
 import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 
+import { resolveReferentialTopic } from '../../../../routes/chat/services/referentialTopic.js';
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
 import {
   FluxImageService,
@@ -108,10 +109,13 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
 
     // Extract user message content
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
-    const userContent =
+    const rawUserContent =
       typeof lastUserMessage?.content === 'string'
         ? lastUserMessage.content
         : JSON.stringify(lastUserMessage?.content || '');
+    // A referential follow-up ("mach ein Bild dazu") inherits the prior turn's
+    // subject instead of generating an image about the bare instruction.
+    const userContent = resolveReferentialTopic(rawUserContent, messages).text;
 
     // Get user ID from agent config for rate limiting
     // Note: userId is passed through agentConfig.userId or extracted from request context
