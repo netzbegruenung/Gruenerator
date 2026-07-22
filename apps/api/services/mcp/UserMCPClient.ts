@@ -25,6 +25,31 @@ import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 const log = createLogger('user-mcp-client');
 
+/** Pull `resource` (embedded) and `resource_link` blocks out of a tool result's
+ *  content array — this is where a `ui://…` MCP-Apps widget pointer arrives. */
+function extractResultResources(blocks: unknown[]): McpResultResource[] {
+  const out: McpResultResource[] = [];
+  for (const b of blocks) {
+    const block = b as {
+      type?: string;
+      uri?: string;
+      mimeType?: string;
+      resource?: { uri?: string; mimeType?: string; text?: string; blob?: string };
+    };
+    if (block.type === 'resource' && block.resource?.uri) {
+      out.push({
+        uri: block.resource.uri,
+        ...(block.resource.mimeType ? { mimeType: block.resource.mimeType } : {}),
+        ...(block.resource.text != null ? { text: block.resource.text } : {}),
+        ...(block.resource.blob != null ? { blob: block.resource.blob } : {}),
+      });
+    } else if (block.type === 'resource_link' && block.uri) {
+      out.push({ uri: block.uri, ...(block.mimeType ? { mimeType: block.mimeType } : {}) });
+    }
+  }
+  return out;
+}
+
 const CONNECT_TIMEOUT_MS = 15_000;
 const CALL_TIMEOUT_MS = 30_000;
 /** Untrusted servers can return huge blobs; cap what we feed back to the model. */
@@ -44,12 +69,45 @@ export interface McpToolDescriptor {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Output shape when the server declares one (MCP-Apps widgets rely on it). */
+  outputSchema?: Record<string, unknown>;
+  /** Tool `_meta` — carries the MCP-Apps `ui.resourceUri` and the OpenAI Apps
+   *  SDK `openai/outputTemplate` widget pointers. Dropped historically. */
+  meta?: Record<string, unknown>;
+}
+
+/** A resource attached to a tool result — an MCP-Apps `ui://…` widget pointer
+ *  (embedded or linked). */
+export interface McpResultResource {
+  uri: string;
+  mimeType?: string;
+  text?: string;
+  blob?: string;
 }
 
 export interface McpCallResult {
   ok: boolean;
   /** Stringified tool output (text blocks joined), capped. */
   content: string;
+  /** Structured tool output (`structuredContent`) — the data an MCP-Apps widget
+   *  renders. Preserved separately from the flattened text. */
+  structuredContent?: Record<string, unknown>;
+  /** Result `_meta` (e.g. OpenAI Apps SDK `openai/outputTemplate`). */
+  meta?: Record<string, unknown>;
+  /** Embedded / linked resources from the result (`ui://…` widget refs). */
+  resources?: McpResultResource[];
+}
+
+/** A resource listed by / read from an MCP server (`resources/list`, `resources/read`). */
+export interface McpResource {
+  uri: string;
+  name?: string;
+  mimeType?: string;
+  text?: string;
+  blob?: string;
+  /** Resource `_meta` — an MCP-Apps widget carries its CSP here (`ui.csp` /
+   *  `openai/widgetCSP`). */
+  meta?: Record<string, unknown>;
 }
 
 export class UserMCPClient {
@@ -118,11 +176,22 @@ export class UserMCPClient {
   async listTools(): Promise<McpToolDescriptor[]> {
     if (!this.client) throw new Error('UserMCPClient.listTools called before connect()');
     const result = await this.client.listTools(undefined, { timeout: CALL_TIMEOUT_MS });
-    return (result.tools ?? []).map((t) => ({
-      name: t.name,
-      description: t.description ?? '',
-      inputSchema: (t.inputSchema as Record<string, unknown>) ?? { type: 'object', properties: {} },
-    }));
+    return (result.tools ?? []).map((t) => {
+      const raw = t as {
+        outputSchema?: Record<string, unknown>;
+        _meta?: Record<string, unknown>;
+      };
+      return {
+        name: t.name,
+        description: t.description ?? '',
+        inputSchema: (t.inputSchema as Record<string, unknown>) ?? {
+          type: 'object',
+          properties: {},
+        },
+        ...(raw.outputSchema ? { outputSchema: raw.outputSchema } : {}),
+        ...(raw._meta ? { meta: raw._meta } : {}),
+      };
+    });
   }
 
   /**
@@ -151,11 +220,77 @@ export class UserMCPClient {
         .join('\n')
         .slice(0, opts?.maxChars ?? MAX_TOOL_RESULT_CHARS);
       const isError = (result as { isError?: boolean }).isError === true;
-      return { ok: !isError, content: text || (isError ? 'Tool meldete einen Fehler.' : '') };
+      // Preserve the structured/metadata channels the model-facing text drops —
+      // MCP-Apps widgets render from `structuredContent` and locate their HTML
+      // via result `_meta` / embedded `ui://` resource blocks.
+      const resources = extractResultResources(blocks);
+      const structuredContent = (result as { structuredContent?: Record<string, unknown> })
+        .structuredContent;
+      const meta = (result as { _meta?: Record<string, unknown> })._meta;
+      return {
+        ok: !isError,
+        content: text || (isError ? 'Tool meldete einen Fehler.' : ''),
+        ...(structuredContent ? { structuredContent } : {}),
+        ...(meta ? { meta } : {}),
+        ...(resources.length > 0 ? { resources } : {}),
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       log.warn('MCP tool call failed', { server: this.config.name, tool: toolName, message });
       return { ok: false, content: `Fehler beim Aufruf von ${toolName}: ${message}` };
+    }
+  }
+
+  /** List the server's resources (`resources/list`). Empty on failure. */
+  async listResources(): Promise<McpResource[]> {
+    if (!this.client) throw new Error('UserMCPClient.listResources called before connect()');
+    try {
+      const result = await this.client.listResources(undefined, { timeout: CALL_TIMEOUT_MS });
+      return (result.resources ?? []).map((r) => ({
+        uri: r.uri,
+        ...(r.name ? { name: r.name } : {}),
+        ...(r.mimeType ? { mimeType: r.mimeType } : {}),
+      }));
+    } catch (err) {
+      log.warn('MCP listResources failed', {
+        server: this.config.name,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return [];
+    }
+  }
+
+  /** Read a single resource by URI (`resources/read`) — the MCP-Apps widget
+   *  HTML lives behind a `ui://…` URI. Returns null on failure. */
+  async readResource(uri: string): Promise<McpResource | null> {
+    if (!this.client) throw new Error('UserMCPClient.readResource called before connect()');
+    try {
+      const result = await this.client.readResource({ uri }, { timeout: CALL_TIMEOUT_MS });
+      const contents = Array.isArray(result.contents) ? result.contents : [];
+      const match =
+        contents.find((c) => (c as { uri?: string }).uri === uri) ?? contents[0] ?? null;
+      if (!match) return null;
+      const c = match as {
+        uri: string;
+        mimeType?: string;
+        text?: string;
+        blob?: string;
+        _meta?: Record<string, unknown>;
+      };
+      return {
+        uri: c.uri,
+        ...(c.mimeType ? { mimeType: c.mimeType } : {}),
+        ...(c.text != null ? { text: c.text } : {}),
+        ...(c.blob != null ? { blob: c.blob } : {}),
+        ...(c._meta ? { meta: c._meta } : {}),
+      };
+    } catch (err) {
+      log.warn('MCP readResource failed', {
+        server: this.config.name,
+        uri,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return null;
     }
   }
 

@@ -47,6 +47,44 @@ const ERROR_MAX_CHARS = 2_000;
 const CONDENSED_MAX_ENTRIES = 15;
 const NEWS_MAX_CITATIONS = 10;
 
+// ── MCP-Apps widget detection (system sources only) ──────────────────────────
+
+/** Lightweight widget pointer carried on the tool result → SSE → client. The
+ *  HTML itself is fetched on demand via the `/api/mcp-apps` route (not persisted
+ *  here), so the step result stays small and thread reloads re-fetch cleanly. */
+export interface SystemWidgetPointer {
+  serverKey: SystemMcpKey;
+  toolName: string;
+  uri: string;
+  /** The structured data the widget renders (seeds `window.openai.toolOutput`). */
+  structuredContent?: Record<string, unknown>;
+}
+
+/** Detect a `ui://…` widget pointer from a tool's `_meta`, the result `_meta`,
+ *  or an embedded/linked resource — covering both the OpenAI Apps SDK
+ *  (`openai/outputTemplate`) and MCP-Apps (`ui.resourceUri`) conventions. */
+export function resolveWidgetUri(
+  toolMeta: Record<string, unknown> | undefined,
+  resultMeta: Record<string, unknown> | undefined,
+  resources: { uri: string }[] | undefined
+): string | null {
+  const fromMeta = (m: Record<string, unknown> | undefined): string | null => {
+    if (!m) return null;
+    const tmpl = m['openai/outputTemplate'];
+    if (typeof tmpl === 'string' && tmpl.startsWith('ui://')) return tmpl;
+    const ui = m.ui as { resourceUri?: unknown } | undefined;
+    if (ui && typeof ui.resourceUri === 'string' && ui.resourceUri.startsWith('ui://'))
+      return ui.resourceUri;
+    return null;
+  };
+  return (
+    fromMeta(resultMeta) ??
+    fromMeta(toolMeta) ??
+    resources?.find((r) => r.uri.startsWith('ui://'))?.uri ??
+    null
+  );
+}
+
 // listTools is stable per deployment of a first-party server — cache it so hot
 // turns skip one round-trip (connect still happens per turn for the calls).
 const TOOL_LIST_TTL_MS = 10 * 60_000;
@@ -228,7 +266,29 @@ export async function loadSystemMcpCatalog(params: {
                   error: result.content.slice(0, ERROR_MAX_CHARS) || 'Fehler beim Tool-Aufruf.',
                 };
               }
-              return postProcess(source, t.name, result.content, params);
+              const shaped = postProcess(source, t.name, result.content, params);
+              // System-only widget detection: attach a lightweight pointer when
+              // the tool ships an MCP-Apps / OpenAI-Apps-SDK `ui://` widget. This
+              // file is system MCPs only, so producing a pointer here IS the
+              // trust gate — user connectors (mcpCatalog) never get one.
+              const widgetUri = resolveWidgetUri(t.meta, result.meta, result.resources);
+              if (widgetUri) {
+                const uiResource: SystemWidgetPointer = {
+                  serverKey: source.key,
+                  toolName: t.name,
+                  uri: widgetUri,
+                  ...(result.structuredContent
+                    ? { structuredContent: result.structuredContent }
+                    : {}),
+                };
+                shaped.uiResource = uiResource;
+                log.info(
+                  `[systemMcpCatalog] widget ${source.key}__${t.name} → ${widgetUri}${
+                    result.structuredContent ? ' (+structuredContent)' : ''
+                  }`
+                );
+              }
+              return shaped;
             },
           });
         }
