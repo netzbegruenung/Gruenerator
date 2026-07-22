@@ -84,6 +84,7 @@ import {
   hasReelEditVerb,
   isReelEditInstruction,
 } from './services/reelEditService.js';
+import { resolveReferentialTopic } from './services/referentialTopic.js';
 import {
   resolveModel,
   buildMessagesForAI,
@@ -1200,7 +1201,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
-          userContent: lastUserText as string,
+          // A referential follow-up ("mach eine Tabelle dazu") inherits the prior
+          // turn's subject instead of building a sheet about the bare instruction.
+          userContent: resolveReferentialTopic(
+            lastUserText as string,
+            classifiedState.messages ?? []
+          ).text,
         });
         if (created) return { status: 200 as const, body: undefined };
       }
@@ -1221,7 +1227,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
-          userContent: lastUserText as string,
+          // A referential follow-up ("mach eine Präsentation dazu") inherits the
+          // prior turn's subject instead of the bare instruction.
+          userContent: resolveReferentialTopic(
+            lastUserText as string,
+            classifiedState.messages ?? []
+          ).text,
         });
         if (created) return { status: 200 as const, body: undefined };
       }
