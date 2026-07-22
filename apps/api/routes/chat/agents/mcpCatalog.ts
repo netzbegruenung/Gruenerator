@@ -15,7 +15,7 @@
  * (one MCP session = one JSON-RPC transport) since a step may issue parallel
  * tool calls.
  */
-import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
+import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from 'ai';
 
 import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
@@ -31,6 +31,18 @@ const MAX_TOOLS = 60;
 /** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. Shared with systemMcpCatalog. */
 export function sanitizeToolName(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+}
+
+/** Required-param names of a sanitized MCP schema (drops non-string entries). */
+export function requiredParams(schema: JSONSchema7): string[] {
+  return Array.isArray(schema.required)
+    ? schema.required.filter((r): r is string => typeof r === 'string')
+    : [];
+}
+
+/** Planner catalog annotation: "(keine Pflichtfelder)" or "(benötigt: a|b)". */
+export function requiredParamsAnnotation(required: string[]): string {
+  return required.length === 0 ? '(keine Pflichtfelder)' : `(benötigt: ${required.join('|')})`;
 }
 
 /** Per-client mutex: serialize callTool on one MCP session (no p-limit dep). */
@@ -51,6 +63,10 @@ export interface McpCatalog {
   tools: ToolSet;
   /** namespaced name → display label ("Server · tool") for wrapTools titleFor. */
   labels: Map<string, { serverName: string; toolName: string }>;
+  /** Per-turn planner catalog: one line per connected server listing each tool
+   *  and its required params, so the planner can survey siblings (e.g. a
+   *  param-free "letzte/liste" tool) instead of giving up on a missing param. */
+  catalogSummary: string;
   /** True when a scope was requested but the server is gone/disabled — the
    *  caller should answer honestly instead of running a tool-less loop. */
   scopedServerMissing: boolean;
@@ -65,6 +81,7 @@ export interface McpCatalog {
 const EMPTY: McpCatalog = {
   tools: {},
   labels: new Map(),
+  catalogSummary: '',
   scopedServerMissing: false,
   close: async () => {},
 };
@@ -96,6 +113,9 @@ export async function loadMcpCatalog(params: {
   const tools: ToolSet = {};
   const labels = new Map<string, { serverName: string; toolName: string }>();
   const seen = new Set<string>();
+  // Keyed by config.id so the summary is emitted in stable configs order below
+  // (Promise.all resolves the servers in a nondeterministic order).
+  const catalogByServer = new Map<string, string>();
 
   await Promise.all(
     configs.map(async (config) => {
@@ -111,6 +131,7 @@ export async function loadMcpCatalog(params: {
         // (not the per-turn index) so a tool name persisted this turn resolves to
         // the SAME catalog entry next turn — the invariant cross-turn replay needs.
         const serverKey = config.id.replace(/-/g, '').slice(0, 8);
+        const toolEntries: string[] = [];
         for (const t of listed) {
           if (Object.keys(tools).length >= MAX_TOOLS) break;
           const providerName = `m${serverKey}__${sanitizeToolName(t.name)}`.slice(0, 64);
@@ -118,9 +139,15 @@ export async function loadMcpCatalog(params: {
           seen.add(providerName);
           labels.set(providerName, { serverName: config.name, toolName: t.name });
 
+          const sanitized = sanitizeMcpSchema(t.inputSchema);
+          const required = requiredParams(sanitized);
+          toolEntries.push(`${t.name} ${requiredParamsAnnotation(required)}`);
+          const requiredSuffix =
+            required.length > 0 ? ` — Pflichtfelder: ${required.join(', ')}` : '';
+
           tools[providerName] = dynamicTool({
-            description: `[${config.name}] ${t.description ?? ''}`.slice(0, 1024),
-            inputSchema: jsonSchema(sanitizeMcpSchema(t.inputSchema)),
+            description: `[${config.name}] ${t.description ?? ''}${requiredSuffix}`.slice(0, 1024),
+            inputSchema: jsonSchema(sanitized),
             execute: async (input): Promise<McpToolResult> => {
               const result = await callSerialized(() =>
                 client.callTool(t.name, (input ?? {}) as Record<string, unknown>)
@@ -132,6 +159,9 @@ export async function loadMcpCatalog(params: {
             },
           });
         }
+        if (toolEntries.length > 0) {
+          catalogByServer.set(config.id, `${config.name} · ${toolEntries.join(' · ')}`);
+        }
       } catch (err) {
         log.warn(
           `[mcpCatalog] server "${config.name}" unreachable: ${err instanceof Error ? err.message : err}`
@@ -141,9 +171,15 @@ export async function loadMcpCatalog(params: {
     })
   );
 
+  const catalogSummary = configs
+    .map((c) => catalogByServer.get(c.id))
+    .filter((line): line is string => line != null)
+    .join('\n');
+
   return {
     tools,
     labels,
+    catalogSummary,
     scopedServerMissing: false,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
