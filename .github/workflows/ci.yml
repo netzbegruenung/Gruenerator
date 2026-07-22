@@ -64,7 +64,6 @@ jobs:
 
       - name: Run tests
         run: pnpm test
-        continue-on-error: true
 
   build:
     name: Build ${{ matrix.app }}

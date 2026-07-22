@@ -1,0 +1,6 @@
+{"id":"at-nationalrat-basics","prompt":"Wie viele Abgeordnete hat der Nationalrat und wie oft wird gewählt?","category":"locale-at","expect":{"judge":["known_answer","german_quality"],"judgeFacts":["Der österreichische Nationalrat hat 183 Abgeordnete","Die Gesetzgebungsperiode beträgt fünf Jahre"]}}
+{"id":"at-gruene-position","prompt":"Was ist die Position der österreichischen Grünen zum Klimaticket?","category":"locale-at","expect":{"grounded":true,"judge":["german_quality"]}}
+{"id":"at-kogler","prompt":"Welche Rolle hatte Werner Kogler in der letzten Bundesregierung?","category":"locale-at","expect":{"judge":["known_answer"],"judgeFacts":["Werner Kogler war Vizekanzler Österreichs und Bundessprecher der Grünen"]}}
+{"id":"at-de-compare","prompt":"Vergleiche die Klimapolitik der Grünen in Deutschland und Österreich","category":"locale-at","expect":{"grounded":true,"topicsCovered":["Österreich","Deutschland"],"judge":["groundedness","german_quality"]}}
+{"id":"at-wien-verkehr","prompt":"Was fordern die Wiener Grünen zur Verkehrsberuhigung in der Innenstadt?","category":"locale-at","expect":{"grounded":true,"noInventedUrls":true}}
+{"id":"at-terminology","prompt":"Erklär den Unterschied zwischen Nationalrat und Bundesrat in Österreich","category":"locale-at","expect":{"routingNot":["direct"],"judge":["german_quality"]}}

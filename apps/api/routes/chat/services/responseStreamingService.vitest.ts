@@ -86,6 +86,17 @@ function hungStream() {
   };
 }
 
+/** Emits a first token (clears the first-token deadline) then hangs in Phase 2. */
+function firstTokenThenHang() {
+  return {
+    fullStream: (async function* () {
+      yield { type: 'text-delta', text: 'Anfang ' };
+      await new Promise(() => {});
+      yield { type: 'text-delta', text: 'unreachable' };
+    })(),
+  };
+}
+
 const MESSAGES = [{ role: 'user', content: 'Hallo' }];
 
 function makeResolution(overrides: Record<string, unknown> = {}) {
@@ -226,6 +237,21 @@ describe('streamWithFallback', () => {
     await vi.advanceTimersByTimeAsync(5_000);
     await resultPromise;
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
+  });
+
+  it('caps Phase 2 with a turn wall-clock (never cleared) so a slow drain cannot run forever', async () => {
+    vi.useFakeTimers();
+    // First token arrives → first-token deadline is cleared; then Phase 2 hangs.
+    mockStreamText.mockReturnValue(firstTokenThenHang());
+    const sse = makeSse();
+    void runStream(makeResolution(), sse);
+    // let the generator yield its first token and clear the deadline
+    await vi.advanceTimersByTimeAsync(0);
+    const composed = (mockStreamText.mock.calls[0][0] as { abortSignal: AbortSignal }).abortSignal;
+    expect(composed.aborted).toBe(false);
+    // Advance past the 180s single-pass wall-clock — the un-cleared ceiling fires.
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(composed.aborted).toBe(true);
   });
 
   it('falls back when the primary completes without any content', async () => {

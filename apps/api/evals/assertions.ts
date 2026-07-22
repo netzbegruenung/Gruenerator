@@ -4,13 +4,24 @@
  * Subjective quality (groundedness, honesty nuance) is left to the optional LLM
  * judge; these are the mechanical checks the SSE trace can prove on its own.
  */
-import { type AssertionResult, type ChatTrace, type EvalExpect } from './types.js';
+import {
+  type AssertionResult,
+  type ChatTrace,
+  type EvalExpect,
+  type ScenarioContext,
+} from './types.js';
 
 const SEARCH_TOOL_RE = /search/i;
 const INTERNAL_TOOL = 'gruenerator_search';
 const WEB_TOOLS = ['web_search', 'scrape_url'];
 const CAPABILITY_REFUSAL_RE =
   /kann kein(e|en)?\s+(bild|bilder|sharepic|grafik|kachel)|textbasiert|nur ein(?:\s+\w+)?\s+(text|sprach)modell|ich kann keine\s+(bilder|sharepics)/i;
+/** Text denies an action (edit/change) — must not appear when ops were applied. */
+const ACTION_DENIAL_RE =
+  /konnte (die|das|den|keine?)?\s*\S*\s*(nicht|leider nicht)\s*(ändern|bearbeiten|anpassen|finden)|kann (die|das|den)?\s*\S*\s*nicht (ändern|bearbeiten|anpassen)|leider nicht möglich|keine antwort (finden|gefunden)|nicht durchführen/i;
+/** Text claims research/tool work — must not appear when 0 tools ran. */
+const CLAIMED_WORK_RE =
+  /ich habe (recherchiert|gesucht|nachgeschlagen|die (quellen|dokumente) (durchsucht|geprüft))|(meine|die) (recherche|suche) (ergab|zeigt|hat ergeben)|laut meiner (suche|recherche)/i;
 
 /** Bracketed citation numbers, e.g. [3] or [3, 7] → [3,7]. */
 function bracketedCiteNumbers(text: string): number[] {
@@ -44,7 +55,11 @@ function ok(name: string, detail = ''): AssertionResult {
   return { name, pass: true, detail };
 }
 
-export function runAssertions(trace: ChatTrace, expect: EvalExpect): AssertionResult[] {
+export function runAssertions(
+  trace: ChatTrace,
+  expect: EvalExpect,
+  ctx?: ScenarioContext
+): AssertionResult[] {
   const results: AssertionResult[] = [];
   const toolNames = trace.toolCalls.map((t) => t.toolName);
 
@@ -53,11 +68,79 @@ export function runAssertions(trace: ChatTrace, expect: EvalExpect): AssertionRe
     return [fail('streamCompleted', trace.error)];
   }
 
+  if (expect.sameThread) {
+    if (!ctx?.firstThreadId) {
+      results.push(fail('sameThread', 'no threadId captured on the first turn'));
+    } else {
+      results.push(
+        trace.threadId === ctx.firstThreadId
+          ? ok('sameThread')
+          : fail(
+              'sameThread',
+              `threadId ${trace.threadId ?? 'null'} ≠ first turn's ${ctx.firstThreadId} (thread re-minted)`
+            )
+      );
+    }
+  }
+
+  if (expect.editsPreviousArtifact) {
+    const prior = new Set(ctx?.priorArtifactIds ?? []);
+    // The edit target must be an artifact from an earlier turn: matched via edit
+    // events' ids or any prior id appearing in this turn's tool-call args.
+    const argsJson = JSON.stringify(trace.toolCalls.map((t) => t.args));
+    const referencedPrior =
+      trace.referencedIds.some((id) => prior.has(id)) ||
+      [...prior].some((id) => argsJson.includes(id));
+    if (prior.size === 0) {
+      // No id was capturable from the create turn — fall back to "an edit
+      // event fired at all" so the scenario still catches total misses.
+      results.push(
+        trace.editorOps || trace.sharepicUpdated
+          ? ok('editsPreviousArtifact', 'edit event fired (no prior ids captured)')
+          : fail('editsPreviousArtifact', 'no edit event and no prior artifact ids captured')
+      );
+    } else {
+      results.push(
+        referencedPrior
+          ? ok('editsPreviousArtifact')
+          : fail(
+              'editsPreviousArtifact',
+              `no reference to prior artifact(s) [${[...prior].join(', ')}]; referenced: [${trace.referencedIds.join(', ')}]`
+            )
+      );
+    }
+  }
+
+  if (expect.narrationMatchesAction) {
+    const actionHappened = trace.editorOps || trace.sharepicUpdated || trace.imageGenerated;
+    const denial = trace.fullText.match(ACTION_DENIAL_RE);
+    const claimed = trace.fullText.match(CLAIMED_WORK_RE);
+    if (actionHappened && denial) {
+      results.push(
+        fail('narrationMatchesAction', `edit applied but text denies it: "${denial[0]}"`)
+      );
+    } else if (trace.toolCalls.length === 0 && claimed) {
+      results.push(
+        fail('narrationMatchesAction', `0 tool calls but text claims work: "${claimed[0]}"`)
+      );
+    } else {
+      results.push(ok('narrationMatchesAction'));
+    }
+  }
+
   if (expect.routing != null) {
     results.push(
       trace.intent === expect.routing
         ? ok('routing')
         : fail('routing', `intent=${trace.intent ?? 'null'} expected ${expect.routing}`)
+    );
+  }
+
+  if (expect.routingNot != null && expect.routingNot.length > 0) {
+    results.push(
+      trace.intent != null && expect.routingNot.includes(trace.intent)
+        ? fail('routingNot', `intent=${trace.intent} is in the forbidden set (intent/tools lost)`)
+        : ok('routingNot')
     );
   }
 
@@ -72,6 +155,26 @@ export function runAssertions(trace: ChatTrace, expect: EvalExpect): AssertionRe
       toolNames.includes(tool)
         ? ok(`tool:${tool}`)
         : fail(`tool:${tool}`, `missing; called: [${toolNames.join(', ')}]`)
+    );
+  }
+
+  for (const group of expect.toolsAnyOf ?? []) {
+    results.push(
+      group.some((tool) => toolNames.includes(tool))
+        ? ok(`toolAnyOf:${group.join('|')}`)
+        : fail(`toolAnyOf:${group.join('|')}`, `none called; called: [${toolNames.join(', ')}]`)
+    );
+  }
+
+  if (expect.toolNameMatches != null) {
+    const re = new RegExp(expect.toolNameMatches);
+    results.push(
+      toolNames.some((t) => re.test(t))
+        ? ok('toolNameMatches')
+        : fail(
+            'toolNameMatches',
+            `no tool matched /${expect.toolNameMatches}/; called: [${toolNames.join(', ')}]`
+          )
     );
   }
 

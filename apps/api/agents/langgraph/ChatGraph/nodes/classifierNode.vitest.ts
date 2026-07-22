@@ -851,6 +851,80 @@ describe('detectSocialPlatform', () => {
   });
 });
 
+// ─── fast-path hardening (negation / meta-question / quote / greeting) ─────
+describe('heuristicClassify – fast-path hardening', () => {
+  const below = (r: { confidence: number }) => r.confidence < HEURISTIC_CONFIDENCE_THRESHOLD;
+
+  it('does not route a negated Sharepic ask to sharepic', () => {
+    const r = heuristicClassify('Ich will KEIN Sharepic, nur den reinen Text zur Wahlkampagne');
+    expect(r.intent).not.toBe('sharepic');
+  });
+  it('does not route a Sharepic meta-question to sharepic', () => {
+    const r = heuristicClassify('Was macht ein gutes Sharepic aus?');
+    expect(r.intent).not.toBe('sharepic');
+    expect(below(r)).toBe(true);
+  });
+  it('does not route a quoted Sharepic mention to sharepic', () => {
+    const r = heuristicClassify(
+      'Mein Kollege meinte: „Erstell doch einfach ein Sharepic dazu" — was hältst du davon?'
+    );
+    expect(r.intent).not.toBe('sharepic');
+  });
+  it('does not route a negated Grafik ask to image (window-swallowed negation)', () => {
+    const r = heuristicClassify('Mach daraus bitte KEINE Grafik, beschreib es nur in Worten');
+    expect(r.intent).not.toBe('image');
+  });
+  it('greeting prefix does not swallow a substantive question', () => {
+    const r = heuristicClassify('Hallo! Wie hat die CDU zur Frauenquote abgestimmt?');
+    expect(r.reasoning).not.toBe('Greeting detected');
+    expect(below(r)).toBe(true);
+  });
+  it('routes an explicit table-creation ask to create_sheet', () => {
+    const r = heuristicClassify('Erstell mir eine Tabelle mit den Infostand-Terminen');
+    expect(r.intent).toBe('create_sheet');
+    expect(r.confidence).toBeGreaterThanOrEqual(0.9);
+  });
+  it('routes a separable-verb summary ask deterministically to summary', () => {
+    const r = heuristicClassify('Fass die wichtigsten Argumente aus der Debatte zusammen');
+    expect(r.intent).toBe('summary');
+    expect(r.confidence).toBeGreaterThanOrEqual(0.85);
+  });
+
+  // must-not-regress: legitimate generation asks still fast-path
+  it('keeps plain generation asks on their fast paths', () => {
+    expect(heuristicClassify('Erstelle ein Sharepic zur Verkehrswende').intent).toBe('sharepic');
+    expect(heuristicClassify('Erstelle ein Bild von einem grünen Baum').intent).toBe('image');
+    expect(heuristicClassify('Erstelle ein Diagramm über die Wahlergebnisse').intent).toBe('chart');
+    expect(heuristicClassify('Zeige mir ein Balkendiagramm der Umfragewerte').intent).toBe('chart');
+    expect(heuristicClassify('Erstelle eine Präsentation über kommunale Wärmeplanung').intent).toBe(
+      'create_presentation'
+    );
+    expect(
+      heuristicClassify('Hallo, erstell mir bitte ein Sharepic zur Verkehrswende').intent
+    ).toBe('sharepic');
+  });
+  it('keeps pure greetings and small-talk as direct@0.95', () => {
+    for (const q of [
+      'Hallo, wie geht es dir?',
+      'Hi! Kannst du mir helfen?',
+      'Danke dir, das passt so!',
+    ]) {
+      const r = heuristicClassify(q);
+      expect(r.intent).toBe('direct');
+      expect(r.reasoning).toBe('Greeting detected');
+    }
+  });
+  it('keeps chart over "aus der Tabelle" and compute over "berechne die Tabelle"', () => {
+    expect(heuristicClassify('erstell ein Diagramm aus der Tabelle').intent).toBe('chart');
+    expect(
+      heuristicClassify('berechne die Summe in der Tabelle', { hasTabularAttachment: true }).intent
+    ).toBe('compute');
+  });
+  it('does not create a sheet when negated', () => {
+    expect(heuristicClassify('Mach daraus bitte keine Tabelle').intent).not.toBe('create_sheet');
+  });
+});
+
 describe('resolveSocialPostEscape', () => {
   it('routes "nur Text" to examples', () => {
     expect(resolveSocialPostEscape('nur den text bitte')).toBe('examples');

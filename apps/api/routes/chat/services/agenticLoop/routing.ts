@@ -27,11 +27,12 @@ const TOOLABLE_QUESTION_RE =
 const VERB_FIRST_RE =
   /^(hat|haben|hatte|h[äa]tte|ist|sind|war|waren|gibt|gab|kann|k[öo]nnen|konnte|wird|wurde|werden|soll\w*|muss|m[üu]ssen|darf|d[üu]rfen|welche[rs]?)\b/i;
 
-// Greetings/identity/thanks are ABOUT THE ASSISTANT, not the world — length
-// can't separate "Wie hat X abgestimmt?" (factual) from "Hallo, wer bist du?"
-// (chit-chat), so match the latter explicitly and keep it on the fast path.
-const CHITCHAT_RE =
-  /^(hallo|hi|hey|servus|moin|na\b|guten (morgen|tag|abend)|danke|thx|wer bist du|was (kannst|bist) du|wie geht|wie heißt du|hilfe|test)\b/i;
+// A leading greeting is a strippable PREFIX, not a terminal signal — "Hallo!
+// Wie hat X abgestimmt?" is a factual ask wearing a greeting. Strip it, then
+// only genuine assistant-directed cores (identity/thanks/help) stay chit-chat.
+const GREETING_PREFIX_RE =
+  /^(?:(?:hallo|hi|hey|servus|moin|na|guten\s+(?:morgen|tag|abend)|danke|thx|vielen dank)\b[\s,.!:;–—-]*)+/i;
+const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|hilfe|test)\b/i;
 
 // Personal-data asks ("meine Dokumente", "zeig meine offenen Aufgaben", "welche
 // Boards habe ich") don't always carry a question word — a bare possessive + a
@@ -42,7 +43,7 @@ const PERSONAL_DATA_RE =
   /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
 
 export function looksLikeToolableQuestion(raw: string): boolean {
-  const t = (raw ?? '').trim();
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.split(/\s+/).filter(Boolean).length < 3) return false;
   if (CHITCHAT_RE.test(t)) return false;
   return (

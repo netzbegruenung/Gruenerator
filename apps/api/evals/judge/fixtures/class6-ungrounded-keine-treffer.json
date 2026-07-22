@@ -1,0 +1,44 @@
+[
+  {
+    "id": "fixture-class6-ungrounded",
+    "category": "fixture",
+    "prompt": "Was fordern die Grünen zur Wärmewende?",
+    "latencyMs": 12000,
+    "intent": "search",
+    "agentic": true,
+    "toolNames": ["gruenerator_search"],
+    "error": null,
+    "assertions": [],
+    "passed": true,
+    "turns": [
+      {
+        "turnIndex": 0,
+        "prompt": "Was fordern die Grünen zur Wärmewende?",
+        "latencyMs": 12000,
+        "intent": "search",
+        "agentic": true,
+        "toolCalls": [{ "toolName": "gruenerator_search", "ok": true, "summary": "5 Ergebnisse" }],
+        "threadId": "00000000-0000-0000-0000-000000000001",
+        "warnings": [],
+        "interrupts": [],
+        "artifactIds": [],
+        "editorOps": false,
+        "sharepicUpdated": false,
+        "citations": [
+          {
+            "title": "Wahlprogramm 2025 — Kapitel Wärme",
+            "excerpt": "Wir wollen die kommunale Wärmeplanung flächendeckend bis 2028 umsetzen und Wärmenetze massiv ausbauen. Der Umstieg auf Wärmepumpen wird sozial gestaffelt gefördert."
+          },
+          {
+            "title": "Beschluss BDK 2024 — Klimaschutz sozial gestalten",
+            "excerpt": "Die Förderung des Heizungstauschs muss einkommensabhängig bis zu 70 Prozent der Kosten abdecken."
+          }
+        ],
+        "fullText": "Leider konnte ich zu den Forderungen der Grünen zur Wärmewende keine Treffer in den verfügbaren Quellen finden. [1] Gerne kann ich eine allgemeine Einschätzung geben.",
+        "assertions": [],
+        "passed": true,
+        "judge": ["groundedness"]
+      }
+    ]
+  }
+]
