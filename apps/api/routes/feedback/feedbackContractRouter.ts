@@ -12,7 +12,6 @@
 import { feedbackContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { env } from '../../config/env.js';
 import { isEmailConfigured, sendEmail } from '../../services/email/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -22,7 +21,7 @@ import type { Application } from 'express';
 
 const log = createLogger('feedbackContractRouter');
 
-const FEEDBACK_RECIPIENT = env.FEEDBACK_RECIPIENT_EMAIL ?? 'info@moritz-waechter.de';
+const FEEDBACK_RECIPIENT = 'info@moritz-waechter.de';
 
 const s = initServer();
 
