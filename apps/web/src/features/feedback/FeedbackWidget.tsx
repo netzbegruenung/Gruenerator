@@ -48,6 +48,16 @@ async function capturePageScreenshot(): Promise<string | null> {
       quality: 0.8,
       scale,
       backgroundColor: '#ffffff',
+      // Exclude the (already open) feedback dialog and its own launcher so the
+      // screenshot shows the page the user is giving feedback on, not the modal
+      // overlaying it. The whole Radix portal (overlay + content) is skipped.
+      filter: (node) => {
+        if (node instanceof Element) {
+          if (node.getAttribute('data-slot') === 'dialog-portal') return false;
+          if (node.classList.contains('feedback-widget-fab')) return false;
+        }
+        return true;
+      },
     });
   } catch (err) {
     console.warn('[FeedbackWidget] Screenshot capture failed', err);
@@ -89,15 +99,19 @@ export default function FeedbackWidget({
     },
   });
 
-  // Capture the page *before* opening the dialog so the screenshot shows the
-  // page the user is giving feedback on, not the modal overlaying it.
-  const handleLauncherClick = useCallback(async () => {
+  // Open the dialog immediately and capture the screenshot in the background —
+  // the open dialog is filtered out of the capture, so the interface feels
+  // instant and the preview fills in when ready.
+  const handleLauncherClick = useCallback(() => {
+    setScreenshot(null);
+    setIncludeScreenshot(true);
     setCapturing(true);
-    const shot = await capturePageScreenshot();
-    setScreenshot(shot);
-    setIncludeScreenshot(shot != null);
-    setCapturing(false);
     setOpen(true);
+    void capturePageScreenshot().then((shot) => {
+      setScreenshot(shot);
+      setIncludeScreenshot(shot != null);
+      setCapturing(false);
+    });
   }, []);
 
   if (!visible) return null;
@@ -105,12 +119,10 @@ export default function FeedbackWidget({
   return (
     <>
       <FloatingActionButton
-        icon={capturing ? <Loader2 className="animate-spin" /> : <MessageSquare />}
-        onClick={() => {
-          void handleLauncherClick();
-        }}
+        icon={<MessageSquare />}
+        onClick={handleLauncherClick}
         position={position}
-        className="bg-primary-600 dark:bg-primary-600"
+        className="feedback-widget-fab bg-primary-600 dark:bg-primary-600"
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -119,7 +131,7 @@ export default function FeedbackWidget({
             <DialogTitle>Feedback geben</DialogTitle>
             <DialogDescription>
               Was ist dir aufgefallen? Automatisch mitgesendet werden die aktuelle Seite (URL),
-              Browser-Informationen{screenshot ? ' und – falls aktiviert – ein Screenshot' : ''}.
+              Browser-Informationen und – falls verfügbar – ein Screenshot.
             </DialogDescription>
           </DialogHeader>
 
@@ -131,7 +143,14 @@ export default function FeedbackWidget({
             autoFocus
           />
 
-          {screenshot && (
+          {capturing && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Screenshot wird erstellt…
+            </div>
+          )}
+
+          {!capturing && screenshot && (
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <Checkbox
