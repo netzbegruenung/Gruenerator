@@ -209,6 +209,8 @@ function EditorAssistantReadyHost({
         selectedNotebookId: surface.selectedNotebookId,
         customSystemPrompt: surface.customSystemPrompt,
         customRoleName: surface.customRoleName,
+        // Sticky connector is a main-chat feature; editor surfaces never pin.
+        pinnedConnector: null,
       };
     },
     [surfaceStore, adapter]
