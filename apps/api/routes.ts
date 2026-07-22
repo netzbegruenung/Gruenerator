@@ -60,6 +60,7 @@ import {
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter.js';
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
+import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
 import mcpServerRouter from './routes/mcp-server/index.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
@@ -680,6 +681,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   if (env.MCP_SERVER_ENABLED) {
     app.use('/api/mcp-server', mcpServerRouter);
   }
+  // MCP-Apps widget bridge — SYSTEM sources only (the router 403s any
+  // non-system serverKey). requireAuth at the prefix; the sandboxed widget
+  // iframe drives its interactive window.openai bridge through here.
+  app.use('/api/mcp-apps', requireAuth, authenticatedReadLimiter, createMcpAppsRouter());
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
