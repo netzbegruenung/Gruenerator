@@ -21,9 +21,9 @@
 import { createLogger } from '../../../../utils/logger.js';
 
 import { truncateResultForModel } from './truncate.js';
+import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { ToolLoopGuards } from './loopGuards.js';
-import type { PersistedStep } from './types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
 
@@ -68,6 +68,18 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : { value };
+}
+
+/** For a connector (MCP) tool, describe what its result ACTUALLY carried — a
+ *  bare "ok" hid whether the service returned data or an empty string, which is
+ *  the single fact needed to tell "no entries" apart from a broken relay/synth
+ *  when a later answer claims "kein Zugriff / keine Einträge". */
+function describeMcpContent(output: unknown): string {
+  const view = readMcpResult(asRecord(output));
+  if (!view.ok) return 'Fehler';
+  if (view.content.trim() === '') return 'LEER (0 Zeichen zurückgegeben)';
+  const preview = view.content.slice(0, 140).replace(/\s+/g, ' ');
+  return `${view.content.length} Zeichen: "${preview}${view.content.length > 140 ? '…' : ''}"`;
 }
 
 class ToolTimeoutError extends Error {
@@ -176,7 +188,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       const outcomeDetail = summarize(output) ?? (ok ? 'ok' : 'Fehler');
       const serverTag = server ? ` server="${server}"` : '';
       if (ok) {
-        log.info(`[Tool] ${toolName}${serverTag} ok — ${outcomeDetail}`);
+        // Connector tools log their real content size + preview (not just "ok"),
+        // so an empty-but-successful call is unmistakable in the backend.
+        const detail = server ? describeMcpContent(output) : outcomeDetail;
+        log.info(`[Tool] ${toolName}${serverTag} ok — ${detail}`);
       } else {
         log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
         // MCP/connector failures also get a first-class, user-facing error
