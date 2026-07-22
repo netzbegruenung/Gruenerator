@@ -26,6 +26,16 @@ import type { ModelMessage } from 'ai';
 const DEFAULT_MAX_STEPS = 6;
 const RESULT_PREVIEW_CHARS = 500;
 
+// A prior search tool-result embeds its OWN numbered "[1] … [2] …" source block.
+// Replayed verbatim into this turn's context, those numbers collide with this
+// turn's registry namespace — the synth grounds a claim against turn-1's [N]
+// while the chips resolve to turn-2's sources (observed live: SPD/Tempolimit
+// claims citing Geschäftsordnung excerpts). Neutralize replayed markers so only
+// the current turn owns the [N] namespace.
+function stripReplayCitationMarkers(s: string): string {
+  return s.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, '');
+}
+
 function shortValue(result: Record<string, unknown>): string {
   let s: string;
   try {
@@ -34,6 +44,7 @@ function shortValue(result: Record<string, unknown>): string {
     return '[nicht serialisierbar]';
   }
   if (!s) return '';
+  s = stripReplayCitationMarkers(s);
   return s.length > RESULT_PREVIEW_CHARS ? `${s.slice(0, RESULT_PREVIEW_CHARS)}…` : s;
 }
 
