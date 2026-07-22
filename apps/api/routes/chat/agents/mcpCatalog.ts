@@ -70,6 +70,11 @@ export interface McpCatalog {
   /** True when a scope was requested but the server is gone/disabled — the
    *  caller should answer honestly instead of running a tool-less loop. */
   scopedServerMissing: boolean;
+  /** True when a scoped server was CONFIGURED but its connect/listTools failed
+   *  (or it exposed no usable tools) — distinct from `scopedServerMissing`
+   *  (deleted/disabled). Lets the caller say "gerade nicht erreichbar" instead
+   *  of a generic no-answer. */
+  scopedServerUnreachable: boolean;
   /** System catalogs only: keys of the sources that actually CONNECTED this
    *  turn (env-configured but unreachable sources are absent) — the prompt
    *  hints must be keyed to this, not to the env config. */
@@ -83,6 +88,7 @@ const EMPTY: McpCatalog = {
   labels: new Map(),
   catalogSummary: '',
   scopedServerMissing: false,
+  scopedServerUnreachable: false,
   close: async () => {},
 };
 
@@ -116,14 +122,28 @@ export async function loadMcpCatalog(params: {
   // Keyed by config.id so the summary is emitted in stable configs order below
   // (Promise.all resolves the servers in a nondeterministic order).
   const catalogByServer = new Map<string, string>();
+  // A scoped load has exactly one config; track whether it failed to mount so
+  // the caller can report "gerade nicht erreichbar" instead of a silent miss.
+  let anyUnreachable = false;
 
   await Promise.all(
     configs.map(async (config) => {
       const client = new UserMCPClient(config);
+      const mountStart = Date.now();
       try {
         await client.connect();
         const listed = await client.listTools();
         clients.push(client);
+        // Mount timing was invisible: a slow-but-successful connect/listTools
+        // (a laggy remote server) ran unbudgeted and looked like a hang with no
+        // log. Surface duration + tool count per server.
+        log.info(
+          `[mcpCatalog] "${config.name}" mounted ${listed.length} tools in ${Date.now() - mountStart}ms`
+        );
+        if (listed.length === 0) {
+          log.warn(`[mcpCatalog] "${config.name}" connected but exposed 0 tools`);
+          anyUnreachable = true;
+        }
         void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
         const callSerialized = createSerializer();
 
@@ -164,8 +184,9 @@ export async function loadMcpCatalog(params: {
         }
       } catch (err) {
         log.warn(
-          `[mcpCatalog] server "${config.name}" unreachable: ${err instanceof Error ? err.message : err}`
+          `[mcpCatalog] server "${config.name}" unreachable after ${Date.now() - mountStart}ms: ${err instanceof Error ? err.message : err}`
         );
+        anyUnreachable = true;
         await client.close();
       }
     })
@@ -181,6 +202,9 @@ export async function loadMcpCatalog(params: {
     labels,
     catalogSummary,
     scopedServerMissing: false,
+    // Scoped single-server load that produced no usable tools (connect/listTools
+    // failed or the server exposed none) — honest signal, not a silent miss.
+    scopedServerUnreachable: scope != null && labels.size === 0 && anyUnreachable,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
     },
