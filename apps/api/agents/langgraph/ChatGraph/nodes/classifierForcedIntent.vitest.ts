@@ -613,4 +613,50 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('mcp');
   });
+
+  it('mcp context + verb-less imperative "denk dir ein muster aus" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'denk dir ein muster kontaktformular aus',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+    expect(result.mcpServerScope).toBe('server-tally-1');
+  });
+
+  it('mcp context + "los, erstellen" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'los, erstellen',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+  });
+
+  it('mcp context + clause-final anaphora "wo ist das?" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'wo ist das?',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+  });
+
+  it('mcp context + first-person comment "ich finde die Idee gut" → NOT mcp', async () => {
+    const state = buildState({
+      userMessage: 'ich finde die Idee gut',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('mcp');
+  });
+
+  it('mcp context + pure ack "danke!" → NOT mcp', async () => {
+    const state = buildState({
+      userMessage: 'danke!',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('mcp');
+  });
 });

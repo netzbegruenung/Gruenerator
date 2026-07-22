@@ -165,25 +165,38 @@ const MCP_CAPABILITY_QUESTION =
 /**
  * Split-mode synth is tool-less and sees only the numbered source registry — but
  * MCP connector tools never register sources, so without this the synth is blind
- * to what a Tally/Notion call actually RETURNED (success OR error) and free-
- * associates ("Formular erstellt" / "Verbindung hakt"). This turns each MCP
- * step's real outcome into a note the synth must report truthfully. Pure, so it
- * unit-tests in isolation (toolOutcome.vitest.ts).
+ * to what a Tally/Notion/Sally call actually RETURNED and either free-associates
+ * OR says "die Daten liegen mir vor" without showing them (both observed live).
+ * This embeds each MCP step's real outcome AND its result content, and tells the
+ * synth to relay it concretely. Pure — unit-tested in toolOutcome.vitest.ts.
  */
+const MCP_CONTENT_CAP = 1500;
+
+/** The tool result's payload (the MCP dynamicTool returns `{ content }`), rendered
+ *  and length-capped for the synth prompt. */
+function renderMcpContent(result: Record<string, unknown> | undefined): string {
+  const content = result?.content;
+  if (content == null || content === '') return '';
+  const text = typeof content === 'string' ? content : JSON.stringify(content);
+  return text.length > MCP_CONTENT_CAP ? `${text.slice(0, MCP_CONTENT_CAP)}…` : text;
+}
+
 export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
   const mcpSteps = steps.filter((s) => s.serverName);
   if (mcpSteps.length === 0) return '';
+  const anyFailed = mcpSteps.some((s) => s.result?.error != null);
   const lines = mcpSteps.map((s) => {
     const err = s.result?.error;
-    return err != null
-      ? `- ${s.serverName} · ${s.toolName}: FEHLGESCHLAGEN — ${String(err).slice(0, 200)}`
-      : `- ${s.serverName} · ${s.toolName}: erfolgreich`;
+    if (err != null) {
+      return `- ${s.serverName} · ${s.toolName}: FEHLGESCHLAGEN — ${String(err).slice(0, 200)}`;
+    }
+    const content = renderMcpContent(s.result);
+    return `- ${s.serverName} · ${s.toolName} →\n${content || '(erfolgreich, aber kein Inhalt zurückgegeben)'}`;
   });
-  const anyFailed = mcpSteps.some((s) => s.result?.error != null);
   const rule = anyFailed
-    ? 'Mindestens ein Aufruf ist FEHLGESCHLAGEN. Sag der*dem Nutzer*in EHRLICH und konkret, was nicht geklappt hat (nenne den Dienst und den Fehler), und behaupte NIEMALS einen Erfolg (kein „erstellt", „gespeichert", „veröffentlicht", kein Link). Erfinde keine IDs, Links oder Bestätigungen.'
-    : 'Berichte diese Ergebnisse wahrheitsgetreu; erfinde keine IDs oder Links, die nicht in den Ergebnissen stehen.';
-  return `\n\nERGEBNISSE VERBUNDENER DIENSTE (MCP) IN DIESEM TURN:\n${lines.join('\n')}\n${rule}`;
+    ? 'Mindestens ein Aufruf ist FEHLGESCHLAGEN. Sag EHRLICH und konkret, was nicht geklappt hat (Dienst + Fehler), und behaupte NIEMALS einen Erfolg (kein „erstellt/gespeichert/veröffentlicht", kein Link). Erfinde keine IDs, Links oder Bestätigungen. Die Inhalte erfolgreicher Aufrufe gibst du trotzdem wieder.'
+    : 'Das sind die ECHTEN Ergebnisse der Dienste. GIB SIE dem*der Nutzer*in KONKRET WIEDER — liste die Termine/Zusammenfassungen/Protokolle/Datensätze inhaltlich auf und fasse sie zusammen, statt nur zu sagen, die Tools seien gelaufen oder „die Daten lägen dir vor". Erfinde nichts dazu, aber lass nichts Relevantes weg.';
+  return `\n\nERGEBNISSE VERBUNDENER DIENSTE (MCP) IN DIESEM TURN:\n${lines.join('\n\n')}\n\n${rule}`;
 }
 
 export interface AgenticResponseOutcome {
