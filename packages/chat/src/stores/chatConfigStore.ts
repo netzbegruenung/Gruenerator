@@ -67,6 +67,7 @@ export interface ChatConfig {
     exportToDocs?: string;
     chatConfirm?: string;
     mcpApps?: string;
+    feedback?: string;
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
@@ -168,6 +169,7 @@ export interface ResolvedEndpoints {
   chatConfirm: string;
   /** MCP-Apps widget bridge base (read-resource / tools/call / resources/*). */
   mcpApps: string;
+  feedback: string;
 }
 
 interface ResolvedChatConfig {
@@ -334,6 +336,7 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   exportToDocs: '/api/docs/from-export',
   chatConfirm: '/api/chat-service/confirm',
   mcpApps: '/api/mcp-apps',
+  feedback: '/api/chat-service/feedback',
 };
 
 function resolveDocsUrl(configured?: string): string {

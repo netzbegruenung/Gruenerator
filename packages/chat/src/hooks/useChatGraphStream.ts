@@ -144,6 +144,8 @@ export interface StreamMetadata {
   totalTimeMs: number;
   classificationTimeMs?: number;
   searchTimeMs?: number;
+  /** Langfuse trace id for this turn — target for thumbs up/down feedback scoring. */
+  traceId?: string;
 }
 
 export interface ChatMessage {
