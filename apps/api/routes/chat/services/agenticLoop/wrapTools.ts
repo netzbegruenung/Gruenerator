@@ -158,7 +158,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.guards.checkTotalFailureBudget() ??
         ctx.guards.checkSearchBudget(toolName) ??
         ctx.guards.checkInternalFirst(toolName) ??
-        ctx.guards.checkDuplicate(toolName, input);
+        // Connector tools (server != null) skip the search-tuned near-dup
+        // heuristic: structured args collide falsely and corrective retries
+        // after a validation error would be wrongly blocked as "too similar".
+        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
       if (guardError) {
         const result = { error: guardError };
         sendStart(stepId, args);
