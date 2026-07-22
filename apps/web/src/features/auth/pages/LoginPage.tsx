@@ -3,10 +3,12 @@ import { type JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useInstantAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
 import { cn } from '../../../utils/cn';
 import { openDesktopLogin, type AuthSource } from '../../../utils/desktopAuth';
 import { isDesktopApp } from '../../../utils/platform';
+import { startPagePath } from '../../../utils/startpage';
 import { SESSION_EXPIRED_FLAG } from '../storageKeys';
 
 import './login-page-sunrise.css';
@@ -59,7 +61,14 @@ const LoginPage = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
-  const intendedRedirect = mode === 'required' ? location.pathname : getIntendedRedirect(location);
+  // Once the profile is loaded (e.g. an already-authenticated user hitting the
+  // login page, or right after sign-in), fall back to their preferred start
+  // page instead of the hardcoded Workplace Chat tab.
+  const startPage = useAuthStore((s) => s.user?.default_startpage);
+  const intendedRedirect =
+    mode === 'required'
+      ? location.pathname
+      : getIntendedRedirect(location, startPagePath(startPage));
 
   const isMobileApp = isMobileAppContext(location);
 

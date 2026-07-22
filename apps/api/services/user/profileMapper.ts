@@ -27,6 +27,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     beta_features: row.beta_features,
     user_defaults: row.user_defaults,
     ...(row.locale != null && { locale: row.locale as 'de-DE' | 'de-AT' }),
+    default_startpage: row.default_startpage as 'chat' | 'arbeiten',
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null
