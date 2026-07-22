@@ -151,6 +151,17 @@ export class UserMCPClient {
         .join('\n')
         .slice(0, opts?.maxChars ?? MAX_TOOL_RESULT_CHARS);
       const isError = (result as { isError?: boolean }).isError === true;
+      // An application-level tool error (isError:true, e.g. Tally "no workspace"
+      // / auth) previously returned silently — only transport throws logged. Log
+      // it so a genuine remote failure is visible in the backend, not just
+      // inferred from a hallucinated chat answer.
+      if (isError) {
+        log.warn('MCP tool returned an error', {
+          server: this.config.name,
+          tool: toolName,
+          content: text.slice(0, 300),
+        });
+      }
       return { ok: !isError, content: text || (isError ? 'Tool meldete einen Fehler.' : '') };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
