@@ -185,6 +185,7 @@ class ProfileService {
         'custom_antrag_gliederung',
         'auth_source',
         'document_mode',
+        'default_startpage',
       ] as const;
 
       for (const col of knownTextColumns) {

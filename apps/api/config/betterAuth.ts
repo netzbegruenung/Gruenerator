@@ -190,6 +190,7 @@ export const auth = betterAuth({
       presseabbinder: { type: 'string', required: false },
       chat_color: { type: 'string', required: false },
       document_mode: { type: 'string', required: false, defaultValue: 'manual' },
+      default_startpage: { type: 'string', required: false, defaultValue: 'chat' },
       avatar_robot_id: { type: 'number', required: false, defaultValue: 1 },
       profile_image: { type: 'number', required: false, defaultValue: 1 },
       is_admin: { type: 'boolean', required: false, defaultValue: false },
