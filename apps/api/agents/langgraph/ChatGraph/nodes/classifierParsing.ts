@@ -36,10 +36,16 @@ export const CHAT_HISTORY_KEYWORDS =
  * other LLM-only intent) so these phrasings fall through to the LLM tier.
  * Deliberately phrasing-specific (concrete nouns) so it does NOT grab policy
  * words like "Tourismuspolitik"/"Bahnreform"/"Klimapolitik" — those still
- * route to `search`.
+ * route to `search`. The bare-noun alternatives are anchored with the trailing
+ * `\b` for exactly this reason: `bahn(?:en|hof…)?` matches "Bahn"/"Bahnen"/
+ * "Bahnhof" but NOT "Bahnreform"/"Bahnpolitik" (a boundary can't fall mid-word);
+ * bare `wetter` matches "das Wetter" but NOT "Wetterextreme"/"Unwetter". Bare
+ * "bahn(en)" and "wetter" were the two live misses — "welche bahnen fahren …"
+ * and "wie ist das wetter …" slipped the earlier compound-only list
+ * (zugverbindung/fahrplan/wettervorhersage) and got swallowed by demotion.
  */
 export const SYSTEM_MCP_PHRASING =
-  /\b(hotels?|unterkun(ft|ft?e)|unterk[üu]nfte|[üu]bernacht\w+|absteige|pension|herberge|dienstreise\w*|reiseplan\w*|zugverbindung\w*|fahrplan\w*|abfahrtszeit\w*|zug\s+nach|verbindung\s+nach|wettervorhersage|wetterbericht|regnet\s+es|tagesschau|schlagzeile\w*)\b/i;
+  /\b(hotels?|unterkun(ft|ft?e)|unterk[üu]nfte|[üu]bernacht\w+|absteige|pension|herberge|dienstreise\w*|reiseplan\w*|bahn(?:en|h(?:o|ö)f\w*)?|z(?:ü|ue)ge|zugverbindung\w*|fahrplan\w*|abfahrtszeit\w*|zug\s+nach|verbindung\s+nach|wetter|wettervorhersage|wetterbericht|regnet\s+es|schneit\s+es|tagesschau|schlagzeile\w*)\b/i;
 
 /**
  * Parse JSON response from classifier, with error handling.
