@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     wordpress_enabled BOOLEAN DEFAULT FALSE,
     canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
+    default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,

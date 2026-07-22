@@ -7,12 +7,22 @@ import { z } from 'zod';
 
 // ── Request body schemas (moved from controller) ────────────────────────────
 
+/**
+ * Closed set of default start pages — which Workplace surface the sidebar
+ * "start" icon (and the root/login redirect) opens.
+ *   'chat'     → /workplace           (Chat tab)
+ *   'arbeiten' → /workplace/arbeiten  (Arbeiten tab)
+ */
+export const startPageSchema = z.enum(['chat', 'arbeiten']);
+export type StartPage = z.infer<typeof startPageSchema>;
+
 export const profileUpdateBodySchema = z.object({
   display_name: z.string().optional(),
   username: z.string().optional(),
   avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX).optional(),
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
+  default_startpage: startPageSchema.optional(),
 });
 
 export const avatarUpdateBodySchema = z.object({
@@ -89,6 +99,8 @@ export const userProfileSchema = z.object({
   beta_features: z.record(z.boolean()).default({}),
   user_defaults: z.record(z.record(z.unknown())).default({}),
   locale: localeSchema.optional(),
+  // Default mirrors the `additionalFields` config in apps/api/config/betterAuth.ts.
+  default_startpage: startPageSchema.default('chat'),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),
