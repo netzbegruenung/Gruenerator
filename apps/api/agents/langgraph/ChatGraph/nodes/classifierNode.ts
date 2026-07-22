@@ -111,13 +111,19 @@ const MCP_ACTION_PATTERN =
 
 // A vague follow-up that CONTINUES the thread's last MCP connector task. The
 // Tier-2.7 mcp branch re-scopes such a turn to that server (an @mention is
-// stripped on send, so a follow-up like "versuchs nochmal" carries no textual
-// trace). Deliberately UNAMBIGUOUS anaphora only — NOT bare "das"/"es", which
-// are also articles ("erkläre mir DAS Grundeinkommen" must not be hijacked to
-// the connector). Pure-vague follow-ups without these markers still keep the
-// server via the agentic sticky re-mount (last_mcp_server_id).
+// stripped on send, so "denk dir was aus" / "versuchs nochmal" carry no textual
+// trace). Anaphoric markers, OR bare "das"/"es" ONLY at a clause end (anaphora,
+// e.g. "wo ist das?" — but NOT the article in "erkläre mir das Grundeinkommen").
 const MCP_CONTINUATION_REFERENTIAL =
-  /\b(dazu|davon|damit|daran|dahin|nochmal|noch\s?mal|nochmals|erneut|via\s+mcp|(?:ü|ue)ber\s+mcp|per\s+mcp)\b/iu;
+  /\b(dazu|davon|damit|daran|dahin|nochmal|noch\s?mal|nochmals|erneut|via\s+mcp|(?:ü|ue)ber\s+mcp|per\s+mcp)\b|\b(?:das|es)\b(?=\s*[?.!,]|\s*$)/iu;
+// A NEW knowledge question / topic switch or a first-person comment — the shape
+// of a message that ISN'T a connector-task instruction, so the imperative-
+// continuation heuristic must NOT re-scope it to the last MCP server.
+const NON_CONTINUATION_START =
+  /^\s*(und\s+)?(was|wer|wie|warum|weshalb|wieso|wo|wann|welche\w*|wieviel\w*|wozu|wof(?:ü|ue)r|erkl(?:ä|ae)r\w*|ich|wir|mir|mich|mein\w*|unser\w*)\b/iu;
+// Pure acknowledgement / greeting — not a task instruction either.
+const MCP_CHITCHAT_ONLY =
+  /^\s*(danke\w*|hallo|hi|hey|servus|moin|ok(?:ay)?|super|top|passt|cool|perfekt|nice|gut|prima|jo|ja|nein|n(?:ö|oe))\b[\s!.]*$/iu;
 // Names of OUR OWN artifacts — a follow-up creating one of these is a different
 // intent, not an MCP continuation, so it must NOT be hijacked to the connector.
 const OWN_ARTIFACT_NOUN =
@@ -938,19 +944,26 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           classificationTimeMs: Date.now() - startTime,
         };
       }
-      // "denk dir was aus" / "und wo ist das" / "versuchs nochmal via mcp" after
-      // an MCP turn: without this the vague follow-up demotes to `agentic` and,
-      // if the sticky server is momentarily unreachable, the catalog is dropped
-      // SILENTLY (no honesty note). Re-scope to the last connector via tc.ref so
-      // the explicit-scope mount path runs (retry-unscoped-on-missing + note +
-      // forced first call). Gated: an MCP-action verb, the word "mcp", or a
-      // referential marker — but NOT a request to create one of our own
-      // artifacts (that routes to its own intent below).
+      // "denk dir ein muster aus" / "los, erstellen" / "wo ist das?" after an MCP
+      // turn: without this the vague follow-up went to the LLM which picked
+      // `direct` — the connector was never called (observed live). Re-scope to the
+      // last connector via tc.ref so the explicit-scope mount runs (retry-on-
+      // missing + note + forced first call). Fires on an MCP-action verb, an
+      // anaphoric marker, OR a short IMPERATIVE continuation (a "do it" message
+      // that is NOT a new knowledge question, a first-person comment, or
+      // chitchat). Never hijacks a request to create one of our own artifacts.
+      const mcpWordCount = userContent.trim().split(/\s+/).filter(Boolean).length;
+      const isImperativeContinuation =
+        mcpWordCount <= 12 &&
+        !NON_CONTINUATION_START.test(userContent) &&
+        !MCP_CHITCHAT_ONLY.test(userContent);
       if (
         tc.kind === 'mcp' &&
         tc.ref &&
         !OWN_ARTIFACT_NOUN.test(userContent) &&
-        (MCP_ACTION_PATTERN.test(userContent) || MCP_CONTINUATION_REFERENTIAL.test(userContent))
+        (MCP_ACTION_PATTERN.test(userContent) ||
+          MCP_CONTINUATION_REFERENTIAL.test(userContent) ||
+          isImperativeContinuation)
       ) {
         log.info('[Classifier] Follow-up via lastToolContext(mcp) → mcp', { scope: tc.ref });
         return {
