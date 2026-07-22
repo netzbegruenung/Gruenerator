@@ -44,7 +44,7 @@ import {
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
 import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
@@ -741,6 +741,30 @@ export async function generateAndCreateDocument(opts: {
     });
 
     log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
+
+    // Remember the created document as the thread's last tool context so a vague
+    // follow-up ("Kürze die Begründung") routes to modify_doc on THIS doc
+    // (classifier Tier-2.7). save_as_doc runs with skipTerminate → it never
+    // reaches persistAssistantResponse's deriveToolContext, so without this the
+    // edit gate has no target. Written for both the terminating (@dokument-
+    // erstellen) and skipTerminate (save_as_doc) paths.
+    if (actualThreadId) {
+      const contextKind = docSubtype.startsWith('presentation')
+        ? 'presentation'
+        : docSubtype.startsWith('sheet')
+          ? 'sheet'
+          : 'document';
+      // Awaited (not fire-and-forget): the `done` for this turn — and thus the
+      // NEXT turn's classifier reading last_tool_context — must not race ahead
+      // of this write, or the follow-up edit gate sees a stale/empty context.
+      await setThreadToolContext(actualThreadId, {
+        kind: contextKind,
+        ref: newDocId,
+        label: docTitle,
+      }).catch((err) =>
+        log.warn('[ChatGraph] Failed to persist document thread tool context:', err)
+      );
+    }
 
     if (!skipTerminate) {
       const totalTimeMs = Date.now() - classifiedState.startTime;

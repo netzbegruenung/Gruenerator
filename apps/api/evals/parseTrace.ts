@@ -123,6 +123,20 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
         collectIds(data, trace.artifactIds);
         break;
       }
+      case 'confirm_action': {
+        // A modify_doc / modify_board card is a HITL edit of a PRIOR artifact —
+        // no auto-applied editor_operations/sharepic_updated event fires, so the
+        // target id (a metadata row) is the only signal that this turn edits the
+        // earlier doc/board. Capture it so editsPreviousArtifact can verify it.
+        if (data.type === 'modify_doc' || data.type === 'modify_board') {
+          const meta = Array.isArray(data.metadata) ? data.metadata : [];
+          for (const row of meta) {
+            const value = (row as Record<string, unknown>)?.value;
+            if (typeof value === 'string' && value) trace.referencedIds.push(value);
+          }
+        }
+        break;
+      }
       case 'sharepic_updated': {
         trace.sharepicUpdated = true;
         collectIds(data, trace.referencedIds);
