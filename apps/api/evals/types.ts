@@ -171,6 +171,7 @@ export interface TurnResult {
   artifactIds: string[];
   editorOps: boolean;
   sharepicUpdated: boolean;
+  imageGenerated: boolean;
   citations: unknown[];
   fullText: string;
   error: string | null;

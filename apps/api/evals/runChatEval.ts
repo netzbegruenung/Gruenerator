@@ -262,6 +262,7 @@ async function runTurn(
     artifactIds: trace.artifactIds,
     editorOps: trace.editorOps,
     sharepicUpdated: trace.sharepicUpdated,
+    imageGenerated: trace.imageGenerated,
     citations: trace.citations,
     fullText: trace.fullText,
     error: trace.error,
