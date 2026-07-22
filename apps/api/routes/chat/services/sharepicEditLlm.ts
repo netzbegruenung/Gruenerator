@@ -146,7 +146,7 @@ export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDesc
   ];
 }
 
-function buildSystemPrompt(
+export function buildSystemPrompt(
   descriptor: SharepicTemplateDescriptor,
   snapshot: CanvasAiSnapshot,
   recentEditSummaries: string[]
@@ -179,7 +179,9 @@ function buildSystemPrompt(
   lines.push(
     '- "summary": Kurzlabel der Änderung auf Deutsch, max. 120 Zeichen (z.B. "Zeile 2 gekürzt").'
   );
-  lines.push('- "reply": 1–2 freundliche Sätze Bestätigung für den Chat.');
+  lines.push(
+    '- "reply": 1–2 freundliche Sätze Bestätigung für den Chat. Beschreibe die Änderung so, wie sie verlangt wurde ("die Schrift größer gemacht", "den Text gekürzt"). Nenne KEINE konkreten Zahlenwerte (Pixel, Prozent, Koordinaten, Hex-Farben), die nicht ausdrücklich verlangt wurden — auch wenn deine Operationen intern einen Wert setzen. Erfinde niemals eine präzise Angabe wie "auf 80px", um die Bestätigung konkreter klingen zu lassen.'
+  );
   lines.push('');
   lines.push('Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.');
 
