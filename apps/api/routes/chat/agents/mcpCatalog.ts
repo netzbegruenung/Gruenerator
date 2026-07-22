@@ -20,6 +20,7 @@ import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
 import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
+import { type McpToolResult } from '../services/agenticLoop/types.js';
 
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
@@ -120,7 +121,7 @@ export async function loadMcpCatalog(params: {
           tools[providerName] = dynamicTool({
             description: `[${config.name}] ${t.description ?? ''}`.slice(0, 1024),
             inputSchema: jsonSchema(sanitizeMcpSchema(t.inputSchema)),
-            execute: async (input) => {
+            execute: async (input): Promise<McpToolResult> => {
               const result = await callSerialized(() =>
                 client.callTool(t.name, (input ?? {}) as Record<string, unknown>)
               );
