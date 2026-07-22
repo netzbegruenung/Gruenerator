@@ -12,6 +12,8 @@
  * nothing and unsetting the vars is the kill switch.
  */
 
+import { randomBytes } from 'node:crypto';
+
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import {
   getLangfuseTracer,
@@ -135,13 +137,15 @@ interface TraceOptions {
 /**
  * Run `fn` inside one Langfuse trace (root span). `fn` receives the trace id
  * (= OTel trace id, 32-hex) so callers can surface it to the client for
- * feedback scoring. When disabled, `fn` runs with `traceId = undefined`.
+ * feedback scoring. When Langfuse is disabled we still hand `fn` a synthetic
+ * 32-hex id — the thumbs feedback buttons stay visible by default, and the
+ * feedback endpoint silently no-ops the score (see feedbackController).
  */
 export function withLangfuseTrace<T>(
   opts: TraceOptions,
   fn: (traceId: string | undefined) => Promise<T>
 ): Promise<T> {
-  if (!isLangfuseEnabled()) return fn(undefined);
+  if (!isLangfuseEnabled()) return fn(randomBytes(16).toString('hex'));
 
   const attrs: Parameters<typeof propagateAttributes>[0] = {
     traceName: opts.name,
