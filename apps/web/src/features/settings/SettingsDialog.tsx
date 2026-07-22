@@ -20,7 +20,7 @@ import {
   FiSliders,
   FiUser,
 } from 'react-icons/fi';
-import { PiBrain } from 'react-icons/pi';
+import { PiBrain, PiPencil } from 'react-icons/pi';
 
 import Spinner from '../../components/common/Spinner';
 
@@ -31,6 +31,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
   { value: 'konto', label: 'Konto', icon: FiUser },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
+  { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
@@ -42,6 +43,7 @@ const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = 
   allgemein: lazy(() => import('./tabs/GeneralTab')),
   konto: lazy(() => import('./tabs/AccountTab')),
   personalisierung: lazy(() => import('./tabs/PersonalizationTab')),
+  'texte-anlernen': lazy(() => import('./tabs/TexteAnlernenTab')),
   erinnerungen: lazy(() => import('./tabs/MemoriesSection')),
   benachrichtigungen: lazy(() => import('./tabs/NotificationsTab')),
   wolke: lazy(() => import('./tabs/WolkeTab')),
