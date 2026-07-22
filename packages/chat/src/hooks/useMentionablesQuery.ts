@@ -20,9 +20,11 @@ import {
   setDocMentionables,
   setMcpServerMentionables,
   setSheetMentionables,
+  setTextforms,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
   type Mentionable,
+  type TextformMentionable,
 } from '../lib/mentionables';
 
 interface BoardListItem {
@@ -79,6 +81,38 @@ export function useCustomAgentsQuery() {
       }
       setCustomAgents(merged);
       return merged;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+interface TextFormListItem {
+  kind: 'preset' | 'custom';
+  mention: string;
+  title: string;
+}
+
+/**
+ * User's custom text forms ("Texte anlernen") → per-form `/mention` skills.
+ * Presets ride the existing system-skill mentions, so only custom forms surface
+ * here. Anonymous users / no forms resolve to an empty list.
+ */
+export function useTextformsQuery() {
+  const apiClient = useApiClient();
+  return useQuery<TextformMentionable[]>({
+    queryKey: ['mention-textforms'],
+    queryFn: async () => {
+      const res = await apiClient
+        .get<{ forms?: TextFormListItem[] }>('/api/text-forms')
+        .catch(() => ({ forms: [] }));
+      const list = Array.isArray(res?.forms)
+        ? res.forms
+            .filter((f) => f.kind === 'custom')
+            .map((f) => ({ mention: f.mention, title: f.title }))
+        : [];
+      setTextforms(list);
+      return list;
     },
     staleTime: STALE_TIME,
     retry: 1,
@@ -456,6 +490,7 @@ export function useVorlagenSearchQuery(query: string, enabled = true) {
  */
 export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
+  useTextformsQuery();
   useBoardsQuery();
   useDocsQuery();
   useSheetsQuery();

@@ -66,6 +66,7 @@ export {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  userTextFormsContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -79,6 +80,7 @@ export {
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/threads.js';
+export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/recentActivity.js';

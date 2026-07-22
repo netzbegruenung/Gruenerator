@@ -133,6 +133,7 @@ import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
+import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
@@ -608,6 +609,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
+  // Per-user learned writing styles ("Texte anlernen"). requireAuth at the prefix.
+  app.use('/api/text-forms', requireAuth);
+  mountUserTextFormsContractRouter(app);
   // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
   app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
   mountRecurringTasksContractRouter(app);
