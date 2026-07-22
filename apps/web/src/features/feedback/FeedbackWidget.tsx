@@ -110,7 +110,9 @@ export default function FeedbackWidget({
     setOpen(true);
     void capturePageScreenshot().then((shot) => {
       setScreenshot(shot);
-      setIncludeScreenshot(shot != null);
+      // Only force-off when capture failed; otherwise keep the user's choice
+      // (they may have already unchecked "attach" while it was still capturing).
+      if (shot == null) setIncludeScreenshot(false);
       setCapturing(false);
     });
   }, []);
@@ -144,33 +146,36 @@ export default function FeedbackWidget({
             autoFocus
           />
 
-          {capturing && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Screenshot wird erstellt…
-            </div>
-          )}
-
-          {!capturing && screenshot && (
-            <div className="flex items-start gap-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+          {(capturing || screenshot) && (
+            <div className="flex items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm">
                 <Checkbox
                   checked={includeScreenshot}
                   onCheckedChange={(v) => setIncludeScreenshot(v === true)}
                 />
                 Screenshot anhängen
               </label>
-              {includeScreenshot && (
+
+              {capturing && (
+                <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  wird erstellt…
+                </span>
+              )}
+
+              {!capturing && screenshot && (
                 <button
                   type="button"
                   onClick={() => setLightboxOpen(true)}
-                  className="group relative shrink-0 cursor-zoom-in rounded-md border border-border bg-muted overflow-hidden"
+                  className={`group relative shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-muted transition ${
+                    includeScreenshot ? '' : 'opacity-40'
+                  }`}
                   title="Zum Vergrößern klicken"
                 >
                   <img
                     src={screenshot}
                     alt="Vorschau des mitgesendeten Screenshots"
-                    className="h-20 w-auto max-w-[8rem] object-cover"
+                    className="h-16 w-auto max-w-[7rem] object-cover"
                   />
                   <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
                     <Maximize2 className="size-4" />
