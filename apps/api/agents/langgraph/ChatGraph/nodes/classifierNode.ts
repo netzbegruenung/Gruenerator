@@ -109,6 +109,20 @@ const SOCIAL_NOUN_PATTERN =
 const MCP_ACTION_PATTERN =
   /(?<![\p{L}])(erstell\w*|leg\w*|f(?:ü|ue)g\w*|hinzu|aktualisier\w*|(?:ä|ae)nder\w*|l(?:ö|oe)sch\w*|entfern\w*|hol\w*|zeig\w*|list\w*|such\w*|send\w*|schick\w*|abruf\w*|abfrag\w*|(?:ö|oe)ffn\w*|starte?|wie\s+viele?|gib\s+mir)/iu;
 
+// A vague follow-up that CONTINUES the thread's last MCP connector task. The
+// Tier-2.7 mcp branch re-scopes such a turn to that server (an @mention is
+// stripped on send, so a follow-up like "versuchs nochmal" carries no textual
+// trace). Deliberately UNAMBIGUOUS anaphora only — NOT bare "das"/"es", which
+// are also articles ("erkläre mir DAS Grundeinkommen" must not be hijacked to
+// the connector). Pure-vague follow-ups without these markers still keep the
+// server via the agentic sticky re-mount (last_mcp_server_id).
+const MCP_CONTINUATION_REFERENTIAL =
+  /\b(dazu|davon|damit|daran|dahin|nochmal|noch\s?mal|nochmals|erneut|via\s+mcp|(?:ü|ue)ber\s+mcp|per\s+mcp)\b/iu;
+// Names of OUR OWN artifacts — a follow-up creating one of these is a different
+// intent, not an MCP continuation, so it must NOT be hijacked to the connector.
+const OWN_ARTIFACT_NOUN =
+  /\b(sharepic|share-pic|bild|bilder|grafik|foto|pr(?:ä|ae)sentation|presentation|folien|slides?|tabelle|spreadsheet|kalkulation|dokument|board|reel|video|newsletter)\b/iu;
+
 /**
  * Returns the id of the single connected server named in the message, or null.
  * Word-boundary match on the server name (so "Brevo-Kampagne" matches "Brevo");
@@ -919,6 +933,33 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           searchQuery: null,
           detectedFilters: null,
           reasoning: 'lastToolContext(image) + edit/regenerate phrasing → image_edit',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+      // "denk dir was aus" / "und wo ist das" / "versuchs nochmal via mcp" after
+      // an MCP turn: without this the vague follow-up demotes to `agentic` and,
+      // if the sticky server is momentarily unreachable, the catalog is dropped
+      // SILENTLY (no honesty note). Re-scope to the last connector via tc.ref so
+      // the explicit-scope mount path runs (retry-unscoped-on-missing + note +
+      // forced first call). Gated: an MCP-action verb, the word "mcp", or a
+      // referential marker — but NOT a request to create one of our own
+      // artifacts (that routes to its own intent below).
+      if (
+        tc.kind === 'mcp' &&
+        tc.ref &&
+        !OWN_ARTIFACT_NOUN.test(userContent) &&
+        (MCP_ACTION_PATTERN.test(userContent) || MCP_CONTINUATION_REFERENTIAL.test(userContent))
+      ) {
+        log.info('[Classifier] Follow-up via lastToolContext(mcp) → mcp', { scope: tc.ref });
+        return {
+          intent: 'mcp',
+          mcpServerScope: tc.ref,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'lastToolContext(mcp) + continuation phrasing → re-scope to last connector',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,

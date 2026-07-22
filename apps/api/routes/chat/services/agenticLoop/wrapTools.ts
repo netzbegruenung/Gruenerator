@@ -18,12 +18,16 @@
  * The wrapper never changes a tool's `inputSchema`/`description`; it only
  * decorates `execute`.
  */
+import { createLogger } from '../../../../utils/logger.js';
+
 import { truncateResultForModel } from './truncate.js';
 
 import type { ToolLoopGuards } from './loopGuards.js';
 import type { PersistedStep } from './types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
+
+const log = createLogger('agenticTools');
 
 export interface WrapToolsContext {
   sse: SSEWriter;
@@ -164,6 +168,28 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
       if (!ok) ctx.guards.noteFailure(toolName);
+
+      // Per-tool backend visibility: every tool outcome (internal OR MCP) is
+      // now logged, so a failing connector call (e.g. Tally "no workspace")
+      // shows up in the server logs instead of vanishing into the single
+      // end-of-turn `steps=N` line. Failures log at WARN with the error text.
+      const outcomeDetail = summarize(output) ?? (ok ? 'ok' : 'Fehler');
+      const serverTag = server ? ` server="${server}"` : '';
+      if (ok) {
+        log.info(`[Tool] ${toolName}${serverTag} ok — ${outcomeDetail}`);
+      } else {
+        log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
+        // MCP/connector failures also get a first-class, user-facing error
+        // event (the generic tool card only carries ok:false); internal tools
+        // keep their own error channels.
+        if (server) {
+          ctx.sse.send('mcp_tool_error', {
+            toolName,
+            serverName: server,
+            error: outcomeDetail,
+          });
+        }
+      }
 
       ctx.recordStep({
         toolCallId: stepId,
