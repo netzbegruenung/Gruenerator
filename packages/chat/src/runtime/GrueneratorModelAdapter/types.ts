@@ -76,6 +76,10 @@ export interface ToolCallPart {
   argsText: string;
   args: Record<string, string | number | boolean | null>;
   result?: unknown;
+  /** MCP-Apps widget metadata (system MCP tools only). When present with a
+   *  `ui://` resourceUri, assistant-ui's `mcpApp` renderer mounts the widget
+   *  iframe instead of the normal tool card (see GrueneratorChatRuntime). */
+  mcp?: { app?: { resourceUri: string; mimeType?: string } };
 }
 
 export interface SourcePart {
