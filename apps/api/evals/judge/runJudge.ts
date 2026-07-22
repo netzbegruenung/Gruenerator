@@ -104,6 +104,7 @@ function autoRubrics(turn: TurnResult): RubricName[] {
   const wantsAuto =
     turn.editorOps ||
     turn.sharepicUpdated ||
+    turn.imageGenerated ||
     (turn.toolCalls.length === 0 && turn.fullText.length > 200);
   return wantsAuto ? ['narration_consistency'] : [];
 }

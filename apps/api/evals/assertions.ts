@@ -112,7 +112,7 @@ export function runAssertions(
   }
 
   if (expect.narrationMatchesAction) {
-    const actionHappened = trace.editorOps || trace.sharepicUpdated;
+    const actionHappened = trace.editorOps || trace.sharepicUpdated || trace.imageGenerated;
     const denial = trace.fullText.match(ACTION_DENIAL_RE);
     const claimed = trace.fullText.match(CLAIMED_WORK_RE);
     if (actionHappened && denial) {
