@@ -24,6 +24,14 @@ vi.mock('./directSearchExecutors.js', () => ({
   executeDirectWebSearch: mockExecuteDirectWebSearch,
 }));
 
+// Linkup deep-research short-circuits the whole orchestrator when
+// LINKUP_API_KEY is present (it is, in local .env). These tests exercise the
+// planner/fan-out path, so force getLinkupService → null to keep them hermetic
+// (otherwise executeResearch makes a real ~14s Linkup call and skips the fan-out).
+vi.mock('../../../services/search/LinkupService.js', () => ({
+  getLinkupService: vi.fn(() => null),
+}));
+
 vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),
