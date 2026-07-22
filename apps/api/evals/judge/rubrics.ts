@@ -55,6 +55,7 @@ export function buildRubricPrompt(
       const actions = [
         turn.editorOps ? 'Editor-Operationen wurden angewendet' : null,
         turn.sharepicUpdated ? 'Ein Sharepic wurde bearbeitet' : null,
+        turn.imageGenerated ? 'Ein Bild wurde erstellt/bearbeitet und angezeigt' : null,
         turn.artifactIds.length > 0 ? `Artefakte erstellt: ${turn.artifactIds.length}` : null,
       ].filter(Boolean);
       return {

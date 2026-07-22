@@ -161,6 +161,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         output = { error: err instanceof Error ? err.message : String(err) };
       }
 
+      ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
       if (!ok) ctx.guards.noteFailure(toolName);
 

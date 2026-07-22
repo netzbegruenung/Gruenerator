@@ -112,7 +112,7 @@ export function runAssertions(
   }
 
   if (expect.narrationMatchesAction) {
-    const actionHappened = trace.editorOps || trace.sharepicUpdated;
+    const actionHappened = trace.editorOps || trace.sharepicUpdated || trace.imageGenerated;
     const denial = trace.fullText.match(ACTION_DENIAL_RE);
     const claimed = trace.fullText.match(CLAIMED_WORK_RE);
     if (actionHappened && denial) {
@@ -163,6 +163,18 @@ export function runAssertions(
       group.some((tool) => toolNames.includes(tool))
         ? ok(`toolAnyOf:${group.join('|')}`)
         : fail(`toolAnyOf:${group.join('|')}`, `none called; called: [${toolNames.join(', ')}]`)
+    );
+  }
+
+  if (expect.toolNameMatches != null) {
+    const re = new RegExp(expect.toolNameMatches);
+    results.push(
+      toolNames.some((t) => re.test(t))
+        ? ok('toolNameMatches')
+        : fail(
+            'toolNameMatches',
+            `no tool matched /${expect.toolNameMatches}/; called: [${toolNames.join(', ')}]`
+          )
     );
   }
 

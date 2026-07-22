@@ -867,6 +867,14 @@ const IMAGE_EDIT_FAILED_GUIDANCE =
 const DIRECT_GUIDANCE =
   '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit aus dem verfügbaren Kontext.';
 
+// Turn-outcome honesty for the `direct` path: no tool ran, nothing was
+// researched or created this turn. A misrouted factual/generation follow-up
+// otherwise narrates research or a delivered image FROM THE HISTORY (observed
+// live: "laut meiner Recherche …" and "hier ist dein Bild" with zero tool
+// calls). Safe unconditionally on `direct` — a direct turn produces neither.
+const DIRECT_HONESTY_NOTE =
+  '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
+
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
@@ -916,6 +924,7 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'image_edit':
       return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
     case 'direct':
+      return DIRECT_GUIDANCE + DIRECT_HONESTY_NOTE;
     case 'save_as_doc':
       return DIRECT_GUIDANCE;
     case 'compare':
