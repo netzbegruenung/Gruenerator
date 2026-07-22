@@ -41,6 +41,7 @@ import { mountEmailContractRouter } from './routes/email/emailContractRouter.js'
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
+import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import outpaintRoute from './routes/flux/outpaint.js';
@@ -187,6 +188,19 @@ const standardMutationLimiter = isRateLimitDisabled
       // limiter's purpose is abuse-prevention on writes; reads are covered by
       // authenticatedReadLimiter where it matters.
       skip: (req) => req.method === 'GET',
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Tight limiter for the in-app feedback widget — feedback is rare, and each
+// submit can carry a screenshot, so cap it well below the general write budget.
+const feedbackLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
     });
 
@@ -654,6 +668,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/email', requireAuth);
   mountEmailContractRouter(app);
   app.use('/api/email', standardMutationLimiter, emailRouter);
+  // In-app feedback widget → emails the operator. requireAuth at prefix so the
+  // handler can attribute feedback to the signed-in user; tight dedicated limiter.
+  app.use('/api/feedback', requireAuth, feedbackLimiter);
+  mountFeedbackContractRouter(app);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   // ts-rest contract router for /api/recent-activity — mounts BEFORE the legacy
   // router so the typed GET matches first; requireAuth at the prefix guarantees
