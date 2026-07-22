@@ -564,4 +564,53 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('image_edit');
   });
+
+  // ── mcp branch: re-scope a vague follow-up to the thread's last connector ──
+  it('mcp context + anaphoric "zeig mir das nochmal" → mcp targeting the scope', async () => {
+    const state = buildState({
+      userMessage: 'zeig mir das nochmal',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+    expect(result.mcpServerScope).toBe('server-tally-1');
+  });
+
+  it('mcp context + a NEW knowledge question with article "das" → NOT mcp', async () => {
+    const state = buildState({
+      userMessage: 'erkläre mir das Grundeinkommen',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    // "das" is an article here, not anaphora — must not hijack to the connector.
+    expect(result.intent).not.toBe('mcp');
+  });
+
+  it('mcp context + action verb "erstelle noch eins" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'erstelle noch eins',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+    expect(result.mcpServerScope).toBe('server-tally-1');
+  });
+
+  it('mcp context + "versuchs nochmal über mcp" → mcp', async () => {
+    const state = buildState({
+      userMessage: 'versuchs nochmal über mcp',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('mcp');
+  });
+
+  it('mcp context + "erstelle ein Sharepic dazu" → NOT mcp (own-artifact wins)', async () => {
+    const state = buildState({
+      userMessage: 'erstelle ein Sharepic dazu',
+      lastToolContext: { kind: 'mcp', ref: 'server-tally-1', label: 'Tally' },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('mcp');
+  });
 });
