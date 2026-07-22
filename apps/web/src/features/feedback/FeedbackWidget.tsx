@@ -12,7 +12,7 @@ import {
   toast,
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Loader2, Maximize2, MessageSquare } from 'lucide-react';
 import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useState, type JSX } from 'react';
 
@@ -75,6 +75,7 @@ export default function FeedbackWidget({
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [includeScreenshot, setIncludeScreenshot] = useState(true);
   const [capturing, setCapturing] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -126,7 +127,7 @@ export default function FeedbackWidget({
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Feedback geben</DialogTitle>
             <DialogDescription>
@@ -151,20 +152,30 @@ export default function FeedbackWidget({
           )}
 
           {!capturing && screenshot && (
-            <div className="space-y-2">
+            <div className="flex items-start gap-3">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <Checkbox
                   checked={includeScreenshot}
                   onCheckedChange={(v) => setIncludeScreenshot(v === true)}
                 />
-                Screenshot der Seite anhängen
+                Screenshot anhängen
               </label>
               {includeScreenshot && (
-                <img
-                  src={screenshot}
-                  alt="Vorschau des mitgesendeten Screenshots"
-                  className="w-full max-h-56 object-contain rounded-md border border-border bg-muted"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(true)}
+                  className="group relative shrink-0 cursor-zoom-in rounded-md border border-border bg-muted overflow-hidden"
+                  title="Zum Vergrößern klicken"
+                >
+                  <img
+                    src={screenshot}
+                    alt="Vorschau des mitgesendeten Screenshots"
+                    className="h-20 w-auto max-w-[8rem] object-cover"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+                    <Maximize2 className="size-4" />
+                  </span>
+                </button>
               )}
             </div>
           )}
@@ -182,6 +193,19 @@ export default function FeedbackWidget({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {screenshot && (
+        <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+          <DialogContent className="max-w-[95vw] border-0 bg-transparent p-2 shadow-none sm:max-w-[95vw]">
+            <DialogTitle className="sr-only">Screenshot-Vorschau</DialogTitle>
+            <img
+              src={screenshot}
+              alt="Screenshot der Seite in voller Größe"
+              className="mx-auto max-h-[88vh] w-auto max-w-full rounded-md object-contain"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
