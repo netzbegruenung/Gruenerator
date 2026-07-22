@@ -1,0 +1,106 @@
+name: Nightly Chat Eval
+
+# Runs the live chat eval corpus (multi-turn scenarios + adversarial cases +
+# golden long threads) against the DEPLOYED TEST ENVIRONMENT on both model
+# lanes, then the LLM-judge pass over the traces. Regressions vs the committed
+# per-lane baseline fail the job; ci-failure-issue.yml turns failures into one
+# rolling tracking issue.
+#
+# Required repo secrets:
+#   EVAL_BASE_URL      https://<test-env-host>  (backend with ALLOW_DEV_AUTH_BYPASS=true)
+#   EVAL_BYPASS_TOKEN  the test env's DEV_AUTH_BYPASS_TOKEN
+#   LITELLM_BASE_URL   verdigado LiteLLM proxy (judge; no /v1 suffix)
+#   LITELLM_API_KEY    judge model access (free verdigado models)
+
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: 'Write this run as the new per-lane baseline and open a PR'
+        type: boolean
+        default: false
+      filter:
+        description: 'EVAL_FILTER substring (empty = full corpus)'
+        type: string
+        default: ''
+
+concurrency:
+  group: nightly-chat-eval
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  eval:
+    name: Eval (${{ matrix.lane }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [mistral, gemma-4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Probe test-env reachability
+        run: |
+          echo "Backend git SHA (env drift check):"
+          curl -sf --max-time 15 "$EVAL_BASE_URL/health" || echo "(no /health — continuing)"
+        env:
+          EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
+
+      - name: Run chat eval (${{ matrix.lane }})
+        run: pnpm --filter @gruenerator/api eval:chat
+        env:
+          EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
+          EVAL_BYPASS_TOKEN: ${{ secrets.EVAL_BYPASS_TOKEN }}
+          EVAL_MODEL_ID: ${{ matrix.lane }}
+          EVAL_SLOW: '1'
+          EVAL_FILTER: ${{ inputs.filter }}
+          EVAL_BASELINE: apps/api/evals/baseline.${{ matrix.lane }}.json
+          EVAL_UPDATE_BASELINE: ${{ inputs.update_baseline && '1' || '' }}
+
+      - name: Run LLM judge
+        if: always()
+        run: pnpm --filter @gruenerator/api eval:judge
+        env:
+          LITELLM_BASE_URL: ${{ secrets.LITELLM_BASE_URL }}
+          LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY }}
+          EVAL_JUDGE_BLOCKING: '1'
+
+      - name: Upload traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-traces-${{ matrix.lane }}
+          path: |
+            apps/api/evals/last-run.json
+            apps/api/evals/judge-verdicts.json
+          retention-days: 30
+
+      - name: Open baseline PR
+        if: inputs.update_baseline
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/eval-baseline-${{ matrix.lane }}
+          title: 'chore(evals): update ${{ matrix.lane }} eval baseline'
+          commit-message: 'chore(evals): update ${{ matrix.lane }} eval baseline'
+          body: 'Automated baseline refresh from workflow_dispatch run.'
+          add-paths: apps/api/evals/baseline.${{ matrix.lane }}.json

@@ -34,6 +34,11 @@ vi.mock('../config/betterAuth.js', () => ({
   auth: { api: { getSession: getSessionMock } },
 }));
 
+// The locale overlay would otherwise hit Redis/Postgres and hang the test.
+vi.mock('../services/localization/localeCache.js', () => ({
+  getUserLocale: vi.fn().mockResolvedValue(null),
+}));
+
 // Default env — individual tests override via `envMock.*` assignment.
 const envMock = {
   NODE_ENV: 'development' as 'development' | 'production' | 'test',

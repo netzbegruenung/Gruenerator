@@ -349,21 +349,34 @@ describe('createToolLoopGuards — internal-first', () => {
     exempt: false,
   };
 
-  it('blocks web/scrape before the internal search ran, unblocks when internal came up SHORT', () => {
+  it('blocks web/scrape before the internal search ran, unblocks when internal COMPLETED but came up SHORT', () => {
     let sources = 0;
     const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
     expect(guards.checkInternalFirst('web_search')).not.toBeNull();
     expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
     guards.noteCall('gruenerator_search');
-    sources = 1; // internal ran but yielded little → web is allowed as a fallback
+    guards.noteCompletion('gruenerator_search');
+    sources = 1; // internal completed but yielded little → web is allowed as a fallback
     expect(guards.checkInternalFirst('web_search')).toBeNull();
     expect(guards.checkInternalFirst('scrape_url')).toBeNull();
+  });
+
+  it('holds web while the internal search is IN FLIGHT (same-step parallel race)', () => {
+    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => 0 });
+    // Internal call started (noteCall) but not yet completed — the register-lag
+    // window where web_search used to slip through. Must be blocked.
+    guards.noteCall('gruenerator_search');
+    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
+    // Once internal completes with 0 sources, web is allowed (empty → fall back).
+    guards.noteCompletion('gruenerator_search');
+    expect(guards.checkInternalFirst('web_search')).toBeNull();
   });
 
   it('prefer-internal: once internal yields enough sources, web/scrape are refused', () => {
     let sources = 0;
     const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
     guards.noteCall('gruenerator_search');
+    guards.noteCompletion('gruenerator_search');
     sources = 5; // enough internal evidence → do not web-search on top
     expect(guards.checkInternalFirst('web_search')).not.toBeNull();
     // Also blocks a model-invented scrape URL (Q2 gruene.de/positionen/atomkraft 404).

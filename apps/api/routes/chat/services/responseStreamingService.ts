@@ -35,6 +35,17 @@ const log = createLogger('ResponseStreaming');
  * production load.
  */
 const FIRST_TOKEN_DEADLINE_MS = 20_000;
+
+// Turn-level wall-clock for the single-pass streaming path. The first-token
+// deadline is CLEARED once text starts, leaving Phase 2 (the drain loop)
+// uncapped — a slow/trickling generation ran 338 s live. This ceiling composes
+// into the streamText abortSignal and is NEVER cleared, so it bounds the whole
+// turn (both phases + any fallback attempt). The agentic loop has its own
+// wall-clock budget and does not use these functions.
+const SINGLE_PASS_WALL_CLOCK_MS = (() => {
+  const n = Number.parseInt(process.env.CHAT_SINGLE_PASS_WALL_CLOCK_MS ?? '', 10);
+  return Number.isInteger(n) && n > 0 ? n : 180_000;
+})();
 /** LiteLLM overflow lane can queue behind its single Verdigado slot. */
 const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
 /**
@@ -293,6 +304,16 @@ function createFirstTokenDeadline(deadlineMs: number): {
   };
 }
 
+/** A plain abort-after-ms timer (setTimeout-backed so fake timers drive it,
+ *  unlike AbortSignal.timeout). Clearable so a normal completion frees it. */
+function createAbortTimer(ms: number): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const handle = setTimeout(() => {
+    controller.abort(new DOMException(`wall-clock ${ms}ms exceeded`, 'TimeoutError'));
+  }, ms);
+  return { signal: controller.signal, clear: () => clearTimeout(handle) };
+}
+
 async function streamAndAccumulateOrThrow(params: {
   model: LanguageModel;
   messages: Array<{ role: string; content: string | unknown[] }>;
@@ -304,6 +325,7 @@ async function streamAndAccumulateOrThrow(params: {
   providerOptions?: Parameters<typeof streamText>[0]['providerOptions'];
   telemetry?: Parameters<typeof streamText>[0]['experimental_telemetry'];
   firstTokenDeadlineMs?: number;
+  wallClockMs?: number;
 }): Promise<string | null> {
   const {
     model,
@@ -316,6 +338,7 @@ async function streamAndAccumulateOrThrow(params: {
     providerOptions,
     telemetry,
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
+    wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
   } = params;
 
   const {
@@ -323,7 +346,10 @@ async function streamAndAccumulateOrThrow(params: {
     signal: deadlineSignal,
     clear,
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
-  const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
+  // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
+  // after phase 1, leaving the drain uncapped). Cleared on normal completion.
+  const wall = createAbortTimer(wallClockMs);
+  const composed = AbortSignal.any([...(signal ? [signal] : []), deadlineSignal, wall.signal]);
 
   const { system, messages: messagesWithoutSystem } = extractSystemFromMessages(
     messages as ModelMessage[]
@@ -383,6 +409,7 @@ async function streamAndAccumulateOrThrow(params: {
     }
   } catch (err) {
     clear();
+    wall.clear();
     stopHeartbeat();
     throw err;
   }
@@ -403,6 +430,7 @@ async function streamAndAccumulateOrThrow(params: {
       }
     }
   } catch (streamError: unknown) {
+    wall.clear();
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(
       `${logPrefix} Stream error after first token (${fullText.length} chars):`,
@@ -417,6 +445,7 @@ async function streamAndAccumulateOrThrow(params: {
     return null;
   }
 
+  wall.clear();
   return fullText;
 }
 
@@ -434,6 +463,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   signal?: AbortSignal;
   logPrefix?: string;
   firstTokenDeadlineMs?: number;
+  wallClockMs?: number;
 }): Promise<string | null> {
   const {
     provider,
@@ -445,6 +475,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     signal,
     logPrefix = '[ChatGraph]',
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
+    wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
   } = params;
 
   const {
@@ -452,7 +483,10 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     signal: deadlineSignal,
     clear,
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
-  const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
+  // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
+  // after phase 1, leaving the drain uncapped). Cleared on normal completion.
+  const wall = createAbortTimer(wallClockMs);
+  const composed = AbortSignal.any([...(signal ? [signal] : []), deadlineSignal, wall.signal]);
 
   const streamParams: Parameters<typeof streamWithReasoning>[0] = {
     provider,
@@ -486,6 +520,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     }
   } catch (err) {
     clear();
+    wall.clear();
     stopHeartbeat();
     throw err;
   }
@@ -503,6 +538,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       }
     }
   } catch (streamError: unknown) {
+    wall.clear();
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(`${logPrefix} Reasoning stream error after first token:`, errorMessage);
     sse.send('error', {
@@ -514,6 +550,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     return null;
   }
 
+  wall.clear();
   return fullText;
 }
 

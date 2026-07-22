@@ -43,6 +43,13 @@ describe('looksLikeToolableQuestion', () => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
   });
 
+  it('strips a greeting prefix so a real question behind it still routes', () => {
+    expect(looksLikeToolableQuestion('Hallo! Wie hat die CDU zur Frauenquote abgestimmt?')).toBe(
+      true
+    );
+    expect(looksLikeToolableQuestion('Moin, gibt es aktuelle Zahlen zum Radverkehr?')).toBe(true);
+  });
+
   const fastPath: [string, string][] = [
     ['greeting', 'Hallo!'],
     ['short who', 'Wer bist du?'],
