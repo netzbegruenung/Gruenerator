@@ -42,6 +42,7 @@ import {
   isAgenticLoopEnabled,
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
+import { stripOutOfRangeCitations } from './services/agenticLoop/citationStrip.js';
 import {
   compoundGenerationKind,
   looksLikeCompoundEdit,
@@ -1520,6 +1521,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
 
           if (fullText === null) return { status: 200 as const, body: undefined };
+
+          // The single-pass synth model cites numbers the registry can't back —
+          // out-of-range ("[5]" with 3 sources) or, worst, [N] placeholders when
+          // there are NO sources at all (observed on at-gruene-position). The
+          // agentic loop already clamps; this is its single-pass equivalent. When
+          // anything changes, push the corrected text via `completion` so the
+          // frontend replaces the streamed deltas (same channel as the notebook flow).
+          const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
+          if (citeClamp.changed) {
+            fullText = citeClamp.text;
+            sse.send('completion', { text: fullText, citations: finalState.citations });
+          }
         }
       }
 
