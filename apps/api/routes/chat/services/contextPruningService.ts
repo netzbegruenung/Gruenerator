@@ -30,7 +30,15 @@ const log = createLogger('ContextPruning');
 // In-memory guards to prevent re-triggering compaction on every message after threshold
 const compactionInProgress = new Set<string>();
 const lastCompactionTime = new Map<string, number>();
-const COMPACTION_COOLDOWN_MS = 60_000; // 1 minute
+// Env-overridable outside production so the long-thread eval harness can
+// trigger back-to-back compactions without waiting out the cooldown.
+const COMPACTION_COOLDOWN_MS = (() => {
+  if (process.env.NODE_ENV !== 'production') {
+    const n = Number.parseInt(process.env.CHAT_COMPACTION_COOLDOWN_MS ?? '', 10);
+    if (Number.isInteger(n) && n >= 0) return n;
+  }
+  return 60_000; // 1 minute
+})();
 
 export interface PruningResult {
   prunedMessages: ModelMessage[];

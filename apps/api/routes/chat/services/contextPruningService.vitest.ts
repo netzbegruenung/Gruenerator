@@ -221,3 +221,41 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
     expect(mockGenerateCompactionSummary).toHaveBeenCalledTimes(2);
   });
 });
+
+// ─── pruneMessages: suffix-window behavior (long-thread mechanism) ─────────
+
+describe('pruneMessages – suffix window', () => {
+  // Documents the load-bearing (and risky) current behavior: pruning keeps a
+  // recent-message suffix only. A scope-establishing first turn (mention token,
+  // created artifact) is silently dropped once the window slides past it. If a
+  // pinning mechanism is ever added, these expectations must change.
+  const big = (role: 'user' | 'assistant', chars: number, tag: string) => ({
+    role,
+    content: `${tag} ${'x'.repeat(chars)}`,
+  });
+
+  it('keeps all messages when under budget', async () => {
+    const { pruneMessages } = await import('./contextPruningService.js');
+    const msgs = [big('user', 100, 'm0'), big('assistant', 100, 'm1'), big('user', 100, 'm2')];
+    expect(pruneMessages(msgs as any)).toHaveLength(3);
+  });
+
+  it('drops the oldest (scope-establishing) messages first when over budget', async () => {
+    const { pruneMessages } = await import('./contextPruningService.js');
+    // Mocked MAX_CONTEXT_TOKENS=4000, response reserve 1000 → ~3000 available.
+    // Each message ≈ 4000/4 + 10 = 1010 tokens → only the last 2 survive.
+    const msgs = [
+      big('user', 4000, 'scope-establishing-mention'),
+      big('assistant', 4000, 'm1'),
+      big('user', 4000, 'm2'),
+      big('assistant', 4000, 'm3'),
+      big('user', 4000, 'probe'),
+    ];
+    const pruned = pruneMessages(msgs as any);
+    expect(pruned).toHaveLength(2);
+    expect(String(pruned[0].content)).toContain('m3');
+    expect(String(pruned[1].content)).toContain('probe');
+    // The turn that established scope is gone — the exact long-thread hazard.
+    expect(pruned.some((m) => String(m.content).includes('scope-establishing'))).toBe(false);
+  });
+});

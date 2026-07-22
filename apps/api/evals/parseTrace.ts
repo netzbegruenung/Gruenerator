@@ -4,6 +4,23 @@
  */
 import { type ChatTrace, type SseEvent, type TracedToolCall } from './types.js';
 
+/** Keys that identify an artifact in creation/edit event payloads. */
+const ID_KEYS = ['id', 'documentId', 'docId', 'canvasId', 'variantId', 'targetId', 'imageId'];
+
+function collectIds(data: Record<string, unknown>, into: string[]): void {
+  for (const key of ID_KEYS) {
+    const v = data[key];
+    if (typeof v === 'string' && v) into.push(v);
+  }
+  if (Array.isArray(data.variants)) {
+    for (const variant of data.variants) {
+      if (variant && typeof variant === 'object') {
+        collectIds(variant as Record<string, unknown>, into);
+      }
+    }
+  }
+}
+
 /** Parse a raw SSE body (`event: x\ndata: {...}\n\n` frames) into events. */
 export function parseSseEvents(raw: string): SseEvent[] {
   const events: SseEvent[] = [];
@@ -45,6 +62,14 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
     fullText: '',
     latencyMs,
     error: null,
+    threadId: null,
+    interrupts: [],
+    artifactIds: [],
+    referencedIds: [],
+    warnings: [],
+    editorOps: false,
+    sharepicUpdated: false,
+    sharepicVariants: [],
   };
 
   const stepsById = new Map<string, TracedToolCall>();
@@ -76,15 +101,56 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
         }
         break;
       }
+      case 'thread_created': {
+        if (typeof data.threadId === 'string') trace.threadId = data.threadId;
+        break;
+      }
+      case 'interrupt': {
+        trace.interrupts.push({
+          interruptType: String(data.interruptType ?? 'unknown'),
+          ...(typeof data.question === 'string' ? { question: data.question } : {}),
+        });
+        if (trace.threadId == null && typeof data.threadId === 'string') {
+          trace.threadId = data.threadId;
+        }
+        break;
+      }
+      case 'warning': {
+        trace.warnings.push(String(data.code ?? data.message ?? 'unknown'));
+        break;
+      }
+      case 'document_created': {
+        collectIds(data, trace.artifactIds);
+        break;
+      }
+      case 'sharepic_updated': {
+        trace.sharepicUpdated = true;
+        collectIds(data, trace.referencedIds);
+        break;
+      }
+      case 'editor_operations': {
+        trace.editorOps = true;
+        collectIds(data, trace.referencedIds);
+        break;
+      }
       case 'sharepic_complete': {
         // A real generation carries variants and no error.
         if (!data.error && Array.isArray(data.variants) && data.variants.length > 0) {
           trace.sharepicGenerated = true;
+          collectIds(data, trace.artifactIds);
+          for (const v of data.variants) {
+            if (v && typeof v === 'object') {
+              trace.sharepicVariants.push(v as Record<string, unknown>);
+            }
+          }
         }
         break;
       }
       case 'image_complete': {
-        if (!data.error) trace.imageGenerated = true;
+        if (!data.error) {
+          trace.imageGenerated = true;
+          collectIds(data, trace.artifactIds);
+        }
         break;
       }
       case 'text_delta': {
