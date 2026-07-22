@@ -9,7 +9,8 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { ArrowUp, Mic, Square, X } from 'lucide-react';
+import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
+import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
@@ -255,6 +256,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const isMobile = useIsMobile();
   const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
+  const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
+  const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
@@ -745,6 +748,32 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
+  // Sticky connector chip (web-only for now): mirrors the mention-chip look,
+  // accent from the connector's brand colour. The × unpins.
+  const pinnedConnectorChip = pinnedConnector ? (
+    <div className="px-4 pt-2">
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-medium"
+        style={{
+          color: mcpBrandColor(pinnedConnector.label),
+          borderColor: `${mcpBrandColor(pinnedConnector.label)}55`,
+          backgroundColor: `${mcpBrandColor(pinnedConnector.label)}14`,
+        }}
+      >
+        <Plug className="h-3.5 w-3.5" />
+        <span className="max-w-40 truncate">{pinnedConnector.label}</span>
+        <button
+          type="button"
+          aria-label={`${pinnedConnector.label} lösen`}
+          onClick={() => setPinnedConnector(null)}
+          className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </span>
+    </div>
+  ) : null;
+
   const modelPickerNode = showModelPicker ? (
     <ModelPicker
       {...(modelPickerThreadModeOverride && {
@@ -799,6 +828,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         </ComposerPrimitive.Quote>
 
         <ComposerAttachments />
+
+        {pinnedConnectorChip}
 
         {slots?.aboveInput}
 
