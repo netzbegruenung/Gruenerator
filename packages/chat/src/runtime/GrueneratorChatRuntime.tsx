@@ -20,6 +20,8 @@ import {
   type RemoteThreadListAdapter,
   RuntimeAdapterProvider,
   ExportedMessageRepository,
+  McpAppRenderer,
+  McpAppsRemoteHost,
 } from '@assistant-ui/react';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { createChatApiClient } from '../context/ChatContext';
@@ -426,8 +428,24 @@ export function GrueneratorChatRuntimeProvider({
     adapter: threadListAdapter,
   });
 
+  // MCP-Apps widget host (SYSTEM MCP tools only): renders any tool part carrying
+  // a `ui://` mcp.app pointer as a sandboxed widget iframe, driven through the
+  // /api/mcp-apps bridge with the credentialed fetch. Memoized so the widget
+  // iframe isn't torn down on every re-render.
+  const mcpAppsUrl = useChatConfigStore((s) => s.endpoints.mcpApps);
+  const mcpApp = useMemo(() => {
+    // The bridge host only ever posts to our string route URL; adapt the store's
+    // (string-url) fetch to the standard fetch signature it expects.
+    const bridgeFetch: typeof fetch = (input, init) =>
+      fetchFn(typeof input === 'string' ? input : input.toString(), init);
+    return McpAppRenderer({
+      host: McpAppsRemoteHost({ url: mcpAppsUrl, fetch: bridgeFetch }),
+      hostInfo: { name: 'gruenerator', version: '1.0.0' },
+    });
+  }, [mcpAppsUrl, fetchFn]);
+
   const aui = useAui({
-    tools: Tools({ toolkit: grueneratorToolkit }),
+    tools: Tools({ toolkit: grueneratorToolkit, mcpApp }),
     suggestions: Suggestions(chatSuggestions),
   });
 
