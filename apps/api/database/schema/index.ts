@@ -26,6 +26,7 @@ export * from './sites.js';
 export * from './apiKeys.js';
 export * from './mcpServers.js';
 export * from './userAgents.js';
+export * from './textForms.js';
 export * from './userItemUsage.js';
 export * from './groups.js';
 export * from './monitor.js';
