@@ -4,7 +4,7 @@
   "description": "Ein WordPress-Plugin für professionelle Kandidatenseiten der Grünen",
   "main": "webpack.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"no tests\"",
     "build": "wp-scripts build",
     "start": "wp-scripts start",
     "typecheck": "tsc --noEmit"

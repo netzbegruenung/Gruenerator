@@ -28,9 +28,15 @@ vi.mock('../../../services/chat/threadRecallEmbeddingService.js', () => ({
   searchThreadRecall: (...args: unknown[]) => mockSearchThreadRecall(...args),
 }));
 
-vi.mock('../../docs/docsSearch.js', () => ({
-  searchOfficeContent: (...args: unknown[]) => mockSearchOfficeContent(...args),
-}));
+vi.mock('../../docs/docsSearch.js', async () => {
+  // Keep the pure formatting re-exports (officeKindLabel/officeUrl/…) real;
+  // only the DB-backed search is mocked.
+  const fmt = await import('../../docs/officeContentFormat.js');
+  return {
+    ...fmt,
+    searchOfficeContent: (...args: unknown[]) => mockSearchOfficeContent(...args),
+  };
+});
 
 vi.mock('../../../services/search/rerankPipeline.js', () => ({
   rerankPipeline: (...args: unknown[]) => mockRerankPipeline(...args),
