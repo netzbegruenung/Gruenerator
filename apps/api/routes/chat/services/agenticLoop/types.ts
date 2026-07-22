@@ -23,6 +23,40 @@ export interface PersistedStep {
   serverName?: string;
 }
 
+/**
+ * What an MCP connector tool call yields: EITHER text content OR an error
+ * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this
+ * shape (`{ content } | { error }`), so it is the contract the split synth
+ * relays from and reports on. A discriminated union (not a loose bag) so the
+ * relay code can't silently confuse "the connector returned an empty string"
+ * with "there is no content field" — the exact ambiguity behind a synth that
+ * falsely claims "kein Zugriff" after a tool ran OK.
+ */
+export type McpToolResult = { content: string } | { error: string };
+
+/** Normalized read of a persisted step's result as an MCP outcome. */
+export interface McpResultView {
+  ok: boolean;
+  /** The (possibly empty) text the connector returned. '' when `ok` is false. */
+  content: string;
+  /** The error text when `ok` is false; null otherwise. */
+  error: string | null;
+}
+
+/**
+ * Read a persisted step's `result` as an MCP outcome. Tolerant of the untyped
+ * `Record<string, unknown>` persistence shape (results are stored generically
+ * across all tool families), but funnels every MCP consumer through ONE reader
+ * so "empty content" vs "error" vs "missing field" is decided in a single place.
+ */
+export function readMcpResult(result: Record<string, unknown> | undefined): McpResultView {
+  const err = result?.error;
+  if (err != null && err !== '') return { ok: false, content: '', error: String(err) };
+  const raw = result?.content;
+  const content = raw == null ? '' : typeof raw === 'string' ? raw : JSON.stringify(raw);
+  return { ok: true, content, error: null };
+}
+
 /** Bounds for a single loop turn. */
 export interface LoopBudget {
   /** Max LLM steps (each tool round trip is one step). */

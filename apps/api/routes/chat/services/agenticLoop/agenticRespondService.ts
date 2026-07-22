@@ -45,7 +45,12 @@ import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { resolveEditorSurfaceKind } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
-import { DEFAULT_LOOP_BUDGET, type LoopBudget, type PersistedStep } from './types.js';
+import {
+  DEFAULT_LOOP_BUDGET,
+  readMcpResult,
+  type LoopBudget,
+  type PersistedStep,
+} from './types.js';
 import { wrapToolsForLoop } from './wrapTools.js';
 
 import type {
@@ -172,31 +177,41 @@ const MCP_CAPABILITY_QUESTION =
  */
 const MCP_CONTENT_CAP = 1500;
 
-/** The tool result's payload (the MCP dynamicTool returns `{ content }`), rendered
- *  and length-capped for the synth prompt. */
-function renderMcpContent(result: Record<string, unknown> | undefined): string {
-  const content = result?.content;
-  if (content == null || content === '') return '';
-  const text = typeof content === 'string' ? content : JSON.stringify(content);
-  return text.length > MCP_CONTENT_CAP ? `${text.slice(0, MCP_CONTENT_CAP)}…` : text;
+/** The connector's text payload, length-capped for the synth prompt. */
+function capMcpContent(content: string): string {
+  return content.length > MCP_CONTENT_CAP ? `${content.slice(0, MCP_CONTENT_CAP)}…` : content;
 }
 
 export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
   const mcpSteps = steps.filter((s) => s.serverName);
   if (mcpSteps.length === 0) return '';
-  const anyFailed = mcpSteps.some((s) => s.result?.error != null);
-  const lines = mcpSteps.map((s) => {
-    const err = s.result?.error;
-    if (err != null) {
-      return `- ${s.serverName} · ${s.toolName}: FEHLGESCHLAGEN — ${String(err).slice(0, 200)}`;
+  const views = mcpSteps.map((s) => ({ s, view: readMcpResult(s.result) }));
+  const anyFailed = views.some((v) => !v.view.ok);
+  // A tool that ran OK but returned an empty string is NOT a failure and NOT
+  // "no access" — the connection worked, the service just had nothing to hand
+  // back. Flag it distinctly so the synth says "keine Einträge" instead of
+  // hallucinating "kein Zugriff / nicht verbunden".
+  const anyEmptyOk = views.some((v) => v.view.ok && v.view.content.trim() === '');
+  const lines = views.map(({ s, view }) => {
+    if (!view.ok) {
+      return `- ${s.serverName} · ${s.toolName}: FEHLGESCHLAGEN — ${String(view.error).slice(0, 200)}`;
     }
-    const content = renderMcpContent(s.result);
-    return `- ${s.serverName} · ${s.toolName} →\n${content || '(erfolgreich, aber kein Inhalt zurückgegeben)'}`;
+    return view.content.trim() === ''
+      ? `- ${s.serverName} · ${s.toolName} → (Aufruf erfolgreich, Dienst lieferte KEINE Einträge zurück — leeres Ergebnis, KEIN Verbindungs-/Zugriffsproblem)`
+      : `- ${s.serverName} · ${s.toolName} →\n${capMcpContent(view.content)}`;
   });
   const rule = anyFailed
     ? 'Mindestens ein Aufruf ist FEHLGESCHLAGEN. Sag EHRLICH und konkret, was nicht geklappt hat (Dienst + Fehler), und behaupte NIEMALS einen Erfolg (kein „erstellt/gespeichert/veröffentlicht", kein Link). Erfinde keine IDs, Links oder Bestätigungen. Die Inhalte erfolgreicher Aufrufe gibst du trotzdem wieder.'
     : 'Das sind die ECHTEN Ergebnisse der Dienste. GIB SIE dem*der Nutzer*in KONKRET WIEDER — liste die Termine/Zusammenfassungen/Protokolle/Datensätze inhaltlich auf und fasse sie zusammen, statt nur zu sagen, die Tools seien gelaufen oder „die Daten lägen dir vor". Erfinde nichts dazu, aber lass nichts Relevantes weg.';
-  return `\n\nERGEBNISSE VERBUNDENER DIENSTE (MCP) IN DIESEM TURN:\n${lines.join('\n\n')}\n\n${rule}`;
+  // Every listed call already reached its server. Forbid the two lies we saw
+  // live: "kein Zugriff / nicht verbunden" after a successful call, and calling
+  // an empty result a connection problem.
+  const connectionRule =
+    'Jeder oben gelistete Aufruf hat den Dienst ERREICHT. Behaupte daher NIEMALS „kein Zugriff", „nicht verbunden" oder „keine Verbindung"' +
+    (anyEmptyOk
+      ? '. Ein leeres Ergebnis heißt „keine Einträge/Treffer gefunden", NICHT „kein Zugriff".'
+      : '.');
+  return `\n\nERGEBNISSE VERBUNDENER DIENSTE (MCP) IN DIESEM TURN:\n${lines.join('\n\n')}\n\n${rule}\n${connectionRule}`;
 }
 
 export interface AgenticResponseOutcome {
@@ -728,17 +743,32 @@ export async function streamAgenticResponse(params: {
 
   // Per-turn tool-outcome breakdown so a silent connector failure is visible in
   // the summary line, not only in the per-tool [Tool] logs above.
-  const failedSteps = steps.filter((s) => s.result?.error != null);
+  const mcpSteps = steps.filter((s) => s.serverName);
+  const failedSteps = mcpSteps.filter((s) => !readMcpResult(s.result).ok);
   const failedTools =
     failedSteps.length > 0
       ? ` failedTools=[${failedSteps
           .map((s) => `${s.serverName ? `${s.serverName}:` : ''}${s.toolName}`)
           .join(', ')}]`
       : '';
+  // The relay-visibility line: for every connector step, how many chars its
+  // result actually carried into the synth. `=0ch` next to a synth that claims
+  // "no data / no access" pinpoints an empty service result vs a relay/synth bug
+  // WITHOUT re-running — the gap that hid the Tally/Sally "kein Zugriff" issue.
+  const mcpContent =
+    mcpSteps.length > 0
+      ? ` mcpContent=[${mcpSteps
+          .map((s) => {
+            const v = readMcpResult(s.result);
+            const tag = s.serverName ? `${s.serverName}:${s.toolName}` : s.toolName;
+            return v.ok ? `${tag}=${v.content.length}ch` : `${tag}=ERR`;
+          })
+          .join(', ')}]`
+      : '';
   log.info(
     `[Agentic] model=${resolution?.modelName ?? agentConfig.model} mode=${mode}${
       mode === 'split' ? ` planner=${loopPlannerModelName()} synth=${synthName}` : ''
-    } intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}${failedTools}`
+    } intent=${finalState.intent} steps=${steps.length} sources=${sourceRegistry.size} chars=${text.length}${failedTools}${mcpContent}`
   );
 
   return {
