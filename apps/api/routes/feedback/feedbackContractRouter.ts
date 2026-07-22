@@ -11,28 +11,19 @@
 
 import { feedbackContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
+import { type Application } from 'express';
 
 import { isEmailConfigured, sendEmail } from '../../services/email/index.js';
+import { baseLayout, escapeHtml } from '../../services/email/templates.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
-
-import type { Application } from 'express';
 
 const log = createLogger('feedbackContractRouter');
 
 const FEEDBACK_RECIPIENT = 'info@moritz-waechter.de';
 
 const s = initServer();
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 export const feedbackContractRouter = s.router(feedbackContract, {
   submit: async (args) => {
@@ -72,14 +63,12 @@ export const feedbackContractRouter = s.router(feedbackContract, {
         )
         .join('');
 
-      const html = `
-        <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#111;max-width:640px;">
-          <h2 style="margin:0 0 12px;">Neues Feedback</h2>
-          <div style="white-space:pre-wrap;padding:12px 16px;background:#f5f5f5;border-radius:8px;margin-bottom:20px;">${escapeHtml(
-            message
-          )}</div>
-          <table style="border-collapse:collapse;font-size:14px;">${tableRows}</table>
-        </div>`;
+      const html = baseLayout(`
+        <h2 style="margin:0 0 12px;font-size:20px;color:#111;">Neues Feedback</h2>
+        <div style="white-space:pre-wrap;padding:12px 16px;background:#f5f5f5;border-radius:8px;margin-bottom:20px;color:#111;">${escapeHtml(
+          message
+        )}</div>
+        <table style="border-collapse:collapse;font-size:14px;color:#111;">${tableRows}</table>`);
 
       const textLines = ['Neues Feedback', '', message, '', ...rows.map(([k, v]) => `${k}: ${v}`)];
 
@@ -103,7 +92,9 @@ export const feedbackContractRouter = s.router(feedbackContract, {
         }
       }
 
-      const subjectPage = pageContext.routeName ?? pageContext.pathname;
+      // Use the pathname (always page-specific) for the subject; routeName is
+      // the browser tab title and is often the generic brand name.
+      const subjectPage = pageContext.pathname;
       const sent = await sendEmail({
         to: FEEDBACK_RECIPIENT,
         subject: `Grünerator Feedback – ${subjectPage}`,

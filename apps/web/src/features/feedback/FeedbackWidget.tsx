@@ -1,3 +1,4 @@
+import { type FeedbackPageContext } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
@@ -15,8 +16,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Loader2, Maximize2, MessageSquare } from 'lucide-react';
 import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useState, type JSX } from 'react';
-
-import type { FeedbackPageContext } from '@gruenerator/contracts';
 
 import FloatingActionButton from '@/components/common/UI/FloatingActionButton';
 
@@ -50,10 +49,16 @@ async function capturePageScreenshot(): Promise<string | null> {
       backgroundColor: '#ffffff',
       // Exclude the (already open) feedback dialog and its own launcher so the
       // screenshot shows the page the user is giving feedback on, not the modal
-      // overlaying it. The whole Radix portal (overlay + content) is skipped.
+      // overlaying it. Only skip *our* dialog's portal (overlay + content) —
+      // other open dialogs the user may be reporting on stay in the shot.
       filter: (node) => {
         if (node instanceof Element) {
-          if (node.getAttribute('data-slot') === 'dialog-portal') return false;
+          if (
+            node.getAttribute('data-slot') === 'dialog-portal' &&
+            node.querySelector('[data-feedback-dialog]') != null
+          ) {
+            return false;
+          }
           if (node.classList.contains('feedback-widget-fab')) return false;
         }
         return true;
@@ -129,7 +134,7 @@ export default function FeedbackWidget({
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent data-feedback-dialog="" className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Feedback geben</DialogTitle>
             <DialogDescription>
