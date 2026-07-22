@@ -218,6 +218,7 @@ const EMPTY: McpCatalog = {
   labels: new Map(),
   catalogSummary: '',
   scopedServerMissing: false,
+  scopedServerUnreachable: false,
   close: async () => {},
 };
 
@@ -329,6 +330,7 @@ export async function loadSystemMcpCatalog(params: {
     labels,
     catalogSummary,
     scopedServerMissing: false,
+    scopedServerUnreachable: false,
     systemSourceKeys: mountedKeys,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
