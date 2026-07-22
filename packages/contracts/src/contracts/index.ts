@@ -40,6 +40,7 @@ export { transferContract } from './transferContract.js';
 export { unsplashContract } from './unsplashContract.js';
 export { notificationsContract } from './notificationsContract.js';
 export { emailContract } from './emailContract.js';
+export { feedbackContract } from './feedbackContract.js';
 export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
 export { mcpServersContract } from './mcpServersContract.js';

@@ -150,6 +150,9 @@ const envSchema = z.object({
   BREVO_SMTP_USER: z.string().trim().optional(),
   BREVO_SMTP_PASS: z.string().trim().optional(),
   EMAIL_FROM: z.string().trim().optional(),
+  // Recipient for the in-app feedback widget. Falls back to a hardcoded
+  // address in feedbackContractRouter when unset.
+  FEEDBACK_RECIPIENT_EMAIL: z.string().trim().optional(),
 
   // ── Credential encryption ──────────────────────────────────────────────
   CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),

@@ -43,6 +43,7 @@ import {
   transferContract,
   notificationsContract,
   emailContract,
+  feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -202,6 +203,7 @@ const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
+const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
@@ -253,6 +255,7 @@ export interface ContractsClient {
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   email: ReturnType<typeof _emailClient>;
+  feedback: ReturnType<typeof _feedbackClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
@@ -321,6 +324,7 @@ export function getContractsClient(): ContractsClient {
     transfer: _transferClient(),
     notifications: _notificationsClient(),
     email: _emailClient(),
+    feedback: _feedbackClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
