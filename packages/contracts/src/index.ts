@@ -57,6 +57,7 @@ export {
   unsplashContract,
   notificationsContract,
   emailContract,
+  feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -119,6 +120,7 @@ export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
 export * from './schemas/email.js';
+export * from './schemas/feedback.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
