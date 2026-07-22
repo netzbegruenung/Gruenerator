@@ -72,6 +72,19 @@ describe('runAgenticLoop — unified mode', () => {
     // No planner phase; one streamText on the selected model WITH tools.
     expect(calls).toEqual(['streamText:synth:tools=true']);
   });
+
+  it('runs the afterGather guarantee AFTER the stream (compound artifact net)', async () => {
+    const afterGather = vi.fn(async () => {});
+    const deps: LoopDeps = {
+      streamText: (() =>
+        streamOf([{ type: 'text-delta', text: 'A' }])) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+    };
+    await runAgenticLoop(baseParams({ mode: 'unified', afterGather }), deps);
+    // Regression: afterGather never fired in unified mode, so a compound sharepic
+    // turn that only searched left the artifact uncreated.
+    expect(afterGather).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('runAgenticLoop — split (planner/executor)', () => {

@@ -104,6 +104,22 @@ function makeComputeResult(overrides: Partial<ComputeData> = {}): ComputeData {
   };
 }
 
+describe('getModeGuidance turn-outcome honesty (direct path)', () => {
+  it('a direct turn carries the no-research/no-artifact honesty note', () => {
+    const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));
+    expect(out).toContain('NICHTS recherchiert');
+    expect(out).toMatch(/keine Recherche/i);
+  });
+  it('save_as_doc keeps plain direct guidance (it DOES create a doc)', () => {
+    const out = getModeGuidance(makeState({ intent: 'save_as_doc', searchResults: [] }));
+    expect(out).not.toContain('NICHTS recherchiert');
+  });
+  it('a search turn does not get the direct honesty note', () => {
+    const out = getModeGuidance(makeState({ intent: 'search' }));
+    expect(out).not.toContain('NICHTS recherchiert');
+  });
+});
+
 describe('getModeGuidance for compute intent', () => {
   it('when a result exists: tells the model to answer conversationally and NEVER ask the user for it', () => {
     const out = getModeGuidance(

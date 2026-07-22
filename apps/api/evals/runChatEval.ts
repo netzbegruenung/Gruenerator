@@ -13,6 +13,7 @@
  *   EVAL_MODEL_ID   force a model lane for every case (e.g. 'mistral' / 'gemma-4')
  *   EVAL_FILTER     only run cases whose id/category contains this substring
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
+ *   EVAL_CONCURRENCY  scenarios to run in parallel (default 1; turns stay serial)
  *   EVAL_BASELINE   baseline JSON path (default ./evals/baseline.json)
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
  *   EVAL_RECORD_DIR record each turn's raw SSE body to <dir>/<id>.t<n>.sse
@@ -44,6 +45,10 @@ const BYPASS = process.env.EVAL_BYPASS_TOKEN ?? '';
 const MODEL_ID = process.env.EVAL_MODEL_ID;
 const FILTER = process.env.EVAL_FILTER ?? '';
 const SLOW = process.env.EVAL_SLOW === '1';
+const CONCURRENCY = (() => {
+  const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+})();
 const BASELINE_PATH = process.env.EVAL_BASELINE ?? join(HERE, 'baseline.json');
 const RECORD_DIR = process.env.EVAL_RECORD_DIR ?? '';
 
@@ -102,6 +107,7 @@ function loadCorpus(): EvalScenario[] {
 
   return scenarios.filter((s) => {
     if (s.slow && !SLOW) return false;
+    if (s.mcpLane && process.env.EVAL_MCP !== '1') return false;
     if (!FILTER) return true;
     // Comma-separated OR match on id or category substrings.
     return FILTER.split(',')
@@ -256,6 +262,7 @@ async function runTurn(
     artifactIds: trace.artifactIds,
     editorOps: trace.editorOps,
     sharepicUpdated: trace.sharepicUpdated,
+    imageGenerated: trace.imageGenerated,
     citations: trace.citations,
     fullText: trace.fullText,
     error: trace.error,
@@ -304,37 +311,49 @@ function pct(n: number, d: number): string {
   return d === 0 ? '—' : `${Math.round((100 * n) / d)}%`;
 }
 
-function report(results: CaseResult[]): void {
-  const baseline: Record<string, boolean> = existsSync(BASELINE_PATH)
+function loadBaseline(): Record<string, boolean> {
+  return existsSync(BASELINE_PATH)
     ? (JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as Record<string, boolean>)
     : {};
+}
+
+/** One scenario's scorecard line + failing-assertion detail. Printed live as
+ *  each scenario finishes (so a long run shows failures immediately) and again
+ *  in the sorted final report. */
+function printScenarioLine(r: CaseResult, baseline: Record<string, boolean>): void {
+  const known = r.knownFailure === true;
+  const mark = r.passed ? '✅' : known ? '🟡' : '❌';
+  const was = baseline[r.id];
+  const delta =
+    known || was === undefined
+      ? ''
+      : was && !r.passed
+        ? '  ⬇ REGRESSION'
+        : !was && r.passed
+          ? '  ⬆ fixed'
+          : '';
+  const turnsLabel = r.turns.length > 1 ? ` turns=${r.turns.length}` : '';
+  const meta = `intent=${r.intent ?? '-'}${r.agentic ? '/agentic' : ''}${turnsLabel} tools=[${r.toolNames.join(',')}] ${r.latencyMs}ms`;
+  console.log(`${mark} ${r.id.padEnd(24)} ${meta}${delta}`);
+  for (const t of r.turns) {
+    for (const a of t.assertions.filter((x) => !x.pass)) {
+      console.log(`      · t${t.turnIndex} ${a.name}: ${a.detail}`);
+    }
+    if (t.error) console.log(`      · t${t.turnIndex} stream: ${t.error}`);
+  }
+}
+
+function report(results: CaseResult[]): void {
+  const baseline = loadBaseline();
 
   console.log(`\n═══ Chat eval — ${results.length} scenarios against ${BASE_URL} ═══\n`);
   let regressions = 0;
   let newPasses = 0;
   for (const r of results) {
-    const known = r.knownFailure === true;
-    const mark = r.passed ? '✅' : known ? '🟡' : '❌';
     const was = baseline[r.id];
-    const delta =
-      known || was === undefined
-        ? ''
-        : was && !r.passed
-          ? '  ⬇ REGRESSION'
-          : !was && r.passed
-            ? '  ⬆ fixed'
-            : '';
-    if (!known && was && !r.passed) regressions++;
+    if (!r.knownFailure && was && !r.passed) regressions++;
     if (was === false && r.passed) newPasses++;
-    const turnsLabel = r.turns.length > 1 ? ` turns=${r.turns.length}` : '';
-    const meta = `intent=${r.intent ?? '-'}${r.agentic ? '/agentic' : ''}${turnsLabel} tools=[${r.toolNames.join(',')}] ${r.latencyMs}ms`;
-    console.log(`${mark} ${r.id.padEnd(24)} ${meta}${delta}`);
-    for (const t of r.turns) {
-      for (const a of t.assertions.filter((x) => !x.pass)) {
-        console.log(`      · t${t.turnIndex} ${a.name}: ${a.detail}`);
-      }
-      if (t.error) console.log(`      · t${t.turnIndex} stream: ${t.error}`);
-    }
+    printScenarioLine(r, baseline);
   }
 
   const scored = results.filter((r) => !r.knownFailure);
@@ -395,14 +414,34 @@ async function main(): Promise<void> {
   if (!BYPASS) {
     console.warn('⚠  EVAL_BYPASS_TOKEN not set — requests will likely 401.\n');
   }
-  // Sequential: keep model/provider load realistic and logs readable.
+
+  // Bounded-concurrency worker pool. Turns within a scenario stay sequential
+  // (they share a thread); scenarios run up to EVAL_CONCURRENCY at a time. Each
+  // result is printed AS IT FINISHES (a long run shows failures immediately —
+  // the mid-run blind spot the sequential runner had), then a sorted report.
+  const liveBaseline = loadBaseline();
   const results: CaseResult[] = [];
-  for (const s of corpus) {
-    process.stdout.write(`· ${s.id} …`);
-    const r = await runScenario(s);
-    process.stdout.write(`\r`);
-    results.push(r);
+  let cursor = 0;
+  let done = 0;
+  const total = corpus.length;
+  console.log(`Running ${total} scenarios (concurrency=${CONCURRENCY})…\n`);
+
+  async function worker(): Promise<void> {
+    while (cursor < corpus.length) {
+      const scenario = corpus[cursor++];
+      const r = await runScenario(scenario);
+      results.push(r);
+      done++;
+      process.stdout.write(`[${done}/${total}] `);
+      printScenarioLine(r, liveBaseline);
+    }
   }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()));
+
+  // Stable order for the final report + last-run.json, independent of finish order.
+  const order = new Map(corpus.map((s, i) => [s.id, i]));
+  results.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   report(results);
 }
 
