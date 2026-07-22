@@ -14,12 +14,33 @@ describe('buildMcpOutcomeNote', () => {
     expect(buildMcpOutcomeNote([])).toBe('');
   });
 
-  it('reports a successful connector call', () => {
+  it('embeds the result content so the synth can relay it (not just "erfolgreich")', () => {
     const note = buildMcpOutcomeNote([
-      step({ serverName: 'Tally', toolName: 'm123__create_form', result: { content: 'ok' } }),
+      step({
+        serverName: 'Sally',
+        toolName: 'mb2__get_summary',
+        result: { content: 'Protokoll vom 12.3.: Beschluss zu Tempo 30 gefasst.' },
+      }),
     ]);
-    expect(note).toMatch(/Tally · m123__create_form: erfolgreich/);
+    expect(note).toMatch(/Beschluss zu Tempo 30/);
+    expect(note).toMatch(/KONKRET WIEDER/);
     expect(note).not.toMatch(/FEHLGESCHLAGEN/);
+  });
+
+  it('truncates oversized content', () => {
+    const big = 'x'.repeat(5000);
+    const note = buildMcpOutcomeNote([
+      step({ serverName: 'Sally', toolName: 'mb2__get_recordings', result: { content: big } }),
+    ]);
+    expect(note).toContain('…');
+    expect(note.length).toBeLessThan(2200);
+  });
+
+  it('notes success-without-content explicitly', () => {
+    const note = buildMcpOutcomeNote([
+      step({ serverName: 'Tally', toolName: 'm123__save_form', result: { content: '' } }),
+    ]);
+    expect(note).toMatch(/kein Inhalt zur(ü|ue)ckgegeben/);
   });
 
   it('reports a failed connector call and forbids claiming success', () => {
