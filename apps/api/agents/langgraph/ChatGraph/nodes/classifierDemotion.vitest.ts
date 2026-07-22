@@ -163,6 +163,9 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
     // because "worüber" + no "?" slipped the toolable check. Must now demote.
     ['worüber, no qmark', 'worüber hat franziska brantner zuletzt im bundestag gesprochen'],
     ['verb-first polar', 'Hat Robert Habeck sich zuletzt zur Kernkraft geäußert'],
+    // Live failure: a greeting prefix ("Hallo!") returned direct@0.95 and
+    // swallowed the factual question. Prefix is now stripped → must demote.
+    ['greeting + question', 'Hallo! Wie hat die CDU zur Frauenquote abgestimmt?'],
   ];
 
   it.each(demoted)('%s → intent=agentic, NO LLM call', async (_label, userMessage) => {

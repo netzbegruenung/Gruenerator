@@ -78,6 +78,9 @@ export interface ToolLoopGuards {
   checkInternalFirst(toolName: string): string | null;
   /** Records an executed call (after all guards passed). */
   noteCall(toolName: string): void;
+  /** Records that a call finished (result available). Lets checkInternalFirst
+   *  tell an in-flight internal search from a completed-but-empty one. */
+  noteCompletion(toolName: string): void;
   /** Records a model turn that produced neither text nor a tool call; returns the running count. */
   noteEmptyCompletion(): number;
   readonly emptyCompletions: number;
@@ -177,6 +180,7 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
   /** toolName → token sets of prior queries, for near-duplicate detection. */
   const priorTokens = new Map<string, Set<string>[]>();
   const callCounts = new Map<string, number>();
+  const completedCounts = new Map<string, number>();
   let searchCalls = 0;
   const failures = new Map<string, number>();
   let totalFailures = 0;
@@ -254,8 +258,19 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
     checkInternalFirst(toolName) {
       const policy = options.internalFirst;
       if (!policy || policy.exempt || !policy.gatedTools.has(toolName)) return null;
-      if ((callCounts.get(policy.requiredTool) ?? 0) === 0) {
+      const internalCalls = callCounts.get(policy.requiredTool) ?? 0;
+      if (internalCalls === 0) {
         return `Nutze zuerst ${policy.requiredTool} (interne Dokumente), bevor du das Web durchsuchst.`;
+      }
+      // In-flight guard: an internal search was CALLED but hasn't COMPLETED yet
+      // (noteCall bumps at call start, results register only after execute). When
+      // internal + web fire in the SAME step, web would otherwise slip through
+      // this window. Hold web until the internal call lands — but only while it's
+      // genuinely in flight, so a completed-but-EMPTY internal search still lets
+      // the model fall to the web (the whole point of internal-FIRST).
+      const internalCompleted = completedCounts.get(policy.requiredTool) ?? 0;
+      if (internalCalls > internalCompleted) {
+        return `Warte auf die Ergebnisse von ${policy.requiredTool}, bevor du das Web durchsuchst.`;
       }
       // Internal-PREFERRED: if the internal search already yielded enough, don't
       // web-search / scrape on top of it. Only fall to the web when internal
@@ -269,6 +284,9 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
     noteCall(toolName) {
       callCounts.set(toolName, (callCounts.get(toolName) ?? 0) + 1);
       if (searchToolNames.has(toolName)) searchCalls += 1;
+    },
+    noteCompletion(toolName) {
+      completedCounts.set(toolName, (completedCounts.get(toolName) ?? 0) + 1);
     },
     noteEmptyCompletion() {
       emptyCompletions += 1;
