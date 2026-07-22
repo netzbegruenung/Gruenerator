@@ -60,6 +60,7 @@ import {
   detectComplexity,
   detectSearchSources,
   CHAT_HISTORY_KEYWORDS,
+  SYSTEM_MCP_PHRASING,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -1074,7 +1075,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
         (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
-      !CHAT_HISTORY_KEYWORDS.test(userContent);
+      !CHAT_HISTORY_KEYWORDS.test(userContent) &&
+      // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
+      // "suche hotels …" before the LLM tier can route it to its system source.
+      // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
+      // trip a keyword — a pasted URL is a scrape job, handled above.
+      !SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
     if (demotable) {
       log.info(
         `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`

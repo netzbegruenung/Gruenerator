@@ -220,6 +220,29 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('system-MCP phrasing is vetoed (hotel/reise reach the LLM tier, not demoted)', async () => {
+    const state = buildState({ userMessage: 'suche hotels für berlin' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Bahn timetable phrasing also reaches the LLM tier', async () => {
+    const state = buildState({ userMessage: 'wann fährt der nächste zug nach hamburg' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('policy wording is NOT caught by the system-MCP guard (Tourismuspolitik still demotes/searches)', async () => {
+    const state = buildState({
+      userMessage: 'was ist die position der grünen zur tourismuspolitik',
+    });
+    const result = await classifierNode(state);
+    // Must not be forced to the LLM by the guard — a normal retrieval question.
+    expect(result.intent).toBe('agentic');
+  });
+
   it('confident heuristic (sharepic 0.93) returns directly — neither demoted nor LLM', async () => {
     const state = buildState({ userMessage: 'Mach mir ein Sharepic zu Solarenergie' });
     const result = await classifierNode(state);
