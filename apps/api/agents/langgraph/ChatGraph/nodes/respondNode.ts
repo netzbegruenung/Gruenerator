@@ -17,6 +17,7 @@ import {
 } from '../../../../services/chat/productKnowledge.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
+import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -25,6 +26,7 @@ import { isSourceAvailabilityError } from '../types.js';
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
+import { deriveTextFormMention } from './textFormMention.js';
 
 import type {
   ChatGraphState,
@@ -1097,10 +1099,28 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
   const activeSkill = state.activeSkillMention
     ? SKILLS.find((s) => s.mention === state.activeSkillMention)
     : undefined;
-  const skillFragment =
-    activeSkill && 'skillSystemPrompt' in activeSkill && activeSkill.skillSystemPrompt
-      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`
-      : '';
+
+  // Per-user learned writing style ("Texte anlernen") takes precedence over the
+  // standard skill prompt when the user has trained one for the active mention:
+  //   - preset (Presse/Instagram/…): the learned block REPLACES the system
+  //     skill's standard prompt (komplett ersetzen);
+  //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
+  //     own "## AKTIVE TEXTFORM" block onto the base agent.
+  // See services/user/textFormRepository.ts (cached, no LLM on the hot path).
+  const textFormMention = deriveTextFormMention(state.activeSkillMention, activeSkill);
+  const userTextForm =
+    !isNeutralTurn && agentConfig.userId && textFormMention
+      ? await getTextFormForInjection(agentConfig.userId, textFormMention)
+      : null;
+
+  let skillFragment = '';
+  if (userTextForm) {
+    skillFragment = activeSkill
+      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${userTextForm.styleBlock}`
+      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${userTextForm.styleBlock}`;
+  } else if (activeSkill && 'skillSystemPrompt' in activeSkill && activeSkill.skillSystemPrompt) {
+    skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`;
+  }
 
   // Monthly corpus-insight overlay for the Öffentlichkeitsarbeit (PR) agents:
   // an additive, subordinate block (current themes / active speakers / style /
