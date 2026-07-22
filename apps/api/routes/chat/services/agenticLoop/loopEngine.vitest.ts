@@ -2,11 +2,33 @@ import { describe, it, expect, vi } from 'vitest';
 
 import {
   runAgenticLoop,
+  buildPrepareStep,
   FORCE_FINISH_SYSTEM_SUFFIX,
   FORCE_FINISH_GATHER_SUFFIX,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
+
+describe('buildPrepareStep — forceFirstToolCall', () => {
+  const never = () => false;
+  it('requires a tool call on step 0 when forced', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, true);
+    expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'required' });
+    // later steps go back to auto (no override)
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+
+  it('does not force when the flag is off', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
+
+  it('force-finish still wins over force-first on the last step', () => {
+    const prep = buildPrepareStep('sys', 'SUFF', 1, never, true);
+    // maxSteps=1 → step 0 is the last step → toolChoice:'none' + finish system
+    expect(prep({ stepNumber: 0 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
+  });
+});
 
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
