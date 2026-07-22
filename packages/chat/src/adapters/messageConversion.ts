@@ -15,6 +15,7 @@ export interface LoadedMessage {
   metadata?: {
     intent?: string;
     searchCount?: number;
+    traceId?: string;
     citations?: Array<{
       id: number;
       title: string;
@@ -110,10 +111,11 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
     if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
-    if (m.metadata?.intent)
+    if (m.metadata?.intent || m.metadata?.traceId)
       custom.streamMetadata = {
-        intent: m.metadata.intent,
+        intent: m.metadata.intent ?? 'direct',
         searchCount: m.metadata.searchCount ?? 0,
+        ...(m.metadata.traceId && { traceId: m.metadata.traceId }),
       };
 
     return {

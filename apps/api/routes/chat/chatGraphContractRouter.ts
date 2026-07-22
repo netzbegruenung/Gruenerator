@@ -33,6 +33,7 @@ import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
 } from '../../services/mcp/systemMcpServers.js';
+import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
@@ -1307,6 +1308,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // this is emitted in the `done` event (boardId + boardGeneratedStructure),
       // the way the single-pass @board-erstellen handler does.
       let createdBoard: ChatGraphState['createdBoard'] = null;
+      // Captured inside withLangfuseTrace so the final `done` event can hand the
+      // chat-turn trace id to the client for feedback scoring. undefined when
+      // Langfuse is disabled or this turn skips the respond LLM call.
+      let langfuseTraceId: string | undefined;
 
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
@@ -1466,25 +1471,54 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
           const baseMaxTokens = finalState.agentConfig.params.max_tokens;
 
+          const respondTelemetry = buildAiTelemetry('chat-graph.respond', {
+            requestId,
+            intent: finalState.intent,
+            ...(agentId && { agentId }),
+            ...(modelId && { modelId }),
+          });
+
           try {
-            fullText = await streamWithFallback({
-              primary: resolution,
-              sse,
-              logPrefix: '[ChatGraph]',
-              buildStream: async (r) => {
-                const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-                return streamForResolution({
-                  resolution: r,
-                  messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-                  maxTokens: isReasoning
-                    ? Math.max(baseMaxTokens, 16000)
-                    : Math.max(baseMaxTokens, 8000),
-                  temperature: finalState.agentConfig.params.temperature,
+            // One Langfuse trace per chat turn: the respond generation (and any
+            // sibling-fallback retry) nest under this `chat-turn` root span, and
+            // `traceId` is captured for the client feedback score.
+            fullText = await withLangfuseTrace(
+              {
+                name: 'chat-turn',
+                ...(userId && { userId }),
+                ...(actualThreadId && { sessionId: actualThreadId }),
+                metadata: {
+                  requestId,
+                  intent: finalState.intent,
+                  ...(agentId && { agentId }),
+                  ...(modelId && { modelId }),
+                },
+              },
+              async (traceId) => {
+                langfuseTraceId = traceId;
+                return streamWithFallback({
+                  primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
+                  buildStream: async (r) => {
+                    const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
+                    return streamForResolution({
+                      resolution: r,
+                      messages: messagesForAI as Parameters<
+                        typeof streamForResolution
+                      >[0]['messages'],
+                      maxTokens: isReasoning
+                        ? Math.max(baseMaxTokens, 16000)
+                        : Math.max(baseMaxTokens, 8000),
+                      temperature: finalState.agentConfig.params.temperature,
+                      sse,
+                      logPrefix: '[ChatGraph]',
+                      ...(respondTelemetry && { telemetry: respondTelemetry }),
+                    });
+                  },
                 });
-              },
-            });
+              }
+            );
           } finally {
             if (resolution.releaseSlot) await resolution.releaseSlot();
           }
@@ -1639,6 +1673,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryEnabled,
         ...(agentId != null && { agentId }),
         ...(agenticSteps != null && { agenticSteps }),
+        ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===
@@ -1703,6 +1738,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(finalState.imageTimeMs != null && { imageTimeMs: finalState.imageTimeMs }),
           ...(finalState.summaryTimeMs != null && { summaryTimeMs: finalState.summaryTimeMs }),
           ...(memoryRetrieveTimeMs > 0 && { memoryRetrieveTimeMs }),
+          ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
         },
       });
 
