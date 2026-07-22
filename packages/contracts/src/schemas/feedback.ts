@@ -22,7 +22,10 @@ export const feedbackSubmitSchema = z.object({
   message: z.string().min(1).max(5000),
   feature: z.string().max(200).nullish(),
   pageContext: feedbackPageContextSchema,
-  screenshot: z.string().nullish(),
+  // Base64 data URL of the page screenshot. Capped well below the 50MB JSON
+  // body limit — the client downscales to ≤2000px JPEG (q0.8), which stays
+  // comfortably under this bound.
+  screenshot: z.string().max(12_000_000).nullish(),
 });
 
 export const feedbackSubmitResponseSchema = z.object({
