@@ -370,6 +370,7 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
       upToDate: true,
       findings: [],
 
+      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- CI report, not a user surface
       error: err instanceof Error ? err.message : String(err),
       durationS: Math.round((Date.now() - start) / 1000),
     };
