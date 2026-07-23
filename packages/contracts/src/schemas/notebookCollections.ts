@@ -98,12 +98,23 @@ export const wordpressCategoryRefSchema = z.object({
 });
 export type WordpressCategoryRef = z.infer<typeof wordpressCategoryRefSchema>;
 
+export const wordpressPageRefSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+});
+export type WordpressPageRef = z.infer<typeof wordpressPageRefSchema>;
+
 export const wordpressSiteRefSchema = z.object({
   siteUrl: z.string(),
   siteName: z.string(),
   categories: z.array(wordpressCategoryRefSchema),
   allPosts: z.boolean(),
   pages: z.boolean(),
+  /**
+   * Which pages to import while `pages` is true. Absent/empty means all of
+   * them, which is how refs written before the page dropdown keep working.
+   */
+  selectedPages: z.array(wordpressPageRefSchema).nullish(),
   documentIds: z.array(z.string()),
   lastSyncedAt: z.string().nullable().optional(),
 });
