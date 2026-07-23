@@ -84,7 +84,7 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     key: 'search_threads',
     label: 'Frühere Chats',
     description:
-      'Durchsucht frühere Unterhaltungen — im aktuellen Space oder über alle Chats hinweg.',
+      'Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg.',
   },
 ] as const;
 

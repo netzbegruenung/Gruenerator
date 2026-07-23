@@ -7,8 +7,12 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import mistralClient from '../../../workers/mistralClient.js';
 
-const HAS_MISTRAL_KEY = !!process.env.MISTRAL_API_KEY;
-const HAS_REGOLO_KEY = !!process.env.REGOLO_API_KEY;
+// Live round-trip (real TTS → real transcription) — billable and network-flaky,
+// so it only runs under the explicit opt-in, not on every `pnpm test` that
+// happens to have keys in .env.
+const RUN_LIVE = !!process.env.RUN_LIVE_PROVIDER_TESTS;
+const HAS_MISTRAL_KEY = RUN_LIVE && !!process.env.MISTRAL_API_KEY;
+const HAS_REGOLO_KEY = RUN_LIVE && !!process.env.REGOLO_API_KEY;
 
 const MARIE_NEUTRAL_ID = '5a271406-039d-46fe-835b-fbbb00eaf08d';
 const INPUT_TEXT =
