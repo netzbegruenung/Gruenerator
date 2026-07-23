@@ -1,5 +1,5 @@
 import { useUserProfileStore } from '@gruenerator/chat/stores';
-import { type UserProfile } from '@gruenerator/contracts';
+import { type StartPage, type UserProfile } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
@@ -79,6 +79,7 @@ export interface AuthStore {
   canManageAccount: () => boolean;
   signup: () => void;
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
+  updateStartPage: (page: StartPage) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -628,6 +629,32 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating locale:', errorMessage);
       toast.error('Sprache konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Default start page — which Workplace surface the sidebar start icon and
+  // the root/login redirect open. Persisted via the profile update contract.
+  updateStartPage: async (page: StartPage): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { default_startpage: page },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating start page:', result.status);
+        toast.error('Startseite konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        user: state.user ? { ...state.user, ...result.body.profile } : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating start page:', errorMessage);
+      toast.error('Startseite konnte nicht gespeichert werden.');
       return false;
     }
   },

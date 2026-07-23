@@ -60,6 +60,7 @@ export const profiles = pgTable(
       .notNull()
       .default([]),
     document_mode: text('document_mode').notNull().default('manual'),
+    default_startpage: text('default_startpage').notNull().default('chat'),
     user_defaults: jsonb('user_defaults')
       .$type<Record<string, Record<string, unknown>>>()
       .notNull()

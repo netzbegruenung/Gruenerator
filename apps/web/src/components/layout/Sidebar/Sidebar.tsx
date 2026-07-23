@@ -37,6 +37,7 @@ import { iconClass, menuLinkClass } from './sidebarStyles';
 import { SpacesSidebarSection } from './SpacesSidebarSection';
 
 import { cn } from '@/utils/cn';
+import { startPagePath } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -84,9 +85,16 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
+  // The "start" icon opens the user's preferred Workplace surface (Chat or
+  // Arbeiten). Override its target here so the click, the mobile <Link to>, and
+  // active highlighting all resolve to the same path.
+  const startTarget = startPagePath(user?.default_startpage);
   const additionalItems = useMemo<MenuItemType[]>(
-    () => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)],
-    [directMenuItems, mobileOnlyItems]
+    () =>
+      [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)].map((item) =>
+        item.id === 'startseite' ? { ...item, path: startTarget } : item
+      ),
+    [directMenuItems, mobileOnlyItems, startTarget]
   );
   const sidebarExpanded = isOpen || forceExpanded;
 
