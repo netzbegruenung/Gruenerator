@@ -7,8 +7,8 @@ import {
   normalizeProviderName,
   getModel,
 } from '../../../services/ai/providers.js';
-import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
 import { isProviderAvailable } from '../../../services/providers/providerFallback.js';
+import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
 import { adapters, executeProvider } from '../index.js';
 
 describe('Regolo provider — unit tests', () => {
@@ -124,7 +124,6 @@ describe.skipIf(!RUN_LIVE)(
       expect(result.content).toBeTruthy();
       expect(result.metadata?.provider).toBe('regolo');
     }, 30000);
-
     // NOTE: the former `mistral-small3.2` case was removed — Regolo no longer
     // serves that model id (the API returns "Invalid model name"). Mistral-on-
     // Regolo is covered by the `mistral-small-4-119b` case above.

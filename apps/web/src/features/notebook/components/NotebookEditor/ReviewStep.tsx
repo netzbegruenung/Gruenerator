@@ -20,6 +20,7 @@ export default function ReviewStep({ state }: ReviewStepProps) {
     watchedDesc,
     manualDocuments,
     wolkeDocuments,
+    wordpressDocuments,
     linkedDocs,
     labels,
     uploadedDocuments,
@@ -42,6 +43,7 @@ export default function ReviewStep({ state }: ReviewStepProps) {
               {manualDocuments.length} eigene
               {wolkeDocuments.length > 0 && `, ${wolkeDocuments.length} aus der Wolke`}
               {linkedDocs.length > 0 && `, ${linkedDocs.length} aus Docs`}
+              {wordpressDocuments.length > 0 && `, ${wordpressDocuments.length} von WordPress`}
             </span>
           </div>
           {labels.length > 0 && (

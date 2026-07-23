@@ -23,6 +23,7 @@ import { agentsList, type AgentListItem } from './agents';
 
 export type MentionableType =
   | 'agent'
+  | 'textform'
   | 'notebook'
   | 'tool'
   | 'document'
@@ -155,6 +156,40 @@ export function setCustomAgents(agents: CustomAgentMentionable[]): void {
 
 export function getCustomAgentMentionables(): Mentionable[] {
   return customAgentMentionables;
+}
+
+// User-defined text forms ("Texte anlernen"): custom `/mention` skills whose
+// learned style is injected at chat time. Type 'textform' (not 'agent') so the
+// `/`-submit parser doesn't swap the agent — the style rides `activeSkillMention`
+// (set by the composer on select) exactly like a system skill.
+export interface TextformMentionable {
+  mention: string;
+  title: string;
+}
+
+export function textformToMentionable(t: TextformMentionable): Mentionable {
+  return {
+    type: 'textform',
+    category: 'skill',
+    trigger: '/',
+    identifier: t.mention,
+    title: t.title,
+    description: 'Eigene Textform',
+    avatar: '✍️',
+    backgroundColor: '#316049',
+    mention: t.mention,
+  };
+}
+
+let textformMentionables: Mentionable[] = [];
+
+export function setTextforms(forms: TextformMentionable[]): void {
+  textformMentionables = forms.map(textformToMentionable);
+  rebuildMentionableMap();
+}
+
+export function getTextformMentionables(): Mentionable[] {
+  return textformMentionables;
 }
 
 // Derived from the shared notebook registry so the @-mention picker always matches the
@@ -789,6 +824,7 @@ export function getAllMentionables(): Mentionable[] {
   return [
     ...getAgentMentionables(),
     ...customAgentMentionables,
+    ...textformMentionables,
     ...dynamicUserNotebookMentionables,
     ...notebookMentionables,
     ...toolMentionables,
@@ -816,6 +852,7 @@ function rebuildMentionableMap(): void {
   const orderedSources = [
     agentMentionables,
     customAgentMentionables,
+    textformMentionables,
     dynamicUserNotebookMentionables,
     // Full set (incl. disabled) so historical `@hamburg`/`@sh` tokens still resolve.
     allNotebookMentionables,
@@ -885,7 +922,7 @@ export function filterMentionables(query: string): {
   if (!query) {
     return {
       agents: getAgentMentionables(),
-      customAgents: customAgentMentionables,
+      customAgents: [...customAgentMentionables, ...textformMentionables],
       notebooks: notebookMentionables,
       userNotebooks: dynamicUserNotebookMentionables,
       tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables],
@@ -916,7 +953,7 @@ export function filterMentionables(query: string): {
 
   return {
     agents: getAgentMentionables().filter(matchFn),
-    customAgents: customAgentMentionables.filter(matchFn),
+    customAgents: [...customAgentMentionables, ...textformMentionables].filter(matchFn),
     notebooks: isNotebookCategoryQuery
       ? notebookMentionables
       : notebookMentionables.filter(matchFn),
