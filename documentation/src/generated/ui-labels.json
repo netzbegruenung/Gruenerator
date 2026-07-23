@@ -26,7 +26,7 @@
   },
   "catalog.tool-agentura": {
     "title": "Agentura",
-    "subtitle": "KI-Grüneratoren & Skills entdecken",
+    "subtitle": "KI-Grüneratoren & Rezepte entdecken",
     "path": "/agentura"
   },
   "catalog.tool-chat": {
@@ -169,7 +169,7 @@
   },
   "workplace.agents": {
     "title": "Agentura",
-    "subtitle": "Grüneratoren & Skills",
+    "subtitle": "Grüneratoren & Rezepte",
     "path": "/agentura"
   },
   "workplace.boards": {
