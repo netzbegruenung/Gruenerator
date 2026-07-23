@@ -49,6 +49,21 @@ function stringProp(obj, name) {
   return undefined;
 }
 
+function objectProp(obj, name) {
+  for (const p of obj.properties) {
+    if (
+      ts.isPropertyAssignment(p) &&
+      p.name &&
+      ts.isIdentifier(p.name) &&
+      p.name.text === name &&
+      ts.isObjectLiteralExpression(p.initializer)
+    ) {
+      return p.initializer;
+    }
+  }
+  return undefined;
+}
+
 function extractFile(group, absFile, out, warnings) {
   const text = readFileSync(absFile, 'utf-8');
   const sf = ts.createSourceFile(absFile, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -64,6 +79,13 @@ function extractFile(group, absFile, out, warnings) {
         if (subtitle) entry.subtitle = subtitle;
         const routePath = stringProp(node, 'path');
         if (routePath) entry.path = routePath;
+        // Landesverband entries also carry the shared notebook + hub slug — the
+        // drift-prone ids AgentTiles links to. Only LV objects have these fields.
+        const notebookId = stringProp(node, 'notebookId');
+        if (notebookId) entry.notebook = notebookId.replace(/-notebook$/, '');
+        const hub = objectProp(node, 'hub');
+        const agentSlug = hub && stringProp(hub, 'slug');
+        if (agentSlug) entry.agentSlug = agentSlug;
         if (out[key] && JSON.stringify(out[key]) !== JSON.stringify(entry)) {
           warnings.push(`duplicate key "${key}" with differing values — last one wins`);
         }
