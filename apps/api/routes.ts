@@ -67,6 +67,7 @@ import { mountMonitorContractRouter } from './routes/monitor/monitorContractRout
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
+import { mountNotebookWordpressContractRouter } from './routes/notebook/notebookWordpressContractRouter.js';
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
@@ -369,6 +370,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router for notebook collections. requireAuth is
   // applied at the prefix because all routes require authentication.
   app.use('/api/auth/notebook-collections', requireAuth);
+  // WordPress-source endpoints (discover/import) — own prefix, user-scoped.
+  app.use('/api/auth/notebook-wordpress', requireAuth);
+  mountNotebookWordpressContractRouter(app);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.

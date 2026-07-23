@@ -1,4 +1,9 @@
-import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
+import {
+  NOTEBOOK_MAX_DOCUMENTS,
+  type LinkedDocRef,
+  type WolkeFolderRef,
+  type WordpressSiteRef,
+} from '@gruenerator/contracts';
 import { type DragEvent } from 'react';
 
 export interface NotebookCollection {
@@ -9,6 +14,7 @@ export interface NotebookCollection {
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
   linked_docs?: LinkedDocRef[];
+  wordpress_sites?: WordpressSiteRef[];
 }
 
 export interface NotebookEditorFormData {
@@ -20,12 +26,12 @@ export interface UploadedDocument {
   id: string;
   title: string;
   filename?: string;
-  source?: 'wolke';
+  source?: 'wolke' | 'wordpress';
   [key: string]: unknown;
 }
 
 export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
-export const MAX_DOCUMENTS = 100;
+export const MAX_DOCUMENTS = NOTEBOOK_MAX_DOCUMENTS;
 export const TOTAL_STEPS = 3;
 
 export function getFileTypeStyle(filename: string): { label: string; accentVia: string } {
