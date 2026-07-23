@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
+    "labels:generate": "node scripts/generate-ui-labels.mjs",
+    "labels:check": "node scripts/generate-ui-labels.mjs --check",
     "dev": "docusaurus start",
     "start": "docusaurus start",
     "build": "docusaurus build",
