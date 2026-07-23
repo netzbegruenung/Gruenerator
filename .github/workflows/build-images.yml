@@ -90,7 +90,7 @@ jobs:
       iconify: ${{ steps.filter.outputs.iconify }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
@@ -180,7 +180,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -234,7 +234,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -284,7 +284,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -334,7 +334,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -384,7 +384,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -434,7 +434,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -484,7 +484,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -534,7 +534,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
