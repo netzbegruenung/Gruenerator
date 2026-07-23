@@ -143,7 +143,14 @@ const NotebookEditorWordpressSection = ({
   const openPanel = useCallback(
     (websiteId: string, editingSite: WordpressSiteRef | null) => {
       const website = resolve(websiteId);
-      if (!website) return;
+      if (!website) {
+        // Catalogue still loading, or the site was disconnected in settings —
+        // returning silently would make the button look broken.
+        setError(
+          'Diese Website ist gerade nicht verfügbar. Prüfe in den Einstellungen unter „Meine Websites".'
+        );
+        return;
+      }
       setError(null);
       setNotice(null);
       setAddOpen(false);
