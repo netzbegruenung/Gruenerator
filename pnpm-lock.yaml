@@ -71,13 +71,13 @@ overrides:
   katex: ^0.16.47
   pyodide: ^0.29.4
   react-dropzone: ^15.0.0
-  '@blocknote/core': ^0.51.4
-  '@blocknote/react': ^0.51.4
-  '@blocknote/shadcn': ^0.51.4
-  '@blocknote/xl-ai': ^0.51.4
-  '@blocknote/xl-docx-exporter': ^0.51.4
-  '@blocknote/xl-odt-exporter': ^0.51.4
-  '@blocknote/xl-pdf-exporter': ^0.51.4
+  '@blocknote/core': ^0.52.1
+  '@blocknote/react': ^0.52.1
+  '@blocknote/shadcn': ^0.52.1
+  '@blocknote/xl-ai': ^0.52.1
+  '@blocknote/xl-docx-exporter': ^0.52.1
+  '@blocknote/xl-odt-exporter': ^0.52.1
+  '@blocknote/xl-pdf-exporter': ^0.52.1
 
 importers:
 
@@ -154,8 +154,8 @@ importers:
         specifier: ^1.6.23
         version: 1.6.23(@better-auth/core@1.6.23(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@cloudflare/workers-types@4.20260207.0)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@3.25.76))(jose@6.2.4)(kysely@0.29.3)(nanostores@1.4.0))(@better-auth/utils@0.4.2)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260207.0)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@12.6.2)(kysely@0.29.3)(pg@8.22.0))
       '@blocknote/xl-ai':
-        specifier: ^0.51.4
-        version: 0.51.4(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@mantine/hooks@8.3.18(react@19.2.6))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@3.25.76)
+        specifier: ^0.52.1
+        version: 0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@3.25.76)
       '@ffprobe-installer/ffprobe':
         specifier: ^1.4.1
         version: 1.4.2
@@ -746,11 +746,11 @@ importers:
         specifier: ^0.14.26
         version: 0.14.26(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.11)(ioredis@5.11.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.8))
       '@blocknote/xl-odt-exporter':
-        specifier: ^0.51.4
-        version: 0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.52.1
+        version: 0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@blocknote/xl-pdf-exporter':
-        specifier: ^0.51.4
-        version: 0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.52.1
+        version: 0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1473,26 +1473,26 @@ importers:
   packages/docs:
     dependencies:
       '@blocknote/core':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@blocknote/react':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@blocknote/shadcn':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(postcss@8.5.18)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@blocknote/xl-ai':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.7))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@mantine/hooks@8.3.18(react@19.2.7))(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@4.4.3)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@4.4.3)
       '@blocknote/xl-docx-exporter':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@blocknote/xl-odt-exporter':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@blocknote/xl-pdf-exporter':
-        specifier: ^0.51.4
-        version: 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^0.52.1
+        version: 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@floating-ui/react':
         specifier: ^0.27.20
         version: 0.27.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -3543,56 +3543,68 @@ packages:
   '@better-fetch/fetch@1.3.1':
     resolution: {integrity: sha512-ABkD1WhyfPZprKRQI3bhATjeiFuNWC9PXhfGWqL+sg/gKrM977oFrYkdb4msM3hgUGonr7KlOsOFT5TU2rht9g==}
 
-  '@blocknote/core@0.51.4':
-    resolution: {integrity: sha512-uR7/BlW6VVlCx/JzfGbkaLGz7O5uI3bu2tbNIdzGTfSloiEp8Qc14if36Dy7DDs+dVWfZgwds0jWiGfE3AzJiw==}
-
-  '@blocknote/mantine@0.51.4':
-    resolution: {integrity: sha512-Ka7QjzhgB/T2ekwtXgwa9zIiiixAm4dob3FklJIedu+9j/eO4auokmRnWAhZQmNJsOdE7mQTUmnv6X4k/lHyCQ==}
+  '@blocknote/core@0.52.1':
+    resolution: {integrity: sha512-a4MgyzS+1Xc6ikEiUgaK1hxUlW9aJFKfyJVQ89OL5kbcnJIRRhIDTIr5ffY7f22wFMT6gjq/Aj+omNof8C1j/A==}
     peerDependencies:
-      '@mantine/core': ^8.3.11 || ^9.0.2
-      '@mantine/hooks': ^8.3.11 || ^9.0.2
+      '@y/prosemirror': ^2.0.0-6
+      '@y/protocols': ^1.0.6-rc.1
+      '@y/y': ^14.0.0-rc.23
+      y-prosemirror: ^1.3.7
+      y-protocols: ^1.0.6
+      yjs: ^13.6.27
+    peerDependenciesMeta:
+      '@y/prosemirror':
+        optional: true
+      '@y/protocols':
+        optional: true
+      '@y/y':
+        optional: true
+      y-prosemirror:
+        optional: true
+      y-protocols:
+        optional: true
+      yjs:
+        optional: true
+
+  '@blocknote/react@0.52.1':
+    resolution: {integrity: sha512-uBSVInj+T6bewINaRZjs6Nad6uL8t++vRLSWgj4cExpL6LuJRM5CPMTzm26eBjgEbC4yO4cSYowsVYh6efgbfw==}
+    peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
 
-  '@blocknote/react@0.51.4':
-    resolution: {integrity: sha512-tWe039t/Gkj9YDoEXruclXQvI+toI0ctcyikbHa8dm3Q6zTgy24+T/P1t1fYSNPBkSnhq+ILz2fLLnCK994qkA==}
-    peerDependencies:
-      react: ^18.0 || ^19.0 || >= 19.0.0-rc
-      react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
-
-  '@blocknote/shadcn@0.51.4':
-    resolution: {integrity: sha512-hIX351wkpFxNk6KA+qK/PChOF+s1Ff5X7B/9WhqE0+v1ZV8bAs9KElA91l2OFX9U3ANmya5nX5gGWmfb6+iUpw==}
+  '@blocknote/shadcn@0.52.1':
+    resolution: {integrity: sha512-D+6diw98BYI5qjtt+xDA455Yqi3UBXZfXUkiug9qRU2Xka+hzadEfl/9ApHYKMQgbfubY5Ag+6i2dc+JBnzkYw==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
       tailwindcss: ^4.1.12
 
-  '@blocknote/xl-ai@0.51.4':
-    resolution: {integrity: sha512-YVyTCnjSqeM+4mOLgzwFymEWMXUUs/tgf5nO0KBShwqyfe56Kv52e6hT7nd9neSxJQ/nncTNHOcukgL2E28zZQ==}
+  '@blocknote/xl-ai@0.52.1':
+    resolution: {integrity: sha512-Ordtc3L6s+YPYFR2sQnIRUQ5eUFJhDA2rL0cXPgvL3VAoYzt3sgfgy+Gmgyl3ykILIVQIBwFgZZzJ8xAoXlGHA==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
 
-  '@blocknote/xl-docx-exporter@0.51.4':
-    resolution: {integrity: sha512-SF75Tzy+eZPtzvCQGZbIZO+vpjIAUWa+Uw7xX0bWlP6Y1FGckdM4jGAMFOpfv5X3x0W4qS8FMdjoIPe8CaNW1w==}
+  '@blocknote/xl-docx-exporter@0.52.1':
+    resolution: {integrity: sha512-NdqN4B9HnRMWAFfa18YCcMNYvwaRWVuVGc6H2NDtEriFaINsVdvVLUfcbFse/+qET+spZBXVNLT+P0/6euPOgw==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
 
-  '@blocknote/xl-multi-column@0.51.4':
-    resolution: {integrity: sha512-4B60OvNNnb2duAXo741AiPJxzOQTwRzAr+5fxM10wBlv23VuSmVTrD0wtGK3Ve85I64CAFB8uEUJrMXXKNynQA==}
+  '@blocknote/xl-multi-column@0.52.1':
+    resolution: {integrity: sha512-lLZTS7bCMWejdvayYw15EZW/B02RGd5lagnEz/xERJziT9C+W/EXA6UazPzpOpkhFx47s6/rAaX3n5+8mnxtvg==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
 
-  '@blocknote/xl-odt-exporter@0.51.4':
-    resolution: {integrity: sha512-5CFN22tnmXCAyy68jG1RYHjokmWVFhBK7XrHwV58YZukvbjJ7timoA0toUFw+SO6gNuo0xkJbvR0uiIA/0OZAg==}
+  '@blocknote/xl-odt-exporter@0.52.1':
+    resolution: {integrity: sha512-maKTlFOQHyla+rf6NLJ4FvTT+SHMJPy3NJLCM36y1rLi3Mjf3dZ3X3yiCz2xmZyJg6QyIWAdLYYfvQ611SDZSw==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
 
-  '@blocknote/xl-pdf-exporter@0.51.4':
-    resolution: {integrity: sha512-dMiDv95A9XLmO2yCcsjR0n1Mm46CJAN04s4zINHQaeyEjCuHMYZu2lJ9yKsEw3KbqI1n40nCRYdsJ6ym7Ln1SA==}
+  '@blocknote/xl-pdf-exporter@0.52.1':
+    resolution: {integrity: sha512-TuADTLAzOcoIhsbUm+Ql9mF5w2F+oaMSjynzVKJS8gVaUYXxwvoO2YtHfRzcrI96QpN1S/xippHlShRJWzlxcw==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
@@ -5896,18 +5908,6 @@ packages:
 
   '@lifeomic/attempt@3.1.0':
     resolution: {integrity: sha512-QZqem4QuAnAyzfz+Gj5/+SLxqwCAw2qmt7732ZXodr6VDWGeYLG6w1i/vYLa55JQM9wRuBKLmXmiZ2P0LtE5rw==}
-
-  '@mantine/core@8.3.18':
-    resolution: {integrity: sha512-9tph1lTVogKPjTx02eUxDUOdXacPzK62UuSqb4TdGliI54/Xgxftq0Dfqu6XuhCxn9J5MDJaNiLDvL/1KRkYqA==}
-    peerDependencies:
-      '@mantine/hooks': 8.3.18
-      react: ^18.x || ^19.x
-      react-dom: ^18.x || ^19.x
-
-  '@mantine/hooks@8.3.18':
-    resolution: {integrity: sha512-QoWr9+S8gg5050TQ06aTSxtlpGjYOpIllRbjYYXlRvZeTsUqiTbVfvQROLexu4rEaK+yy9Wwriwl9PMRgbLqPw==}
-    peerDependencies:
-      react: ^18.x || ^19.x
 
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
@@ -10147,11 +10147,6 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@tiptap/core@3.26.1':
-    resolution: {integrity: sha512-TX9PyPqBoix0qDLjtok/bddtdSy54QhzLVha405C07V+WySOpH3s/pWYkywehZQY0SQtcrcY4MNSCeQjCbA28A==}
-    peerDependencies:
-      '@tiptap/pm': 3.26.1
-
   '@tiptap/core@3.28.0':
     resolution: {integrity: sha512-gUuD5WAYfbDxNSSJya/emh2KSzXZXLUYKW4fEnc1AQ5FE2twzh4LJ9UlKFIawigrUCAksWI5Fy1hRbv+5m4ZdQ==}
     peerDependencies:
@@ -10216,12 +10211,6 @@ packages:
     peerDependencies:
       '@tiptap/core': 3.28.0
 
-  '@tiptap/extension-horizontal-rule@3.27.3':
-    resolution: {integrity: sha512-sNCuo0+Q001B5XTVWY+ULpWXQqtBNRmAqXxAexZl44bx3rDqHG8OzjwT4EM0LIj2+BYVbdqwaJ1vfQbZVEEbig==}
-    peerDependencies:
-      '@tiptap/core': 3.27.3
-      '@tiptap/pm': 3.27.3
-
   '@tiptap/extension-italic@3.28.0':
     resolution: {integrity: sha512-Yur/ELz6dNVKQC7m8wGjtoLFxamGjJmA0rUEEOacTH6J39aFmcSxYkEGNDkYHbZFyHFYqbej6eI3VE0h08O0mg==}
     peerDependencies:
@@ -10252,12 +10241,6 @@ packages:
     resolution: {integrity: sha512-rwxCS6vTh2DJkNIYQX7JSrrRSmm76e2y48aZeuZO5ShkvLWMuJ3/zqDHRxAQVDiJhuE2Cp8NrTmPYlUc9YrT0A==}
     peerDependencies:
       '@tiptap/core': 3.28.0
-
-  '@tiptap/extensions@3.26.1':
-    resolution: {integrity: sha512-PmRaoe6bebTgz/ZQrjmzwZMST1d9js9ZTiKnUXeXl3Fm+V5U/c3TbbKDfqmL63qPQdjtShDMHi9tYuv+c77OFQ==}
-    peerDependencies:
-      '@tiptap/core': 3.26.1
-      '@tiptap/pm': 3.26.1
 
   '@tiptap/extensions@3.28.0':
     resolution: {integrity: sha512-DJT1khCK+O/pT1gQlAnoKAx6zwDkgv7GtnhSfkqm1/4KHC3x+SSJnBIgBl9oGHymA+DxWbW1EULU4V3d/kT2uQ==}
@@ -17831,6 +17814,11 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
+  lib0@1.0.0-rc.22:
+    resolution: {integrity: sha512-KNefJloRQIsWncTF2tIcRqQXSQ7bDRYHwVSUhf1lY2P65Rej4WWFnen6L8L+odJQIo1ZNJGVVjK2WzqB9a+B/g==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   lie@3.1.1:
     resolution: {integrity: sha512-RiNhHysUjhrDQntfYSfY4MU24coXXdEOgw9WGcKHNeEwffDYbF//u87M1EWaMGzuFoSbqW0C9C6lEEhDOAswfw==}
 
@@ -21061,12 +21049,6 @@ packages:
         optional: true
       '@types/react':
         optional: true
-
-  react-number-format@5.4.5:
-    resolution: {integrity: sha512-y8O2yHHj3w0aE9XO8d2BCcUOOdQTRSVq+WIuMlLVucAm5XNjJAy+BoOJiuQMldVYVOKTMyvVNfnbl2Oqp+YxGw==}
-    peerDependencies:
-      react: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react-reconciler@0.33.0:
     resolution: {integrity: sha512-KetWRytFv1epdpJc3J4G75I4WrplZE5jOL7Yq0p34+OVOKF4Se7WrdIdVC45XsSSmUTlht2FM/fM1FZb1mfQeA==}
@@ -26131,7 +26113,7 @@ snapshots:
 
   '@better-fetch/fetch@1.3.1': {}
 
-  '@blocknote/core@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)':
+  '@blocknote/core@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
       '@emoji-mart/data': 1.2.1
       '@handlewithcare/prosemirror-inputrules': 0.1.4(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)
@@ -26140,23 +26122,22 @@ snapshots:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       '@tiptap/extension-bold': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
       '@tiptap/extension-code': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-horizontal-rule': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
       '@tiptap/extension-italic': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extension-paragraph': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
       '@tiptap/extension-strike': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
       '@tiptap/extension-text': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
       '@tiptap/extension-underline': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))
-      '@tiptap/extensions': 3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
+      '@tiptap/extensions': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
       '@tiptap/pm': 3.28.0
       emoji-mart: 5.6.0
       fast-deep-equal: 3.1.3
-      lib0: 0.2.117
+      lib0: 1.0.0-rc.22
       prosemirror-highlight: 0.15.3(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@shikijs/types@4.3.1)(@types/hast@3.0.5)(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.1)
       prosemirror-model: 1.25.11
       prosemirror-state: 1.4.4
       prosemirror-tables: 1.8.5
       prosemirror-transform: 1.12.0
       prosemirror-view: 1.42.1
+    optionalDependencies:
       y-prosemirror: 1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       y-protocols: 1.0.7(yjs@13.6.31)
       yjs: 13.6.31
@@ -26169,66 +26150,22 @@ snapshots:
       - refractor
       - sugar-high
 
-  '@blocknote/mantine@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.7))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@mantine/hooks@8.3.18(react@19.2.7))(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@blocknote/react@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@mantine/core': 8.3.18(@mantine/hooks@8.3.18(react@19.2.7))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@mantine/hooks': 8.3.18(react@19.2.7)
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-      react-icons: 5.7.0(react@19.2.7)
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-      - '@lezer/common'
-      - '@lezer/highlight'
-      - '@types/hast'
-      - '@types/react'
-      - '@types/react-dom'
-      - highlight.js
-      - lowlight
-      - refractor
-      - sugar-high
-
-  '@blocknote/mantine@0.51.4(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@mantine/hooks@8.3.18(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
-    dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@mantine/core': 8.3.18(@mantine/hooks@8.3.18(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@mantine/hooks': 8.3.18(react@19.2.6)
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-      react-icons: 5.7.0(react@19.2.6)
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-      - '@lezer/common'
-      - '@lezer/highlight'
-      - '@types/hast'
-      - '@types/react'
-      - '@types/react-dom'
-      - highlight.js
-      - lowlight
-      - refractor
-      - sugar-high
-
-  '@blocknote/react@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@emoji-mart/data': 1.2.1
       '@floating-ui/react': 0.27.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@floating-ui/utils': 0.2.12
       '@tanstack/react-store': 0.7.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       '@tiptap/pm': 3.28.0
-      '@tiptap/react': 3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@types/use-sync-external-store': 1.5.0
+      '@tiptap/react': 3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       emoji-mart: 5.6.0
       fast-deep-equal: 3.1.3
-      lodash.merge: 4.6.2
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
-      react-icons: 5.7.0(react@19.2.7)
       use-sync-external-store: 1.6.0(react@19.2.7)
+    optionalDependencies:
+      '@types/use-sync-external-store': 1.5.0
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
@@ -26236,29 +26173,33 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/react@0.51.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@blocknote/react@0.52.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@emoji-mart/data': 1.2.1
       '@floating-ui/react': 0.27.20(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@floating-ui/utils': 0.2.12
       '@tanstack/react-store': 0.7.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       '@tiptap/pm': 3.28.0
-      '@tiptap/react': 3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@types/use-sync-external-store': 1.5.0
+      '@tiptap/react': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       emoji-mart: 5.6.0
       fast-deep-equal: 3.1.3
-      lodash.merge: 4.6.2
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      react-icons: 5.7.0(react@19.2.6)
       use-sync-external-store: 1.6.0(react@19.2.6)
+    optionalDependencies:
+      '@types/use-sync-external-store': 1.5.0
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
@@ -26266,29 +26207,33 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/react@0.51.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@blocknote/react@0.52.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@emoji-mart/data': 1.2.1
       '@floating-ui/react': 0.27.20(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@floating-ui/utils': 0.2.12
       '@tanstack/react-store': 0.7.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       '@tiptap/pm': 3.28.0
-      '@tiptap/react': 3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@types/use-sync-external-store': 1.5.0
+      '@tiptap/react': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       emoji-mart: 5.6.0
       fast-deep-equal: 3.1.3
-      lodash.merge: 4.6.2
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      react-icons: 5.7.0(react@19.2.8)
       use-sync-external-store: 1.6.0(react@19.2.8)
+    optionalDependencies:
+      '@types/use-sync-external-store': 1.5.0
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
@@ -26296,25 +26241,30 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/shadcn@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(postcss@8.5.18)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)':
+  '@blocknote/shadcn@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-avatar': 1.2.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-dropdown-menu': 2.1.20(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-label': 2.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-popover': 1.1.19(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-select': 2.3.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-slot': 1.3.0(@types/react@19.2.14)(react@19.2.7)
-      '@radix-ui/react-tabs': 1.1.17(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-toggle': 1.1.14(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-tooltip': 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      autoprefixer: 10.5.2(postcss@8.5.18)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/react': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@radix-ui/react-avatar': 1.2.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-dropdown-menu': 2.1.22(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-label': 2.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-popover': 1.1.21(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-select': 2.3.5(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-slot': 1.3.1(@types/react@19.2.14)(react@19.2.7)
+      '@radix-ui/react-tabs': 1.1.19(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-toggle': 1.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-tooltip': 1.2.14(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       lucide-react: 0.525.0(react@19.2.7)
@@ -26330,22 +26280,26 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
-      - postcss
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-ai@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.7))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@mantine/hooks@8.3.18(react@19.2.7))(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@4.4.3)':
+  '@blocknote/xl-ai@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.38(zod@4.4.3)
       '@ai-sdk/react': 3.0.226(react@19.2.7)(zod@4.4.3)
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/mantine': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.7))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@mantine/hooks@8.3.18(react@19.2.7))(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@blocknote/react': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/react': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@floating-ui/react': 0.27.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.1)
-      '@tiptap/core': 3.26.1(@tiptap/pm@3.28.0)
+      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       ai: 6.0.224(zod@4.4.3)
       lodash.isequal: 4.5.0
       lodash.merge: 4.6.2
@@ -26357,36 +26311,35 @@ snapshots:
       prosemirror-view: 1.42.1
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
-      react-icons: 5.7.0(react@19.2.7)
-      y-prosemirror: 1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
       - '@lezer/highlight'
-      - '@mantine/core'
-      - '@mantine/hooks'
       - '@tiptap/pm'
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
       - y-protocols
       - yjs
       - zod
 
-  '@blocknote/xl-ai@0.51.4(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@mantine/hooks@8.3.18(react@19.2.6))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@3.25.76)':
+  '@blocknote/xl-ai@0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.38(zod@3.25.76)
       '@ai-sdk/react': 3.0.226(react@19.2.6)(zod@3.25.76)
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/mantine': 0.51.4(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@mantine/hooks@8.3.18(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@blocknote/react': 0.51.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/react': 0.52.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@floating-ui/react': 0.27.20(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@handlewithcare/prosemirror-suggest-changes': 0.1.8(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.0)(prosemirror-view@1.42.1)
-      '@tiptap/core': 3.26.1(@tiptap/pm@3.28.0)
+      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       ai: 6.0.224(zod@3.25.76)
       lodash.isequal: 4.5.0
       lodash.merge: 4.6.2
@@ -26398,30 +26351,30 @@ snapshots:
       prosemirror-view: 1.42.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      react-icons: 5.7.0(react@19.2.6)
-      y-prosemirror: 1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
       - '@lezer/highlight'
-      - '@mantine/core'
-      - '@mantine/hooks'
       - '@tiptap/pm'
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
       - y-protocols
       - yjs
       - zod
 
-  '@blocknote/xl-docx-exporter@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@blocknote/xl-docx-exporter@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/xl-multi-column': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/xl-multi-column': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       buffer: 6.0.3
       docx: 9.7.1
       image-meta: 0.2.2
@@ -26435,24 +26388,27 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-multi-column@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@blocknote/xl-multi-column@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/react': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       prosemirror-model: 1.25.11
       prosemirror-state: 1.4.4
-      prosemirror-tables: 1.8.5
-      prosemirror-transform: 1.12.0
       prosemirror-view: 1.42.1
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
-      react-icons: 5.7.0(react@19.2.7)
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
@@ -26461,24 +26417,27 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-multi-column@0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@blocknote/xl-multi-column@0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/react': 0.52.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
       prosemirror-model: 1.25.11
       prosemirror-state: 1.4.4
-      prosemirror-tables: 1.8.5
-      prosemirror-transform: 1.12.0
       prosemirror-view: 1.42.1
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      react-icons: 5.7.0(react@19.2.8)
     transitivePeerDependencies:
       - '@floating-ui/dom'
       - '@lezer/common'
@@ -26487,17 +26446,22 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-odt-exporter@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@blocknote/xl-odt-exporter@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/xl-multi-column': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/xl-multi-column': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@zip.js/zip.js': 2.8.26
-      buffer: 6.0.3
       image-meta: 0.2.2
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
@@ -26509,17 +26473,22 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-odt-exporter@0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@blocknote/xl-odt-exporter@0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/xl-multi-column': 0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/xl-multi-column': 0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@zip.js/zip.js': 2.8.26
-      buffer: 6.0.3
       image-meta: 0.2.2
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
@@ -26531,19 +26500,22 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-pdf-exporter@0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@blocknote/xl-pdf-exporter@0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@blocknote/xl-multi-column': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/xl-multi-column': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@tiptap/pm@3.28.0)(@types/hast@3.0.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@react-pdf/renderer': 4.5.1(react@19.2.7)
-      buffer: 6.0.3
-      docx: 9.7.1
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
     transitivePeerDependencies:
@@ -26554,19 +26526,22 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
-  '@blocknote/xl-pdf-exporter@0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@blocknote/xl-pdf-exporter@0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@blocknote/core': 0.51.4(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)
-      '@blocknote/react': 0.51.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@blocknote/xl-multi-column': 0.51.4(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@blocknote/core': 0.52.1(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@types/hast@3.0.5)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@blocknote/xl-multi-column': 0.52.1(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(y-prosemirror@1.3.7(prosemirror-model@1.25.11)(prosemirror-state@1.4.4)(prosemirror-view@1.42.1)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@react-pdf/renderer': 4.5.1(react@19.2.8)
-      buffer: 6.0.3
-      docx: 9.7.1
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     transitivePeerDependencies:
@@ -26577,10 +26552,16 @@ snapshots:
       - '@types/hast'
       - '@types/react'
       - '@types/react-dom'
+      - '@y/prosemirror'
+      - '@y/protocols'
+      - '@y/y'
       - highlight.js
       - lowlight
       - refractor
       - sugar-high
+      - y-prosemirror
+      - y-protocols
+      - yjs
 
   '@borewit/text-codec@0.2.2': {}
 
@@ -30217,42 +30198,6 @@ snapshots:
     optional: true
 
   '@lifeomic/attempt@3.1.0': {}
-
-  '@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
-    dependencies:
-      '@floating-ui/react': 0.27.20(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@mantine/hooks': 8.3.18(react@19.2.6)
-      clsx: 2.1.1
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-      react-number-format: 5.4.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      react-remove-scroll: 2.7.2(@types/react@19.2.14)(react@19.2.6)
-      react-textarea-autosize: 8.5.9(@types/react@19.2.14)(react@19.2.6)
-      type-fest: 4.41.0
-    transitivePeerDependencies:
-      - '@types/react'
-
-  '@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.7))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@floating-ui/react': 0.27.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@mantine/hooks': 8.3.18(react@19.2.7)
-      clsx: 2.1.1
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-      react-number-format: 5.4.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      react-remove-scroll: 2.7.2(@types/react@19.2.14)(react@19.2.7)
-      react-textarea-autosize: 8.5.9(@types/react@19.2.14)(react@19.2.7)
-      type-fest: 4.41.0
-    transitivePeerDependencies:
-      - '@types/react'
-
-  '@mantine/hooks@8.3.18(react@19.2.6)':
-    dependencies:
-      react: 19.2.6
-
-  '@mantine/hooks@8.3.18(react@19.2.7)':
-    dependencies:
-      react: 19.2.7
 
   '@mdx-js/mdx@3.1.1':
     dependencies:
@@ -37208,10 +37153,6 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.1
 
-  '@tiptap/core@3.26.1(@tiptap/pm@3.28.0)':
-    dependencies:
-      '@tiptap/pm': 3.28.0
-
   '@tiptap/core@3.28.0(@tiptap/pm@3.28.0)':
     dependencies:
       '@tiptap/pm': 3.28.0
@@ -37219,13 +37160,6 @@ snapshots:
   '@tiptap/extension-bold@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))':
     dependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-
-  '@tiptap/extension-bubble-menu@3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)':
-    dependencies:
-      '@floating-ui/dom': 1.8.0
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
-    optional: true
 
   '@tiptap/extension-bubble-menu@3.27.3(@tiptap/pm@3.26.1)':
     dependencies:
@@ -37260,12 +37194,6 @@ snapshots:
       '@tiptap/pm': 3.26.1
     optional: true
 
-  '@tiptap/extension-floating-menu@3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)':
-    dependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
-    optional: true
-
   '@tiptap/extension-floating-menu@3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)':
     dependencies:
       '@floating-ui/dom': 1.8.0
@@ -37280,11 +37208,6 @@ snapshots:
   '@tiptap/extension-heading@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))':
     dependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-
-  '@tiptap/extension-horizontal-rule@3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)':
-    dependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
 
   '@tiptap/extension-italic@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))':
     dependencies:
@@ -37310,11 +37233,6 @@ snapshots:
   '@tiptap/extension-underline@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))':
     dependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-
-  '@tiptap/extensions@3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)':
-    dependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
 
   '@tiptap/extensions@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)':
     dependencies:
@@ -37369,57 +37287,6 @@ snapshots:
     transitivePeerDependencies:
       - '@floating-ui/dom'
 
-  '@tiptap/react@3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
-    dependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
-      '@types/react': 19.2.14
-      '@types/react-dom': 19.2.3(@types/react@19.2.14)
-      '@types/use-sync-external-store': 0.0.6
-      fast-equals: 5.4.1
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-      use-sync-external-store: 1.6.0(react@19.2.6)
-    optionalDependencies:
-      '@tiptap/extension-bubble-menu': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/extension-floating-menu': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-
-  '@tiptap/react@3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
-      '@types/react': 19.2.14
-      '@types/react-dom': 19.2.3(@types/react@19.2.14)
-      '@types/use-sync-external-store': 0.0.6
-      fast-equals: 5.4.1
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-      use-sync-external-store: 1.6.0(react@19.2.7)
-    optionalDependencies:
-      '@tiptap/extension-bubble-menu': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/extension-floating-menu': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-
-  '@tiptap/react@3.26.1(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
-      '@tiptap/pm': 3.28.0
-      '@types/react': 19.2.14
-      '@types/react-dom': 19.2.3(@types/react@19.2.14)
-      '@types/use-sync-external-store': 0.0.6
-      fast-equals: 5.4.1
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      use-sync-external-store: 1.6.0(react@19.2.8)
-    optionalDependencies:
-      '@tiptap/extension-bubble-menu': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-      '@tiptap/extension-floating-menu': 3.27.3(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
-    transitivePeerDependencies:
-      - '@floating-ui/dom'
-
   '@tiptap/react@3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
@@ -37431,6 +37298,40 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
       use-sync-external-store: 1.6.0(react@19.2.7)
+    optionalDependencies:
+      '@tiptap/extension-bubble-menu': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
+      '@tiptap/extension-floating-menu': 3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
+    transitivePeerDependencies:
+      - '@floating-ui/dom'
+
+  '@tiptap/react@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
+      '@tiptap/pm': 3.28.0
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+      '@types/use-sync-external-store': 0.0.6
+      fast-equals: 5.4.1
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      use-sync-external-store: 1.6.0(react@19.2.6)
+    optionalDependencies:
+      '@tiptap/extension-bubble-menu': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
+      '@tiptap/extension-floating-menu': 3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
+    transitivePeerDependencies:
+      - '@floating-ui/dom'
+
+  '@tiptap/react@3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@tiptap/core': 3.28.0(@tiptap/pm@3.28.0)
+      '@tiptap/pm': 3.28.0
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+      '@types/use-sync-external-store': 0.0.6
+      fast-equals: 5.4.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      use-sync-external-store: 1.6.0(react@19.2.8)
     optionalDependencies:
       '@tiptap/extension-bubble-menu': 3.28.0(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
       '@tiptap/extension-floating-menu': 3.28.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.28.0(@tiptap/pm@3.28.0))(@tiptap/pm@3.28.0)
@@ -38016,7 +37917,8 @@ snapshots:
 
   '@types/use-sync-external-store@0.0.6': {}
 
-  '@types/use-sync-external-store@1.5.0': {}
+  '@types/use-sync-external-store@1.5.0':
+    optional: true
 
   '@types/webidl-conversions@7.0.3': {}
 
@@ -40673,7 +40575,7 @@ snapshots:
       cosmiconfig: 7.1.0
       eslint: 8.57.1
       eslint-config-prettier: 8.10.2(eslint@8.57.1)
-      eslint-import-resolver-typescript: 4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@6.0.3))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-import-resolver-typescript: 4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(eslint-plugin-import@2.32.0)(eslint@8.57.1)
       eslint-plugin-import: 2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-typescript@4.4.5)(eslint@8.57.1)
       eslint-plugin-jest: 27.9.0(@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@6.0.3))(eslint@8.57.1)(typescript@6.0.3))(eslint@8.57.1)(jest@29.7.0(@types/node@25.9.5)(babel-plugin-macros@3.1.0))(typescript@6.0.3)
       eslint-plugin-jsdoc: 46.10.1(eslint@8.57.1)
@@ -44188,7 +44090,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@6.0.3))(eslint@8.57.1))(eslint@8.57.1):
+  eslint-import-resolver-typescript@4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(eslint-plugin-import@2.32.0)(eslint@8.57.1):
     dependencies:
       debug: 4.4.3
       eslint: 8.57.1
@@ -44211,7 +44113,7 @@ snapshots:
       '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@6.0.3)
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@6.0.3))(eslint@8.57.1))(eslint@8.57.1)
+      eslint-import-resolver-typescript: 4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(eslint-plugin-import@2.32.0)(eslint@8.57.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -47736,6 +47638,8 @@ snapshots:
   lib0@0.2.117:
     dependencies:
       isomorphic.js: 0.2.5
+
+  lib0@1.0.0-rc.22: {}
 
   lie@3.1.1:
     dependencies:
@@ -52120,16 +52024,6 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  react-number-format@5.4.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-
-  react-number-format@5.4.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
-    dependencies:
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-
   react-reconciler@0.33.0(react@19.2.7):
     dependencies:
       react: 19.2.7
@@ -52163,14 +52057,6 @@ snapshots:
     dependencies:
       react: 19.2.3
       react-style-singleton: 2.2.3(@types/react@19.2.14)(react@19.2.3)
-      tslib: 2.8.1
-    optionalDependencies:
-      '@types/react': 19.2.14
-
-  react-remove-scroll-bar@2.3.8(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      react-style-singleton: 2.2.3(@types/react@19.2.14)(react@19.2.6)
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
@@ -52210,17 +52096,6 @@ snapshots:
       tslib: 2.8.1
       use-callback-ref: 1.3.3(@types/react@19.2.14)(react@19.2.3)
       use-sidecar: 1.1.3(@types/react@19.2.14)(react@19.2.3)
-    optionalDependencies:
-      '@types/react': 19.2.14
-
-  react-remove-scroll@2.7.2(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      react-remove-scroll-bar: 2.3.8(@types/react@19.2.14)(react@19.2.6)
-      react-style-singleton: 2.2.3(@types/react@19.2.14)(react@19.2.6)
-      tslib: 2.8.1
-      use-callback-ref: 1.3.3(@types/react@19.2.14)(react@19.2.6)
-      use-sidecar: 1.1.3(@types/react@19.2.14)(react@19.2.6)
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -52337,14 +52212,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  react-style-singleton@2.2.3(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      get-nonce: 1.0.1
-      react: 19.2.6
-      tslib: 2.8.1
-    optionalDependencies:
-      '@types/react': 19.2.14
-
   react-style-singleton@2.2.3(@types/react@19.2.14)(react@19.2.7):
     dependencies:
       get-nonce: 1.0.1
@@ -52360,15 +52227,6 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
-
-  react-textarea-autosize@8.5.9(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      '@babel/runtime': 7.29.7
-      react: 19.2.6
-      use-composed-ref: 1.4.0(@types/react@19.2.14)(react@19.2.6)
-      use-latest: 1.3.0(@types/react@19.2.14)(react@19.2.6)
-    transitivePeerDependencies:
-      - '@types/react'
 
   react-textarea-autosize@8.5.9(@types/react@19.2.14)(react@19.2.7):
     dependencies:
@@ -54964,13 +54822,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  use-callback-ref@1.3.3(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      tslib: 2.8.1
-    optionalDependencies:
-      '@types/react': 19.2.14
-
   use-callback-ref@1.3.3(@types/react@19.2.14)(react@19.2.7):
     dependencies:
       react: 19.2.7
@@ -54982,12 +54833,6 @@ snapshots:
     dependencies:
       react: 19.2.8
       tslib: 2.8.1
-    optionalDependencies:
-      '@types/react': 19.2.14
-
-  use-composed-ref@1.4.0(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      react: 19.2.6
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -55025,12 +54870,6 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  use-isomorphic-layout-effect@1.2.1(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-    optionalDependencies:
-      '@types/react': 19.2.14
-
   use-isomorphic-layout-effect@1.2.1(@types/react@19.2.14)(react@19.2.7):
     dependencies:
       react: 19.2.7
@@ -55046,13 +54885,6 @@ snapshots:
   use-latest-callback@0.2.6(react@19.2.3):
     dependencies:
       react: 19.2.3
-
-  use-latest@1.3.0(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      use-isomorphic-layout-effect: 1.2.1(@types/react@19.2.14)(react@19.2.6)
-    optionalDependencies:
-      '@types/react': 19.2.14
 
   use-latest@1.3.0(@types/react@19.2.14)(react@19.2.7):
     dependencies:
@@ -55084,14 +54916,6 @@ snapshots:
     dependencies:
       detect-node-es: 1.1.0
       react: 19.2.3
-      tslib: 2.8.1
-    optionalDependencies:
-      '@types/react': 19.2.14
-
-  use-sidecar@1.1.3(@types/react@19.2.14)(react@19.2.6):
-    dependencies:
-      detect-node-es: 1.1.0
-      react: 19.2.6
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
