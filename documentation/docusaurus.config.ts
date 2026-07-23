@@ -22,8 +22,8 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'netzbegruenung', // GitHub org.
+  projectName: 'Gruenerator', // Monorepo hosting documentation/.
 
   onBrokenLinks: 'throw',
   markdown: {
@@ -61,10 +61,8 @@ const config: Config = {
           // intern: dev-only LV-Korpus analysis pages, internal.
           // monitor: Themen-Monitor not online yet.
           exclude: ['intern/**', 'monitor/**'],
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+          // "Edit this page" points at the docs in the monorepo.
+          editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',
         },
         blog: false,
         theme: {
@@ -252,7 +250,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/Movm/Gruenerator-Dokumentation',
+              href: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation',
             },
           ],
         },

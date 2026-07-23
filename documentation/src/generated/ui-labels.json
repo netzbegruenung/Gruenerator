@@ -1,0 +1,242 @@
+{
+  "catalog.boards": {
+    "title": "Boards",
+    "subtitle": "Planen & organisieren",
+    "path": "/boards"
+  },
+  "catalog.docs": {
+    "title": "Dokumente",
+    "subtitle": "Texte schreiben",
+    "path": "/docs"
+  },
+  "catalog.office": {
+    "title": "Office",
+    "subtitle": "Dokumente, Boards, Tabellen & Slides",
+    "path": "/office"
+  },
+  "catalog.presentations": {
+    "title": "Präsentationen",
+    "subtitle": "Folien & Vorträge",
+    "path": "/presentations"
+  },
+  "catalog.sheets": {
+    "title": "Tabellen",
+    "subtitle": "Daten & Kalkulationen",
+    "path": "/sheets"
+  },
+  "catalog.tool-agentura": {
+    "title": "Agentura",
+    "subtitle": "KI-Grüneratoren & Skills entdecken",
+    "path": "/agentura"
+  },
+  "catalog.tool-chat": {
+    "title": "Chat",
+    "subtitle": "KI-Assistent",
+    "path": "/chat"
+  },
+  "catalog.tool-gruppen": {
+    "title": "Spaces",
+    "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team",
+    "path": "/gruppen"
+  },
+  "catalog.tool-imagine": {
+    "title": "KI-Bild erstellen",
+    "subtitle": "Bilder mit KI erstellen & bearbeiten",
+    "path": "/bild-editor"
+  },
+  "catalog.tool-notebooks": {
+    "title": "Notebooks",
+    "subtitle": "Wissensmanagement & Recherche",
+    "path": "/notebooks"
+  },
+  "catalog.tool-reel": {
+    "title": "Reel",
+    "subtitle": "Social-Clips untertiteln",
+    "path": "/studio/video"
+  },
+  "catalog.tool-scanner": {
+    "title": "Scanner",
+    "subtitle": "Fotos & Scans in Text umwandeln",
+    "path": "/scanner"
+  },
+  "catalog.tool-studio": {
+    "title": "Studio",
+    "subtitle": "Sharepics, KI-Bilder & Videos",
+    "path": "/studio"
+  },
+  "catalog.tool-suche": {
+    "title": "Websuche",
+    "subtitle": "Recherche im Netz",
+    "path": "/suche"
+  },
+  "catalog.tool-transfer": {
+    "title": "Transfer",
+    "subtitle": "Dateien sicher übertragen",
+    "path": "/transfer"
+  },
+  "catalog.tool-transkription": {
+    "title": "Transkription",
+    "subtitle": "Audio mit KI verschriftlichen",
+    "path": "/transkription"
+  },
+  "catalog.tool-vorlagen": {
+    "title": "Vorlagen",
+    "subtitle": "Fertige Design-Vorlagen",
+    "path": "/vorlagen"
+  },
+  "catalog.tool-zeichenzaehler": {
+    "title": "Zeichenzähler",
+    "subtitle": "Zeichen, Wörter & Social-Limits zählen",
+    "path": "/zeichenzaehler"
+  },
+  "lv.bayern": {
+    "title": "Bayern"
+  },
+  "lv.berlin": {
+    "title": "Berlin"
+  },
+  "lv.brandenburg": {
+    "title": "Brandenburg"
+  },
+  "lv.hamburg": {
+    "title": "Hamburg"
+  },
+  "lv.hessen": {
+    "title": "Hessen"
+  },
+  "lv.mecklenburg-vorpommern": {
+    "title": "Mecklenburg-Vorpommern"
+  },
+  "lv.oesterreich": {
+    "title": "Österreich"
+  },
+  "lv.saarland": {
+    "title": "Saarland"
+  },
+  "lv.sachsen-anhalt": {
+    "title": "Sachsen-Anhalt"
+  },
+  "lv.schleswig-holstein": {
+    "title": "Schleswig-Holstein"
+  },
+  "lv.thueringen": {
+    "title": "Thüringen"
+  },
+  "menu.apps": {
+    "title": "Apps & Connect",
+    "subtitle": "Apps für deine Geräte & KI-Chat-Integration",
+    "path": "/apps"
+  },
+  "menu.grueneratoren": {
+    "title": "Grüneratoren",
+    "subtitle": "Deine KI-Grüneratoren",
+    "path": "/agentura"
+  },
+  "menu.sites": {
+    "title": "Sites",
+    "subtitle": "Kandidat*innen-Site-Builder",
+    "path": "/sites"
+  },
+  "menu.startseite": {
+    "title": "Workplace",
+    "subtitle": "Erstellen, Dokumente & Medien",
+    "path": "/"
+  },
+  "menu.support": {
+    "title": "Support",
+    "path": "/support"
+  },
+  "workplace.agents": {
+    "title": "Agentura",
+    "subtitle": "Grüneratoren & Skills",
+    "path": "/agentura"
+  },
+  "workplace.boards": {
+    "title": "Leeres Board",
+    "subtitle": "Leeres Kanban-Board"
+  },
+  "workplace.canvas": {
+    "title": "Studio",
+    "subtitle": "KI-Bilder, Sharepics & Reels",
+    "path": "/studio"
+  },
+  "workplace.canvas-ki": {
+    "title": "KI-Bilder",
+    "subtitle": "Erstellen & bearbeiten",
+    "path": "/bild-editor"
+  },
+  "workplace.canvas-sharepics": {
+    "title": "Sharepics",
+    "subtitle": "Grafiken gestalten",
+    "path": "/studio/templates"
+  },
+  "workplace.canvas-vorlagen": {
+    "title": "Vorlagen",
+    "subtitle": "Design-Vorlagen",
+    "path": "/vorlagen"
+  },
+  "workplace.docs": {
+    "title": "Leeres Dokument",
+    "subtitle": "Leeres Textdokument"
+  },
+  "workplace.mcp": {
+    "title": "MCP",
+    "subtitle": "ChatGPT & Co verbinden",
+    "path": "/apps"
+  },
+  "workplace.newsletter": {
+    "title": "Newsletter",
+    "subtitle": "Updates abonnieren"
+  },
+  "workplace.office": {
+    "title": "Office",
+    "subtitle": "Dokumente, Boards, Tabellen & Slides",
+    "path": "/office"
+  },
+  "workplace.presentations": {
+    "title": "Leere Präsentation",
+    "subtitle": "Leere Foliensammlung"
+  },
+  "workplace.reels-untertitel": {
+    "title": "Reels",
+    "subtitle": "Untertitel für Clips",
+    "path": "/studio/video"
+  },
+  "workplace.scanner": {
+    "title": "Scanner",
+    "subtitle": "Fotos & Scans zu Text",
+    "path": "/scanner"
+  },
+  "workplace.sheets": {
+    "title": "Leere Tabelle",
+    "subtitle": "Leere Kalkulationstabelle"
+  },
+  "workplace.spaces": {
+    "title": "Spaces",
+    "subtitle": "Chats & Inhalte bündeln",
+    "path": "/gruppen"
+  },
+  "workplace.transkription": {
+    "title": "Transkription",
+    "subtitle": "Audio zu Text",
+    "path": "/transkription"
+  },
+  "workplace.vorlagen": {
+    "title": "Vorlagen",
+    "subtitle": "Aus Vorlage starten"
+  },
+  "workplace.weitere": {
+    "title": "Weitere",
+    "subtitle": "Mehr Werkzeuge"
+  },
+  "workplace.wissen": {
+    "title": "Wissen",
+    "subtitle": "Recherche & Notebooks",
+    "path": "/wissen"
+  },
+  "workplace.zeichenzaehler": {
+    "title": "Zeichenzähler",
+    "subtitle": "Wörter zählen",
+    "path": "/zeichenzaehler"
+  }
+}
