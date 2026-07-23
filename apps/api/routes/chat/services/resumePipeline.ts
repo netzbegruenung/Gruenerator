@@ -25,6 +25,7 @@ import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/t
 import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
+import { getContextWindow } from '../agents/providers.js';
 
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
@@ -417,6 +418,8 @@ export async function runChatGraphResume({
     const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
       hasImages: resumeImageAttachments.length > 0,
       intent: finalState.intent,
+      agentId: finalState.agentConfig.identifier,
+      ...(finalState.complexity != null && { complexity: finalState.complexity }),
     });
     if (resolution2.unknownModelId) {
       sse.send('warning', {
@@ -425,7 +428,10 @@ export async function runChatGraphResume({
       });
     }
     const validMessages = requestContext.validMessages;
-    const prunedValidMessages = pruneMessages(validMessages);
+    // Recomputed rather than carried in StoredRequestContext: that struct is
+    // persisted to Redis, so entries written before this change would arrive
+    // without the field for the whole 10-minute TTL window.
+    const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
     const baseMaxTokens = finalState.agentConfig.params.max_tokens;

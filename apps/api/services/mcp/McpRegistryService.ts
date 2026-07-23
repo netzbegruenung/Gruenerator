@@ -49,13 +49,12 @@ const SEEDS: Seed[] = [
   ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
   ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität'],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],
-  // Goodnotes/trivago serve MCP without any auth (verified 2026-07-21).
+  // Goodnotes serves MCP without any auth (verified 2026-07-21).
   ['Goodnotes', 'https://claude-mcp-api.ml.goodnotes.com/mcp', 'none', 'Notizen und handschriftliche Dokumente durchsuchen und verwalten.', 'https://goodnotes.com', 'Produktivität'],
   // Removed (audit 2026-07-21): IFTTT, Booking.com, Expedia — allowlisted
   // clients only (no DCR for our domain, no public app registration); Typeform,
   // Typeform (EU), Zoom, DocuSign — would require users to register their own
   // vendor app (manual Client-ID/Secret), deliberately shelved for now.
-  ['trivago', 'https://mcp.trivago.com/mcp', 'none', 'Hotels vergleichen und Preise finden.', 'https://trivago.com', 'Reisen'],
   ['Yahoo Finance', 'https://gateway.mcpservers.org/yahoo-finance/mcp', 'none', 'Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen.', 'https://finance.yahoo.com', 'Finanzen'],
   ['Jotform', 'https://mcp.jotform.com/mcp-app', 'oauth', 'Formulare erstellen und Antworten auswerten.', 'https://jotform.com', 'Formulare'],
   ['Swat.io', 'https://mcp.swatio.app/mcp', 'oauth', 'Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing).', 'https://swat.io', 'Social Media'],

@@ -16,6 +16,12 @@
  *                        (prints verdicts, touches nothing).
  *   --doc <relpath>      Audit a single doc (relative to documentation/docs/),
  *                        e.g. --doc gruenerieren/ki-chat.md
+ *   --docs <a,b>         Audit an explicit comma-separated list of docs.
+ *   --changed-files <f>  Reverse-map the newline-separated source paths in file <f>
+ *                        (a PR's changed files) to the doc folders they affect, and
+ *                        audit only those. Empty match = successful no-op.
+ *   --pr-comment         Post ONE sticky PR comment (marker-keyed, edited in place)
+ *                        instead of filing issues. Needs GITHUB_REPOSITORY + PR_NUMBER.
  *   --concurrency <n>    Max parallel doc audits (default: 2; each spawns a subprocess)
  *   --model <id>         Override the Claude model (default: claude-sonnet-4-6 or
  *                        DOCS_CHECK_MODEL)
@@ -84,13 +90,16 @@ const ISSUE_TITLE_PREFIX = 'Docs freshness: ';
 interface CliArgs {
   apply: boolean;
   doc?: string;
+  docs?: string[]; // explicit multi-doc list (relative to documentation/docs/)
+  changedFilesPath?: string; // newline-separated changed source paths → reverse-mapped to docs
+  prComment: boolean; // post one sticky PR comment instead of filing issues
   concurrency: number;
   model: string;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const result: CliArgs = { apply: false, concurrency: 2, model: DEFAULT_MODEL };
+  const result: CliArgs = { apply: false, prComment: false, concurrency: 2, model: DEFAULT_MODEL };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -99,6 +108,18 @@ function parseArgs(): CliArgs {
         break;
       case '--doc':
         result.doc = args[++i];
+        break;
+      case '--docs':
+        result.docs = (args[++i] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        break;
+      case '--changed-files':
+        result.changedFilesPath = args[++i];
+        break;
+      case '--pr-comment':
+        result.prComment = true;
         break;
       case '--concurrency':
         result.concurrency = Math.max(1, parseInt(args[++i], 10) || 2);
@@ -157,16 +178,46 @@ function collectMarkdown(dir: string, out: string[]): void {
   }
 }
 
+function docsInFolders(folders: readonly string[]): string[] {
+  const abs: string[] = [];
+  for (const folder of folders) {
+    collectMarkdown(path.join(DOCS_ROOT, folder), abs);
+  }
+  return abs.map((f) => path.relative(DOCS_ROOT, f)).sort();
+}
+
 function discoverDocs(single?: string): string[] {
   if (single) {
     const rel = single.replace(/^documentation\/docs\//, '');
     return [rel];
   }
-  const abs: string[] = [];
-  for (const folder of SCOPE_FOLDERS) {
-    collectMarkdown(path.join(DOCS_ROOT, folder), abs);
+  return docsInFolders(SCOPE_FOLDERS);
+}
+
+// Reverse of AREA_HINTS: given the source files a PR changed, which doc folders
+// could be affected. Coarse (folder-level) on purpose — each folder holds only a
+// few docs, and the AI audit filters false positives downstream. Folders without
+// an AREA_HINTS entry (intro/signal docs) are never triggered by a source change.
+function foldersForChangedFiles(changedFiles: string[]): string[] {
+  const affected = new Set<string>();
+  for (const [folder, dirsCsv] of Object.entries(AREA_HINTS)) {
+    const prefixes = dirsCsv
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean);
+    if (changedFiles.some((f) => prefixes.some((p) => f.startsWith(p)))) {
+      affected.add(folder);
+    }
   }
-  return abs.map((f) => path.relative(DOCS_ROOT, f)).sort();
+  return [...affected];
+}
+
+function docsForChangedFiles(changedFilesPath: string): string[] {
+  const changed = readFileSync(changedFilesPath, 'utf-8')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return docsInFolders(foldersForChangedFiles(changed));
 }
 
 // ── Agent ───────────────────────────────────────────────────────────────────
@@ -455,6 +506,93 @@ function syncIssues(results: DocResult[], today: string): IssueActions {
   return actions;
 }
 
+// ── Sticky PR comment (shift-left mode) ─────────────────────────────────────
+const PR_COMMENT_MARKER = '<!-- docs-freshness-pr -->';
+
+function buildPrCommentBody(results: DocResult[], today: string): string {
+  const stale = results.filter((r) => r.status === 'ok' && !r.upToDate);
+  const lines: string[] = [PR_COMMENT_MARKER, '', '## 📝 Docs-Freshness-Check', ''];
+
+  if (stale.length === 0) {
+    lines.push(
+      `✅ Keine Abweichungen zwischen den betroffenen Doku-Artikeln und dieser Änderung gefunden ` +
+        `(${results.length} Artikel geprüft).`
+    );
+    return lines.join('\n');
+  }
+
+  lines.push(
+    `⚠️ Diese Änderung betrifft **${stale.length}** Doku-Artikel, die evtl. veraltet sind. ` +
+      `Bitte prüfen und ggf. anpassen — dieser Kommentar **blockiert den Merge nicht**.`
+  );
+  lines.push('');
+  for (const r of stale) {
+    lines.push(
+      `<details><summary><code>documentation/docs/${r.docPath}</code> — ` +
+        `${r.findings.length} mögliche Abweichung(en)</summary>`
+    );
+    lines.push('');
+    for (const [i, f] of r.findings.entries()) {
+      lines.push(`**${i + 1}. ${f.claim}** _(${f.severity})_`);
+      lines.push(`- **Doku sagt:** ${f.docQuote}`);
+      lines.push(`- **Code zeigt:** ${f.codeEvidence}`);
+      lines.push(`- **Vorschlag:** ${f.suggestedFix}`);
+      lines.push('');
+    }
+    lines.push('</details>');
+    lines.push('');
+  }
+  lines.push('---');
+  lines.push(
+    `_KI-generiert von \`check-docs-freshness.ts\` am ${today}. Findings sind automatisch erzeugt — ` +
+      `vor dem Übernehmen verifizieren._`
+  );
+  return lines.join('\n');
+}
+
+// Upsert one marker-keyed comment on the PR so re-runs edit in place instead of
+// stacking. Needs GITHUB_REPOSITORY + PR_NUMBER (both set by the workflow).
+function postPrComment(body: string): void {
+  const repo = process.env.GITHUB_REPOSITORY;
+  const pr = process.env.PR_NUMBER;
+  if (!repo || !pr) {
+    console.error('--pr-comment needs GITHUB_REPOSITORY and PR_NUMBER in env.');
+    return;
+  }
+
+  let existingId: string | undefined;
+  try {
+    const ids = gh([
+      'api',
+      `repos/${repo}/issues/${pr}/comments`,
+      '--paginate',
+      '--jq',
+      `.[] | select(.body | contains("${PR_COMMENT_MARKER}")) | .id`,
+    ])
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    existingId = ids[0];
+  } catch (err) {
+    console.warn(`Could not list PR comments: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (existingId) {
+    gh([
+      'api',
+      '--method',
+      'PATCH',
+      `repos/${repo}/issues/comments/${existingId}`,
+      '-f',
+      `body=${body}`,
+    ]);
+    console.log(`Updated sticky PR comment ${existingId}.`);
+  } else {
+    gh(['api', '--method', 'POST', `repos/${repo}/issues/${pr}/comments`, '-f', `body=${body}`]);
+    console.log('Created sticky PR comment.');
+  }
+}
+
 // ── Summary output ──────────────────────────────────────────────────────────
 function writeStepSummary(results: DocResult[], actions: IssueActions | null): void {
   const stepSummary = process.env.GITHUB_STEP_SUMMARY;
@@ -501,16 +639,36 @@ async function main(): Promise<void> {
     );
   }
 
-  if (args.apply && !process.env.GH_TOKEN && !process.env.GITHUB_TOKEN) {
-    console.error('--apply requires GH_TOKEN (or GITHUB_TOKEN) for the gh CLI.');
+  if ((args.apply || args.prComment) && !process.env.GH_TOKEN && !process.env.GITHUB_TOKEN) {
+    console.error('--apply / --pr-comment require GH_TOKEN (or GITHUB_TOKEN) for the gh CLI.');
     process.exit(1);
   }
 
-  const docs = discoverDocs(args.doc);
+  // Doc resolution: explicit list / changed-files reverse map / single / full scope.
+  let docs: string[];
+  if (args.docs?.length) {
+    docs = args.docs.map((d) => d.replace(/^documentation\/docs\//, ''));
+  } else if (args.changedFilesPath) {
+    docs = docsForChangedFiles(args.changedFilesPath);
+  } else {
+    docs = discoverDocs(args.doc);
+  }
+
   if (docs.length === 0) {
+    // In change-triggered mode, "no affected docs" is a normal, successful no-op.
+    if (args.changedFilesPath) {
+      console.log('No documentation folders map to the changed source files — nothing to audit.');
+      return;
+    }
     console.error('No docs in scope.');
     process.exit(1);
   }
+
+  const mode = args.prComment
+    ? 'PR COMMENT (sticky comment, non-blocking)'
+    : args.apply
+      ? 'APPLY (issues will be written)'
+      : 'DRY RUN';
 
   console.log('========================================');
   console.log('  Documentation Freshness Check');
@@ -518,7 +676,7 @@ async function main(): Promise<void> {
   console.log(`Docs:        ${docs.length}`);
   console.log(`Model:       ${args.model}`);
   console.log(`Concurrency: ${args.concurrency}`);
-  console.log(`Mode:        ${args.apply ? 'APPLY (issues will be written)' : 'DRY RUN'}`);
+  console.log(`Mode:        ${mode}`);
   console.log('');
 
   const tasks = docs.map((docPath) => async (): Promise<DocResult> => {
@@ -545,10 +703,15 @@ async function main(): Promise<void> {
   const ok = results.filter((r) => r.status === 'ok' && r.upToDate);
   const errored = results.filter((r) => r.status === 'error');
 
+  const today = new Date().toISOString().slice(0, 10);
+
   let actions: IssueActions | null = null;
-  if (args.apply) {
+  if (args.prComment) {
+    console.log('\nPosting sticky PR comment...');
+    postPrComment(buildPrCommentBody(results, today));
+  } else if (args.apply) {
     console.log('\nSyncing GitHub issues...');
-    actions = syncIssues(results, new Date().toISOString().slice(0, 10));
+    actions = syncIssues(results, today);
     console.log(
       `  created ${actions.created.length} · updated ${actions.updated.length} · closed ${actions.closed.length}`
     );
@@ -561,7 +724,7 @@ async function main(): Promise<void> {
   console.log(`  Up to date: ${ok.length}`);
   console.log(`  Stale:    ${stale.length}`);
   console.log(`  Errored:  ${errored.length}`);
-  if (!args.apply && stale.length > 0) {
+  if (!args.apply && !args.prComment && stale.length > 0) {
     console.log('  (dry run — no issues written; re-run with --apply)');
   }
   console.log('========================================\n');

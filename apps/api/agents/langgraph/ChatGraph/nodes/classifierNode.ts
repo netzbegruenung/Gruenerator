@@ -60,6 +60,7 @@ import {
   detectComplexity,
   detectSearchSources,
   CHAT_HISTORY_KEYWORDS,
+  SYSTEM_MCP_PHRASING,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -108,6 +109,26 @@ const SOCIAL_NOUN_PATTERN =
 // that read as commentary rather than a command.
 const MCP_ACTION_PATTERN =
   /(?<![\p{L}])(erstell\w*|leg\w*|f(?:ü|ue)g\w*|hinzu|aktualisier\w*|(?:ä|ae)nder\w*|l(?:ö|oe)sch\w*|entfern\w*|hol\w*|zeig\w*|list\w*|such\w*|send\w*|schick\w*|abruf\w*|abfrag\w*|(?:ö|oe)ffn\w*|starte?|wie\s+viele?|gib\s+mir)/iu;
+
+// A vague follow-up that CONTINUES the thread's last MCP connector task. The
+// Tier-2.7 mcp branch re-scopes such a turn to that server (an @mention is
+// stripped on send, so "denk dir was aus" / "versuchs nochmal" carry no textual
+// trace). Anaphoric markers, OR bare "das"/"es" ONLY at a clause end (anaphora,
+// e.g. "wo ist das?" — but NOT the article in "erkläre mir das Grundeinkommen").
+const MCP_CONTINUATION_REFERENTIAL =
+  /\b(dazu|davon|damit|daran|dahin|nochmal|noch\s?mal|nochmals|erneut|via\s+mcp|(?:ü|ue)ber\s+mcp|per\s+mcp)\b|\b(?:das|es)\b(?=\s*[?.!,]|\s*$)/iu;
+// A NEW knowledge question / topic switch or a first-person comment — the shape
+// of a message that ISN'T a connector-task instruction, so the imperative-
+// continuation heuristic must NOT re-scope it to the last MCP server.
+const NON_CONTINUATION_START =
+  /^\s*(und\s+)?(was|wer|wie|warum|weshalb|wieso|wo|wann|welche\w*|wieviel\w*|wozu|wof(?:ü|ue)r|erkl(?:ä|ae)r\w*|ich|wir|mir|mich|mein\w*|unser\w*)\b/iu;
+// Pure acknowledgement / greeting — not a task instruction either.
+const MCP_CHITCHAT_ONLY =
+  /^\s*(danke\w*|hallo|hi|hey|servus|moin|ok(?:ay)?|super|top|passt|cool|perfekt|nice|gut|prima|jo|ja|nein|n(?:ö|oe))\b[\s!.]*$/iu;
+// Names of OUR OWN artifacts — a follow-up creating one of these is a different
+// intent, not an MCP continuation, so it must NOT be hijacked to the connector.
+const OWN_ARTIFACT_NOUN =
+  /\b(sharepic|share-pic|bild|bilder|grafik|foto|pr(?:ä|ae)sentation|presentation|folien|slides?|tabelle|spreadsheet|kalkulation|dokument|board|reel|video|newsletter)\b/iu;
 
 /**
  * Returns the id of the single connected server named in the message, or null.
@@ -924,6 +945,40 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           classificationTimeMs: Date.now() - startTime,
         };
       }
+      // "denk dir ein muster aus" / "los, erstellen" / "wo ist das?" after an MCP
+      // turn: without this the vague follow-up went to the LLM which picked
+      // `direct` — the connector was never called (observed live). Re-scope to the
+      // last connector via tc.ref so the explicit-scope mount runs (retry-on-
+      // missing + note + forced first call). Fires on an MCP-action verb, an
+      // anaphoric marker, OR a short IMPERATIVE continuation (a "do it" message
+      // that is NOT a new knowledge question, a first-person comment, or
+      // chitchat). Never hijacks a request to create one of our own artifacts.
+      const mcpWordCount = userContent.trim().split(/\s+/).filter(Boolean).length;
+      const isImperativeContinuation =
+        mcpWordCount <= 12 &&
+        !NON_CONTINUATION_START.test(userContent) &&
+        !MCP_CHITCHAT_ONLY.test(userContent);
+      if (
+        tc.kind === 'mcp' &&
+        tc.ref &&
+        !OWN_ARTIFACT_NOUN.test(userContent) &&
+        (MCP_ACTION_PATTERN.test(userContent) ||
+          MCP_CONTINUATION_REFERENTIAL.test(userContent) ||
+          isImperativeContinuation)
+      ) {
+        log.info('[Classifier] Follow-up via lastToolContext(mcp) → mcp', { scope: tc.ref });
+        return {
+          intent: 'mcp',
+          mcpServerScope: tc.ref,
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'lastToolContext(mcp) + continuation phrasing → re-scope to last connector',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // ── TIER 3: Heuristic pre-check ──
@@ -1020,7 +1075,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
         (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
-      !CHAT_HISTORY_KEYWORDS.test(userContent);
+      !CHAT_HISTORY_KEYWORDS.test(userContent) &&
+      // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
+      // "suche hotels …" before the LLM tier can route it to its system source.
+      // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
+      // trip a keyword — a pasted URL is a scrape job, handled above.
+      !SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
     if (demotable) {
       log.info(
         `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
