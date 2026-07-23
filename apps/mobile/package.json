@@ -32,7 +32,7 @@
     "@expo/dom-webview": "~56.0.5",
     "@expo/metro-runtime": "~57.0.2",
     "@expo/react-native-action-sheet": "^4.1.1",
-    "@expo/ui": "~57.0.2",
+    "@expo/ui": "~57.0.7",
     "@gruenerator/chat": "workspace:*",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/contracts": "workspace:*",
