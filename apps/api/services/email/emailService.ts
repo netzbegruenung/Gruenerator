@@ -11,6 +11,7 @@ import {
   renderDocumentNotificationTemplate,
   renderDocumentShareTemplate,
   renderGenericNotificationTemplate,
+  renderGroupInviteTemplate,
   renderLvSyncNotificationTemplate,
   type BoardNotificationTemplateParams,
   type ContentDeliveryTemplateParams,
@@ -18,6 +19,7 @@ import {
   type DocumentNotificationTemplateParams,
   type DocumentShareTemplateParams,
   type GenericNotificationTemplateParams,
+  type GroupInviteTemplateParams,
   type LvSyncNotificationTemplateParams,
 } from './templates.js';
 
@@ -213,6 +215,33 @@ export async function sendNotificationEmail(params: NotificationEmailParams): Pr
   return sendEmail({
     to: params.recipientEmail,
     subject: params.title,
+    html,
+    text,
+  });
+}
+
+export interface GroupInviteEmailParams {
+  recipientEmail: string;
+  groupName: string;
+  inviterName: string;
+  /** Absolute join link (/join-group/<token>). */
+  joinUrl: string;
+}
+
+export async function sendGroupInviteEmail(params: GroupInviteEmailParams): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  const templateParams: GroupInviteTemplateParams = {
+    groupName: params.groupName,
+    inviterName: params.inviterName,
+    joinUrl: params.joinUrl,
+  };
+
+  const { html, text } = renderGroupInviteTemplate(templateParams);
+
+  return sendEmail({
+    to: params.recipientEmail,
+    subject: `Einladung zur Gruppe „${params.groupName}"`,
     html,
     text,
   });
