@@ -20,6 +20,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { documents } from '../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { parseMetadata } from '../../routes/documents/helpers.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
@@ -529,11 +530,19 @@ export async function importWordpressPosts(
     const keptIds = new Set(
       results.flatMap((r) => [r.documentId, r.oldDocumentId]).filter(Boolean) as string[]
     );
-    for (const known of params.knownDocumentIds) {
-      if (keptIds.has(known)) continue;
+    const stale = params.knownDocumentIds.filter((id) => !keptIds.has(id));
+
+    // A deselected post is always unlinked from the calling notebook, but it may
+    // be the very same document another notebook imported — the importer reuses
+    // documents across notebooks rather than copying them. Deleting outright
+    // would destroy it there too, so only unreferenced documents are erased.
+    const stillReferenced = await new NotebookQdrantHelper().findReferencedDocumentIds(stale);
+
+    for (const known of stale) {
+      removedDocumentIds.push(known);
+      if (stillReferenced.has(known)) continue;
       try {
         await deleteDocumentFully(known, userId);
-        removedDocumentIds.push(known);
       } catch (error) {
         log.warn(`Could not remove stale doc ${known}:`, error);
       }
