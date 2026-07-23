@@ -98,7 +98,7 @@ export async function getSpaceRecallScope(
         : '- (noch keine weiteren Chats)';
     const rosterBlock =
       `## SPACE: ${space.name}\n` +
-      `Dieser Chat liegt im Space „${space.name}". Enthaltene weitere Chats:\n${list}\n` +
+      `Dieser Chat liegt im Projekt „${space.name}". Enthaltene weitere Chats:\n${list}\n` +
       `Du kannst diese gezielt mit dem Tool \`search_threads\` (scope="space") durchsuchen.`;
     return { spaceName: space.name, threadIds, rosterBlock };
   } catch (err) {

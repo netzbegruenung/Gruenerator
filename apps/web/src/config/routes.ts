@@ -46,6 +46,15 @@ const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
 );
 
+// Redirect legacy /gruppen/:idOrSlug → /projekte/:idOrSlug preserving the param.
+const LegacyGruppenIdRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { idOrSlug } = useParams();
+  return createElement(Navigate, { to: `/projekte/${idOrSlug ?? ''}`, replace: true });
+};
+const LegacyGruppenIdRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyGruppenIdRedirectComponent })
+);
+
 // Redirect singular /agent/:slug → canonical plural /agents/:slug
 const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
   const { slug } = useParams();
@@ -323,8 +332,15 @@ const standardRoutes: RouteConfig[] = [
     path: '/skills',
     component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
   },
-  { path: '/gruppen', component: GruppenPage, layoutMode: 'sidebarOnly' },
-  { path: '/gruppen/:idOrSlug', component: GruppenPage },
+  { path: '/projekte', component: GruppenPage, layoutMode: 'sidebarOnly' },
+  { path: '/projekte/:idOrSlug', component: GruppenPage },
+  // Legacy /gruppen* → /projekte* (Spaces/Gruppen renamed to Projekte). Keep
+  // redirects so pinned favourites and shared links still resolve.
+  {
+    path: '/gruppen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/projekte') })),
+  },
+  { path: '/gruppen/:idOrSlug', component: LegacyGruppenIdRedirect },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   // ResearchPage removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
   {

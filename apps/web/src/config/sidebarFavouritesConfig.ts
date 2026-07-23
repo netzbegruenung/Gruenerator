@@ -37,7 +37,7 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
     icon: getIcon('navigation', 'sharepic')!,
   },
   { id: 'wissen', title: 'Wissen', path: '/wissen', icon: getIcon('navigation', 'notebooks')! },
-  { id: 'gruppen', title: 'Spaces', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
+  { id: 'gruppen', title: 'Projekte', path: '/projekte', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
   {
     // Legacy id kept so already-pinned "Wissen" favourites still resolve.

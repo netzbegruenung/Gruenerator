@@ -106,7 +106,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary-600" />
               <DialogPrimitive.Title className="text-lg font-semibold text-foreground">
-                Zu Space hinzufügen
+                Zu Projekt hinzufügen
               </DialogPrimitive.Title>
             </div>
             <DialogPrimitive.Close className="cursor-pointer rounded-md border-none bg-transparent p-1 text-grey-400 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800">
@@ -117,7 +117,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
           <div className="mb-3 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
             {loading && <span className="px-1 text-sm text-grey-400">Wird geladen…</span>}
             {!loading && spaces.length === 0 && (
-              <span className="px-1 text-sm text-grey-400">Noch keine Spaces.</span>
+              <span className="px-1 text-sm text-grey-400">Noch keine Projekte.</span>
             )}
             {spaces.map((s) => (
               <button
@@ -141,7 +141,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void createAndFile();
                 }}
-                placeholder="Neuen Space erstellen…"
+                placeholder="Neues Projekt erstellen…"
                 className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none dark:border-grey-700"
               />
               <button
@@ -159,13 +159,13 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
                 onChange={(e) => setNewIsTeam(e.target.checked)}
                 className="h-3 w-3"
               />
-              Als Gruppen-Space (mit Team)
+              Als Gruppe (mit Team)
             </label>
           </div>
 
           <p className="mt-3 text-xs text-grey-400">
-            Ein Chat hat einen Heim-Space. Über „Teilen" kannst du ihn zusätzlich mit weiteren
-            Spaces teilen.
+            Ein Chat hat ein Heim-Projekt. Über „Teilen" kannst du ihn zusätzlich mit weiteren
+            Projekten teilen.
           </p>
 
           <div className="mt-4 flex justify-between">
@@ -174,7 +174,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
               disabled={saving || !threadId}
               className="rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-grey-100 disabled:opacity-50 dark:hover:bg-grey-800"
             >
-              Aus Space entfernen
+              Aus Projekt entfernen
             </button>
             <button
               onClick={() => onOpenChange(false)}
