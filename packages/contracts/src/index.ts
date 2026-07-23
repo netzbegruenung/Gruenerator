@@ -44,6 +44,8 @@ export {
   notebookContract,
   notebookCollectionsContract,
   wolkePendingContract,
+  notebookWordpressContract,
+  userWebsitesContract,
   notebookSharingContract,
   docsContract,
   documentsContract,
@@ -66,6 +68,7 @@ export {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  userTextFormsContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -79,6 +82,7 @@ export {
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/threads.js';
+export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/recentActivity.js';
@@ -106,6 +110,8 @@ export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
+export * from './schemas/notebookWordpress.js';
+export * from './schemas/userWebsite.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
 export * from './schemas/documents.js';

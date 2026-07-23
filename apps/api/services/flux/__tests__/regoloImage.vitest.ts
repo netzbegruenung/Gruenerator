@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { RegoloImageService } from '../RegoloImageService.js';
 
 const HAS_REGOLO_KEY = !!process.env.REGOLO_API_KEY;
