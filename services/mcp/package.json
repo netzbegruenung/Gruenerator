@@ -32,20 +32,20 @@
     "@gruenerator/query": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@qdrant/js-client-rest": "^1.18.0",
-    "@sentry/node": "^10.65.0",
+    "@sentry/node": "^10.67.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "zod": "^3.25.76"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.5",
-    "eslint": "^9.39.5",
-    "tsx": "^4.23.0",
-    "typescript": "^6.0.3",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "engines": {
