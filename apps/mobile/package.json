@@ -99,7 +99,7 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@types/katex": "^0.16.8",
     "@types/react": "^19.2.14",
-    "eslint": "^9.39.4",
+    "eslint": "^10.7.0",
     "expo-atlas": "^0.4.0",
     "globals": "^17.7.0",
     "typescript": "~6.0.3"
