@@ -22,7 +22,7 @@ const TAB_MAP: Record<string, SettingsTab> = {
 
 // Old profile sub-pages that were never settings — keep their redirects alive.
 const PAGE_REDIRECTS: Record<string, string> = {
-  gruppen: '/gruppen',
+  gruppen: '/projekte',
   grueneratoren: '/agentura',
 };
 
