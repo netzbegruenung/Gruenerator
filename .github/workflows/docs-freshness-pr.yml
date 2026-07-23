@@ -1,0 +1,65 @@
+name: Docs Freshness (PR)
+
+# Shift-left companion to docs-freshness.yml. On PRs that touch UI source, a
+# read-only Claude agent audits ONLY the docs whose feature folder maps to the
+# changed files (reverse of AREA_HINTS in check-docs-freshness.ts) and posts one
+# sticky, marker-keyed PR comment. Non-blocking (continue-on-error) while we
+# calibrate signal; the weekly full-scope issue-filer stays as the safety net.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/**'
+      - 'packages/chat/**'
+      - 'packages/shared/src/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: docs-freshness-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Audit affected docs
+    runs-on: ubuntu-latest
+    # Only a handful of docs per PR; each audit idles waiting on the agent.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # need the base ref to diff changed files
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Compute changed source files
+        run: |
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/changed-files.txt"
+          echo "Changed files:"
+          cat "$RUNNER_TEMP/changed-files.txt"
+
+      - name: Audit affected docs and comment
+        continue-on-error: true # soft launch — never block a merge
+        run: |
+          pnpm --filter @gruenerator/api run docs:check -- \
+            --changed-files "$RUNNER_TEMP/changed-files.txt" \
+            --pr-comment
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DOCS_CHECK_SUMMARY_PATH: ${{ github.workspace }}/docs-freshness-summary.json
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-freshness-pr-summary
+          path: docs-freshness-summary.json
+          if-no-files-found: ignore
