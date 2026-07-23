@@ -1,6 +1,8 @@
 import {
+  wpErrorResponseSchema,
   type WordpressSiteRef,
   type WpDiscoverResponse,
+  type WpErrorCode,
   type WpImportResponse,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -35,8 +37,9 @@ interface DiscoveryState {
   editingSite: WordpressSiteRef | null;
 }
 
-const WP_ERROR_MESSAGES: Record<string, string> = {
+const WP_ERROR_MESSAGES: Record<WpErrorCode, string> = {
   invalid_url: 'Bitte gib eine gültige Website-Adresse ein.',
+  no_scopes: 'Wähle mindestens eine Kategorie aus.',
   not_wordpress:
     'Unter dieser Adresse ist keine WordPress-REST-API erreichbar. Ist es eine WordPress-Website?',
   rest_disabled:
@@ -45,14 +48,16 @@ const WP_ERROR_MESSAGES: Record<string, string> = {
   internal: 'Import fehlgeschlagen. Bitte versuche es später erneut.',
 };
 
+/**
+ * ts-rest types the body of unlisted status codes as `unknown`, so the error
+ * body is parsed with its contract schema rather than cast — the parse is the
+ * assertion, and `code` stays exhaustively typed against WP_ERROR_MESSAGES.
+ */
 function wpErrorMessage(body: unknown): string {
-  if (body && typeof body === 'object') {
-    const code = (body as { code?: string }).code;
-    if (code && WP_ERROR_MESSAGES[code]) return WP_ERROR_MESSAGES[code];
-    const error = (body as { error?: string }).error;
-    if (typeof error === 'string' && error) return error;
-  }
-  return WP_ERROR_MESSAGES.internal;
+  const parsed = wpErrorResponseSchema.safeParse(body);
+  if (!parsed.success) return WP_ERROR_MESSAGES.internal;
+  if (parsed.data.code) return WP_ERROR_MESSAGES[parsed.data.code];
+  return parsed.data.error || WP_ERROR_MESSAGES.internal;
 }
 
 function formatRelative(iso: string | null | undefined): string {
@@ -151,9 +156,9 @@ const NotebookEditorWordpressSection = ({
   /** Apply an import response to parent state and return the site's new documentIds. */
   const applyImportResult = useCallback(
     (body: WpImportResponse, previousDocIds: string[]): string[] => {
-      const importedDocs = body.results
-        .filter((r) => r.documentId)
-        .map((r) => ({ id: r.documentId as string, title: r.title }));
+      const importedDocs = body.results.flatMap((r) =>
+        r.documentId ? [{ id: r.documentId, title: r.title }] : []
+      );
 
       const removedIds = new Set<string>(body.removed_document_ids);
       body.results.forEach((r) => {
@@ -185,7 +190,7 @@ const NotebookEditorWordpressSection = ({
       .filter((c) => selectedCategoryIds.has(c.id))
       .map((c) => ({ id: c.id, name: c.name }));
     if (selectedCategories.length === 0 && !selAllPosts && !selPages) {
-      setError('Wähle mindestens eine Kategorie aus.');
+      setError(WP_ERROR_MESSAGES.no_scopes);
       return;
     }
 

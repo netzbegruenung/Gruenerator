@@ -8,6 +8,13 @@
  */
 import { z } from 'zod';
 
+/**
+ * Upper bound for documents in a single notebook. Enforced by the collections
+ * contract router and used as the import budget for the WordPress source, so
+ * frontend limits and backend validation can never drift apart.
+ */
+export const NOTEBOOK_MAX_DOCUMENTS = 1000;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const publicOwnershipSchema = z.enum(['owner', 'public_data']);
