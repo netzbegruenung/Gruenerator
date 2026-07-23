@@ -2,19 +2,21 @@ import {
   type LinkedDocRef,
   type NotebookEditorSavePayload,
   type WolkeFolderRef,
+  type WordpressSiteRef,
 } from '@gruenerator/contracts';
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { useDocumentsStore } from '../../../../stores/documentsStore';
-
 import { type ImportedLinkedDoc } from '../NotebookEditorDocsSection';
 import { type ImportedWolkeDocument } from '../NotebookEditorWolkeSection';
+import { type ImportedWordpressDocument } from '../NotebookEditorWordpressSection';
 
 import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
   hasFileDrag,
+  type DocumentWithSource,
   type NotebookCollection,
   type NotebookEditorFormData,
   type UploadedDocument,
@@ -50,6 +52,8 @@ export function useNotebookEditorState({
   const [wolkePanelOpen, setWolkePanelOpen] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState<LinkedDocRef[]>([]);
   const [docsPanelOpen, setDocsPanelOpen] = useState(false);
+  const [wordpressSites, setWordpressSites] = useState<WordpressSiteRef[]>([]);
+  const [wordpressPanelOpen, setWordpressPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFileOnly, pollDocumentStatus } = useDocumentsStore();
@@ -70,12 +74,17 @@ export function useNotebookEditorState({
       setLabels(editingCollection.labels || []);
       setWolkeFolders(editingCollection.wolke_folders ?? []);
       setLinkedDocs(editingCollection.linked_docs ?? []);
+      setWordpressSites(editingCollection.wordpress_sites ?? []);
       if (editingCollection.documents?.length) {
         setUploadedDocuments(
           editingCollection.documents.map((doc) => ({
             id: doc.id,
             title: doc.title || 'Dokument',
-            ...(doc.source_type === 'wolke' ? { source: 'wolke' as const } : {}),
+            ...(doc.source_type === 'wolke'
+              ? { source: 'wolke' as const }
+              : doc.source_type === 'wordpress'
+                ? { source: 'wordpress' as const }
+                : {}),
           }))
         );
       }
@@ -85,11 +94,13 @@ export function useNotebookEditorState({
       setLabels([]);
       setWolkeFolders([]);
       setLinkedDocs([]);
+      setWordpressSites([]);
       setUploadedDocuments([]);
       setStagedFiles([]);
       setStep(0);
       setWolkePanelOpen(false);
       setDocsPanelOpen(false);
+      setWordpressPanelOpen(false);
     }
   }, [editingCollection, reset]);
 
@@ -100,6 +111,10 @@ export function useNotebookEditorState({
   useEffect(() => {
     if (wolkeFolders.length > 0) setWolkePanelOpen(true);
   }, [wolkeFolders.length]);
+
+  useEffect(() => {
+    if (wordpressSites.length > 0) setWordpressPanelOpen(true);
+  }, [wordpressSites.length]);
 
   // Stage files for upload (preview-then-commit pattern). Slot check accounts
   // for both already-uploaded docs and other files still in the staging tray.
@@ -131,7 +146,7 @@ export function useNotebookEditorState({
       }
       if (skipped > 0) {
         setUploadError(
-          `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — maximal ${MAX_DOCUMENTS} Dateien pro Notebook.`
+          `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — ein Notebook fasst insgesamt ${MAX_DOCUMENTS} Dokumente über alle Quellen hinweg.`
         );
       }
     },
@@ -233,6 +248,12 @@ export function useNotebookEditorState({
     setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
   }, []);
 
+  const handleRemoveDocuments = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const drop = new Set(ids);
+    setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
+  }, []);
+
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
       if (docs.length === 0) return;
@@ -291,6 +312,35 @@ export function useNotebookEditorState({
     [pollDocumentStatus]
   );
 
+  const handleWordpressDocsImported = useCallback(
+    (docs: ImportedWordpressDocument[]) => {
+      if (docs.length === 0) return;
+      setUploadedDocuments((prev) => {
+        const seen = new Set(prev.map((d) => d.id));
+        const additions: UploadedDocument[] = docs
+          .filter((d) => !seen.has(d.id))
+          .map((d) => ({ id: d.id, title: d.title, source: 'wordpress' as const }));
+        return [...prev, ...additions];
+      });
+      setIndexingDocIds((prev) => {
+        const next = new Set(prev);
+        docs.forEach((d) => next.add(d.id));
+        return next;
+      });
+      docs.forEach((d) => {
+        void pollDocumentStatus(d.id).finally(() => {
+          setIndexingDocIds((prev) => {
+            if (!prev.has(d.id)) return prev;
+            const next = new Set(prev);
+            next.delete(d.id);
+            return next;
+          });
+        });
+      });
+    },
+    [pollDocumentStatus]
+  );
+
   const handleAddLabel = useCallback(() => {
     const trimmed = newLabel.trim();
     if (!trimmed || labels.includes(trimmed) || labels.length >= 10) {
@@ -309,14 +359,52 @@ export function useNotebookEditorState({
     () => uploadedDocuments.filter((d) => d.source === 'wolke'),
     [uploadedDocuments]
   );
+  const wordpressDocuments = useMemo(
+    () => uploadedDocuments.filter((d) => d.source === 'wordpress'),
+    [uploadedDocuments]
+  );
   const linkedDocDocumentIds = useMemo(
     () => new Set(linkedDocs.flatMap((d) => (d.documentId ? [d.documentId] : []))),
     [linkedDocs]
   );
   const manualDocuments = useMemo(
-    () => uploadedDocuments.filter((d) => d.source !== 'wolke' && !linkedDocDocumentIds.has(d.id)),
+    () =>
+      uploadedDocuments.filter(
+        (d) => d.source !== 'wolke' && d.source !== 'wordpress' && !linkedDocDocumentIds.has(d.id)
+      ),
     [uploadedDocuments, linkedDocDocumentIds]
   );
+
+  /**
+   * One list for every document, with its provenance resolved. The unified
+   * document panel filters this instead of rendering a grid per source —
+   * "where did it come from" is a facet, not a separate place to look.
+   */
+  const documentsWithSource = useMemo<DocumentWithSource[]>(
+    () =>
+      uploadedDocuments.map((doc) => ({
+        doc,
+        source:
+          doc.source === 'wolke'
+            ? 'wolke'
+            : doc.source === 'wordpress'
+              ? 'wordpress'
+              : linkedDocDocumentIds.has(doc.id)
+                ? 'docs'
+                : 'upload',
+      })),
+    [uploadedDocuments, linkedDocDocumentIds]
+  );
+
+  /**
+   * The document cap is a single pool shared by every source — uploads, Wolke,
+   * verlinkte Docs and WordPress all draw from it, and staged-but-not-yet-
+   * uploaded files already count. `uploadedDocuments` is the notebook's whole
+   * document list (the per-source lists above are just views of it), so this is
+   * the one place any source may ask how much room is left.
+   */
+  const documentCount = uploadedDocuments.length + stagedFiles.length;
+  const remainingSlots = Math.max(0, MAX_DOCUMENTS - documentCount);
 
   const handleBack = useCallback(() => setStep((s) => Math.max(0, s - 1)), []);
   const handleNext = useCallback(() => setStep((s) => Math.min(TOTAL_STEPS - 1, s + 1)), []);
@@ -338,10 +426,11 @@ export function useNotebookEditorState({
         labels,
         wolkeFolders,
         linkedDocs,
+        wordpressSites,
       };
       await onSave(payload);
     },
-    [onSave, editingCollection, uploadedDocuments, labels, wolkeFolders, linkedDocs]
+    [onSave, editingCollection, uploadedDocuments, labels, wolkeFolders, linkedDocs, wordpressSites]
   );
 
   const handleCancel = useCallback(() => {
@@ -352,6 +441,7 @@ export function useNotebookEditorState({
     setNewLabel('');
     setWolkeFolders([]);
     setLinkedDocs([]);
+    setWordpressSites([]);
     setStep(0);
     if (onCancel) onCancel();
   }, [reset, onCancel]);
@@ -373,11 +463,17 @@ export function useNotebookEditorState({
     wolkePanelOpen,
     linkedDocs,
     docsPanelOpen,
+    wordpressSites,
+    wordpressPanelOpen,
     fileInputRef,
     watchedName,
     watchedDesc,
     wolkeDocuments,
+    wordpressDocuments,
     manualDocuments,
+    documentsWithSource,
+    documentCount,
+    remainingSlots,
     loading,
     canAdvanceFromSources,
     canAdvanceFromDetails,
@@ -387,6 +483,8 @@ export function useNotebookEditorState({
     setWolkePanelOpen,
     setLinkedDocs,
     setDocsPanelOpen,
+    setWordpressSites,
+    setWordpressPanelOpen,
     setValue,
     handleSubmit,
     onSubmit,
@@ -397,9 +495,11 @@ export function useNotebookEditorState({
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleRemoveDocuments,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
+    handleWordpressDocsImported,
     handleDocsImported,
     handleAddLabel,
     handleRemoveLabel,

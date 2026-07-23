@@ -21,6 +21,9 @@ export interface DocumentMetadata {
   vectorCount?: number | undefined;
   fileSize?: number | undefined;
   status?: string | undefined;
+  sourceUrl?: string | null | undefined;
+  /** Extracted plain text, kept so the source never has to be fetched again. */
+  markdownContent?: string | null | undefined;
   additionalMetadata?: Record<string, unknown> | null | undefined;
 }
 
@@ -55,6 +58,8 @@ export interface DocumentUpdateData {
   vectorCount?: number | undefined;
   wolkeEtag?: string | undefined;
   lastSyncedAt?: string | undefined;
+  /** Extracted plain text, kept so the source never has to be fetched again. */
+  markdownContent?: string | null | undefined;
   additionalMetadata?: Record<string, unknown> | undefined;
 }
 
